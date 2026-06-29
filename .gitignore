@@ -1,0 +1,7 @@
+build/
+examples/input/*.stl
+examples/output/
+node_modules/
+dist-viewer/
+viewer-server.pid
+viewer/screenshots/

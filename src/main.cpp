@@ -144,6 +144,7 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   options.verbose = hasFlag(args, "--verbose");
   options.adaptiveScale = hasFlag(args, "--adaptive-scale");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
+  options.protectAllFeatureEdges = hasFlag(args, "--protect-all-feature-edges");
 
   const std::string mode = getArg(args, "--weight-mode", "uniform");
   options.weightMode = lq::parseWeightMode(mode);
@@ -196,6 +197,7 @@ void printUsage() {
       << "  --adaptive-scale                Add small line quadrics then scale Q\n"
       << "  --boundary-weight W             Optional boundary plane quadrics\n"
       << "  --preserve-feature-curves       Protect detected crease/boundary loops\n"
+      << "  --protect-all-feature-edges     Also hard-lock non-circular feature edges\n"
       << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
       << "  --circle-fit-threshold R        Relative fit threshold for circular loops\n"
       << "  --min-feature-loop-vertices N   Stop collapsing a loop below N vertices\n"
@@ -250,8 +252,8 @@ int commandCompare(const Args& args) {
   lq::Mesh original;
   lq::Mesh simplified;
   std::string error;
-  if (!lq::loadStl(positional[0], original, &error)) throw std::runtime_error(error);
-  if (!lq::loadStl(positional[1], simplified, &error)) {
+  if (!lq::loadMesh(positional[0], original, &error)) throw std::runtime_error(error);
+  if (!lq::loadMesh(positional[1], simplified, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -286,7 +288,7 @@ int commandFeatureReport(const Args& args) {
 
   lq::Mesh input;
   std::string error;
-  if (!lq::loadStl(positional[0], input, &error)) {
+  if (!lq::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -335,10 +337,10 @@ int commandFeatureCompare(const Args& args) {
   lq::Mesh original;
   lq::Mesh simplified;
   std::string error;
-  if (!lq::loadStl(positional[0], original, &error)) {
+  if (!lq::loadMesh(positional[0], original, &error)) {
     throw std::runtime_error(error);
   }
-  if (!lq::loadStl(positional[1], simplified, &error)) {
+  if (!lq::loadMesh(positional[1], simplified, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -481,7 +483,7 @@ int commandSimplify(const Args& args) {
 
   lq::Mesh input;
   std::string error;
-  if (!lq::loadStl(positional[0], input, &error)) {
+  if (!lq::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -548,7 +550,7 @@ int commandSweep(const Args& args) {
 
   lq::Mesh input;
   std::string error;
-  if (!lq::loadStl(positional[0], input, &error)) {
+  if (!lq::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -605,7 +607,7 @@ int commandRatioSweep(const Args& args) {
 
   lq::Mesh input;
   std::string error;
-  if (!lq::loadStl(positional[0], input, &error)) {
+  if (!lq::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -666,7 +668,7 @@ int commandFaceSweep(const Args& args) {
 
   lq::Mesh input;
   std::string error;
-  if (!lq::loadStl(positional[0], input, &error)) {
+  if (!lq::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 

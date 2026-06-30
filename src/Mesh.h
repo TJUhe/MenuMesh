@@ -29,6 +29,9 @@ struct Mesh {
 
 bool loadStl(const std::string& path, Mesh& mesh, std::string* error = nullptr,
              double weldRelativeEpsilon = 1e-9);
+bool loadObj(const std::string& path, Mesh& mesh, std::string* error = nullptr);
+bool loadMesh(const std::string& path, Mesh& mesh, std::string* error = nullptr,
+              double weldRelativeEpsilon = 1e-9);
 bool saveAsciiStl(const std::string& path, const Mesh& mesh,
                   const std::string& solidName = "mesh",
                   std::string* error = nullptr);

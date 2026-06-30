@@ -1,5 +1,6 @@
 build/
 examples/input/*.stl
+examples/external/
 examples/output/
 node_modules/
 dist-viewer/

@@ -25,6 +25,7 @@ struct SimplifyOptions {
   double adaptiveBaseLineWeight = 1e-2;
   double boundaryWeight = 0.0;
   bool preserveFeatureCurves = false;
+  bool protectAllFeatureEdges = false;
   double featureCurveWeight = 0.05;
   double circleFitRelativeThreshold = 0.05;
   int minFeatureLoopVertices = 16;

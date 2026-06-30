@@ -104,6 +104,12 @@ Run all validation cases:
 .\run_feature_validation.ps1 -Config Release -Ratio 0.20 -N 96
 ```
 
+Run downloaded external benchmark models:
+
+```powershell
+.\run_external_model_validation.ps1 -Config Release -Ratio 0.25 -Samples 800
+```
+
 ## Validation cases
 
 The branch adds/generated these industrial-style STL cases:
@@ -128,7 +134,7 @@ Using `--ratio 0.20`, `--feature-angle-deg 25`, and
 | stepped shaft | 10 | 8 / 2 | 8 / 2 | Matched rings have near-zero curve error with projection; the two end rings become a non-circular boundary component after simplification, exposing a loop-tracing limitation. |
 | pipe coupling | 8 | 8 / 0 | 8 / 0 | Curve constraints reduce radial and plane errors to numerical noise on all detected rings. |
 | pulley | 7 | 5 / 2 | 7 / 0 | The curve-constrained version keeps the small bore rings that plain line QEM loses. |
-| flange | 18 | 6 / 12 | 8 / 10 | Exact main rings and several bolt-hole rings are preserved, but jagged generated hole boundaries still confuse the loop graph. |
+| flange | 18 | 6 / 12 | 10 / 8 | Exact main rings and several bolt-hole rings are preserved, but jagged generated hole boundaries still confuse the loop graph. |
 
 The most important CSV columns are:
 
@@ -143,6 +149,11 @@ The detector currently treats each connected feature-edge component as one
 loop. That is good for clean rings, but not enough for dense CAD graphs where
 several circular loops are connected by extra boundary or dihedral edges. The
 flange and stepped-shaft end rings show this clearly.
+
+External models also showed that hard-locking every dihedral feature is too
+aggressive on organic/noisy meshes. The default is therefore circular-loop hard
+protection only; use `--protect-all-feature-edges` only when intentionally
+testing non-circular hard-edge preservation.
 
 The next upgrade should be multi-loop tracing inside one connected component:
 

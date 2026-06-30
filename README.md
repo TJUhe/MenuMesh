@@ -270,11 +270,13 @@ parts:
   --min-feature-loop-vertices 16
 ```
 
-It adds `feature-report` and `feature-compare` commands, plus
-`run_feature_validation.ps1` for stepped-shaft, pipe-coupling, pulley, and
-flange-style validation. The detailed explanation, literature anchors, and
-directional error results are in
+It adds `feature-report` and `feature-compare` commands,
+`run_feature_validation.ps1` for generated industrial cases, and
+`run_external_model_validation.ps1` for downloaded OBJ benchmark models. The
+detailed explanation, literature anchors, and directional error results are in
 [`docs/feature_curve_experiment.md`](E:/code/codex/line-quadrics-qem/docs/feature_curve_experiment.md).
+External-model findings are recorded in
+[`docs/external_model_validation.md`](E:/code/codex/line-quadrics-qem/docs/external_model_validation.md).
 
 ## 可选外部几何来源
 

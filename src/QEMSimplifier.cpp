@@ -418,6 +418,11 @@ bool featureCollapseAllowed(int keep, int remove,
   if (!a.isFeature && !b.isFeature) {
     return true;
   }
+  const bool needsHardProtection =
+      options.protectAllFeatureEdges || a.circularFeature || b.circularFeature;
+  if (!needsHardProtection) {
+    return true;
+  }
   if (a.isFeature != b.isFeature) {
     return false;
   }

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -279,6 +280,100 @@ bool loadStl(const std::string& path, Mesh& mesh, std::string* error,
   weldTriangles(triangles, mesh, weldRelativeEpsilon);
   mesh.removeUnusedVertices();
   return !mesh.empty();
+}
+
+int parseObjVertexIndex(const std::string& token, int vertexCount) {
+  const std::size_t slash = token.find('/');
+  const std::string indexText =
+      slash == std::string::npos ? token : token.substr(0, slash);
+  if (indexText.empty()) {
+    return -1;
+  }
+  const int raw = std::stoi(indexText);
+  if (raw > 0) {
+    return raw - 1;
+  }
+  if (raw < 0) {
+    return vertexCount + raw;
+  }
+  return -1;
+}
+
+bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
+  std::ifstream in(path);
+  if (!in) {
+    if (error) *error = "Failed to open OBJ.";
+    return false;
+  }
+
+  std::vector<Vec3> positions;
+  mesh.vertices.clear();
+  mesh.faces.clear();
+
+  std::string line;
+  while (std::getline(in, line)) {
+    if (line.empty()) {
+      continue;
+    }
+    std::istringstream ss(line);
+    std::string tag;
+    ss >> tag;
+    if (tag == "v") {
+      double x = 0.0;
+      double y = 0.0;
+      double z = 0.0;
+      if (ss >> x >> y >> z) {
+        positions.emplace_back(x, y, z);
+      }
+    } else if (tag == "f") {
+      std::vector<int> ids;
+      std::string token;
+      while (ss >> token) {
+        const int id =
+            parseObjVertexIndex(token, static_cast<int>(positions.size()));
+        if (id < 0 || id >= static_cast<int>(positions.size())) {
+          if (error) *error = "OBJ face references an invalid vertex index.";
+          return false;
+        }
+        ids.push_back(id);
+      }
+      for (int i = 1; i + 1 < static_cast<int>(ids.size()); ++i) {
+        Face face;
+        face.v = {ids[0], ids[i], ids[i + 1]};
+        if (face.v[0] != face.v[1] && face.v[1] != face.v[2] &&
+            face.v[0] != face.v[2]) {
+          mesh.faces.push_back(face);
+        }
+      }
+    }
+  }
+
+  mesh.vertices = std::move(positions);
+  mesh.removeUnusedVertices();
+  if (mesh.empty()) {
+    if (error) *error = "No triangles found in OBJ.";
+    return false;
+  }
+  return true;
+}
+
+bool loadMesh(const std::string& path, Mesh& mesh, std::string* error,
+              double weldRelativeEpsilon) {
+  std::string extension = std::filesystem::path(path).extension().string();
+  for (char& ch : extension) {
+    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  }
+
+  if (extension == ".stl") {
+    return loadStl(path, mesh, error, weldRelativeEpsilon);
+  }
+  if (extension == ".obj") {
+    return loadObj(path, mesh, error);
+  }
+  if (error) {
+    *error = "Unsupported mesh extension. Use .stl or .obj.";
+  }
+  return false;
 }
 
 bool saveAsciiStl(const std::string& path, const Mesh& mesh,

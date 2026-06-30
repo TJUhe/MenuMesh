@@ -1,0 +1,5 @@
+original_circular_loops,simplified_circular_loops,matched,missing
+1,0,0,1
+
+orig_loop,matched_loop,orig_vertices,simplified_vertices,orig_radius,simplified_radius,center_error,radius_error,normal_angle_deg,radial_rms,radial_max,plane_rms,plane_max,status
+9,-1,8,0,0.208358344179,0,0,0,0,0,0,0,0,missing

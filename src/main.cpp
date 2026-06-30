@@ -1,5 +1,5 @@
-#include "Mesh.h"
 #include "FeatureDetection.h"
+#include "Mesh.h"
 #include "MeshGenerators.h"
 #include "Metrics.h"
 #include "QEMSimplifier.h"
@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <initializer_list>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -49,8 +49,7 @@ int getIntArg(const Args& args, const std::string& name, int defaultValue) {
   return value.empty() ? defaultValue : std::stoi(value);
 }
 
-double getDoubleArg(const Args& args, const std::string& name,
-                    double defaultValue) {
+double getDoubleArg(const Args& args, const std::string& name, double defaultValue) {
   const std::string value = getArg(args, name);
   return value.empty() ? defaultValue : std::stod(value);
 }
@@ -126,8 +125,7 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   options.targetRatio = getDoubleArg(args, "--ratio", options.targetRatio);
   options.targetFaces = getIntArg(args, "--target-faces", options.targetFaces);
   options.lineWeight = getDoubleArg(args, "--line-weight", options.lineWeight);
-  options.featureBoost =
-      getDoubleArg(args, "--feature-boost", options.featureBoost);
+  options.featureBoost = getDoubleArg(args, "--feature-boost", options.featureBoost);
   options.featureAngleDeg =
       getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
   options.boundaryWeight =
@@ -135,14 +133,11 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   options.featureCurveWeight =
       getDoubleArg(args, "--feature-curve-weight", options.featureCurveWeight);
   options.circleFitRelativeThreshold =
-      getDoubleArg(args, "--circle-fit-threshold",
-                   options.circleFitRelativeThreshold);
+      getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
   options.minFeatureLoopVertices =
-      getIntArg(args, "--min-feature-loop-vertices",
-                options.minFeatureLoopVertices);
+      getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
   options.adaptiveBaseLineWeight =
-      getDoubleArg(args, "--adaptive-base-line-weight",
-                   options.adaptiveBaseLineWeight);
+      getDoubleArg(args, "--adaptive-base-line-weight", options.adaptiveBaseLineWeight);
   options.verbose = hasFlag(args, "--verbose");
   options.adaptiveScale = hasFlag(args, "--adaptive-scale");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
@@ -168,11 +163,9 @@ lq::FeatureOptions parseFeatureOptions(const Args& args) {
   options.featureAngleDeg =
       getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
   options.circleFitRelativeThreshold =
-      getDoubleArg(args, "--circle-fit-threshold",
-                   options.circleFitRelativeThreshold);
+      getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
   options.minFeatureLoopVertices =
-      getIntArg(args, "--min-feature-loop-vertices",
-                options.minFeatureLoopVertices);
+      getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
   return options;
 }
 
@@ -184,7 +177,8 @@ void printUsage() {
       << "  linequadrics simplify input.stl output.stl [options]\n"
       << "  linequadrics compare original.stl simplified.stl [--samples 3000]\n"
       << "  linequadrics feature-report input.stl [--csv report.csv]\n"
-      << "  linequadrics feature-compare original.stl simplified.stl [--csv report.csv]\n"
+      << "  linequadrics feature-compare original.stl simplified.stl [--csv "
+         "report.csv]\n"
       << "  linequadrics sweep input.stl out_dir [options]\n\n"
       << "  linequadrics ratio-sweep input.stl out_dir [options]\n\n"
       << "  linequadrics face-sweep input.stl out_dir [options]\n\n"
@@ -211,16 +205,14 @@ void printUsage() {
       << "  --samples N                     Distance sample count\n"
       << "  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1\n"
       << "  --faces list                    For face-sweep, e.g. 1000,900,800\n";
-  std::cout
-      << "\nGenerator types:\n"
-      << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
-      << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
-      << "  flange, stepped-shaft, pipe-coupling, pulley\n";
+  std::cout << "\nGenerator types:\n"
+            << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
+            << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
+            << "  flange, stepped-shaft, pipe-coupling, pulley\n";
 }
 
 void printStats(const std::string& label, const lq::MeshStats& stats) {
-  std::cout << label << ": vertices=" << stats.vertices
-            << " faces=" << stats.faces
+  std::cout << label << ": vertices=" << stats.vertices << " faces=" << stats.faces
             << " mean_quality=" << stats.meanTriangleQuality
             << " min_quality=" << stats.minTriangleQuality
             << " edge_cv=" << stats.edgeLengthCv << "\n";
@@ -240,7 +232,9 @@ Args makeArgs(std::initializer_list<std::string> values) {
   return args;
 }
 
-std::string pathString(const fs::path& path) { return path.string(); }
+std::string pathString(const fs::path& path) {
+  return path.string();
+}
 
 std::vector<std::string> splitCsvLine(const std::string& line) {
   std::vector<std::string> out;
@@ -372,8 +366,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
   std::vector<std::map<std::string, std::string>> rows;
 
   if (!fs::exists(outputRoot)) {
-    throw std::runtime_error("Output directory not found: " +
-                             outputRoot.string());
+    throw std::runtime_error("Output directory not found: " + outputRoot.string());
   }
 
   for (const fs::directory_entry& entry :
@@ -426,8 +419,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
     }
     out << "\n";
   }
-  std::cout << "Wrote " << summaryPath << " with " << rows.size()
-            << " rows\n";
+  std::cout << "Wrote " << summaryPath << " with " << rows.size() << " rows\n";
 }
 
 int commandGenerate(const Args& args) {
@@ -509,8 +501,8 @@ int commandFeatureReport(const Args& args) {
             << " boundary_edges=" << analysis.boundaryFeatureEdges
             << " dihedral_edges=" << analysis.dihedralFeatureEdges
             << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
-            << " loops=" << analysis.loops.size()
-            << " circular_loops=" << circularLoops << "\n";
+            << " loops=" << analysis.loops.size() << " circular_loops=" << circularLoops
+            << "\n";
   std::cout << lq::featureReportHeaderCsv() << "\n";
   for (const lq::FeatureLoop& loop : analysis.loops) {
     std::cout << lq::featureLoopRowCsv(loop) << "\n";
@@ -526,9 +518,8 @@ int commandFeatureReport(const Args& args) {
     csv << "feature_edges,boundary_edges,dihedral_edges,non_manifold_edges,"
            "loops,circular_loops\n";
     csv << analysis.featureEdges << "," << analysis.boundaryFeatureEdges << ","
-        << analysis.dihedralFeatureEdges << ","
-        << analysis.nonManifoldFeatureEdges << "," << analysis.loops.size()
-        << "," << circularLoops << "\n\n";
+        << analysis.dihedralFeatureEdges << "," << analysis.nonManifoldFeatureEdges
+        << "," << analysis.loops.size() << "," << circularLoops << "\n\n";
     csv << lq::featureReportHeaderCsv() << "\n";
     for (const lq::FeatureLoop& loop : analysis.loops) {
       csv << lq::featureLoopRowCsv(loop) << "\n";
@@ -594,14 +585,13 @@ int commandFeatureCompare(const Args& args) {
       const lq::FeatureLoop& simpLoop = simplifiedFeatures.loops[simplifiedId];
       const double centerError = (origLoop.center - simpLoop.center).norm();
       const double radiusError = std::abs(origLoop.radius - simpLoop.radius);
-      const double normalDot =
-          std::clamp(std::abs(origLoop.normal.normalized().dot(
-                         simpLoop.normal.normalized())),
-                     0.0, 1.0);
+      const double normalDot = std::clamp(
+          std::abs(origLoop.normal.normalized().dot(simpLoop.normal.normalized())), 0.0,
+          1.0);
       const double normalAngle = std::acos(normalDot);
-      const double score =
-          centerError / diag +
-          radiusError / std::max(1e-12, origLoop.radius) + normalAngle / kPi;
+      const double score = centerError / diag +
+                           radiusError / std::max(1e-12, origLoop.radius) +
+                           normalAngle / kPi;
       if (score < bestScore) {
         bestScore = score;
         bestLoopId = simplifiedId;
@@ -618,23 +608,20 @@ int commandFeatureCompare(const Args& args) {
     bool plausibleMatch = false;
     if (bestLoopId >= 0) {
       const lq::FeatureLoop& simpLoop = simplifiedFeatures.loops[bestLoopId];
-      const double radiusRel =
-          bestRadiusError / std::max(1e-12, origLoop.radius);
+      const double radiusRel = bestRadiusError / std::max(1e-12, origLoop.radius);
       plausibleMatch = bestCenterError <= 0.08 * diag && radiusRel <= 0.20 &&
                        bestNormalAngleDeg <= 30.0;
       if (plausibleMatch) {
         usedSimplified[bestLoopId] = 1;
         directional = lq::measureLoopAgainstCircle(
-            simplified, simpLoop, origLoop.center, origLoop.normal,
-            origLoop.radius);
+            simplified, simpLoop, origLoop.center, origLoop.normal, origLoop.radius);
         simplifiedVertexCount = static_cast<int>(simpLoop.vertices.size());
         simplifiedRadius = simpLoop.radius;
       }
     }
 
     if (plausibleMatch) {
-      const double radiusRel =
-          bestRadiusError / std::max(1e-12, origLoop.radius);
+      const double radiusRel = bestRadiusError / std::max(1e-12, origLoop.radius);
       status = (bestCenterError <= 0.04 * diag && radiusRel <= 0.08 &&
                 bestNormalAngleDeg <= 15.0)
                    ? "matched"
@@ -648,13 +635,12 @@ int commandFeatureCompare(const Args& args) {
       ++missing;
     }
 
-    rows << origLoop.id << "," << bestLoopId << "," << origLoop.vertices.size()
-         << "," << simplifiedVertexCount << "," << origLoop.radius << ","
-         << simplifiedRadius << "," << bestCenterError << ","
-         << bestRadiusError << "," << bestNormalAngleDeg << ","
-         << directional.radialRms << "," << directional.radialMax << ","
-         << directional.planeRms << "," << directional.planeMax << ","
-         << status << "\n";
+    rows << origLoop.id << "," << bestLoopId << "," << origLoop.vertices.size() << ","
+         << simplifiedVertexCount << "," << origLoop.radius << "," << simplifiedRadius
+         << "," << bestCenterError << "," << bestRadiusError << ","
+         << bestNormalAngleDeg << "," << directional.radialRms << ","
+         << directional.radialMax << "," << directional.planeRms << ","
+         << directional.planeMax << "," << status << "\n";
   }
 
   const std::string header =
@@ -674,8 +660,8 @@ int commandFeatureCompare(const Args& args) {
     }
     std::ofstream csv(csvPath);
     csv << "original_circular_loops,simplified_circular_loops,matched,missing\n";
-    csv << originalCircular.size() << "," << simplifiedCircular.size() << ","
-        << matched << "," << missing << "\n\n";
+    csv << originalCircular.size() << "," << simplifiedCircular.size() << "," << matched
+        << "," << missing << "\n\n";
     csv << header << "\n" << rows.str();
   }
   return 0;
@@ -712,16 +698,16 @@ int commandSimplify(const Args& args) {
   printStats("output", outStats);
   std::cout << "collapsed=" << report.collapsedEdges
             << " rejected=" << report.rejectedCollapses
-            << " solver_fallbacks=" << report.solverFallbacks
-            << " line_weight_range=[" << report.minAppliedLineWeight << ", "
-            << report.maxAppliedLineWeight << "]\n";
+            << " solver_fallbacks=" << report.solverFallbacks << " line_weight_range=["
+            << report.minAppliedLineWeight << ", " << report.maxAppliedLineWeight
+            << "]\n";
   if (options.preserveFeatureCurves) {
     std::cout << "feature_loops=" << report.featureLoops
               << " circular_feature_loops=" << report.circularFeatureLoops
               << " feature_vertices=" << report.featureVertices
               << " feature_rejected=" << report.featureRejectedCollapses
-              << " projected_feature_placements="
-              << report.projectedFeaturePlacements << "\n";
+              << " projected_feature_placements=" << report.projectedFeaturePlacements
+              << "\n";
   }
   std::cout << "distance mean original->simplified="
             << distance.meanOriginalToSimplified
@@ -742,10 +728,9 @@ int commandSimplify(const Args& args) {
         << report.collapsedEdges << "," << report.rejectedCollapses << ","
         << report.solverFallbacks << "," << report.featureLoops << ","
         << report.circularFeatureLoops << "," << report.featureVertices << ","
-        << report.featureRejectedCollapses << ","
-        << report.projectedFeaturePlacements << "," << report.minAppliedLineWeight
-        << ","
-        << report.maxAppliedLineWeight << "\n";
+        << report.featureRejectedCollapses << "," << report.projectedFeaturePlacements
+        << "," << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight
+        << "\n";
   }
 
   std::cout << "Wrote " << positional[1] << "\n";
@@ -772,15 +757,15 @@ int commandSweep(const Args& args) {
   lq::SimplifyOptions base = parseSimplifyOptions(args);
 
   std::ofstream csv(outDir / "metrics.csv");
-  csv << "method,line_weight,weight_mode,"
-      << lq::statsHeaderCsv()
+  csv << "method,line_weight,weight_mode," << lq::statsHeaderCsv()
       << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
          "min_line_weight,max_line_weight\n";
 
   for (double weight : weights) {
     lq::SimplifyOptions options = base;
     options.lineWeight = weight;
-    options.useLineQuadrics = weight > 0.0 || options.weightMode != lq::WeightMode::Uniform;
+    options.useLineQuadrics =
+        weight > 0.0 || options.weightMode != lq::WeightMode::Uniform;
     if (weight <= 0.0 && options.weightMode == lq::WeightMode::Uniform) {
       options.useLineQuadrics = false;
     }
@@ -797,11 +782,10 @@ int commandSweep(const Args& args) {
     const lq::MeshStats stats = lq::computeMeshStats(output);
     const lq::DistanceStats distance =
         lq::compareMeshesBySampledDistance(input, output, samples);
-    csv << method << "," << weight << "," << lq::toString(options.weightMode)
-        << "," << lq::statsRowCsv(label, stats, &distance) << ","
-        << report.collapsedEdges << "," << report.rejectedCollapses << ","
-        << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
-        << report.maxAppliedLineWeight << "\n";
+    csv << method << "," << weight << "," << lq::toString(options.weightMode) << ","
+        << lq::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges
+        << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
+        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
     printStats(label, stats);
   }
 
@@ -829,8 +813,7 @@ int commandRatioSweep(const Args& args) {
   lq::SimplifyOptions base = parseSimplifyOptions(args);
 
   std::ofstream csv(outDir / "metrics.csv");
-  csv << "method,line_weight,weight_mode,ratio,"
-      << lq::statsHeaderCsv()
+  csv << "method,line_weight,weight_mode,ratio," << lq::statsHeaderCsv()
       << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
          "min_line_weight,max_line_weight\n";
 
@@ -846,9 +829,8 @@ int commandRatioSweep(const Args& args) {
     lq::SimplifyReport report;
     lq::Mesh output = lq::simplifyMesh(input, options, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
-    const std::string label =
-        method + "_r_" + sanitizeRatio(ratio) + "_w_" +
-        sanitizeWeight(options.lineWeight);
+    const std::string label = method + "_r_" + sanitizeRatio(ratio) + "_w_" +
+                              sanitizeWeight(options.lineWeight);
     const fs::path outStl = outDir / (label + ".stl");
     if (!lq::saveAsciiStl(outStl.string(), output, label, &error)) {
       throw std::runtime_error(error);
@@ -859,10 +841,9 @@ int commandRatioSweep(const Args& args) {
         lq::compareMeshesBySampledDistance(input, output, samples);
     csv << method << "," << options.lineWeight << ","
         << lq::toString(options.weightMode) << "," << ratio << ","
-        << lq::statsRowCsv(label, stats, &distance) << ","
-        << report.collapsedEdges << "," << report.rejectedCollapses << ","
-        << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
-        << report.maxAppliedLineWeight << "\n";
+        << lq::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges
+        << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
+        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
     printStats(label, stats);
   }
 
@@ -885,14 +866,12 @@ int commandFaceSweep(const Args& args) {
   const fs::path outDir = positional[1];
   fs::create_directories(outDir);
   const int samples = getIntArg(args, "--samples", 3000);
-  const std::vector<int> faceCounts =
-      parseFaceCounts(getArg(args, "--faces",
-                             "1000,900,800,700,600,500,400,300,200,100"));
+  const std::vector<int> faceCounts = parseFaceCounts(
+      getArg(args, "--faces", "1000,900,800,700,600,500,400,300,200,100"));
   lq::SimplifyOptions base = parseSimplifyOptions(args);
 
   std::ofstream csv(outDir / "metrics.csv");
-  csv << "method,line_weight,weight_mode,target_faces,"
-      << lq::statsHeaderCsv()
+  csv << "method,line_weight,weight_mode,target_faces," << lq::statsHeaderCsv()
       << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
          "min_line_weight,max_line_weight\n";
 
@@ -907,8 +886,8 @@ int commandFaceSweep(const Args& args) {
     lq::SimplifyReport report;
     lq::Mesh output = lq::simplifyMesh(input, options, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
-    const std::string label = method + "_f_" + std::to_string(targetFaces) +
-                              "_w_" + sanitizeWeight(options.lineWeight);
+    const std::string label = method + "_f_" + std::to_string(targetFaces) + "_w_" +
+                              sanitizeWeight(options.lineWeight);
     const fs::path outStl = outDir / (label + ".stl");
     if (!lq::saveAsciiStl(outStl.string(), output, label, &error)) {
       throw std::runtime_error(error);
@@ -919,10 +898,9 @@ int commandFaceSweep(const Args& args) {
         lq::compareMeshesBySampledDistance(input, output, samples);
     csv << method << "," << options.lineWeight << ","
         << lq::toString(options.weightMode) << "," << targetFaces << ","
-        << lq::statsRowCsv(label, stats, &distance) << ","
-        << report.collapsedEdges << "," << report.rejectedCollapses << ","
-        << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
-        << report.maxAppliedLineWeight << "\n";
+        << lq::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges
+        << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
+        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
     printStats(label, stats);
   }
 
@@ -952,22 +930,20 @@ int commandDemo(const Args& args) {
     runGenerate(inputDir, "flange", "flange", 72);
     const fs::path flange = inputDir / "flange.stl";
     runSweep(flange, outputDir / "flange_standard_budget",
-             {"--method", "standard", "--ratio", "0.15", "--weights", "0",
-              "--samples", samples});
+             {"--method", "standard", "--ratio", "0.15", "--weights", "0", "--samples",
+              samples});
     runSweep(flange, outputDir / "flange_line_budget",
-             {"--method", "line", "--ratio", "0.15", "--weight-mode",
-              "dihedral", "--feature-boost", "0.08", "--feature-angle-deg",
-              "25", "--weights", "1e-4,1e-3,1e-2", "--samples", samples});
+             {"--method", "line", "--ratio", "0.15", "--weight-mode", "dihedral",
+              "--feature-boost", "0.08", "--feature-angle-deg", "25", "--weights",
+              "1e-4,1e-3,1e-2", "--samples", samples});
     runRatioSweep(flange, outputDir / "flange_ratio_dihedral",
-                  {"--method", "line", "--line-weight", "1e-3",
-                   "--weight-mode", "dihedral", "--feature-boost", "0.08",
-                   "--feature-angle-deg", "25", "--ratios",
-                   "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
+                  {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
+                   "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
+                   "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
     runFaceSweep(flange, outputDir / "flange_face_ladder",
-                 {"--method", "line", "--line-weight", "1e-3",
-                  "--weight-mode", "dihedral", "--feature-boost", "0.08",
-                  "--feature-angle-deg", "25", "--faces",
-                  "1000,900,800,700,600,500,400,300,200,100", "--samples",
+                 {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
+                  "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
+                  "--faces", "1000,900,800,700,600,500,400,300,200,100", "--samples",
                   samples});
     summarizeMetrics(outputDir, outputDir / "demo_summary.csv");
     return 0;
@@ -986,65 +962,57 @@ int commandDemo(const Args& args) {
   runGenerate(inputDir, "thin_fin", "thin-fin", 48);
   runGenerate(inputDir, "flange", "flange", 72);
 
-  runSweep(inputDir / "clustered_plane.stl", outputDir / "clustered_plane",
-           {"--ratio", "0.12", "--weights", "0,1e-5,1e-4,1e-3,1e-2",
-            "--samples", samples});
-  runSweep(inputDir / "clustered_plane.stl",
-           outputDir / "clustered_plane_boundary",
+  runSweep(
+      inputDir / "clustered_plane.stl", outputDir / "clustered_plane",
+      {"--ratio", "0.12", "--weights", "0,1e-5,1e-4,1e-3,1e-2", "--samples", samples});
+  runSweep(inputDir / "clustered_plane.stl", outputDir / "clustered_plane_boundary",
            {"--ratio", "0.12", "--boundary-weight", "5", "--weights",
             "0,1e-5,1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "hole_plane.stl", outputDir / "hole_plane_boundary",
            {"--ratio", "0.15", "--boundary-weight", "5", "--weights",
             "0,1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "ridge.stl", outputDir / "ridge_uniform",
-           {"--ratio", "0.12", "--weights", "0,1e-4,1e-3,1e-2",
-            "--samples", samples});
+           {"--ratio", "0.12", "--weights", "0,1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "ridge.stl", outputDir / "ridge_dihedral",
-           {"--ratio", "0.12", "--weight-mode", "dihedral",
-            "--feature-boost", "0.08", "--feature-angle-deg", "25",
-            "--weights", "1e-3", "--samples", samples});
+           {"--ratio", "0.12", "--weight-mode", "dihedral", "--feature-boost", "0.08",
+            "--feature-angle-deg", "25", "--weights", "1e-3", "--samples", samples});
   runSweep(inputDir / "noisy_plane.stl", outputDir / "noisy_plane",
-           {"--ratio", "0.12", "--weights", "0,1e-3,1e-2,1e-1",
-            "--samples", samples});
-  runSweep(inputDir / "sine_terrain.stl", outputDir / "sine_terrain",
-           {"--ratio", "0.15", "--weights", "0,1e-4,1e-3,1e-2,1e-1",
-            "--samples", samples});
+           {"--ratio", "0.12", "--weights", "0,1e-3,1e-2,1e-1", "--samples", samples});
+  runSweep(
+      inputDir / "sine_terrain.stl", outputDir / "sine_terrain",
+      {"--ratio", "0.15", "--weights", "0,1e-4,1e-3,1e-2,1e-1", "--samples", samples});
   runSweep(inputDir / "terrace.stl", outputDir / "terrace_uniform",
-           {"--ratio", "0.15", "--weights", "0,1e-4,1e-3,1e-2",
-            "--samples", samples});
+           {"--ratio", "0.15", "--weights", "0,1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "terrace.stl", outputDir / "terrace_dihedral",
-           {"--ratio", "0.15", "--weight-mode", "dihedral",
-            "--feature-boost", "0.08", "--feature-angle-deg", "20",
-            "--weights", "1e-3", "--samples", samples});
+           {"--ratio", "0.15", "--weight-mode", "dihedral", "--feature-boost", "0.08",
+            "--feature-angle-deg", "20", "--weights", "1e-3", "--samples", samples});
   runSweep(inputDir / "bump.stl", outputDir / "bump_height",
-           {"--ratio", "0.15", "--weight-mode", "height", "--feature-boost",
-            "0.05", "--weights", "1e-4,1e-3,1e-2", "--samples", samples});
+           {"--ratio", "0.15", "--weight-mode", "height", "--feature-boost", "0.05",
+            "--weights", "1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "cylinder.stl", outputDir / "cylinder",
            {"--ratio", "0.18", "--boundary-weight", "2", "--weights",
             "0,1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "torus.stl", outputDir / "torus",
-           {"--ratio", "0.18", "--weights", "0,1e-4,1e-3,1e-2",
-            "--samples", samples});
+           {"--ratio", "0.18", "--weights", "0,1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "cube.stl", outputDir / "cube_dihedral",
-           {"--ratio", "0.18", "--weight-mode", "dihedral",
-            "--feature-boost", "0.08", "--feature-angle-deg", "25",
-            "--weights", "1e-3", "--samples", samples});
+           {"--ratio", "0.18", "--weight-mode", "dihedral", "--feature-boost", "0.08",
+            "--feature-angle-deg", "25", "--weights", "1e-3", "--samples", samples});
   runSweep(inputDir / "thin_fin.stl", outputDir / "thin_fin_uniform",
            {"--ratio", "0.18", "--boundary-weight", "2", "--weights",
             "0,1e-4,1e-3,1e-2", "--samples", samples});
   runSweep(inputDir / "thin_fin.stl", outputDir / "thin_fin_dihedral",
-           {"--ratio", "0.18", "--boundary-weight", "2", "--weight-mode",
-            "dihedral", "--feature-boost", "0.1", "--feature-angle-deg",
-            "20", "--weights", "1e-3", "--samples", samples});
+           {"--ratio", "0.18", "--boundary-weight", "2", "--weight-mode", "dihedral",
+            "--feature-boost", "0.1", "--feature-angle-deg", "20", "--weights", "1e-3",
+            "--samples", samples});
 
   const fs::path flange = inputDir / "flange.stl";
   runSweep(flange, outputDir / "flange_standard_budget",
-           {"--method", "standard", "--ratio", "0.15", "--weights", "0",
-            "--samples", samples});
+           {"--method", "standard", "--ratio", "0.15", "--weights", "0", "--samples",
+            samples});
   runSweep(flange, outputDir / "flange_line_budget",
-           {"--method", "line", "--ratio", "0.15", "--weight-mode",
-            "dihedral", "--feature-boost", "0.08", "--feature-angle-deg",
-            "25", "--weights", "1e-4,1e-3,1e-2", "--samples", samples});
+           {"--method", "line", "--ratio", "0.15", "--weight-mode", "dihedral",
+            "--feature-boost", "0.08", "--feature-angle-deg", "25", "--weights",
+            "1e-4,1e-3,1e-2", "--samples", samples});
   runRatioSweep(inputDir / "sine_terrain.stl", outputDir / "sine_terrain_ratio_line",
                 {"--method", "line", "--line-weight", "1e-3", "--ratios",
                  "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
@@ -1053,19 +1021,17 @@ int commandDemo(const Args& args) {
                  "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
   runRatioSweep(inputDir / "cube.stl", outputDir / "cube_ratio_dihedral",
                 {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
-                 "dihedral", "--feature-boost", "0.08", "--feature-angle-deg",
-                 "25", "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05",
-                 "--samples", samples});
+                 "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
+                 "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
   runRatioSweep(flange, outputDir / "flange_ratio_dihedral",
                 {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
-                 "dihedral", "--feature-boost", "0.08", "--feature-angle-deg",
-                 "25", "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05",
-                 "--samples", samples});
+                 "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
+                 "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
   runFaceSweep(flange, outputDir / "flange_face_ladder",
                {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
-                "dihedral", "--feature-boost", "0.08", "--feature-angle-deg",
-                "25", "--faces", "1000,900,800,700,600,500,400,300,200,100",
-                "--samples", samples});
+                "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
+                "--faces", "1000,900,800,700,600,500,400,300,200,100", "--samples",
+                samples});
 
   summarizeMetrics(outputDir, outputDir / "demo_summary.csv");
   return 0;
@@ -1078,8 +1044,8 @@ int commandValidateFeatures(const Args& args) {
     int n;
   };
   const fs::path inputDir = getArg(args, "--input-dir", "examples/input");
-  const fs::path outDir = getArg(args, "--output-dir",
-                                  "examples/output/feature_curve_validation");
+  const fs::path outDir =
+      getArg(args, "--output-dir", "examples/output/feature_curve_validation");
   const std::string ratio = getArg(args, "--ratio", "0.20");
   const int n = getIntArg(args, "--n", 96);
   const std::string samples = getArg(args, "--samples", "1000");
@@ -1095,37 +1061,50 @@ int commandValidateFeatures(const Args& args) {
   for (const CaseSpec& spec : cases) {
     runGenerate(inputDir, spec.name, spec.type, spec.n);
     const fs::path input = inputDir / (spec.name + ".stl");
-    runFeatureReport(input,
-                     {"--feature-angle-deg", "25", "--circle-fit-threshold",
-                      "0.04", "--min-feature-loop-vertices", "8", "--csv",
-                      pathString(outDir / (spec.name + "_features.csv"))});
+    runFeatureReport(input, {"--feature-angle-deg", "25", "--circle-fit-threshold",
+                             "0.04", "--min-feature-loop-vertices", "8", "--csv",
+                             pathString(outDir / (spec.name + "_features.csv"))});
 
     const fs::path lineOut = outDir / (spec.name + "_line.stl");
     const fs::path curveOut = outDir / (spec.name + "_curve.stl");
     runSimplify(input, lineOut,
-                {"--method", "line", "--ratio", ratio, "--line-weight",
-                 "1e-3", "--weight-mode", "dihedral", "--feature-boost",
-                 "0.08", "--feature-angle-deg", "25", "--samples", samples,
-                 "--metrics-csv",
+                {"--method", "line", "--ratio", ratio, "--line-weight", "1e-3",
+                 "--weight-mode", "dihedral", "--feature-boost", "0.08",
+                 "--feature-angle-deg", "25", "--samples", samples, "--metrics-csv",
                  pathString(outDir / (spec.name + "_line_metrics.csv"))});
     runSimplify(input, curveOut,
-                {"--method", "line", "--ratio", ratio, "--line-weight",
-                 "1e-3", "--weight-mode", "dihedral", "--feature-boost",
-                 "0.08", "--feature-angle-deg", "25",
-                 "--preserve-feature-curves", "--feature-curve-weight", "0.08",
-                 "--circle-fit-threshold", "0.04", "--min-feature-loop-vertices",
-                 "16", "--samples", samples, "--metrics-csv",
+                {"--method",
+                 "line",
+                 "--ratio",
+                 ratio,
+                 "--line-weight",
+                 "1e-3",
+                 "--weight-mode",
+                 "dihedral",
+                 "--feature-boost",
+                 "0.08",
+                 "--feature-angle-deg",
+                 "25",
+                 "--preserve-feature-curves",
+                 "--feature-curve-weight",
+                 "0.08",
+                 "--circle-fit-threshold",
+                 "0.04",
+                 "--min-feature-loop-vertices",
+                 "16",
+                 "--samples",
+                 samples,
+                 "--metrics-csv",
                  pathString(outDir / (spec.name + "_curve_metrics.csv"))});
     runFeatureCompare(input, lineOut,
-                      {"--feature-angle-deg", "25", "--circle-fit-threshold",
-                       "0.04", "--min-feature-loop-vertices", "8", "--csv",
-                       pathString(outDir / (spec.name +
-                                            "_line_feature_compare.csv"))});
-    runFeatureCompare(input, curveOut,
-                      {"--feature-angle-deg", "25", "--circle-fit-threshold",
-                       "0.04", "--min-feature-loop-vertices", "8", "--csv",
-                       pathString(outDir / (spec.name +
-                                            "_curve_feature_compare.csv"))});
+                      {"--feature-angle-deg", "25", "--circle-fit-threshold", "0.04",
+                       "--min-feature-loop-vertices", "8", "--csv",
+                       pathString(outDir / (spec.name + "_line_feature_compare.csv"))});
+    runFeatureCompare(
+        input, curveOut,
+        {"--feature-angle-deg", "25", "--circle-fit-threshold", "0.04",
+         "--min-feature-loop-vertices", "8", "--csv",
+         pathString(outDir / (spec.name + "_curve_feature_compare.csv"))});
   }
 
   std::cout << "Feature validation outputs written to " << outDir << "\n";
@@ -1140,17 +1119,22 @@ int commandValidateExternal(const Args& args) {
   };
   const fs::path inputDir =
       getArg(args, "--input-dir", "examples/external/common_3d_test_models");
-  const fs::path outDir = getArg(args, "--output-dir",
-                                  "examples/output/external_model_validation");
+  const fs::path outDir =
+      getArg(args, "--output-dir", "examples/output/external_model_validation");
   const std::string ratio = getArg(args, "--ratio", "0.25");
   const std::string samples = getArg(args, "--samples", "800");
   const std::vector<ExternalSpec> models = {
       {"fandisk", {"fandisk.obj"}, "CAD-ish benchmark with hard non-circular features"},
-      {"rocker_arm", {"rocker_arm.obj", "rocker-arm.obj"},
+      {"rocker_arm",
+       {"rocker_arm.obj", "rocker-arm.obj"},
        "mechanical scan with holes and irregular tessellation"},
       {"beetle", {"beetle.obj"}, "small mixed smooth/sharp organic-style model"},
-      {"cow", {"cow.obj"}, "organic model; useful for checking false circular features"},
-      {"suzanne", {"suzanne.obj"}, "low-poly hard-edged mesh without true circular CAD loops"},
+      {"cow",
+       {"cow.obj"},
+       "organic model; useful for checking false circular features"},
+      {"suzanne",
+       {"suzanne.obj"},
+       "low-poly hard-edged mesh without true circular CAD loops"},
   };
   fs::create_directories(outDir);
   const fs::path summaryPath = outDir / "external_summary.csv";
@@ -1170,45 +1154,58 @@ int commandValidateExternal(const Args& args) {
       }
     }
     if (input.empty()) {
-      std::cout << "Skipping " << model.name << ": OBJ not found in "
-                << inputDir << "\n";
+      std::cout << "Skipping " << model.name << ": OBJ not found in " << inputDir
+                << "\n";
       continue;
     }
 
     ++processed;
-    runFeatureReport(input,
-                     {"--feature-angle-deg", "35", "--circle-fit-threshold",
-                      "0.05", "--min-feature-loop-vertices", "8", "--csv",
-                      pathString(outDir / (model.name + "_features.csv"))});
+    runFeatureReport(input, {"--feature-angle-deg", "35", "--circle-fit-threshold",
+                             "0.05", "--min-feature-loop-vertices", "8", "--csv",
+                             pathString(outDir / (model.name + "_features.csv"))});
     const fs::path lineOut = outDir / (model.name + "_line.stl");
     const fs::path curveOut = outDir / (model.name + "_curve.stl");
     const fs::path lineMetrics = outDir / (model.name + "_line_metrics.csv");
     const fs::path curveMetrics = outDir / (model.name + "_curve_metrics.csv");
-    const fs::path lineCompare =
-        outDir / (model.name + "_line_feature_compare.csv");
-    const fs::path curveCompare =
-        outDir / (model.name + "_curve_feature_compare.csv");
+    const fs::path lineCompare = outDir / (model.name + "_line_feature_compare.csv");
+    const fs::path curveCompare = outDir / (model.name + "_curve_feature_compare.csv");
 
     runSimplify(input, lineOut,
-                {"--method", "line", "--ratio", ratio, "--line-weight",
-                 "1e-3", "--weight-mode", "dihedral", "--feature-boost",
-                 "0.08", "--feature-angle-deg", "35", "--samples", samples,
-                 "--metrics-csv", pathString(lineMetrics)});
+                {"--method", "line", "--ratio", ratio, "--line-weight", "1e-3",
+                 "--weight-mode", "dihedral", "--feature-boost", "0.08",
+                 "--feature-angle-deg", "35", "--samples", samples, "--metrics-csv",
+                 pathString(lineMetrics)});
     runSimplify(input, curveOut,
-                {"--method", "line", "--ratio", ratio, "--line-weight",
-                 "1e-3", "--weight-mode", "dihedral", "--feature-boost",
-                 "0.08", "--feature-angle-deg", "35",
-                 "--preserve-feature-curves", "--feature-curve-weight", "0.05",
-                 "--circle-fit-threshold", "0.05", "--min-feature-loop-vertices",
-                 "12", "--samples", samples, "--metrics-csv",
+                {"--method",
+                 "line",
+                 "--ratio",
+                 ratio,
+                 "--line-weight",
+                 "1e-3",
+                 "--weight-mode",
+                 "dihedral",
+                 "--feature-boost",
+                 "0.08",
+                 "--feature-angle-deg",
+                 "35",
+                 "--preserve-feature-curves",
+                 "--feature-curve-weight",
+                 "0.05",
+                 "--circle-fit-threshold",
+                 "0.05",
+                 "--min-feature-loop-vertices",
+                 "12",
+                 "--samples",
+                 samples,
+                 "--metrics-csv",
                  pathString(curveMetrics)});
     runFeatureCompare(input, lineOut,
-                      {"--feature-angle-deg", "35", "--circle-fit-threshold",
-                       "0.05", "--min-feature-loop-vertices", "8", "--csv",
+                      {"--feature-angle-deg", "35", "--circle-fit-threshold", "0.05",
+                       "--min-feature-loop-vertices", "8", "--csv",
                        pathString(lineCompare)});
     runFeatureCompare(input, curveOut,
-                      {"--feature-angle-deg", "35", "--circle-fit-threshold",
-                       "0.05", "--min-feature-loop-vertices", "8", "--csv",
+                      {"--feature-angle-deg", "35", "--circle-fit-threshold", "0.05",
+                       "--min-feature-loop-vertices", "8", "--csv",
                        pathString(curveCompare)});
 
     lq::Mesh mesh;
@@ -1252,7 +1249,7 @@ int commandValidateExternal(const Args& args) {
   return 0;
 }
 
-}  // namespace
+} // namespace
 
 int main(int argc, char** argv) {
   try {

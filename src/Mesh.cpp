@@ -193,8 +193,7 @@ void weldTriangles(const std::vector<std::array<Vec3, 3>>& triangles, Mesh& mesh
   for (const auto& tri : triangles) {
     Face face;
     face.v = {addVertex(tri[0]), addVertex(tri[1]), addVertex(tri[2])};
-    if (face.v[0] != face.v[1] && face.v[1] != face.v[2] &&
-        face.v[0] != face.v[2]) {
+    if (face.v[0] != face.v[1] && face.v[1] != face.v[2] && face.v[0] != face.v[2]) {
       mesh.faces.push_back(face);
     }
   }
@@ -214,7 +213,7 @@ struct FaceKeyHash {
   }
 };
 
-}  // namespace
+} // namespace
 
 Vec3 Mesh::bboxMin() const {
   Vec3 lo(std::numeric_limits<double>::infinity(),
@@ -329,8 +328,7 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
       std::vector<int> ids;
       std::string token;
       while (ss >> token) {
-        const int id =
-            parseObjVertexIndex(token, static_cast<int>(positions.size()));
+        const int id = parseObjVertexIndex(token, static_cast<int>(positions.size()));
         if (id < 0 || id >= static_cast<int>(positions.size())) {
           if (error) *error = "OBJ face references an invalid vertex index.";
           return false;
@@ -395,8 +393,7 @@ bool saveAsciiStl(const std::string& path, const Mesh& mesh,
     const Vec3& b = mesh.vertices[face.v[1]];
     const Vec3& c = mesh.vertices[face.v[2]];
     const Vec3 n = triangleNormal(a, b, c);
-    out << "  facet normal " << n.x() << " " << n.y() << " " << n.z()
-        << "\n";
+    out << "  facet normal " << n.x() << " " << n.y() << " " << n.z() << "\n";
     out << "    outer loop\n";
     out << "      vertex " << a.x() << " " << a.y() << " " << a.z() << "\n";
     out << "      vertex " << b.x() << " " << b.y() << " " << b.z() << "\n";
@@ -447,4 +444,4 @@ std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh) {
   return edges;
 }
 
-}  // namespace lq
+} // namespace lq

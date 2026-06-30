@@ -1,7 +1,6 @@
 #include "FeatureDetection.h"
 
 #include <Eigen/Eigenvalues>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -45,9 +44,8 @@ std::vector<Vec3> computeFaceNormals(const Mesh& mesh) {
   std::vector<Vec3> normals(mesh.faces.size(), Vec3::Zero());
   for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
     const Face& f = mesh.faces[fi];
-    normals[fi] =
-        triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
-                       mesh.vertices[f.v[2]]);
+    normals[fi] = triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
+                                 mesh.vertices[f.v[2]]);
   }
   return normals;
 }
@@ -82,8 +80,7 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
       edge.boundary = true;
     } else if (info.faces.size() == 2) {
       const double dot = std::clamp(
-          std::abs(normals[info.faces[0]].dot(normals[info.faces[1]])), -1.0,
-          1.0);
+          std::abs(normals[info.faces[0]].dot(normals[info.faces[1]])), -1.0, 1.0);
       edge.dihedral = std::acos(dot) >= threshold;
     } else if (info.faces.size() > 2) {
       edge.nonManifold = true;
@@ -208,10 +205,9 @@ Vec3 fallbackTangentFromNeighbors(int id, const std::vector<int>& neighbors,
   return t.normalized();
 }
 
-}  // namespace
+} // namespace
 
-FeatureAnalysis detectFeatureCurves(const Mesh& mesh,
-                                    const FeatureOptions& options) {
+FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options) {
   FeatureAnalysis analysis;
   analysis.vertices.assign(mesh.vertices.size(), VertexFeature{});
   if (mesh.empty()) {
@@ -317,8 +313,7 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh,
 
 DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
                                                const FeatureLoop& loop,
-                                               const Vec3& center,
-                                               const Vec3& normalIn,
+                                               const Vec3& center, const Vec3& normalIn,
                                                double radius) {
   DirectionalCurveError error;
   Vec3 normal = normalIn;
@@ -360,12 +355,11 @@ std::string featureLoopRowCsv(const FeatureLoop& loop) {
   out << loop.id << "," << loop.vertices.size() << "," << loop.edgeCount << ","
       << (loop.closed ? 1 : 0) << "," << (loop.circular ? 1 : 0) << ","
       << (loop.mostlyBoundary ? 1 : 0) << "," << loop.center.x() << ","
-      << loop.center.y() << "," << loop.center.z() << "," << loop.normal.x()
-      << "," << loop.normal.y() << "," << loop.normal.z() << ","
-      << loop.radius << "," << loop.rmsRadialError << ","
-      << loop.maxRadialError << "," << loop.rmsPlaneError << ","
-      << loop.maxPlaneError;
+      << loop.center.y() << "," << loop.center.z() << "," << loop.normal.x() << ","
+      << loop.normal.y() << "," << loop.normal.z() << "," << loop.radius << ","
+      << loop.rmsRadialError << "," << loop.maxRadialError << "," << loop.rmsPlaneError
+      << "," << loop.maxPlaneError;
   return out.str();
 }
 
-}  // namespace lq
+} // namespace lq

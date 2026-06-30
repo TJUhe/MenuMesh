@@ -28,8 +28,8 @@ double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
   return 4.0 * std::sqrt(3.0) * triangleArea(a, b, c) / denom;
 }
 
-double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a,
-                                    const Vec3& b, const Vec3& c) {
+double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b,
+                                    const Vec3& c) {
   const Vec3 ab = b - a;
   const Vec3 ac = c - a;
   const Vec3 ap = p - a;
@@ -68,8 +68,8 @@ double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a,
   const Vec3 n = ab.cross(ac);
   const double nn = n.squaredNorm();
   if (nn <= 1e-30) {
-    return std::min({(p - a).squaredNorm(), (p - b).squaredNorm(),
-                     (p - c).squaredNorm()});
+    return std::min(
+        {(p - a).squaredNorm(), (p - b).squaredNorm(), (p - c).squaredNorm()});
   }
   const double distance = n.dot(ap);
   return distance * distance / nn;
@@ -94,15 +94,14 @@ std::vector<int> sampleVertexIds(int count, int maxSamples) {
   const int samples = std::min(count, maxSamples);
   ids.reserve(samples);
   for (int i = 0; i < samples; ++i) {
-    const int id = static_cast<int>(
-        std::llround((static_cast<double>(i) * (count - 1)) /
-                     std::max(1, samples - 1)));
+    const int id = static_cast<int>(std::llround(
+        (static_cast<double>(i) * (count - 1)) / std::max(1, samples - 1)));
     ids.push_back(std::min(count - 1, id));
   }
   return ids;
 }
 
-}  // namespace
+} // namespace
 
 MeshStats computeMeshStats(const Mesh& mesh) {
   MeshStats stats;
@@ -115,9 +114,8 @@ MeshStats computeMeshStats(const Mesh& mesh) {
   edgeLengths.reserve(mesh.faces.size() * 3 / 2);
 
   double qualitySum = 0.0;
-  stats.minTriangleQuality = mesh.faces.empty()
-                                 ? 0.0
-                                 : std::numeric_limits<double>::infinity();
+  stats.minTriangleQuality =
+      mesh.faces.empty() ? 0.0 : std::numeric_limits<double>::infinity();
 
   for (const Face& face : mesh.faces) {
     const Vec3& a = mesh.vertices[face.v[0]];
@@ -162,16 +160,14 @@ MeshStats computeMeshStats(const Mesh& mesh) {
     }
     variance /= static_cast<double>(edgeLengths.size());
     stats.edgeLengthCv =
-        stats.meanEdgeLength > 1e-30 ? std::sqrt(variance) / stats.meanEdgeLength
-                                     : 0.0;
+        stats.meanEdgeLength > 1e-30 ? std::sqrt(variance) / stats.meanEdgeLength : 0.0;
   }
 
   return stats;
 }
 
 DistanceStats compareMeshesBySampledDistance(const Mesh& original,
-                                             const Mesh& simplified,
-                                             int maxSamples) {
+                                             const Mesh& simplified, int maxSamples) {
   DistanceStats stats;
   if (original.empty() || simplified.empty()) {
     return stats;
@@ -215,11 +211,11 @@ std::string statsRowCsv(const std::string& label, const MeshStats& stats,
                         const DistanceStats* distance) {
   std::ostringstream out;
   out << std::setprecision(12);
-  out << label << "," << stats.vertices << "," << stats.faces << ","
-      << stats.edges << "," << stats.boundaryEdges << ","
-      << stats.nonManifoldEdges << "," << stats.area << ","
-      << stats.meanTriangleQuality << "," << stats.minTriangleQuality << ","
-      << stats.meanEdgeLength << "," << stats.edgeLengthCv;
+  out << label << "," << stats.vertices << "," << stats.faces << "," << stats.edges
+      << "," << stats.boundaryEdges << "," << stats.nonManifoldEdges << ","
+      << stats.area << "," << stats.meanTriangleQuality << ","
+      << stats.minTriangleQuality << "," << stats.meanEdgeLength << ","
+      << stats.edgeLengthCv;
   if (distance) {
     out << "," << distance->meanOriginalToSimplified << ","
         << distance->maxOriginalToSimplified << ","
@@ -231,4 +227,4 @@ std::string statsRowCsv(const std::string& label, const MeshStats& stats,
   return out.str();
 }
 
-}  // namespace lq
+} // namespace lq

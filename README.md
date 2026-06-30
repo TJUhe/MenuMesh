@@ -1,5 +1,11 @@
 # Line Quadrics QEM Reproduction
 
+Industrial library work is documented in
+[`docs/industrial_library.md`](E:/code/codex/line-quadrics-qem/docs/industrial_library.md).
+This branch builds the algorithm as a cross-platform shared library with a
+separate CLI, external-style example program, GoogleTest/CTest coverage,
+clang-format targets, and Doxygen API documentation.
+
 这是基于 `Controlling Quadric Error Simplification with Line Quadrics`（Hsueh-Ti Derek Liu, Mehdi Rahimzadeh, Victor Zordan, SGP 2025）的 C++/Eigen 复现项目。目标不是做一个完整工业级网格库，而是把论文里最关键的算法机制做成可跑、可观察、可替换 STL 的实验程序。
 
 ## 论文核心到代码映射

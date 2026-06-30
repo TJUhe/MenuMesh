@@ -6,3 +6,5 @@ node_modules/
 dist-viewer/
 viewer-server.pid
 viewer/screenshots/
+build-*/
+docs/api/

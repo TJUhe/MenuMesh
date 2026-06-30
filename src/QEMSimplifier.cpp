@@ -3,7 +3,6 @@
 #include "FeatureDetection.h"
 
 #include <Eigen/Eigenvalues>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -51,9 +50,7 @@ struct Candidate {
   int versionA = 0;
   int versionB = 0;
 
-  bool operator<(const Candidate& other) const {
-    return cost > other.cost;
-  }
+  bool operator<(const Candidate& other) const { return cost > other.cost; }
 };
 
 struct SolveResult {
@@ -101,8 +98,7 @@ Mat4 lineQuadric(const Vec3& point, const Vec3& normal) {
   }
   n /= nlen;
 
-  Vec3 seed = std::abs(n.x()) < 0.9 ? Vec3(1.0, 0.0, 0.0)
-                                    : Vec3(0.0, 1.0, 0.0);
+  Vec3 seed = std::abs(n.x()) < 0.9 ? Vec3(1.0, 0.0, 0.0) : Vec3(0.0, 1.0, 0.0);
   Vec3 x = seed - n * n.dot(seed);
   const double xlen = x.norm();
   if (xlen <= 1e-20) {
@@ -115,8 +111,8 @@ Mat4 lineQuadric(const Vec3& point, const Vec3& normal) {
   return planeQuadric(x, point) + planeQuadric(y, point);
 }
 
-std::unordered_map<std::uint64_t, EdgeInfo> buildEdgeInfo(
-    const Mesh& mesh, const std::vector<Vec3>* faceNormals = nullptr) {
+std::unordered_map<std::uint64_t, EdgeInfo>
+buildEdgeInfo(const Mesh& mesh, const std::vector<Vec3>* faceNormals = nullptr) {
   (void)faceNormals;
   std::unordered_map<std::uint64_t, EdgeInfo> edges;
   edges.reserve(mesh.faces.size() * 3);
@@ -160,9 +156,8 @@ std::vector<double> computeFeatureScores(const Mesh& mesh, WeightMode mode,
   std::vector<Vec3> faceNormals(mesh.faces.size(), Vec3::Zero());
   for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
     const Face& f = mesh.faces[fi];
-    faceNormals[fi] =
-        triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
-                       mesh.vertices[f.v[2]]);
+    faceNormals[fi] = triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
+                                     mesh.vertices[f.v[2]]);
   }
 
   const auto edgeInfo = buildEdgeInfo(mesh);
@@ -174,8 +169,8 @@ std::vector<double> computeFeatureScores(const Mesh& mesh, WeightMode mode,
       edgeScore = 1.0;
     } else if (info.faces.size() == 2) {
       const double dot = std::clamp(
-          std::abs(faceNormals[info.faces[0]].dot(faceNormals[info.faces[1]])),
-          -1.0, 1.0);
+          std::abs(faceNormals[info.faces[0]].dot(faceNormals[info.faces[1]])), -1.0,
+          1.0);
       const double angle = std::acos(dot);
       edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
     }
@@ -196,9 +191,8 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight,
   std::vector<Vec3> faceNormals(mesh.faces.size(), Vec3::Zero());
   for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
     const Face& f = mesh.faces[fi];
-    faceNormals[fi] =
-        triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
-                       mesh.vertices[f.v[2]]);
+    faceNormals[fi] = triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
+                                     mesh.vertices[f.v[2]]);
   }
 
   const auto edgeInfo = buildEdgeInfo(mesh);
@@ -224,8 +218,8 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight,
 
 void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
                             const FeatureAnalysis* featureAnalysis,
-                            std::vector<Mat4>& quadrics,
-                            double& minLineWeight, double& maxLineWeight) {
+                            std::vector<Mat4>& quadrics, double& minLineWeight,
+                            double& maxLineWeight) {
   quadrics.assign(mesh.vertices.size(), Mat4::Zero());
   std::vector<double> vertexArea(mesh.vertices.size(), 0.0);
   std::vector<Vec3> normalSum(mesh.vertices.size(), Vec3::Zero());
@@ -284,8 +278,7 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
 
       if (options.adaptiveScale) {
         quadrics[i] += options.adaptiveBaseLineWeight * vertexArea[i] * ql;
-        quadrics[i] *=
-            (1.0 + std::max(0.0, options.featureBoost) * featureScores[i]);
+        quadrics[i] *= (1.0 + std::max(0.0, options.featureBoost) * featureScores[i]);
       } else {
         quadrics[i] += appliedWeight * vertexArea[i] * ql;
       }
@@ -463,8 +456,8 @@ bool projectFeaturePlacement(int keep, int remove,
   return false;
 }
 
-std::vector<std::pair<int, int>> collectActiveEdges(
-    const std::vector<FaceState>& faces) {
+std::vector<std::pair<int, int>>
+collectActiveEdges(const std::vector<FaceState>& faces) {
   std::unordered_set<std::uint64_t> seen;
   std::vector<std::pair<int, int>> edges;
   for (const FaceState& face : faces) {
@@ -506,7 +499,7 @@ bool areAdjacent(int a, int b, const std::vector<FaceState>& faces) {
 }
 
 std::vector<int> activeNeighborsOf(int v, const std::vector<FaceState>& faces,
-                                  const std::vector<VertexState>& vertices) {
+                                   const std::vector<VertexState>& vertices) {
   std::unordered_set<int> seen;
   for (const FaceState& face : faces) {
     if (!face.active) {
@@ -530,8 +523,7 @@ std::vector<int> activeNeighborsOf(int v, const std::vector<FaceState>& faces,
 
 bool collapseWouldBeValid(int keep, int remove, const Vec3& newPosition,
                           const std::vector<FaceState>& faces,
-                          const std::vector<VertexState>& vertices,
-                          double areaEps) {
+                          const std::vector<VertexState>& vertices, double areaEps) {
   for (const FaceState& face : faces) {
     if (!face.active) {
       continue;
@@ -548,13 +540,11 @@ bool collapseWouldBeValid(int keep, int remove, const Vec3& newPosition,
       }
     }
     containsBoth = (face.v[0] == keep || face.v[1] == keep || face.v[2] == keep) &&
-                   (face.v[0] == remove || face.v[1] == remove ||
-                    face.v[2] == remove);
+                   (face.v[0] == remove || face.v[1] == remove || face.v[2] == remove);
     if (!touches || containsBoth) {
       continue;
     }
-    if (mapped[0] == mapped[1] || mapped[1] == mapped[2] ||
-        mapped[0] == mapped[2]) {
+    if (mapped[0] == mapped[1] || mapped[1] == mapped[2] || mapped[0] == mapped[2]) {
       return false;
     }
     Vec3 a = vertices[mapped[0]].p;
@@ -605,8 +595,8 @@ void pushEdge(int a, int b, const std::vector<VertexState>& vertices,
   if (solve.usedFallback) {
     ++report.solverFallbacks;
   }
-  queue.push(Candidate{solve.cost, std::min(a, b), std::max(a, b),
-                       vertices[a].version, vertices[b].version});
+  queue.push(Candidate{solve.cost, std::min(a, b), std::max(a, b), vertices[a].version,
+                       vertices[b].version});
 }
 
 Mesh compactResult(const std::vector<VertexState>& vertices,
@@ -632,15 +622,14 @@ Mesh compactResult(const std::vector<VertexState>& vertices,
       }
       out.v[i] = remap[old];
     }
-    if (ok && out.v[0] != out.v[1] && out.v[1] != out.v[2] &&
-        out.v[0] != out.v[2]) {
+    if (ok && out.v[0] != out.v[1] && out.v[1] != out.v[2] && out.v[0] != out.v[2]) {
       result.faces.push_back(out);
     }
   }
   return result;
 }
 
-}  // namespace
+} // namespace
 
 WeightMode parseWeightMode(const std::string& value) {
   if (value == "uniform") return WeightMode::Uniform;
@@ -652,14 +641,14 @@ WeightMode parseWeightMode(const std::string& value) {
 
 std::string toString(WeightMode mode) {
   switch (mode) {
-    case WeightMode::Uniform:
-      return "uniform";
-    case WeightMode::Dihedral:
-      return "dihedral";
-    case WeightMode::Height:
-      return "height";
-    case WeightMode::XBand:
-      return "xband";
+  case WeightMode::Uniform:
+    return "uniform";
+  case WeightMode::Dihedral:
+    return "dihedral";
+  case WeightMode::Height:
+    return "height";
+  case WeightMode::XBand:
+    return "xband";
   }
   return "unknown";
 }
@@ -735,14 +724,13 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
   const int targetFaces =
       options.targetFaces > 0
           ? options.targetFaces
-          : std::max(4, static_cast<int>(std::llround(input.faces.size() *
-                                                      options.targetRatio)));
+          : std::max(4, static_cast<int>(
+                            std::llround(input.faces.size() * options.targetRatio)));
   const double diag = std::max(1e-12, input.bboxDiag());
   const double areaEps = diag * diag * 1e-18;
 
   std::priority_queue<Candidate> queue;
-  const int initialActiveEdgeCount =
-      static_cast<int>(collectActiveEdges(faces).size());
+  const int initialActiveEdgeCount = static_cast<int>(collectActiveEdges(faces).size());
   const int maxAttemptsWithoutCollapse =
       std::max(1000, std::max(1, initialActiveEdgeCount) * 6);
   int attemptsWithoutCollapse = 0;
@@ -788,8 +776,7 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
 
     const int keep = a;
     const int remove = b;
-    if (!featureCollapseAllowed(keep, remove, vertices, activeLoopCounts,
-                                options)) {
+    if (!featureCollapseAllowed(keep, remove, vertices, activeLoopCounts, options)) {
       ++report.rejectedCollapses;
       ++report.featureRejectedCollapses;
       vertices[keep].version++;
@@ -804,8 +791,7 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
     }
 
     Vec3 collapsePosition = solve.position;
-    if (projectFeaturePlacement(keep, remove, vertices, options,
-                                collapsePosition)) {
+    if (projectFeaturePlacement(keep, remove, vertices, options, collapsePosition)) {
       ++report.projectedFeaturePlacements;
     }
 
@@ -879,4 +865,4 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
   return result;
 }
 
-}  // namespace lq
+} // namespace lq

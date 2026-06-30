@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
+#include <utility>
 #include <vector>
 
 namespace lq {
@@ -180,6 +181,38 @@ void addAnnularDisk(Mesh& mesh, double r0, double r1, double z, int rings,
       }
     }
   }
+}
+
+Mesh generateLatheProfile(const std::vector<std::pair<double, double>>& rz,
+                          int segments) {
+  constexpr double pi = 3.141592653589793238462643383279502884;
+  Mesh mesh;
+  if (rz.size() < 2) {
+    return mesh;
+  }
+
+  segments = std::max(16, segments);
+  std::vector<std::vector<int>> index(
+      rz.size(), std::vector<int>(static_cast<std::size_t>(segments), -1));
+  for (int j = 0; j < static_cast<int>(rz.size()); ++j) {
+    const double r = rz[j].first;
+    const double z = rz[j].second;
+    for (int i = 0; i < segments; ++i) {
+      const double t = 2.0 * pi * static_cast<double>(i) / segments;
+      index[j][i] = addVertex(mesh, Vec3(r * std::cos(t), r * std::sin(t), z));
+    }
+  }
+
+  for (int j = 0; j + 1 < static_cast<int>(rz.size()); ++j) {
+    for (int i = 0; i < segments; ++i) {
+      const int next = (i + 1) % segments;
+      addQuad(mesh, index[j][i], index[j][next], index[j + 1][next],
+              index[j + 1][i]);
+    }
+  }
+
+  mesh.removeUnusedVertices();
+  return mesh;
 }
 
 }  // namespace
@@ -481,6 +514,36 @@ Mesh generateFlangedBossGrid(int n) {
   return mesh;
 }
 
+Mesh generateSteppedShaftGrid(int n) {
+  const int segments = std::max(64, n);
+  const std::vector<std::pair<double, double>> profile = {
+      {0.32, -1.15}, {0.32, -0.72}, {0.48, -0.72}, {0.48, -0.20},
+      {0.36, -0.20}, {0.36, 0.32},  {0.58, 0.32},  {0.58, 0.78},
+      {0.42, 0.78},  {0.42, 1.08},
+  };
+  return generateLatheProfile(profile, segments);
+}
+
+Mesh generatePipeCouplingGrid(int n) {
+  const int segments = std::max(72, n);
+  const std::vector<std::pair<double, double>> profile = {
+      {0.38, -1.00}, {0.72, -1.00}, {0.72, -0.42},
+      {0.58, -0.42}, {0.58, 0.42},  {0.72, 0.42},
+      {0.72, 1.00},  {0.38, 1.00},  {0.38, -1.00},
+  };
+  return generateLatheProfile(profile, segments);
+}
+
+Mesh generatePulleyGrid(int n) {
+  const int segments = std::max(72, n);
+  const std::vector<std::pair<double, double>> profile = {
+      {0.26, -0.58}, {0.62, -0.58}, {0.76, -0.26},
+      {0.60, 0.0},   {0.76, 0.26},  {0.62, 0.58},
+      {0.26, 0.58},  {0.26, -0.58},
+  };
+  return generateLatheProfile(profile, segments);
+}
+
 bool generateMeshByName(const std::string& type, int n, Mesh& mesh,
                         std::string* error) {
   if (type == "plane") {
@@ -509,12 +572,18 @@ bool generateMeshByName(const std::string& type, int n, Mesh& mesh,
     mesh = generateThinFinGrid(n, 2.0);
   } else if (type == "flange" || type == "flanged-boss") {
     mesh = generateFlangedBossGrid(std::max(48, n));
+  } else if (type == "stepped-shaft") {
+    mesh = generateSteppedShaftGrid(std::max(64, n));
+  } else if (type == "pipe-coupling") {
+    mesh = generatePipeCouplingGrid(std::max(72, n));
+  } else if (type == "pulley") {
+    mesh = generatePulleyGrid(std::max(72, n));
   } else {
     if (error) {
       *error =
           "Unknown generator type. Use plane, clustered-plane, hole-plane, "
           "ridge, noisy-plane, sine-terrain, terrace, bump, cylinder, torus, "
-          "cube, thin-fin, or flange.";
+          "cube, thin-fin, flange, stepped-shaft, pipe-coupling, or pulley.";
     }
     return false;
   }

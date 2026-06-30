@@ -1,5 +1,7 @@
 #include "QEMSimplifier.h"
 
+#include "FeatureDetection.h"
+
 #include <Eigen/Eigenvalues>
 
 #include <algorithm>
@@ -26,6 +28,14 @@ struct VertexState {
   Vec3 p = Vec3::Zero();
   Mat4 q = Mat4::Zero();
   bool active = true;
+  bool isFeature = false;
+  bool circularFeature = false;
+  bool featureJunction = false;
+  int featureLoopId = -1;
+  Vec3 curveTangent = Vec3::Zero();
+  Vec3 circleCenter = Vec3::Zero();
+  Vec3 circleNormal = Vec3(0.0, 0.0, 1.0);
+  double circleRadius = 0.0;
   int version = 0;
 };
 
@@ -163,9 +173,9 @@ std::vector<double> computeFeatureScores(const Mesh& mesh, WeightMode mode,
     if (info.faces.size() == 1) {
       edgeScore = 1.0;
     } else if (info.faces.size() == 2) {
-      const double dot =
-          std::clamp(faceNormals[info.faces[0]].dot(faceNormals[info.faces[1]]),
-                     -1.0, 1.0);
+      const double dot = std::clamp(
+          std::abs(faceNormals[info.faces[0]].dot(faceNormals[info.faces[1]])),
+          -1.0, 1.0);
       const double angle = std::acos(dot);
       edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
     }
@@ -213,6 +223,7 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight,
 }
 
 void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
+                            const FeatureAnalysis* featureAnalysis,
                             std::vector<Mat4>& quadrics,
                             double& minLineWeight, double& maxLineWeight) {
   quadrics.assign(mesh.vertices.size(), Mat4::Zero());
@@ -245,36 +256,71 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
 
   minLineWeight = std::numeric_limits<double>::infinity();
   maxLineWeight = 0.0;
-  if (!options.useLineQuadrics || options.lineWeight <= 0.0) {
+  const bool useNormalLineQuadrics =
+      options.useLineQuadrics && options.lineWeight > 0.0;
+  if (!useNormalLineQuadrics) {
     minLineWeight = 0.0;
-    return;
   }
 
   const std::vector<double> featureScores =
-      computeFeatureScores(mesh, options.weightMode, options.featureAngleDeg);
+      useNormalLineQuadrics
+          ? computeFeatureScores(mesh, options.weightMode, options.featureAngleDeg)
+          : std::vector<double>();
 
-  for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
-    Vec3 normal = normalSum[i];
-    if (normal.norm() <= 1e-20 || vertexArea[i] <= 1e-24) {
-      quadrics[i] += 1e-6 * pointQuadric(mesh.vertices[i]);
-      continue;
-    }
-    normal.normalize();
+  if (useNormalLineQuadrics) {
+    for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
+      Vec3 normal = normalSum[i];
+      if (normal.norm() <= 1e-20 || vertexArea[i] <= 1e-24) {
+        quadrics[i] += 1e-6 * pointQuadric(mesh.vertices[i]);
+        continue;
+      }
+      normal.normalize();
 
-    const Mat4 ql = lineQuadric(mesh.vertices[i], normal);
-    double appliedWeight = options.lineWeight;
-    if (options.weightMode != WeightMode::Uniform) {
-      appliedWeight += options.featureBoost * featureScores[i];
-    }
+      const Mat4 ql = lineQuadric(mesh.vertices[i], normal);
+      double appliedWeight = options.lineWeight;
+      if (options.weightMode != WeightMode::Uniform) {
+        appliedWeight += options.featureBoost * featureScores[i];
+      }
 
-    if (options.adaptiveScale) {
-      quadrics[i] += options.adaptiveBaseLineWeight * vertexArea[i] * ql;
-      quadrics[i] *= (1.0 + std::max(0.0, options.featureBoost) * featureScores[i]);
-    } else {
-      quadrics[i] += appliedWeight * vertexArea[i] * ql;
+      if (options.adaptiveScale) {
+        quadrics[i] += options.adaptiveBaseLineWeight * vertexArea[i] * ql;
+        quadrics[i] *=
+            (1.0 + std::max(0.0, options.featureBoost) * featureScores[i]);
+      } else {
+        quadrics[i] += appliedWeight * vertexArea[i] * ql;
+      }
+      minLineWeight = std::min(minLineWeight, appliedWeight);
+      maxLineWeight = std::max(maxLineWeight, appliedWeight);
     }
-    minLineWeight = std::min(minLineWeight, appliedWeight);
-    maxLineWeight = std::max(maxLineWeight, appliedWeight);
+  }
+
+  if (options.preserveFeatureCurves && featureAnalysis &&
+      options.featureCurveWeight > 0.0) {
+    double positiveAreaSum = 0.0;
+    int positiveAreaCount = 0;
+    for (double area : vertexArea) {
+      if (area > 1e-24) {
+        positiveAreaSum += area;
+        ++positiveAreaCount;
+      }
+    }
+    const double fallbackArea =
+        positiveAreaCount > 0
+            ? positiveAreaSum / static_cast<double>(positiveAreaCount)
+            : std::max(1e-12, mesh.bboxDiag() * mesh.bboxDiag() * 1e-6);
+
+    for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
+      if (i >= static_cast<int>(featureAnalysis->vertices.size())) {
+        continue;
+      }
+      const VertexFeature& vf = featureAnalysis->vertices[i];
+      if (!vf.isFeature || vf.tangent.norm() <= 1e-20) {
+        continue;
+      }
+      const double areaScale = std::max(vertexArea[i], fallbackArea);
+      const Mat4 qCurve = lineQuadric(mesh.vertices[i], vf.tangent);
+      quadrics[i] += options.featureCurveWeight * areaScale * qCurve;
+    }
   }
 
   if (!std::isfinite(minLineWeight)) {
@@ -321,6 +367,95 @@ SolveResult solveOptimal(const Mat4& q, const Vec3& a, const Vec3& b) {
     result.usedFallback = true;
   }
   return result;
+}
+
+Vec3 projectToCircle(const Vec3& p, const VertexState& feature) {
+  Vec3 normal = feature.circleNormal;
+  if (normal.norm() <= 1e-20 || feature.circleRadius <= 1e-20) {
+    return p;
+  }
+  normal.normalize();
+
+  Vec3 radial = p - feature.circleCenter;
+  radial -= normal * radial.dot(normal);
+  if (radial.norm() <= 1e-20) {
+    radial = feature.p - feature.circleCenter;
+    radial -= normal * radial.dot(normal);
+  }
+  if (radial.norm() <= 1e-20) {
+    return feature.circleCenter;
+  }
+  return feature.circleCenter + feature.circleRadius * radial.normalized();
+}
+
+void refreshCircularTangent(VertexState& vertex) {
+  if (!vertex.circularFeature) {
+    return;
+  }
+  Vec3 normal = vertex.circleNormal;
+  if (normal.norm() <= 1e-20) {
+    return;
+  }
+  normal.normalize();
+  Vec3 radial = vertex.p - vertex.circleCenter;
+  radial -= normal * radial.dot(normal);
+  if (radial.norm() <= 1e-20) {
+    return;
+  }
+  vertex.curveTangent = normal.cross(radial).normalized();
+}
+
+bool featureCollapseAllowed(int keep, int remove,
+                            const std::vector<VertexState>& vertices,
+                            const std::vector<int>& activeLoopCounts,
+                            const SimplifyOptions& options) {
+  if (!options.preserveFeatureCurves) {
+    return true;
+  }
+
+  const VertexState& a = vertices[keep];
+  const VertexState& b = vertices[remove];
+  if (!a.isFeature && !b.isFeature) {
+    return true;
+  }
+  if (a.isFeature != b.isFeature) {
+    return false;
+  }
+  if (a.featureLoopId < 0 || a.featureLoopId != b.featureLoopId) {
+    return false;
+  }
+  if (a.featureJunction || b.featureJunction) {
+    return false;
+  }
+  if (a.featureLoopId >= static_cast<int>(activeLoopCounts.size())) {
+    return false;
+  }
+  if (activeLoopCounts[a.featureLoopId] <= options.minFeatureLoopVertices) {
+    return false;
+  }
+  return true;
+}
+
+bool projectFeaturePlacement(int keep, int remove,
+                             const std::vector<VertexState>& vertices,
+                             const SimplifyOptions& options, Vec3& position) {
+  if (!options.preserveFeatureCurves) {
+    return false;
+  }
+  const VertexState& a = vertices[keep];
+  const VertexState& b = vertices[remove];
+  if (!a.isFeature || !b.isFeature || a.featureLoopId != b.featureLoopId) {
+    return false;
+  }
+  if (a.circularFeature) {
+    position = projectToCircle(position, a);
+    return true;
+  }
+  if (b.circularFeature) {
+    position = projectToCircle(position, b);
+    return true;
+  }
+  return false;
 }
 
 std::vector<std::pair<int, int>> collectActiveEdges(
@@ -530,14 +665,60 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
   report.initialVertices = static_cast<int>(input.vertices.size());
   report.initialFaces = static_cast<int>(input.faces.size());
 
+  FeatureAnalysis featureAnalysis;
+  const FeatureAnalysis* featureAnalysisPtr = nullptr;
+  if (options.preserveFeatureCurves) {
+    FeatureOptions featureOptions;
+    featureOptions.featureAngleDeg = options.featureAngleDeg;
+    featureOptions.circleFitRelativeThreshold = options.circleFitRelativeThreshold;
+    featureOptions.minFeatureLoopVertices =
+        std::max(5, std::min(options.minFeatureLoopVertices, 8));
+    featureAnalysis = detectFeatureCurves(input, featureOptions);
+    featureAnalysisPtr = &featureAnalysis;
+    report.featureLoops = static_cast<int>(featureAnalysis.loops.size());
+    for (const FeatureLoop& loop : featureAnalysis.loops) {
+      if (loop.circular) {
+        ++report.circularFeatureLoops;
+      }
+    }
+    for (const VertexFeature& vertex : featureAnalysis.vertices) {
+      if (vertex.isFeature) {
+        ++report.featureVertices;
+      }
+    }
+  }
+
   std::vector<Mat4> initialQuadrics;
-  computeInitialQuadrics(input, options, initialQuadrics, report.minAppliedLineWeight,
-                         report.maxAppliedLineWeight);
+  computeInitialQuadrics(input, options, featureAnalysisPtr, initialQuadrics,
+                         report.minAppliedLineWeight, report.maxAppliedLineWeight);
 
   std::vector<VertexState> vertices(input.vertices.size());
   for (int i = 0; i < static_cast<int>(input.vertices.size()); ++i) {
     vertices[i].p = input.vertices[i];
     vertices[i].q = initialQuadrics[i];
+    if (featureAnalysisPtr &&
+        i < static_cast<int>(featureAnalysisPtr->vertices.size())) {
+      const VertexFeature& vf = featureAnalysisPtr->vertices[i];
+      vertices[i].isFeature = vf.isFeature;
+      vertices[i].circularFeature = vf.circular;
+      vertices[i].featureJunction = vf.junction;
+      vertices[i].featureLoopId = vf.loopId;
+      vertices[i].curveTangent = vf.tangent;
+      vertices[i].circleCenter = vf.circleCenter;
+      vertices[i].circleNormal = vf.circleNormal;
+      vertices[i].circleRadius = vf.circleRadius;
+    }
+  }
+
+  std::vector<int> activeLoopCounts;
+  if (featureAnalysisPtr) {
+    activeLoopCounts.assign(featureAnalysisPtr->loops.size(), 0);
+    for (const VertexState& vertex : vertices) {
+      if (vertex.isFeature && vertex.featureLoopId >= 0 &&
+          vertex.featureLoopId < static_cast<int>(activeLoopCounts.size())) {
+        ++activeLoopCounts[vertex.featureLoopId];
+      }
+    }
   }
 
   std::vector<FaceState> faces(input.faces.size());
@@ -555,6 +736,11 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
   const double areaEps = diag * diag * 1e-18;
 
   std::priority_queue<Candidate> queue;
+  const int initialActiveEdgeCount =
+      static_cast<int>(collectActiveEdges(faces).size());
+  const int maxAttemptsWithoutCollapse =
+      std::max(1000, std::max(1, initialActiveEdgeCount) * 6);
+  int attemptsWithoutCollapse = 0;
   auto rebuildQueue = [&]() {
     queue = std::priority_queue<Candidate>();
     for (const auto& [a, b] : collectActiveEdges(faces)) {
@@ -597,17 +783,54 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
 
     const int keep = a;
     const int remove = b;
-    if (!collapseWouldBeValid(keep, remove, solve.position, faces, vertices,
+    if (!featureCollapseAllowed(keep, remove, vertices, activeLoopCounts,
+                                options)) {
+      ++report.rejectedCollapses;
+      ++report.featureRejectedCollapses;
+      vertices[keep].version++;
+      vertices[remove].version++;
+      if (++attemptsWithoutCollapse > maxAttemptsWithoutCollapse) {
+        if (options.verbose) {
+          std::cerr << "stopped: feature constraints leave no valid collapses\n";
+        }
+        break;
+      }
+      continue;
+    }
+
+    Vec3 collapsePosition = solve.position;
+    if (projectFeaturePlacement(keep, remove, vertices, options,
+                                collapsePosition)) {
+      ++report.projectedFeaturePlacements;
+    }
+
+    if (!collapseWouldBeValid(keep, remove, collapsePosition, faces, vertices,
                               areaEps)) {
       ++report.rejectedCollapses;
       vertices[keep].version++;
       vertices[remove].version++;
+      if (++attemptsWithoutCollapse > maxAttemptsWithoutCollapse) {
+        if (options.verbose) {
+          std::cerr << "stopped: topology checks leave no valid collapses\n";
+        }
+        break;
+      }
       continue;
     }
 
-    vertices[keep].p = solve.position;
+    const bool mergedFeatureLoop =
+        vertices[keep].isFeature && vertices[remove].isFeature &&
+        vertices[keep].featureLoopId == vertices[remove].featureLoopId &&
+        vertices[keep].featureLoopId >= 0 &&
+        vertices[keep].featureLoopId < static_cast<int>(activeLoopCounts.size());
+
+    vertices[keep].p = collapsePosition;
     vertices[keep].q = mergedQ;
+    refreshCircularTangent(vertices[keep]);
     vertices[remove].active = false;
+    if (mergedFeatureLoop) {
+      --activeLoopCounts[vertices[keep].featureLoopId];
+    }
     vertices[keep].version++;
     vertices[remove].version++;
 
@@ -630,6 +853,7 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
     }
     activeFaceCount -= removeDuplicateFaces(faces);
     ++report.collapsedEdges;
+    attemptsWithoutCollapse = 0;
 
     for (int neighbor : activeNeighborsOf(keep, faces, vertices)) {
       pushEdge(keep, neighbor, vertices, queue, report);

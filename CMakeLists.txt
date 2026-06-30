@@ -19,6 +19,7 @@ endif()
 
 add_executable(linequadrics
   src/main.cpp
+  src/FeatureDetection.cpp
   src/Mesh.cpp
   src/MeshGenerators.cpp
   src/Metrics.cpp

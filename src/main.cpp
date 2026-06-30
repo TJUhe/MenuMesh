@@ -1,12 +1,15 @@
 #include "Mesh.h"
+#include "FeatureDetection.h"
 #include "MeshGenerators.h"
 #include "Metrics.h"
 #include "QEMSimplifier.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -15,6 +18,8 @@
 namespace fs = std::filesystem;
 
 namespace {
+
+constexpr double kPi = 3.141592653589793238462643383279502884;
 
 struct Args {
   std::vector<std::string> values;
@@ -125,11 +130,20 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
       getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
   options.boundaryWeight =
       getDoubleArg(args, "--boundary-weight", options.boundaryWeight);
+  options.featureCurveWeight =
+      getDoubleArg(args, "--feature-curve-weight", options.featureCurveWeight);
+  options.circleFitRelativeThreshold =
+      getDoubleArg(args, "--circle-fit-threshold",
+                   options.circleFitRelativeThreshold);
+  options.minFeatureLoopVertices =
+      getIntArg(args, "--min-feature-loop-vertices",
+                options.minFeatureLoopVertices);
   options.adaptiveBaseLineWeight =
       getDoubleArg(args, "--adaptive-base-line-weight",
                    options.adaptiveBaseLineWeight);
   options.verbose = hasFlag(args, "--verbose");
   options.adaptiveScale = hasFlag(args, "--adaptive-scale");
+  options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
 
   const std::string mode = getArg(args, "--weight-mode", "uniform");
   options.weightMode = lq::parseWeightMode(mode);
@@ -146,6 +160,19 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   return options;
 }
 
+lq::FeatureOptions parseFeatureOptions(const Args& args) {
+  lq::FeatureOptions options;
+  options.featureAngleDeg =
+      getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
+  options.circleFitRelativeThreshold =
+      getDoubleArg(args, "--circle-fit-threshold",
+                   options.circleFitRelativeThreshold);
+  options.minFeatureLoopVertices =
+      getIntArg(args, "--min-feature-loop-vertices",
+                options.minFeatureLoopVertices);
+  return options;
+}
+
 void printUsage() {
   std::cout
       << "Line Quadrics QEM reproduction\n\n"
@@ -153,6 +180,8 @@ void printUsage() {
       << "  linequadrics generate --type clustered-plane --n 50 --out input.stl\n"
       << "  linequadrics simplify input.stl output.stl [options]\n"
       << "  linequadrics compare original.stl simplified.stl [--samples 3000]\n"
+      << "  linequadrics feature-report input.stl [--csv report.csv]\n"
+      << "  linequadrics feature-compare original.stl simplified.stl [--csv report.csv]\n"
       << "  linequadrics sweep input.stl out_dir [options]\n\n"
       << "  linequadrics ratio-sweep input.stl out_dir [options]\n\n"
       << "  linequadrics face-sweep input.stl out_dir [options]\n\n"
@@ -166,6 +195,10 @@ void printUsage() {
       << "  --feature-angle-deg A           Dihedral threshold for feature mode\n"
       << "  --adaptive-scale                Add small line quadrics then scale Q\n"
       << "  --boundary-weight W             Optional boundary plane quadrics\n"
+      << "  --preserve-feature-curves       Protect detected crease/boundary loops\n"
+      << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
+      << "  --circle-fit-threshold R        Relative fit threshold for circular loops\n"
+      << "  --min-feature-loop-vertices N   Stop collapsing a loop below N vertices\n"
       << "  --metrics-csv path              Write one-row CSV metrics\n"
       << "  --samples N                     Distance sample count\n"
       << "  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1\n"
@@ -174,7 +207,7 @@ void printUsage() {
       << "\nGenerator types:\n"
       << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
       << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
-      << "  flange\n";
+      << "  flange, stepped-shaft, pipe-coupling, pulley\n";
 }
 
 void printStats(const std::string& label, const lq::MeshStats& stats) {
@@ -235,6 +268,207 @@ int commandCompare(const Args& args) {
   return 0;
 }
 
+int countCircularLoops(const lq::FeatureAnalysis& analysis) {
+  int count = 0;
+  for (const lq::FeatureLoop& loop : analysis.loops) {
+    if (loop.circular) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+int commandFeatureReport(const Args& args) {
+  const auto positional = positionalArgs(args);
+  if (positional.empty()) {
+    throw std::invalid_argument("feature-report requires input.stl.");
+  }
+
+  lq::Mesh input;
+  std::string error;
+  if (!lq::loadStl(positional[0], input, &error)) {
+    throw std::runtime_error(error);
+  }
+
+  const lq::FeatureOptions options = parseFeatureOptions(args);
+  const lq::FeatureAnalysis analysis = lq::detectFeatureCurves(input, options);
+  const int circularLoops = countCircularLoops(analysis);
+  std::cout << "feature_edges=" << analysis.featureEdges
+            << " boundary_edges=" << analysis.boundaryFeatureEdges
+            << " dihedral_edges=" << analysis.dihedralFeatureEdges
+            << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
+            << " loops=" << analysis.loops.size()
+            << " circular_loops=" << circularLoops << "\n";
+  std::cout << lq::featureReportHeaderCsv() << "\n";
+  for (const lq::FeatureLoop& loop : analysis.loops) {
+    std::cout << lq::featureLoopRowCsv(loop) << "\n";
+  }
+
+  const std::string csvPath = getArg(args, "--csv");
+  if (!csvPath.empty()) {
+    const fs::path output(csvPath);
+    if (output.has_parent_path()) {
+      fs::create_directories(output.parent_path());
+    }
+    std::ofstream csv(csvPath);
+    csv << "feature_edges,boundary_edges,dihedral_edges,non_manifold_edges,"
+           "loops,circular_loops\n";
+    csv << analysis.featureEdges << "," << analysis.boundaryFeatureEdges << ","
+        << analysis.dihedralFeatureEdges << ","
+        << analysis.nonManifoldFeatureEdges << "," << analysis.loops.size()
+        << "," << circularLoops << "\n\n";
+    csv << lq::featureReportHeaderCsv() << "\n";
+    for (const lq::FeatureLoop& loop : analysis.loops) {
+      csv << lq::featureLoopRowCsv(loop) << "\n";
+    }
+  }
+  return 0;
+}
+
+int commandFeatureCompare(const Args& args) {
+  const auto positional = positionalArgs(args);
+  if (positional.size() < 2) {
+    throw std::invalid_argument(
+        "feature-compare requires original.stl simplified.stl.");
+  }
+
+  lq::Mesh original;
+  lq::Mesh simplified;
+  std::string error;
+  if (!lq::loadStl(positional[0], original, &error)) {
+    throw std::runtime_error(error);
+  }
+  if (!lq::loadStl(positional[1], simplified, &error)) {
+    throw std::runtime_error(error);
+  }
+
+  const lq::FeatureOptions options = parseFeatureOptions(args);
+  const lq::FeatureAnalysis originalFeatures =
+      lq::detectFeatureCurves(original, options);
+  const lq::FeatureAnalysis simplifiedFeatures =
+      lq::detectFeatureCurves(simplified, options);
+
+  std::vector<int> originalCircular;
+  std::vector<int> simplifiedCircular;
+  for (int i = 0; i < static_cast<int>(originalFeatures.loops.size()); ++i) {
+    if (originalFeatures.loops[i].circular) {
+      originalCircular.push_back(i);
+    }
+  }
+  for (int i = 0; i < static_cast<int>(simplifiedFeatures.loops.size()); ++i) {
+    if (simplifiedFeatures.loops[i].circular) {
+      simplifiedCircular.push_back(i);
+    }
+  }
+
+  const double diag = std::max(1e-12, original.bboxDiag());
+  std::vector<char> usedSimplified(simplifiedFeatures.loops.size(), 0);
+  std::ostringstream rows;
+  rows << std::setprecision(12);
+  int matched = 0;
+  int missing = 0;
+  for (int originalId : originalCircular) {
+    const lq::FeatureLoop& origLoop = originalFeatures.loops[originalId];
+    int bestLoopId = -1;
+    double bestScore = std::numeric_limits<double>::infinity();
+    double bestCenterError = 0.0;
+    double bestRadiusError = 0.0;
+    double bestNormalAngleDeg = 0.0;
+
+    for (int simplifiedId : simplifiedCircular) {
+      if (usedSimplified[simplifiedId]) {
+        continue;
+      }
+      const lq::FeatureLoop& simpLoop = simplifiedFeatures.loops[simplifiedId];
+      const double centerError = (origLoop.center - simpLoop.center).norm();
+      const double radiusError = std::abs(origLoop.radius - simpLoop.radius);
+      const double normalDot =
+          std::clamp(std::abs(origLoop.normal.normalized().dot(
+                         simpLoop.normal.normalized())),
+                     0.0, 1.0);
+      const double normalAngle = std::acos(normalDot);
+      const double score =
+          centerError / diag +
+          radiusError / std::max(1e-12, origLoop.radius) + normalAngle / kPi;
+      if (score < bestScore) {
+        bestScore = score;
+        bestLoopId = simplifiedId;
+        bestCenterError = centerError;
+        bestRadiusError = radiusError;
+        bestNormalAngleDeg = normalAngle * 180.0 / kPi;
+      }
+    }
+
+    std::string status = "missing";
+    lq::DirectionalCurveError directional;
+    int simplifiedVertexCount = 0;
+    double simplifiedRadius = 0.0;
+    bool plausibleMatch = false;
+    if (bestLoopId >= 0) {
+      const lq::FeatureLoop& simpLoop = simplifiedFeatures.loops[bestLoopId];
+      const double radiusRel =
+          bestRadiusError / std::max(1e-12, origLoop.radius);
+      plausibleMatch = bestCenterError <= 0.08 * diag && radiusRel <= 0.20 &&
+                       bestNormalAngleDeg <= 30.0;
+      if (plausibleMatch) {
+        usedSimplified[bestLoopId] = 1;
+        directional = lq::measureLoopAgainstCircle(
+            simplified, simpLoop, origLoop.center, origLoop.normal,
+            origLoop.radius);
+        simplifiedVertexCount = static_cast<int>(simpLoop.vertices.size());
+        simplifiedRadius = simpLoop.radius;
+      }
+    }
+
+    if (plausibleMatch) {
+      const double radiusRel =
+          bestRadiusError / std::max(1e-12, origLoop.radius);
+      status = (bestCenterError <= 0.04 * diag && radiusRel <= 0.08 &&
+                bestNormalAngleDeg <= 15.0)
+                   ? "matched"
+                   : "weak_match";
+      ++matched;
+    } else {
+      bestLoopId = -1;
+      bestCenterError = 0.0;
+      bestRadiusError = 0.0;
+      bestNormalAngleDeg = 0.0;
+      ++missing;
+    }
+
+    rows << origLoop.id << "," << bestLoopId << "," << origLoop.vertices.size()
+         << "," << simplifiedVertexCount << "," << origLoop.radius << ","
+         << simplifiedRadius << "," << bestCenterError << ","
+         << bestRadiusError << "," << bestNormalAngleDeg << ","
+         << directional.radialRms << "," << directional.radialMax << ","
+         << directional.planeRms << "," << directional.planeMax << ","
+         << status << "\n";
+  }
+
+  const std::string header =
+      "orig_loop,matched_loop,orig_vertices,simplified_vertices,orig_radius,"
+      "simplified_radius,center_error,radius_error,normal_angle_deg,"
+      "radial_rms,radial_max,plane_rms,plane_max,status";
+  std::cout << "original_circular_loops=" << originalCircular.size()
+            << " simplified_circular_loops=" << simplifiedCircular.size()
+            << " matched=" << matched << " missing=" << missing << "\n";
+  std::cout << header << "\n" << rows.str();
+
+  const std::string csvPath = getArg(args, "--csv");
+  if (!csvPath.empty()) {
+    const fs::path output(csvPath);
+    if (output.has_parent_path()) {
+      fs::create_directories(output.parent_path());
+    }
+    std::ofstream csv(csvPath);
+    csv << "original_circular_loops,simplified_circular_loops,matched,missing\n";
+    csv << originalCircular.size() << "," << simplifiedCircular.size() << ","
+        << matched << "," << missing << "\n\n";
+    csv << header << "\n" << rows.str();
+  }
+  return 0;
+}
+
 int commandSimplify(const Args& args) {
   const auto positional = positionalArgs(args);
   if (positional.size() < 2) {
@@ -269,6 +503,14 @@ int commandSimplify(const Args& args) {
             << " solver_fallbacks=" << report.solverFallbacks
             << " line_weight_range=[" << report.minAppliedLineWeight << ", "
             << report.maxAppliedLineWeight << "]\n";
+  if (options.preserveFeatureCurves) {
+    std::cout << "feature_loops=" << report.featureLoops
+              << " circular_feature_loops=" << report.circularFeatureLoops
+              << " feature_vertices=" << report.featureVertices
+              << " feature_rejected=" << report.featureRejectedCollapses
+              << " projected_feature_placements="
+              << report.projectedFeaturePlacements << "\n";
+  }
   std::cout << "distance mean original->simplified="
             << distance.meanOriginalToSimplified
             << " max=" << distance.maxOriginalToSimplified << "\n";
@@ -281,10 +523,16 @@ int commandSimplify(const Args& args) {
     std::ofstream csv(metricsCsv);
     csv << lq::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
+           "feature_loops,circular_feature_loops,feature_vertices,"
+           "feature_rejected_collapses,projected_feature_placements,"
            "min_line_weight,max_line_weight\n";
     csv << lq::statsRowCsv("output", outStats, &distance) << ","
         << report.collapsedEdges << "," << report.rejectedCollapses << ","
-        << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
+        << report.solverFallbacks << "," << report.featureLoops << ","
+        << report.circularFeatureLoops << "," << report.featureVertices << ","
+        << report.featureRejectedCollapses << ","
+        << report.projectedFeaturePlacements << "," << report.minAppliedLineWeight
+        << ","
         << report.maxAppliedLineWeight << "\n";
   }
 
@@ -488,6 +736,8 @@ int main(int argc, char** argv) {
     if (command == "generate") return commandGenerate(args);
     if (command == "simplify") return commandSimplify(args);
     if (command == "compare") return commandCompare(args);
+    if (command == "feature-report") return commandFeatureReport(args);
+    if (command == "feature-compare") return commandFeatureCompare(args);
     if (command == "sweep") return commandSweep(args);
     if (command == "ratio-sweep") return commandRatioSweep(args);
     if (command == "face-sweep") return commandFaceSweep(args);

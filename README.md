@@ -45,22 +45,22 @@ cmake --build build --config Release --target linequadrics
 
 推荐工具链：
 
-- MinGW-w64：`GCC 10.5.0 x86_64 POSIX SEH MSVCRT`，离线包已放在 `third_party/packages/winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z`。
-- Eigen：`3.4.0`，离线包已放在 `third_party/packages/eigen-3.4.0.tar.gz`。
+- MinGW-w64：推荐 `GCC 10.5.0 x86_64 POSIX SEH MSVCRT`。本分支不再把安装包放进 `third_party`，需要自行准备或从 WinLibs 等来源下载。
+- Eigen：推荐 `3.4.0`。本分支不再把 Eigen 压缩包放进 `third_party`；可以安装到 `C:\libs\eigen-3.4.0`，或让 CMake 在线 FetchContent 下载。
 - CMake：推荐 `3.20.x` 到 `3.25.x` 的 Windows zip/installer；如果 CMake 在 Win7 上不好装，可以直接用下面的 `g++` 命令编译。
 
 为什么推荐这个 MinGW 版本：
 
 - 当前代码使用 C++17 和 `std::filesystem`。GCC 10.5 对 `std::filesystem` 比 GCC 8.x 更省心，通常不需要额外链接 `-lstdc++fs`。
 - 选择 MSVCRT 版 WinLibs 是为了兼容老 Windows；新版 MSYS2 runtime 已不适合作为 Windows 7 首选环境。
-- 84MB 左右的压缩包可以直接离线拷贝，不需要在旧机器上联网安装。
+- 如果是离线老机器，建议在新机器上提前下载好 MinGW 和 Eigen，再用 U 盘拷过去。
 
 安装步骤：
 
-1. 解压 MinGW：
+1. 解压你自行准备的 MinGW-w64：
 
    ```text
-   third_party/packages/winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z
+   winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z
    ```
 
    例如解压到：
@@ -75,10 +75,10 @@ cmake --build build --config Release --target linequadrics
    set PATH=C:\tools\mingw64\bin;%PATH%
    ```
 
-3. 解压 Eigen：
+3. 解压你自行准备的 Eigen：
 
    ```text
-   third_party/packages/eigen-3.4.0.tar.gz
+   eigen-3.4.0.tar.gz
    ```
 
    例如解压到：
@@ -100,7 +100,7 @@ cmake --build build-mingw -- -j1
 ```bat
 g++ -std=c++17 -O2 -DNDEBUG ^
   -Isrc -IC:\libs\eigen-3.4.0 ^
-  src\main.cpp src\Mesh.cpp src\MeshGenerators.cpp src\Metrics.cpp src\QEMSimplifier.cpp ^
+  src\main.cpp src\FeatureDetection.cpp src\Mesh.cpp src\MeshGenerators.cpp src\Metrics.cpp src\QEMSimplifier.cpp ^
   -o linequadrics.exe
 ```
 
@@ -123,9 +123,7 @@ linequadrics.exe face-sweep flange.stl out_flange --faces "1000,800,600,400,200,
 - 4GB 内存机器上构建用 `-j1`，不要并行编译。
 - 不建议在老机器上跑完整 `run_demo.ps1`，先用 `--n 36` 或 `--n 48` 的几何验证。
 - `--samples` 默认是 3000；老机器可以降到 500，只影响距离指标精度，不影响简化 STL 输出。
-- 包校验值：
-  - `eigen-3.4.0.tar.gz`: `8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72`
-  - `winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z`: `5a38eee7ced1e65880e12fa15473ec2b413718e5011285442e2e410ee359101c`
+- 本分支已经移除 `third_party`，仓库不再附带 MinGW/Eigen 安装包。
 
 ## 快速复现实验
 
@@ -253,6 +251,30 @@ http://127.0.0.1:5174/viewer/
 ## 相关背景
 
 本地 mesh-feature-literature 资料库对简化/保特征方法的归纳也支持这个取舍：特征保留型简化通常是在 QEM/边折叠成本中加入特征敏感权重、saliency 或约束，但主要风险是保特征与三角质量、拓扑质量互相拉扯。对应资料库中的 simplification anchors 包括 005、037、048、050、072 等。
+
+## Curve feature constraints branch
+
+This branch adds an experimental circular-feature preservation path for CAD/STL
+parts:
+
+```powershell
+.\build\Release\linequadrics.exe simplify input.stl output_curve.stl `
+  --method line `
+  --ratio 0.20 `
+  --line-weight 1e-3 `
+  --weight-mode dihedral `
+  --feature-angle-deg 25 `
+  --preserve-feature-curves `
+  --feature-curve-weight 0.08 `
+  --circle-fit-threshold 0.04 `
+  --min-feature-loop-vertices 16
+```
+
+It adds `feature-report` and `feature-compare` commands, plus
+`run_feature_validation.ps1` for stepped-shaft, pipe-coupling, pulley, and
+flange-style validation. The detailed explanation, literature anchors, and
+directional error results are in
+[`docs/feature_curve_experiment.md`](E:/code/codex/line-quadrics-qem/docs/feature_curve_experiment.md).
 
 ## 可选外部几何来源
 

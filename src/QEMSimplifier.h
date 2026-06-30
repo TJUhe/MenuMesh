@@ -24,6 +24,10 @@ struct SimplifyOptions {
   bool adaptiveScale = false;
   double adaptiveBaseLineWeight = 1e-2;
   double boundaryWeight = 0.0;
+  bool preserveFeatureCurves = false;
+  double featureCurveWeight = 0.05;
+  double circleFitRelativeThreshold = 0.05;
+  int minFeatureLoopVertices = 16;
   bool verbose = false;
 };
 
@@ -36,6 +40,11 @@ struct SimplifyReport {
   int rejectedCollapses = 0;
   int solverFallbacks = 0;
   int queueRebuilds = 0;
+  int featureLoops = 0;
+  int circularFeatureLoops = 0;
+  int featureVertices = 0;
+  int featureRejectedCollapses = 0;
+  int projectedFeaturePlacements = 0;
   double minAppliedLineWeight = 0.0;
   double maxAppliedLineWeight = 0.0;
 };

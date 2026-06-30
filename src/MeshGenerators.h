@@ -20,6 +20,9 @@ Mesh generateTorusGrid(int majorSegments, int minorSegments, double majorRadius,
 Mesh generateCubeGrid(int n, double size);
 Mesh generateThinFinGrid(int n, double size);
 Mesh generateFlangedBossGrid(int n);
+Mesh generateSteppedShaftGrid(int n);
+Mesh generatePipeCouplingGrid(int n);
+Mesh generatePulleyGrid(int n);
 
 bool generateMeshByName(const std::string& type, int n, Mesh& mesh,
                         std::string* error = nullptr);

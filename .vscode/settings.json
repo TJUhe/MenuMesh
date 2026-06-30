@@ -1,0 +1,13 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.configureOnOpen": false,
+  "cmake.defaultConfigurePreset": "mingw-ninja-release",
+  "cmake.defaultBuildPreset": "mingw-ninja-release",
+  "cmake.buildDirectory": "${workspaceFolder}/build/${presetName}",
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.cppStandard": "c++17",
+  "files.associations": {
+    "*.h": "cpp",
+    "*.cpp": "cpp"
+  }
+}

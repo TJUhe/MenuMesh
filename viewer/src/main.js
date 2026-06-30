@@ -219,7 +219,7 @@ async function loadMetrics() {
     cache: "no-store",
   });
   if (!response.ok) {
-    statusEl.textContent = "Run .\\run_demo.ps1 and .\\collect_metrics.ps1 first";
+    statusEl.textContent = "Run VSCode task: run: quick viewer data";
     return [];
   }
   const text = await response.text();

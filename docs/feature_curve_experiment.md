@@ -101,13 +101,13 @@ Compare circular features after simplification:
 Run all validation cases:
 
 ```powershell
-.\run_feature_validation.ps1 -Config Release -Ratio 0.20 -N 96
+.\build\mingw-ninja-release\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
 ```
 
 Run downloaded external benchmark models:
 
 ```powershell
-.\run_external_model_validation.ps1 -Config Release -Ratio 0.25 -Samples 800
+.\build\mingw-ninja-release\linequadrics.exe validate-external --ratio 0.25 --samples 800
 ```
 
 ## Validation cases

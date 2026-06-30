@@ -1,8 +1,8 @@
 # External Model Validation
 
-This document records an extra validation pass using downloaded public benchmark
-models. The model files are not committed to the repository; the script downloads
-them into `examples/external/` when needed.
+This document records an extra validation pass using public benchmark models.
+The model files are not committed to the repository. Place them under
+`examples/external/common_3d_test_models/` when needed.
 
 ## Source
 
@@ -13,8 +13,8 @@ The current external set is from Alec Jacobson's
 
 The repository README describes it as a collection of common 3D test models and
 lists the original source for each model when known. Because original licenses
-vary by model, this project commits only the download/validation script and
-generated measurements, not the downloaded OBJ files themselves.
+vary by model, this project commits only validation commands and generated
+measurements, not the downloaded OBJ files themselves.
 
 ## Added OBJ support
 
@@ -29,10 +29,10 @@ The OBJ loader intentionally stays minimal:
 ## How to run
 
 ```powershell
-.\run_external_model_validation.ps1 -Config Release -Ratio 0.25 -Samples 800
+.\build\mingw-ninja-release\linequadrics.exe validate-external --ratio 0.25 --samples 800
 ```
 
-The script downloads these models:
+The validation command looks for these models:
 
 | Model | Role in validation |
 | --- | --- |

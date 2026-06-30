@@ -157,9 +157,9 @@ noisy_plane
 启动：
 
 ```powershell
-.\run_demo.ps1 -Config Release
-.\collect_metrics.ps1
-.\start_viewer.ps1
+.\build\mingw-ninja-release\linequadrics.exe demo --samples 1000
+pnpm install
+pnpm run viewer
 ```
 
 打开：

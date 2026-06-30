@@ -39,6 +39,19 @@ cmake --build build --config Release --target linequadrics
 
 如果系统没有 Eigen，CMake 会自动下载 Eigen 3.4.0。Eigen 是 header-only 依赖。
 
+## VSCode 推荐入口
+
+本仓库现在优先按 VSCode 使用配置，根目录 PowerShell 脚本已经清理掉。打开工程后建议安装 C/C++ 和 CMake Tools 扩展，然后从 `Terminal > Run Task...` 选择：
+
+- `build: mingw+ninja release`
+- `build: mingw makefiles release`
+- `build: msvc vs2022 release`
+- `build: msvc+ninja release`
+- `run: quick viewer data`
+- `viewer: start`
+
+三套工具链（MinGW、Ninja、MSVC）都在 `CMakePresets.json` 和 `.vscode/tasks.json` 中配置好了。Windows 7 / 4GB 内存机器优先用 `mingw-makefiles-release`，CMake 建议 3.20.x 到 3.25.x，不建议把 CMake 4.x 作为 Win7 基线。详细说明见：[docs/vscode_setup.md](E:/code/codex/line-quadrics-qem/docs/vscode_setup.md)。
+
 ## Windows 7 / 4GB 内存 / MinGW 离线运行
 
 老机器上建议只运行 C++ 命令行程序，不建议运行 Three.js viewer。viewer 依赖现代 Node/Vite/浏览器环境，Windows 7 上兼容性和内存都比较吃紧；把生成的 STL 拷到另一台机器或用 MeshLab/轻量 STL 查看器看会更稳。
@@ -121,14 +134,14 @@ linequadrics.exe face-sweep flange.stl out_flange --faces "1000,800,600,400,200,
 注意事项：
 
 - 4GB 内存机器上构建用 `-j1`，不要并行编译。
-- 不建议在老机器上跑完整 `run_demo.ps1`，先用 `--n 36` 或 `--n 48` 的几何验证。
+- 不建议在老机器上跑完整 viewer demo，先用 `--n 36` 或 `--n 48` 的几何验证。
 - `--samples` 默认是 3000；老机器可以降到 500，只影响距离指标精度，不影响简化 STL 输出。
 - 本分支已经移除 `third_party`，仓库不再附带 MinGW/Eigen 安装包。
 
 ## 快速复现实验
 
 ```powershell
-.\run_demo.ps1 -Config Release
+.\build\mingw-ninja-release\linequadrics.exe demo --samples 1000
 ```
 
 脚本会生成多类 STL：
@@ -222,14 +235,14 @@ linequadrics.exe face-sweep flange.stl out_flange --faces "1000,800,600,400,200,
 先生成 demo STL 和总表：
 
 ```powershell
-.\run_demo.ps1 -Config Release
-.\collect_metrics.ps1
+.\build\mingw-ninja-release\linequadrics.exe demo --samples 1000
 ```
 
 启动 Three.js viewer：
 
 ```powershell
-.\start_viewer.ps1
+pnpm install
+pnpm run viewer
 ```
 
 然后打开：
@@ -270,9 +283,9 @@ parts:
   --min-feature-loop-vertices 16
 ```
 
-It adds `feature-report` and `feature-compare` commands,
-`run_feature_validation.ps1` for generated industrial cases, and
-`run_external_model_validation.ps1` for downloaded OBJ benchmark models. The
+It adds `feature-report` and `feature-compare` commands, plus native
+`validate-features` and `validate-external` workflows for generated industrial
+cases and OBJ benchmark models. The
 detailed explanation, literature anchors, and directional error results are in
 [`docs/feature_curve_experiment.md`](E:/code/codex/line-quadrics-qem/docs/feature_curve_experiment.md).
 External-model findings are recorded in

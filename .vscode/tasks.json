@@ -1,0 +1,238 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "configure: mingw+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "mingw-ninja-release"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "mingw-ninja-release", "--target", "linequadrics", "--parallel", "2"],
+      "group": "build",
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
+      "label": "configure: mingw+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "mingw-ninja-debug"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "mingw-ninja-debug", "--target", "linequadrics", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
+      "label": "configure: mingw makefiles release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "mingw-makefiles-release"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw makefiles release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "mingw-makefiles-release", "--target", "linequadrics", "--parallel", "1"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw makefiles release"
+    },
+    {
+      "label": "configure: mingw makefiles debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "mingw-makefiles-debug"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw makefiles debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "mingw-makefiles-debug", "--target", "linequadrics", "--parallel", "1"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw makefiles debug"
+    },
+    {
+      "label": "configure: msvc vs2022 release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "msvc-vs2022-release"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc vs2022 release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "msvc-vs2022-release", "--target", "linequadrics", "--config", "Release", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 release"
+    },
+    {
+      "label": "configure: msvc vs2022 debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "msvc-vs2022-debug"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc vs2022 debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "msvc-vs2022-debug", "--target", "linequadrics", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug"
+    },
+    {
+      "label": "configure: msvc+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "msvc-ninja-release"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "msvc-ninja-release", "--target", "linequadrics", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+ninja release"
+    },
+    {
+      "label": "configure: msvc+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "msvc-ninja-debug"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "msvc-ninja-debug", "--target", "linequadrics", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+ninja debug"
+    },
+    {
+      "label": "run: quick viewer data",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "500"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: quick viewer data (mingw makefiles)",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-makefiles-release/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "500"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw makefiles release"
+    },
+    {
+      "label": "run: quick viewer data (msvc vs2022)",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/msvc-vs2022-release/Release/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "500"],
+      "problemMatcher": [],
+      "dependsOn": "build: msvc vs2022 release"
+    },
+    {
+      "label": "run: full demo data",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "args": ["demo", "--samples", "1000"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: feature validation",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "args": ["validate-features", "--ratio", "0.20", "--n", "96", "--samples", "1000"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: external validation",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "args": ["validate-external", "--ratio", "0.25", "--samples", "800"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "viewer: install",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["install"],
+      "problemMatcher": []
+    },
+    {
+      "label": "viewer: start",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "viewer"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "Local:"
+        }
+      },
+      "dependsOn": ["viewer: install", "run: quick viewer data"]
+    },
+    {
+      "label": "viewer: start (mingw makefiles)",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "viewer"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "Local:"
+        }
+      },
+      "dependsOn": ["viewer: install", "run: quick viewer data (mingw makefiles)"]
+    },
+    {
+      "label": "viewer: start (msvc vs2022)",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "viewer"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "Local:"
+        }
+      },
+      "dependsOn": ["viewer: install", "run: quick viewer data (msvc vs2022)"]
+    }
+  ]
+}

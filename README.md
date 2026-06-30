@@ -39,6 +39,94 @@ cmake --build build --config Release --target linequadrics
 
 如果系统没有 Eigen，CMake 会自动下载 Eigen 3.4.0。Eigen 是 header-only 依赖。
 
+## Windows 7 / 4GB 内存 / MinGW 离线运行
+
+老机器上建议只运行 C++ 命令行程序，不建议运行 Three.js viewer。viewer 依赖现代 Node/Vite/浏览器环境，Windows 7 上兼容性和内存都比较吃紧；把生成的 STL 拷到另一台机器或用 MeshLab/轻量 STL 查看器看会更稳。
+
+推荐工具链：
+
+- MinGW-w64：`GCC 10.5.0 x86_64 POSIX SEH MSVCRT`，离线包已放在 `third_party/packages/winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z`。
+- Eigen：`3.4.0`，离线包已放在 `third_party/packages/eigen-3.4.0.tar.gz`。
+- CMake：推荐 `3.20.x` 到 `3.25.x` 的 Windows zip/installer；如果 CMake 在 Win7 上不好装，可以直接用下面的 `g++` 命令编译。
+
+为什么推荐这个 MinGW 版本：
+
+- 当前代码使用 C++17 和 `std::filesystem`。GCC 10.5 对 `std::filesystem` 比 GCC 8.x 更省心，通常不需要额外链接 `-lstdc++fs`。
+- 选择 MSVCRT 版 WinLibs 是为了兼容老 Windows；新版 MSYS2 runtime 已不适合作为 Windows 7 首选环境。
+- 84MB 左右的压缩包可以直接离线拷贝，不需要在旧机器上联网安装。
+
+安装步骤：
+
+1. 解压 MinGW：
+
+   ```text
+   third_party/packages/winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z
+   ```
+
+   例如解压到：
+
+   ```text
+   C:\tools\mingw64
+   ```
+
+2. 把 `C:\tools\mingw64\bin` 加入 `PATH`，或在命令行临时设置：
+
+   ```bat
+   set PATH=C:\tools\mingw64\bin;%PATH%
+   ```
+
+3. 解压 Eigen：
+
+   ```text
+   third_party/packages/eigen-3.4.0.tar.gz
+   ```
+
+   例如解压到：
+
+   ```text
+   C:\libs\eigen-3.4.0
+   ```
+
+用 CMake + MinGW 构建：
+
+```bat
+cd C:\path\to\line-quadrics-qem
+cmake -G "MinGW Makefiles" -S . -B build-mingw -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=C:\libs\eigen-3.4.0\share\eigen3\cmake
+cmake --build build-mingw -- -j1
+```
+
+如果 `Eigen3_DIR` 不好用，可以直接跳过 CMake，使用单条 `g++` 命令：
+
+```bat
+g++ -std=c++17 -O2 -DNDEBUG ^
+  -Isrc -IC:\libs\eigen-3.4.0 ^
+  src\main.cpp src\Mesh.cpp src\MeshGenerators.cpp src\Metrics.cpp src\QEMSimplifier.cpp ^
+  -o linequadrics.exe
+```
+
+如果旧版 GCC 报 `std::filesystem` 链接错误，再在末尾加：
+
+```bat
+-lstdc++fs
+```
+
+Windows 7 / 4GB 内存建议先跑小案例：
+
+```bat
+linequadrics.exe generate --type flange --n 36 --out flange.stl
+linequadrics.exe simplify flange.stl flange_simplified.stl --method line --ratio 0.2 --line-weight 1e-3 --samples 500
+linequadrics.exe face-sweep flange.stl out_flange --faces "1000,800,600,400,200,100" --samples 500
+```
+
+注意事项：
+
+- 4GB 内存机器上构建用 `-j1`，不要并行编译。
+- 不建议在老机器上跑完整 `run_demo.ps1`，先用 `--n 36` 或 `--n 48` 的几何验证。
+- `--samples` 默认是 3000；老机器可以降到 500，只影响距离指标精度，不影响简化 STL 输出。
+- 包校验值：
+  - `eigen-3.4.0.tar.gz`: `8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72`
+  - `winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z`: `5a38eee7ced1e65880e12fa15473ec2b413718e5011285442e2e410ee359101c`
+
 ## 快速复现实验
 
 ```powershell

@@ -29,6 +29,43 @@ code --install-extension thirdParty\vscode-extensions\llvm-vs-code-extensions.vs
 code --install-extension thirdParty\vscode-extensions\ms-vscode.cmake-tools-1.19.52.vsix
 ```
 
+The clangd extension does not read `C_Cpp.default.configurationProvider`; that
+setting is for Microsoft's C/C++ extension. clangd needs a CMake-generated
+`compile_commands.json` so it can see project include paths such as `include/`,
+`src/`, GoogleTest, and Eigen. This repository points clangd at
+`build/mingw-ninja-release/compile_commands.json` through both `.clangd` and
+`.vscode/settings.json`.
+
+The primary editor configuration is MinGW-first:
+
+```text
+Compiler: C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/bin/g++.exe
+Build directory: build/mingw-ninja-release
+Compile database: build/mingw-ninja-release/compile_commands.json
+```
+
+`.vscode/settings.json` adds that MinGW `bin` directory to the VSCode terminal,
+CMake configure, and CMake build environments. It also passes clangd
+`--query-driver` for the same `g++.exe`. That lets clangd ask MinGW for standard
+library include directories; without it, even standard C++ headers may be
+underlined. The important rule is that CMake, tasks, and clangd must all point
+at the same MinGW toolchain and the same `compile_commands.json`.
+
+If clangd reports missing headers after a fresh checkout, configure once:
+
+```powershell
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+Then run `clangd: Restart language server` from the VSCode command palette. If
+you switch to another MinGW build directory, update both places:
+
+- `.clangd`: `CompileFlags.CompilationDatabase`
+- `.vscode/settings.json`: `clangd.arguments --compile-commands-dir`
+
+Do not point clangd at an MSVC build directory while using the MinGW compiler in
+VSCode tasks; the headers and predefined macros will not match.
+
 ## CMake 3.18.6 Workflow
 
 The project supports CMake 3.18.6 and does not require `CMakePresets.json`.

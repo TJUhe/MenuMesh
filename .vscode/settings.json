@@ -4,14 +4,29 @@
   "cmake.generator": "Ninja",
   "cmake.buildType": "Release",
   "cmake.buildDirectory": "${workspaceFolder}/build/mingw-ninja-${buildType}",
+  "cmake.configureEnvironment": {
+    "PATH": "C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/bin;${env:PATH}"
+  },
+  "cmake.buildEnvironment": {
+    "PATH": "C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/bin;${env:PATH}"
+  },
   "cmake.configureSettings": {
     "CMAKE_CXX_COMPILER": "g++",
     "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
   },
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build/mingw-ninja-release",
+    "--query-driver=C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/bin/g++.exe",
+    "--background-index",
+    "--header-insertion=never"
+  ],
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
   "C_Cpp.default.cppStandard": "c++17",
   "files.associations": {
     "*.h": "cpp",
     "*.cpp": "cpp"
+  },
+  "terminal.integrated.env.windows": {
+    "PATH": "C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/bin;${env:PATH}"
   }
 }

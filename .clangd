@@ -1,0 +1,9 @@
+CompileFlags:
+  CompilationDatabase: build/mingw-ninja-release
+  Add:
+    - -std=c++17
+    - -IE:/code/codex/line-quadrics-qem/include
+    - -IE:/code/codex/line-quadrics-qem/src
+    - -IE:/code/codex/line-quadrics-qem/thirdParty/googletest/googletest/include
+    - -isystem
+    - E:/code/codex/line-quadrics-qem/build/_deps/eigen-src

@@ -4,7 +4,10 @@
 #include "line_quadrics_qem/QEMSimplifier.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <filesystem>
+#include <functional>
 #include <gtest/gtest.h>
 #include <stdexcept>
 #include <string>
@@ -54,6 +57,16 @@ lq::SimplifyOptions featureCurveOptions(double ratio) {
   return options;
 }
 
+lq::SimplifyOptions protectedIndustrialFeatureOptions(double ratio) {
+  lq::SimplifyOptions options = paperLineQuadricsOptions(ratio);
+  options.preserveFeatureCurves = true;
+  options.protectAllFeatureEdges = true;
+  options.featureCurveWeight = 0.08;
+  options.circleFitRelativeThreshold = 0.05;
+  options.minFeatureLoopVertices = 8;
+  return options;
+}
+
 struct SimplifiedMesh {
   lq::Mesh mesh;
   lq::SimplifyReport report;
@@ -64,6 +77,31 @@ SimplifiedMesh simplifyWithReport(const lq::Mesh& input,
   SimplifiedMesh result;
   result.mesh = lq::simplifyMesh(input, options, &result.report);
   return result;
+}
+
+void expectBudgetedSimplification(const SimplifiedMesh& result, const lq::Mesh& input,
+                                  double ratio) {
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+  EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
+  EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
+  EXPECT_LE(result.report.finalFaces,
+            static_cast<int>(std::llround(input.faces.size() * ratio)) + 2);
+  EXPECT_GT(result.report.collapsedEdges, 0);
+}
+
+std::filesystem::path externalDataDir() {
+  return std::filesystem::path(__FILE__).parent_path() / "data" / "external";
+}
+
+lq::Mesh loadExternalStl(const std::string& fileName) {
+  lq::Mesh mesh;
+  std::string error;
+  const std::filesystem::path path = externalDataDir() / fileName;
+  if (!lq::loadStl(path.string(), mesh, &error)) {
+    ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
+  }
+  return mesh;
 }
 
 } // namespace
@@ -239,6 +277,246 @@ TEST(LineQuadricsQem, CurveExtensionPreservesAtLeastPaperStyleCircularLoopCount)
             line.report.featureRejectedCollapses);
   EXPECT_GT(curve.report.projectedFeaturePlacements,
             line.report.projectedFeaturePlacements);
+}
+
+TEST(LineQuadricsQem, ExternalNasaIndustrialMeshesExposeRichFeatureTopology) {
+  struct Case {
+    std::string fileName;
+    int minFaces = 0;
+    int minFeatureEdges = 0;
+    int minCircularLoops = 0;
+  };
+
+  const std::array<Case, 3> cases = {{
+      {"nasa_antenna_azimuth_track.stl", 3000, 1000, 4},
+      {"nasa_cubesat_middle.stl", 28000, 8000, 20},
+      {"nasa_mars2020_wheel.stl", 45000, 10000, 4},
+  }};
+
+  for (const Case& testCase : cases) {
+    SCOPED_TRACE(testCase.fileName);
+    const lq::Mesh mesh = loadExternalStl(testCase.fileName);
+    ASSERT_FALSE(mesh.empty());
+
+    const lq::MeshStats stats = lq::computeMeshStats(mesh);
+    EXPECT_GE(stats.faces, testCase.minFaces);
+    EXPECT_GT(stats.edges, 0);
+    EXPECT_GT(stats.area, 0.0);
+    EXPECT_EQ(stats.nonManifoldEdges, 0);
+
+    lq::FeatureOptions featureOptions = circularFeatureOptions();
+    featureOptions.featureAngleDeg = 30.0;
+    featureOptions.circleFitRelativeThreshold = 0.05;
+    const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, featureOptions);
+    EXPECT_GE(features.featureEdges, testCase.minFeatureEdges);
+    EXPECT_GE(countCircularLoops(features), testCase.minCircularLoops);
+    EXPECT_GT(features.dihedralFeatureEdges, 0);
+  }
+}
+
+TEST(LineQuadricsQem, ExternalNasaFixturesCompareIndustrialSimplificationModes) {
+  struct Case {
+    std::string fileName;
+    bool expectsCircularProjection = false;
+  };
+
+  const std::array<Case, 3> cases = {{
+      {"nasa_antenna_azimuth_track.stl", true},
+      {"nasa_cubesat_middle_fixture.stl", false},
+      {"nasa_mars2020_wheel_fixture.stl", true},
+  }};
+
+  constexpr double ratio = 0.45;
+  for (const Case& testCase : cases) {
+    SCOPED_TRACE(testCase.fileName);
+    const lq::Mesh input = loadExternalStl(testCase.fileName);
+    ASSERT_FALSE(input.empty());
+
+    const SimplifiedMesh standard =
+        simplifyWithReport(input, standardQemOptions(ratio));
+    const SimplifiedMesh line =
+        simplifyWithReport(input, paperLineQuadricsOptions(ratio));
+    const SimplifiedMesh protectedResult =
+        simplifyWithReport(input, protectedIndustrialFeatureOptions(ratio));
+
+    expectBudgetedSimplification(standard, input, ratio);
+    expectBudgetedSimplification(line, input, ratio);
+    EXPECT_FALSE(protectedResult.mesh.empty());
+    EXPECT_LT(protectedResult.report.finalFaces, protectedResult.report.initialFaces);
+    EXPECT_EQ(protectedResult.report.finalFaces,
+              static_cast<int>(protectedResult.mesh.faces.size()));
+
+    EXPECT_EQ(0.0, standard.report.maxAppliedLineWeight);
+    EXPECT_GE(line.report.maxAppliedLineWeight, line.report.minAppliedLineWeight);
+    EXPECT_GT(protectedResult.report.featureLoops, 0);
+    EXPECT_GT(protectedResult.report.featureVertices, 0);
+    EXPECT_GT(protectedResult.report.featureRejectedCollapses, 0);
+    EXPECT_GE(protectedResult.report.maxAppliedLineWeight,
+              protectedResult.report.minAppliedLineWeight);
+
+    if (testCase.expectsCircularProjection) {
+      EXPECT_GT(protectedResult.report.circularFeatureLoops, 0);
+      EXPECT_GT(protectedResult.report.projectedFeaturePlacements, 0);
+    }
+  }
+}
+
+TEST(LineQuadricsQem, ComplexLathePartsComparePaperLineAndCurveExtension) {
+  struct Case {
+    std::string name;
+    std::function<lq::Mesh()> generate;
+    double ratio = 0.22;
+  };
+
+  const std::array<Case, 3> cases = {{
+      {"stepped shaft", [] { return lq::generateSteppedShaftGrid(64); }, 0.22},
+      {"pipe coupling", [] { return lq::generatePipeCouplingGrid(72); }, 0.22},
+      {"pulley groove", [] { return lq::generatePulleyGrid(72); }, 0.22},
+  }};
+
+  for (const Case& testCase : cases) {
+    SCOPED_TRACE(testCase.name);
+    const lq::Mesh input = testCase.generate();
+    ASSERT_FALSE(input.empty());
+
+    const lq::FeatureAnalysis originalFeatures =
+        lq::detectFeatureCurves(input, circularFeatureOptions());
+    EXPECT_GT(originalFeatures.featureEdges, 0);
+    EXPECT_GT(countCircularLoops(originalFeatures), 0);
+
+    const SimplifiedMesh standard =
+        simplifyWithReport(input, standardQemOptions(testCase.ratio));
+    const SimplifiedMesh line =
+        simplifyWithReport(input, paperLineQuadricsOptions(testCase.ratio));
+    const SimplifiedMesh curve =
+        simplifyWithReport(input, featureCurveOptions(testCase.ratio));
+
+    expectBudgetedSimplification(standard, input, testCase.ratio);
+    expectBudgetedSimplification(line, input, testCase.ratio);
+    expectBudgetedSimplification(curve, input, testCase.ratio);
+
+    EXPECT_EQ(0, standard.report.featureLoops);
+    EXPECT_EQ(0, line.report.featureLoops);
+    EXPECT_GT(curve.report.featureLoops, 0);
+    EXPECT_GT(curve.report.circularFeatureLoops, 0);
+    EXPECT_GT(curve.report.projectedFeaturePlacements, 0);
+
+    EXPECT_EQ(0.0, standard.report.maxAppliedLineWeight);
+    EXPECT_GT(line.report.maxAppliedLineWeight, line.report.minAppliedLineWeight);
+    EXPECT_GT(curve.report.maxAppliedLineWeight, curve.report.minAppliedLineWeight);
+
+    const lq::FeatureAnalysis lineFeatures =
+        lq::detectFeatureCurves(line.mesh, circularFeatureOptions());
+    const lq::FeatureAnalysis curveFeatures =
+        lq::detectFeatureCurves(curve.mesh, circularFeatureOptions());
+    EXPECT_GE(countCircularLoops(curveFeatures), countCircularLoops(lineFeatures));
+  }
+}
+
+TEST(LineQuadricsQem, HolePlateExercisesBoundaryFeatureProtection) {
+  const lq::Mesh input = lq::generateHolePlaneGrid(36, 2.0, 0.34);
+  ASSERT_FALSE(input.empty());
+
+  const lq::FeatureAnalysis originalFeatures =
+      lq::detectFeatureCurves(input, circularFeatureOptions());
+  EXPECT_GT(originalFeatures.boundaryFeatureEdges, 0);
+
+  const SimplifiedMesh standard = simplifyWithReport(input, standardQemOptions(0.35));
+  const SimplifiedMesh line = simplifyWithReport(input, paperLineQuadricsOptions(0.35));
+
+  lq::SimplifyOptions protectedOptions = paperLineQuadricsOptions(0.35);
+  protectedOptions.preserveFeatureCurves = true;
+  protectedOptions.protectAllFeatureEdges = true;
+  protectedOptions.featureCurveWeight = 0.08;
+  protectedOptions.minFeatureLoopVertices = 8;
+  const SimplifiedMesh protectedResult = simplifyWithReport(input, protectedOptions);
+
+  expectBudgetedSimplification(standard, input, 0.35);
+  expectBudgetedSimplification(line, input, 0.35);
+  expectBudgetedSimplification(protectedResult, input, 0.35);
+
+  EXPECT_EQ(0, standard.report.featureLoops);
+  EXPECT_EQ(0, line.report.featureLoops);
+  EXPECT_GT(protectedResult.report.featureLoops, 0);
+  EXPECT_GT(protectedResult.report.featureVertices, 0);
+  EXPECT_GT(protectedResult.report.featureRejectedCollapses, 0);
+
+  const lq::FeatureAnalysis standardFeatures =
+      lq::detectFeatureCurves(standard.mesh, circularFeatureOptions());
+  const lq::FeatureAnalysis protectedFeatures =
+      lq::detectFeatureCurves(protectedResult.mesh, circularFeatureOptions());
+  EXPECT_GE(protectedFeatures.boundaryFeatureEdges,
+            standardFeatures.boundaryFeatureEdges);
+}
+
+TEST(LineQuadricsQem, ThinFinExercisesNonCircularHardFeatureProtection) {
+  const lq::Mesh input = lq::generateThinFinGrid(32, 2.0);
+  ASSERT_FALSE(input.empty());
+
+  const lq::FeatureAnalysis features =
+      lq::detectFeatureCurves(input, circularFeatureOptions());
+  EXPECT_GT(features.featureEdges, 0);
+  EXPECT_GT(features.boundaryFeatureEdges + features.dihedralFeatureEdges, 0);
+
+  lq::SimplifyOptions protectedOptions = paperLineQuadricsOptions(0.30);
+  protectedOptions.preserveFeatureCurves = true;
+  protectedOptions.protectAllFeatureEdges = true;
+  protectedOptions.featureCurveWeight = 0.08;
+  protectedOptions.minFeatureLoopVertices = 8;
+
+  const SimplifiedMesh standard = simplifyWithReport(input, standardQemOptions(0.30));
+  const SimplifiedMesh protectedResult = simplifyWithReport(input, protectedOptions);
+
+  expectBudgetedSimplification(standard, input, 0.30);
+  expectBudgetedSimplification(protectedResult, input, 0.30);
+
+  EXPECT_EQ(0, standard.report.featureRejectedCollapses);
+  EXPECT_GT(protectedResult.report.featureLoops, 0);
+  EXPECT_GT(protectedResult.report.featureVertices, 0);
+  EXPECT_GT(protectedResult.report.featureRejectedCollapses, 0);
+  EXPECT_GE(protectedResult.report.maxAppliedLineWeight, 1e-3);
+}
+
+TEST(LineQuadricsQem, SmoothAndCreasedComplexSurfacesTriggerDifferentWeightModes) {
+  struct Case {
+    std::string name;
+    lq::Mesh mesh;
+    lq::WeightMode mode;
+  };
+
+  const std::array<Case, 3> cases = {{
+      {"smooth torus with uniform line quadrics",
+       lq::generateTorusGrid(40, 16, 0.7, 0.23), lq::WeightMode::Uniform},
+      {"sine terrain with height weighting", lq::generateSineTerrainGrid(24, 2.0),
+       lq::WeightMode::Height},
+      {"terraced terrain with dihedral weighting", lq::generateTerraceGrid(24, 2.0),
+       lq::WeightMode::Dihedral},
+  }};
+
+  for (const Case& testCase : cases) {
+    SCOPED_TRACE(testCase.name);
+    ASSERT_FALSE(testCase.mesh.empty());
+
+    lq::SimplifyOptions options = paperLineQuadricsOptions(0.35);
+    options.weightMode = testCase.mode;
+    options.featureBoost = testCase.mode == lq::WeightMode::Uniform ? 0.0 : 0.08;
+
+    const SimplifiedMesh result = simplifyWithReport(testCase.mesh, options);
+    expectBudgetedSimplification(result, testCase.mesh, 0.35);
+
+    EXPECT_GE(result.report.minAppliedLineWeight, 1e-3);
+    if (testCase.mode == lq::WeightMode::Uniform) {
+      EXPECT_NEAR(result.report.minAppliedLineWeight,
+                  result.report.maxAppliedLineWeight, 1e-12);
+    } else {
+      EXPECT_GT(result.report.maxAppliedLineWeight, result.report.minAppliedLineWeight);
+    }
+
+    const lq::DistanceStats distance =
+        lq::compareMeshesBySampledDistance(testCase.mesh, result.mesh, 48);
+    EXPECT_GE(distance.maxOriginalToSimplified, distance.meanOriginalToSimplified);
+    EXPECT_GE(distance.maxSimplifiedToOriginal, distance.meanSimplifiedToOriginal);
+  }
 }
 
 TEST(LineQuadricsQem, ComputesMeshStatsForGeneratedCube) {

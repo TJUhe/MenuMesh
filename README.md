@@ -31,6 +31,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | `src/` | 算法实现、STL/OBJ I/O、指标计算和 `linequadrics` CLI。 |
 | `tests/` | GoogleTest/CTest 回归测试。 |
 | `thirdParty/googletest/` | 随仓库携带的 GoogleTest 源码，用于离线构建测试。 |
+| `thirdParty/vscode-extensions/` | 适配 VSCode 1.70.2 的 C++/CMake 离线 VSIX 插件包。 |
 | `examples/basic_simplify.cpp` | 模拟外部客户程序调用动态库。 |
 | `cmake/` | `find_package(line_quadrics_qem CONFIG REQUIRED)` 安装包配置。 |
 | `docs/industrial_library.md` | 动态库、安装、运行时布局和集成边界。 |

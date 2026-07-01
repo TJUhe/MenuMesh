@@ -15,6 +15,20 @@ Install the extensions listed in `.vscode/extensions.json`:
 - C/C++ (`ms-vscode.cpptools`)
 - CMake Tools (`ms-vscode.cmake-tools`)
 
+For VSCode 1.70.2 or offline machines, this repository also carries compatible
+VSIX packages under `thirdParty/vscode-extensions/`:
+
+- clangd (`llvm-vs-code-extensions.vscode-clangd` 0.1.34, `engines.vscode:
+  ^1.65.0`)
+- CMake Tools (`ms-vscode.cmake-tools` 1.19.52, `engines.vscode: ^1.67.0`)
+
+Install them from the repository root:
+
+```powershell
+code --install-extension thirdParty\vscode-extensions\llvm-vs-code-extensions.vscode-clangd-0.1.34.vsix
+code --install-extension thirdParty\vscode-extensions\ms-vscode.cmake-tools-1.19.52.vsix
+```
+
 ## CMake 3.18.6 Workflow
 
 The project supports CMake 3.18.6 and does not require `CMakePresets.json`.

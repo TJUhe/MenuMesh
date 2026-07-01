@@ -48,8 +48,10 @@ Compile database: build/mingw-ninja-release/compile_commands.json
 CMake configure, and CMake build environments. It also passes clangd
 `--query-driver` for the same `g++.exe`. That lets clangd ask MinGW for standard
 library include directories; without it, even standard C++ headers may be
-underlined. The important rule is that CMake, tasks, and clangd must all point
-at the same MinGW toolchain and the same `compile_commands.json`.
+underlined. If diagnostics say `cmath file not found` from inside Eigen, clangd
+has not found the MinGW C++ standard library headers yet. The important rule is
+that CMake, tasks, and clangd must all point at the same MinGW toolchain and the
+same `compile_commands.json`.
 
 If clangd reports missing headers after a fresh checkout, configure once:
 

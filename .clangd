@@ -1,9 +1,22 @@
 CompileFlags:
   CompilationDatabase: build/mingw-ninja-release
+  Compiler: C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/bin/g++.exe
   Add:
     - -std=c++17
-    - -IE:/code/codex/line-quadrics-qem/include
-    - -IE:/code/codex/line-quadrics-qem/src
-    - -IE:/code/codex/line-quadrics-qem/thirdParty/googletest/googletest/include
+    - -Iinclude
+    - -Isrc
+    - -IthirdParty/googletest/googletest/include
     - -isystem
-    - E:/code/codex/line-quadrics-qem/build/_deps/eigen-src
+    - build/_deps/eigen-src
+    - -isystem
+    - C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/include/c++/16.1.0
+    - -isystem
+    - C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/include/c++/16.1.0/x86_64-w64-mingw32
+    - -isystem
+    - C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/include/c++/16.1.0/backward
+    - -isystem
+    - C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/lib/gcc/x86_64-w64-mingw32/16.1.0/include
+    - -isystem
+    - C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/include
+    - -isystem
+    - C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/x86_64-w64-mingw32/include

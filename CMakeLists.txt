@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.18)
 project(line_quadrics_qem
   VERSION 0.1.0
   DESCRIPTION "Line-quadrics guided QEM mesh simplification library"
-  LANGUAGES CXX
+  LANGUAGES C CXX
 )
 
 include(CTest)
@@ -46,6 +46,7 @@ if(NOT Eigen3_FOUND)
 endif()
 
 set(LQ_PUBLIC_HEADERS
+  include/line_quadrics_qem/CApi.h
   include/line_quadrics_qem/Export.h
   include/line_quadrics_qem/FeatureDetection.h
   include/line_quadrics_qem/Mesh.h
@@ -55,6 +56,7 @@ set(LQ_PUBLIC_HEADERS
 )
 
 set(LQ_LIBRARY_SOURCES
+  src/CApi.cpp
   src/FeatureDetection.cpp
   src/Mesh.cpp
   src/MeshGenerators.cpp
@@ -68,6 +70,16 @@ else()
   add_library(line_quadrics_qem STATIC ${LQ_LIBRARY_SOURCES} ${LQ_PUBLIC_HEADERS})
 endif()
 add_library(line_quadrics_qem::line_quadrics_qem ALIAS line_quadrics_qem)
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  PREFIX "Public Headers"
+  FILES ${LQ_PUBLIC_HEADERS}
+)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  PREFIX "Source"
+  FILES ${LQ_LIBRARY_SOURCES}
+)
 
 target_compile_features(line_quadrics_qem PUBLIC cxx_std_17)
 target_include_directories(line_quadrics_qem
@@ -86,6 +98,10 @@ else()
   message(FATAL_ERROR "Eigen3 was not found and FetchContent did not provide eigen_SOURCE_DIR.")
 endif()
 
+target_compile_definitions(line_quadrics_qem
+  PRIVATE LINE_QUADRICS_QEM_VERSION="${PROJECT_VERSION}"
+)
+
 if(LQ_BUILD_SHARED_LIBRARY)
   target_compile_definitions(line_quadrics_qem PRIVATE LINE_QUADRICS_QEM_BUILDING_DLL)
   if(WIN32)
@@ -102,7 +118,10 @@ set_target_properties(line_quadrics_qem PROPERTIES
 
 function(lq_apply_warnings target)
   if(MSVC)
-    target_compile_options(${target} PRIVATE /W4 /permissive- /utf-8 /external:anglebrackets /external:W0)
+    target_compile_options(${target} PRIVATE
+      $<$<COMPILE_LANGUAGE:CXX>:/W4 /permissive- /utf-8 /external:anglebrackets /external:W0>
+      $<$<COMPILE_LANGUAGE:C>:/W4 /utf-8>
+    )
   else()
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
   endif()
@@ -154,6 +173,7 @@ endif()
 find_program(CLANG_FORMAT_EXE NAMES clang-format)
 file(GLOB_RECURSE LQ_FORMAT_FILES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
@@ -188,7 +208,7 @@ if(LQ_BUILD_DOCS)
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)
     set(LQ_DOXYGEN_INPUT
-      "${CMAKE_CURRENT_SOURCE_DIR}/README.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_library.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/vscode_setup.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/paper_guided_usage.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_constraints.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_experiment.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/external_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/README.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_library.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/sdk_integration.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/vscode_setup.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/paper_guided_usage.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_constraints.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_experiment.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/external_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp ${CMAKE_CURRENT_SOURCE_DIR}/examples/c_api_basic.c"
     )
     set(LQ_DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/api")
     configure_file(
@@ -238,6 +258,11 @@ if(LQ_ENABLE_INSTALL)
     "${CMAKE_CURRENT_BINARY_DIR}/line_quadrics_qemConfig.cmake"
     INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/line_quadrics_qem"
   )
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/line_quadrics_qem.props.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/line_quadrics_qem.props"
+    @ONLY
+  )
   write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/line_quadrics_qemConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
@@ -248,5 +273,17 @@ if(LQ_ENABLE_INSTALL)
     "${CMAKE_CURRENT_BINARY_DIR}/line_quadrics_qemConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/line_quadrics_qemConfigVersion.cmake"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/line_quadrics_qem"
+  )
+
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/line_quadrics_qem.props"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/line_quadrics_qem/msvc"
+  )
+
+  install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_library.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/sdk_integration.md"
+    DESTINATION "${CMAKE_INSTALL_DOCDIR}"
   )
 endif()

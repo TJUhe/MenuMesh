@@ -1,4 +1,5 @@
 add_executable(line_quadrics_qem_tests
+  c_api_tests.cpp
   simplifier_tests.cpp
 )
 target_link_libraries(line_quadrics_qem_tests

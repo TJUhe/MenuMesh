@@ -15,6 +15,7 @@ or any lightweight STL viewer available on the target machine.
 - `line_quadrics_qem`: shared library by default (`.dll`, `.so`, or `.dylib`).
 - `linequadrics`: command-line tool linked against the library.
 - `linequadrics_basic_simplify`: small external-style example program.
+- `linequadrics_c_api_basic`: pure-C example using the binary-stable C ABI.
 - `line_quadrics_qem_tests`: GoogleTest test binary.
 - `format`: runs `clang-format -i` over public headers, source, examples, and
   tests.
@@ -30,7 +31,9 @@ or any lightweight STL viewer available on the target machine.
 | `tests/` | Automated regression coverage. |
 | `thirdParty/googletest/` | Vendored GoogleTest source used by the test target. |
 | `examples/basic_simplify.cpp` | External-consumer style smoke test. |
+| `examples/c_api_basic.c` | C ABI smoke test for non-CMake or plugin-style users. |
 | `cmake/` | Installed package configuration. |
+| `docs/sdk_integration.md` | CMake, Visual Studio, and C ABI integration guide. |
 | `docs/industrial_validation.md` | Command-level validation matrix and performance checks. |
 | `examples/input/` | Reproducible sample STL inputs. |
 | `examples/output/` | Generated validation outputs, not a required source dependency. |
@@ -57,7 +60,7 @@ LQ_BUILD_DOCS=ON             Add docs-api target
 LQ_ENABLE_INSTALL=ON         Install headers, library, and CMake package files
 ```
 
-## Public API
+## Public API And ABI
 
 Public headers live under:
 
@@ -80,10 +83,18 @@ lq::Mesh simplifyMesh(const lq::Mesh& input,
                       lq::SimplifyReport* report = nullptr);
 ```
 
-The current ABI is a C++ ABI: `std::vector`, `std::string`, and Eigen types are
-part of public structs. This is appropriate when the application and library
-are built by a compatible compiler/runtime. A future binary-stable SDK can add a
-thin C ABI wrapper without changing the internal algorithm.
+This C++ API is appropriate when the application and library are built by a
+compatible compiler, standard library, Eigen version, and runtime setting.
+
+For binary SDK integration, prefer:
+
+```c
+#include "line_quadrics_qem/CApi.h"
+```
+
+The C ABI uses opaque handles, caller-owned arrays, explicit destroy functions,
+and `LqStatus` return values. It does not expose STL, Eigen, or C++ exceptions
+across the DLL boundary. See [`sdk_integration.md`](sdk_integration.md).
 
 ## External CMake Consumer
 
@@ -131,7 +142,18 @@ include/
 lib/
   line_quadrics_qem.lib
   cmake/line_quadrics_qem/*.cmake
+share/
+  line_quadrics_qem/msvc/line_quadrics_qem.props
 ```
+
+For Visual Studio projects that are not organized with CMake, import:
+
+```text
+<install-prefix>\share\line_quadrics_qem\msvc\line_quadrics_qem.props
+```
+
+The property sheet adds include/library paths and copies the runtime DLL next
+to the consuming executable after build.
 
 Linux and macOS consumers should set their normal install-time runtime path
 policy for `.so` or `.dylib` deployment.

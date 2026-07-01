@@ -8,4 +8,3 @@ viewer-server.pid
 viewer/screenshots/
 build-*/
 docs/api/
-docs/*.html

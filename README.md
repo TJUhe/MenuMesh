@@ -10,6 +10,17 @@ quadrics 思路，并提供可构建、可测试、可度量、可由外部程�
 CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统 STL 查看器目检 STL
 ```
 
+## 说明网页
+
+这些 HTML 是论文说明和当前程序结果的可浏览笔记，可以直接用浏览器打开：
+
+- [QEM 与 Line Quadrics 说明](docs/qem-line-quadrics-notes.html)
+- [Line Quadrics 数学原理展开](docs/line-quadrics-qem-theory-explained.html)
+- [当前程序原理说明](docs/line-quadrics-qem-program-principles.html)
+- [代码阅读手册](docs/line-quadrics-qem-code-manual.html)
+- [Xu 2024 CWF 弱特征合并论文说明](docs/cwf-weak-features-notes.html)
+- [凸台圆孔等圆特征实践结果](docs/circular-feature-practice-results.html)
+
 ## 工业内核边界
 
 核心交付物：

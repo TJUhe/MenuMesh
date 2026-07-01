@@ -154,7 +154,7 @@ $$A_n = \sum_{n' \in \mathcal{F}(n)} w_{nn'} \, N_{n'}^f \, N_{n'}^{f\top}$$
 <div class="callout key">
 <div class="callout-title">关键观察:Normal Tensor 与 QEM 的矩阵结构完全相同</div>
 <p>对比 QEM 的顶点矩阵(Garland &amp; Heckbert 1997):</p>
-<div class="formula">$$A^{\text{QEM}}_i = \sum_{ijk \in N_i} a^i_{jk} \, \hat{n}_{ijk} \, \hat{n}_{ijk}^\top$$</div>
+<div class="formula">$$A^{\text{QEM}}_i = \sum_{ijk \in N_i} a^i_{jk} \, \hat{n}_{ijk} \, \hat{n}_{ijk}^{\top}$$</div>
 <p>两者都是<strong>法向量外积的加权求和</strong>--结构完全等价。区别仅在权重选择(Nelson Max 面积加权 vs barycentric area)。这意味着 Normal Tensor 的所有性质<strong>直接适用于 QEM 的 $A$ 矩阵</strong>。</p>
 </div>
 
@@ -172,7 +172,7 @@ $$A_n = \sum_{n' \in \mathcal{F}(n)} w_{nn'} \, N_{n'}^f \, N_{n'}^{f\top}$$
 
 <table>
 <tr><th>属性</th><th>Normal Tensor $A_n$</th><th>QEM $A^{\text{QEM}}_i$</th></tr>
-<tr><td>定义</td><td>$\sum w_{nn'} N_{n'}^f N_{n'}^{f\top}$</td><td>$\sum a^i_{jk} \hat{n}_{ijk} \hat{n}_{ijk}^\top$</td></tr>
+<tr><td>定义</td><td>$\sum w_{nn'} N_{n'}^f N_{n'}^{f\top}$</td><td>$\sum a^i_{jk} \hat{n}_{ijk} \hat{n}_{ijk}^{\top}$</td></tr>
 <tr><td>权重</td><td>Nelson Max 面积加权</td><td>Barycentric area $a_{jk}/3$</td></tr>
 <tr><td>矩阵结构</td><td>3×3 对称半正定</td><td>3×3 对称半正定</td></tr>
 <tr><td>物理含义</td><td>法向量分布的二阶矩</td><td>到邻接面平面距离的二次型</td></tr>
@@ -203,7 +203,7 @@ $$A_n = 4 \times \frac{1}{3} \begin{pmatrix} 0 \\ 0 \\ 1 \end{pmatrix} \begin{pm
 <p>2 个面法向 $N_1 = (0, 0, 1)$,2 个面法向 $N_2 = (1, 0, 0)$(90° 折痕):</p>
 
 <div class="formula">
-$$A_n = \frac{2}{3} N_1 N_1^\top + \frac{2}{3} N_2 N_2^\top = \frac{2}{3} \begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix}$$
+$$A_n = \frac{2}{3} N_1 N_1^{\top} + \frac{2}{3} N_2 N_2^{\top} = \frac{2}{3} \begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix}$$
 </div>
 
 <p>特征值:$\sigma_1 = \sigma_2 = 2/3 \approx 0.667$, $\sigma_3 = 0$。<strong>秩 = 2</strong>。$E_3 = (0,1,0)$(沿棱边方向)无约束--顶点可在棱边上自由滑动。</p>
@@ -213,7 +213,7 @@ $$A_n = \frac{2}{3} N_1 N_1^\top + \frac{2}{3} N_2 N_2^\top = \frac{2}{3} \begin
 <p>法向量分别为 $N_1 = (0,0,1)$, $N_2 = (1,0,0)$, $N_3 = (0,1,0)$, $N_4 = (1,1,1)/\sqrt{3}$:</p>
 
 <div class="formula">
-$$A_n = \frac{1}{3}\left(N_1 N_1^\top + N_2 N_2^\top + N_3 N_3^\top + N_4 N_4^\top\right)$$
+$$A_n = \frac{1}{3}\left(N_1 N_1^{\top} + N_2 N_2^{\top} + N_3 N_3^{\top} + N_4 N_4^{\top}\right)$$
 </div>
 
 <div class="formula">
@@ -261,14 +261,14 @@ $$A_n \approx \frac{4}{3}\begin{pmatrix} \delta^2/2 & 0 & 0 \\ 0 & \delta^2/2 & 
 <p>设 $A_n$ 的特征值为 $\sigma_1 \geq \sigma_2 \geq \sigma_3 \geq 0$,对应的特征向量为 $E_1, E_2, E_3$。$A_n$ 可分解为:</p>
 
 <div class="formula">
-$$A_n = R \, \Lambda \, R^\top = \big(E_1 \;\big|\; E_2 \;\big|\; E_3\big) \begin{pmatrix} \sigma_1 & 0 & 0 \\ 0 & \sigma_2 & 0 \\ 0 & 0 & \sigma_3 \end{pmatrix} \big(E_1 \;\big|\; E_2 \;\big|\; E_3\big)^\top$$
+$$A_n = R \, \Lambda \, R^{\top} = \big(E_1 \;\big|\; E_2 \;\big|\; E_3\big) \begin{pmatrix} \sigma_1 & 0 & 0 \\ 0 & \sigma_2 & 0 \\ 0 & 0 & \sigma_3 \end{pmatrix} \big(E_1 \;\big|\; E_2 \;\big|\; E_3\big)^{\top}$$
 <span class="label">(2)</span>
 </div>
 
 <p>展开形式:</p>
 
 <div class="formula">
-$$A_n = \sigma_1 \, E_1 E_1^\top + \sigma_2 \, E_2 E_2^\top + \sigma_3 \, E_3 E_3^\top$$
+$$A_n = \sigma_1 \, E_1 E_1^{\top} + \sigma_2 \, E_2 E_2^{\top} + \sigma_3 \, E_3 E_3^{\top}$$
 <span class="label">(3)</span>
 </div>
 
@@ -333,7 +333,7 @@ $$\varphi = 2 \arctan\!\big((\varepsilon + 1)^{-1/2}\big)$$
 <span class="label">(6)</span>
 </div>
 
-<p>验证:$\varepsilon = 100$ 时,$(101)^{-1/2} \approx 0.0995$,$\arctan(0.0995) \approx 5.68°$,$\varphi \approx 11.4°$ ≈ 10°。</p>
+<p>验证:$\varepsilon = 100$ 时,$(101)^{-1/2} \approx 0.0995$,$\arctan(0.0995) \approx 5.68^\circ$,$\varphi \approx 11.4^\circ$ ≈ 10°。</p>
 
 <table>
 <tr><th>$\varepsilon$</th><th>$\varphi$(折痕角)</th><th>检测灵敏度</th><th>适用场景</th></tr>
@@ -344,7 +344,7 @@ $$\varphi = 2 \arctan\!\big((\varepsilon + 1)^{-1/2}\big)$$
 
 <div class="callout warn">
 <div class="callout-title">注意</div>
-<p>论文在特征线检测中默认使用 $\varphi = 45°$($\varepsilon \approx 5$),而非 $\varphi = 10°$。这是因为 C1 边界的法向量是连续的,过小的 $\varphi$ 会在平滑区域产生大量误报。只有对 C0 边界(sharp edges)才使用较小的 $\varphi$。</p>
+<p>论文在特征线检测中默认使用 $\varphi = 45^\circ$($\varepsilon \approx 5$),而非 $\varphi = 10^\circ$。这是因为 C1 边界的法向量是连续的,过小的 $\varphi$ 会在平滑区域产生大量误报。只有对 C0 边界(sharp edges)才使用较小的 $\varphi$。</p>
 </div>
 
 <h3>3.6 公式 (6) 的推导:$\varphi$ 与 $\varepsilon$ 的关系</h3>
@@ -362,7 +362,7 @@ $$N_1 = (\sin\tfrac{\varphi}{2},\; 0,\; \cos\tfrac{\varphi}{2}), \quad N_2 = (-\
 <p>Normal Tensor:</p>
 
 <div class="formula">
-$$A_n = w(N_1 N_1^\top + N_2 N_2^\top) = w\begin{pmatrix} 2\sin^2\tfrac{\varphi}{2} & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 2\cos^2\tfrac{\varphi}{2} \end{pmatrix}$$
+$$A_n = w(N_1 N_1^{\top} + N_2 N_2^{\top}) = w\begin{pmatrix} 2\sin^2\tfrac{\varphi}{2} & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 2\cos^2\tfrac{\varphi}{2} \end{pmatrix}$$
 </div>
 
 <h4>步骤 2:计算特征值和 Saliency</h4>
@@ -413,7 +413,7 @@ $$\varphi = 2\arctan\frac{1}{\sqrt{\varepsilon+1}} = 2\arctan(\varepsilon+1)^{-1
 
 <div class="callout success">
 <div class="callout-title">推导结论</div>
-<p>公式 (6) 的物理含义:$\varepsilon$ 越大 → $\varphi$ 越小 → 能检测越细微的折痕。$\varepsilon = 5$ 对应 $\varphi \approx 45°$ 意味着只有折痕角度 $> 45°$ 的顶点才会被分类为 crease。这是对噪声的安全阈值--小于 45° 的折痕在噪声数据上难以与随机波动区分。</p>
+<p>公式 (6) 的物理含义:$\varepsilon$ 越大 → $\varphi$ 越小 → 能检测越细微的折痕。$\varepsilon = 5$ 对应 $\varphi \approx 45^\circ$ 意味着只有折痕角度 $> 45^\circ$ 的顶点才会被分类为 crease。这是对噪声的安全阈值--小于 45° 的折痕在噪声数据上难以与随机波动区分。</p>
 </div>
 
 <!-- ===== 4 ===== -->
@@ -424,14 +424,14 @@ $$\varphi = 2\arctan\frac{1}{\sqrt{\varepsilon+1}} = 2\arctan(\varepsilon+1)^{-1
 <p>在微分几何中,<strong>Shape Operator</strong>(Weingarten 映射)$S$ 是曲面法向量的微分,其特征值为主曲率 $k_{\max}, k_{\min}$。对于离散网格,$S$ 是一个 2×2 矩阵:</p>
 
 <div class="formula">
-$$S = (E_2 \;\big|\; E_3)^\top \, \big(\nabla E_1^\top\big) \, (E_2 \;\big|\; E_3)$$
+$$S = (E_2 \;\big|\; E_3)^{\top} \, \big(\nabla E_1^{\top}\big) \, (E_2 \;\big|\; E_3)$$
 <span class="label">(7)</span>
 </div>
 
 <p>其中:</p>
 <ul>
 <li>$(E_2 \;\big|\; E_3)$ 是 3×2 矩阵,列为切平面基向量 $E_2, E_3$</li>
-<li>$\nabla E_1^\top$ 是法向量场 $E_1$(= $N_n$)的梯度(3×3 Jacobian 矩阵)</li>
+<li>$\nabla E_1^{\top}$ 是法向量场 $E_1$(= $N_n$)的梯度(3×3 Jacobian 矩阵)</li>
 <li>乘积将梯度投影到切平面,得到 2×2 矩阵</li>
 </ul>
 
@@ -440,17 +440,17 @@ $$S = (E_2 \;\big|\; E_3)^\top \, \big(\nabla E_1^\top\big) \, (E_2 \;\big|\; E_
 <p>设 $\nabla E_1$ 为法向量场的梯度(3×3 矩阵),其第 $j$ 列为 $\partial E_1 / \partial x_j$。Shape Operator 的各分量为:</p>
 
 <div class="formula">
-$$S_{ij} = E_{i+1}^\top \, (\nabla E_1) \, E_{j+1}, \quad i, j \in \{1, 2\}$$
+$$S_{ij} = E_{i+1}^{\top} \, (\nabla E_1) \, E_{j+1}, \quad i, j \in \{1, 2\}$$
 <span class="label">(8)</span>
 </div>
 
 <p>即:</p>
 
 <div class="formula">
-$$S = \begin{pmatrix} E_2^\top (\nabla N) E_2 & E_2^\top (\nabla N) E_3 \\ E_3^\top (\nabla N) E_2 & E_3^\top (\nabla N) E_3 \end{pmatrix}$$
+$$S = \begin{pmatrix} E_2^{\top} (\nabla N) E_2 & E_2^{\top} (\nabla N) E_3 \\ E_3^{\top} (\nabla N) E_2 & E_3^{\top} (\nabla N) E_3 \end{pmatrix}$$
 </div>
 
-<p>其中 $\nabla N = \nabla E_1$ 是法向量的方向导数。$S_{11} = E_2^\top (\nabla N) E_2$ 表示沿 $E_2$ 方向走时法向量在 $E_2$ 方向的变化率--这正是 $E_2$ 方向的曲率。</p>
+<p>其中 $\nabla N = \nabla E_1$ 是法向量的方向导数。$S_{11} = E_2^{\top} (\nabla N) E_2$ 表示沿 $E_2$ 方向走时法向量在 $E_2$ 方向的变化率--这正是 $E_2$ 方向的曲率。</p>
 
 <h3>4.3 法向量梯度的计算</h3>
 
@@ -464,7 +464,7 @@ $$\nabla N \cdot (V_{n'} - V_n) \approx N_{n'} - N_n, \quad \forall n' \in \math
 <p>论文采用 [4] 的方法,将位置差投影到切平面后做最小二乘求解:</p>
 
 <div class="formula">
-$$\nabla N_n^\top = R \, W \, (W^\top W)^{-1} \, W^\top$$
+$$\nabla N_n^{\top} = R \, W \, (W^{\top} W)^{-1} \, W^{\top}$$
 <span class="label">(10)</span>
 </div>
 
@@ -473,7 +473,7 @@ $$\nabla N_n^\top = R \, W \, (W^\top W)^{-1} \, W^\top$$
 <div class="callout">
 <div class="callout-title">最小二乘解释</div>
 <p>式 (10) 本质上是求解 $\min_{\nabla N} \sum_{n'} \|\nabla N (V_{n'} - V_n) - (N_{n'} - N_n)\|^2$,标准解为:</p>
-<div class="formula">$$\nabla N = \Big(\sum_{n'} \Delta N_{n'} \, \Delta P_{n'}^\top\Big) \Big(\sum_{n'} \Delta P_{n'} \, \Delta P_{n'}^\top\Big)^{-1}$$</div>
+<div class="formula">$$\nabla N = \Big(\sum_{n'} \Delta N_{n'} \, \Delta P_{n'}^{\top}\Big) \Big(\sum_{n'} \Delta P_{n'} \, \Delta P_{n'}^{\top}\Big)^{-1}$$</div>
 <p>其中 $\Delta P_{n'} = V_{n'} - V_n$,$\Delta N_{n'} = N_{n'} - N_n$。式 (10) 是其在特定矩阵排列下的等价形式。</p>
 </div>
 
@@ -541,7 +541,7 @@ $$\nabla N = \begin{pmatrix} -0.5 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix
 <h4>步骤 3:计算 Shape Operator</h4>
 
 <div class="formula">
-$$S = \begin{pmatrix} E_2^\\top \\ E_3^\\top \end{pmatrix} (\nabla N) \begin{pmatrix} E_2 & E_3 \end{pmatrix} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix} \begin{pmatrix} -0.5 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 0 & 0 \end{pmatrix} = \begin{pmatrix} -0.5 & 0 \\ 0 & 0 \end{pmatrix}$$
+$$S = \begin{pmatrix} E_2^{\top} \\ E_3^{\top} \end{pmatrix} (\nabla N) \begin{pmatrix} E_2 & E_3 \end{pmatrix} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix} \begin{pmatrix} -0.5 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 0 & 0 \end{pmatrix} = \begin{pmatrix} -0.5 & 0 \\ 0 & 0 \end{pmatrix}$$
 </div>
 
 <h4>步骤 4:提取主曲率</h4>
@@ -558,7 +558,7 @@ $$k = \frac{-0.5 \pm \sqrt{0.25 - 0}}{2} = \frac{-0.5 \pm 0.5}{2}$$
 $$k_{\max} = 0, \quad k_{\min} = -0.5$$
 </div>
 
-<p>(符号约定:$S_{11} = E_2^\\top (\nabla N) E_2 = -0.5$,负号表示法向量沿 $E_2$ 方向向内转,即凸面。取绝对值 $|k_{\max}| = 0.5$ 为曲率半径的倒数 $1/R$。)</p>
+<p>(符号约定:$S_{11} = E_2^{\top} (\nabla N) E_2 = -0.5$,负号表示法向量沿 $E_2$ 方向向内转,即凸面。取绝对值 $|k_{\max}| = 0.5$ 为曲率半径的倒数 $1/R$。)</p>
 
 <div class="callout key">
 <div class="callout-title">验证</div>
@@ -572,7 +572,7 @@ $$k_{\max} = 0, \quad k_{\min} = -0.5$$
 <p>法向量梯度在球面上各向同性:$\nabla N = -\frac{1}{R} I_{3\times3}$(Weingarten 映射的矩阵形式)。Shape Operator:</p>
 
 <div class="formula">
-$$S = (E_2 | E_3)^\\top \left(-\frac{1}{3} I\right) (E_2 | E_3) = -\frac{1}{3} I_{2\times2} = \begin{pmatrix} -1/3 & 0 \\ 0 & -1/3 \end{pmatrix}$$
+$$S = (E_2 | E_3)^{\top} \left(-\frac{1}{3} I\right) (E_2 | E_3) = -\frac{1}{3} I_{2\times2} = \begin{pmatrix} -1/3 & 0 \\ 0 & -1/3 \end{pmatrix}$$
 </div>
 
 <p>特征值 $k_{\max} = k_{\min} = 1/3 \approx 0.333$(各项同性),高斯曲率 $K = 1/9 \approx 0.111$,均值曲率 $H = 1/3$。这是<strong>脐点</strong>(umbilic point)--两个主曲率相等,主方向不确定。对应 Normal Tensor 的特征值 $\sigma_1 = 2w$, $\sigma_2 = \sigma_3 \approx 0$(若所有面法向量接近一致),$S_{Su}$ 最大 → 分类为 surface。但实际球面的 $A_n$ 会有 $\sigma_2 > 0$(法向量有切向变化),具体取决于网格密度。</p>
@@ -610,7 +610,7 @@ $$w_{nn'}^A = \frac{\|A_{n'} + A_n\|}{2} \cdot \frac{l_{nn'}^\perp}{l_{nn'}}$$
 <p>这里:</p>
 <ul>
 <li>$l_{nn'} = |V_{n'} - V_n|$:边的实际长度</li>
-<li>$l_{nn'}^\perp$:边 $V_n V_{n'}$ 在 $V_n$ 处切平面上的投影长度</li>
+<li>$l_{nn'}^{\perp}$:边 $V_n V_{n'}$ 在 $V_n$ 处切平面上的投影长度</li>
 <li>$\|A_{n'} + A_n\|/2$:两个张量平均的范数,衡量两个顶点的"张量一致性"</li>
 </ul>
 
@@ -623,7 +623,7 @@ $$\frac{l_{nn'}^\perp}{l_{nn'}} = \sin\theta_{nn'}$$
 <p>其中 $\theta_{nn'}$ 是边 $V_n V_{n'}$ 与法向量 $N_n$ 的夹角。</p>
 
 <table>
-<tr><th>几何场景</th><th>$l^\perp / l$</th><th>权重</th><th>效果</th></tr>
+<tr><th>几何场景</th><th>$l^{\perp} / l$</th><th>权重</th><th>效果</th></tr>
 <tr><td>边在切平面内(平滑区域)</td><td>≈ 1</td><td>大</td><td>积极平滑 → 去噪</td></tr>
 <tr><td>边跨越特征(锐边两侧)</td><td>≈ 0</td><td>小</td><td>抑制平滑 → 保留特征</td></tr>
 </table>
@@ -676,11 +676,11 @@ $$N_n^{\text{new}} = E_1^{(t+1)} \quad \text{(平滑后张量的最大特征向�
 <p>$V_{n'} = (0.5, 0, 0)$,边向量 $(0.5, 0, 0)$,边长 $l = 0.5$。</p>
 
 <div class="formula">
-$$l^\\perp = |(V_{n'} - V_n) - (N_n^\\top(V_{n'} - V_n)) N_n| = |(0.5, 0, 0) - 0| = 0.5$$
+$$l^{\perp} = |(V_{n'} - V_n) - (N_n^{\top}(V_{n'} - V_n)) N_n| = |(0.5, 0, 0) - 0| = 0.5$$
 </div>
 
 <div class="formula">
-$$\frac{l^\\perp}{l} = \frac{0.5}{0.5} = 1.0, \quad \theta = 90°, \quad \sin\theta = 1.0$$
+$$\frac{l^\perp}{l} = \frac{0.5}{0.5} = 1.0, \quad \theta = 90^\circ, \quad \sin\theta = 1.0$$
 </div>
 
 <p>设 $\|A_{n'} + A_n\|/2 = 0.8$,则 $w_{nn'}^A = 0.8 \times 1.0 = 0.8$。<strong>权重大,积极平滑</strong>。</p>
@@ -690,11 +690,11 @@ $$\frac{l^\\perp}{l} = \frac{0.5}{0.5} = 1.0, \quad \theta = 90°, \quad \sin\th
 <p>$V_{n''} = (0, 0, 0.5)$,边向量 $(0, 0, 0.5)$,几乎沿法向量方向。</p>
 
 <div class="formula">
-$$l^\\perp = |(0, 0, 0.5) - (0.5)(0, 0, 1)| = |(0, 0, 0)| = 0$$
+$$l^{\perp} = |(0, 0, 0.5) - (0.5)(0, 0, 1)| = |(0, 0, 0)| = 0$$
 </div>
 
 <div class="formula">
-$$\frac{l^\\perp}{l} = \frac{0}{0.5} = 0, \quad \theta = 0°, \quad \sin\theta = 0$$
+$$\frac{l^\perp}{l} = \frac{0}{0.5} = 0, \quad \theta = 0^\circ, \quad \sin\theta = 0$$
 </div>
 
 <p>$w_{nn''}^A = 0.8 \times 0 = 0$。<strong>权重为零,完全不平滑</strong>--棱边特征被完美保留。</p>
@@ -704,11 +704,11 @@ $$\frac{l^\\perp}{l} = \frac{0}{0.5} = 0, \quad \theta = 0°, \quad \sin\theta =
 <p>$V_{n'''} = (0.3, 0, 0.3)$,边向量 $(0.3, 0, 0.3)$,边长 $l = 0.424$。</p>
 
 <div class="formula">
-$$l^\\perp = |(0.3, 0, 0.3) - 0.3 \cdot (0,0,1)| = |(0.3, 0, 0)| = 0.3$$
+$$l^{\perp} = |(0.3, 0, 0.3) - 0.3 \cdot (0,0,1)| = |(0.3, 0, 0)| = 0.3$$
 </div>
 
 <div class="formula">
-$$\frac{l^\\perp}{l} = \frac{0.3}{0.424} = 0.707, \quad \theta = 45°, \quad \sin\theta = 0.707$$
+$$\frac{l^\perp}{l} = \frac{0.3}{0.424} = 0.707, \quad \theta = 45^\circ, \quad \sin\theta = 0.707$$
 </div>
 
 <p>$w_{nn'''}^A = 0.8 \times 0.707 = 0.566$。<strong>中等权重,部分平滑</strong>--既不是完全平滑也不是完全保留,取决于边与法向量的夹角。</p>
@@ -762,7 +762,7 @@ $$\text{C0:} \quad \text{feature saliency} \neq S_{Su} \quad \text{(即不是 su
 <span class="label">(15)</span>
 </div>
 
-<p>通过式 (5) 的分类规则,设 $\varphi = 45°$($\varepsilon \approx 5$)。满足 C0 的顶点位于锐边和角点上。对应函数:<code>IsSharpVtx(V_n)</code>。</p>
+<p>通过式 (5) 的分类规则,设 $\varphi = 45^\circ$($\varepsilon \approx 5$)。满足 C0 的顶点位于锐边和角点上。对应函数:<code>IsSharpVtx(V_n)</code>。</p>
 
 <h3>6.2 条件 C1:曲率间隙</h3>
 
@@ -930,7 +930,7 @@ $$\text{C3:} \quad k_{\max} \text{ 的符号沿 } E_2 \text{ 方向发生变化}
 <p><strong>QEM 的 $A$ 矩阵</strong>(Garland &amp; Heckbert 1997,式 (7) 的左上 3×3 子块):</p>
 
 <div class="formula">
-$$A^{\text{QEM}}_i = \sum_{ijk \in N_i} a^i_{jk} \, \hat{n}_{ijk} \, \hat{n}_{ijk}^\top$$
+$$A^{\text{QEM}}_i = \sum_{ijk \in N_i} a^i_{jk} \, \hat{n}_{ijk} \, \hat{n}_{ijk}^{\top}$$
 </div>
 
 <p>其中 $a^i_{jk} = a_{jk}/3$ 是面 $ijk$ 面积的三分之一(barycentric area)。</p>
@@ -1016,7 +1016,7 @@ $$\text{秩亏方向} \quad \text{null}(A_{ij}) = \text{span}\{E_i : \sigma_i \a
 
 <h4>数值示例：QEM 方程组求解的对比</h4>
 
-<p>使用 2.4 节场景 B（棱边顶点），$A = \frac{2}{3}\begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix}$，设 $\mathbf{b} = (-0.4, 0, -0.6)^\\top$。</p>
+<p>使用 2.4 节场景 B（棱边顶点），$A = \frac{2}{3}\begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix}$，设 $\mathbf{b} = (-0.4, 0, -0.6)^{\top}$。</p>
 
 <h4>标准 QEM 求解：$Ax^* = -b$</h4>
 
@@ -1024,13 +1024,13 @@ $$\text{秩亏方向} \quad \text{null}(A_{ij}) = \text{span}\{E_i : \sigma_i \a
 $$\frac{2}{3}\begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix} \begin{pmatrix} x \\ y \\ z \end{pmatrix} = \begin{pmatrix} 0.4 \\ 0 \\ 0.6 \end{pmatrix}$$
 </div>
 
-<p>展开：$\frac{2}{3}x = 0.4 → x^* = 0.6$，$0 \cdot y = 0$（任意），$\frac{2}{3}z = 0.6 → z^* = 0.9$。</p>
+<p>展开：$\frac{2}{3}x = 0.4 \to x^* = 0.6$，$0 \cdot y = 0$（任意），$\frac{2}{3}z = 0.6 \to z^* = 0.9$。</p>
 
 <p>解：$x^* = (0.6, \textbf{?}, 0.9)$。<strong>$y$ 坐标无约束</strong>——顶点可以在棱边方向上自由滑动。标准 QEM 的 fallback 通常是取 $y = 0$（或取两端点中点），这意味着<strong>坍缩后的顶点位置在棱边上是任意的</strong>。</p>
 
 <h4>增强 QEM 求解（加入 Line Quadric）</h4>
 
-<p>Line Quadric $A^l = I - E_1 E_1^\\top = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0 \end{pmatrix}$（填补切平面），$E_1 = (0,0,1)$。</p>
+<p>Line Quadric $A^l = I - E_1 E_1^{\top} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0 \end{pmatrix}$（填补切平面），$E_1 = (0,0,1)$。</p>
 
 <div class="formula">
 $$\tilde{A} = A + w \cdot a \cdot A^l = \frac{2}{3}\begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix} + 0.0001 \cdot 1.0 \cdot \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0 \end{pmatrix}$$
@@ -1062,7 +1062,7 @@ $$x^* = 0.6, \quad y^* = \frac{0.00005}{0.0001} = 0.5, \quad z^* = 0.9$$
 
 <h3 id="s8-3">8.3 特征显著性 → 自适应 QEM 权重</h3>
 
-<p>Line Quadrics 方法(SGP 2025)在 QEM 中加入 $w_i \cdot a_i \cdot (I - \hat{n}\hat{n}^\top)$ 来填补切平面方向。但 $w_i$ 如何设置?原文仅给出 uniform $w = 10^{-4}$。Normal Tensor 的特征显著性提供了<strong>原理性的自适应权重方案</strong>:</p>
+<p>Line Quadrics 方法(SGP 2025)在 QEM 中加入 $w_i \cdot a_i \cdot (I - \hat{n}\hat{n}^{\top})$ 来填补切平面方向。但 $w_i$ 如何设置?原文仅给出 uniform $w = 10^{-4}$。Normal Tensor 的特征显著性提供了<strong>原理性的自适应权重方案</strong>:</p>
 
 <h4>权重映射公式</h4>
 
@@ -1091,9 +1091,9 @@ $$w_i = w_0 + \alpha \cdot \frac{S_{Cr}(V_i)}{S_{Su}(V_i) + \epsilon} + \beta \c
 
 <div class="callout success">
 <div class="callout-title">与 Line Quadrics 的协同</div>
-<p>Line Quadrics 的 $A^l = I - \hat{n}\hat{n}^\top$ 填补整个切平面。Normal Tensor 进一步告诉我们:</p>
+<p>Line Quadrics 的 $A^l = I - \hat{n}\hat{n}^{\top}$ 填补整个切平面。Normal Tensor 进一步告诉我们:</p>
 <ul>
-<li>在棱边处,$E_3$ 方向(沿棱边)比 $E_2$ 方向(横切棱边)更需要约束 → 可以用<strong>方向性 Line Quadric</strong>:$A^l_{\text{dir}} = w_{E_2} E_2 E_2^\top + w_{E_3} E_3 E_3^\top$,其中 $w_{E_3} > w_{E_2}$</li>
+<li>在棱边处,$E_3$ 方向(沿棱边)比 $E_2$ 方向(横切棱边)更需要约束 → 可以用<strong>方向性 Line Quadric</strong>:$A^l_{\text{dir}} = w_{E_2} E_2 E_2^{\top} + w_{E_3} E_3 E_3^{\top}$,其中 $w_{E_3} > w_{E_2}$</li>
 <li>在角点处,$A$ 已满秩 → $w_i$ 可以设为 0 → 不浪费约束力</li>
 </ul>
 </div>
@@ -1176,7 +1176,7 @@ $$w_i = 10^{-4} + 10^{-2} \cdot \frac{0}{1.333 + 10^{-6}} + 10^{-1} \cdot 6.7 \t
 <p>对边 $V_i V_j$,计算边方向相对于主方向的投影:</p>
 
 <div class="formula">
-$$\cos\theta_{ij} = \frac{|(V_j - V_i)^\top E_3|}{\|V_j - V_i\|}$$
+$$\cos\theta_{ij} = \frac{|(V_j - V_i)^{\top} E_3|}{\|V_j - V_i\|}$$
 <span class="label">(23)</span>
 </div>
 
@@ -1297,8 +1297,8 @@ $$Q_i^{(t+1)} \leftarrow Q_i^{(t)} + \sum_{j \in \mathcal{N}(i)} w_{ij}^A \big(Q
 <div class="callout key">
 <div class="callout-title">各向异性 QEM 平滑的关键优势</div>
 <ul>
-<li><strong>跨特征的边</strong>:$l^\perp/l \approx 0$ → 权重 ≈ 0 → <strong>不平滑</strong> → 保留特征边界</li>
-<li><strong>沿表面的边</strong>:$l^\perp/l \approx 1$ → 权重大 → <strong>积极平滑</strong> → 去除噪声</li>
+<li><strong>跨特征的边</strong>:$l^{\perp}/l \approx 0$ → 权重 ≈ 0 → <strong>不平滑</strong> → 保留特征边界</li>
+<li><strong>沿表面的边</strong>:$l^{\perp}/l \approx 1$ → 权重大 → <strong>积极平滑</strong> → 去除噪声</li>
 <li>平滑后的 $A$ 矩阵:平坦区域恢复为正确的低秩,棱边恢复为正确的秩 2</li>
 <li><strong>不需要顶点重定位</strong>--仅修正 quadric 矩阵</li>
 </ul>
@@ -1322,7 +1322,7 @@ $$Q_i^{(t+1)} \leftarrow Q_i^{(t)} + \sum_{j \in \mathcal{N}(i)} w_{ij}^A \big(Q
 
 <table>
 <tr><th>特征类型</th><th>检测条件</th><th>QEM 约束</th><th>效果</th></tr>
-<tr><td>C0 锐边</td><td>IsSharpVtx ($\varphi=45°$)</td><td>$w_i \to \infty$(或硬约束)</td><td>完全保留锐边顶点</td></tr>
+<tr><td>C0 锐边</td><td>IsSharpVtx ($\varphi=45^\circ$)</td><td>$w_i \to \infty$(或硬约束)</td><td>完全保留锐边顶点</td></tr>
 <tr><td>C1 Fillet 边缘</td><td>HasCurvatureGap ($e=2$)</td><td>$w_i = \alpha \cdot S_{Cr}$</td><td>软性保留,允许高代价坍缩</td></tr>
 <tr><td>凸凹分界线</td><td>IsConvexConcave</td><td>$w_i$ 增大 + 边界 quadric</td><td>保留区域分界</td></tr>
 <tr><td>方向正交区</td><td>IsOrthogonal</td><td>方向性 Line Quadric</td><td>保留方向变化</td></tr>
@@ -1522,7 +1522,7 @@ Phase 3: 增强 QEM 简化
 
 <div class="callout key">
 <div class="callout-title">一句话总结</div>
-<p>Normal Tensor $A_n = \sum w_{nn'} N_{n'} N_{n'}^\top$ 与 QEM 的 $A$ 矩阵是<strong>同一个数学对象</strong>。其特征值 $(\sigma_1, \sigma_2, \sigma_3)$ 直接诊断 QEM 的秩亏类型和方向,特征向量 $(E_1, E_2, E_3)$ 提供主方向引导坍缩,各向异性平滑使噪声网格上的 QEM 恢复正确的秩诊断,C0/C1 检测为 Line Quadrics 提供原理性的自适应权重。整套框架仅需 ~100 行代码,在统一框架内完成了特征检测、噪声鲁棒和方向引导三件事。</p>
+<p>Normal Tensor $A_n = \sum w_{nn'} N_{n'} N_{n'}^{\top}$ 与 QEM 的 $A$ 矩阵是<strong>同一个数学对象</strong>。其特征值 $(\sigma_1, \sigma_2, \sigma_3)$ 直接诊断 QEM 的秩亏类型和方向,特征向量 $(E_1, E_2, E_3)$ 提供主方向引导坍缩,各向异性平滑使噪声网格上的 QEM 恢复正确的秩诊断,C0/C1 检测为 Line Quadrics 提供原理性的自适应权重。整套框架仅需 ~100 行代码,在统一框架内完成了特征检测、噪声鲁棒和方向引导三件事。</p>
 </div>
 
 <hr style="border:none;border-top:1px dashed #ccc;margin:32px 0;">

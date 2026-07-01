@@ -21,6 +21,10 @@ option(LQ_BUILD_EXAMPLES "Build example programs that consume the library" ON)
 option(LQ_BUILD_TESTS "Build GoogleTest based tests" ON)
 option(LQ_BUILD_DOCS "Enable the Doxygen docs-api target when Doxygen is available" ON)
 option(LQ_ENABLE_INSTALL "Enable install rules and CMake package export" ON)
+set(LQ_GOOGLETEST_SOURCE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/googletest"
+  CACHE PATH "Path to the vendored GoogleTest source tree"
+)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -134,14 +138,16 @@ if(LQ_BUILD_EXAMPLES)
 endif()
 
 if(BUILD_TESTING AND LQ_BUILD_TESTS)
-  FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
-    ${LQ_FETCHCONTENT_TIMESTAMP_ARGS}
-  )
+  if(NOT EXISTS "${LQ_GOOGLETEST_SOURCE_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR
+      "GoogleTest was not found at LQ_GOOGLETEST_SOURCE_DIR='${LQ_GOOGLETEST_SOURCE_DIR}'. "
+      "Expected the vendored source tree under thirdParty/googletest."
+    )
+  endif()
+
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
   set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(googletest)
+  add_subdirectory("${LQ_GOOGLETEST_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/thirdParty/googletest" EXCLUDE_FROM_ALL)
   add_subdirectory(tests)
 endif()
 

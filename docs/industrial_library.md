@@ -28,6 +28,7 @@ or any lightweight STL viewer available on the target machine.
 | `include/line_quadrics_qem/` | Stable public C++ headers. |
 | `src/` | Private implementation plus the CLI entry point. |
 | `tests/` | Automated regression coverage. |
+| `thirdParty/googletest/` | Vendored GoogleTest source used by the test target. |
 | `examples/basic_simplify.cpp` | External-consumer style smoke test. |
 | `cmake/` | Installed package configuration. |
 | `docs/industrial_validation.md` | Command-level validation matrix and performance checks. |

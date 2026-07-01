@@ -26,7 +26,36 @@
       "preLaunchTask": "build: msvc vs2022 debug"
     },
     {
-      "name": "Debug GoogleTest (MinGW GDB)",
+      "name": "Debug GoogleTest All (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug tests"
+    },
+    {
+      "name": "Debug GoogleTest Filter (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=${input:gtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug tests"
+    },
+    {
+      "name": "Run GoogleTest All (MinGW)",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
@@ -44,6 +73,20 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/msvc-vs2022-debug/bin/Debug/line_quadrics_qem_tests.exe",
       "args": ["--gtest_color=yes"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc vs2022 debug tests"
+    },
+    {
+      "name": "Debug GoogleTest Filter (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2022-debug/bin/Debug/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=${input:gtestFilter}",
+        "--gtest_color=yes"
+      ],
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
@@ -69,6 +112,14 @@
       "MIMode": "gdb",
       "miDebuggerPath": "gdb.exe",
       "preLaunchTask": "build: mingw+ninja debug"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "gtestFilter",
+      "type": "promptString",
+      "description": "GoogleTest filter",
+      "default": "LineQuadricsQem.*"
     }
   ]
 }

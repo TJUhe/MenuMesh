@@ -41,6 +41,30 @@
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
+      "label": "build: mingw+ninja debug all",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
+      "label": "test: mingw+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/mingw-ninja-debug", "ctest", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja debug all"
+    },
+    {
+      "label": "run: mingw+ninja debug gtest",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja debug tests"
+    },
+    {
       "label": "configure: mingw makefiles release",
       "type": "shell",
       "command": "cmake",
@@ -109,32 +133,48 @@
       "dependsOn": "configure: msvc vs2022 debug"
     },
     {
-      "label": "configure: msvc+ninja release",
+      "label": "build: msvc vs2022 debug all",
       "type": "shell",
       "command": "cmake",
-      "args": ["-S", ".", "-B", "build/msvc-ninja-release", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_CXX_COMPILER=cl", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
+      "args": ["--build", "build/msvc-vs2022-debug", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug"
+    },
+    {
+      "label": "test: msvc vs2022 debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/msvc-vs2022-debug", "ctest", "-C", "Debug", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: msvc vs2022 debug all"
+    },
+    {
+      "label": "configure: msvc+ninja release",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
       "problemMatcher": []
     },
     {
       "label": "build: msvc+ninja release",
       "type": "shell",
-      "command": "cmake",
-      "args": ["--build", "build/msvc-ninja-release", "--target", "linequadrics", "--parallel", "2"],
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-release --target linequadrics --parallel 2"],
       "problemMatcher": ["$msCompile"],
       "dependsOn": "configure: msvc+ninja release"
     },
     {
       "label": "configure: msvc+ninja debug",
       "type": "shell",
-      "command": "cmake",
-      "args": ["-S", ".", "-B", "build/msvc-ninja-debug", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_CXX_COMPILER=cl", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -S . -B build/msvc-ninja-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
       "problemMatcher": []
     },
     {
       "label": "build: msvc+ninja debug",
       "type": "shell",
-      "command": "cmake",
-      "args": ["--build", "build/msvc-ninja-debug", "--target", "linequadrics", "--parallel", "2"],
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-debug --target linequadrics --parallel 2"],
       "problemMatcher": ["$msCompile"],
       "dependsOn": "configure: msvc+ninja debug"
     },

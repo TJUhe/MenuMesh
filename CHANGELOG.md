@@ -21,6 +21,8 @@
 
 - Added `docs/industrial_validation.md` with command-level validation coverage,
   output locations, metrics, and pass criteria.
+- Added vendored GoogleTest under `thirdParty/googletest` for offline test
+  builds.
 
 ### Removed
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-07-01
+
+### Changed
+
+- Reframed the repository documentation around a C++ geometry-kernel workflow:
+  CLI-generated STL/CSV outputs, CTest/API smoke checks, and external STL/CAD
+  viewers replace the previous browser-preview-first path.
+- Updated VSCode launch/tasks and user-facing command examples for the
+  `bin/linequadrics.exe` runtime layout produced by the library build.
+- Expanded industrial-library notes with source-layout boundaries, validation
+  expectations, and guidance for treating generated outputs as inspection
+  artifacts instead of source dependencies.
+- Refreshed feature-curve validation STL/CSV outputs for flange, pipe coupling,
+  pulley, and stepped-shaft cases.
+
+### Added
+
+- Added `docs/industrial_validation.md` with command-level validation coverage,
+  output locations, metrics, and pass criteria.
+
+### Removed
+
+- Removed the Vite/Node browser viewer stack from the project workflow.
+
 ## 2026-06-30
 
 ### Added

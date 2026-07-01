@@ -4,6 +4,12 @@ This branch turns the algorithm code into a reusable cross-platform C++ dynamic
 library while keeping the existing `linequadrics` CLI as a consumer of that
 library.
 
+The repository is organized as an algorithm kernel, not as a web application.
+The previous browser viewer path is intentionally not part of the industrial
+library boundary. Validation outputs are STL files and CSV metrics; visual
+inspection should use an external STL/CAD viewer such as MeshLab, CAD Assistant,
+or any lightweight STL viewer available on the target machine.
+
 ## Targets
 
 - `line_quadrics_qem`: shared library by default (`.dll`, `.so`, or `.dylib`).
@@ -14,6 +20,19 @@ library.
   tests.
 - `check-format`: runs `clang-format --dry-run --Werror`.
 - `docs-api`: generates Doxygen HTML into the build tree.
+
+## Source Layout
+
+| Path | Industrial role |
+| --- | --- |
+| `include/line_quadrics_qem/` | Stable public C++ headers. |
+| `src/` | Private implementation plus the CLI entry point. |
+| `tests/` | Automated regression coverage. |
+| `examples/basic_simplify.cpp` | External-consumer style smoke test. |
+| `cmake/` | Installed package configuration. |
+| `docs/industrial_validation.md` | Command-level validation matrix and performance checks. |
+| `examples/input/` | Reproducible sample STL inputs. |
+| `examples/output/` | Generated validation outputs, not a required source dependency. |
 
 ## Configure And Build
 
@@ -142,6 +161,10 @@ Open:
 build/industrial/docs/api/html/index.html
 ```
 
+For performance and feature validation, follow
+[`industrial_validation.md`](industrial_validation.md). It maps each claim to a
+command, output file, CSV column, and pass criterion.
+
 ## Integration Boundaries
 
 The shared library intentionally owns algorithmic functionality only:
@@ -156,3 +179,7 @@ The CLI remains a separate executable that parses arguments and orchestrates
 batch workflows. This keeps the library usable from CAD/CAM applications,
 desktop software, services, and test harnesses without bringing in command-line
 parsing or filesystem-heavy demo workflows.
+
+The removed web preview stack was a convenience tool, not a kernel dependency.
+Its role is replaced by generated STL files for visual inspection and CSV files
+for measurable acceptance.

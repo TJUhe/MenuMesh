@@ -177,7 +177,7 @@ if(LQ_BUILD_DOCS)
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)
     set(LQ_DOXYGEN_INPUT
-      "${CMAKE_CURRENT_SOURCE_DIR}/README.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_library.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/vscode_setup.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/paper_guided_usage.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_experiment.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/external_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/README.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_library.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/vscode_setup.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/paper_guided_usage.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_constraints.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_experiment.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/external_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp"
     )
     set(LQ_DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/api")
     configure_file(

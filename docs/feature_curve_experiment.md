@@ -64,7 +64,7 @@ loop/circle fitting + QEM cost terms + collapse legality + projected placement.
 Detect feature loops:
 
 ```powershell
-.\build\Release\linequadrics.exe feature-report examples\input\pipe_coupling.stl `
+.\build\mingw-ninja-release\bin\linequadrics.exe feature-report examples\input\pipe_coupling.stl `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
   --min-feature-loop-vertices 8 `
@@ -74,7 +74,7 @@ Detect feature loops:
 Simplify with circular feature protection:
 
 ```powershell
-.\build\Release\linequadrics.exe simplify examples\input\pipe_coupling.stl `
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify examples\input\pipe_coupling.stl `
   examples\output\feature_curve_validation\pipe_coupling_curve.stl `
   --method line `
   --ratio 0.20 `
@@ -91,7 +91,7 @@ Simplify with circular feature protection:
 Compare circular features after simplification:
 
 ```powershell
-.\build\Release\linequadrics.exe feature-compare examples\input\pipe_coupling.stl `
+.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare examples\input\pipe_coupling.stl `
   examples\output\feature_curve_validation\pipe_coupling_curve.stl `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -101,13 +101,13 @@ Compare circular features after simplification:
 Run all validation cases:
 
 ```powershell
-.\build\mingw-ninja-release\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
 ```
 
 Run downloaded external benchmark models:
 
 ```powershell
-.\build\mingw-ninja-release\linequadrics.exe validate-external --ratio 0.25 --samples 800
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
 ```
 
 ## Validation cases

@@ -29,7 +29,7 @@ The OBJ loader intentionally stays minimal:
 ## How to run
 
 ```powershell
-.\build\mingw-ninja-release\linequadrics.exe validate-external --ratio 0.25 --samples 800
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
 ```
 
 The validation command looks for these models:

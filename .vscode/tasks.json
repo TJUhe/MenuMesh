@@ -33,6 +33,14 @@
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
+      "label": "build: mingw+ninja debug tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "mingw-ninja-debug", "--target", "line_quadrics_qem_tests", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
       "label": "configure: mingw makefiles release",
       "type": "shell",
       "command": "cmake",
@@ -93,6 +101,14 @@
       "dependsOn": "configure: msvc vs2022 debug"
     },
     {
+      "label": "build: msvc vs2022 debug tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "msvc-vs2022-debug", "--target", "line_quadrics_qem_tests", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug"
+    },
+    {
       "label": "configure: msvc+ninja release",
       "type": "shell",
       "command": "cmake",
@@ -123,25 +139,25 @@
       "dependsOn": "configure: msvc+ninja debug"
     },
     {
-      "label": "run: quick viewer data",
+      "label": "run: quick demo data",
       "type": "shell",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
       "args": ["demo", "--quick", "--samples", "500"],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release"
     },
     {
-      "label": "run: quick viewer data (mingw makefiles)",
+      "label": "run: quick demo data (mingw makefiles)",
       "type": "shell",
-      "command": "${workspaceFolder}/build/mingw-makefiles-release/linequadrics.exe",
+      "command": "${workspaceFolder}/build/mingw-makefiles-release/bin/linequadrics.exe",
       "args": ["demo", "--quick", "--samples", "500"],
       "problemMatcher": [],
       "dependsOn": "build: mingw makefiles release"
     },
     {
-      "label": "run: quick viewer data (msvc vs2022)",
+      "label": "run: quick demo data (msvc vs2022)",
       "type": "shell",
-      "command": "${workspaceFolder}/build/msvc-vs2022-release/Release/linequadrics.exe",
+      "command": "${workspaceFolder}/build/msvc-vs2022-release/bin/Release/linequadrics.exe",
       "args": ["demo", "--quick", "--samples", "500"],
       "problemMatcher": [],
       "dependsOn": "build: msvc vs2022 release"
@@ -149,7 +165,7 @@
     {
       "label": "run: full demo data",
       "type": "shell",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
       "args": ["demo", "--samples", "1000"],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release"
@@ -157,7 +173,7 @@
     {
       "label": "run: feature validation",
       "type": "shell",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
       "args": ["validate-features", "--ratio", "0.20", "--n", "96", "--samples", "1000"],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release"
@@ -165,74 +181,10 @@
     {
       "label": "run: external validation",
       "type": "shell",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/linequadrics.exe",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
       "args": ["validate-external", "--ratio", "0.25", "--samples", "800"],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release"
-    },
-    {
-      "label": "viewer: install",
-      "type": "shell",
-      "command": "pnpm",
-      "args": ["install"],
-      "problemMatcher": []
-    },
-    {
-      "label": "viewer: start",
-      "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "viewer"],
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "vite",
-        "pattern": {
-          "regexp": "^$"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".*",
-          "endsPattern": "Local:"
-        }
-      },
-      "dependsOn": ["viewer: install", "run: quick viewer data"]
-    },
-    {
-      "label": "viewer: start (mingw makefiles)",
-      "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "viewer"],
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "vite",
-        "pattern": {
-          "regexp": "^$"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".*",
-          "endsPattern": "Local:"
-        }
-      },
-      "dependsOn": ["viewer: install", "run: quick viewer data (mingw makefiles)"]
-    },
-    {
-      "label": "viewer: start (msvc vs2022)",
-      "type": "shell",
-      "command": "pnpm",
-      "args": ["run", "viewer"],
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "vite",
-        "pattern": {
-          "regexp": "^$"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".*",
-          "endsPattern": "Local:"
-        }
-      },
-      "dependsOn": ["viewer: install", "run: quick viewer data (msvc vs2022)"]
     }
   ]
 }

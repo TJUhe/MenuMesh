@@ -12,11 +12,11 @@ cmake -S . -B build/industrial -DCMAKE_BUILD_TYPE=Release
 cmake --build build/industrial --parallel
 ```
 
-如果使用 preset：
+如果需要指定 MinGW + Ninja 环境：
 
 ```powershell
-cmake --preset mingw-ninja-release
-cmake --build --preset mingw-ninja-release --target linequadrics --parallel 2
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-ninja-release --target linequadrics --parallel 2
 ```
 
 以下命令中的可执行文件按实际构建目录替换：
@@ -34,8 +34,8 @@ old build trees, but it should not be used as the documented validation path.
 | 验证项 | 命令 | 输出 | 通过标准 |
 | --- | --- | --- | --- |
 | 库可构建 | `cmake --build build/industrial --parallel` | `line_quadrics_qem` 动态库、`linequadrics` CLI | 构建无编译/链接错误。 |
-| API 可被外部程序调用 | `ctest --test-dir build/industrial --output-on-failure` | `linequadrics_example_basic_simplify` | 示例程序退出码为 0，输出面数小于输入面数。 |
-| 单元回归 | `ctest --test-dir build/industrial --output-on-failure` | `line_quadrics_qem_tests` | QEM 简化、特征检测、网格统计测试全部通过。 |
+| API 可被外部程序调用 | `cmake -E chdir build/industrial ctest --output-on-failure` | `linequadrics_example_basic_simplify` | 示例程序退出码为 0，输出面数小于输入面数。 |
+| 单元回归 | `cmake -E chdir build/industrial ctest --output-on-failure` | `line_quadrics_qem_tests` | QEM 简化、特征检测、网格统计测试全部通过。 |
 | CLI 可用性 | `linequadrics --help` | 帮助文本 | 命令列出 `simplify`、`compare`、`feature-report`、`feature-compare`、`validate-features`。 |
 | 基础简化性能 | `linequadrics demo --quick --samples 500` | `examples/output/**/metrics.csv`、STL | 目标面数下降；`metrics.csv` 有质量和距离列；STL 可正常打开。 |
 | 同面数质量对比 | `linequadrics sweep input.stl out_dir --ratio 0.15 --weights "0,1e-4,1e-3"` | `out_dir/metrics.csv` | 同一目标面数下比较 `mean_triangle_quality`、`edge_length_cv`、距离误差。 |

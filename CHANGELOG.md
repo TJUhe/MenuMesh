@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Adapted CMake and VSCode workflows for CMake 3.18.6 environments by removing
+  preset-based commands and using explicit build directories/generators.
 - Reframed the repository documentation around a C++ geometry-kernel workflow:
   CLI-generated STL/CSV outputs, CTest/API smoke checks, and external STL/CAD
   viewers replace the previous browser-preview-first path.
@@ -23,6 +25,7 @@
 ### Removed
 
 - Removed the Vite/Node browser viewer stack from the project workflow.
+- Removed `CMakePresets.json`; CMake 3.18.6 does not support presets.
 
 ## 2026-06-30
 
@@ -55,7 +58,7 @@
 ### Verified
 
 - `cmake --build build\\codex-industrial --config Debug --parallel`
-- `ctest --test-dir build\\codex-industrial -C Debug --output-on-failure`
+- `cmake -E chdir build\\codex-industrial ctest -C Debug --output-on-failure`
 - `cmake --build build\\codex-industrial --config Debug --target check-format`
 - `cmake --build build\\codex-industrial --config Debug --target docs-api`
 - `cmake --install build\\codex-industrial --config Debug --prefix build\\codex-industrial\\stage-copy-helper-3`

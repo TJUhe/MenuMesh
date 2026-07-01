@@ -1,9 +1,13 @@
 {
-  "cmake.useCMakePresets": "always",
+  "cmake.useCMakePresets": "never",
   "cmake.configureOnOpen": false,
-  "cmake.defaultConfigurePreset": "mingw-ninja-release",
-  "cmake.defaultBuildPreset": "mingw-ninja-release",
-  "cmake.buildDirectory": "${workspaceFolder}/build/${presetName}",
+  "cmake.generator": "Ninja",
+  "cmake.buildType": "Release",
+  "cmake.buildDirectory": "${workspaceFolder}/build/mingw-ninja-${buildType}",
+  "cmake.configureSettings": {
+    "CMAKE_CXX_COMPILER": "g++",
+    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+  },
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
   "C_Cpp.default.cppStandard": "c++17",
   "files.associations": {

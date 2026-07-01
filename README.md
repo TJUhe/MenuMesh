@@ -42,15 +42,15 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 推荐 MinGW + Ninja：
 
 ```powershell
-cmake --preset mingw-ninja-release
-cmake --build --preset mingw-ninja-release --target linequadrics --parallel 2
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-ninja-release --target linequadrics --parallel 2
 ```
 
 Windows 7 / 小内存机器优先用 MinGW Makefiles：
 
 ```powershell
-cmake --preset mingw-makefiles-release
-cmake --build --preset mingw-makefiles-release --target linequadrics --parallel 1
+cmake -S . -B build/mingw-makefiles-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-makefiles-release --target linequadrics --parallel 1
 ```
 
 完整工业库构建、测试、文档目标：
@@ -58,7 +58,7 @@ cmake --build --preset mingw-makefiles-release --target linequadrics --parallel 
 ```powershell
 cmake -S . -B build/industrial -DCMAKE_BUILD_TYPE=Release
 cmake --build build/industrial --parallel
-ctest --test-dir build/industrial --output-on-failure
+cmake -E chdir build/industrial ctest --output-on-failure
 cmake --build build/industrial --target docs-api
 ```
 
@@ -92,7 +92,7 @@ line_quadrics_qem_copy_runtime_dependencies(my_app)
 基础回归：
 
 ```powershell
-ctest --test-dir build/industrial --output-on-failure
+cmake -E chdir build/industrial ctest --output-on-failure
 ```
 
 快速生成 STL/CSV：

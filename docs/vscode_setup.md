@@ -1,8 +1,8 @@
 # VSCode Build Setup
 
-This project is now set up around VSCode, CMake presets, and CMake Tools. The
-old root PowerShell scripts were removed; the common workflows are available as
-VSCode tasks and native `linequadrics.exe` commands.
+This project is set up around VSCode tasks, explicit CMake command lines, and
+CMake Tools. The old root PowerShell scripts were removed; the common workflows
+are available as VSCode tasks and native `linequadrics.exe` commands.
 
 This repository is now treated as a C++ geometry kernel. Browser preview tasks
 were removed; generated STL files should be opened with an external STL/CAD
@@ -15,34 +15,35 @@ Install the extensions listed in `.vscode/extensions.json`:
 - C/C++ (`ms-vscode.cpptools`)
 - CMake Tools (`ms-vscode.cmake-tools`)
 
-## Presets
+## CMake 3.18.6 Workflow
 
-`CMakePresets.json` uses schema version 2, so it works with CMake 3.20+. This is
-intentional for Windows 7 compatibility.
+The project supports CMake 3.18.6 and does not require `CMakePresets.json`.
+VSCode tasks call `cmake -S ... -B ...` directly so the same commands work in an
+ordinary terminal.
 
-Available configure/build presets:
+Available configure/build layouts:
 
-| Preset | Generator | Compiler | Notes |
+| Build directory | Generator | Compiler | Notes |
 | --- | --- | --- | --- |
-| `mingw-ninja-release` / `debug` | Ninja | MinGW `g++` | Recommended on modern machines when Ninja is installed. |
-| `mingw-makefiles-release` / `debug` | MinGW Makefiles | MinGW `g++` | Best fallback for Windows 7; no Ninja required. |
-| `msvc-vs2022-release` / `debug` | Visual Studio 17 2022 | MSVC | Use on machines with Visual Studio Build Tools. |
-| `msvc-ninja-release` / `debug` | Ninja | MSVC `cl` | Use from a VS Developer Command Prompt or a VSCode terminal where `cl.exe` is on `PATH`. |
+| `build/mingw-ninja-release` / `debug` | Ninja | MinGW `g++` | Recommended on modern machines when Ninja is installed. |
+| `build/mingw-makefiles-release` / `debug` | MinGW Makefiles | MinGW `g++` | Best fallback for Windows 7; no Ninja required. |
+| `build/msvc-vs2022-release` / `debug` | Visual Studio 17 2022 | MSVC | Use on machines with Visual Studio Build Tools. |
+| `build/msvc-ninja-release` / `debug` | Ninja | MSVC `cl` | Use from a VS Developer Command Prompt or a VSCode terminal where `cl.exe` is on `PATH`. |
 
 For Windows 7, prefer:
 
 ```text
-mingw-makefiles-release
+build/mingw-makefiles-release
 ```
 
 or, if Ninja is available:
 
 ```text
-mingw-ninja-release
+build/mingw-ninja-release
 ```
 
-Use CMake 3.20.x to 3.25.x on Windows 7. Do not use CMake 4.x as the Win7
-baseline. MinGW-w64 `GCC 10.5.0 x86_64 POSIX SEH MSVCRT` is the recommended
+Use CMake 3.18.6 or newer. Do not use CMake 4.x as the Win7 baseline.
+MinGW-w64 `GCC 10.5.0 x86_64 POSIX SEH MSVCRT` is the recommended
 compiler family for the old-machine path.
 
 `msvc-ninja-*` also needs the Visual Studio resource/link tools (`rc.exe`,
@@ -73,29 +74,29 @@ files with a lightweight viewer.
 MinGW + Ninja:
 
 ```powershell
-cmake --preset mingw-ninja-release
-cmake --build --preset mingw-ninja-release --target linequadrics --parallel 2
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-ninja-release --target linequadrics --parallel 2
 ```
 
 MinGW Makefiles, safest on Windows 7:
 
 ```powershell
-cmake --preset mingw-makefiles-release
-cmake --build --preset mingw-makefiles-release --target linequadrics --parallel 1
+cmake -S . -B build/mingw-makefiles-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-makefiles-release --target linequadrics --parallel 1
 ```
 
 MSVC Visual Studio generator:
 
 ```powershell
-cmake --preset msvc-vs2022-release
-cmake --build --preset msvc-vs2022-release --target linequadrics --config Release --parallel 2
+cmake -S . -B build/msvc-vs2022-release -G "Visual Studio 17 2022" -A x64
+cmake --build build/msvc-vs2022-release --target linequadrics --config Release --parallel 2
 ```
 
 MSVC + Ninja, from a VS Developer Command Prompt:
 
 ```powershell
-cmake --preset msvc-ninja-release
-cmake --build --preset msvc-ninja-release --target linequadrics --parallel 2
+cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/msvc-ninja-release --target linequadrics --parallel 2
 ```
 
 ## Native Workflow Commands

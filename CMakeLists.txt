@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.18)
 
 project(line_quadrics_qem
   VERSION 0.1.0
@@ -9,6 +9,11 @@ project(line_quadrics_qem
 include(CTest)
 include(FetchContent)
 include(GNUInstallDirs)
+
+set(LQ_FETCHCONTENT_TIMESTAMP_ARGS)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+  list(APPEND LQ_FETCHCONTENT_TIMESTAMP_ARGS DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+endif()
 
 option(LQ_BUILD_SHARED_LIBRARY "Build line_quadrics_qem as a shared library" ON)
 option(LQ_BUILD_CLI "Build the linequadrics command line tool" ON)
@@ -31,7 +36,7 @@ if(NOT Eigen3_FOUND)
   FetchContent_Declare(
     eigen
     URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${LQ_FETCHCONTENT_TIMESTAMP_ARGS}
   )
   FetchContent_MakeAvailable(eigen)
 endif()
@@ -132,7 +137,7 @@ if(BUILD_TESTING AND LQ_BUILD_TESTS)
   FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${LQ_FETCHCONTENT_TIMESTAMP_ARGS}
   )
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
   set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)

@@ -39,7 +39,7 @@ or any lightweight STL viewer available on the target machine.
 ```powershell
 cmake -S . -B build/industrial
 cmake --build build/industrial --config Release --parallel
-ctest --test-dir build/industrial -C Release --output-on-failure
+cmake -E chdir build/industrial ctest -C Release --output-on-failure
 ```
 
 For Ninja or Makefile generators, keep using `-DCMAKE_BUILD_TYPE=Release` at
@@ -140,7 +140,7 @@ policy for `.so` or `.dylib` deployment.
 Run the full test set:
 
 ```powershell
-ctest --test-dir build/industrial -C Release --output-on-failure
+cmake -E chdir build/industrial ctest -C Release --output-on-failure
 ```
 
 Run formatting checks:

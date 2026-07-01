@@ -1,6 +1,6 @@
-#include "QEMSimplifier.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
-#include "FeatureDetection.h"
+#include "line_quadrics_qem/features/FeatureDetection.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>
@@ -64,6 +64,19 @@ std::uint64_t edgeKey(int a, int b) {
   return (static_cast<std::uint64_t>(static_cast<uint32_t>(a)) << 32u) |
          static_cast<uint32_t>(b);
 }
+
+std::array<int, 3> faceKey(std::array<int, 3> ids) {
+  std::sort(ids.begin(), ids.end());
+  return ids;
+}
+
+struct FaceKeyHash {
+  std::size_t operator()(const std::array<int, 3>& ids) const {
+    return static_cast<std::size_t>(ids[0]) * 73856093u ^
+           static_cast<std::size_t>(ids[1]) * 19349663u ^
+           static_cast<std::size_t>(ids[2]) * 83492791u;
+  }
+};
 
 std::pair<int, int> unpackEdgeKey(std::uint64_t key) {
   return {static_cast<int>(key >> 32u), static_cast<int>(key & 0xffffffffu)};
@@ -456,6 +469,63 @@ bool projectFeaturePlacement(int keep, int remove,
   return false;
 }
 
+bool containsVertex(const FaceState& face, int vertex) {
+  return face.v[0] == vertex || face.v[1] == vertex || face.v[2] == vertex;
+}
+
+struct DynamicTopology {
+  std::vector<std::unordered_set<int>> vertexFaces;
+  std::unordered_map<std::array<int, 3>, std::unordered_set<int>, FaceKeyHash>
+      facesByKey;
+
+  DynamicTopology(const std::vector<FaceState>& faces, int vertexCount) {
+    vertexFaces.resize(vertexCount);
+    for (int fi = 0; fi < static_cast<int>(faces.size()); ++fi) {
+      if (faces[fi].active) {
+        addFace(fi, faces[fi]);
+      }
+    }
+  }
+
+  void addFace(int faceId, const FaceState& face) {
+    for (int id : face.v) {
+      if (id >= 0 && id < static_cast<int>(vertexFaces.size())) {
+        vertexFaces[id].insert(faceId);
+      }
+    }
+    facesByKey[faceKey(face.v)].insert(faceId);
+  }
+
+  void removeFace(int faceId, const FaceState& face) {
+    for (int id : face.v) {
+      if (id >= 0 && id < static_cast<int>(vertexFaces.size())) {
+        vertexFaces[id].erase(faceId);
+      }
+    }
+    const auto key = faceKey(face.v);
+    auto it = facesByKey.find(key);
+    if (it != facesByKey.end()) {
+      it->second.erase(faceId);
+      if (it->second.empty()) {
+        facesByKey.erase(it);
+      }
+    }
+  }
+
+  bool hasDuplicateFace(int faceId, const FaceState& face) const {
+    const auto it = facesByKey.find(faceKey(face.v));
+    if (it == facesByKey.end()) {
+      return false;
+    }
+    for (int id : it->second) {
+      if (id != faceId) {
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
 std::vector<std::pair<int, int>>
 collectActiveEdges(const std::vector<FaceState>& faces) {
   std::unordered_set<std::uint64_t> seen;
@@ -480,18 +550,18 @@ collectActiveEdges(const std::vector<FaceState>& faces) {
   return edges;
 }
 
-bool areAdjacent(int a, int b, const std::vector<FaceState>& faces) {
-  for (const FaceState& face : faces) {
-    if (!face.active) {
-      continue;
-    }
-    bool hasA = false;
-    bool hasB = false;
-    for (int id : face.v) {
-      hasA = hasA || id == a;
-      hasB = hasB || id == b;
-    }
-    if (hasA && hasB) {
+bool areAdjacent(int a, int b, const std::vector<FaceState>& faces,
+                 const DynamicTopology& topology) {
+  if (a < 0 || b < 0 || a >= static_cast<int>(topology.vertexFaces.size()) ||
+      b >= static_cast<int>(topology.vertexFaces.size())) {
+    return false;
+  }
+  const auto& aFaces = topology.vertexFaces[a];
+  const auto& bFaces = topology.vertexFaces[b];
+  const auto& smaller = aFaces.size() <= bFaces.size() ? aFaces : bFaces;
+  const auto& larger = aFaces.size() <= bFaces.size() ? bFaces : aFaces;
+  for (int faceId : smaller) {
+    if (larger.find(faceId) != larger.end() && faces[faceId].active) {
       return true;
     }
   }
@@ -499,17 +569,15 @@ bool areAdjacent(int a, int b, const std::vector<FaceState>& faces) {
 }
 
 std::vector<int> activeNeighborsOf(int v, const std::vector<FaceState>& faces,
-                                   const std::vector<VertexState>& vertices) {
+                                   const std::vector<VertexState>& vertices,
+                                   const DynamicTopology& topology) {
   std::unordered_set<int> seen;
-  for (const FaceState& face : faces) {
+  if (v < 0 || v >= static_cast<int>(topology.vertexFaces.size())) {
+    return {};
+  }
+  for (int faceId : topology.vertexFaces[v]) {
+    const FaceState& face = faces[faceId];
     if (!face.active) {
-      continue;
-    }
-    bool contains = false;
-    for (int id : face.v) {
-      contains = contains || id == v;
-    }
-    if (!contains) {
       continue;
     }
     for (int id : face.v) {
@@ -521,10 +589,95 @@ std::vector<int> activeNeighborsOf(int v, const std::vector<FaceState>& faces,
   return std::vector<int>(seen.begin(), seen.end());
 }
 
+std::unordered_set<int> activeLinkOf(int vertex, const std::vector<FaceState>& faces,
+                                     const std::vector<VertexState>& vertices,
+                                     const DynamicTopology& topology,
+                                     int excludedVertex) {
+  std::unordered_set<int> link;
+  if (vertex < 0 || vertex >= static_cast<int>(topology.vertexFaces.size())) {
+    return link;
+  }
+  for (int faceId : topology.vertexFaces[vertex]) {
+    const FaceState& face = faces[faceId];
+    if (!face.active) {
+      continue;
+    }
+    for (int id : face.v) {
+      if (id != vertex && id != excludedVertex && vertices[id].active) {
+        link.insert(id);
+      }
+    }
+  }
+  return link;
+}
+
+bool collapseWouldPreserveLinkCondition(int keep, int remove,
+                                        const std::vector<FaceState>& faces,
+                                        const std::vector<VertexState>& vertices,
+                                        const DynamicTopology& topology) {
+  std::unordered_set<int> edgeLink;
+  int incidentFaceCount = 0;
+  const auto& keepFaces = topology.vertexFaces[keep];
+  const auto& removeFaces = topology.vertexFaces[remove];
+  const auto& smaller =
+      keepFaces.size() <= removeFaces.size() ? keepFaces : removeFaces;
+  const auto& larger = keepFaces.size() <= removeFaces.size() ? removeFaces : keepFaces;
+  for (int faceId : smaller) {
+    if (larger.find(faceId) == larger.end()) {
+      continue;
+    }
+    const FaceState& face = faces[faceId];
+    if (!face.active) {
+      continue;
+    }
+    ++incidentFaceCount;
+    for (int id : face.v) {
+      if (id != keep && id != remove && vertices[id].active) {
+        edgeLink.insert(id);
+      }
+    }
+  }
+
+  if (incidentFaceCount <= 0 || incidentFaceCount > 2 ||
+      edgeLink.size() != static_cast<std::size_t>(incidentFaceCount)) {
+    return false;
+  }
+
+  const std::unordered_set<int> keepLink =
+      activeLinkOf(keep, faces, vertices, topology, remove);
+  const std::unordered_set<int> removeLink =
+      activeLinkOf(remove, faces, vertices, topology, keep);
+  std::unordered_set<int> intersection;
+  for (int id : keepLink) {
+    if (removeLink.find(id) != removeLink.end()) {
+      intersection.insert(id);
+    }
+  }
+
+  if (intersection.size() != edgeLink.size()) {
+    return false;
+  }
+  for (int id : intersection) {
+    if (edgeLink.find(id) == edgeLink.end()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool collapseWouldBeValid(int keep, int remove, const Vec3& newPosition,
                           const std::vector<FaceState>& faces,
-                          const std::vector<VertexState>& vertices, double areaEps) {
-  for (const FaceState& face : faces) {
+                          const std::vector<VertexState>& vertices,
+                          const DynamicTopology& topology, double areaEps) {
+  if (!collapseWouldPreserveLinkCondition(keep, remove, faces, vertices, topology)) {
+    return false;
+  }
+
+  std::unordered_set<int> touchedFaces = topology.vertexFaces[keep];
+  touchedFaces.insert(topology.vertexFaces[remove].begin(),
+                      topology.vertexFaces[remove].end());
+  for (int faceId : touchedFaces) {
+    const FaceState& face = faces[faceId];
     if (!face.active) {
       continue;
     }
@@ -719,6 +872,7 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
   for (int i = 0; i < static_cast<int>(input.faces.size()); ++i) {
     faces[i].v = input.faces[i].v;
   }
+  DynamicTopology topology(faces, static_cast<int>(vertices.size()));
 
   int activeFaceCount = static_cast<int>(faces.size());
   const int targetFaces =
@@ -759,7 +913,8 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
     if (a < 0 || b < 0 || a >= static_cast<int>(vertices.size()) ||
         b >= static_cast<int>(vertices.size()) || !vertices[a].active ||
         !vertices[b].active || vertices[a].version != candidate.versionA ||
-        vertices[b].version != candidate.versionB || !areAdjacent(a, b, faces)) {
+        vertices[b].version != candidate.versionB ||
+        !areAdjacent(a, b, faces, topology)) {
       if (++stalePops > 10000) {
         rebuildQueue();
         stalePops = 0;
@@ -795,7 +950,7 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
       ++report.projectedFeaturePlacements;
     }
 
-    if (!collapseWouldBeValid(keep, remove, collapsePosition, faces, vertices,
+    if (!collapseWouldBeValid(keep, remove, collapsePosition, faces, vertices, topology,
                               areaEps)) {
       ++report.rejectedCollapses;
       vertices[keep].version++;
@@ -825,28 +980,31 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
     vertices[keep].version++;
     vertices[remove].version++;
 
-    for (FaceState& face : faces) {
-      if (!face.active) {
+    const std::vector<int> removeIncidentFaces(topology.vertexFaces[remove].begin(),
+                                               topology.vertexFaces[remove].end());
+    for (int faceId : removeIncidentFaces) {
+      FaceState& face = faces[faceId];
+      if (!face.active || !containsVertex(face, remove)) {
         continue;
       }
-      bool changed = false;
+      topology.removeFace(faceId, face);
       for (int& id : face.v) {
         if (id == remove) {
           id = keep;
-          changed = true;
         }
       }
-      if (changed && (face.v[0] == face.v[1] || face.v[1] == face.v[2] ||
-                      face.v[0] == face.v[2])) {
+      if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2] ||
+          topology.hasDuplicateFace(faceId, face)) {
         face.active = false;
         --activeFaceCount;
+      } else {
+        topology.addFace(faceId, face);
       }
     }
-    activeFaceCount -= removeDuplicateFaces(faces);
     ++report.collapsedEdges;
     attemptsWithoutCollapse = 0;
 
-    for (int neighbor : activeNeighborsOf(keep, faces, vertices)) {
+    for (int neighbor : activeNeighborsOf(keep, faces, vertices, topology)) {
       pushEdge(keep, neighbor, vertices, queue, report);
     }
 

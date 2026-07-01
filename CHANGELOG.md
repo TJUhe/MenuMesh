@@ -19,10 +19,29 @@
 
 ### Added
 
-- Added `docs/industrial_validation.md` with command-level validation coverage,
+- Added `Status`, `Result`, typed topology handles, and `MeshTopology` as the
+  first reusable topology-cache layer for the mesh-kernel direction.
+- Added `docs/design/architecture.md` to clarify the Polygonica-style industrial mesh
+  kernel target and module boundaries.
+- Added public Fandisk and AIM@SHAPE Casting OBJ fixtures for reproducing the
+  Tsuchie and Higashi 2014 CAD-model experiments locally.
+- Added 10 public large OBJ validation meshes above 10k faces plus
+  `docs/design/large_model_validation.md` with 90% and 50% line-quadrics batch results.
+- Added `docs/design/industrial_validation.md` with command-level validation coverage,
   output locations, metrics, and pass criteria.
 - Added vendored GoogleTest under `thirdParty/googletest` for offline test
   builds.
+
+### Changed
+
+- Routed mesh metric edge, boundary, and non-manifold calculations through
+  `MeshTopology` instead of rebuilding ad hoc edge maps in `Metrics.cpp`.
+- Added a link-condition topology legality filter to QEM edge collapses so
+  closed two-manifold inputs do not simplify into unexpected holes or
+  non-manifold edges.
+- Replaced repeated full-face scans during QEM collapse validation and updates
+  with an incremental incident-face topology, greatly improving large-mesh
+  simplification runtime.
 
 ### Removed
 
@@ -46,7 +65,7 @@
   detection, and mesh metrics.
 - Added clang-format configuration plus `format` and `check-format` targets.
 - Added Doxygen configuration plus a `docs-api` target.
-- Added `docs/industrial_library.md` with integration, install, runtime, and
+- Added `docs/design/industrial_library.md` with integration, install, runtime, and
   tooling notes.
 
 ### Changed

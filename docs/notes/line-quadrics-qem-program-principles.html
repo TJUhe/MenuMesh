@@ -226,7 +226,7 @@ $$E_i^{plane}(x)=\bar{x}^\top Q_i^{plane}\bar{x}
 
 <div class="callout success">
 <div class="callout-title">代码映射</div>
-<p>这部分在 <code>src/QEMSimplifier.cpp</code> 的 <code>computeInitialQuadrics</code> 中完成：每个有效三角面计算法线、面积、平面 quadric，再按 <code>area / 3.0</code> 加到三个顶点。</p>
+<p>这部分在 <code>src/simplification/QEMSimplifier.cpp</code> 的 <code>computeInitialQuadrics</code> 中完成：每个有效三角面计算法线、面积、平面 quadric，再按 <code>area / 3.0</code> 加到三个顶点。</p>
 </div>
 
 <h2 id="s4"><span class="num">4</span>边坍缩代价与最优位置求解</h2>
@@ -428,7 +428,7 @@ $$Q_\ell=Q_{plane}(u_i,v_i)+Q_{plane}(w_i,v_i)$$
 
 <div class="callout success">
 <div class="callout-title">实现等价性</div>
-<p>这也是 <code>src/QEMSimplifier.cpp</code> 中 <code>lineQuadric</code> 的核心：用 Gram-Schmidt 生成垂直于方向向量的两个基，再返回两张平面 quadric 的和。</p>
+<p>这也是 <code>src/simplification/QEMSimplifier.cpp</code> 中 <code>lineQuadric</code> 的核心：用 Gram-Schmidt 生成垂直于方向向量的两个基，再返回两张平面 quadric 的和。</p>
 </div>
 
 <h3 id="s6-3">6.3 平面 QEM 与线二次型合并后的矩阵性质</h3>

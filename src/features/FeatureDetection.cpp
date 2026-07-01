@@ -1,4 +1,4 @@
-#include "FeatureDetection.h"
+#include "line_quadrics_qem/features/FeatureDetection.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>

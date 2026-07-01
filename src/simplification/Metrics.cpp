@@ -1,4 +1,6 @@
-#include "Metrics.h"
+#include "line_quadrics_qem/simplification/Metrics.h"
+
+#include "line_quadrics_qem/core/MeshTopology.h"
 
 #include <algorithm>
 #include <cmath>
@@ -6,16 +8,9 @@
 #include <limits>
 #include <numeric>
 #include <sstream>
-#include <unordered_map>
 
 namespace lq {
 namespace {
-
-std::uint64_t edgeKey(int a, int b) {
-  if (a > b) std::swap(a, b);
-  return (static_cast<std::uint64_t>(static_cast<uint32_t>(a)) << 32u) |
-         static_cast<uint32_t>(b);
-}
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
   const double l0 = (b - a).squaredNorm();
@@ -108,10 +103,14 @@ MeshStats computeMeshStats(const Mesh& mesh) {
   stats.vertices = static_cast<int>(mesh.vertices.size());
   stats.faces = static_cast<int>(mesh.faces.size());
 
-  std::unordered_map<std::uint64_t, int> edgeCounts;
+  const Result<MeshTopology> topologyResult = MeshTopology::build(mesh);
+  if (!topologyResult.ok()) {
+    return stats;
+  }
+  const MeshTopology& topology = topologyResult.value();
+
   std::vector<double> edgeLengths;
-  edgeCounts.reserve(mesh.faces.size() * 3);
-  edgeLengths.reserve(mesh.faces.size() * 3 / 2);
+  edgeLengths.reserve(topology.edges().size());
 
   double qualitySum = 0.0;
   stats.minTriangleQuality =
@@ -125,24 +124,17 @@ MeshStats computeMeshStats(const Mesh& mesh) {
     const double q = triangleQuality(a, b, c);
     qualitySum += q;
     stats.minTriangleQuality = std::min(stats.minTriangleQuality, q);
-
-    for (int e = 0; e < 3; ++e) {
-      edgeCounts[edgeKey(face.v[e], face.v[(e + 1) % 3])] += 1;
-    }
   }
 
-  for (const auto& [key, count] : edgeCounts) {
-    const int a = static_cast<int>(key >> 32u);
-    const int b = static_cast<int>(key & 0xffffffffu);
+  for (const TopologyEdge& edge : topology.edges()) {
+    const int a = edge.vertices[0];
+    const int b = edge.vertices[1];
     edgeLengths.push_back((mesh.vertices[a] - mesh.vertices[b]).norm());
-    if (count == 1) {
-      ++stats.boundaryEdges;
-    } else if (count > 2) {
-      ++stats.nonManifoldEdges;
-    }
   }
 
-  stats.edges = static_cast<int>(edgeCounts.size());
+  stats.edges = topology.edgeCount();
+  stats.boundaryEdges = topology.boundaryEdgeCount();
+  stats.nonManifoldEdges = topology.nonManifoldEdgeCount();
   stats.meanTriangleQuality =
       mesh.faces.empty() ? 0.0 : qualitySum / static_cast<double>(mesh.faces.size());
   if (mesh.faces.empty()) {

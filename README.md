@@ -14,12 +14,12 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 这些 HTML 是论文说明和当前程序结果的可浏览笔记，可以直接用浏览器打开：
 
-- [QEM 与 Line Quadrics 说明](docs/qem-line-quadrics-notes.html)
-- [Line Quadrics 数学原理展开](docs/line-quadrics-qem-theory-explained.html)
-- [当前程序原理说明](docs/line-quadrics-qem-program-principles.html)
-- [代码阅读手册](docs/line-quadrics-qem-code-manual.html)
-- [Xu 2024 CWF 弱特征合并论文说明](docs/cwf-weak-features-notes.html)
-- [凸台圆孔等圆特征实践结果](docs/circular-feature-practice-results.html)
+- [QEM 与 Line Quadrics 说明](docs/notes/qem-line-quadrics-notes.html)
+- [Line Quadrics 数学原理展开](docs/notes/line-quadrics-qem-theory-explained.html)
+- [当前程序原理说明](docs/notes/line-quadrics-qem-program-principles.html)
+- [代码阅读手册](docs/notes/line-quadrics-qem-code-manual.html)
+- [Xu 2024 CWF 弱特征合并论文说明](docs/notes/cwf-weak-features-notes.html)
+- [凸台圆孔等圆特征实践结果](docs/notes/circular-feature-practice-results.html)
 
 ## 工业内核边界
 
@@ -27,15 +27,16 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 | 路径 | 角色 |
 | --- | --- |
-| `include/line_quadrics_qem/` | 公共 C++ API，外部应用只依赖这里的头文件。 |
-| `src/` | 算法实现、STL/OBJ I/O、指标计算和 `linequadrics` CLI。 |
+| `include/line_quadrics_qem/` | 公共 C++ API；`core/`、`features/`、`simplification/`、`api/` 为分层入口，根目录保留兼容转发头。 |
+| `src/` | 按职责分层的库实现：`core/`、`features/`、`simplification/`、`api/`。 |
+| `apps/linequadrics/` | `linequadrics` CLI，作为库的应用层消费者。 |
 | `tests/` | GoogleTest/CTest 回归测试。 |
 | `thirdParty/googletest/` | 随仓库携带的 GoogleTest 源码，用于离线构建测试。 |
 | `thirdParty/vscode-extensions/` | 适配 VSCode 1.70.2 的 C++/CMake 离线 VSIX 插件包。 |
 | `examples/basic_simplify.cpp` | 模拟外部客户程序调用动态库。 |
 | `cmake/` | `find_package(line_quadrics_qem CONFIG REQUIRED)` 安装包配置。 |
-| `docs/industrial_library.md` | 动态库、安装、运行时布局和集成边界。 |
-| `docs/industrial_validation.md` | 每项能力/性能的验证命令、CSV 指标和通过标准。 |
+| `docs/design/industrial_library.md` | 动态库、安装、运行时布局和集成边界。 |
+| `docs/design/industrial_validation.md` | 每项能力/性能的验证命令、CSV 指标和通过标准。 |
 
 可生成或可选内容：
 
@@ -45,7 +46,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | `examples/input/*.stl` | 可复现实验输入；可由 CLI 重新生成。 |
 | `examples/output/` | STL/CSV 验证输出，属于实验结果。 |
 | `examples/external/` | 外部 OBJ 基准模型本地放置目录，不作为库交付物。 |
-| `docs/*.html`、`docs/api/` | 生成文档，不作为源码入口。 |
+| `docs/notes/*.html`、`docs/api/` | 生成/导出的说明文档，不作为源码入口。 |
 
 网页 viewer、Node/Vite 配置已经从源码入口中筛掉。要看形状时，直接打开 CLI
 生成的 STL；要看性能和误差时，读取 CSV 指标。
@@ -80,8 +81,8 @@ cmake --build build/industrial --target docs-api
 最小外部调用入口：
 
 ```cpp
-#include "line_quadrics_qem/Mesh.h"
-#include "line_quadrics_qem/QEMSimplifier.h"
+#include "line_quadrics_qem/core/Mesh.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
 lq::SimplifyOptions options;
 options.targetRatio = 0.2;
@@ -127,7 +128,7 @@ cmake -E chdir build/industrial ctest --output-on-failure
 ```
 
 每项能力、性能指标、输出文件和验收口径见
-[`docs/industrial_validation.md`](docs/industrial_validation.md)。
+[`docs/design/industrial_validation.md`](docs/design/industrial_validation.md)。
 
 ## 主要指标
 
@@ -156,5 +157,5 @@ STL 目检重点：
 - line quadrics 改善平面区域的切向漂移和采样均匀性，但不是去噪器。
 - 曲线特征保护仍依赖当前 feature graph 检测质量；复杂 CAD 图需要更强的多环追踪。
 
-更详细的库结构见 [`docs/industrial_library.md`](docs/industrial_library.md)，特征约束方案见
-[`docs/feature_curve_constraints.md`](docs/feature_curve_constraints.md)。
+更详细的库结构见 [`docs/design/industrial_library.md`](docs/design/industrial_library.md)，特征约束方案见
+[`docs/design/feature_curve_constraints.md`](docs/design/feature_curve_constraints.md)。

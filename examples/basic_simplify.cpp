@@ -1,6 +1,6 @@
-#include "line_quadrics_qem/MeshGenerators.h"
-#include "line_quadrics_qem/Metrics.h"
-#include "line_quadrics_qem/QEMSimplifier.h"
+#include "line_quadrics_qem/core/MeshGenerators.h"
+#include "line_quadrics_qem/simplification/Metrics.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
 #include <iostream>
 #include <stdexcept>

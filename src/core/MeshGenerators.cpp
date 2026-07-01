@@ -1,4 +1,4 @@
-#include "MeshGenerators.h"
+#include "line_quadrics_qem/core/MeshGenerators.h"
 
 #include <algorithm>
 #include <cmath>

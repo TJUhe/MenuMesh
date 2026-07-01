@@ -1,4 +1,4 @@
-#include "line_quadrics_qem/CApi.h"
+#include "line_quadrics_qem/api/CApi.h"
 
 #include <gtest/gtest.h>
 #include <vector>

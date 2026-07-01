@@ -26,15 +26,16 @@ or any lightweight STL viewer available on the target machine.
 
 | Path | Industrial role |
 | --- | --- |
-| `include/line_quadrics_qem/` | Stable public C++ headers. |
-| `src/` | Private implementation plus the CLI entry point. |
+| `include/line_quadrics_qem/` | Stable public C++ headers, grouped under `core/`, `features/`, `simplification/`, and `api/`; flat headers remain compatibility forwards. |
+| `src/` | Private library implementation grouped by the same responsibilities. |
+| `apps/linequadrics/` | CLI application that consumes the library. |
 | `tests/` | Automated regression coverage. |
 | `thirdParty/googletest/` | Vendored GoogleTest source used by the test target. |
 | `examples/basic_simplify.cpp` | External-consumer style smoke test. |
 | `examples/c_api_basic.c` | C ABI smoke test for non-CMake or plugin-style users. |
 | `cmake/` | Installed package configuration. |
-| `docs/sdk_integration.md` | CMake, Visual Studio, and C ABI integration guide. |
-| `docs/industrial_validation.md` | Command-level validation matrix and performance checks. |
+| `docs/guide/sdk_integration.md` | CMake, Visual Studio, and C ABI integration guide. |
+| `docs/design/industrial_validation.md` | Command-level validation matrix and performance checks. |
 | `examples/input/` | Reproducible sample STL inputs. |
 | `examples/output/` | Generated validation outputs, not a required source dependency. |
 
@@ -71,8 +72,8 @@ include/line_quadrics_qem/
 Most consumers only need:
 
 ```cpp
-#include "line_quadrics_qem/Mesh.h"
-#include "line_quadrics_qem/QEMSimplifier.h"
+#include "line_quadrics_qem/core/Mesh.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 ```
 
 The main entry point is:
@@ -89,12 +90,12 @@ compatible compiler, standard library, Eigen version, and runtime setting.
 For binary SDK integration, prefer:
 
 ```c
-#include "line_quadrics_qem/CApi.h"
+#include "line_quadrics_qem/api/CApi.h"
 ```
 
 The C ABI uses opaque handles, caller-owned arrays, explicit destroy functions,
 and `LqStatus` return values. It does not expose STL, Eigen, or C++ exceptions
-across the DLL boundary. See [`sdk_integration.md`](sdk_integration.md).
+across the DLL boundary. See [`../guide/sdk_integration.md`](../guide/sdk_integration.md).
 
 ## External CMake Consumer
 
@@ -139,6 +140,10 @@ bin/
   linequadrics.exe
 include/
   line_quadrics_qem/*.h
+  line_quadrics_qem/api/*.h
+  line_quadrics_qem/core/*.h
+  line_quadrics_qem/features/*.h
+  line_quadrics_qem/simplification/*.h
 lib/
   line_quadrics_qem.lib
   cmake/line_quadrics_qem/*.cmake

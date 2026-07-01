@@ -18,6 +18,10 @@ bin/
   line_quadrics_qem.dll
 include/
   line_quadrics_qem/*.h
+  line_quadrics_qem/api/*.h
+  line_quadrics_qem/core/*.h
+  line_quadrics_qem/features/*.h
+  line_quadrics_qem/simplification/*.h
 lib/
   line_quadrics_qem.lib
   cmake/line_quadrics_qem/*.cmake
@@ -59,7 +63,8 @@ Pure C ABI users do not need Eigen headers. C++ API users should also set
 
 For C++ API use, keep the application and SDK on compatible MSVC toolsets and
 runtime settings. For more stable plugin or third-party boundaries, prefer the
-C ABI in `line_quadrics_qem/CApi.h`.
+C ABI in `line_quadrics_qem/api/CApi.h`. The older
+`line_quadrics_qem/CApi.h` include path remains as a compatibility forward.
 
 ## C ABI Memory Rules
 
@@ -80,7 +85,7 @@ C ABI in `line_quadrics_qem/CApi.h`.
 Minimal C flow:
 
 ```c
-#include "line_quadrics_qem/CApi.h"
+#include "line_quadrics_qem/api/CApi.h"
 
 LqContext* ctx = lq_context_create();
 LqMeshHandle* input = lq_mesh_create(ctx);

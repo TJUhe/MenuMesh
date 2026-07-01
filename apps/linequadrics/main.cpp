@@ -1,8 +1,8 @@
-#include "FeatureDetection.h"
-#include "Mesh.h"
-#include "MeshGenerators.h"
-#include "Metrics.h"
-#include "QEMSimplifier.h"
+#include "line_quadrics_qem/core/Mesh.h"
+#include "line_quadrics_qem/core/MeshGenerators.h"
+#include "line_quadrics_qem/features/FeatureDetection.h"
+#include "line_quadrics_qem/simplification/Metrics.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
 #include <algorithm>
 #include <filesystem>

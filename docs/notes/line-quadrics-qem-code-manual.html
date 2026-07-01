@@ -199,12 +199,12 @@ struct Mesh {
 <table>
 <thead><tr><th>文件</th><th>职责</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>src/Mesh.cpp</code></td><td>基础网格 I/O 与几何函数</td><td>STL/OBJ 读取、ASCII STL 输出、bbox、面积、法线、唯一边。</td></tr>
-<tr><td><code>src/QEMSimplifier.cpp</code></td><td>简化算法核心</td><td>平面 quadric、line quadric、边界项、特征项、边坍缩循环。</td></tr>
-<tr><td><code>src/FeatureDetection.cpp</code></td><td>特征边/环检测</td><td>边界边、二面角边、非流形边、特征 loop、圆拟合、切线。</td></tr>
-<tr><td><code>src/Metrics.cpp</code></td><td>质量指标</td><td>面积、边数、边界边、非流形边、三角形质量、采样距离。</td></tr>
-<tr><td><code>src/MeshGenerators.cpp</code></td><td>测试与 demo 几何</td><td>平面、孔洞、ridge、圆柱、torus、flange、stepped shaft 等。</td></tr>
-<tr><td><code>src/main.cpp</code></td><td>CLI 编排</td><td>参数解析、generate/simplify/compare/sweep/demo 等命令。</td></tr>
+<tr><td><code>src/core/Mesh.cpp</code></td><td>基础网格 I/O 与几何函数</td><td>STL/OBJ 读取、ASCII STL 输出、bbox、面积、法线、唯一边。</td></tr>
+<tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>简化算法核心</td><td>平面 quadric、line quadric、边界项、特征项、边坍缩循环。</td></tr>
+<tr><td><code>src/features/FeatureDetection.cpp</code></td><td>特征边/环检测</td><td>边界边、二面角边、非流形边、特征 loop、圆拟合、切线。</td></tr>
+<tr><td><code>src/simplification/Metrics.cpp</code></td><td>质量指标</td><td>面积、边数、边界边、非流形边、三角形质量、采样距离。</td></tr>
+<tr><td><code>src/core/MeshGenerators.cpp</code></td><td>测试与 demo 几何</td><td>平面、孔洞、ridge、圆柱、torus、flange、stepped shaft 等。</td></tr>
+<tr><td><code>apps/linequadrics/main.cpp</code></td><td>CLI 编排</td><td>参数解析、generate/simplify/compare/sweep/demo 等命令。</td></tr>
 </tbody>
 </table>
 

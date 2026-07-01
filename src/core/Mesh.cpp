@@ -1,4 +1,4 @@
-#include "Mesh.h"
+#include "line_quadrics_qem/core/Mesh.h"
 
 #include <algorithm>
 #include <array>

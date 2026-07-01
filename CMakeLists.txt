@@ -49,19 +49,32 @@ set(LQ_PUBLIC_HEADERS
   include/line_quadrics_qem/CApi.h
   include/line_quadrics_qem/Export.h
   include/line_quadrics_qem/FeatureDetection.h
+  include/line_quadrics_qem/Handles.h
   include/line_quadrics_qem/Mesh.h
   include/line_quadrics_qem/MeshGenerators.h
+  include/line_quadrics_qem/MeshTopology.h
   include/line_quadrics_qem/Metrics.h
   include/line_quadrics_qem/QEMSimplifier.h
+  include/line_quadrics_qem/Status.h
+  include/line_quadrics_qem/api/CApi.h
+  include/line_quadrics_qem/core/Handles.h
+  include/line_quadrics_qem/core/Mesh.h
+  include/line_quadrics_qem/core/MeshGenerators.h
+  include/line_quadrics_qem/core/MeshTopology.h
+  include/line_quadrics_qem/core/Status.h
+  include/line_quadrics_qem/features/FeatureDetection.h
+  include/line_quadrics_qem/simplification/Metrics.h
+  include/line_quadrics_qem/simplification/QEMSimplifier.h
 )
 
 set(LQ_LIBRARY_SOURCES
-  src/CApi.cpp
-  src/FeatureDetection.cpp
-  src/Mesh.cpp
-  src/MeshGenerators.cpp
-  src/Metrics.cpp
-  src/QEMSimplifier.cpp
+  src/api/CApi.cpp
+  src/core/Mesh.cpp
+  src/core/MeshGenerators.cpp
+  src/core/MeshTopology.cpp
+  src/features/FeatureDetection.cpp
+  src/simplification/Metrics.cpp
+  src/simplification/QEMSimplifier.cpp
 )
 
 if(LQ_BUILD_SHARED_LIBRARY)
@@ -113,7 +126,6 @@ set_target_properties(line_quadrics_qem PROPERTIES
   OUTPUT_NAME line_quadrics_qem
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR}
-  PUBLIC_HEADER "${LQ_PUBLIC_HEADERS}"
 )
 
 function(lq_apply_warnings target)
@@ -142,7 +154,7 @@ function(lq_copy_runtime_dependencies target)
 endfunction()
 
 if(LQ_BUILD_CLI)
-  add_executable(linequadrics src/main.cpp)
+  add_executable(linequadrics apps/linequadrics/main.cpp)
   target_link_libraries(linequadrics PRIVATE line_quadrics_qem::line_quadrics_qem)
   lq_apply_warnings(linequadrics)
   lq_copy_runtime_dependencies(linequadrics)
@@ -173,6 +185,7 @@ endif()
 find_program(CLANG_FORMAT_EXE NAMES clang-format)
 file(GLOB_RECURSE LQ_FORMAT_FILES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/apps/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
@@ -208,7 +221,7 @@ if(LQ_BUILD_DOCS)
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)
     set(LQ_DOXYGEN_INPUT
-      "${CMAKE_CURRENT_SOURCE_DIR}/README.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_library.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/sdk_integration.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/vscode_setup.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/paper_guided_usage.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_constraints.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/feature_curve_experiment.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/external_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp ${CMAKE_CURRENT_SOURCE_DIR}/examples/c_api_basic.c"
+      "${CMAKE_CURRENT_SOURCE_DIR}/README.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/architecture.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_library.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/sdk_integration.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/large_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/vscode_setup.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/paper_guided_usage.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_constraints.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_experiment.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/external_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/apps/linequadrics/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp ${CMAKE_CURRENT_SOURCE_DIR}/examples/c_api_basic.c"
     )
     set(LQ_DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/api")
     configure_file(
@@ -239,7 +252,11 @@ if(LQ_ENABLE_INSTALL)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/line_quadrics_qem"
+  )
+
+  install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILES_MATCHING PATTERN "*.h"
   )
 
   if(LQ_BUILD_CLI)
@@ -282,8 +299,10 @@ if(LQ_ENABLE_INSTALL)
 
   install(FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
-    "${CMAKE_CURRENT_SOURCE_DIR}/docs/industrial_library.md"
-    "${CMAKE_CURRENT_SOURCE_DIR}/docs/sdk_integration.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/architecture.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_library.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/sdk_integration.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/large_model_validation.md"
     DESTINATION "${CMAKE_INSTALL_DOCDIR}"
   )
 endif()

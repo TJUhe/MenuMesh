@@ -7,12 +7,12 @@ faces.
 
 ## Sources
 
-- `tests/data/external/large/*.obj`: 10 public models from
-  Alec Jacobson's `common-3d-test-models` repository.
-- `tests/data/external/casting_aimshape_2014.obj`: public Casting model from
+- `tests/data/external/large/*.stl`: 10 public models from
+  Alec Jacobson's `common-3d-test-models` repository, converted to binary STL.
+- `tests/data/external/casting_aimshape_2014.stl`: public Casting model from
   the LIRIS Mesh Benchmark, related to the AIM@SHAPE Casting model used in
   Tsuchie and Higashi 2014.
-- `tests/data/external/fandisk_2014.obj`: public Fandisk model from
+- `tests/data/external/fandisk_2014.stl`: public Fandisk model from
   `common-3d-test-models`, related to Tsuchie and Higashi 2014.
 
 ## Commands
@@ -27,7 +27,7 @@ Run a 90% ratio smoke pass over all 10 large models:
 
 ```powershell
 .\build\codex-industrial\bin\Release\linequadrics.exe simplify `
-  tests\data\external\large\<model>.obj `
+  tests\data\external\large\<model>.stl `
   examples\output\large_validation\<model>_line_090.stl `
   --method line --ratio 0.9 `
   --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 `
@@ -39,7 +39,7 @@ Run a deeper 50% ratio pass over representative medium/large models:
 
 ```powershell
 .\build\codex-industrial\bin\Release\linequadrics.exe simplify `
-  tests\data\external\large\<model>.obj `
+  tests\data\external\large\<model>.stl `
   examples\output\large_validation\<model>_line_050.stl `
   --method line --ratio 0.5 `
   --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 `

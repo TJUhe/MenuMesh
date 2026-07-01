@@ -105,6 +105,16 @@ lq::Mesh loadExternalStl(const std::string& fileName) {
   return mesh;
 }
 
+lq::Mesh loadExternalMesh(const std::string& fileName) {
+  lq::Mesh mesh;
+  std::string error;
+  const std::filesystem::path path = externalDataDir() / fileName;
+  if (!lq::loadMesh(path.string(), mesh, &error)) {
+    ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
+  }
+  return mesh;
+}
+
 } // namespace
 
 TEST(LineQuadricsQem, SimplifiesGeneratedGridToRequestedBudget) {
@@ -362,6 +372,26 @@ TEST(LineQuadricsQem, ExternalNasaFixturesCompareIndustrialSimplificationModes) 
   }
 }
 
+TEST(LineQuadricsQem, Public2014CastingModelKeepsClosedTopologyAfterLineSimplify) {
+  const lq::Mesh input = loadExternalMesh("casting_aimshape_2014.stl");
+  ASSERT_FALSE(input.empty());
+
+  const lq::MeshStats inputStats = lq::computeMeshStats(input);
+  ASSERT_EQ(inputStats.boundaryEdges, 0);
+  ASSERT_EQ(inputStats.nonManifoldEdges, 0);
+
+  lq::SimplifyOptions options = paperLineQuadricsOptions(0.25);
+  lq::SimplifyReport report;
+  const lq::Mesh output = lq::simplifyMesh(input, options, &report);
+  const lq::MeshStats outputStats = lq::computeMeshStats(output);
+
+  EXPECT_FALSE(output.empty());
+  EXPECT_LE(report.finalFaces,
+            static_cast<int>(std::llround(input.faces.size() * 0.25)) + 2);
+  EXPECT_EQ(outputStats.boundaryEdges, 0);
+  EXPECT_EQ(outputStats.nonManifoldEdges, 0);
+}
+
 TEST(LineQuadricsQem, ComplexLathePartsComparePaperLineAndCurveExtension) {
   struct Case {
     std::string name;
@@ -528,6 +558,48 @@ TEST(LineQuadricsQem, ComputesMeshStatsForGeneratedCube) {
   EXPECT_GT(stats.edges, 0);
   EXPECT_GT(stats.area, 0.0);
   EXPECT_GT(stats.meanTriangleQuality, 0.0);
+}
+
+TEST(LineQuadricsQem, MeshTopologyCachesBoundaryAndNonManifoldEdges) {
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0), lq::Vec3(1.0, 0.0, 0.0),  lq::Vec3(0.0, 1.0, 0.0),
+      lq::Vec3(0.0, 0.0, 1.0), lq::Vec3(0.0, 0.0, -1.0),
+  };
+  mesh.faces = {
+      {{0, 1, 2}},
+      {{1, 0, 3}},
+      {{0, 1, 4}},
+  };
+
+  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+  ASSERT_TRUE(topologyResult.ok()) << topologyResult.status().message();
+  const lq::MeshTopology& topology = topologyResult.value();
+
+  EXPECT_EQ(topology.vertexCount(), 5);
+  EXPECT_EQ(topology.faceCount(), 3);
+  EXPECT_EQ(topology.edgeCount(), 7);
+  EXPECT_EQ(topology.boundaryEdgeCount(), 6);
+  EXPECT_EQ(topology.nonManifoldEdgeCount(), 1);
+
+  const lq::MeshStats stats = lq::computeMeshStats(mesh);
+  EXPECT_EQ(stats.edges, topology.edgeCount());
+  EXPECT_EQ(stats.boundaryEdges, topology.boundaryEdgeCount());
+  EXPECT_EQ(stats.nonManifoldEdges, topology.nonManifoldEdgeCount());
+}
+
+TEST(LineQuadricsQem, MeshTopologyRejectsInvalidFaces) {
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),
+      lq::Vec3(1.0, 0.0, 0.0),
+      lq::Vec3(0.0, 1.0, 0.0),
+  };
+  mesh.faces = {{{0, 1, 5}}};
+
+  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+  EXPECT_FALSE(topologyResult.ok());
+  EXPECT_EQ(topologyResult.status().code(), lq::StatusCode::InvalidArgument);
 }
 
 TEST(LineQuadricsQem, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) {

@@ -23,9 +23,9 @@
   first reusable topology-cache layer for the mesh-kernel direction.
 - Added `docs/design/architecture.md` to clarify the Polygonica-style industrial mesh
   kernel target and module boundaries.
-- Added public Fandisk and AIM@SHAPE Casting OBJ fixtures for reproducing the
+- Added public Fandisk and AIM@SHAPE Casting STL fixtures for reproducing the
   Tsuchie and Higashi 2014 CAD-model experiments locally.
-- Added 10 public large OBJ validation meshes above 10k faces plus
+- Added 10 public large STL validation meshes above 10k faces plus
   `docs/design/large_model_validation.md` with 90% and 50% line-quadrics batch results.
 - Added `docs/design/industrial_validation.md` with command-level validation coverage,
   output locations, metrics, and pass criteria.

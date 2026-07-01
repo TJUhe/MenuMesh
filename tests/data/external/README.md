@@ -27,3 +27,15 @@ Derived lightweight fixtures:
 The derived fixtures keep the tests fast while preserving enough real-world
 topology to compare standard QEM, paper-style line quadrics, and feature-curve
 protection modes.
+
+## Public 2014 CAD Model Fixtures
+
+These STL files are public CAD-style models used to reproduce the model regime
+from Tsuchie and Higashi, "Extraction of Surface-feature Lines on Meshes Using
+Normal Tensor Framework", CAD&A 2014. They were converted to binary STL for
+compact repository storage while keeping triangulated geometry intact:
+
+| File | Source | Purpose |
+| --- | --- | --- |
+| `fandisk_2014.stl` | Common 3D Test Models mirror of Fandisk | Corresponds to the Fandisk CAD model used in the paper's Fig. 9. |
+| `casting_aimshape_2014.stl` | LIRIS Mesh Benchmark mirror of the AIM@SHAPE Casting model | Corresponds to the Casting CAD model used in the paper's Fig. 10 and stresses circular/fillet-like feature loops. |

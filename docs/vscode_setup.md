@@ -39,19 +39,29 @@ setting is for Microsoft's C/C++ extension. clangd needs a CMake-generated
 The primary editor configuration is MinGW-first:
 
 ```text
-Compiler: C:/Users/zh/AppData/Local/Programs/vscode-offline-build-tools/mingw/mingw64/bin/g++.exe
+Compiler: g++ from PATH
 Build directory: build/mingw-ninja-release
 Compile database: build/mingw-ninja-release/compile_commands.json
 ```
 
-`.vscode/settings.json` adds that MinGW `bin` directory to the VSCode terminal,
-CMake configure, and CMake build environments. It also passes clangd
-`--query-driver` for the same `g++.exe`. That lets clangd ask MinGW for standard
-library include directories; without it, even standard C++ headers may be
-underlined. If diagnostics say `cmath file not found` from inside Eigen, clangd
-has not found the MinGW C++ standard library headers yet. The important rule is
-that CMake, tasks, and clangd must all point at the same MinGW toolchain and the
-same `compile_commands.json`.
+The repository settings intentionally avoid machine-specific absolute MinGW
+paths. Put your MinGW `bin` directory on `PATH` before configuring. clangd uses
+`--query-driver=**/g++.exe,**/gcc.exe,**/mingw64/bin/*.exe,**/mingw32/bin/*.exe`
+so it can ask the same MinGW compiler for standard library include directories.
+If diagnostics say `cmath file not found` from inside Eigen, clangd has not
+found the MinGW C++ standard library headers yet. Check that `where g++` resolves
+to your intended MinGW compiler, then regenerate `compile_commands.json` and
+restart clangd.
+
+For a one-session PowerShell setup, run this before CMake if MinGW is not already
+on `PATH`:
+
+```powershell
+$env:PATH = "D:\path\to\mingw64\bin;$env:PATH"
+```
+
+The important rule is that CMake, tasks, and clangd must all point at the same
+MinGW toolchain and the same `compile_commands.json`.
 
 If clangd reports missing headers after a fresh checkout, configure once:
 

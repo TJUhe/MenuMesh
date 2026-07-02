@@ -19,6 +19,7 @@ option(LQ_BUILD_SHARED_LIBRARY "Build line_quadrics_qem as a shared library" ON)
 option(LQ_BUILD_CLI "Build the linequadrics command line tool" ON)
 option(LQ_BUILD_EXAMPLES "Build example programs that consume the library" ON)
 option(LQ_BUILD_TESTS "Build GoogleTest based tests" ON)
+option(LQ_BUILD_PERFORMANCE_TESTS "Build large mesh performance tests" ON)
 option(LQ_BUILD_DOCS "Enable the Doxygen docs-api target when Doxygen is available" ON)
 option(LQ_ENABLE_INSTALL "Enable install rules and CMake package export" ON)
 set(LQ_GOOGLETEST_SOURCE_DIR

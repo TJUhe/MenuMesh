@@ -101,12 +101,110 @@ target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
 line_quadrics_qem_copy_runtime_dependencies(my_app)
 ```
 
+## Visual Studio 使用
+
+推荐先把库安装成一个 SDK 目录，再让 Visual Studio 工程引用安装产物：
+
+```powershell
+cmake -S . -B build/vs-release -G "Visual Studio 17 2022" -A x64
+cmake --build build/vs-release --config Release --parallel
+cmake --install build/vs-release --config Release --prefix C:\opt\line-quadrics-qem
+```
+
+安装后的关键目录：
+
+```text
+C:\opt\line-quadrics-qem
+  bin\line_quadrics_qem.dll
+  include\line_quadrics_qem\...
+  lib\line_quadrics_qem.lib
+  lib\cmake\line_quadrics_qem\...
+  share\line_quadrics_qem\msvc\line_quadrics_qem.props
+```
+
+### Visual Studio CMake 工程
+
+在你的 `CMakeLists.txt` 中使用：
+
+```cmake
+find_package(line_quadrics_qem CONFIG REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
+line_quadrics_qem_copy_runtime_dependencies(my_app)
+```
+
+配置你的工程时指定安装包位置：
+
+```powershell
+cmake -S . -B build -Dline_quadrics_qem_DIR=C:\opt\line-quadrics-qem\lib\cmake\line_quadrics_qem
+```
+
+### 传统 `.vcxproj` 工程
+
+在 Visual Studio 中打开你的项目，进入：
+
+```text
+View -> Other Windows -> Property Manager
+```
+
+右键项目配置，选择 `Add Existing Property Sheet...`，添加：
+
+```text
+C:\opt\line-quadrics-qem\share\line_quadrics_qem\msvc\line_quadrics_qem.props
+```
+
+这个 `.props` 会自动配置：
+
+- `include\` 头文件目录；
+- `lib\line_quadrics_qem.lib` 链接库；
+- 构建后把 `bin\line_quadrics_qem.dll` 复制到你的程序输出目录。
+
+如果使用 C++ API，例如 `line_quadrics_qem/core/Mesh.h`，还需要把 Eigen
+头文件目录填到项目属性 `LQEigenIncludeDir`。如果只使用
+`line_quadrics_qem/api/CApi.h` 这套 C ABI，则调用方不需要包含 Eigen 头。
+
+最小 C++ 调用：
+
+```cpp
+#include "line_quadrics_qem/core/Mesh.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
+
+int main() {
+  lq::Mesh input;
+  std::string error;
+  if (!lq::loadMesh("input.stl", input, &error)) {
+    return 1;
+  }
+
+  lq::SimplifyOptions options;
+  options.targetRatio = 0.25;
+  options.useLineQuadrics = true;
+
+  lq::SimplifyReport report;
+  lq::Mesh output = lq::simplifyMesh(input, options, &report);
+  return output.empty() ? 1 : 0;
+}
+```
+
+最小 C ABI 调用入口：
+
+```c
+#include "line_quadrics_qem/api/CApi.h"
+```
+
 ## 验证闭环
 
 基础回归：
 
 ```powershell
-cmake -E chdir build/industrial ctest --output-on-failure
+cmake -E chdir build/industrial ctest -LE performance --output-on-failure
+```
+
+大模型性能测试：
+
+```powershell
+cmake -E chdir build/industrial ctest -L performance --output-on-failure
 ```
 
 快速生成 STL/CSV：

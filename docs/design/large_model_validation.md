@@ -23,6 +23,18 @@ Build the Release CLI:
 cmake --build build\codex-industrial --config Release --parallel
 ```
 
+The committed large fixture set is also exposed as a CTest performance label:
+
+```powershell
+ctest --test-dir build\codex-industrial -C Release -L performance --output-on-failure
+```
+
+Normal regression runs can exclude these longer checks:
+
+```powershell
+ctest --test-dir build\codex-industrial -C Release -LE performance --output-on-failure
+```
+
 Run a 90% ratio smoke pass over all 10 large models:
 
 ```powershell

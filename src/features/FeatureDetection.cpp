@@ -103,10 +103,11 @@ NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
   return result;
 }
 
-bool normalTensorEdgeCandidate(
-    const CandidateEdge& edge, const std::vector<NormalTensorVertex>& tensor,
-    const std::vector<char>& discreteFeatureVertex, const Mesh& mesh,
-    const FeatureOptions& options, FeatureAnalysis& analysis) {
+bool normalTensorEdgeCandidate(const CandidateEdge& edge,
+                               const std::vector<NormalTensorVertex>& tensor,
+                               const std::vector<char>& discreteFeatureVertex,
+                               const Mesh& mesh, const FeatureOptions& options,
+                               FeatureAnalysis& analysis) {
   if (!options.useNormalTensorFeatures || edge.a < 0 || edge.b < 0 ||
       edge.a >= static_cast<int>(tensor.size()) ||
       edge.b >= static_cast<int>(tensor.size())) {
@@ -187,10 +188,9 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
     } else if (info.faces.size() > 2) {
       edge.nonManifold = true;
     }
-    edge.normalTensor =
-        !edge.boundary && !edge.dihedral && !edge.nonManifold &&
-        normalTensorEdgeCandidate(edge, tensor, discreteFeatureVertex, mesh, options,
-                                  analysis);
+    edge.normalTensor = !edge.boundary && !edge.dihedral && !edge.nonManifold &&
+                        normalTensorEdgeCandidate(edge, tensor, discreteFeatureVertex,
+                                                  mesh, options, analysis);
 
     if (edge.boundary || edge.dihedral || edge.normalTensor || edge.nonManifold) {
       result.push_back(edge);
@@ -383,76 +383,43 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   std::vector<std::vector<int>> adjacency(mesh.vertices.size());
   std::unordered_map<std::uint64_t, bool> edgeIsBoundary;
   edgeIsBoundary.reserve(featureEdges.size());
+  std::vector<std::pair<int, int>> graphEdges;
+  graphEdges.reserve(featureEdges.size());
   for (const CandidateEdge& edge : featureEdges) {
     adjacency[edge.a].push_back(edge.b);
     adjacency[edge.b].push_back(edge.a);
     edgeIsBoundary[edgeKey(edge.a, edge.b)] = edge.boundary;
+    graphEdges.emplace_back(edge.a, edge.b);
   }
 
-  std::vector<char> visited(mesh.vertices.size(), 0);
+  std::unordered_set<std::uint64_t> visitedEdges;
+  visitedEdges.reserve(featureEdges.size());
   int loopId = 0;
-  for (int seed = 0; seed < static_cast<int>(mesh.vertices.size()); ++seed) {
-    if (visited[seed] || adjacency[seed].empty()) {
-      continue;
-    }
 
-    std::vector<int> component;
-    std::queue<int> queue;
-    queue.push(seed);
-    visited[seed] = 1;
-    while (!queue.empty()) {
-      const int v = queue.front();
-      queue.pop();
-      component.push_back(v);
-      for (int nb : adjacency[v]) {
-        if (!visited[nb]) {
-          visited[nb] = 1;
-          queue.push(nb);
-        }
-      }
-    }
+  auto edgeBoundary = [&](int a, int b) {
+    const auto it = edgeIsBoundary.find(edgeKey(a, b));
+    return it != edgeIsBoundary.end() && it->second;
+  };
 
-    int degreeTwo = 0;
-    int edgeCount2x = 0;
-    int boundaryEdges = 0;
-    for (int v : component) {
-      const int degree = static_cast<int>(adjacency[v].size());
-      if (degree == 2) {
-        ++degreeTwo;
-      }
-      edgeCount2x += degree;
-      for (int nb : adjacency[v]) {
-        if (v < nb) {
-          const auto it = edgeIsBoundary.find(edgeKey(v, nb));
-          if (it != edgeIsBoundary.end() && it->second) {
-            ++boundaryEdges;
-          }
-        }
-      }
-    }
+  auto markEdge = [&](int a, int b) { visitedEdges.insert(edgeKey(a, b)); };
 
-    FeatureLoop loop;
-    loop.id = loopId++;
-    loop.vertices = component;
-    loop.edgeCount = edgeCount2x / 2;
-    loop.closed = !component.empty() &&
-                  degreeTwo == static_cast<int>(component.size()) &&
-                  loop.edgeCount == static_cast<int>(component.size());
-    loop.mostlyBoundary =
-        loop.edgeCount > 0 &&
-        boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
-    if (loop.closed &&
-        static_cast<int>(loop.vertices.size()) >= options.minFeatureLoopVertices) {
-      loop.circular = fitCircle(mesh, loop, options.circleFitRelativeThreshold);
-    }
+  auto edgeVisited = [&](int a, int b) {
+    return visitedEdges.find(edgeKey(a, b)) != visitedEdges.end();
+  };
 
+  auto assignLoopToVertices = [&](const FeatureLoop& loop) {
     for (int id : loop.vertices) {
       VertexFeature& vf = analysis.vertices[id];
-      vf.isFeature = true;
-      vf.loopId = loop.id;
-      vf.circular = loop.circular;
-      vf.junction = adjacency[id].size() != 2;
-      if (loop.circular) {
+      const bool alreadyFeature = vf.isFeature;
+      if (!alreadyFeature) {
+        vf.isFeature = true;
+        vf.loopId = loop.id;
+        vf.circular = loop.circular;
+      }
+      vf.junction = vf.junction || alreadyFeature || adjacency[id].size() != 2;
+      if (loop.circular && (!alreadyFeature || !vf.circular)) {
+        vf.loopId = loop.id;
+        vf.circular = true;
         vf.circleCenter = loop.center;
         vf.circleNormal = loop.normal;
         vf.circleRadius = loop.radius;
@@ -463,12 +430,195 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
         } else {
           vf.tangent = fallbackTangentFromNeighbors(id, adjacency[id], mesh);
         }
-      } else {
+      } else if (!alreadyFeature || vf.tangent.norm() <= 1e-20) {
         vf.tangent = fallbackTangentFromNeighbors(id, adjacency[id], mesh);
       }
     }
+  };
 
-    analysis.loops.push_back(loop);
+  auto addLoop = [&](std::vector<int> vertices, int edgeCount, int boundaryEdges,
+                     bool closed) {
+    if (vertices.empty() || edgeCount <= 0) {
+      return;
+    }
+
+    FeatureLoop loop;
+    loop.id = loopId++;
+    loop.vertices = std::move(vertices);
+    loop.edgeCount = edgeCount;
+    loop.closed = closed;
+    loop.mostlyBoundary =
+        loop.edgeCount > 0 &&
+        boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+    if (loop.closed &&
+        static_cast<int>(loop.vertices.size()) >= options.minFeatureLoopVertices) {
+      loop.circular = fitCircle(mesh, loop, options.circleFitRelativeThreshold);
+    }
+
+    assignLoopToVertices(loop);
+    analysis.loops.push_back(std::move(loop));
+  };
+
+  auto traceOpenChain = [&](int seed, int firstNeighbor) {
+    std::vector<int> vertices;
+    vertices.push_back(seed);
+    int edgeCount = 0;
+    int boundaryEdges = 0;
+    bool closed = false;
+
+    int previous = seed;
+    int current = firstNeighbor;
+    while (true) {
+      if (edgeVisited(previous, current)) {
+        break;
+      }
+      markEdge(previous, current);
+      ++edgeCount;
+      if (edgeBoundary(previous, current)) {
+        ++boundaryEdges;
+      }
+      vertices.push_back(current);
+      if (current == seed) {
+        vertices.pop_back();
+        closed = true;
+        break;
+      }
+
+      if (adjacency[current].size() != 2) {
+        break;
+      }
+
+      int next = -1;
+      for (int candidate : adjacency[current]) {
+        if (candidate != previous && !edgeVisited(current, candidate)) {
+          next = candidate;
+          break;
+        }
+      }
+      if (next < 0) {
+        break;
+      }
+      previous = current;
+      current = next;
+    }
+
+    addLoop(std::move(vertices), edgeCount, boundaryEdges, closed);
+  };
+
+  auto traceClosedLoop = [&](int seed, int firstNeighbor) {
+    std::vector<int> vertices;
+    vertices.push_back(seed);
+    int edgeCount = 0;
+    int boundaryEdges = 0;
+    int previous = seed;
+    int current = firstNeighbor;
+    bool closed = false;
+
+    while (true) {
+      if (edgeVisited(previous, current)) {
+        break;
+      }
+      markEdge(previous, current);
+      ++edgeCount;
+      if (edgeBoundary(previous, current)) {
+        ++boundaryEdges;
+      }
+      if (current == seed) {
+        closed = true;
+        break;
+      }
+      vertices.push_back(current);
+
+      int next = -1;
+      for (int candidate : adjacency[current]) {
+        if (candidate != previous) {
+          next = candidate;
+          break;
+        }
+      }
+      if (next < 0) {
+        break;
+      }
+      previous = current;
+      current = next;
+    }
+
+    addLoop(std::move(vertices), edgeCount, boundaryEdges, closed);
+  };
+
+  for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
+    if (adjacency[seed].empty() || adjacency[seed].size() == 2) {
+      continue;
+    }
+    for (int nb : adjacency[seed]) {
+      if (!edgeVisited(seed, nb)) {
+        traceOpenChain(seed, nb);
+      }
+    }
+  }
+
+  for (const auto& [a, b] : graphEdges) {
+    if (!edgeVisited(a, b)) {
+      traceClosedLoop(a, b);
+    }
+  }
+
+  std::vector<char> componentVisited(mesh.vertices.size(), 0);
+  for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
+    if (componentVisited[seed] || adjacency[seed].empty()) {
+      continue;
+    }
+
+    std::vector<int> component;
+    std::queue<int> queue;
+    queue.push(seed);
+    componentVisited[seed] = 1;
+    while (!queue.empty()) {
+      const int v = queue.front();
+      queue.pop();
+      component.push_back(v);
+      for (int nb : adjacency[v]) {
+        if (!componentVisited[nb]) {
+          componentVisited[nb] = 1;
+          queue.push(nb);
+        }
+      }
+    }
+
+    bool alreadyHasCircular = false;
+    int edgeCount2x = 0;
+    int boundaryEdges = 0;
+    for (int v : component) {
+      alreadyHasCircular = alreadyHasCircular || analysis.vertices[v].circular;
+      edgeCount2x += static_cast<int>(adjacency[v].size());
+      for (int nb : adjacency[v]) {
+        if (v < nb && edgeBoundary(v, nb)) {
+          ++boundaryEdges;
+        }
+      }
+    }
+    const int edgeCount = edgeCount2x / 2;
+    if (alreadyHasCircular ||
+        static_cast<int>(component.size()) < options.minFeatureLoopVertices ||
+        edgeCount < static_cast<int>(component.size()) ||
+        edgeCount > static_cast<int>(component.size()) * 3) {
+      continue;
+    }
+
+    FeatureLoop loop;
+    loop.id = loopId++;
+    loop.vertices = std::move(component);
+    loop.edgeCount = edgeCount;
+    loop.closed = true;
+    loop.mostlyBoundary =
+        loop.edgeCount > 0 &&
+        boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+    if (!loop.closed || !fitCircle(mesh, loop, options.circleFitRelativeThreshold)) {
+      continue;
+    }
+    loop.circular = true;
+    assignLoopToVertices(loop);
+    analysis.loops.push_back(std::move(loop));
   }
 
   return analysis;

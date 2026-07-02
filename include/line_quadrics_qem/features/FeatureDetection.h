@@ -86,8 +86,7 @@ struct DirectionalCurveError {
 
 /// Computes local normal-tensor scores from one-ring face normals.
 LQ_API std::vector<NormalTensorVertex>
-computeNormalTensorFeatures(const Mesh& mesh,
-                            const NormalTensorOptions& options = {});
+computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options = {});
 
 /// Detects boundary, non-manifold, dihedral, tensor, and circular feature curves.
 LQ_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh,

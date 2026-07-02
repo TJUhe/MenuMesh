@@ -5,12 +5,14 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -246,21 +248,41 @@ void Mesh::removeUnusedVertices() {
   std::vector<int> remap(vertices.size(), -1);
   std::vector<Vec3> newVertices;
   newVertices.reserve(vertices.size());
+  std::vector<char> validFace(faces.size(), 1);
 
-  for (const Face& face : faces) {
+  for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
+    const Face& face = faces[faceIndex];
     for (int id : face.v) {
-      if (id >= 0 && id < static_cast<int>(vertices.size()) && remap[id] < 0) {
+      if (id < 0 || id >= static_cast<int>(vertices.size())) {
+        validFace[faceIndex] = 0;
+        continue;
+      }
+      if (remap[id] < 0) {
         remap[id] = static_cast<int>(newVertices.size());
         newVertices.push_back(vertices[id]);
       }
     }
   }
 
-  for (Face& face : faces) {
+  for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
+    if (!validFace[faceIndex]) {
+      continue;
+    }
+    Face& face = faces[faceIndex];
     for (int& id : face.v) {
       id = remap[id];
     }
   }
+  faces.erase(std::remove_if(faces.begin(), faces.end(),
+                             [&](const Face& face) {
+                               for (int id : face.v) {
+                                 if (id < 0 || id >= static_cast<int>(remap.size())) {
+                                   return true;
+                                 }
+                               }
+                               return false;
+                             }),
+              faces.end());
   vertices.swap(newVertices);
 }
 
@@ -288,7 +310,12 @@ int parseObjVertexIndex(const std::string& token, int vertexCount) {
   if (indexText.empty()) {
     return -1;
   }
-  const int raw = std::stoi(indexText);
+  int raw = 0;
+  try {
+    raw = std::stoi(indexText);
+  } catch (const std::exception&) {
+    return -1;
+  }
   if (raw > 0) {
     return raw - 1;
   }
@@ -374,11 +401,40 @@ bool loadMesh(const std::string& path, Mesh& mesh, std::string* error,
   return false;
 }
 
+bool validateMeshIndices(const Mesh& mesh, std::string* error) {
+  if (mesh.vertices.size() >
+      static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    if (error) *error = "Vertex count exceeds the supported int-index range.";
+    return false;
+  }
+  for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
+    const Face& face = mesh.faces[faceIndex];
+    for (int id : face.v) {
+      if (id < 0 || id >= static_cast<int>(mesh.vertices.size())) {
+        if (error) {
+          *error = "Mesh face " + std::to_string(faceIndex) +
+                   " references an invalid vertex index.";
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 bool saveAsciiStl(const std::string& path, const Mesh& mesh,
                   const std::string& solidName, std::string* error) {
+  if (!validateMeshIndices(mesh, error)) {
+    return false;
+  }
   const std::filesystem::path outputPath(path);
   if (outputPath.has_parent_path()) {
-    std::filesystem::create_directories(outputPath.parent_path());
+    std::error_code ec;
+    std::filesystem::create_directories(outputPath.parent_path(), ec);
+    if (ec) {
+      if (error) *error = "Failed to create output directory: " + ec.message();
+      return false;
+    }
   }
   std::ofstream out(path);
   if (!out) {

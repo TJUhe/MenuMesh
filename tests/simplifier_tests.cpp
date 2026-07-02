@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <stdexcept>
 #include <string>
@@ -408,6 +409,72 @@ TEST(LineQuadricsQem, MeshTopologyRejectsInvalidFaces) {
   const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
   EXPECT_FALSE(topologyResult.ok());
   EXPECT_EQ(topologyResult.status().code(), lq::StatusCode::InvalidArgument);
+}
+
+TEST(LineQuadricsQem, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
+  const std::filesystem::path objPath =
+      std::filesystem::temp_directory_path() / "line_quadrics_bad_face.obj";
+  {
+    std::ofstream out(objPath);
+    out << "v 0 0 0\n";
+    out << "v 1 0 0\n";
+    out << "v 0 1 0\n";
+    out << "f nope 2 3\n";
+  }
+
+  lq::Mesh mesh;
+  std::string error;
+  EXPECT_FALSE(lq::loadObj(objPath.string(), mesh, &error));
+  EXPECT_FALSE(error.empty());
+  std::filesystem::remove(objPath);
+
+  lq::Mesh invalid;
+  invalid.vertices = {lq::Vec3(0.0, 0.0, 0.0)};
+  invalid.faces = {{{0, 1, 2}}};
+  error.clear();
+  const std::filesystem::path stlPath =
+      std::filesystem::temp_directory_path() / "line_quadrics_invalid.stl";
+  EXPECT_FALSE(lq::saveAsciiStl(stlPath.string(), invalid, "invalid", &error));
+  EXPECT_FALSE(error.empty());
+}
+
+TEST(LineQuadricsQem, SimplifierRejectsInvalidOptionsAndMeshes) {
+  const lq::Mesh input = lq::generatePlaneGrid(4, 1.0, false);
+
+  lq::SimplifyOptions options;
+  options.targetRatio = 0.0;
+  EXPECT_THROW(lq::simplifyMesh(input, options), std::invalid_argument);
+
+  lq::Mesh invalid;
+  invalid.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),
+      lq::Vec3(1.0, 0.0, 0.0),
+      lq::Vec3(0.0, 1.0, 0.0),
+  };
+  invalid.faces = {{{0, 1, 5}}};
+  EXPECT_THROW(lq::simplifyMesh(invalid, lq::SimplifyOptions{}), std::invalid_argument);
+}
+
+TEST(LineQuadricsQem, FeatureDetectionSplitsBranchedFeatureGraphIntoChains) {
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),  lq::Vec3(1.0, 0.0, 0.0),  lq::Vec3(0.5, 1.0, 0.0),
+      lq::Vec3(-1.0, 0.0, 0.0), lq::Vec3(-0.5, 1.0, 0.0), lq::Vec3(0.0, -1.0, 0.0),
+      lq::Vec3(1.0, -1.0, 0.0),
+  };
+  mesh.faces = {
+      {{0, 1, 2}},
+      {{0, 3, 4}},
+      {{0, 5, 6}},
+  };
+
+  lq::FeatureOptions options;
+  options.useNormalTensorFeatures = false;
+  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+
+  EXPECT_GT(features.loops.size(), 1u);
+  ASSERT_LT(0u, features.vertices.size());
+  EXPECT_TRUE(features.vertices[0].junction);
 }
 
 TEST(LineQuadricsQem, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) {

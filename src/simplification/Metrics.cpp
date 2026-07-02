@@ -3,11 +3,13 @@
 #include "line_quadrics_qem/core/MeshTopology.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iomanip>
 #include <limits>
 #include <numeric>
 #include <sstream>
+#include <vector>
 
 namespace lq {
 namespace {
@@ -70,30 +72,194 @@ double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b,
   return distance * distance / nn;
 }
 
-double pointMeshDistanceSquared(const Vec3& p, const Mesh& mesh) {
-  double best = std::numeric_limits<double>::infinity();
-  for (const Face& face : mesh.faces) {
-    const Vec3& a = mesh.vertices[face.v[0]];
-    const Vec3& b = mesh.vertices[face.v[1]];
-    const Vec3& c = mesh.vertices[face.v[2]];
-    best = std::min(best, pointTriangleDistanceSquared(p, a, b, c));
+double pointAabbDistanceSquared(const Vec3& p, const Vec3& lo, const Vec3& hi) {
+  double d2 = 0.0;
+  for (int axis = 0; axis < 3; ++axis) {
+    const double value = p[axis];
+    if (value < lo[axis]) {
+      const double d = lo[axis] - value;
+      d2 += d * d;
+    } else if (value > hi[axis]) {
+      const double d = value - hi[axis];
+      d2 += d * d;
+    }
   }
-  return best;
+  return d2;
 }
 
-std::vector<int> sampleVertexIds(int count, int maxSamples) {
-  std::vector<int> ids;
-  if (count <= 0 || maxSamples <= 0) {
-    return ids;
+struct TriangleRef {
+  int face = -1;
+  Vec3 lo = Vec3::Zero();
+  Vec3 hi = Vec3::Zero();
+  Vec3 centroid = Vec3::Zero();
+  double area = 0.0;
+};
+
+struct BvhNode {
+  Vec3 lo = Vec3::Zero();
+  Vec3 hi = Vec3::Zero();
+  int left = -1;
+  int right = -1;
+  int begin = 0;
+  int end = 0;
+};
+
+class MeshDistanceIndex {
+public:
+  explicit MeshDistanceIndex(const Mesh& mesh) : mesh_(mesh) {
+    triangles_.reserve(mesh.faces.size());
+    for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
+      const Face& face = mesh.faces[fi];
+      const Vec3& a = mesh.vertices[face.v[0]];
+      const Vec3& b = mesh.vertices[face.v[1]];
+      const Vec3& c = mesh.vertices[face.v[2]];
+      const double area = triangleArea(a, b, c);
+      if (area <= 1e-24) {
+        continue;
+      }
+      TriangleRef ref;
+      ref.face = fi;
+      ref.lo = a.cwiseMin(b).cwiseMin(c);
+      ref.hi = a.cwiseMax(b).cwiseMax(c);
+      ref.centroid = (a + b + c) / 3.0;
+      ref.area = area;
+      order_.push_back(static_cast<int>(triangles_.size()));
+      triangles_.push_back(ref);
+    }
+    if (!order_.empty()) {
+      buildRecursive(0, static_cast<int>(order_.size()));
+    }
   }
-  const int samples = std::min(count, maxSamples);
-  ids.reserve(samples);
+
+  bool empty() const { return nodes_.empty(); }
+
+  double distanceSquared(const Vec3& point) const {
+    if (nodes_.empty()) {
+      return std::numeric_limits<double>::infinity();
+    }
+    double best = std::numeric_limits<double>::infinity();
+    queryRecursive(0, point, best);
+    return best;
+  }
+
+private:
+  int buildRecursive(int begin, int end) {
+    BvhNode node;
+    node.begin = begin;
+    node.end = end;
+    node.lo = Vec3(std::numeric_limits<double>::infinity(),
+                   std::numeric_limits<double>::infinity(),
+                   std::numeric_limits<double>::infinity());
+    node.hi = Vec3(-std::numeric_limits<double>::infinity(),
+                   -std::numeric_limits<double>::infinity(),
+                   -std::numeric_limits<double>::infinity());
+    for (int i = begin; i < end; ++i) {
+      const TriangleRef& tri = triangles_[order_[i]];
+      node.lo = node.lo.cwiseMin(tri.lo);
+      node.hi = node.hi.cwiseMax(tri.hi);
+    }
+
+    const int nodeId = static_cast<int>(nodes_.size());
+    nodes_.push_back(node);
+    if (end - begin <= 8) {
+      return nodeId;
+    }
+
+    const Vec3 extent = node.hi - node.lo;
+    int axis = 0;
+    if (extent.y() > extent.x() && extent.y() >= extent.z()) {
+      axis = 1;
+    } else if (extent.z() > extent.x() && extent.z() > extent.y()) {
+      axis = 2;
+    }
+    const int mid = begin + (end - begin) / 2;
+    std::nth_element(order_.begin() + begin, order_.begin() + mid, order_.begin() + end,
+                     [&](int lhs, int rhs) {
+                       return triangles_[lhs].centroid[axis] <
+                              triangles_[rhs].centroid[axis];
+                     });
+    nodes_[nodeId].left = buildRecursive(begin, mid);
+    nodes_[nodeId].right = buildRecursive(mid, end);
+    return nodeId;
+  }
+
+  void queryRecursive(int nodeId, const Vec3& point, double& best) const {
+    const BvhNode& node = nodes_[nodeId];
+    if (pointAabbDistanceSquared(point, node.lo, node.hi) >= best) {
+      return;
+    }
+    if (node.left < 0 && node.right < 0) {
+      for (int i = node.begin; i < node.end; ++i) {
+        const Face& face = mesh_.faces[triangles_[order_[i]].face];
+        best = std::min(best,
+                        pointTriangleDistanceSquared(point, mesh_.vertices[face.v[0]],
+                                                     mesh_.vertices[face.v[1]],
+                                                     mesh_.vertices[face.v[2]]));
+      }
+      return;
+    }
+
+    const int first = node.left;
+    const int second = node.right;
+    const double leftDistance =
+        pointAabbDistanceSquared(point, nodes_[first].lo, nodes_[first].hi);
+    const double rightDistance =
+        pointAabbDistanceSquared(point, nodes_[second].lo, nodes_[second].hi);
+    if (leftDistance < rightDistance) {
+      queryRecursive(first, point, best);
+      queryRecursive(second, point, best);
+    } else {
+      queryRecursive(second, point, best);
+      queryRecursive(first, point, best);
+    }
+  }
+
+  const Mesh& mesh_;
+  std::vector<TriangleRef> triangles_;
+  std::vector<int> order_;
+  std::vector<BvhNode> nodes_;
+};
+
+std::vector<Vec3> sampleSurfacePoints(const Mesh& mesh, int maxSamples) {
+  std::vector<double> cumulative;
+  cumulative.reserve(mesh.faces.size());
+  double totalArea = 0.0;
+  for (const Face& face : mesh.faces) {
+    const double area = triangleArea(mesh.vertices[face.v[0]], mesh.vertices[face.v[1]],
+                                     mesh.vertices[face.v[2]]);
+    if (area > 1e-24) {
+      totalArea += area;
+    }
+    cumulative.push_back(totalArea);
+  }
+  if (totalArea <= 1e-24 || maxSamples <= 0) {
+    return {};
+  }
+
+  const int samples = maxSamples;
+  std::vector<Vec3> points;
+  points.reserve(samples);
   for (int i = 0; i < samples; ++i) {
-    const int id = static_cast<int>(std::llround(
-        (static_cast<double>(i) * (count - 1)) / std::max(1, samples - 1)));
-    ids.push_back(std::min(count - 1, id));
+    const double target =
+        (static_cast<double>(i) + 0.5) * totalArea / static_cast<double>(samples);
+    auto it = std::lower_bound(cumulative.begin(), cumulative.end(), target);
+    int faceId = static_cast<int>(std::distance(cumulative.begin(), it));
+    faceId = std::min(faceId, static_cast<int>(mesh.faces.size()) - 1);
+    while (faceId > 0 && cumulative[faceId] == cumulative[faceId - 1]) {
+      --faceId;
+    }
+
+    const Face& face = mesh.faces[faceId];
+    const double uSeed = std::fmod((static_cast<double>(i) + 0.5) * 0.7548776662, 1.0);
+    const double vSeed = std::fmod((static_cast<double>(i) + 0.5) * 0.5698402967, 1.0);
+    const double su = std::sqrt(uSeed);
+    const double b0 = 1.0 - su;
+    const double b1 = su * (1.0 - vSeed);
+    const double b2 = su * vSeed;
+    points.push_back(b0 * mesh.vertices[face.v[0]] + b1 * mesh.vertices[face.v[1]] +
+                     b2 * mesh.vertices[face.v[2]]);
   }
-  return ids;
+  return points;
 }
 
 } // namespace
@@ -167,21 +333,21 @@ DistanceStats compareMeshesBySampledDistance(const Mesh& original,
 
   auto accumulate = [&](const Mesh& from, const Mesh& to, double& mean,
                         double& maxValue) {
-    const std::vector<int> ids =
-        sampleVertexIds(static_cast<int>(from.vertices.size()), maxSamples);
-    if (ids.empty()) {
+    const std::vector<Vec3> points = sampleSurfacePoints(from, maxSamples);
+    const MeshDistanceIndex index(to);
+    if (points.empty() || index.empty()) {
       mean = 0.0;
       maxValue = 0.0;
       return;
     }
     double sum = 0.0;
     double maxSq = 0.0;
-    for (int id : ids) {
-      const double d2 = pointMeshDistanceSquared(from.vertices[id], to);
+    for (const Vec3& point : points) {
+      const double d2 = index.distanceSquared(point);
       sum += std::sqrt(d2);
       maxSq = std::max(maxSq, d2);
     }
-    mean = sum / static_cast<double>(ids.size());
+    mean = sum / static_cast<double>(points.size());
     maxValue = std::sqrt(maxSq);
   };
 

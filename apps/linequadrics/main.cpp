@@ -142,8 +142,8 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
       args, "--normal-tensor-threshold", options.normalTensorFeatureThreshold);
   options.normalTensorMinEdgeAlignment = getDoubleArg(
       args, "--normal-tensor-edge-alignment", options.normalTensorMinEdgeAlignment);
-  options.normalTensorSmoothingIterations =
-      getIntArg(args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
+  options.normalTensorSmoothingIterations = getIntArg(
+      args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
   options.verbose = hasFlag(args, "--verbose");
   options.adaptiveScale = hasFlag(args, "--adaptive-scale");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
@@ -177,8 +177,8 @@ lq::FeatureOptions parseFeatureOptions(const Args& args) {
       args, "--normal-tensor-threshold", options.normalTensorFeatureThreshold);
   options.normalTensorMinEdgeAlignment = getDoubleArg(
       args, "--normal-tensor-edge-alignment", options.normalTensorMinEdgeAlignment);
-  options.normalTensorSmoothingIterations =
-      getIntArg(args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
+  options.normalTensorSmoothingIterations = getIntArg(
+      args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
   options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
   return options;
 }
@@ -218,7 +218,8 @@ void printUsage() {
       << "  --normal-tensor-threshold S     Feature score threshold for tensor edges\n"
       << "  --normal-tensor-edge-alignment A Minimum edge/tangent alignment\n"
       << "  --normal-tensor-smoothing N     Optional tensor smoothing iterations\n"
-      << "  --no-normal-tensor-features     Disable tensor candidates in feature detection\n"
+      << "  --no-normal-tensor-features     Disable tensor candidates in feature "
+         "detection\n"
       << "  --metrics-csv path              Write one-row CSV metrics\n"
       << "  --samples N                     Distance sample count\n"
       << "  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1\n"

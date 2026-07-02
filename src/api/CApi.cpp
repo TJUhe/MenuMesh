@@ -86,6 +86,7 @@ void fillReport(const lq::SimplifyReport& source, LqSimplifyReport& target) {
   target.feature_loops = source.featureLoops;
   target.circular_feature_loops = source.circularFeatureLoops;
   target.feature_vertices = source.featureVertices;
+  target.normal_tensor_feature_edges = source.normalTensorFeatureEdges;
   target.feature_rejected_collapses = source.featureRejectedCollapses;
   target.projected_feature_placements = source.projectedFeaturePlacements;
   target.min_applied_line_weight = source.minAppliedLineWeight;
@@ -371,6 +372,10 @@ void lq_simplify_options_init(LqSimplifyOptions* options) {
   options->feature_curve_weight = 0.05;
   options->circle_fit_relative_threshold = 0.05;
   options->min_feature_loop_vertices = 16;
+  options->use_normal_tensor_features = 1;
+  options->normal_tensor_feature_threshold = 0.16;
+  options->normal_tensor_min_edge_alignment = 0.45;
+  options->normal_tensor_smoothing_iterations = 0;
   options->verbose = 0;
 }
 
@@ -404,6 +409,14 @@ LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
       cppOptions.featureCurveWeight = options->feature_curve_weight;
       cppOptions.circleFitRelativeThreshold = options->circle_fit_relative_threshold;
       cppOptions.minFeatureLoopVertices = options->min_feature_loop_vertices;
+      cppOptions.useNormalTensorFeatures =
+          boolFromInt(options->use_normal_tensor_features);
+      cppOptions.normalTensorFeatureThreshold =
+          options->normal_tensor_feature_threshold;
+      cppOptions.normalTensorMinEdgeAlignment =
+          options->normal_tensor_min_edge_alignment;
+      cppOptions.normalTensorSmoothingIterations =
+          options->normal_tensor_smoothing_iterations;
       cppOptions.verbose = boolFromInt(options->verbose);
     }
 

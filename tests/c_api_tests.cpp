@@ -125,3 +125,29 @@ TEST_F(CApiTest, RejectsInvalidFaceIndicesWithoutReplacingMesh) {
 
   lq_mesh_destroy(mesh);
 }
+
+TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
+  LqMeshHandle* input = lq_mesh_create(context);
+  LqMeshHandle* output = lq_mesh_create(context);
+  ASSERT_NE(input, nullptr);
+  ASSERT_NE(output, nullptr);
+
+  ASSERT_EQ(LQ_STATUS_OK, lq_generate_mesh(context, "ridge", 32, input));
+
+  LqSimplifyOptions options;
+  lq_simplify_options_init(&options);
+  options.target_ratio = 0.80;
+  options.preserve_feature_curves = 1;
+  options.weight_mode = LQ_WEIGHT_MODE_NORMAL_TENSOR;
+  options.feature_angle_deg = 179.0;
+  options.normal_tensor_feature_threshold = 0.06;
+  options.normal_tensor_min_edge_alignment = 0.2;
+  options.normal_tensor_smoothing_iterations = 1;
+
+  LqSimplifyReport report;
+  EXPECT_EQ(LQ_STATUS_OK, lq_simplify_mesh(context, input, &options, output, &report));
+  EXPECT_GT(report.normal_tensor_feature_edges, 0);
+
+  lq_mesh_destroy(output);
+  lq_mesh_destroy(input);
+}

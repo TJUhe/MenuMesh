@@ -45,6 +45,8 @@ LQ_API bool loadObj(const std::string& path, Mesh& mesh, std::string* error = nu
 /// Loads a mesh by file extension. Supported formats are STL and OBJ.
 LQ_API bool loadMesh(const std::string& path, Mesh& mesh, std::string* error = nullptr,
                      double weldRelativeEpsilon = 1e-9);
+/// Returns false and writes an error when any face index is out of range.
+LQ_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
 /// Writes the mesh as an ASCII STL file.
 LQ_API bool saveAsciiStl(const std::string& path, const Mesh& mesh,
                          const std::string& solidName = "mesh",

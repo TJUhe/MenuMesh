@@ -1,5 +1,6 @@
 #include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
+#include "line_quadrics_qem/core/MeshTopology.h"
 #include "line_quadrics_qem/features/FeatureDetection.h"
 
 #include <Eigen/Eigenvalues>
@@ -124,6 +125,64 @@ Mat4 lineQuadric(const Vec3& point, const Vec3& normal) {
   Vec3 y = n.cross(x).normalized();
 
   return planeQuadric(x, point) + planeQuadric(y, point);
+}
+
+void requireFiniteNonNegative(double value, const char* name) {
+  if (!std::isfinite(value) || value < 0.0) {
+    throw std::invalid_argument(std::string(name) +
+                                " must be finite and non-negative.");
+  }
+}
+
+void validateSimplifyOptions(const SimplifyOptions& options) {
+  if (options.targetFaces == 0 || options.targetFaces < -1) {
+    throw std::invalid_argument("targetFaces must be -1 or a positive face count.");
+  }
+  if (options.targetFaces < 0 &&
+      (!std::isfinite(options.targetRatio) || options.targetRatio <= 0.0 ||
+       options.targetRatio > 1.0)) {
+    throw std::invalid_argument("targetRatio must be finite and in the range (0, 1].");
+  }
+  requireFiniteNonNegative(options.lineWeight, "lineWeight");
+  requireFiniteNonNegative(options.featureBoost, "featureBoost");
+  requireFiniteNonNegative(options.adaptiveBaseLineWeight, "adaptiveBaseLineWeight");
+  requireFiniteNonNegative(options.boundaryWeight, "boundaryWeight");
+  requireFiniteNonNegative(options.featureCurveWeight, "featureCurveWeight");
+  requireFiniteNonNegative(options.circleFitRelativeThreshold,
+                           "circleFitRelativeThreshold");
+  requireFiniteNonNegative(options.normalTensorFeatureThreshold,
+                           "normalTensorFeatureThreshold");
+  if (!std::isfinite(options.featureAngleDeg) || options.featureAngleDeg < 0.0 ||
+      options.featureAngleDeg > 180.0) {
+    throw std::invalid_argument("featureAngleDeg must be finite and in [0, 180].");
+  }
+  if (!std::isfinite(options.normalTensorMinEdgeAlignment) ||
+      options.normalTensorMinEdgeAlignment < 0.0 ||
+      options.normalTensorMinEdgeAlignment > 1.0) {
+    throw std::invalid_argument(
+        "normalTensorMinEdgeAlignment must be finite and in [0, 1].");
+  }
+  if (options.minFeatureLoopVertices < 3) {
+    throw std::invalid_argument("minFeatureLoopVertices must be at least 3.");
+  }
+  if (options.normalTensorSmoothingIterations < 0) {
+    throw std::invalid_argument(
+        "normalTensorSmoothingIterations must be non-negative.");
+  }
+}
+
+void validateSimplifierInput(const Mesh& input) {
+  if (input.empty()) {
+    return;
+  }
+  std::string error;
+  if (!validateMeshIndices(input, &error)) {
+    throw std::invalid_argument(error);
+  }
+  const Result<MeshTopology> topology = MeshTopology::build(input);
+  if (!topology.ok()) {
+    throw std::invalid_argument(topology.status().message());
+  }
 }
 
 std::unordered_map<std::uint64_t, EdgeInfo>
@@ -281,10 +340,9 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
     minLineWeight = 0.0;
   }
 
-  const std::vector<double> featureScores =
-      useNormalLineQuadrics
-          ? computeFeatureScores(mesh, options)
-          : std::vector<double>();
+  const std::vector<double> featureScores = useNormalLineQuadrics
+                                                ? computeFeatureScores(mesh, options)
+                                                : std::vector<double>();
 
   if (useNormalLineQuadrics) {
     for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
@@ -773,15 +831,13 @@ Mesh compactResult(const std::vector<VertexState>& vertices,
 
 class InitialQuadricBuilder {
 public:
-  explicit InitialQuadricBuilder(const SimplifyOptions& options)
-      : options_(options) {}
+  explicit InitialQuadricBuilder(const SimplifyOptions& options) : options_(options) {}
 
   std::vector<Mat4> build(const Mesh& mesh, const FeatureAnalysis* featureAnalysis,
                           SimplifyReport& report) const {
     std::vector<Mat4> quadrics;
     computeInitialQuadrics(mesh, options_, featureAnalysis, quadrics,
-                           report.minAppliedLineWeight,
-                           report.maxAppliedLineWeight);
+                           report.minAppliedLineWeight, report.maxAppliedLineWeight);
     return quadrics;
   }
 
@@ -799,8 +855,7 @@ public:
     return featureCollapseAllowed(keep, remove, vertices, activeLoopCounts, options_);
   }
 
-  bool projectPlacement(int keep, int remove,
-                        const std::vector<VertexState>& vertices,
+  bool projectPlacement(int keep, int remove, const std::vector<VertexState>& vertices,
                         Vec3& position) const {
     return projectFeaturePlacement(keep, remove, vertices, options_, position);
   }
@@ -841,10 +896,7 @@ private:
 class SimplificationRun {
 public:
   SimplificationRun(const Mesh& input, const SimplifyOptions& options)
-      : input_(input),
-        options_(options),
-        quadrics_(options),
-        featurePolicy_(options) {}
+      : input_(input), options_(options), quadrics_(options), featurePolicy_(options) {}
 
   Mesh execute(SimplifyReport* outReport) {
     initializeReport();
@@ -884,10 +936,8 @@ private:
     featureOptions.minFeatureLoopVertices =
         std::max(5, options_.minFeatureLoopVertices);
     featureOptions.useNormalTensorFeatures = options_.useNormalTensorFeatures;
-    featureOptions.normalTensorFeatureThreshold =
-        options_.normalTensorFeatureThreshold;
-    featureOptions.normalTensorMinEdgeAlignment =
-        options_.normalTensorMinEdgeAlignment;
+    featureOptions.normalTensorFeatureThreshold = options_.normalTensorFeatureThreshold;
+    featureOptions.normalTensorMinEdgeAlignment = options_.normalTensorMinEdgeAlignment;
     featureOptions.normalTensorSmoothingIterations =
         options_.normalTensorSmoothingIterations;
     featureAnalysis_ = detectFeatureCurves(input_, featureOptions);
@@ -957,11 +1007,10 @@ private:
   }
 
   void initializeBudget() {
-    targetFaces_ =
-        options_.targetFaces > 0
-            ? options_.targetFaces
-            : std::max(4, static_cast<int>(std::llround(
-                              input_.faces.size() * options_.targetRatio)));
+    targetFaces_ = options_.targetFaces > 0
+                       ? options_.targetFaces
+                       : std::max(4, static_cast<int>(std::llround(
+                                         input_.faces.size() * options_.targetRatio)));
     const double diag = std::max(1e-12, input_.bboxDiag());
     areaEps_ = diag * diag * 1e-18;
 
@@ -1066,8 +1115,7 @@ private:
     ++report_.rejectedCollapses;
     ++report_.featureRejectedCollapses;
     bumpVersions(keep, remove);
-    if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ &&
-        options_.verbose) {
+    if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ && options_.verbose) {
       std::cerr << "stopped: feature constraints leave no valid collapses\n";
     }
   }
@@ -1075,8 +1123,7 @@ private:
   void rejectTopologyCollapse(int keep, int remove) {
     ++report_.rejectedCollapses;
     bumpVersions(keep, remove);
-    if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ &&
-        options_.verbose) {
+    if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ && options_.verbose) {
       std::cerr << "stopped: topology checks leave no valid collapses\n";
     }
   }
@@ -1086,8 +1133,7 @@ private:
     vertices_[remove].version++;
   }
 
-  void applyCollapse(int keep, int remove, const Vec3& position,
-                     const Mat4& mergedQ) {
+  void applyCollapse(int keep, int remove, const Vec3& position, const Mat4& mergedQ) {
     const bool mergedFeatureLoop =
         vertices_[keep].isFeature && vertices_[remove].isFeature &&
         vertices_[keep].featureLoopId == vertices_[remove].featureLoopId &&
@@ -1112,8 +1158,8 @@ private:
   }
 
   void rewriteIncidentFaces(int keep, int remove) {
-    const std::vector<int> removeIncidentFaces(
-        topology_->vertexFaces[remove].begin(), topology_->vertexFaces[remove].end());
+    const std::vector<int> removeIncidentFaces(topology_->vertexFaces[remove].begin(),
+                                               topology_->vertexFaces[remove].end());
     for (int faceId : removeIncidentFaces) {
       FaceState& face = faces_[faceId];
       if (!face.active || !containsVertex(face, remove)) {
@@ -1125,8 +1171,8 @@ private:
           id = keep;
         }
       }
-      if (face.v[0] == face.v[1] || face.v[1] == face.v[2] ||
-          face.v[0] == face.v[2] || topology_->hasDuplicateFace(faceId, face)) {
+      if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2] ||
+          topology_->hasDuplicateFace(faceId, face)) {
         face.active = false;
         --activeFaceCount_;
       } else {
@@ -1184,8 +1230,8 @@ std::string toString(WeightMode mode) {
   return "unknown";
 }
 
-QEMSimplifier::QEMSimplifier(SimplifyOptions options)
-    : options_(std::move(options)) {}
+QEMSimplifier::QEMSimplifier(SimplifyOptions options) : options_(std::move(options)) {
+}
 
 void QEMSimplifier::setOptions(SimplifyOptions options) {
   options_ = std::move(options);
@@ -1196,6 +1242,8 @@ Mesh QEMSimplifier::simplify(const Mesh& input) {
 }
 
 Mesh QEMSimplifier::simplify(const Mesh& input, SimplifyReport* outReport) {
+  validateSimplifyOptions(options_);
+  validateSimplifierInput(input);
   SimplificationRun run(input, options_);
   Mesh output = run.execute(&report_);
   if (outReport) {

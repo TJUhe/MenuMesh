@@ -54,6 +54,10 @@ typedef struct LqSimplifyOptions {
   double feature_curve_weight;
   double circle_fit_relative_threshold;
   int min_feature_loop_vertices;
+  int use_normal_tensor_features;
+  double normal_tensor_feature_threshold;
+  double normal_tensor_min_edge_alignment;
+  int normal_tensor_smoothing_iterations;
   int verbose;
 } LqSimplifyOptions;
 
@@ -69,6 +73,7 @@ typedef struct LqSimplifyReport {
   int feature_loops;
   int circular_feature_loops;
   int feature_vertices;
+  int normal_tensor_feature_edges;
   int feature_rejected_collapses;
   int projected_feature_placements;
   double min_applied_line_weight;

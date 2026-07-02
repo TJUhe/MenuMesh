@@ -1,263 +1,261 @@
-# Line Quadrics QEM Reproduction
+# Line Quadrics QEM
 
-这是基于 `Controlling Quadric Error Simplification with Line Quadrics`（Hsueh-Ti Derek Liu, Mehdi Rahimzadeh, Victor Zordan, SGP 2025）的 C++/Eigen 复现项目。目标不是做一个完整工业级网格库，而是把论文里最关键的算法机制做成可跑、可观察、可替换 STL 的实验程序。
+这是一个面向工业库形态整理的 C++17 网格简化内核。核心目标是复现并扩展
+`Controlling Quadric Error Simplification with Line Quadrics` 的 QEM + line
+quadrics 思路，并提供可构建、可测试、可度量、可由外部程序调用的库接口。
 
-## 论文核心到代码映射
-
-标准 QEM 对每个三角面构造平面 quadric：
-
-```text
-Q_plane = [n, -n dot p] [n, -n dot p]^T
-```
-
-代码位置：[src/QEMSimplifier.cpp](E:/code/codex/line-quadrics-qem/src/QEMSimplifier.cpp)
-
-- `planeQuadric(...)`：平面 quadric。
-- `computeInitialQuadrics(...)`：按三角形面积的 1/3 累加到顶点 quadric，对应论文中的 barycentric vertex area。
-- `solveOptimal(...)`：求解 `A x = -b`，奇异时退回端点/中点候选。
-
-论文的 line quadric 是过顶点、方向平行于顶点法线的直线到点距离。实现上用 Gram-Schmidt 找到两个与法线正交的单位方向 `x_i, y_i`，然后把两张过该直线的平面 quadric 相加：
+当前仓库刻意不再把网页预览作为主入口。结果检查走更稳定的工业验证路径：
 
 ```text
-Q_line = Q_x + Q_y
-Q_augmented_i = Q_i + w_i * area_i * Q_line_i
+CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统 STL 查看器目检 STL
 ```
 
-代码位置：
+## 说明网页
 
-- `lineQuadric(...)`：构造 `Q_x + Q_y`。
-- `computeInitialQuadrics(...)`：实现 `Q_i + w_i a_i Q_i^l`。
-- `computeFeatureScores(...)`：提供 uniform、dihedral、height、xband 几种权重模式，用来观察论文中的软特征保留/自适应简化思想。
+这些 HTML 是论文说明和当前程序结果的可浏览笔记，可以直接用浏览器打开：
+
+- [QEM 与 Line Quadrics 说明](docs/notes/qem-line-quadrics-notes.html)
+- [Line Quadrics 数学原理展开](docs/notes/line-quadrics-qem-theory-explained.html)
+- [当前程序原理说明](docs/notes/line-quadrics-qem-program-principles.html)
+- [代码阅读手册](docs/notes/line-quadrics-qem-code-manual.html)
+- [Xu 2024 CWF 弱特征合并论文说明](docs/notes/cwf-weak-features-notes.html)
+- [凸台圆孔等圆特征实践结果](docs/notes/circular-feature-practice-results.html)
+
+## 工业内核边界
+
+核心交付物：
+
+| 路径 | 角色 |
+| --- | --- |
+| `include/line_quadrics_qem/` | 公共 C++ API；`core/`、`features/`、`simplification/`、`api/` 为分层入口，根目录保留兼容转发头。 |
+| `src/` | 按职责分层的库实现：`core/`、`features/`、`simplification/`、`api/`。 |
+| `apps/linequadrics/` | `linequadrics` CLI，作为库的应用层消费者。 |
+| `tests/` | GoogleTest/CTest 回归测试。 |
+| `thirdParty/googletest/` | 随仓库携带的 GoogleTest 源码，用于离线构建测试。 |
+| `thirdParty/vscode-extensions/` | 适配 VSCode 1.70.2 的 C++/CMake 离线 VSIX 插件包。 |
+| `examples/basic_simplify.cpp` | 模拟外部客户程序调用动态库。 |
+| `cmake/` | `find_package(line_quadrics_qem CONFIG REQUIRED)` 安装包配置。 |
+| `docs/design/industrial_library.md` | 动态库、安装、运行时布局和集成边界。 |
+| `docs/design/industrial_validation.md` | 每项能力/性能的验证命令、CSV 指标和通过标准。 |
+
+可生成或可选内容：
+
+| 路径 | 说明 |
+| --- | --- |
+| `build*/` | CMake 构建目录，生成物。 |
+| `examples/input/*.stl` | 可复现实验输入；可由 CLI 重新生成。 |
+| `examples/output/` | STL/CSV 验证输出，属于实验结果。 |
+| `examples/external/` | 外部 OBJ 基准模型本地放置目录，不作为库交付物。 |
+| `docs/notes/*.html`、`docs/api/` | 生成/导出的说明文档，不作为源码入口。 |
+
+网页 viewer、Node/Vite 配置已经从源码入口中筛掉。要看形状时，直接打开 CLI
+生成的 STL；要看性能和误差时，读取 CSV 指标。
 
 ## 构建
 
-```powershell
-cd E:\code\codex\line-quadrics-qem
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release --target linequadrics
-```
-
-如果系统没有 Eigen，CMake 会自动下载 Eigen 3.4.0。Eigen 是 header-only 依赖。
-
-## Windows 7 / 4GB 内存 / MinGW 离线运行
-
-老机器上建议只运行 C++ 命令行程序，不建议运行 Three.js viewer。viewer 依赖现代 Node/Vite/浏览器环境，Windows 7 上兼容性和内存都比较吃紧；把生成的 STL 拷到另一台机器或用 MeshLab/轻量 STL 查看器看会更稳。
-
-推荐工具链：
-
-- MinGW-w64：`GCC 10.5.0 x86_64 POSIX SEH MSVCRT`，离线包已放在 `third_party/packages/winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z`。
-- Eigen：`3.4.0`，离线包已放在 `third_party/packages/eigen-3.4.0.tar.gz`。
-- CMake：推荐 `3.20.x` 到 `3.25.x` 的 Windows zip/installer；如果 CMake 在 Win7 上不好装，可以直接用下面的 `g++` 命令编译。
-
-为什么推荐这个 MinGW 版本：
-
-- 当前代码使用 C++17 和 `std::filesystem`。GCC 10.5 对 `std::filesystem` 比 GCC 8.x 更省心，通常不需要额外链接 `-lstdc++fs`。
-- 选择 MSVCRT 版 WinLibs 是为了兼容老 Windows；新版 MSYS2 runtime 已不适合作为 Windows 7 首选环境。
-- 84MB 左右的压缩包可以直接离线拷贝，不需要在旧机器上联网安装。
-
-安装步骤：
-
-1. 解压 MinGW：
-
-   ```text
-   third_party/packages/winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z
-   ```
-
-   例如解压到：
-
-   ```text
-   C:\tools\mingw64
-   ```
-
-2. 把 `C:\tools\mingw64\bin` 加入 `PATH`，或在命令行临时设置：
-
-   ```bat
-   set PATH=C:\tools\mingw64\bin;%PATH%
-   ```
-
-3. 解压 Eigen：
-
-   ```text
-   third_party/packages/eigen-3.4.0.tar.gz
-   ```
-
-   例如解压到：
-
-   ```text
-   C:\libs\eigen-3.4.0
-   ```
-
-用 CMake + MinGW 构建：
-
-```bat
-cd C:\path\to\line-quadrics-qem
-cmake -G "MinGW Makefiles" -S . -B build-mingw -DCMAKE_BUILD_TYPE=Release -DEigen3_DIR=C:\libs\eigen-3.4.0\share\eigen3\cmake
-cmake --build build-mingw -- -j1
-```
-
-如果 `Eigen3_DIR` 不好用，可以直接跳过 CMake，使用单条 `g++` 命令：
-
-```bat
-g++ -std=c++17 -O2 -DNDEBUG ^
-  -Isrc -IC:\libs\eigen-3.4.0 ^
-  src\main.cpp src\Mesh.cpp src\MeshGenerators.cpp src\Metrics.cpp src\QEMSimplifier.cpp ^
-  -o linequadrics.exe
-```
-
-如果旧版 GCC 报 `std::filesystem` 链接错误，再在末尾加：
-
-```bat
--lstdc++fs
-```
-
-Windows 7 / 4GB 内存建议先跑小案例：
-
-```bat
-linequadrics.exe generate --type flange --n 36 --out flange.stl
-linequadrics.exe simplify flange.stl flange_simplified.stl --method line --ratio 0.2 --line-weight 1e-3 --samples 500
-linequadrics.exe face-sweep flange.stl out_flange --faces "1000,800,600,400,200,100" --samples 500
-```
-
-注意事项：
-
-- 4GB 内存机器上构建用 `-j1`，不要并行编译。
-- 不建议在老机器上跑完整 `run_demo.ps1`，先用 `--n 36` 或 `--n 48` 的几何验证。
-- `--samples` 默认是 3000；老机器可以降到 500，只影响距离指标精度，不影响简化 STL 输出。
-- 包校验值：
-  - `eigen-3.4.0.tar.gz`: `8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72`
-  - `winlibs-x86_64-posix-seh-gcc-10.5.0-mingw-w64msvcrt-11.0.1-r2.7z`: `5a38eee7ced1e65880e12fa15473ec2b413718e5011285442e2e410ee359101c`
-
-## 快速复现实验
+推荐 MinGW + Ninja：
 
 ```powershell
-.\run_demo.ps1 -Config Release
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-ninja-release --target linequadrics --parallel 2
 ```
 
-脚本会生成多类 STL：
-
-- `clustered_plane.stl`：平面但采样不均，最能暴露标准 QEM 在平面区域的奇异退化。
-- `hole_plane.stl`：带内外边界的平面，用来观察边界 quadric 与 line quadrics 的互补关系。
-- `ridge.stl`：带一条折脊，用来看三角质量与特征保留的取舍。
-- `noisy_plane.stl`：带噪平面，用来看 line quadrics 不是去噪器。
-- `sine_terrain.stl`：连续曲率起伏，用来看权重变大时均匀性与几何误差的交换。
-- `terrace.stl`：阶梯状硬边/近 CAD 地形，用来看 dihedral 权重是否保留折线。
-- `bump.stl`：软凸起和弱特征，用来看 height 权重的自适应采样。
-- `cylinder.stl`：光滑曲面加边界，用来看 line quadrics 对非平面曲率面的正则化。
-- `torus.stl`：闭合光滑曲面，无边界，用来看普通曲面上的权重 sweep。
-- `cube.stl`：硬边 STL，可用来测试 dihedral 权重。
-- `thin_fin.stl`：薄片结构，用来看软约束和拓扑保护不足时的风险。
-
-输出在 `examples/output/**`，每个 sweep 目录都有 `metrics.csv` 和若干简化后的 STL。
-
-## 演示案例地图
-
-| 输入 STL | 输出目录 | 主要观察点 | 推荐先看 |
-| --- | --- | --- | --- |
-| `clustered_plane.stl` | `clustered_plane` | 平面零误差导致标准 QEM 随机/病态折叠；line quadrics 让点分布更均匀 | `mean_triangle_quality`, `edge_length_cv` |
-| `clustered_plane.stl` | `clustered_plane_boundary` | 加边界 quadric 后，仍能看到内部均匀性收益 | `min_triangle_quality`, `edge_length_cv` |
-| `hole_plane.stl` | `hole_plane_boundary` | 内外边界是否被保持；边界保护与 line quadrics 不是同一件事 | `boundary_edges`, `non_manifold_edges` |
-| `ridge.stl` | `ridge_uniform` | 小权重改善三角质量，高权重可能开始牺牲尖锐脊线 | 低/高 `line_weight` 对比 |
-| `ridge.stl` | `ridge_dihedral` | 用二面角启发式给折脊附近更高权重，模拟论文里的软特征保留 | 输出 STL 外观 |
-| `noisy_plane.stl` | `noisy_plane` | 噪声法线下 line quadrics 不是去噪器 | `mean_orig_to_simp`, 外观 |
-| `sine_terrain.stl` | `sine_terrain` | 光滑曲面上从几何保真到均匀采样的连续取舍 | `line_weight=1e-3` 和 `1e-1` |
-| `terrace.stl` | `terrace_uniform` / `terrace_dihedral` | 单一阈值二面角能保硬边，但对软/弱特征有限 | 两个目录对比 |
-| `bump.stl` | `bump_height` | 自适应权重会把采样留给高处/重要区域，但可能增加误差 | `mean_orig_to_simp` |
-| `cylinder.stl` | `cylinder` | 有边界的光滑曲面，边界 quadric 与 line quadrics 联合作用 | `boundary_edges` |
-| `torus.stl` | `torus` | 无边界光滑闭曲面，观察 line quadrics 的纯正则化行为 | `edge_length_cv` |
-| `cube.stl` | `cube_dihedral` | CAD/STL 硬边，二面角权重比 uniform 更能表达“重要边” | 输出 STL 外观 |
-| `thin_fin.stl` | `thin_fin_uniform` / `thin_fin_dihedral` | 薄结构容易暴露拓扑保护不足，这是当前复现的风险案例 | `non_manifold_edges`, 外观 |
-
-## 换自己的 STL
-
-更详细的“论文建议如何映射到程序参数和 viewer 观察方式”见：[docs/paper_guided_usage.md](E:/code/codex/line-quadrics-qem/docs/paper_guided_usage.md)。
-
-标准 QEM：
+Windows 7 / 小内存机器优先用 MinGW Makefiles：
 
 ```powershell
-.\build\Release\linequadrics.exe simplify input.stl output_standard.stl --method standard --ratio 0.15
+cmake -S . -B build/mingw-makefiles-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-makefiles-release --target linequadrics --parallel 1
 ```
 
-论文默认风格的小权重 line quadrics：
+完整工业库构建、测试、文档目标：
 
 ```powershell
-.\build\Release\linequadrics.exe simplify input.stl output_line.stl --method line --ratio 0.15 --line-weight 1e-3
+cmake -S . -B build/industrial -DCMAKE_BUILD_TYPE=Release
+cmake --build build/industrial --parallel
+cmake -E chdir build/industrial ctest --output-on-failure
+cmake --build build/industrial --target docs-api
 ```
 
-对 CAD/STL 硬边更友好的 dihedral 自适应权重：
+## 核心 API
+
+最小外部调用入口：
+
+```cpp
+#include "line_quadrics_qem/core/Mesh.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
+
+lq::SimplifyOptions options;
+options.targetRatio = 0.2;
+options.useLineQuadrics = true;
+options.lineWeight = 1e-3;
+
+lq::SimplifyReport report;
+lq::QEMSimplifier simplifier(options);
+lq::Mesh simplified = simplifier.simplify(input, &report);
+```
+
+安装后外部 CMake 工程可使用：
+
+```cmake
+find_package(line_quadrics_qem CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
+line_quadrics_qem_copy_runtime_dependencies(my_app)
+```
+
+## Visual Studio 使用
+
+推荐先把库安装成一个 SDK 目录，再让 Visual Studio 工程引用安装产物：
 
 ```powershell
-.\build\Release\linequadrics.exe simplify input.stl output_feature.stl --ratio 0.15 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 30
+cmake -S . -B build/vs-release -G "Visual Studio 17 2022" -A x64
+cmake --build build/vs-release --config Release --parallel
+cmake --install build/vs-release --config Release --prefix C:\opt\line-quadrics-qem
 ```
 
-扫多个权重并输出 CSV：
-
-```powershell
-.\build\Release\linequadrics.exe sweep input.stl output_dir --ratio 0.15 --weights "0,1e-5,1e-4,1e-3,1e-2,1e-1"
-```
-
-如果你想看“网格简化程度”本身，而不是同一目标面数下的质量差异，用 ratio sweep：
-
-```powershell
-.\build\Release\linequadrics.exe ratio-sweep input.stl output_ratio_dir --method line --line-weight 1e-3 --ratios "0.8,0.5,0.25,0.15,0.08,0.05"
-```
-
-`sweep` 改的是 line quadric 权重，目标 faces 基本固定；`ratio-sweep` 改的是目标面数比例，所以 faces 会明显一档档下降。
-
-## 指标怎么看
-
-`metrics.csv` 中最有用的列：
-
-- `mean_triangle_quality`：越接近 1 越接近等边三角形。
-- `min_triangle_quality`：很低时通常说明出现细长/退化三角形。
-- `edge_length_cv`：边长变异系数，越低说明采样越均匀。
-- `mean_orig_to_simp` / `max_orig_to_simp`：采样点到简化网格的距离，越低几何误差越小。
-- `non_manifold_edges`：非流形边数量。这个复现不是拓扑严格保护算法，所以这个值用于提醒风险。
-
-本机 demo 的典型现象：
-
-- `clustered_plane` 中标准 QEM 的 `mean_triangle_quality` 约为 `0.62`，`edge_length_cv` 约为 `2.63`；加入 `1e-5` 级别 line quadrics 后，质量升到约 `0.84`，边长 CV 降到约 `0.23`。
-- `ridge` 中标准 QEM 的 `mean_triangle_quality` 约为 `0.41`，line quadrics 可升到 `0.87` 到 `0.88`。
-- `noisy_plane` 中 line quadrics 的提升很小，而且高权重会增加对输入噪声法线的依赖。这与论文结论一致：line quadrics 不是 denoising 技术。
-
-## 可视化窗口
-
-先生成 demo STL 和总表：
-
-```powershell
-.\run_demo.ps1 -Config Release
-.\collect_metrics.ps1
-```
-
-启动 Three.js viewer：
-
-```powershell
-.\start_viewer.ps1
-```
-
-然后打开：
+安装后的关键目录：
 
 ```text
-http://127.0.0.1:5174/viewer/
+C:\opt\line-quadrics-qem
+  bin\line_quadrics_qem.dll
+  include\line_quadrics_qem\...
+  lib\line_quadrics_qem.lib
+  lib\cmake\line_quadrics_qem\...
+  share\line_quadrics_qem\msvc\line_quadrics_qem.props
 ```
 
-窗口会读取 `examples/output/demo_summary.csv`，自动列出所有案例和权重结果。你可以切换 `Case`、`Result`，用滑条逐个看标准 QEM 和 line quadrics 的变化；`Original` 会叠加原始 STL，`Wire` 会显示简化网格线框，`Cycle` 会自动轮播同一案例下的不同权重。
+### Visual Studio CMake 工程
 
-## 我观察到的短板
+在你的 `CMakeLists.txt` 中使用：
 
-1. Line quadrics 依赖顶点法线。输入网格噪声大、法线乱时，它会尊重这些错误法线，因此不能替代双边滤波、normal voting 或其他去噪/稳健法线估计。
-2. 权重太大时会把“均匀顶点分布”压过几何保真，尤其在尖锐特征或高曲率区域可能牺牲外形。论文建议默认小权重，例如 `1e-3`，通常是合理起点。
-3. 对 STL 这种无语义属性的数据，所谓“重要顶点”只能由 dihedral、空间位置或用户外部标注猜测。没有 skinning weights、feature labels 时，软特征保留只是启发式。
-4. 本复现的边折叠拓扑保护很轻量，主要服务算法观察。用于生产前应加入 link condition、自交检测、边界策略和更强的非流形约束。
-5. Line quadrics 解决的是标准 QEM 在平面区域的零误差/奇异系统问题，并改善均匀性；它不是 Hausdorff 误差有界简化，也不会自动保证目标应用中的最优外观或物理仿真质量。
+```cmake
+find_package(line_quadrics_qem CONFIG REQUIRED)
 
-## 相关背景
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
+line_quadrics_qem_copy_runtime_dependencies(my_app)
+```
 
-本地 mesh-feature-literature 资料库对简化/保特征方法的归纳也支持这个取舍：特征保留型简化通常是在 QEM/边折叠成本中加入特征敏感权重、saliency 或约束，但主要风险是保特征与三角质量、拓扑质量互相拉扯。对应资料库中的 simplification anchors 包括 005、037、048、050、072 等。
+配置你的工程时指定安装包位置：
 
-## 可选外部几何来源
+```powershell
+cmake -S . -B build -Dline_quadrics_qem_DIR=C:\opt\line-quadrics-qem\lib\cmake\line_quadrics_qem
+```
 
-默认 demo 使用程序生成几何，保证离线可复现。如果你想加入真实/经典模型，可以从这些来源挑选后转成 STL 再跑：
+### 传统 `.vcxproj` 工程
 
-- [common-3d-test-models](https://github.com/alecjacobson/common-3d-test-models)：收集 bunny、fandisk、Suzanne 等常见 OBJ 测试模型，仓库说明会保留已知原始来源。
-- [Stanford 3D Scanning Repository](https://graphics.stanford.edu/data/3Dscanrep/)：经典扫描模型，例如 Bunny、Dragon、Happy Buddha；通常面数较高，本复现的简化器是教学实现，建议先降采样或选较小模型。
-- [Thingi10K](https://github.com/Thingi10K/Thingi10K)：真实 3D 打印 STL 数据集，适合测试非流形、薄壁、自交、真实三角汤等脏输入；注意每个模型许可不同，复用前要查对应 license 字段。
+在 Visual Studio 中打开你的项目，进入：
+
+```text
+View -> Other Windows -> Property Manager
+```
+
+右键项目配置，选择 `Add Existing Property Sheet...`，添加：
+
+```text
+C:\opt\line-quadrics-qem\share\line_quadrics_qem\msvc\line_quadrics_qem.props
+```
+
+这个 `.props` 会自动配置：
+
+- `include\` 头文件目录；
+- `lib\line_quadrics_qem.lib` 链接库；
+- 构建后把 `bin\line_quadrics_qem.dll` 复制到你的程序输出目录。
+
+如果使用 C++ API，例如 `line_quadrics_qem/core/Mesh.h`，还需要把 Eigen
+头文件目录填到项目属性 `LQEigenIncludeDir`。如果只使用
+`line_quadrics_qem/api/CApi.h` 这套 C ABI，则调用方不需要包含 Eigen 头。
+
+最小 C++ 调用：
+
+```cpp
+#include "line_quadrics_qem/core/Mesh.h"
+#include "line_quadrics_qem/simplification/QEMSimplifier.h"
+
+int main() {
+  lq::Mesh input;
+  std::string error;
+  if (!lq::loadMesh("input.stl", input, &error)) {
+    return 1;
+  }
+
+  lq::SimplifyOptions options;
+  options.targetRatio = 0.25;
+  options.useLineQuadrics = true;
+
+  lq::SimplifyReport report;
+  lq::QEMSimplifier simplifier(options);
+  lq::Mesh output = simplifier.simplify(input, &report);
+  return output.empty() ? 1 : 0;
+}
+```
+
+最小 C ABI 调用入口：
+
+```c
+#include "line_quadrics_qem/api/CApi.h"
+```
+
+## 验证闭环
+
+基础回归：
+
+```powershell
+cmake -E chdir build/industrial ctest -LE performance --output-on-failure
+```
+
+大模型性能测试：
+
+```powershell
+cmake -E chdir build/industrial ctest -L performance --output-on-failure
+```
+
+快速生成 STL/CSV：
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe demo --quick --samples 500
+```
+
+工业特征验证：
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
+```
+
+外部 OBJ 基准验证：
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
+```
+
+每项能力、性能指标、输出文件和验收口径见
+[`docs/design/industrial_validation.md`](docs/design/industrial_validation.md)。
+
+## 主要指标
+
+常用 CSV 列：
+
+| 指标 | 含义 |
+| --- | --- |
+| `faces`、`vertices` | 简化规模是否达到目标。 |
+| `mean_triangle_quality`、`min_triangle_quality` | 三角形质量，越高越好。 |
+| `edge_length_cv` | 边长变异系数，越低表示采样越均匀。 |
+| `mean_orig_to_simp`、`max_orig_to_simp` | 采样距离误差，越低表示几何偏差越小。 |
+| `non_manifold_edges` | 非流形风险提示。 |
+| `radial_rms`、`plane_rms` | 圆形特征半径漂移和平面漂移。 |
+| `feature_rejected_collapses` | 特征约束实际拦截了多少坍缩。 |
+
+STL 目检重点：
+
+- 外形是否保持目标特征，例如孔、法兰边、轴肩、槽形轮廓。
+- 是否出现明显破洞、自交、翻面或异常细长三角形。
+- line/curve constrained 输出是否优于普通 QEM，而不是只看单一数值。
+
+## 已知边界
+
+- 当前实现是教学/研究级 QEM 内核向工业库形态收拢，不是完整 CAD/B-Rep 内核。
+- STL/OBJ 输入没有 B-Rep 语义；圆孔、硬边和弱特征只能从三角网格推断。
+- line quadrics 改善平面区域的切向漂移和采样均匀性，但不是去噪器。
+- 曲线特征保护仍依赖当前 feature graph 检测质量；复杂 CAD 图需要更强的多环追踪。
+
+更详细的库结构见 [`docs/design/industrial_library.md`](docs/design/industrial_library.md)，特征约束方案见
+[`docs/design/feature_curve_constraints.md`](docs/design/feature_curve_constraints.md)。

@@ -1,0 +1,44 @@
+{
+  "cmake.useCMakePresets": "never",
+  "cmake.configureOnOpen": false,
+  "cmake.generator": "Ninja",
+  "cmake.buildType": "Release",
+  "cmake.buildDirectory": "${workspaceFolder}/build/mingw-ninja-${buildType}",
+  "cmake.configureSettings": {
+    "CMAKE_C_COMPILER": "gcc",
+    "CMAKE_CXX_COMPILER": "g++",
+    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+  },
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/mingw-ninja-release/compile_commands.json",
+  "C_Cpp.default.compilerPath": "g++",
+  "C_Cpp.default.cStandard": "c17",
+  "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/include",
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/apps/linequadrics",
+    "${workspaceFolder}/thirdParty/googletest/googletest/include",
+    "${workspaceFolder}/build/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-ninja-release/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-makefiles-release/_deps/eigen-src",
+    "${workspaceFolder}/build/hierarchy-check/_deps/eigen-src",
+    "${workspaceFolder}/build/codex-industrial/_deps/eigen-src"
+  ],
+  "C_Cpp.default.browse.path": [
+    "${workspaceFolder}/include",
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/apps",
+    "${workspaceFolder}/thirdParty/googletest/googletest/include",
+    "${workspaceFolder}/build/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-ninja-release/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-makefiles-release/_deps/eigen-src",
+    "${workspaceFolder}/build/hierarchy-check/_deps/eigen-src",
+    "${workspaceFolder}/build/codex-industrial/_deps/eigen-src"
+  ],
+  "C_Cpp.errorSquiggles": "enabled",
+  "files.associations": {
+    "*.h": "cpp",
+    "*.cpp": "cpp"
+  }
+}

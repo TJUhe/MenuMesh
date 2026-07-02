@@ -1,0 +1,863 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>当前网格简化程序原理、依据与工程改进说明</title>
+<script>
+MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+:root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a2e;--dim:#666;--accent:#2563eb;--green:#059669;--orange:#ea580c;--red:#dc2626;--code-bg:#f5f5f5;--callout-bg:#f8faff;--warn-bg:#fff8f0;--danger-bg:#fef2f2;--success-bg:#f0fdf4}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.82;max-width:920px;margin:0 auto}
+.header{background:linear-gradient(135deg,#153b4f,#2f254f);color:#fff;padding:44px 36px 36px}
+.header h1{font-size:26px;font-weight:700;margin-bottom:6px}
+.header .subtitle{color:#dbeafe;font-size:14px}
+.header .meta{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+.tag{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#e0e7ff;padding:3px 10px;border-radius:4px;font-size:12px}
+.content{padding:28px 36px 60px}
+h2{font-size:21px;font-weight:700;margin-top:44px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--accent)}
+h2 .num{display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;background:var(--accent);color:#fff;border-radius:6px;font-size:15px;margin-right:8px;vertical-align:middle}
+h3{font-size:17px;font-weight:600;margin-top:28px;margin-bottom:10px;color:var(--accent)}
+h4{font-size:15px;font-weight:600;margin-top:18px;margin-bottom:6px}
+p{margin-bottom:10px}
+ul,ol{padding-left:22px;margin-bottom:10px}li{margin:3px 0}
+code{background:var(--code-bg);padding:1px 5px;border-radius:3px;font-size:13px;font-family:"Consolas",monospace;color:var(--accent)}
+pre{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:14px 18px;margin:12px 0;overflow-x:auto;font-size:13px;line-height:1.6}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th{background:#eff6ff;text-align:left;padding:9px 12px;border-bottom:2px solid var(--accent);font-weight:600}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:#f9fafb}
+.callout{border-radius:8px;padding:14px 18px;margin:14px 0;border-left:4px solid;background:var(--callout-bg);border-color:var(--accent)}
+.callout-title{font-weight:600;font-size:14px;margin-bottom:6px;color:var(--accent)}
+.callout.warn{background:var(--warn-bg);border-color:var(--orange)}.callout.warn .callout-title{color:var(--orange)}
+.callout.danger{background:var(--danger-bg);border-color:var(--red)}.callout.danger .callout-title{color:var(--red)}
+.callout.success{background:var(--success-bg);border-color:var(--green)}.callout.success .callout-title{color:var(--green)}
+.cite{display:inline-block;color:var(--accent);font-weight:600;text-decoration:none;margin:0 2px}.cite:hover{text-decoration:underline}
+.formula{background:#f8f9fc;border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin:10px 0;overflow-x:auto}
+.formula .label{float:right;color:var(--dim);font-size:12px;font-family:sans-serif}
+.toc{background:#f8f9fc;border:1px solid var(--border);border-radius:8px;padding:18px 22px;margin:20px 0}
+.toc-title{font-weight:700;margin-bottom:10px;font-size:15px}
+.toc ol{padding-left:20px}.toc li{margin:4px 0}
+.toc a{color:var(--accent);text-decoration:none;font-size:14px}.toc a:hover{text-decoration:underline}
+.toc .sub{padding-left:20px;margin-top:4px}
+.toc .sub li{margin:2px 0}
+.toc .sub a{font-size:13px;color:var(--dim)}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.compare-box{border:1px solid var(--border);border-radius:8px;padding:14px 18px}
+.compare-box .title{font-weight:600;font-size:14px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.compare-box.bad{background:#fef2f2}.compare-box.bad .title{color:var(--red)}
+.compare-box.good{background:#f0fdf4}.compare-box.good .title{color:var(--green)}
+.diagram{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:16px;margin:14px 0;font-family:"Consolas",monospace;font-size:12.5px;white-space:pre;line-height:1.55;overflow-x:auto}
+.footer{text-align:center;padding:20px;color:var(--dim);font-size:13px;border-top:1px solid var(--border)}
+@media(max-width:768px){.compare-grid{grid-template-columns:1fr}.content{padding:20px 18px 40px}.header{padding:28px 20px}}
+</style>
+<link rel="stylesheet" href="eye-care.css">
+</head>
+<body>
+
+<div class="header">
+<h1>当前网格简化程序原理、依据与工程改进说明</h1>
+<div class="subtitle">从 QEM、Line Quadrics、特征约束、拓扑合法性到增量邻接：解释当前 C++ 实现为什么这样改</div>
+<div class="meta">
+<span class="tag">当前程序</span><span class="tag">QEM</span><span class="tag">Line Quadrics</span><span class="tag">Link Condition</span><span class="tag">增量拓扑</span>
+</div>
+</div>
+
+<div class="content">
+
+<div class="toc">
+<div class="toc-title">目录</div>
+<ol>
+<li><a href="#s1">当前程序解决的核心问题</a></li>
+<li><a href="#s2">论文依据和工程依据</a></li>
+<li><a href="#s3">标准 QEM 的数学形式</a></li>
+<li><a href="#s4">Line Quadrics 为什么能补 QEM 的短板</a></li>
+<li><a href="#s5">特征曲线保护为什么不能只靠硬锁定</a></li>
+<li><a href="#s6">Link condition：为什么它能避免坏拓扑</a></li>
+<li><a href="#s7">增量邻接拓扑：为什么能提速百倍</a></li>
+<li><a href="#s8">完整算法流程和代码映射</a></li>
+<li><a href="#s9">用 Casting 模型把原理说透</a></li>
+<li><a href="#s10">几何案例与复现命令</a></li>
+<li><a href="#s11">参考文献和代码依据</a></li>
+<li><a href="#s12">当前收益、边界和下一步</a></li>
+</ol>
+</div>
+
+<h2 id="s1"><span class="num">1</span>当前程序解决的核心问题</h2>
+
+<p>当前程序的直接目标是：给定一个三角网格，在尽量保持形状、特征和拓扑合法性的前提下减少面数。它不是单纯追求误差最小，也不是单纯追求速度，而是在三个目标之间做工程折中：误差代价来自 QEM <a class="cite" href="#ref-gh97">[GH97]</a> 和 line quadrics <a class="cite" href="#ref-lrz25">[LRZ25]</a>，特征曲线判断参考 normal tensor/feature-line 思路 <a class="cite" href="#ref-th14">[TH14]</a>，拓扑合法性和工程组织参考 CGAL/OpenMesh 的 decimation 框架 <a class="cite" href="#ref-cgal">[CGAL]</a><a class="cite" href="#ref-openmesh">[OpenMesh]</a>。</p>
+
+<table>
+<tr><th>目标</th><th>具体含义</th><th>当前实现位置</th></tr>
+<tr><td>几何误差小</td><td>简化后的点不要远离原始局部平面和法向结构</td><td><code>computeInitialQuadrics()</code>、<code>solveOptimal()</code></td></tr>
+<tr><td>特征尽量保留</td><td>硬边、圆孔、工业件上的连续特征线不要过早消失</td><td><code>detectFeatureCurves()</code>、<code>featureCollapseAllowed()</code></td></tr>
+<tr><td>几何合法</td><td>闭合二流形不要被简化成开洞或非流形</td><td><code>collapseWouldPreserveLinkCondition()</code></td></tr>
+<tr><td>大模型可跑</td><td>1w 到 10w 面模型不能因为每步扫全网格而变慢</td><td><code>DynamicTopology</code></td></tr>
+</table>
+
+<div class="callout">
+<div class="callout-title">一句话概括</div>
+<p>这个程序现在不是“只会做 QEM”的研究脚本，而是一个正在向工业 mesh kernel 收敛的简化内核：QEM 和 line quadrics 决定<strong>哪里值得塌缩</strong>，特征约束决定<strong>哪些塌缩要谨慎</strong>，link condition 决定<strong>哪些塌缩绝对不能做</strong>，增量邻接决定<strong>这些判断能不能在大模型上跑得动</strong>。这四层分别对应 cost、feature policy、legality、topology cache，后文每一层都会给出公式、例子和代码位置。</p>
+</div>
+
+<h2 id="s2"><span class="num">2</span>论文依据和工程依据</h2>
+
+<table>
+<tr><th>引用</th><th>依据</th><th>程序中采用了什么</th><th>为什么采用</th></tr>
+<tr><td><a class="cite" href="#ref-gh97">[GH97]</a></td><td>Garland &amp; Heckbert 1997 QEM</td><td>用平面距离平方累积成顶点 quadric</td><td>经典 edge-collapse 简化代价，局部、快速、可累加</td></tr>
+<tr><td><a class="cite" href="#ref-lrz25">[LRZ25]</a></td><td>Liu, Rahimzadeh &amp; Zordan 2025 Line Quadrics</td><td>在平面 quadric 外加入点到法向线的距离项</td><td>给平坦区域加入切向约束，减少普通 QEM 的漂移和病态求解</td></tr>
+<tr><td><a class="cite" href="#ref-th14">[TH14]</a></td><td>Tsuchie &amp; Higashi 2014 Normal Tensor</td><td>把特征看成曲面上的连续线结构，尤其关注工业模型上的 fillet/character lines</td><td>提醒我们不能只靠 dihedral angle，特征应该被追踪成 loop 或 curve graph</td></tr>
+<tr><td><a class="cite" href="#ref-cgal">[CGAL]</a><a class="cite" href="#ref-openmesh">[OpenMesh]</a></td><td>CGAL Surface Mesh Simplification / OpenMesh Decimation</td><td>cost 和 legality 分离，拓扑合法性优先于代价最小</td><td>最低代价边也可能制造非流形，工业库不能接受这种输出</td></tr>
+<tr><td><a class="cite" href="#ref-large">[LV]</a></td><td>本地大模型验证</td><td>Fandisk、Casting、10 个 1w+ 公共模型批量测试</td><td>用真实模型验证“不会新增 boundary/non-manifold”而不是只看合成网格</td></tr>
+</table>
+
+<div class="callout warn">
+<div class="callout-title">文献给出的关键提醒</div>
+<p>本地文献综述也指向同一个结论：feature-preserving simplification 本质是约束优化，而不是单一阈值分类 <a class="cite" href="#ref-lit-simplification">[MLIT-SIM]</a>。只增加特征权重或硬锁定特征边，可能保住局部线条，却牺牲三角形质量甚至拓扑。当前程序因此把合法性检查放在代价函数之后、真正执行塌缩之前，作为不可绕过的闸门。</p>
+</div>
+
+<h3>2.1 本文符号约定</h3>
+
+<p>为与 <code>docs/notes/normal-tensor-qem-notes.html</code> 保持一致，本文按下表使用符号。几何顶点写作 $V_i$ 或 $V_n$，优化变量写作 $x$；当强调顶点位置时，$x_i$ 表示 $V_i$ 的三维坐标。</p>
+
+<table>
+<tr><th>符号</th><th>含义</th><th>使用位置</th></tr>
+<tr><td>$V_i,V_j,V_n$</td><td>网格顶点；$x_i$ 表示顶点 $V_i$ 的位置向量</td><td>拓扑、特征、塌缩边</td></tr>
+<tr><td>$x,\tilde{x}$</td><td>塌缩后候选位置；$\tilde{x}=(x^\top,1)^\top$ 为齐次坐标</td><td>QEM 能量最小化</td></tr>
+<tr><td>$\hat{n}_{ijk}$</td><td>三角面 $(V_i,V_j,V_k)$ 的单位法向量</td><td>QEM 平面项</td></tr>
+<tr><td>$Q_i$</td><td>顶点 $V_i$ 的 $4\times4$ 齐次 quadric</td><td>误差累积</td></tr>
+<tr><td>$A_i^{\text{QEM}}$</td><td>$Q_i$ 左上角 $3\times3$ 法向二阶矩块</td><td>秩、条件数、最优点求解</td></tr>
+<tr><td>$A_n$</td><td>normal tensor：$A_n=\sum_{n'\in\mathcal{F}(n)}w_{nn'}N_{n'}^fN_{n'}^{f\top}$</td><td>特征线文献对照</td></tr>
+<tr><td>$\sigma_1\ge\sigma_2\ge\sigma_3$</td><td>$A_n$ 或 $A_i^{\text{QEM}}$ 的特征值</td><td>秩亏、saliency、病态诊断</td></tr>
+<tr><td>$E_1,E_2,E_3$</td><td>对应特征向量；crease 场景下 $T_n=E_3$ 是特征切向</td><td>normal tensor 与特征约束</td></tr>
+<tr><td>$\varphi,\varepsilon$</td><td>折痕角与检测灵敏度，满足 $\varphi=2\arctan((\varepsilon+1)^{-1/2})$</td><td>特征检测阈值解释</td></tr>
+</table>
+
+<h2 id="s3"><span class="num">3</span>标准 QEM 的数学形式</h2>
+
+<h3>3.1 点到平面的距离平方</h3>
+
+<p>QEM 的基本构造是把顶点到局部邻接平面的距离平方累加起来 <a class="cite" href="#ref-gh97">[GH97]</a>。设三角面 $(V_i,V_j,V_k)$ 的单位法向量为 $\hat{n}_{ijk}$，其所在平面为</p>
+
+<div class="formula">
+<span class="label">平面方程</span>
+$$\hat{n}_{ijk}^{\top}x+d_{ijk}=0,\qquad \|\hat{n}_{ijk}\|=1.$$
+</div>
+
+<p>点 $x$ 到该平面的有符号距离为 $\hat{n}_{ijk}^{\top}x+d_{ijk}$，距离平方为</p>
+
+<div class="formula">
+$$E_{\pi_{ijk}}(x)=(\hat{n}_{ijk}^{\top}x+d_{ijk})^2.$$
+</div>
+
+<p>写成齐次坐标 $\tilde{x}=(x^\top,1)^\top$，令平面向量 $\pi_{ijk}=(\hat{n}_{ijk}^{\top},d_{ijk})^\top$，则</p>
+
+<div class="formula">
+<span class="label">QEM 基本二次型</span>
+$$E_{\pi_{ijk}}(x)=\tilde{x}^\top(\pi_{ijk}\pi_{ijk}^{\top})\tilde{x}.$$
+</div>
+
+<p>一个顶点 $V_i$ 相邻多个面时，把这些面的 $\pi_{ijk}\pi_{ijk}^{\top}$ 按面积或局部权重累加，得到顶点 quadric $Q_i$。其左上角 $3\times3$ 块与 normal tensor 的结构一致：</p>
+
+<div class="formula">
+<span class="label">QEM 法向二阶矩</span>
+$$A_i^{\text{QEM}}=\sum_{ijk\in N_i}a^i_{jk}\,\hat{n}_{ijk}\hat{n}_{ijk}^{\top}.$$
+</div>
+
+<p>这正对应 normal tensor 页中的 $A_n=\sum_{n'\in\mathcal{F}(n)}w_{nn'}N_{n'}^fN_{n'}^{f\top}$。也就是说，QEM 的秩、条件数和病态求解可以用同一组特征值 $\sigma_1,\sigma_2,\sigma_3$ 解释。塌缩边 $(V_i,V_j)$ 时，合并点的代价为</p>
+
+<div class="formula">
+$$E_{ij}(x)=\tilde{x}^\top(Q_i+Q_j)\tilde{x}.$$
+</div>
+
+<h3>3.2 最优点求解</h3>
+
+<p>把边塌缩 quadric $Q_{ij}=Q_i+Q_j$ 分块写成</p>
+
+<div class="formula">
+$$Q_{ij}=\begin{bmatrix}A_{ij}&b_{ij}\\b_{ij}^\top&c_{ij}\end{bmatrix},\qquad
+E(x)=x^\top A_{ij}x+2b_{ij}^\top x+c_{ij}.$$
+</div>
+
+<p>对 $x$ 求梯度：</p>
+
+<div class="formula">
+$$\nabla E(x)=2A_{ij}x+2b_{ij}.$$
+</div>
+
+<p>如果 $A_{ij}$ 可逆，则唯一驻点满足</p>
+
+<div class="formula">
+<span class="label">最优位置</span>
+$$A_{ij}x=-b_{ij}.$$
+</div>
+
+<p>当前程序在 <code>solveOptimal()</code> 中先尝试这个线性系统。如果矩阵病态或不可解，则回退到端点和中点候选，选代价最低者。</p>
+
+<div class="callout warn">
+<div class="callout-title">标准 QEM 的短板</div>
+<p>如果局部区域几乎完全平坦，所有平面法向 $\hat{n}_{ijk}$ 都近似相同，则 $A_i^{\text{QEM}}$ 主要只约束法向方向，切平面内两个方向缺少惩罚。用特征值说，就是 $\sigma_1$ 大而 $\sigma_2,\sigma_3\approx0$。此时点沿切平面漂移几乎不增加 $E$，矩阵可能病态，优先队列中的代价也会失去区分度。</p>
+</div>
+
+<h3>3.3 例子：为什么平坦区会秩亏</h3>
+
+<p>假设顶点 $V_i$ 周围有 4 个小三角面，它们都在平面 $z=0$ 上，单位法向量都是 $\hat{n}=(0,0,1)^\top$，每个面的权重取 $1/3$。那么</p>
+
+<div class="formula">
+$$A_i^{\text{QEM}}
+=4\cdot\frac{1}{3}
+\begin{pmatrix}0\\0\\1\end{pmatrix}
+\begin{pmatrix}0&0&1\end{pmatrix}
+=\frac{4}{3}
+\begin{pmatrix}
+0&0&0\\
+0&0&0\\
+0&0&1
+\end{pmatrix}.$$
+</div>
+
+<p>若候选塌缩位置相对原点为 $x=(a,b,c)^\top$，忽略一次项后有</p>
+
+<div class="formula">
+$$x^\top A_i^{\text{QEM}}x=\frac{4}{3}c^2.$$
+</div>
+
+<p>这说明 $a,b$ 两个切向坐标完全不进入代价。比如 $x=(1,0,0)^\top$ 沿平面滑动 1 个单位，代价仍为 $0$；而 $x=(0,0,0.1)^\top$ 只离开平面 0.1 个单位，代价是 $\frac{4}{3}\cdot0.01\approx0.0133$。所以普通 QEM 在平坦区不是“算错”，而是它的数学目标本来只看到了法向误差。这个例子与 normal tensor 页里 $A_n$ 的秩 1 平坦场景完全一致 <a class="cite" href="#ref-normal-notes">[NQEM]</a>。</p>
+
+<h2 id="s4"><span class="num">4</span>Line Quadrics 为什么能补 QEM 的短板</h2>
+
+<h3>4.1 点到直线的距离平方</h3>
+
+<p>2025 line quadrics 论文的核心思想是：除了让点贴近原始切平面，还要让点不要在切平面内任意漂移 <a class="cite" href="#ref-lrz25">[LRZ25]</a>。程序采用的是“点到法向线”的距离项。给定原始顶点 $V_i$ 的位置 $x_i$ 和单位法向 $\hat{n}_i$，法向线为</p>
+
+<div class="formula">
+$$L_i(t)=x_i+t\hat{n}_i.$$
+</div>
+
+<p>点 $x$ 到该直线的平方距离是</p>
+
+<div class="formula">
+$$\operatorname{dist}^2(x,L_i)=\|(I-\hat{n}_i\hat{n}_i^\top)(x-x_i)\|^2.$$
+</div>
+
+<p>这是因为 $\hat{n}_i\hat{n}_i^\top$ 是投影到直线方向的矩阵，$I-\hat{n}_i\hat{n}_i^\top$ 是投影到垂直于直线的平面。也就是说，line quadric 惩罚的是 $x-x_i$ 中垂直于法向线的分量。</p>
+
+<h3>4.2 为什么它给平坦区域补了秩</h3>
+
+<p>平面 QEM 的局部二次项可近似看成</p>
+
+<div class="formula">
+$$A_i^{\text{QEM}}\approx \alpha\,\hat{n}\hat{n}^\top.$$
+</div>
+
+<p>它只在法向 $\hat{n}$ 上有明显特征值，在切向两个方向上特征值接近 0，即 $\sigma_1\gg\sigma_2\approx\sigma_3\approx0$。line quadric 的二次项为</p>
+
+<div class="formula">
+$$A_i^{\text{line}}=\beta(I-\hat{n}\hat{n}^\top).$$
+</div>
+
+<p>两者相加后：</p>
+
+<div class="formula">
+<span class="label">秩补全</span>
+$$A_i^{\text{total}}=A_i^{\text{QEM}}+A_i^{\text{line}}
+\approx \alpha\,\hat{n}\hat{n}^\top+\beta(I-\hat{n}\hat{n}^\top).$$
+</div>
+
+<p>对任意向量 $v$，分解为 $v=v_\parallel+v_\perp$，其中 $v_\parallel$ 平行 $\hat{n}$，$v_\perp$ 垂直 $\hat{n}$，则</p>
+
+<div class="formula">
+$$v^\top A_i^{\text{total}}v=\alpha\|v_\parallel\|^2+\beta\|v_\perp\|^2.$$
+</div>
+
+<p>只要 $\alpha>0$ 且 $\beta>0$，该式对任意非零 $v$ 都大于 0。因此 $A_i^{\text{total}}$ 在局部变成正定或更接近正定，求解更稳定，切向漂移也有代价。用 normal tensor 的语言说，line quadrics 把原来接近 0 的 $\sigma_2,\sigma_3$ 提升到可控正值，使平坦区不再是任意滑动的零代价空间。</p>
+
+<div class="callout success">
+<div class="callout-title">这就是当前程序采用 line quadrics 的数学依据</div>
+<p>普通 QEM 主要控制法向误差，line quadric 补充切向正则化。它不是简单调大权重，而是给原来缺约束的方向加入明确的二次惩罚。</p>
+</div>
+
+<h3>4.3 例子：同一个平坦区，加 line quadric 后发生什么</h3>
+
+<p>继续使用 3.3 的平坦区例子。普通 QEM 给出</p>
+
+<div class="formula">
+$$A_i^{\text{QEM}}=\operatorname{diag}(0,0,4/3).$$
+</div>
+
+<p>如果采用当前命令中常用的 <code>--line-weight 1e-3</code> 量级，把 $\beta=10^{-3}$ 看作局部线约束强度，则</p>
+
+<div class="formula">
+$$A_i^{\text{line}}=10^{-3}\operatorname{diag}(1,1,0),\qquad
+A_i^{\text{total}}=\operatorname{diag}(10^{-3},10^{-3},4/3).$$
+</div>
+
+<p>此时三个特征值为</p>
+
+<div class="formula">
+$$\sigma_1=\frac{4}{3},\qquad \sigma_2=\sigma_3=10^{-3},\qquad
+\kappa(A_i^{\text{total}})=\frac{\sigma_1}{\sigma_3}\approx1333.$$
+</div>
+
+<p>普通 QEM 的条件数相当于无穷大，因为切向特征值为 0；加入 line quadric 后，条件数虽然仍然不小，但已经是有限值。再看代价：沿切平面移动 $x=(1,0,0)^\top$ 时，普通 QEM 代价为 $0$，line 后代价为 $10^{-3}$。这个数不大，意味着程序仍允许平坦区简化；但它不再把任意远的切向漂移当成完全免费。也正因为 $\beta$ 较小，line quadrics 是“软约束”，不是把所有点钉死在原位。</p>
+
+<h2 id="s5"><span class="num">5</span>特征曲线保护为什么不能只靠硬锁定</h2>
+
+<p>2014 normal tensor 论文强调，工业模型里许多重要结构不是孤立边，而是连续 surface-feature lines，例如 Fandisk 上的硬边、Casting 上的孔边和 fillet 相关线 <a class="cite" href="#ref-th14">[TH14]</a>。当前程序的 <code>detectFeatureCurves()</code> 会把 boundary、dihedral、non-manifold 候选边追踪成 loop 或 curve，并尝试识别圆形 loop。</p>
+
+<p>在 normal tensor 记号下，顶点 $V_n$ 的局部法向分布由 $A_n$ 描述，特征值分解给出 $\sigma_1\ge\sigma_2\ge\sigma_3$ 与 $E_1,E_2,E_3$。参考页采用的显著性定义为</p>
+
+<div class="formula">
+$$S_{Su}=\sigma_1-\sigma_2,\qquad
+S_{Cr}=\sigma_2-\sigma_3,\qquad
+S_{Co}=\sigma_3.$$
+</div>
+
+<p>当 $S_{Cr}$ 占优时，顶点被解释为 crease，特征切向为 $T_n=E_3$。当前代码已经加入一版轻量 normal tensor 增强：<code>computeNormalTensorFeatures()</code> 从 one-ring 面法向外积累加 $A_n$，可选做邻接张量平滑，再输出 <code>surfaceSaliency</code>、<code>creaseSaliency</code>、<code>cornerSaliency</code> 和 <code>featureScore</code>。在 <code>detectFeatureCurves()</code> 中，normal tensor 只补充没有 boundary/dihedral/non-manifold 离散证据的软特征边，避免把干净圆孔硬环用额外 tensor 边搭桥成大组件；在 QEM 中，<code>--weight-mode normal-tensor</code> 会用同一 <code>featureScore</code> 抬高 line quadric 权重。</p>
+
+<p>可以用下面两条命令直接看到增强是否生效：第一条把二面角阈值设到 179°，使普通 dihedral 基本失效；如果输出里 <code>dihedral_edges=0</code> 且 <code>normal_tensor_edges</code> 大于 0，就说明 normal tensor 候选边正在补特征。第二条看 <code>line_weight_range</code>，若最大值大于最小值，说明 normal tensor 权重已经参与 QEM 简化。</p>
+
+<pre><code>.\build\bin\Debug\linequadrics.exe generate --type ridge --n 32 --out examples\output\normal_tensor_demo\ridge.stl
+.\build\bin\Debug\linequadrics.exe feature-report examples\output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\bin\Debug\linequadrics.exe simplify examples\output\normal_tensor_demo\ridge.stl examples\output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
+
+<h3>5.1 例子：60° 折痕为什么会被判成 crease</h3>
+
+<p>设 $V_n$ 在一条理想折痕上，两侧面法向关于 $z$ 轴对称，折痕方向为 $y$ 轴。若折痕角 $\varphi=60^\circ$，取</p>
+
+<div class="formula">
+$$N_1=\left(\sin30^\circ,0,\cos30^\circ\right),\qquad
+N_2=\left(-\sin30^\circ,0,\cos30^\circ\right).$$
+</div>
+
+<p>令两侧权重都为 1，则</p>
+
+<div class="formula">
+$$A_n=N_1N_1^\top+N_2N_2^\top
+=\begin{pmatrix}
+0.5&0&0\\
+0&0&0\\
+0&0&1.5
+\end{pmatrix}.$$
+</div>
+
+<p>因此 $\sigma_1=1.5,\sigma_2=0.5,\sigma_3=0$，显著性为</p>
+
+<div class="formula">
+$$S_{Su}=1.0,\qquad S_{Cr}=0.5,\qquad S_{Co}=0.$$
+</div>
+
+<p>如果采用 normal tensor 页中常见的 $\varepsilon=5$，分类时比较 $S_{Su}$ 与 $\varepsilon S_{Cr}$：$\varepsilon S_{Cr}=2.5>S_{Su}=1.0$，所以该点被判为 crease。对应的零特征值方向是 $E_3=(0,1,0)^\top$，这正是折痕方向，因此 $T_n=E_3$。这说明 normal tensor 的特征向量不是抽象数学装饰，它直接给出了“特征线应该沿哪里走”。</p>
+
+<div class="callout">
+<div class="callout-title">同一个公式如何解释阈值</div>
+<p>若 $\varphi=20^\circ$，则 $\sin^2(10^\circ)\approx0.030$，$S_{Cr}$ 会很小。用 $\varepsilon=5$ 时不容易判成 crease；用 $\varepsilon=100$ 时才会把这种细微折痕放大出来。这就是 $\varepsilon$ 的工程含义：它不是神秘参数，而是在控制多小的折痕角也要被当成特征。</p>
+</div>
+
+<p>对应到简化，程序做了三件事：</p>
+
+<ol>
+<li>给特征点增加 tangent-line quadric，鼓励新点留在特征曲线附近。</li>
+<li>对圆形 loop，塌缩后可把新点投影回拟合圆。</li>
+<li>在 hard feature 模式下，禁止跨 loop、跨 feature/non-feature、过度减少圆形 loop。</li>
+</ol>
+
+<div class="callout danger">
+<div class="callout-title">为什么后来又加拓扑合法性</div>
+<p>我们在 Casting 模型上看到，单纯 hard-lock 特征边会导致大量拒绝和局部退化压力。特征保留本身不是错，但它不能高于拓扑合法性。最低代价且特征友好的 collapse，仍然可能让两个本不该相邻的邻域粘在一起，形成非流形边。</p>
+</div>
+
+<p>这正是当前实现的策略：特征约束可以拒绝一部分 collapse，但最终是否执行，还必须经过 link-condition 和面积退化检查。</p>
+
+<h2 id="s6"><span class="num">6</span>Link condition：为什么它能避免坏拓扑</h2>
+
+<h3>6.1 定义</h3>
+
+<p>对顶点 $V_i$，定义它的 link 为所有与 $V_i$ 同在某个三角形中的邻接顶点集合：</p>
+
+<div class="formula">
+$$\operatorname{Lk}(V_i)=\{V_k\mid (V_i,V_k)\text{ 是某个活动三角形中的边}\}.$$
+</div>
+
+<p>对边 $(V_i,V_j)$，定义该边的 link 为共享这条边的三角形中的对顶点集合：</p>
+
+<div class="formula">
+$$\operatorname{Lk}(V_i,V_j)=\{V_k\mid (V_i,V_j,V_k)\text{ 是活动三角形}\}.$$
+</div>
+
+<p>当前程序采用的合法性条件是，这也是 edge-collapse 简化中常见的拓扑合法性门槛 <a class="cite" href="#ref-cgal">[CGAL]</a>：</p>
+
+<div class="formula">
+<span class="label">Link condition</span>
+$$\operatorname{Lk}(V_i)\cap\operatorname{Lk}(V_j)=\operatorname{Lk}(V_i,V_j).$$
+</div>
+
+<h3>6.2 证明思路</h3>
+
+<p>塌缩边 $(V_i,V_j)$ 等价于把 $V_j$ 的一圈邻域接到 $V_i$ 上。若存在某个顶点 $V_k$ 同时属于 $\operatorname{Lk}(V_i)$ 和 $\operatorname{Lk}(V_j)$，但 $V_k$ 不是边 $(V_i,V_j)$ 两侧三角形的对顶点，则塌缩前有两条不同路径：</p>
+
+<div class="formula">
+$$V_i\leftrightarrow V_k,\qquad V_j\leftrightarrow V_k.$$
+</div>
+
+<p>塌缩后 $V_i$ 和 $V_j$ 变成同一个点，这两条不同路径会合并到同一条边或同一片局部扇区上。结果是某条边被超过两个三角形共享，或者一个顶点的一环邻域不再同胚于圆盘/半圆盘。这就是非流形的来源。</p>
+
+<p>反过来，如果公共邻居恰好只来自边 $(V_i,V_j)$ 两侧三角形的对顶点，那么塌缩删除的正是这两个三角形，其他邻域不会被额外粘合。局部拓扑从两个相邻三角扇合并为一个三角扇，二流形性质保持。</p>
+
+<h3>6.3 例子：一个合法塌缩和一个非法塌缩</h3>
+
+<table>
+<tr><th>场景</th><th>link 集合</th><th>能否塌缩</th><th>直观解释</th></tr>
+<tr><td>合法 interior edge</td><td>$\operatorname{Lk}(V_i)\cap\operatorname{Lk}(V_j)=\{V_a,V_b\}$，且 $\operatorname{Lk}(V_i,V_j)=\{V_a,V_b\}$</td><td>可以</td><td>公共邻居只来自边两侧的两个三角形。塌缩删除这两个面后，没有额外邻域被粘合。</td></tr>
+<tr><td>非法额外公共邻居</td><td>$\operatorname{Lk}(V_i)\cap\operatorname{Lk}(V_j)=\{V_a,V_b,V_k\}$，但 $\operatorname{Lk}(V_i,V_j)=\{V_a,V_b\}$</td><td>拒绝</td><td>$V_k$ 同时邻接 $V_i,V_j$，却不是塌缩边两侧的对顶点。塌缩后两片原本分开的扇区会在 $V_k$ 附近被额外粘起来。</td></tr>
+</table>
+
+<p>这张表可以这样读：link condition 不是为了让代价更小，而是为了确保局部网格仍然像一个盘。当前程序宁可少塌缩一条低代价边，也不允许把闭合二流形简化成非流形。</p>
+
+<div class="compare-grid">
+<div class="compare-box bad">
+<div class="title">没有 link condition</div>
+<p>代价最低的边可能把两个远处但共享邻居的扇区粘在一起。输出看起来面数正确，但会出现 non-manifold edge 或意外 boundary。</p>
+</div>
+<div class="compare-box good">
+<div class="title">加入 link condition</div>
+<p>这种塌缩在执行前被拒绝。代价函数仍负责排序，但拓扑合法性拥有最终否决权。</p>
+</div>
+</div>
+
+<h3>6.4 程序中的实现</h3>
+
+<p>代码位置是 <code>collapseWouldPreserveLinkCondition()</code>。它先找边 $(keep,remove)$ 的 incident faces，得到 $\operatorname{Lk}(keep,remove)$；再用增量邻接表分别取 <code>keep</code> 和 <code>remove</code> 的 link，计算交集并比较。</p>
+
+<pre><code>if (Lk(keep) ∩ Lk(remove) != Lk(keep, remove)) {
+    reject collapse;
+}</code></pre>
+
+<p>这个检查放在 <code>collapseWouldBeValid()</code> 的第一步。也就是说，无论是 standard QEM、line quadrics，还是 feature-preserving 模式，都不能绕过它。</p>
+
+<h2 id="s7"><span class="num">7</span>增量邻接拓扑：为什么能提速百倍</h2>
+
+<h3>7.1 原来的瓶颈</h3>
+
+<p>加入 link condition 后，如果每次检查都扫描全体 faces，那么复杂度会非常差。假设有 $F$ 个面，需要执行 $K$ 次塌缩，原始做法近似是</p>
+
+<div class="formula">
+$$O(KF).$$
+</div>
+
+<p>100k 面模型塌缩到 50% 时，$K$ 约为 25k。每次都扫 100k faces，实际运行会被合法性检查和 neighbor refresh 拖垮。</p>
+
+<h3>7.2 例子：100k 面为什么会被全局扫描拖慢</h3>
+
+<p>以 Armadillo 100k 面、50% ratio 为例，粗略估算要执行 $K\approx25\,000$ 次塌缩。如果 link condition、邻接刷新、重复面检测每次都扫描 $F\approx100\,000$ 个面，那么仅一次“每步扫全局 faces”的检查量就是</p>
+
+<div class="formula">
+$$K\cdot F\approx25\,000\times100\,000=2.5\times10^9.$$
+</div>
+
+<p>这还没有计算优先队列更新和其他合法性判断。增量邻接的思路是：一个顶点的一环 incident faces 通常只有个位数到十几项，因此每次塌缩只需要改动 <code>remove</code> 和 <code>keep</code> 周围的小邻域。若平均局部面数按 $d\approx12$ 估算，局部访问量约为</p>
+
+<div class="formula">
+$$K\cdot d\approx25\,000\times12=3\times10^5.$$
+</div>
+
+<p>这不是严格复杂度证明，但足够解释为什么实测能从分钟级降到秒级。当前工程记录和大模型验证见 <a class="cite" href="#ref-arch">[ARCH]</a><a class="cite" href="#ref-large">[LV]</a>。</p>
+
+<h3>7.3 当前的 DynamicTopology</h3>
+
+<p>当前程序在 simplifier 内部维护一个动态拓扑缓存：</p>
+
+<pre><code>vertexFaces[v] = 当前还包含顶点 v 的活动 face id 集合
+facesByKey[sorted(a,b,c)] = 具有同一顶点集合的活动 face id 集合</code></pre>
+
+<p>它让以下操作从全局扫描变成局部查询：</p>
+
+<table>
+<tr><th>操作</th><th>旧做法</th><th>新做法</th></tr>
+<tr><td>判断两个顶点是否相邻</td><td>扫描所有 face</td><td>求两个 incident face 集合是否有交集</td></tr>
+<tr><td>计算 link</td><td>扫描所有 face 找包含该顶点的面</td><td>直接遍历 <code>vertexFaces[v]</code></td></tr>
+<tr><td>塌缩后更新面</td><td>扫描所有 face 替换 remove</td><td>只遍历 <code>vertexFaces[remove]</code></td></tr>
+<tr><td>删除重复面</td><td>全局重建 face key set</td><td>局部查 <code>facesByKey</code></td></tr>
+<tr><td>刷新候选边</td><td>扫描全体面找邻居</td><td>只遍历 <code>vertexFaces[keep]</code></td></tr>
+</table>
+
+<p>如果平均顶点度数为常数，局部邻域大小近似常数，那么每次塌缩的拓扑维护从 $O(F)$ 降到近似 $O(1)$ 或 $O(d)$，其中 $d$ 是局部 incident face 数。</p>
+
+<div class="callout success">
+<div class="callout-title">实测收益</div>
+<p>Armadillo，约 100k 面，line quadrics，50% ratio，Release 构建：</p>
+<table>
+<tr><th>版本</th><th>耗时</th><th>输出拓扑</th></tr>
+<tr><td>全局 face scan</td><td>约 264.20 秒</td><td>boundary=0, non-manifold=0</td></tr>
+<tr><td>增量邻接</td><td>约 2.26 秒</td><td>boundary=0, non-manifold=0</td></tr>
+</table>
+<p>输出面数、质量、误差指标保持一致，说明提速来自数据结构，而不是降低检查强度。</p>
+</div>
+
+<h2 id="s8"><span class="num">8</span>完整算法流程和代码映射</h2>
+
+<div class="diagram">simplifyMesh(input, options)
+  |
+  |-- detectFeatureCurves(input)                    [可选]
+  |
+  |-- computeInitialQuadrics()
+  |     |-- plane quadrics                          [Garland-Heckbert QEM]
+  |     |-- boundary quadrics                       [边界保护]
+  |     |-- normal-line quadrics                    [Liu et al. line quadrics]
+  |     |-- feature tangent-line quadrics            [特征曲线保护]
+  |
+  |-- build VertexState / FaceState
+  |
+  |-- DynamicTopology(faces)
+  |     |-- vertexFaces
+  |     |-- facesByKey
+  |
+  |-- rebuild priority queue from active edges
+  |
+  |-- while activeFaceCount > targetFaces:
+        |
+        |-- pop cheapest candidate
+        |-- stale/version/adjacency check
+        |-- solveOptimal(Q_keep + Q_remove)
+        |-- featureCollapseAllowed()
+        |-- projectFeaturePlacement()               [圆形特征可选]
+        |-- collapseWouldBeValid()
+        |     |-- link condition
+        |     |-- degenerate triangle area check
+        |     |-- duplicate face check
+        |
+        |-- update only remove incident faces
+        |-- update DynamicTopology locally
+        |-- push new keep-neighbor candidates
+  |
+  |-- compactResult()</div>
+
+<table>
+<tr><th>文件</th><th>责任</th></tr>
+<tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>QEM、line quadrics、优先队列、合法性、增量邻接、collapse 主循环</td></tr>
+<tr><td><code>src/features/FeatureDetection.cpp</code></td><td>边界/dihedral/non-manifold 特征边检测，feature loop 和圆形 loop 拟合</td></tr>
+<tr><td><code>src/core/MeshTopology.cpp</code></td><td>公共只读拓扑缓存，用于 metrics 和后续算法模块</td></tr>
+<tr><td><code>src/simplification/Metrics.cpp</code></td><td>边界边、非流形边、面积、三角形质量、采样距离等评估指标</td></tr>
+</table>
+
+<h2 id="s9"><span class="num">9</span>用 Casting 模型把原理说透</h2>
+
+<p>2014 normal tensor 论文中的 Casting 模型来自 AIM@SHAPE/LIRIS 风格测试集 <a class="cite" href="#ref-th14">[TH14]</a><a class="cite" href="#ref-liris">[LIRIS]</a>。我们下载了公开镜像并转换为 <code>casting_aimshape_2014.stl</code>，它约 10k 面，包含大量圆孔、硬边和 fillet-like 结构，非常适合测试“特征保护”和“拓扑合法性”的冲突。</p>
+
+<h3>9.1 只看几何代价会发生什么</h3>
+
+<p>普通 QEM 可以把面数降到目标，但圆形特征 loop 会大量减少。它追求的是点到局部平面的误差小，不知道某些边是工业特征线。</p>
+
+<h3>9.2 加 line quadrics 后有什么改善</h3>
+
+<p>line quadrics 后，平坦区域和规则采样更稳定。Casting 25% 简化时，普通 QEM 的 mean triangle quality 约为 0.549，而 line quadrics 约为 0.665 <a class="cite" href="#ref-large">[LV]</a>。也就是说，它不是只保外形，还改善了采样均匀性和三角形质量。</p>
+
+<h3>9.3 加 hard feature 后为什么又会过保守</h3>
+
+<p>hard feature 会强行保护很多 loop。Casting 上 feature loop 很多，硬保护会导致大量候选 collapse 被拒绝，最终可能达不到目标面数。这说明“特征保留”本身还需要更细的 policy，不能简单理解为所有特征边都永远不能动。</p>
+
+<h3>9.4 link condition 解决了哪类问题</h3>
+
+<p>在加入 link condition 前，部分 line/feature 模式可能在 Casting、Fandisk 这类模型上产生少量 boundary 或 non-manifold edge。加入 link condition 后，同样的模型输出不再新增坏拓扑。</p>
+
+<table>
+<tr><th>模型/模式</th><th>修改前问题</th><th>修改后结果</th></tr>
+<tr><td>Casting line 25%</td><td>出现少量 boundary/non-manifold</td><td>boundary=0, non-manifold=0</td></tr>
+<tr><td>Fandisk line 25%</td><td>出现少量 boundary/non-manifold</td><td>boundary=0, non-manifold=0</td></tr>
+<tr><td>Casting hard feature</td><td>特征保留强，但拓扑风险更高</td><td>拓扑合法，但仍然偏保守</td></tr>
+</table>
+
+<div class="callout">
+<div class="callout-title">这个例子说明的核心</div>
+<p>QEM/line quadrics 决定“哪条边代价低”，feature policy 决定“哪些特征要尽量保护”，link condition 决定“即使代价低也不能破坏拓扑”。三个层次不能互相替代。</p>
+</div>
+
+<h2 id="s10"><span class="num">10</span>几何案例与复现命令</h2>
+
+<p>本节说明如何在当前仓库里复现本文提到的验证结果。所有命令都假设当前目录是仓库根目录。</p>
+
+<h3>10.1 构建 Release CLI</h3>
+
+<p>建议用 Release 跑大模型，否则 Debug 下会明显慢很多。</p>
+
+<pre><code>cmake --build build\codex-industrial --config Release --parallel</code></pre>
+
+<p>如果还没有配置过该构建目录，可先运行：</p>
+
+<pre><code>cmake -S . -B build\codex-industrial
+cmake --build build\codex-industrial --config Release --parallel</code></pre>
+
+<h3>10.2 案例一：Fandisk，验证硬边特征保留</h3>
+
+<p>Fandisk 是 Tsuchie &amp; Higashi 2014 Fig. 9 使用的典型 CAD 模型 <a class="cite" href="#ref-th14">[TH14]</a>。它的特点是硬边清楚，适合观察标准 QEM 和 line/feature 模式对特征边的保留差异。</p>
+
+<h4>查看原始特征</h4>
+
+<pre><code>.\build\codex-industrial\bin\Release\linequadrics.exe feature-report `
+  tests\data\external\fandisk_2014.stl `
+  --feature-angle-deg 25 `
+  --circle-fit-threshold 0.04 `
+  --min-feature-loop-vertices 8 `
+  --csv examples\output\tsuchie2014\fandisk_feature_report.csv</code></pre>
+
+<p>预期输出要点：</p>
+
+<table>
+<tr><th>字段</th><th>典型结果</th><th>含义</th></tr>
+<tr><td><code>feature_edges</code></td><td>约 728</td><td>检测到的硬边/特征边数量</td></tr>
+<tr><td><code>boundary_edges</code></td><td>0</td><td>输入是闭合模型，没有开口边界</td></tr>
+<tr><td><code>non_manifold_edges</code></td><td>0</td><td>输入没有非流形边</td></tr>
+<tr><td><code>loops</code></td><td>1</td><td>硬边被追踪成一条主要特征链</td></tr>
+</table>
+
+<h4>普通 QEM 25% 简化</h4>
+
+<pre><code>.\build\codex-industrial\bin\Release\linequadrics.exe simplify `
+  tests\data\external\fandisk_2014.stl `
+  examples\output\tsuchie2014\fandisk_standard_025.stl `
+  --method standard --ratio 0.25 `
+  --samples 800 `
+  --metrics-csv examples\output\tsuchie2014\fandisk_standard_025_metrics.csv</code></pre>
+
+<h4>Line + hard feature 25% 简化</h4>
+
+<pre><code>.\build\codex-industrial\bin\Release\linequadrics.exe simplify `
+  tests\data\external\fandisk_2014.stl `
+  examples\output\tsuchie2014\fandisk_line_feature_025.stl `
+  --method line --ratio 0.25 `
+  --line-weight 1e-3 `
+  --weight-mode dihedral `
+  --feature-boost 0.08 `
+  --feature-angle-deg 25 `
+  --preserve-feature-curves `
+  --protect-all-feature-edges `
+  --feature-curve-weight 0.08 `
+  --min-feature-loop-vertices 32 `
+  --samples 800 `
+  --metrics-csv examples\output\tsuchie2014\fandisk_line_feature_025_metrics.csv</code></pre>
+
+<p>复现时重点看两个结果：</p>
+
+<table>
+<tr><th>指标</th><th>普通 QEM</th><th>Line + feature</th><th>说明</th></tr>
+<tr><td><code>mean_triangle_quality</code></td><td>约 0.659</td><td>约 0.759</td><td>line quadrics 改善三角形质量</td></tr>
+<tr><td><code>edge_length_cv</code></td><td>约 1.94</td><td>约 0.40</td><td>边长分布更均匀</td></tr>
+<tr><td><code>boundary_edges</code></td><td>0</td><td>0</td><td>没有生成开口</td></tr>
+<tr><td><code>non_manifold_edges</code></td><td>0</td><td>0</td><td>没有生成非流形边</td></tr>
+</table>
+
+<p>再对输出跑 <code>feature-report</code>，通常可以看到 line/feature 模式保留的特征边数量明显高于普通 QEM。</p>
+
+<h3>10.3 案例二：Casting，验证工业特征和拓扑合法性</h3>
+
+<p>Casting 是 Tsuchie &amp; Higashi 2014 Fig. 10 中的 AIM@SHAPE 风格模型 <a class="cite" href="#ref-th14">[TH14]</a><a class="cite" href="#ref-liris">[LIRIS]</a>。它有圆孔、硬边和复杂特征 loop，是当前程序里最能暴露问题的公开小型工业案例。</p>
+
+<h4>原始特征报告</h4>
+
+<pre><code>.\build\codex-industrial\bin\Release\linequadrics.exe feature-report `
+  tests\data\external\casting_aimshape_2014.stl `
+  --feature-angle-deg 25 `
+  --circle-fit-threshold 0.04 `
+  --min-feature-loop-vertices 8 `
+  --csv examples\output\tsuchie2014\casting_feature_report.csv</code></pre>
+
+<p>预期要点：</p>
+
+<table>
+<tr><th>字段</th><th>典型结果</th><th>说明</th></tr>
+<tr><td><code>faces</code></td><td>约 10224</td><td>1w 面级别 CAD 模型</td></tr>
+<tr><td><code>feature_edges</code></td><td>约 1076</td><td>大量工业特征边</td></tr>
+<tr><td><code>loops</code></td><td>约 59</td><td>特征被切成许多曲线/环</td></tr>
+<tr><td><code>circular_loops</code></td><td>约 18</td><td>孔和圆形结构被识别</td></tr>
+</table>
+
+<h4>Line quadrics 25% 简化，验证 link condition</h4>
+
+<pre><code>.\build\codex-industrial\bin\Release\linequadrics.exe simplify `
+  tests\data\external\casting_aimshape_2014.stl `
+  examples\output\tsuchie2014\casting_line_plain_025.stl `
+  --method line --ratio 0.25 `
+  --line-weight 1e-3 `
+  --weight-mode dihedral `
+  --feature-boost 0.08 `
+  --feature-angle-deg 25 `
+  --samples 800 `
+  --metrics-csv examples\output\tsuchie2014\casting_line_plain_025_metrics.csv</code></pre>
+
+<p>当前程序中，link condition 开启后，预期结果是：</p>
+
+<table>
+<tr><th>字段</th><th>预期</th><th>为什么重要</th></tr>
+<tr><td><code>boundary_edges</code></td><td>0</td><td>闭合输入没有被简化出洞</td></tr>
+<tr><td><code>non_manifold_edges</code></td><td>0</td><td>没有生成非流形边</td></tr>
+<tr><td><code>mean_triangle_quality</code></td><td>约 0.665</td><td>高于普通 QEM 的约 0.549</td></tr>
+<tr><td><code>rejected_collapses</code></td><td>少量</td><td>不合法塌缩被拒绝</td></tr>
+</table>
+
+<div class="callout success">
+<div class="callout-title">这个案例验证了什么</div>
+<p>Casting 说明 line quadrics 不只是理论上补秩，也能在工业特征模型上改善质量；link condition 则说明程序不会为了达到面数目标而牺牲拓扑合法性。两者作用不同，必须同时存在。</p>
+</div>
+
+<h4>Hard feature 模式的观察</h4>
+
+<pre><code>.\build\codex-industrial\bin\Release\linequadrics.exe simplify `
+  tests\data\external\casting_aimshape_2014.stl `
+  examples\output\tsuchie2014\casting_line_feature_025.stl `
+  --method line --ratio 0.25 `
+  --line-weight 1e-3 `
+  --weight-mode dihedral `
+  --feature-boost 0.08 `
+  --feature-angle-deg 25 `
+  --preserve-feature-curves `
+  --protect-all-feature-edges `
+  --feature-curve-weight 0.08 `
+  --min-feature-loop-vertices 32 `
+  --samples 800 `
+  --metrics-csv examples\output\tsuchie2014\casting_line_feature_025_metrics.csv</code></pre>
+
+<p>这个模式通常会保留更多 circular loops，但也会产生大量 <code>feature_rejected_collapses</code>，并可能停在高于目标的面数。这不是 bug，而是一个设计信号：当前 hard feature policy 太保守，下一步应该改成分级保护，而不是把所有特征边都同等硬锁定。</p>
+
+<h3>10.4 案例三：Armadillo 100k 面，验证增量邻接提速</h3>
+
+<p>Armadillo 来自公共大模型验证集，约 99976 个三角面 <a class="cite" href="#ref-common3d">[C3D]</a><a class="cite" href="#ref-large">[LV]</a>。它适合测试大模型性能。</p>
+
+<pre><code>Measure-Command {
+  .\build\codex-industrial\bin\Release\linequadrics.exe simplify `
+    tests\data\external\large\armadillo.stl `
+    examples\output\large_validation\armadillo_line_050_incremental.stl `
+    --method line --ratio 0.5 `
+    --line-weight 1e-3 `
+    --weight-mode dihedral `
+    --feature-boost 0.08 `
+    --feature-angle-deg 25 `
+    --samples 200 `
+    --metrics-csv examples\output\large_validation\armadillo_line_050_incremental_metrics.csv
+}</code></pre>
+
+<p>当前机器上的实测对比：</p>
+
+<table>
+<tr><th>版本</th><th>耗时</th><th>输出拓扑</th></tr>
+<tr><td>全局扫描 faces</td><td>约 264.20 秒</td><td>boundary=0, non-manifold=0</td></tr>
+<tr><td>增量邻接拓扑</td><td>约 2.26 秒</td><td>boundary=0, non-manifold=0</td></tr>
+</table>
+
+<p>也就是说，这一优化不是减少检查，而是把同样的检查从全局扫描改成局部邻接查询。</p>
+
+<h3>10.5 批量大模型验证</h3>
+
+<p>10 个 1w 面以上公开模型在 <code>tests/data/external/large/</code>。可以按照 <code>docs/design/large_model_validation.md</code> 中的命令批量跑 90% 和 50% ratio。关键看两个 CSV：</p>
+
+<ul>
+<li><code>examples/output/large_validation/large_line_090_topology_summary.csv</code></li>
+<li><code>examples/output/large_validation/medium_line_050_topology_summary.csv</code></li>
+</ul>
+
+<p>判断标准不是所有模型都必须 <code>boundary_edges=0</code>，因为有些公共模型本身就是开口网格。正确标准是：</p>
+
+<div class="formula">
+$$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
+\Delta N = N_\text{output}-N_\text{input}\le 0.$$
+</div>
+
+<p>其中 $B$ 是 boundary edge 数，$N$ 是 non-manifold edge 数。当前批量验证中，10 个大模型没有新增 boundary 或 non-manifold。</p>
+
+<h3>10.6 快速回归测试</h3>
+
+<p>如果只想验证程序没有被改坏，直接跑 CTest：</p>
+
+<pre><code>cmake -E chdir build\codex-industrial ctest -C Release --output-on-failure</code></pre>
+
+<p>当前结果为：</p>
+
+<pre><code>27/27 tests passed
+Total Test time ~= 1.4 sec</code></pre>
+
+<p>其中 <code>Public2014CastingModelKeepsClosedTopologyAfterLineSimplify</code> 是专门为 Casting 拓扑合法性加入的回归测试。</p>
+
+<h2 id="s11"><span class="num">11</span>参考文献和代码依据</h2>
+
+<h3>11.1 仓库内论文和说明文档</h3>
+
+<table>
+<tr><th>编号</th><th>文件/来源</th><th>本文使用方式</th></tr>
+<tr id="ref-gh97"><td><a class="cite" href="#ref-gh97">[GH97]</a></td><td><code>docs/papers/garland_heckbert_1997_surface_simplification_qem.pdf</code></td><td>标准 QEM 的平面二次误差、顶点 quadric 累加、边塌缩代价来源。</td></tr>
+<tr id="ref-lrz25"><td><a class="cite" href="#ref-lrz25">[LRZ25]</a></td><td><code>docs/papers/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code></td><td>Line quadrics 的点到法向线距离项，以及用切向约束补普通 QEM 秩亏的理论来源。</td></tr>
+<tr id="ref-th14"><td><a class="cite" href="#ref-th14">[TH14]</a></td><td><code>docs/papers/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</code></td><td>工业模型 surface-feature lines、normal tensor、折痕角 $\varphi$ 与灵敏度 $\varepsilon$ 的背景。</td></tr>
+<tr id="ref-qem-line-notes"><td><a class="cite" href="#ref-qem-line-notes">[QLQ]</a></td><td><code>docs/notes/qem-line-quadrics-notes.html</code></td><td>仓库内 QEM 和 line quadrics 推导笔记，用于对齐实现细节。</td></tr>
+<tr id="ref-normal-notes"><td><a class="cite" href="#ref-normal-notes">[NQEM]</a></td><td><code>docs/notes/normal-tensor-qem-notes.html</code></td><td>本文数学符号、$A_n$、$A_i^{\text{QEM}}$、$\sigma_1,\sigma_2,\sigma_3$、$T_n=E_3$ 的统一来源。</td></tr>
+<tr id="ref-arch"><td><a class="cite" href="#ref-arch">[ARCH]</a></td><td><code>docs/design/architecture.md</code></td><td>当前库向 mesh kernel 演进时的工程分层、公共拓扑结构和后续模块规划。</td></tr>
+<tr id="ref-large"><td><a class="cite" href="#ref-large">[LV]</a></td><td><code>docs/design/large_model_validation.md</code></td><td>Fandisk、Casting、10 个 1w+ 大模型验证命令、拓扑 delta 和性能结果。</td></tr>
+<tr id="ref-lit-simplification"><td><a class="cite" href="#ref-lit-simplification">[MLIT-SIM]</a></td><td><code>mesh-feature-literature</code> 本地文献综述；source-index 中 simplification 家族如 005、037、048、050、061、072</td><td>feature-preserving simplification 应作为约束优化处理，且要同时验证拓扑、质量、特征保留和误差。</td></tr>
+</table>
+
+<h3>11.2 外部工程参考</h3>
+
+<ul>
+<li id="ref-cgal"><a class="cite" href="#ref-cgal">[CGAL]</a> CGAL Surface Mesh Simplification documentation：说明 edge collapse 简化中 link condition、cost/placement/stop predicate 等工程组织方式。<br><code>https://doc.cgal.org/latest/Surface_mesh_simplification/index.html</code></li>
+<li id="ref-openmesh"><a class="cite" href="#ref-openmesh">[OpenMesh]</a> OpenMesh Decimation Framework documentation：说明 decimater 由 collapse module、binary legality module 和 priority queue 等组合而成。<br><code>https://www.graphics.rwth-aachen.de/media/openmesh_static/Documentations/OpenMesh-6.2-Documentation/a00004.html</code></li>
+<li id="ref-common3d"><a class="cite" href="#ref-common3d">[C3D]</a> common-3d-test-models：公共几何处理测试模型来源。<br><code>https://github.com/alecjacobson/common-3d-test-models</code></li>
+<li id="ref-liris"><a class="cite" href="#ref-liris">[LIRIS]</a> LIRIS Mesh Benchmark：Casting 等公开 benchmark 模型来源。<br><code>https://projet.liris.cnrs.fr/meshben/</code></li>
+</ul>
+
+<h3>11.3 当前代码映射</h3>
+
+<table>
+<tr><th>代码位置</th><th>对应原理</th></tr>
+<tr><td><code>computeInitialQuadrics()</code></td><td>平面 QEM、boundary quadrics、normal-line quadrics、feature tangent-line quadrics 的累积</td></tr>
+<tr><td><code>solveOptimal()</code></td><td>求解 $A_{ij}x=-b_{ij}$，病态时端点/中点回退</td></tr>
+<tr><td><code>collapseWouldPreserveLinkCondition()</code></td><td>link condition 拓扑合法性检查</td></tr>
+<tr><td><code>DynamicTopology</code></td><td>增量 incident-face 邻接和局部 duplicate face 查询</td></tr>
+<tr><td><code>detectFeatureCurves()</code></td><td>特征边、feature loop、圆形 loop 检测</td></tr>
+<tr><td><code>computeMeshStats()</code></td><td>输出拓扑和质量指标，包括 boundary/non-manifold</td></tr>
+</table>
+
+<h2 id="s12"><span class="num">12</span>当前收益、边界和下一步</h2>
+
+<h3>12.1 当前收益</h3>
+
+<ul>
+<li>标准 QEM 仍然保留，便于对比。</li>
+<li>Line quadrics 解决了平坦区域切向漂移和病态求解的一部分问题。</li>
+<li>Feature curve 机制让圆孔、硬边、连续线结构可以被显式识别和报告。</li>
+<li>Link condition 把拓扑合法性变成硬约束，避免闭合二流形简化出坏几何。</li>
+<li>DynamicTopology 把大模型运行时间从分钟级拉回秒级。</li>
+</ul>
+
+<h3>12.2 当前边界</h3>
+
+<ul>
+<li>当前 feature detection 主要依赖边界、dihedral 和简单 loop/circle fitting，还不是完整 normal tensor 实现。</li>
+<li>hard feature 模式仍然可能过保守，尤其是 Casting 这类密集工业特征模型。</li>
+<li>当前合法性检查已经覆盖 link condition 和面积退化，但还应继续加入 normal flip、最小角、局部自交检查。</li>
+<li>当前 DynamicTopology 是 simplifier 内部结构，后续应逐步和公共 <code>MeshTopology</code> / 半边结构统一。</li>
+</ul>
+
+<h3>12.3 下一步建议</h3>
+
+<ol>
+<li>把 legality policy 显式模块化：拓扑、翻面、三角形质量、自交分别作为可组合检查。</li>
+<li>把 feature hard-lock 改成分级策略：圆形 loop、长硬边、短噪声边使用不同保护强度。</li>
+<li>实现 normal tensor 或 normal voting 风格的特征评分，用于替代单一 dihedral threshold。</li>
+<li>在 10 个大模型验证集上固定 nightly/CI 风格的 topology delta 检查。</li>
+<li>把当前内部 DynamicTopology 演进成面向 repair、boolean、remesh 都可复用的 editable topology。</li>
+</ol>
+
+<div class="callout success">
+<div class="callout-title">最终结论</div>
+<p>当前程序的改进方向是有明确依据的：QEM 来自经典误差度量，line quadrics 补充切向约束，normal tensor/feature-line 文献提醒我们特征应作为曲线结构处理，CGAL/OpenMesh 风格的 legality-first 思路保证不生成坏拓扑，增量邻接则让这些严格检查在 10w 面模型上仍然可运行。</p>
+</div>
+
+</div>
+
+<div class="footer">
+当前网格简化程序原理说明 · 基于 docs 内论文笔记与当前 C++ 实现 · 2026-07-01
+</div>
+
+</body>
+</html>

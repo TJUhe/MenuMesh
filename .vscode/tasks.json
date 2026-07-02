@@ -1,0 +1,397 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "configure: mingw+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/mingw-ninja-release", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-release", "--target", "linequadrics", "--parallel", "2"],
+      "group": "build",
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
+      "label": "build: mingw+ninja release tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-release", "--target", "line_quadrics_qem_tests", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
+      "label": "build: mingw+ninja release all",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-release", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
+      "label": "configure: mingw+ninja release performance",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/mingw-ninja-release-performance", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=ON"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw+ninja release performance tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-release-performance", "--target", "line_quadrics_qem_performance_tests", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release performance"
+    },
+    {
+      "label": "configure: mingw+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/mingw-ninja-debug", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: mingw+ninja debug performance",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/mingw-ninja-debug-performance", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=ON"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug", "--target", "linequadrics", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
+      "label": "build: mingw+ninja debug tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug", "--target", "line_quadrics_qem_tests", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
+      "label": "build: mingw+ninja debug performance tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug-performance", "--target", "line_quadrics_qem_performance_tests", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug performance"
+    },
+    {
+      "label": "build: mingw+ninja debug all",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
+      "label": "test: mingw+ninja debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/mingw-ninja-debug", "ctest", "-LE", "performance", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja debug all"
+    },
+    {
+      "label": "test: mingw+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/mingw-ninja-release", "ctest", "-LE", "performance", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release all"
+    },
+    {
+      "label": "test: mingw+ninja debug performance",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/mingw-ninja-debug-performance", "ctest", "-L", "performance", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja debug performance tests"
+    },
+    {
+      "label": "test: mingw+ninja release performance",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/mingw-ninja-release-performance", "ctest", "-L", "performance", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release performance tests"
+    },
+    {
+      "label": "run: mingw+ninja debug performance gtest",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-debug-performance/bin/line_quadrics_qem_performance_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja debug performance tests"
+    },
+    {
+      "label": "run: mingw+ninja debug gtest",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja debug tests"
+    },
+    {
+      "label": "configure: mingw makefiles release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/mingw-makefiles-release", "-G", "MinGW Makefiles", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw makefiles release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-makefiles-release", "--target", "linequadrics", "--parallel", "1"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw makefiles release"
+    },
+    {
+      "label": "configure: mingw makefiles debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/mingw-makefiles-debug", "-G", "MinGW Makefiles", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: mingw makefiles debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-makefiles-debug", "--target", "linequadrics", "--parallel", "1"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw makefiles debug"
+    },
+    {
+      "label": "configure: msvc vs2022 release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/msvc-vs2022-release", "-G", "Visual Studio 17 2022", "-A", "x64", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc vs2022 release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/msvc-vs2022-release", "--target", "linequadrics", "--config", "Release", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 release"
+    },
+    {
+      "label": "configure: msvc vs2022 debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/msvc-vs2022-debug", "-G", "Visual Studio 17 2022", "-A", "x64", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: msvc vs2022 debug performance",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S", ".", "-B", "build/msvc-vs2022-debug-performance", "-G", "Visual Studio 17 2022", "-A", "x64", "-DLQ_BUILD_PERFORMANCE_TESTS=ON"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc vs2022 debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/msvc-vs2022-debug", "--target", "linequadrics", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug"
+    },
+    {
+      "label": "build: msvc vs2022 debug tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/msvc-vs2022-debug", "--target", "line_quadrics_qem_tests", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug"
+    },
+    {
+      "label": "build: msvc vs2022 debug performance tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/msvc-vs2022-debug-performance", "--target", "line_quadrics_qem_performance_tests", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug performance"
+    },
+    {
+      "label": "build: msvc vs2022 debug all",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/msvc-vs2022-debug", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug"
+    },
+    {
+      "label": "test: msvc vs2022 debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/msvc-vs2022-debug", "ctest", "-C", "Debug", "-LE", "performance", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: msvc vs2022 debug all"
+    },
+    {
+      "label": "test: msvc vs2022 debug performance",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/msvc-vs2022-debug-performance", "ctest", "-C", "Debug", "-L", "performance", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: msvc vs2022 debug performance tests"
+    },
+    {
+      "label": "configure: msvc+ninja release",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc+ninja release",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-release --target linequadrics --parallel 2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+ninja release"
+    },
+    {
+      "label": "configure: msvc+ninja debug",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -S . -B build/msvc-ninja-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build: msvc+ninja debug",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-debug --target linequadrics --parallel 2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+ninja debug"
+    },
+    {
+      "label": "run: quick demo data",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "500"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: quick demo data (mingw makefiles)",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-makefiles-release/bin/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "500"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw makefiles release"
+    },
+    {
+      "label": "run: quick demo data (msvc vs2022)",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/msvc-vs2022-release/bin/Release/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "500"],
+      "problemMatcher": [],
+      "dependsOn": "build: msvc vs2022 release"
+    },
+    {
+      "label": "run: full demo data",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "args": ["demo", "--samples", "1000"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: feature validation",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "args": ["validate-features", "--ratio", "0.20", "--n", "96", "--samples", "1000"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: external validation",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "args": ["validate-external", "--ratio", "0.25", "--samples", "800"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: large validation 100 stl",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\run_large_validation_100.ps1",
+        "-BuildDir",
+        "build/mingw-ninja-release",
+        "-OutputDir",
+        "examples/output/large_validation_100",
+        "-Samples",
+        "80"
+      ],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "open: large validation output",
+      "type": "shell",
+      "command": "explorer.exe",
+      "args": ["${workspaceFolder}\\examples\\output\\large_validation_100"],
+      "problemMatcher": []
+    },
+    {
+      "label": "open: large validation summary",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "start", "", "${workspaceFolder}\\examples\\output\\large_validation_100\\summary.csv"],
+      "problemMatcher": []
+    },
+    {
+      "label": "check: format",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug", "--target", "check-format", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
+      "label": "format",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug", "--target", "format", "--parallel", "2"],
+      "problemMatcher": [],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
+      "label": "build: docs-api",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-release", "--target", "docs-api", "--parallel", "2"],
+      "problemMatcher": [],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
+      "label": "install: mingw+ninja release",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--install", "build/mingw-ninja-release", "--prefix", "${workspaceFolder}\\install\\mingw-ninja-release"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release all"
+    }
+  ]
+}

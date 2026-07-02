@@ -1,0 +1,4 @@
+# Mixed fixtures for target budget, weight mode, and feature-protection diagnostics.
+external/nasa_antenna_azimuth_track.stl
+external/thingi10k/thingi10k_108336_projekt_muse_z_system.stl
+external/thingi10k/thingi10k_318045_moko_mini_pulley.stl

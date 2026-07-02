@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圆孔与凸台特征保持实践结果</title>
+<style>
+:root{
+  --bg:#f6f7f5;--paper:#fff;--ink:#1d2430;--muted:#647080;--line:#dfe4df;
+  --accent:#0b6b57;--blue:#285f9f;--green:#087443;--gold:#a35f00;--red:#b42318;
+  --soft:#eef7f4;--warn:#fff7e8;--code:#f0f3f1;
+}
+*{box-sizing:border-box}
+html,body{margin:0;overflow-x:hidden}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.75}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+.page{max-width:1120px;margin:0 auto;background:var(--paper);min-height:100vh}
+.hero{
+  min-height:390px;padding:42px 44px 30px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;
+  background:linear-gradient(rgba(8,31,36,.76),rgba(8,31,36,.74)),url("https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1600&q=78");
+  background-size:cover;background-position:center;
+}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#cce8df;margin-bottom:10px}
+h1{font-size:34px;line-height:1.22;margin:0 0 12px;letter-spacing:0}
+.subtitle{max-width:820px;font-size:17px;color:#e9f4f0;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.12);padding:4px 10px;border-radius:4px;font-size:12px}
+.hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:28px}
+.metric-card{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.13);border-radius:7px;padding:12px 13px}
+.metric-card strong{display:block;font-size:24px;line-height:1.2}.metric-card span{font-size:13px;color:#dfeee9}
+.content{padding:30px 44px 64px}
+h2{font-size:23px;margin:42px 0 14px;border-bottom:2px solid var(--accent);padding-bottom:8px}
+h3{font-size:18px;color:var(--accent);margin:26px 0 10px}
+p{margin:0 0 11px}
+ul{margin:8px 0 14px;padding-left:22px}li{margin:4px 0}
+code{background:var(--code);color:#145e52;border-radius:3px;padding:1px 5px;font-family:Consolas,"SFMono-Regular",Menlo,monospace;overflow-wrap:anywhere}
+pre{background:#1f252a;color:#e9eef2;border-radius:7px;padding:14px 16px;overflow:auto;contain:paint;font-size:13px;line-height:1.6}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th{background:#edf5f2;text-align:left;border-bottom:2px solid var(--accent);padding:9px 10px}
+td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top}
+tr:nth-child(even) td{background:#fafafa}
+.callout{border-left:4px solid var(--accent);background:var(--soft);border-radius:7px;padding:14px 16px;margin:14px 0}
+.callout-title{font-weight:700;color:var(--accent);font-size:14px;margin-bottom:5px}
+.warn{background:var(--warn);border-color:var(--gold)}.warn .callout-title{color:var(--gold)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.box{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:#fff}
+.box h3{margin-top:0}
+.bar-row{display:grid;grid-template-columns:120px 1fr 70px;gap:10px;align-items:center;margin:9px 0}
+.bar-bg{height:14px;background:#edf0ee;border-radius:999px;overflow:hidden}
+.bar{height:100%;background:var(--accent);border-radius:999px}
+.bar.standard{background:#9aa4ad}.bar.line{background:#78909c}.bar.curve{background:#0b6b57}
+.small{color:var(--muted);font-size:13px}
+.status-good{color:var(--green);font-weight:700}.status-warn{color:var(--gold);font-weight:700}.status-bad{color:var(--red);font-weight:700}
+.files{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+.file{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:#fbfcfb;font-size:13px}
+.footer{border-top:1px solid var(--line);padding:18px 44px;color:var(--muted);font-size:13px;background:#fafafa}
+@media(max-width:820px){
+  .hero{padding:32px 20px 24px}.content{padding:24px 20px 48px}h1{font-size:28px}
+  .hero-grid,.grid-2,.files{grid-template-columns:1fr}
+  .bar-row{grid-template-columns:1fr}.bar-bg{width:100%}
+  table{display:block;overflow-x:auto;white-space:nowrap}
+}
+</style>
+<link rel="stylesheet" href="eye-care.css">
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <div>
+      <div class="eyebrow">Practice Results / Current Program</div>
+      <h1>圆孔、凸台与法兰特征保持实践结果</h1>
+      <p class="subtitle">基于当前程序生成的 STL/CSV 结果，展示传统 QEM、普通 line QEM 与曲线特征约束版本在圆孔、轴肩、槽轮、凸台法兰上的差异。</p>
+      <div class="chips">
+        <span class="chip">flange_curve</span>
+        <span class="chip">pipe_coupling</span>
+        <span class="chip">pulley</span>
+        <span class="chip">feature-compare CSV</span>
+      </div>
+    </div>
+    <div class="hero-grid">
+      <div class="metric-card"><strong>18</strong><span>凸台法兰输入圆形环</span></div>
+      <div class="metric-card"><strong>4 → 6 → 10</strong><span>传统 QEM、line、curve 的凸台法兰匹配数</span></div>
+      <div class="metric-card"><strong>229</strong><span>凸台法兰圆环投影 placement</span></div>
+      <div class="metric-card"><strong>~1e-16</strong><span>曲线约束后匹配圆环径向误差</span></div>
+    </div>
+  </header>
+
+  <main class="content">
+    <section>
+      <h2>1. 实验怎么跑的</h2>
+      <p>这些结果来自当前仓库已经生成的验证输出，目录为 <code>examples/output/feature_curve_validation/</code>。核心对照是：</p>
+      <pre><code>linequadrics validate-features --ratio 0.20 --n 96 --samples 1000</code></pre>
+      <p>每个案例现在整理为三套简化结果：</p>
+      <ul>
+        <li><strong>standard</strong>：传统 QEM，不启用 line quadrics，也没有曲线特征保护。</li>
+        <li><strong>line</strong>：普通 line quadrics + 二面角权重增强。</li>
+        <li><strong>curve</strong>：在 line quadrics 基础上启用 <code>--preserve-feature-curves</code>，给圆形/曲线 feature loop 加 tangent-line quadric、collapse 合法性约束和圆投影 placement。</li>
+      </ul>
+      <div class="callout">
+        <div class="callout-title">读表方式</div>
+        <p><code>matched / missing</code> 表示输入中检测到的圆形环在简化后是否还能重新匹配。<code>radial_rms</code> 和 <code>radius_error</code> 越小，说明圆孔或圆环的半径漂移越小。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 总览结果</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>案例</th>
+            <th>输入圆环</th>
+            <th>standard 匹配/缺失</th>
+            <th>line 匹配/缺失</th>
+            <th>curve 匹配/缺失</th>
+            <th>主要结论</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>pipe_coupling</td>
+            <td>8</td>
+            <td>8 / 0</td>
+            <td>8 / 0</td>
+            <td><span class="status-good">8 / 0</span></td>
+            <td>三者都不丢环；curve 把半径漂移从约 3.0e-3 压到数值噪声级。</td>
+          </tr>
+          <tr>
+            <td>pulley</td>
+            <td>7</td>
+            <td>5 / 2</td>
+            <td>5 / 2</td>
+            <td><span class="status-good">7 / 0</span></td>
+            <td>traditional QEM 和 line 都丢 2 个小环；curve 保住全部 bore/groove 圆环。</td>
+          </tr>
+          <tr>
+            <td>flange_curve</td>
+            <td>18</td>
+            <td>4 / 14</td>
+            <td>6 / 12</td>
+            <td><span class="status-warn">10 / 8</span></td>
+            <td>凸台法兰最难：standard 只保住 4 个主环，line 增至 6 个，curve 增至 10 个。</td>
+          </tr>
+          <tr>
+            <td>stepped_shaft</td>
+            <td>10</td>
+            <td>8 / 2</td>
+            <td>8 / 2</td>
+            <td><span class="status-good">10 / 0</span></td>
+            <td>standard 和 line 都缺 2 个端部/轴肩环；curve 全部匹配。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3. 凸台法兰案例：最接近“凸台圆孔”的实践结果</h2>
+      <p><code>flange_curve</code> 是当前程序里最接近“凸台 + 中心孔 + 螺栓孔阵列”的案例。输入检测到 30 个 feature loop，其中 18 个被判定为圆形环。</p>
+      <div class="grid-2">
+        <div class="box">
+          <h3>传统 QEM</h3>
+          <div class="bar-row"><span>匹配圆环</span><div class="bar-bg"><div class="bar standard" style="width:22.2%"></div></div><strong>4/18</strong></div>
+          <div class="bar-row"><span>缺失圆环</span><div class="bar-bg"><div class="bar standard" style="width:77.8%"></div></div><strong>14</strong></div>
+          <p class="small">主要只保住部分主圆环；小螺栓孔环和部分次级圆环缺失。该结果展示了传统 QEM 对圆孔语义没有显式保护。</p>
+        </div>
+        <div class="box">
+          <h3>普通 line QEM</h3>
+          <div class="bar-row"><span>匹配圆环</span><div class="bar-bg"><div class="bar line" style="width:33.3%"></div></div><strong>6/18</strong></div>
+          <div class="bar-row"><span>缺失圆环</span><div class="bar-bg"><div class="bar line" style="width:66.7%"></div></div><strong>12</strong></div>
+          <p class="small">平均径向 RMS：2.85e-4；最大半径误差：4.81e-4。主要保住中心孔、大外环、凸台环，小螺栓孔环全部缺失。</p>
+        </div>
+        <div class="box">
+          <h3>曲线特征约束</h3>
+          <div class="bar-row"><span>匹配圆环</span><div class="bar-bg"><div class="bar curve" style="width:55.6%"></div></div><strong>10/18</strong></div>
+          <div class="bar-row"><span>缺失圆环</span><div class="bar-bg"><div class="bar curve" style="width:44.4%"></div></div><strong>8</strong></div>
+          <p class="small">平均径向 RMS：2.0e-16；最大半径误差：2.22e-16。额外保住 4 个小螺栓孔相关圆环，并对匹配环执行 229 次圆投影 placement。</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>指标</th>
+            <th>standard</th>
+            <th>line</th>
+            <th>curve</th>
+            <th>解释</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>faces</td><td>1113</td><td>1114</td><td>1113</td><td>面数预算基本一致。</td></tr>
+          <tr><td>matched / missing</td><td>4 / 14</td><td>6 / 12</td><td>10 / 8</td><td>从传统 QEM 到 line 再到 curve，圆环保留数逐级提升。</td></tr>
+          <tr><td>mean_orig_to_simp</td><td>2.22e-16</td><td>3.41e-4</td><td>3.26e-4</td><td>standard 在该生成模型上局部平面误差极低，但拓扑/特征语义更差。</td></tr>
+          <tr><td>max_orig_to_simp</td><td>3.15e-15</td><td>3.22e-2</td><td>3.28e-2</td><td>距离指标不能单独说明圆孔是否保住。</td></tr>
+          <tr><td>mean_triangle_quality</td><td>0.221</td><td>0.620</td><td>0.546</td><td>line 显著改善采样质量；curve 为保特征牺牲一部分质量。</td></tr>
+          <tr><td>feature_rejected_collapses</td><td>0</td><td>0</td><td>293</td><td>curve 版本确实拦截了大量破坏 feature loop 的 collapse。</td></tr>
+          <tr><td>projected_feature_placements</td><td>0</td><td>0</td><td>229</td><td>新顶点被投影回拟合圆，降低半径/平面漂移。</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <div class="callout-title">这不是完胜，而是工程取舍</div>
+        <p>凸台法兰的结果说明当前曲线约束对“可识别的圆环”非常有效，但检测器还会被 jagged hole boundary 和多环连通分量干扰。保住更多圆孔的同时，三角形质量和 edge length CV 会变差。这正好指向下一步：更强的 multi-loop tracing 和更温和的质量/特征联合权重。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 其他圆形工业案例</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>案例</th>
+            <th>standard 平均 radial RMS</th>
+            <th>line 平均 radial RMS</th>
+            <th>curve 平均 radial RMS</th>
+            <th>curve 投影次数</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>pipe_coupling</td>
+            <td>2.99e-3</td>
+            <td>2.73e-3</td>
+            <td><span class="status-good">4.73e-17</span></td>
+            <td>615</td>
+            <td>所有圆环都匹配；curve 主要改善圆半径漂移。</td>
+          </tr>
+          <tr>
+            <td>pulley</td>
+            <td>2.90e-3</td>
+            <td>2.56e-3</td>
+            <td><span class="status-good">4.36e-17</span></td>
+            <td>538</td>
+            <td>匹配数从 5/7 提升到 7/7。</td>
+          </tr>
+          <tr>
+            <td>stepped_shaft</td>
+            <td>1.36e-3</td>
+            <td>2.02e-3</td>
+            <td><span class="status-good">3.43e-17</span></td>
+            <td>770</td>
+            <td>轴肩圆环从 8/10 提升到 10/10。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>5. 对 CWF 页面的补充意义</h2>
+      <p>这些实践结果可以作为 CWF 理论页旁边的“当前程序证据页”。它们说明：</p>
+      <ul>
+        <li>当前程序已经能对圆孔、凸台、轴肩、槽轮这类 CAD 式圆形特征做可量化验证。</li>
+        <li>传统 QEM 的整体距离误差可能很好看，但圆孔/凸台这种语义特征仍可能被破坏。</li>
+        <li>普通 line quadrics 改善采样和部分几何误差，但仍不保证圆孔环不被 collapse 破坏。</li>
+        <li>曲线特征约束通过 tangent-line quadric、collapse legality 和 projected placement，把“圆孔保持”变成可测指标。</li>
+        <li>这与 CWF 的精神相通：不是只看整体误差，而是把特征对齐作为单独目标放进简化过程。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. 文件入口</h2>
+      <div class="files">
+        <div class="file"><strong>凸台法兰 standard STL</strong><br><a href="../examples/output/feature_curve_validation/flange_curve_standard.stl">flange_curve_standard.stl</a></div>
+        <div class="file"><strong>凸台法兰 line STL</strong><br><a href="../examples/output/feature_curve_validation/flange_curve_line.stl">flange_curve_line.stl</a></div>
+        <div class="file"><strong>凸台法兰 curve STL</strong><br><a href="../examples/output/feature_curve_validation/flange_curve_curve.stl">flange_curve_curve.stl</a></div>
+        <div class="file"><strong>standard 对比 CSV</strong><br><a href="../examples/output/feature_curve_validation/flange_curve_standard_feature_compare.csv">flange_curve_standard_feature_compare.csv</a></div>
+        <div class="file"><strong>line 对比 CSV</strong><br><a href="../examples/output/feature_curve_validation/flange_curve_line_feature_compare.csv">flange_curve_line_feature_compare.csv</a></div>
+        <div class="file"><strong>curve 对比 CSV</strong><br><a href="../examples/output/feature_curve_validation/flange_curve_curve_feature_compare.csv">flange_curve_curve_feature_compare.csv</a></div>
+      </div>
+      <p class="small">注：STL 文件可用 MeshLab、CAD Assistant 或系统 STL 查看器打开；CSV 可直接检查每个 loop 的 radial/plane/radius/center 误差。</p>
+    </section>
+  </main>
+  <footer class="footer">圆孔与凸台特征保持实践结果 · line-quadrics-qem · 2026-07-01</footer>
+</div>
+</body>
+</html>

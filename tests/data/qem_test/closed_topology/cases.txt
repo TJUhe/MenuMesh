@@ -1,0 +1,5 @@
+# Closed industrial/CAD-like fixtures where simplification should not open boundaries.
+external/casting_aimshape_2014.stl
+external/nasa_antenna_azimuth_track.stl
+external/nasa_cubesat_middle.stl
+external/nasa_mars2020_wheel.stl

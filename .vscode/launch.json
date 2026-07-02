@@ -1,0 +1,239 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug CLI (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "200"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug"
+    },
+    {
+      "name": "Debug CLI (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2022-debug/bin/Debug/linequadrics.exe",
+      "args": ["demo", "--quick", "--samples", "200"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc vs2022 debug"
+    },
+    {
+      "name": "Debug Unit Tests All (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug tests"
+    },
+    {
+      "name": "Debug Unit Tests Filter (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=${input:gtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug tests"
+    },
+    {
+      "name": "Debug Parameter Tests (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=LineQuadricsQemParameters.*",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug tests"
+    },
+    {
+      "name": "Debug Cylinder Feature Tests (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=LineQuadricsQem.ReportsFeatureLoopsOnCylinderCreases:LineQuadricsQem.MeasuresCircularFeatureLoopAgainstDetectedCircle",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug tests"
+    },
+    {
+      "name": "Debug Dataset Tests Filter (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug-performance/bin/line_quadrics_qem_performance_tests.exe",
+      "args": [
+        "--gtest_filter=${input:performanceGtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug performance tests"
+    },
+    {
+      "name": "Debug Dataset Circular Holes (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug-performance/bin/line_quadrics_qem_performance_tests.exe",
+      "args": [
+        "--gtest_filter=LineQuadricsQemDataset.CircularHoleCasesHaveAuditableFeaturePreservation",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug performance tests"
+    },
+    {
+      "name": "Debug Dataset All STL (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug-performance/bin/line_quadrics_qem_performance_tests.exe",
+      "args": [
+        "--gtest_filter=LineQuadricsQemDataset.AllQemTestStlInputsSimplifyAtSmokeBudget",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug performance tests"
+    },
+    {
+      "name": "Run Unit Tests All (MinGW)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug tests"
+    },
+    {
+      "name": "Debug Unit Tests All (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2022-debug/bin/Debug/line_quadrics_qem_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc vs2022 debug tests"
+    },
+    {
+      "name": "Debug Unit Tests Filter (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2022-debug/bin/Debug/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=${input:gtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc vs2022 debug tests"
+    },
+    {
+      "name": "Debug Parameter Tests (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2022-debug/bin/Debug/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=LineQuadricsQemParameters.*",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc vs2022 debug tests"
+    },
+    {
+      "name": "Debug Dataset Tests Filter (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2022-debug-performance/bin/Debug/line_quadrics_qem_performance_tests.exe",
+      "args": [
+        "--gtest_filter=${input:performanceGtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc vs2022 debug performance tests"
+    },
+    {
+      "name": "Feature Report Current Pipe Coupling",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
+      "args": [
+        "feature-report",
+        "examples/input/pipe_coupling.stl",
+        "--feature-angle-deg",
+        "25",
+        "--circle-fit-threshold",
+        "0.04",
+        "--min-feature-loop-vertices",
+        "8"
+      ],
+      "cwd": "${workspaceFolder}",
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "gtestFilter",
+      "type": "promptString",
+      "description": "GoogleTest filter",
+      "default": "LineQuadricsQemParameters.*"
+    },
+    {
+      "id": "performanceGtestFilter",
+      "type": "promptString",
+      "description": "Dataset GoogleTest filter",
+      "default": "LineQuadricsQemDataset.*"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+# Paths are relative to tests/data. Globstar patterns are expanded recursively.
+external/**/*.stl

@@ -1,6 +1,6 @@
 # Paper PDF Index
 
-This directory stores open-access or publicly available PDFs that support the notes in `docs/feature_curve_constraints.md`.
+This directory stores open-access or publicly available PDFs that support the notes in `docs/design/feature_curve_constraints.md`.
 
 I did not use Sci-Hub or other copyright-bypass sources. When a paper was not available from an author page, institution page, arXiv, conference open page, or other public source, it is listed under "not included" instead of being mirrored here.
 

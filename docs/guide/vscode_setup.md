@@ -1,0 +1,225 @@
+# VSCode Build Setup
+
+This project is set up around VSCode tasks, explicit CMake command lines, and
+CMake Tools. The old root PowerShell scripts were removed; the common workflows
+are available as VSCode tasks and native `linequadrics.exe` commands.
+
+This repository is now treated as a C++ geometry kernel. Browser preview tasks
+were removed; generated STL files should be opened with an external STL/CAD
+viewer, while CSV files provide the measurable validation record.
+
+## Recommended VSCode Extensions
+
+Install the extensions listed in `.vscode/extensions.json`:
+
+- C/C++ (`ms-vscode.cpptools`)
+- CMake Tools (`ms-vscode.cmake-tools`)
+- Vim (`vscodevim.vim`), optional editor keybindings
+
+For VSCode 1.70.2 or offline machines, this repository also carries compatible
+VSIX packages under `thirdParty/vscode-extensions/`:
+
+- CMake Tools (`ms-vscode.cmake-tools` 1.19.52, `engines.vscode: ^1.67.0`)
+- Vim (`vscodevim.vim` 1.24.3, `engines.vscode: ^1.67.0`)
+
+The old clangd VSIX is still kept in `thirdParty/vscode-extensions/` as a
+legacy optional package, but the workspace settings now use Microsoft's C/C++
+extension (`ms-vscode.cpptools`) instead of clangd.
+
+Install them from the repository root:
+
+```powershell
+code --install-extension thirdParty\vscode-extensions\ms-vscode.cmake-tools-1.19.52.vsix
+code --install-extension thirdParty\vscode-extensions\vscodevim.vim-1.24.3.vsix
+```
+
+Microsoft's C/C++ extension reads the CMake Tools configuration provider and
+the fallback paths in `.vscode/settings.json`. If Eigen diagnostics appear
+before CMake has configured the project, configure once so FetchContent creates
+`build/_deps/eigen-src`, then run `C/C++: Reset IntelliSense Database` from the
+VSCode command palette.
+
+The primary editor configuration is MinGW-first:
+
+```text
+Compiler: g++ from PATH
+Build directory: build/mingw-ninja-release
+Compile database: build/mingw-ninja-release/compile_commands.json
+```
+
+The repository settings intentionally avoid machine-specific absolute MinGW
+paths. Put your MinGW `bin` directory on `PATH` before configuring. If
+diagnostics say `Eigen/Dense` or standard headers are missing, check that
+`where g++` resolves to your intended MinGW compiler, then regenerate
+`compile_commands.json` and reset the C/C++ IntelliSense database.
+
+For a one-session PowerShell setup, run this before CMake if MinGW is not already
+on `PATH`:
+
+```powershell
+$env:PATH = "D:\path\to\mingw64\bin;$env:PATH"
+```
+
+The important rule is that CMake, tasks, and C/C++ IntelliSense must all point
+at the same MinGW toolchain and the same `compile_commands.json`.
+
+If the C/C++ extension reports missing headers after a fresh checkout, configure
+once:
+
+```powershell
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+Then run `C/C++: Reset IntelliSense Database` from the VSCode command palette.
+Do not point IntelliSense at an MSVC build directory while using the MinGW
+compiler in VSCode tasks; the headers and predefined macros will not match.
+
+## CMake 3.18.6 Workflow
+
+The project supports CMake 3.18.6 and does not require `CMakePresets.json`.
+VSCode tasks call `cmake -S ... -B ...` directly so the same commands work in an
+ordinary terminal.
+
+Available configure/build layouts:
+
+| Build directory | Generator | Compiler | Notes |
+| --- | --- | --- | --- |
+| `build/mingw-ninja-release` / `debug` | Ninja | MinGW `g++` | Recommended on modern machines when Ninja is installed. |
+| `build/mingw-makefiles-release` / `debug` | MinGW Makefiles | MinGW `g++` | Best fallback for Windows 7; no Ninja required. |
+| `build/msvc-vs2022-release` / `debug` | Visual Studio 17 2022 | MSVC | Use on machines with Visual Studio Build Tools. |
+| `build/msvc-ninja-release` / `debug` | Ninja | MSVC `cl` | Use from a VS Developer Command Prompt or a VSCode terminal where `cl.exe` is on `PATH`. |
+
+For Windows 7, prefer:
+
+```text
+build/mingw-makefiles-release
+```
+
+or, if Ninja is available:
+
+```text
+build/mingw-ninja-release
+```
+
+Use CMake 3.18.6 or newer. Do not use CMake 4.x as the Win7 baseline.
+MinGW-w64 `GCC 10.5.0 x86_64 POSIX SEH MSVCRT` is the recommended
+compiler family for the old-machine path.
+
+`msvc-ninja-*` also needs the Visual Studio resource/link tools (`rc.exe`,
+`mt.exe`, Windows SDK libraries) on `PATH`. If configure fails with missing
+`rc` or `mt`, start VSCode from "x64 Native Tools Command Prompt for VS 2022" or
+use `msvc-vs2022-*` instead.
+
+## VSCode Tasks
+
+Open `Terminal > Run Task...` and choose:
+
+- `build: mingw+ninja release`
+- `build: mingw makefiles release`
+- `build: msvc vs2022 release`
+- `build: msvc+ninja release`
+- `run: quick demo data`
+- `run: quick demo data (mingw makefiles)`
+- `run: quick demo data (msvc vs2022)`
+- `run: full demo data`
+- `run: feature validation`
+- `run: external validation`
+- `test: mingw+ninja release performance`
+- `run: mingw+ninja debug performance gtest`
+- `run: large validation 100 stl`
+- `open: large validation output`
+- `open: large validation summary`
+
+On Windows 7 / 4GB RAM, run the C++ command-line program only and inspect STL
+files with a lightweight viewer.
+
+## Command-Line Equivalents
+
+MinGW + Ninja:
+
+```powershell
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-ninja-release --target linequadrics --parallel 2
+```
+
+MinGW Makefiles, safest on Windows 7:
+
+```powershell
+cmake -S . -B build/mingw-makefiles-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/mingw-makefiles-release --target linequadrics --parallel 1
+```
+
+MSVC Visual Studio generator:
+
+```powershell
+cmake -S . -B build/msvc-vs2022-release -G "Visual Studio 17 2022" -A x64
+cmake --build build/msvc-vs2022-release --target linequadrics --config Release --parallel 2
+```
+
+MSVC + Ninja, from a VS Developer Command Prompt:
+
+```powershell
+cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/msvc-ninja-release --target linequadrics --parallel 2
+```
+
+## Native Workflow Commands
+
+Generate quick demo data:
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe demo --quick --samples 500
+```
+
+Generate the full demo set:
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe demo --samples 1000
+```
+
+Summarize metrics manually:
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe summarize-metrics examples\output examples\output\demo_summary.csv
+```
+
+Run generated industrial feature validation:
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
+```
+
+Run external model validation after placing OBJ files under
+`examples/external/common_3d_test_models/`:
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
+```
+
+Expected external file names:
+
+```text
+fandisk.obj
+rocker-arm.obj or rocker_arm.obj
+beetle.obj
+cow.obj
+suzanne.obj
+```
+
+Run the committed 100-file binary STL validation batch from VSCode:
+
+```text
+Terminal > Run Task... > run: large validation 100 stl
+```
+
+The task writes generated STL files and metrics CSV files to
+`examples/output/large_validation_100/`. Open `summary.csv` first, then open any
+`*_line_090.stl` in MeshLab, CAD Assistant, Windows 3D Builder, or another STL
+viewer. The output directory is ignored by Git, so repeated validation runs do
+not create tracked result files.
+
+To step through the performance code, open the Run and Debug panel and launch
+`Debug Performance Tests (MinGW GDB)` or `Debug Performance Tests (MSVC)`. Both
+launch configurations run `line_quadrics_qem_performance_tests.exe` with a
+GoogleTest filter defaulting to `LineQuadricsQemPerformance.*`, so breakpoints in
+`tests/performance_tests.cpp` are hit directly.

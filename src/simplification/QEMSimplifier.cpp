@@ -150,6 +150,10 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
   requireFiniteNonNegative(options.featureCurveWeight, "featureCurveWeight");
   requireFiniteNonNegative(options.circleFitRelativeThreshold,
                            "circleFitRelativeThreshold");
+  requireFiniteNonNegative(options.ellipseFitRelativeThreshold,
+                           "ellipseFitRelativeThreshold");
+  requireFiniteNonNegative(options.nearCircleAxisRatioTolerance,
+                           "nearCircleAxisRatioTolerance");
   requireFiniteNonNegative(options.normalTensorFeatureThreshold,
                            "normalTensorFeatureThreshold");
   if (!std::isfinite(options.featureAngleDeg) || options.featureAngleDeg < 0.0 ||
@@ -933,6 +937,8 @@ private:
     FeatureOptions featureOptions;
     featureOptions.featureAngleDeg = options_.featureAngleDeg;
     featureOptions.circleFitRelativeThreshold = options_.circleFitRelativeThreshold;
+    featureOptions.ellipseFitRelativeThreshold = options_.ellipseFitRelativeThreshold;
+    featureOptions.nearCircleAxisRatioTolerance = options_.nearCircleAxisRatioTolerance;
     featureOptions.minFeatureLoopVertices =
         std::max(5, options_.minFeatureLoopVertices);
     featureOptions.useNormalTensorFeatures = options_.useNormalTensorFeatures;

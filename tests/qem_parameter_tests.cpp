@@ -207,3 +207,26 @@ TEST(LineQuadricsQemParameters, FeatureProtectionChangesCircularHoleDiagnostics)
       lq::detectFeatureCurves(lowThreshold.mesh, circularFeatureOptions());
   EXPECT_GT(countCircularLoops(lowFeatures), 0);
 }
+
+TEST(LineQuadricsQemParameters, EllipsePrimitiveRemainsReportOnly) {
+  const lq::Mesh input = loadCaseMesh("feature_fixtures/elliptical_hole_plate.obj");
+  ASSERT_FALSE(input.empty());
+
+  lq::FeatureOptions featureOptions = circularFeatureOptions();
+  featureOptions.ellipseFitRelativeThreshold = 0.03;
+  const lq::FeatureAnalysis features = lq::detectFeatureCurves(input, featureOptions);
+  ASSERT_GT(std::count_if(features.loops.begin(), features.loops.end(),
+                          [](const lq::FeatureLoop& loop) {
+                            return loop.primitive ==
+                                       lq::FeaturePrimitiveType::Ellipse &&
+                                   !loop.circular;
+                          }),
+            0);
+
+  lq::SimplifyOptions options = protectedOptions(0.85);
+  options.ellipseFitRelativeThreshold = 0.03;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  expectBudget(result, input, 0.85);
+  EXPECT_GT(result.report.featureLoops, 0);
+}

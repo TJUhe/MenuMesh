@@ -455,28 +455,6 @@ TEST(LineQuadricsQem, SimplifierRejectsInvalidOptionsAndMeshes) {
   EXPECT_THROW(lq::simplifyMesh(invalid, lq::SimplifyOptions{}), std::invalid_argument);
 }
 
-TEST(LineQuadricsQem, FeatureDetectionSplitsBranchedFeatureGraphIntoChains) {
-  lq::Mesh mesh;
-  mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),  lq::Vec3(1.0, 0.0, 0.0),  lq::Vec3(0.5, 1.0, 0.0),
-      lq::Vec3(-1.0, 0.0, 0.0), lq::Vec3(-0.5, 1.0, 0.0), lq::Vec3(0.0, -1.0, 0.0),
-      lq::Vec3(1.0, -1.0, 0.0),
-  };
-  mesh.faces = {
-      {{0, 1, 2}},
-      {{0, 3, 4}},
-      {{0, 5, 6}},
-  };
-
-  lq::FeatureOptions options;
-  options.useNormalTensorFeatures = false;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
-
-  EXPECT_GT(features.loops.size(), 1u);
-  ASSERT_LT(0u, features.vertices.size());
-  EXPECT_TRUE(features.vertices[0].junction);
-}
-
 TEST(LineQuadricsQem, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) {
   const lq::Mesh input =
       loadExternalStl("thingi10k/thingi10k_108336_projekt_muse_z_system.stl");

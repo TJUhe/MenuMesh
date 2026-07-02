@@ -3,3 +3,7 @@ external/nasa_antenna_azimuth_track.stl 4 1000
 external/nasa_cubesat_middle.stl 20 8000
 external/nasa_mars2020_wheel.stl 4 10000
 external/thingi10k/thingi10k_318045_moko_mini_pulley.stl 1 50
+feature_fixtures/coaxial_hole_plate.obj 2 96
+feature_fixtures/tilted_coaxial_hole_plate.obj 2 128
+feature_fixtures/eccentric_hole_plate.obj 2 128
+feature_fixtures/near_circular_hole_plate.obj 2 160

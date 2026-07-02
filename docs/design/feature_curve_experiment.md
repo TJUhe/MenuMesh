@@ -155,6 +155,16 @@ aggressive on organic/noisy meshes. The default is therefore circular-loop hard
 protection only; use `--protect-all-feature-edges` only when intentionally
 testing non-circular hard-edge preservation.
 
+The detector can also report `near-circle`, `ellipse`, and `polygonal-loop`
+primitive labels. Only `circle` and `near-circle` are treated as circular
+features for hard projection. Ellipse support is currently a reporting and
+validation aid, not an ellipse-constrained placement policy.
+
+The C ABI keeps its existing `LqSimplifyOptions` layout for binary
+compatibility. New primitive-fit knobs are exposed through the C++ API and CLI.
+If C callers need those controls later, add a versioned options struct or a
+size-tagged extension instead of appending fields to the existing struct.
+
 The next upgrade should be multi-loop tracing inside one connected component:
 
 1. Build the feature graph from boundary and dihedral edges.

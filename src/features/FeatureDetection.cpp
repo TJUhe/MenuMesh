@@ -29,6 +29,26 @@ struct CandidateEdge {
   bool dihedral = false;
   bool normalTensor = false;
   bool nonManifold = false;
+  int signedKind = 0;
+};
+
+struct PrimitiveFit {
+  bool valid = false;
+  FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
+  Vec3 center = Vec3::Zero();
+  Vec3 normal = Vec3(0.0, 0.0, 1.0);
+  Vec3 majorAxis = Vec3(1.0, 0.0, 0.0);
+  Vec3 minorAxis = Vec3(0.0, 1.0, 0.0);
+  double radius = 0.0;
+  double majorRadius = 0.0;
+  double minorRadius = 0.0;
+  double axisRatio = 0.0;
+  double rmsRadialError = 0.0;
+  double maxRadialError = 0.0;
+  double rmsEllipseError = 0.0;
+  double maxEllipseError = 0.0;
+  double rmsPlaneError = 0.0;
+  double maxPlaneError = 0.0;
 };
 
 std::uint64_t edgeKey(int a, int b) {
@@ -49,6 +69,38 @@ std::vector<Vec3> computeFaceNormals(const Mesh& mesh) {
                                  mesh.vertices[f.v[2]]);
   }
   return normals;
+}
+
+Vec3 faceCentroid(const Mesh& mesh, const Face& face) {
+  return (mesh.vertices[face.v[0]] + mesh.vertices[face.v[1]] +
+          mesh.vertices[face.v[2]]) /
+         3.0;
+}
+
+int signedDihedralKind(const Mesh& mesh, const std::vector<Vec3>& normals,
+                       const EdgeInfo& info, int a, int b) {
+  if (info.faces.size() != 2) {
+    return 0;
+  }
+
+  const int f0 = info.faces[0];
+  const int f1 = info.faces[1];
+  Vec3 edge = mesh.vertices[b] - mesh.vertices[a];
+  if (edge.norm() <= 1e-20 || normals[f0].norm() <= 1e-20 ||
+      normals[f1].norm() <= 1e-20) {
+    return 0;
+  }
+  edge.normalize();
+
+  const Vec3 c0 = faceCentroid(mesh, mesh.faces[f0]);
+  const Vec3 c1 = faceCentroid(mesh, mesh.faces[f1]);
+  const double side0 = edge.cross(normals[f0]).dot(c1 - c0);
+  const double side1 = edge.cross(normals[f1]).dot(c0 - c1);
+  if (std::abs(side0) <= 1e-12 || std::abs(side1) <= 1e-12) {
+    return 0;
+  }
+  const bool normalsPointTowardEachOther = side0 > 0.0 && side1 > 0.0;
+  return normalsPointTowardEachOther ? -1 : 1;
 }
 
 std::unordered_map<std::uint64_t, EdgeInfo> buildEdgeInfo(const Mesh& mesh) {
@@ -185,6 +237,9 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
       const double dot = std::clamp(
           std::abs(normals[info.faces[0]].dot(normals[info.faces[1]])), -1.0, 1.0);
       edge.dihedral = std::acos(dot) >= threshold;
+      if (edge.dihedral) {
+        edge.signedKind = signedDihedralKind(mesh, normals, info, a, b);
+      }
     } else if (info.faces.size() > 2) {
       edge.nonManifold = true;
     }
@@ -199,14 +254,19 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
       if (edge.dihedral) ++analysis.dihedralFeatureEdges;
       if (edge.normalTensor) ++analysis.normalTensorFeatureEdges;
       if (edge.nonManifold) ++analysis.nonManifoldFeatureEdges;
+      if (edge.signedKind > 0) ++analysis.convexFeatureEdges;
+      if (edge.signedKind < 0) ++analysis.concaveFeatureEdges;
+      if (edge.dihedral && edge.signedKind == 0) ++analysis.unknownSignedFeatureEdges;
     }
   }
   return result;
 }
 
-bool fitCircle(const Mesh& mesh, FeatureLoop& loop, double relThreshold) {
+PrimitiveFit fitPrimitive(const Mesh& mesh, const FeatureLoop& loop,
+                          const FeatureOptions& options) {
+  PrimitiveFit fit;
   if (loop.vertices.size() < 5) {
-    return false;
+    return fit;
   }
 
   Vec3 mean = Vec3::Zero();
@@ -223,22 +283,26 @@ bool fitCircle(const Mesh& mesh, FeatureLoop& loop, double relThreshold) {
 
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(covariance);
   if (eig.info() != Eigen::Success) {
-    return false;
+    return fit;
   }
 
   Vec3 normal = eig.eigenvectors().col(0).normalized();
   Vec3 u = eig.eigenvectors().col(2).normalized();
   Vec3 v = normal.cross(u).normalized();
   if (u.norm() <= 1e-20 || v.norm() <= 1e-20) {
-    return false;
+    return fit;
   }
 
   Eigen::Matrix3d ata = Eigen::Matrix3d::Zero();
   Eigen::Vector3d atb = Eigen::Vector3d::Zero();
+  double majorSq = 0.0;
+  double minorSq = 0.0;
   for (int id : loop.vertices) {
     const Vec3 d = mesh.vertices[id] - mean;
     const double x = d.dot(u);
     const double y = d.dot(v);
+    majorSq += x * x;
+    minorSq += y * y;
     Eigen::Vector3d row(2.0 * x, 2.0 * y, 1.0);
     ata += row * row.transpose();
     atb += row * (x * x + y * y);
@@ -246,27 +310,36 @@ bool fitCircle(const Mesh& mesh, FeatureLoop& loop, double relThreshold) {
 
   Eigen::LDLT<Eigen::Matrix3d> ldlt(ata);
   if (ldlt.info() != Eigen::Success) {
-    return false;
+    return fit;
   }
 
   const Eigen::Vector3d solution = ldlt.solve(atb);
   if (!solution.allFinite()) {
-    return false;
+    return fit;
   }
 
   const double cx = solution.x();
   const double cy = solution.y();
   const double radiusSq = solution.z() + cx * cx + cy * cy;
   if (radiusSq <= 1e-24 || !std::isfinite(radiusSq)) {
-    return false;
+    return fit;
   }
 
   const Vec3 center = mean + cx * u + cy * v;
   const double radius = std::sqrt(radiusSq);
+  const double invN = 1.0 / static_cast<double>(loop.vertices.size());
+  const double majorRadius = std::sqrt(std::max(0.0, 2.0 * majorSq * invN));
+  const double minorRadius = std::sqrt(std::max(0.0, 2.0 * minorSq * invN));
+  if (majorRadius <= 1e-20 || minorRadius <= 1e-20) {
+    return fit;
+  }
+
   double radialSq = 0.0;
   double planeSq = 0.0;
+  double ellipseSq = 0.0;
   double radialMax = 0.0;
   double planeMax = 0.0;
+  double ellipseMax = 0.0;
   for (int id : loop.vertices) {
     const Vec3 d = mesh.vertices[id] - center;
     const double plane = d.dot(normal);
@@ -276,22 +349,92 @@ bool fitCircle(const Mesh& mesh, FeatureLoop& loop, double relThreshold) {
     planeSq += plane * plane;
     radialMax = std::max(radialMax, std::abs(radial));
     planeMax = std::max(planeMax, std::abs(plane));
+
+    const Vec3 de = mesh.vertices[id] - mean;
+    const double ex = de.dot(u);
+    const double ey = de.dot(v);
+    const double ellipse =
+        (std::sqrt((ex * ex) / (majorRadius * majorRadius) +
+                   (ey * ey) / (minorRadius * minorRadius)) -
+         1.0) *
+        std::sqrt(majorRadius * minorRadius);
+    ellipseSq += ellipse * ellipse;
+    ellipseMax = std::max(ellipseMax, std::abs(ellipse));
   }
 
-  const double invN = 1.0 / static_cast<double>(loop.vertices.size());
-  loop.center = center;
-  loop.normal = normal;
-  loop.radius = radius;
-  loop.rmsRadialError = std::sqrt(radialSq * invN);
-  loop.maxRadialError = radialMax;
-  loop.rmsPlaneError = std::sqrt(planeSq * invN);
-  loop.maxPlaneError = planeMax;
+  fit.valid = true;
+  fit.center = center;
+  fit.normal = normal;
+  fit.majorAxis = u;
+  fit.minorAxis = v;
+  fit.radius = radius;
+  fit.majorRadius = majorRadius;
+  fit.minorRadius = minorRadius;
+  fit.axisRatio = minorRadius / std::max(1e-12, majorRadius);
+  fit.rmsRadialError = std::sqrt(radialSq * invN);
+  fit.maxRadialError = radialMax;
+  fit.rmsEllipseError = std::sqrt(ellipseSq * invN);
+  fit.maxEllipseError = ellipseMax;
+  fit.rmsPlaneError = std::sqrt(planeSq * invN);
+  fit.maxPlaneError = planeMax;
 
   const double relRms =
-      (loop.rmsRadialError + loop.rmsPlaneError) / std::max(1e-12, radius);
+      (fit.rmsRadialError + fit.rmsPlaneError) / std::max(1e-12, fit.radius);
   const double relMax =
-      std::max(loop.maxRadialError, loop.maxPlaneError) / std::max(1e-12, radius);
-  return relRms <= relThreshold && relMax <= std::max(3.0 * relThreshold, 0.08);
+      std::max(fit.maxRadialError, fit.maxPlaneError) / std::max(1e-12, fit.radius);
+  const bool circleFit =
+      relRms <= options.circleFitRelativeThreshold &&
+      relMax <= std::max(3.0 * options.circleFitRelativeThreshold, 0.08);
+
+  const double ellipseScale = std::max(1e-12, std::sqrt(majorRadius * minorRadius));
+  const double ellipseRelRms = (fit.rmsEllipseError + fit.rmsPlaneError) / ellipseScale;
+  const double ellipseRelMax =
+      std::max(fit.maxEllipseError, fit.maxPlaneError) / ellipseScale;
+  const bool ellipseFit =
+      ellipseRelRms <= options.ellipseFitRelativeThreshold &&
+      ellipseRelMax <= std::max(3.0 * options.ellipseFitRelativeThreshold, 0.08);
+
+  if (circleFit) {
+    const double axisError = std::abs(1.0 - fit.axisRatio);
+    if (axisError <= std::min(0.01, 0.25 * options.nearCircleAxisRatioTolerance)) {
+      fit.primitive = FeaturePrimitiveType::Circle;
+    } else if (axisError <= options.nearCircleAxisRatioTolerance) {
+      fit.primitive = FeaturePrimitiveType::NearCircle;
+    } else {
+      fit.primitive = FeaturePrimitiveType::Ellipse;
+    }
+  } else if (ellipseFit) {
+    fit.primitive =
+        std::abs(1.0 - fit.axisRatio) <= options.nearCircleAxisRatioTolerance
+            ? FeaturePrimitiveType::NearCircle
+            : FeaturePrimitiveType::Ellipse;
+  } else {
+    fit.primitive = FeaturePrimitiveType::PolygonalLoop;
+  }
+  return fit;
+}
+
+void applyPrimitiveFit(const PrimitiveFit& fit, FeatureLoop& loop) {
+  if (!fit.valid) {
+    return;
+  }
+  loop.primitive = fit.primitive;
+  loop.circular = fit.primitive == FeaturePrimitiveType::Circle ||
+                  fit.primitive == FeaturePrimitiveType::NearCircle;
+  loop.center = fit.center;
+  loop.normal = fit.normal;
+  loop.majorAxis = fit.majorAxis;
+  loop.minorAxis = fit.minorAxis;
+  loop.radius = fit.radius;
+  loop.majorRadius = fit.majorRadius;
+  loop.minorRadius = fit.minorRadius;
+  loop.axisRatio = fit.axisRatio;
+  loop.rmsRadialError = fit.rmsRadialError;
+  loop.maxRadialError = fit.maxRadialError;
+  loop.rmsEllipseError = fit.rmsEllipseError;
+  loop.maxEllipseError = fit.maxEllipseError;
+  loop.rmsPlaneError = fit.rmsPlaneError;
+  loop.maxPlaneError = fit.maxPlaneError;
 }
 
 Vec3 fallbackTangentFromNeighbors(int id, const std::vector<int>& neighbors,
@@ -383,12 +526,15 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   std::vector<std::vector<int>> adjacency(mesh.vertices.size());
   std::unordered_map<std::uint64_t, bool> edgeIsBoundary;
   edgeIsBoundary.reserve(featureEdges.size());
+  std::unordered_map<std::uint64_t, int> edgeSignedKind;
+  edgeSignedKind.reserve(featureEdges.size());
   std::vector<std::pair<int, int>> graphEdges;
   graphEdges.reserve(featureEdges.size());
   for (const CandidateEdge& edge : featureEdges) {
     adjacency[edge.a].push_back(edge.b);
     adjacency[edge.b].push_back(edge.a);
     edgeIsBoundary[edgeKey(edge.a, edge.b)] = edge.boundary;
+    edgeSignedKind[edgeKey(edge.a, edge.b)] = edge.signedKind;
     graphEdges.emplace_back(edge.a, edge.b);
   }
 
@@ -399,6 +545,11 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   auto edgeBoundary = [&](int a, int b) {
     const auto it = edgeIsBoundary.find(edgeKey(a, b));
     return it != edgeIsBoundary.end() && it->second;
+  };
+
+  auto edgeSign = [&](int a, int b) {
+    const auto it = edgeSignedKind.find(edgeKey(a, b));
+    return it == edgeSignedKind.end() ? 0 : it->second;
   };
 
   auto markEdge = [&](int a, int b) { visitedEdges.insert(edgeKey(a, b)); };
@@ -437,6 +588,7 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   };
 
   auto addLoop = [&](std::vector<int> vertices, int edgeCount, int boundaryEdges,
+                     int convexEdges, int concaveEdges, int unknownSignedEdges,
                      bool closed) {
     if (vertices.empty() || edgeCount <= 0) {
       return;
@@ -450,9 +602,12 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     loop.mostlyBoundary =
         loop.edgeCount > 0 &&
         boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+    loop.convexEdges = convexEdges;
+    loop.concaveEdges = concaveEdges;
+    loop.unknownSignedEdges = unknownSignedEdges;
     if (loop.closed &&
         static_cast<int>(loop.vertices.size()) >= options.minFeatureLoopVertices) {
-      loop.circular = fitCircle(mesh, loop, options.circleFitRelativeThreshold);
+      applyPrimitiveFit(fitPrimitive(mesh, loop, options), loop);
     }
 
     assignLoopToVertices(loop);
@@ -464,6 +619,9 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     vertices.push_back(seed);
     int edgeCount = 0;
     int boundaryEdges = 0;
+    int convexEdges = 0;
+    int concaveEdges = 0;
+    int unknownSignedEdges = 0;
     bool closed = false;
 
     int previous = seed;
@@ -477,6 +635,10 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       if (edgeBoundary(previous, current)) {
         ++boundaryEdges;
       }
+      const int sign = edgeSign(previous, current);
+      if (sign > 0) ++convexEdges;
+      if (sign < 0) ++concaveEdges;
+      if (sign == 0 && !edgeBoundary(previous, current)) ++unknownSignedEdges;
       vertices.push_back(current);
       if (current == seed) {
         vertices.pop_back();
@@ -502,7 +664,8 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       current = next;
     }
 
-    addLoop(std::move(vertices), edgeCount, boundaryEdges, closed);
+    addLoop(std::move(vertices), edgeCount, boundaryEdges, convexEdges, concaveEdges,
+            unknownSignedEdges, closed);
   };
 
   auto traceClosedLoop = [&](int seed, int firstNeighbor) {
@@ -510,6 +673,9 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     vertices.push_back(seed);
     int edgeCount = 0;
     int boundaryEdges = 0;
+    int convexEdges = 0;
+    int concaveEdges = 0;
+    int unknownSignedEdges = 0;
     int previous = seed;
     int current = firstNeighbor;
     bool closed = false;
@@ -523,6 +689,10 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       if (edgeBoundary(previous, current)) {
         ++boundaryEdges;
       }
+      const int sign = edgeSign(previous, current);
+      if (sign > 0) ++convexEdges;
+      if (sign < 0) ++concaveEdges;
+      if (sign == 0 && !edgeBoundary(previous, current)) ++unknownSignedEdges;
       if (current == seed) {
         closed = true;
         break;
@@ -543,7 +713,8 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       current = next;
     }
 
-    addLoop(std::move(vertices), edgeCount, boundaryEdges, closed);
+    addLoop(std::move(vertices), edgeCount, boundaryEdges, convexEdges, concaveEdges,
+            unknownSignedEdges, closed);
   };
 
   for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
@@ -588,12 +759,21 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     bool alreadyHasCircular = false;
     int edgeCount2x = 0;
     int boundaryEdges = 0;
+    int convexEdges = 0;
+    int concaveEdges = 0;
+    int unknownSignedEdges = 0;
     for (int v : component) {
       alreadyHasCircular = alreadyHasCircular || analysis.vertices[v].circular;
       edgeCount2x += static_cast<int>(adjacency[v].size());
       for (int nb : adjacency[v]) {
         if (v < nb && edgeBoundary(v, nb)) {
           ++boundaryEdges;
+        }
+        if (v < nb) {
+          const int sign = edgeSign(v, nb);
+          if (sign > 0) ++convexEdges;
+          if (sign < 0) ++concaveEdges;
+          if (sign == 0 && !edgeBoundary(v, nb)) ++unknownSignedEdges;
         }
       }
     }
@@ -613,10 +793,15 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     loop.mostlyBoundary =
         loop.edgeCount > 0 &&
         boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
-    if (!loop.closed || !fitCircle(mesh, loop, options.circleFitRelativeThreshold)) {
+    loop.convexEdges = convexEdges;
+    loop.concaveEdges = concaveEdges;
+    loop.unknownSignedEdges = unknownSignedEdges;
+    applyPrimitiveFit(fitPrimitive(mesh, loop, options), loop);
+    if (loop.primitive != FeaturePrimitiveType::Circle &&
+        loop.primitive != FeaturePrimitiveType::NearCircle &&
+        loop.primitive != FeaturePrimitiveType::Ellipse) {
       continue;
     }
-    loop.circular = true;
     assignLoopToVertices(loop);
     analysis.loops.push_back(std::move(loop));
   }
@@ -658,21 +843,47 @@ DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
 }
 
 std::string featureReportHeaderCsv() {
-  return "loop_id,vertices,edges,closed,circular,mostly_boundary,cx,cy,cz,nx,ny,nz,"
-         "radius,rms_radial,max_radial,rms_plane,max_plane";
+  return "loop_id,vertices,edges,closed,primitive,circular,mostly_boundary,cx,cy,cz,"
+         "nx,ny,nz,major_axis_x,major_axis_y,major_axis_z,minor_axis_x,"
+         "minor_axis_y,minor_axis_z,radius,major_radius,minor_radius,axis_ratio,"
+         "rms_radial,max_radial,rms_ellipse,max_ellipse,rms_plane,max_plane,"
+         "convex_edges,concave_edges,unknown_signed_edges";
 }
 
 std::string featureLoopRowCsv(const FeatureLoop& loop) {
   std::ostringstream out;
   out << std::setprecision(12);
   out << loop.id << "," << loop.vertices.size() << "," << loop.edgeCount << ","
-      << (loop.closed ? 1 : 0) << "," << (loop.circular ? 1 : 0) << ","
-      << (loop.mostlyBoundary ? 1 : 0) << "," << loop.center.x() << ","
-      << loop.center.y() << "," << loop.center.z() << "," << loop.normal.x() << ","
-      << loop.normal.y() << "," << loop.normal.z() << "," << loop.radius << ","
-      << loop.rmsRadialError << "," << loop.maxRadialError << "," << loop.rmsPlaneError
-      << "," << loop.maxPlaneError;
+      << (loop.closed ? 1 : 0) << "," << toString(loop.primitive) << ","
+      << (loop.circular ? 1 : 0) << "," << (loop.mostlyBoundary ? 1 : 0) << ","
+      << loop.center.x() << "," << loop.center.y() << "," << loop.center.z() << ","
+      << loop.normal.x() << "," << loop.normal.y() << "," << loop.normal.z() << ","
+      << loop.majorAxis.x() << "," << loop.majorAxis.y() << ","
+      << loop.majorAxis.z() << "," << loop.minorAxis.x() << ","
+      << loop.minorAxis.y() << "," << loop.minorAxis.z() << "," << loop.radius
+      << "," << loop.majorRadius << "," << loop.minorRadius << ","
+      << loop.axisRatio << "," << loop.rmsRadialError << ","
+      << loop.maxRadialError << "," << loop.rmsEllipseError << ","
+      << loop.maxEllipseError << "," << loop.rmsPlaneError << ","
+      << loop.maxPlaneError << "," << loop.convexEdges << "," << loop.concaveEdges
+      << "," << loop.unknownSignedEdges;
   return out.str();
+}
+
+std::string toString(FeaturePrimitiveType primitive) {
+  switch (primitive) {
+  case FeaturePrimitiveType::Unknown:
+    return "unknown";
+  case FeaturePrimitiveType::Circle:
+    return "circle";
+  case FeaturePrimitiveType::NearCircle:
+    return "near-circle";
+  case FeaturePrimitiveType::Ellipse:
+    return "ellipse";
+  case FeaturePrimitiveType::PolygonalLoop:
+    return "polygonal-loop";
+  }
+  return "unknown";
 }
 
 } // namespace lq

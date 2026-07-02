@@ -8,10 +8,21 @@
 
 namespace lq {
 
-/// Parameters for crease, boundary, and circular feature-loop detection.
+/// Fitted primitive type for one detected feature loop.
+enum class FeaturePrimitiveType {
+  Unknown,
+  Circle,
+  NearCircle,
+  Ellipse,
+  PolygonalLoop,
+};
+
+/// Parameters for crease, boundary, and feature-loop detection.
 struct FeatureOptions {
   double featureAngleDeg = 40.0;
   double circleFitRelativeThreshold = 0.05;
+  double ellipseFitRelativeThreshold = 0.05;
+  double nearCircleAxisRatioTolerance = 0.08;
   int minFeatureLoopVertices = 8;
   bool useNormalTensorFeatures = true;
   double normalTensorFeatureThreshold = 0.16;
@@ -42,13 +53,24 @@ struct FeatureLoop {
   bool closed = false;
   bool circular = false;
   bool mostlyBoundary = false;
+  FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
   Vec3 center = Vec3::Zero();
   Vec3 normal = Vec3(0.0, 0.0, 1.0);
+  Vec3 majorAxis = Vec3(1.0, 0.0, 0.0);
+  Vec3 minorAxis = Vec3(0.0, 1.0, 0.0);
   double radius = 0.0;
+  double majorRadius = 0.0;
+  double minorRadius = 0.0;
+  double axisRatio = 0.0;
   double rmsRadialError = 0.0;
   double maxRadialError = 0.0;
+  double rmsEllipseError = 0.0;
+  double maxEllipseError = 0.0;
   double rmsPlaneError = 0.0;
   double maxPlaneError = 0.0;
+  int convexEdges = 0;
+  int concaveEdges = 0;
+  int unknownSignedEdges = 0;
 };
 
 /// Per-vertex feature classification used by feature-preserving simplification.
@@ -72,6 +94,9 @@ struct FeatureAnalysis {
   int dihedralFeatureEdges = 0;
   int normalTensorFeatureEdges = 0;
   int nonManifoldFeatureEdges = 0;
+  int convexFeatureEdges = 0;
+  int concaveFeatureEdges = 0;
+  int unknownSignedFeatureEdges = 0;
   double maxNormalTensorFeatureScore = 0.0;
 };
 
@@ -103,5 +128,7 @@ LQ_API DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
 LQ_API std::string featureReportHeaderCsv();
 /// CSV row for one feature loop.
 LQ_API std::string featureLoopRowCsv(const FeatureLoop& loop);
+/// Stable string name for a fitted feature primitive.
+LQ_API std::string toString(FeaturePrimitiveType primitive);
 
 } // namespace lq

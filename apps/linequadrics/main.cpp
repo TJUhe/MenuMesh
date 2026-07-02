@@ -134,6 +134,10 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
       getDoubleArg(args, "--feature-curve-weight", options.featureCurveWeight);
   options.circleFitRelativeThreshold =
       getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
+  options.ellipseFitRelativeThreshold = getDoubleArg(
+      args, "--ellipse-fit-threshold", options.ellipseFitRelativeThreshold);
+  options.nearCircleAxisRatioTolerance = getDoubleArg(
+      args, "--near-circle-axis-ratio-tolerance", options.nearCircleAxisRatioTolerance);
   options.minFeatureLoopVertices =
       getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
   options.adaptiveBaseLineWeight =
@@ -171,6 +175,10 @@ lq::FeatureOptions parseFeatureOptions(const Args& args) {
       getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
   options.circleFitRelativeThreshold =
       getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
+  options.ellipseFitRelativeThreshold = getDoubleArg(
+      args, "--ellipse-fit-threshold", options.ellipseFitRelativeThreshold);
+  options.nearCircleAxisRatioTolerance = getDoubleArg(
+      args, "--near-circle-axis-ratio-tolerance", options.nearCircleAxisRatioTolerance);
   options.minFeatureLoopVertices =
       getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
   options.normalTensorFeatureThreshold = getDoubleArg(
@@ -214,6 +222,10 @@ void printUsage() {
       << "  --protect-all-feature-edges     Also hard-lock non-circular feature edges\n"
       << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
       << "  --circle-fit-threshold R        Relative fit threshold for circular loops\n"
+      << "  --ellipse-fit-threshold R       Relative fit threshold for ellipse "
+         "reports\n"
+      << "  --near-circle-axis-ratio-tolerance R  Axis-ratio tolerance for "
+         "near-circles\n"
       << "  --min-feature-loop-vertices N   Stop collapsing a loop below N vertices\n"
       << "  --normal-tensor-threshold S     Feature score threshold for tensor edges\n"
       << "  --normal-tensor-edge-alignment A Minimum edge/tangent alignment\n"
@@ -501,6 +513,17 @@ int countCircularLoops(const lq::FeatureAnalysis& analysis) {
   return count;
 }
 
+int countPrimitiveLoops(const lq::FeatureAnalysis& analysis,
+                        lq::FeaturePrimitiveType primitive) {
+  int count = 0;
+  for (const lq::FeatureLoop& loop : analysis.loops) {
+    if (loop.primitive == primitive) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 int commandFeatureReport(const Args& args) {
   const auto positional = positionalArgs(args);
   if (positional.empty()) {
@@ -516,14 +539,28 @@ int commandFeatureReport(const Args& args) {
   const lq::FeatureOptions options = parseFeatureOptions(args);
   const lq::FeatureAnalysis analysis = lq::detectFeatureCurves(input, options);
   const int circularLoops = countCircularLoops(analysis);
+  const int circleLoops =
+      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::Circle);
+  const int nearCircleLoops =
+      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::NearCircle);
+  const int ellipseLoops =
+      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::Ellipse);
+  const int polygonalLoops =
+      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::PolygonalLoop);
   std::cout << "feature_edges=" << analysis.featureEdges
             << " boundary_edges=" << analysis.boundaryFeatureEdges
             << " dihedral_edges=" << analysis.dihedralFeatureEdges
             << " normal_tensor_edges=" << analysis.normalTensorFeatureEdges
             << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
+            << " convex_edges=" << analysis.convexFeatureEdges
+            << " concave_edges=" << analysis.concaveFeatureEdges
+            << " unknown_signed_edges=" << analysis.unknownSignedFeatureEdges
             << " max_normal_tensor_score=" << analysis.maxNormalTensorFeatureScore
             << " loops=" << analysis.loops.size() << " circular_loops=" << circularLoops
-            << "\n";
+            << " circle_loops=" << circleLoops
+            << " near_circle_loops=" << nearCircleLoops
+            << " ellipse_loops=" << ellipseLoops
+            << " polygonal_loops=" << polygonalLoops << "\n";
   std::cout << lq::featureReportHeaderCsv() << "\n";
   for (const lq::FeatureLoop& loop : analysis.loops) {
     std::cout << lq::featureLoopRowCsv(loop) << "\n";
@@ -537,12 +574,17 @@ int commandFeatureReport(const Args& args) {
     }
     std::ofstream csv(csvPath);
     csv << "feature_edges,boundary_edges,dihedral_edges,normal_tensor_edges,"
-           "non_manifold_edges,max_normal_tensor_score,loops,circular_loops\n";
+           "non_manifold_edges,convex_edges,concave_edges,unknown_signed_edges,"
+           "max_normal_tensor_score,loops,circular_loops,circle_loops,"
+           "near_circle_loops,ellipse_loops,polygonal_loops\n";
     csv << analysis.featureEdges << "," << analysis.boundaryFeatureEdges << ","
         << analysis.dihedralFeatureEdges << "," << analysis.normalTensorFeatureEdges
-        << "," << analysis.nonManifoldFeatureEdges << ","
+        << "," << analysis.nonManifoldFeatureEdges << "," << analysis.convexFeatureEdges
+        << "," << analysis.concaveFeatureEdges << ","
+        << analysis.unknownSignedFeatureEdges << ","
         << analysis.maxNormalTensorFeatureScore << "," << analysis.loops.size() << ","
-        << circularLoops << "\n\n";
+        << circularLoops << "," << circleLoops << "," << nearCircleLoops << ","
+        << ellipseLoops << "," << polygonalLoops << "\n\n";
     csv << lq::featureReportHeaderCsv() << "\n";
     for (const lq::FeatureLoop& loop : analysis.loops) {
       csv << lq::featureLoopRowCsv(loop) << "\n";

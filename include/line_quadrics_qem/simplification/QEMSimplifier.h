@@ -32,6 +32,8 @@ struct SimplifyOptions {
   bool protectAllFeatureEdges = false;
   double featureCurveWeight = 0.05;
   double circleFitRelativeThreshold = 0.05;
+  double ellipseFitRelativeThreshold = 0.05;
+  double nearCircleAxisRatioTolerance = 0.08;
   int minFeatureLoopVertices = 16;
   bool useNormalTensorFeatures = true;
   double normalTensorFeatureThreshold = 0.16;

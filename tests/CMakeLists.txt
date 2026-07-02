@@ -1,5 +1,6 @@
 add_executable(line_quadrics_qem_tests
   c_api_tests.cpp
+  feature_detection_tests.cpp
   qem_parameter_tests.cpp
   simplifier_tests.cpp
 )

@@ -151,3 +151,10 @@ TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
   lq_mesh_destroy(output);
   lq_mesh_destroy(input);
 }
+
+TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
+  LqSimplifyOptions options;
+  lq_simplify_options_init(&options);
+
+  EXPECT_DOUBLE_EQ(0.05, options.circle_fit_relative_threshold);
+}

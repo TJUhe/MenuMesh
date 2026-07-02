@@ -7,6 +7,10 @@ target_link_libraries(line_quadrics_qem_tests
     line_quadrics_qem::line_quadrics_qem
     GTest::gtest_main
 )
+target_compile_definitions(line_quadrics_qem_tests
+  PRIVATE
+    LQ_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
+)
 lq_apply_warnings(line_quadrics_qem_tests)
 lq_copy_runtime_dependencies(line_quadrics_qem_tests)
 
@@ -21,6 +25,10 @@ if(LQ_BUILD_PERFORMANCE_TESTS)
     PRIVATE
       line_quadrics_qem::line_quadrics_qem
       GTest::gtest_main
+  )
+  target_compile_definitions(line_quadrics_qem_performance_tests
+    PRIVATE
+      LQ_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
   )
   lq_apply_warnings(line_quadrics_qem_performance_tests)
   lq_copy_runtime_dependencies(line_quadrics_qem_performance_tests)

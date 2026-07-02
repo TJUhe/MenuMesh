@@ -20,7 +20,11 @@ struct PerformanceCase {
 };
 
 std::filesystem::path externalDataDir() {
+#ifdef LQ_TEST_EXTERNAL_DATA_DIR
+  return std::filesystem::path(LQ_TEST_EXTERNAL_DATA_DIR);
+#else
   return std::filesystem::path(__FILE__).parent_path() / "data" / "external";
+#endif
 }
 
 std::vector<PerformanceCase> discoverLargeMeshCases() {

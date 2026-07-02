@@ -713,23 +713,14 @@ bool collapseWouldBeValid(int keep, int remove, const Vec3& newPosition,
   return true;
 }
 
-int removeDuplicateFaces(std::vector<FaceState>& faces) {
-  struct KeyHash {
-    std::size_t operator()(const std::array<int, 3>& ids) const {
-      return static_cast<std::size_t>(ids[0]) * 73856093u ^
-             static_cast<std::size_t>(ids[1]) * 19349663u ^
-             static_cast<std::size_t>(ids[2]) * 83492791u;
-    }
-  };
-
-  std::unordered_set<std::array<int, 3>, KeyHash> seen;
+[[maybe_unused]] int removeDuplicateFaces(std::vector<FaceState>& faces) {
+  std::unordered_set<std::array<int, 3>, FaceKeyHash> seen;
   int removed = 0;
   for (FaceState& face : faces) {
     if (!face.active) {
       continue;
     }
-    std::array<int, 3> key = face.v;
-    std::sort(key.begin(), key.end());
+    const std::array<int, 3> key = faceKey(face.v);
     if (!seen.insert(key).second) {
       face.active = false;
       ++removed;

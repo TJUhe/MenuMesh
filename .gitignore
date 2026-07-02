@@ -1,4 +1,6 @@
 build/
+*.stl
+!tests/data/external/**/*.stl
 examples/input/*.stl
 examples/external/
 examples/output/
@@ -8,3 +10,14 @@ viewer-server.pid
 viewer/screenshots/
 build-*/
 docs/api/
+Testing/
+CTestTestfile.cmake
+install_manifest.txt
+*.csv
+*.log
+*.tmp
+*.out
+*.err
+*.prof
+*.gcda
+*.gcno

@@ -14,27 +14,30 @@ Install the extensions listed in `.vscode/extensions.json`:
 
 - C/C++ (`ms-vscode.cpptools`)
 - CMake Tools (`ms-vscode.cmake-tools`)
+- Vim (`vscodevim.vim`), optional editor keybindings
 
 For VSCode 1.70.2 or offline machines, this repository also carries compatible
 VSIX packages under `thirdParty/vscode-extensions/`:
 
-- clangd (`llvm-vs-code-extensions.vscode-clangd` 0.1.34, `engines.vscode:
-  ^1.65.0`)
 - CMake Tools (`ms-vscode.cmake-tools` 1.19.52, `engines.vscode: ^1.67.0`)
+- Vim (`vscodevim.vim` 1.24.3, `engines.vscode: ^1.67.0`)
+
+The old clangd VSIX is still kept in `thirdParty/vscode-extensions/` as a
+legacy optional package, but the workspace settings now use Microsoft's C/C++
+extension (`ms-vscode.cpptools`) instead of clangd.
 
 Install them from the repository root:
 
 ```powershell
-code --install-extension thirdParty\vscode-extensions\llvm-vs-code-extensions.vscode-clangd-0.1.34.vsix
 code --install-extension thirdParty\vscode-extensions\ms-vscode.cmake-tools-1.19.52.vsix
+code --install-extension thirdParty\vscode-extensions\vscodevim.vim-1.24.3.vsix
 ```
 
-The clangd extension does not read `C_Cpp.default.configurationProvider`; that
-setting is for Microsoft's C/C++ extension. clangd needs a CMake-generated
-`compile_commands.json` so it can see project include paths such as `include/`,
-`src/`, GoogleTest, and Eigen. This repository points clangd at
-`build/mingw-ninja-release/compile_commands.json` through both `.clangd` and
-`.vscode/settings.json`.
+Microsoft's C/C++ extension reads the CMake Tools configuration provider and
+the fallback paths in `.vscode/settings.json`. If Eigen diagnostics appear
+before CMake has configured the project, configure once so FetchContent creates
+`build/_deps/eigen-src`, then run `C/C++: Reset IntelliSense Database` from the
+VSCode command palette.
 
 The primary editor configuration is MinGW-first:
 
@@ -45,13 +48,10 @@ Compile database: build/mingw-ninja-release/compile_commands.json
 ```
 
 The repository settings intentionally avoid machine-specific absolute MinGW
-paths. Put your MinGW `bin` directory on `PATH` before configuring. clangd uses
-`--query-driver=**/g++.exe,**/gcc.exe,**/mingw64/bin/*.exe,**/mingw32/bin/*.exe`
-so it can ask the same MinGW compiler for standard library include directories.
-If diagnostics say `cmath file not found` from inside Eigen, clangd has not
-found the MinGW C++ standard library headers yet. Check that `where g++` resolves
-to your intended MinGW compiler, then regenerate `compile_commands.json` and
-restart clangd.
+paths. Put your MinGW `bin` directory on `PATH` before configuring. If
+diagnostics say `Eigen/Dense` or standard headers are missing, check that
+`where g++` resolves to your intended MinGW compiler, then regenerate
+`compile_commands.json` and reset the C/C++ IntelliSense database.
 
 For a one-session PowerShell setup, run this before CMake if MinGW is not already
 on `PATH`:
@@ -60,23 +60,19 @@ on `PATH`:
 $env:PATH = "D:\path\to\mingw64\bin;$env:PATH"
 ```
 
-The important rule is that CMake, tasks, and clangd must all point at the same
-MinGW toolchain and the same `compile_commands.json`.
+The important rule is that CMake, tasks, and C/C++ IntelliSense must all point
+at the same MinGW toolchain and the same `compile_commands.json`.
 
-If clangd reports missing headers after a fresh checkout, configure once:
+If the C/C++ extension reports missing headers after a fresh checkout, configure
+once:
 
 ```powershell
 cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ```
 
-Then run `clangd: Restart language server` from the VSCode command palette. If
-you switch to another MinGW build directory, update both places:
-
-- `.clangd`: `CompileFlags.CompilationDatabase`
-- `.vscode/settings.json`: `clangd.arguments --compile-commands-dir`
-
-Do not point clangd at an MSVC build directory while using the MinGW compiler in
-VSCode tasks; the headers and predefined macros will not match.
+Then run `C/C++: Reset IntelliSense Database` from the VSCode command palette.
+Do not point IntelliSense at an MSVC build directory while using the MinGW
+compiler in VSCode tasks; the headers and predefined macros will not match.
 
 ## CMake 3.18.6 Workflow
 

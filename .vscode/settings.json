@@ -8,22 +8,34 @@
     "CMAKE_CXX_COMPILER": "g++",
     "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
   },
-  "clangd.arguments": [
-    "--compile-commands-dir=${workspaceFolder}/build/mingw-ninja-release",
-    "--query-driver=**/g++.exe,**/gcc.exe,**/mingw64/bin/*.exe,**/mingw32/bin/*.exe",
-    "--background-index",
-    "--header-insertion=never"
-  ],
-  "clangd.fallbackFlags": [
-    "-std=c++17",
-    "-I${workspaceFolder}/include",
-    "-I${workspaceFolder}/src",
-    "-I${workspaceFolder}/thirdParty/googletest/googletest/include",
-    "-isystem",
-    "${workspaceFolder}/build/_deps/eigen-src"
-  ],
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/mingw-ninja-release/compile_commands.json",
+  "C_Cpp.default.compilerPath": "g++",
+  "C_Cpp.default.cStandard": "c17",
   "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/include",
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/apps/linequadrics",
+    "${workspaceFolder}/thirdParty/googletest/googletest/include",
+    "${workspaceFolder}/build/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-ninja-release/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-makefiles-release/_deps/eigen-src",
+    "${workspaceFolder}/build/hierarchy-check/_deps/eigen-src",
+    "${workspaceFolder}/build/codex-industrial/_deps/eigen-src"
+  ],
+  "C_Cpp.default.browse.path": [
+    "${workspaceFolder}/include",
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/apps",
+    "${workspaceFolder}/thirdParty/googletest/googletest/include",
+    "${workspaceFolder}/build/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-ninja-release/_deps/eigen-src",
+    "${workspaceFolder}/build/mingw-makefiles-release/_deps/eigen-src",
+    "${workspaceFolder}/build/hierarchy-check/_deps/eigen-src",
+    "${workspaceFolder}/build/codex-industrial/_deps/eigen-src"
+  ],
+  "C_Cpp.errorSquiggles": "enabled",
   "files.associations": {
     "*.h": "cpp",
     "*.cpp": "cpp"

@@ -1,5 +1,0 @@
-feature_edges,boundary_edges,dihedral_edges,non_manifold_edges,loops,circular_loops
-716,0,716,0,1,0
-
-loop_id,vertices,edges,closed,circular,mostly_boundary,cx,cy,cz,nx,ny,nz,radius,rms_radial,max_radial,rms_plane,max_plane
-0,706,716,0,0,0,0,0,0,0,0,1,0,0,0,0,0

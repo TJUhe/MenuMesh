@@ -138,10 +138,17 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
       getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
   options.adaptiveBaseLineWeight =
       getDoubleArg(args, "--adaptive-base-line-weight", options.adaptiveBaseLineWeight);
+  options.normalTensorFeatureThreshold = getDoubleArg(
+      args, "--normal-tensor-threshold", options.normalTensorFeatureThreshold);
+  options.normalTensorMinEdgeAlignment = getDoubleArg(
+      args, "--normal-tensor-edge-alignment", options.normalTensorMinEdgeAlignment);
+  options.normalTensorSmoothingIterations =
+      getIntArg(args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
   options.verbose = hasFlag(args, "--verbose");
   options.adaptiveScale = hasFlag(args, "--adaptive-scale");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
   options.protectAllFeatureEdges = hasFlag(args, "--protect-all-feature-edges");
+  options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
 
   const std::string mode = getArg(args, "--weight-mode", "uniform");
   options.weightMode = lq::parseWeightMode(mode);
@@ -166,6 +173,13 @@ lq::FeatureOptions parseFeatureOptions(const Args& args) {
       getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
   options.minFeatureLoopVertices =
       getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
+  options.normalTensorFeatureThreshold = getDoubleArg(
+      args, "--normal-tensor-threshold", options.normalTensorFeatureThreshold);
+  options.normalTensorMinEdgeAlignment = getDoubleArg(
+      args, "--normal-tensor-edge-alignment", options.normalTensorMinEdgeAlignment);
+  options.normalTensorSmoothingIterations =
+      getIntArg(args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
+  options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
   return options;
 }
 
@@ -191,7 +205,7 @@ void printUsage() {
       << "  --ratio 0.25                    Target face ratio\n"
       << "  --target-faces N                Overrides --ratio\n"
       << "  --line-weight W                 Paper default is around 1e-3\n"
-      << "  --weight-mode uniform|dihedral|height|xband\n"
+      << "  --weight-mode uniform|dihedral|normal-tensor|height|xband\n"
       << "  --feature-boost W               Added line weight for feature modes\n"
       << "  --feature-angle-deg A           Dihedral threshold for feature mode\n"
       << "  --adaptive-scale                Add small line quadrics then scale Q\n"
@@ -201,6 +215,10 @@ void printUsage() {
       << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
       << "  --circle-fit-threshold R        Relative fit threshold for circular loops\n"
       << "  --min-feature-loop-vertices N   Stop collapsing a loop below N vertices\n"
+      << "  --normal-tensor-threshold S     Feature score threshold for tensor edges\n"
+      << "  --normal-tensor-edge-alignment A Minimum edge/tangent alignment\n"
+      << "  --normal-tensor-smoothing N     Optional tensor smoothing iterations\n"
+      << "  --no-normal-tensor-features     Disable tensor candidates in feature detection\n"
       << "  --metrics-csv path              Write one-row CSV metrics\n"
       << "  --samples N                     Distance sample count\n"
       << "  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1\n"
@@ -500,7 +518,9 @@ int commandFeatureReport(const Args& args) {
   std::cout << "feature_edges=" << analysis.featureEdges
             << " boundary_edges=" << analysis.boundaryFeatureEdges
             << " dihedral_edges=" << analysis.dihedralFeatureEdges
+            << " normal_tensor_edges=" << analysis.normalTensorFeatureEdges
             << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
+            << " max_normal_tensor_score=" << analysis.maxNormalTensorFeatureScore
             << " loops=" << analysis.loops.size() << " circular_loops=" << circularLoops
             << "\n";
   std::cout << lq::featureReportHeaderCsv() << "\n";
@@ -515,11 +535,13 @@ int commandFeatureReport(const Args& args) {
       fs::create_directories(output.parent_path());
     }
     std::ofstream csv(csvPath);
-    csv << "feature_edges,boundary_edges,dihedral_edges,non_manifold_edges,"
-           "loops,circular_loops\n";
+    csv << "feature_edges,boundary_edges,dihedral_edges,normal_tensor_edges,"
+           "non_manifold_edges,max_normal_tensor_score,loops,circular_loops\n";
     csv << analysis.featureEdges << "," << analysis.boundaryFeatureEdges << ","
-        << analysis.dihedralFeatureEdges << "," << analysis.nonManifoldFeatureEdges
-        << "," << analysis.loops.size() << "," << circularLoops << "\n\n";
+        << analysis.dihedralFeatureEdges << "," << analysis.normalTensorFeatureEdges
+        << "," << analysis.nonManifoldFeatureEdges << ","
+        << analysis.maxNormalTensorFeatureScore << "," << analysis.loops.size() << ","
+        << circularLoops << "\n\n";
     csv << lq::featureReportHeaderCsv() << "\n";
     for (const lq::FeatureLoop& loop : analysis.loops) {
       csv << lq::featureLoopRowCsv(loop) << "\n";
@@ -684,7 +706,8 @@ int commandSimplify(const Args& args) {
   }
 
   lq::SimplifyReport report;
-  lq::Mesh output = lq::simplifyMesh(input, options, &report);
+  lq::QEMSimplifier simplifier(options);
+  lq::Mesh output = simplifier.simplify(input, &report);
   if (!lq::saveAsciiStl(positional[1], output, "linequadrics", &error)) {
     throw std::runtime_error(error);
   }
@@ -705,6 +728,7 @@ int commandSimplify(const Args& args) {
     std::cout << "feature_loops=" << report.featureLoops
               << " circular_feature_loops=" << report.circularFeatureLoops
               << " feature_vertices=" << report.featureVertices
+              << " normal_tensor_feature_edges=" << report.normalTensorFeatureEdges
               << " feature_rejected=" << report.featureRejectedCollapses
               << " projected_feature_placements=" << report.projectedFeaturePlacements
               << "\n";
@@ -722,15 +746,16 @@ int commandSimplify(const Args& args) {
     csv << lq::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "feature_loops,circular_feature_loops,feature_vertices,"
+           "normal_tensor_feature_edges,"
            "feature_rejected_collapses,projected_feature_placements,"
            "min_line_weight,max_line_weight\n";
     csv << lq::statsRowCsv("output", outStats, &distance) << ","
         << report.collapsedEdges << "," << report.rejectedCollapses << ","
         << report.solverFallbacks << "," << report.featureLoops << ","
         << report.circularFeatureLoops << "," << report.featureVertices << ","
-        << report.featureRejectedCollapses << "," << report.projectedFeaturePlacements
-        << "," << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight
-        << "\n";
+        << report.normalTensorFeatureEdges << "," << report.featureRejectedCollapses
+        << "," << report.projectedFeaturePlacements << ","
+        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
   }
 
   std::cout << "Wrote " << positional[1] << "\n";
@@ -771,7 +796,8 @@ int commandSweep(const Args& args) {
     }
 
     lq::SimplifyReport report;
-    lq::Mesh output = lq::simplifyMesh(input, options, &report);
+    lq::QEMSimplifier simplifier(options);
+    lq::Mesh output = simplifier.simplify(input, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
     const std::string label = method + "_w_" + sanitizeWeight(weight);
     const fs::path outStl = outDir / (label + ".stl");
@@ -827,7 +853,8 @@ int commandRatioSweep(const Args& args) {
     options.targetRatio = ratio;
 
     lq::SimplifyReport report;
-    lq::Mesh output = lq::simplifyMesh(input, options, &report);
+    lq::QEMSimplifier simplifier(options);
+    lq::Mesh output = simplifier.simplify(input, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
     const std::string label = method + "_r_" + sanitizeRatio(ratio) + "_w_" +
                               sanitizeWeight(options.lineWeight);
@@ -884,7 +911,8 @@ int commandFaceSweep(const Args& args) {
     options.targetFaces = targetFaces;
 
     lq::SimplifyReport report;
-    lq::Mesh output = lq::simplifyMesh(input, options, &report);
+    lq::QEMSimplifier simplifier(options);
+    lq::Mesh output = simplifier.simplify(input, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
     const std::string label = method + "_f_" + std::to_string(targetFaces) + "_w_" +
                               sanitizeWeight(options.lineWeight);

@@ -90,7 +90,8 @@ options.useLineQuadrics = true;
 options.lineWeight = 1e-3;
 
 lq::SimplifyReport report;
-lq::Mesh simplified = lq::simplifyMesh(input, options, &report);
+lq::QEMSimplifier simplifier(options);
+lq::Mesh simplified = simplifier.simplify(input, &report);
 ```
 
 安装后外部 CMake 工程可使用：
@@ -182,7 +183,8 @@ int main() {
   options.useLineQuadrics = true;
 
   lq::SimplifyReport report;
-  lq::Mesh output = lq::simplifyMesh(input, options, &report);
+  lq::QEMSimplifier simplifier(options);
+  lq::Mesh output = simplifier.simplify(input, &report);
   return output.empty() ? 1 : 0;
 }
 ```

@@ -1,0 +1,4 @@
+# Hard-feature fixtures that are not primarily circular-hole audits.
+external/fandisk_2014.stl
+external/large/rocker_arm.stl
+external/thingi10k/thingi10k_108336_projekt_muse_z_system.stl

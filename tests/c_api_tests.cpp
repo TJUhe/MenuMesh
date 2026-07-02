@@ -1,6 +1,8 @@
 #include "line_quadrics_qem/api/CApi.h"
 
+#include <filesystem>
 #include <gtest/gtest.h>
+#include <string>
 #include <vector>
 
 namespace {
@@ -17,15 +19,25 @@ protected:
   LqContext* context = nullptr;
 };
 
+std::filesystem::path dataRoot() {
+#ifdef LQ_TEST_DATA_DIR
+  return std::filesystem::path(LQ_TEST_DATA_DIR);
+#else
+  return std::filesystem::path(__FILE__).parent_path() / "data";
+#endif
+}
+
 } // namespace
 
-TEST_F(CApiTest, SimplifiesGeneratedMeshThroughOpaqueHandles) {
+TEST_F(CApiTest, SimplifiesRealStlThroughOpaqueHandles) {
   LqMeshHandle* input = lq_mesh_create(context);
   LqMeshHandle* output = lq_mesh_create(context);
   ASSERT_NE(input, nullptr);
   ASSERT_NE(output, nullptr);
 
-  EXPECT_EQ(LQ_STATUS_OK, lq_generate_mesh(context, "cylinder", 32, input));
+  const std::string inputPath =
+      (dataRoot() / "external" / "nasa_antenna_azimuth_track.stl").string();
+  EXPECT_EQ(LQ_STATUS_OK, lq_load_mesh(context, inputPath.c_str(), input, 1e-8));
 
   size_t inputVertices = 0;
   size_t inputFaces = 0;
@@ -36,8 +48,10 @@ TEST_F(CApiTest, SimplifiesGeneratedMeshThroughOpaqueHandles) {
 
   LqSimplifyOptions options;
   lq_simplify_options_init(&options);
-  options.target_ratio = 0.35;
-  options.boundary_weight = 1.0;
+  options.target_ratio = 0.80;
+  options.weight_mode = LQ_WEIGHT_MODE_DIHEDRAL;
+  options.feature_boost = 0.08;
+  options.feature_angle_deg = 25.0;
 
   LqSimplifyReport report;
   EXPECT_EQ(LQ_STATUS_OK, lq_simplify_mesh(context, input, &options, output, &report));

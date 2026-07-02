@@ -15,7 +15,8 @@ int main() {
   options.boundaryWeight = 1.0;
 
   lq::SimplifyReport report;
-  lq::Mesh simplified = lq::simplifyMesh(input, options, &report);
+  lq::QEMSimplifier simplifier(options);
+  lq::Mesh simplified = simplifier.simplify(input, &report);
   if (simplified.empty()) {
     throw std::runtime_error("simplifier returned an empty mesh");
   }

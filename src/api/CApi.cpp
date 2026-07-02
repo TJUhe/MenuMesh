@@ -67,6 +67,9 @@ bool convertWeightMode(LqWeightMode input, lq::WeightMode& output) {
   case LQ_WEIGHT_MODE_X_BAND:
     output = lq::WeightMode::XBand;
     return true;
+  case LQ_WEIGHT_MODE_NORMAL_TENSOR:
+    output = lq::WeightMode::NormalTensor;
+    return true;
   }
   return false;
 }
@@ -405,7 +408,8 @@ LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
     }
 
     lq::SimplifyReport cppReport;
-    output->mesh = lq::simplifyMesh(input->mesh, cppOptions, &cppReport);
+    lq::QEMSimplifier simplifier(cppOptions);
+    output->mesh = simplifier.simplify(input->mesh, &cppReport);
     if (report) {
       fillReport(cppReport, *report);
     }

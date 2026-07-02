@@ -24,7 +24,8 @@ typedef enum LqWeightMode {
   LQ_WEIGHT_MODE_UNIFORM = 0,
   LQ_WEIGHT_MODE_DIHEDRAL = 1,
   LQ_WEIGHT_MODE_HEIGHT = 2,
-  LQ_WEIGHT_MODE_X_BAND = 3
+  LQ_WEIGHT_MODE_X_BAND = 3,
+  LQ_WEIGHT_MODE_NORMAL_TENSOR = 4
 } LqWeightMode;
 
 typedef struct LqVec3 {

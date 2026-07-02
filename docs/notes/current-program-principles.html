@@ -317,7 +317,13 @@ S_{Cr}=\sigma_2-\sigma_3,\qquad
 S_{Co}=\sigma_3.$$
 </div>
 
-<p>当 $S_{Cr}$ 占优时，顶点被解释为 crease，特征切向为 $T_n=E_3$。当前代码尚未完整实现 normal tensor 分类，而是先使用 boundary/dihedral/non-manifold 规则和 loop tracing 作为工程近似；其中 <code>--feature-angle-deg</code> 对应折痕角阈值 $\varphi$ 的角色，后续如果引入 normal tensor，可用 $\varepsilon$ 通过 $\varphi=2\arctan((\varepsilon+1)^{-1/2})$ 做统一参数化。</p>
+<p>当 $S_{Cr}$ 占优时，顶点被解释为 crease，特征切向为 $T_n=E_3$。当前代码已经加入一版轻量 normal tensor 增强：<code>computeNormalTensorFeatures()</code> 从 one-ring 面法向外积累加 $A_n$，可选做邻接张量平滑，再输出 <code>surfaceSaliency</code>、<code>creaseSaliency</code>、<code>cornerSaliency</code> 和 <code>featureScore</code>。在 <code>detectFeatureCurves()</code> 中，normal tensor 只补充没有 boundary/dihedral/non-manifold 离散证据的软特征边，避免把干净圆孔硬环用额外 tensor 边搭桥成大组件；在 QEM 中，<code>--weight-mode normal-tensor</code> 会用同一 <code>featureScore</code> 抬高 line quadric 权重。</p>
+
+<p>可以用下面两条命令直接看到增强是否生效：第一条把二面角阈值设到 179°，使普通 dihedral 基本失效；如果输出里 <code>dihedral_edges=0</code> 且 <code>normal_tensor_edges</code> 大于 0，就说明 normal tensor 候选边正在补特征。第二条看 <code>line_weight_range</code>，若最大值大于最小值，说明 normal tensor 权重已经参与 QEM 简化。</p>
+
+<pre><code>.\build\bin\Debug\linequadrics.exe generate --type ridge --n 32 --out examples\output\normal_tensor_demo\ridge.stl
+.\build\bin\Debug\linequadrics.exe feature-report examples\output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\bin\Debug\linequadrics.exe simplify examples\output\normal_tensor_demo\ridge.stl examples\output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
 
 <h3>5.1 例子：60° 折痕为什么会被判成 crease</h3>
 

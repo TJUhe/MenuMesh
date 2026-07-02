@@ -1424,6 +1424,13 @@ Phase 3: 增强 QEM 简化
 <p>计算开销:Normal Tensor 计算 $O(n)$(每顶点常数时间),特征分解 $O(n)$(3×3 矩阵),平滑 $O(n \cdot T \cdot k)$($T$=迭代数, $k$=邻居数)。在百万面网格上约 100 秒(参考论文 Tab. 3)。</p>
 </div>
 
+<div class="callout success">
+<div class="callout-title">当前仓库的落地版本</div>
+<p>当前实现已经接入轻量 normal tensor 路线:<code>computeNormalTensorFeatures()</code> 计算 one-ring 法向张量、特征值显著性和 crease 切向;<code>detectFeatureCurves()</code> 用 tensor 边补充 dihedral 阈值捕捉不到的软特征;<code>--weight-mode normal-tensor</code> 用 tensor <code>featureScore</code> 调整 line quadric 权重。为了不破坏已有圆孔 hard loop,tensor 候选边不会跨接已经有 boundary/dihedral/non-manifold 证据的离散特征顶点。</p>
+<pre><code>.\build\bin\Debug\linequadrics.exe feature-report examples\output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\bin\Debug\linequadrics.exe simplify examples\output\normal_tensor_demo\ridge.stl examples\output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
+</div>
+
 <!-- ===== 9 ===== -->
 <h2 id="s9"><span class="num">9</span>实验结果与分析</h2>
 

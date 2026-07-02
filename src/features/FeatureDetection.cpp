@@ -27,6 +27,7 @@ struct CandidateEdge {
   int b = -1;
   bool boundary = false;
   bool dihedral = false;
+  bool normalTensor = false;
   bool nonManifold = false;
 };
 
@@ -62,6 +63,86 @@ std::unordered_map<std::uint64_t, EdgeInfo> buildEdgeInfo(const Mesh& mesh) {
   return edges;
 }
 
+std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh) {
+  std::vector<std::unordered_set<int>> neighborSets(mesh.vertices.size());
+  for (const Face& face : mesh.faces) {
+    for (int i = 0; i < 3; ++i) {
+      const int a = face.v[i];
+      const int b = face.v[(i + 1) % 3];
+      if (a >= 0 && b >= 0 && a < static_cast<int>(neighborSets.size()) &&
+          b < static_cast<int>(neighborSets.size()) && a != b) {
+        neighborSets[a].insert(b);
+        neighborSets[b].insert(a);
+      }
+    }
+  }
+
+  std::vector<std::vector<int>> neighbors(mesh.vertices.size());
+  for (int i = 0; i < static_cast<int>(neighborSets.size()); ++i) {
+    neighbors[i].assign(neighborSets[i].begin(), neighborSets[i].end());
+  }
+  return neighbors;
+}
+
+NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
+  NormalTensorVertex result;
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(tensor);
+  if (eig.info() != Eigen::Success) {
+    return result;
+  }
+
+  const double l0 = std::max(0.0, eig.eigenvalues()(2));
+  const double l1 = std::max(0.0, eig.eigenvalues()(1));
+  const double l2 = std::max(0.0, eig.eigenvalues()(0));
+  result.normal = eig.eigenvectors().col(2).normalized();
+  result.creaseTangent = eig.eigenvectors().col(0).normalized();
+  result.surfaceSaliency = std::max(0.0, l0 - l1);
+  result.creaseSaliency = std::max(0.0, l1 - l2);
+  result.cornerSaliency = l2;
+  result.featureScore = std::max(result.creaseSaliency, result.cornerSaliency);
+  return result;
+}
+
+bool normalTensorEdgeCandidate(
+    const CandidateEdge& edge, const std::vector<NormalTensorVertex>& tensor,
+    const std::vector<char>& discreteFeatureVertex, const Mesh& mesh,
+    const FeatureOptions& options, FeatureAnalysis& analysis) {
+  if (!options.useNormalTensorFeatures || edge.a < 0 || edge.b < 0 ||
+      edge.a >= static_cast<int>(tensor.size()) ||
+      edge.b >= static_cast<int>(tensor.size())) {
+    return false;
+  }
+  if (edge.a < static_cast<int>(discreteFeatureVertex.size()) &&
+      edge.b < static_cast<int>(discreteFeatureVertex.size()) &&
+      (discreteFeatureVertex[edge.a] || discreteFeatureVertex[edge.b])) {
+    return false;
+  }
+
+  const double score =
+      0.5 * (tensor[edge.a].featureScore + tensor[edge.b].featureScore);
+  analysis.maxNormalTensorFeatureScore =
+      std::max(analysis.maxNormalTensorFeatureScore, score);
+  const double minEndpointScore =
+      std::min(tensor[edge.a].featureScore, tensor[edge.b].featureScore);
+  if (minEndpointScore < options.normalTensorFeatureThreshold) {
+    return false;
+  }
+  if (tensor[edge.a].creaseSaliency < tensor[edge.a].cornerSaliency ||
+      tensor[edge.b].creaseSaliency < tensor[edge.b].cornerSaliency) {
+    return false;
+  }
+
+  Vec3 direction = mesh.vertices[edge.b] - mesh.vertices[edge.a];
+  const double length = direction.norm();
+  if (length <= 1e-20) {
+    return false;
+  }
+  direction /= length;
+  const double alignA = std::abs(direction.dot(tensor[edge.a].creaseTangent));
+  const double alignB = std::abs(direction.dot(tensor[edge.b].creaseTangent));
+  return std::max(alignA, alignB) >= options.normalTensorMinEdgeAlignment;
+}
+
 std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
                                                const FeatureOptions& options,
                                                FeatureAnalysis& analysis) {
@@ -69,6 +150,27 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
   const std::vector<Vec3> normals = computeFaceNormals(mesh);
   const auto edges = buildEdgeInfo(mesh);
   const double threshold = options.featureAngleDeg * kPi / 180.0;
+  const std::vector<NormalTensorVertex> tensor =
+      options.useNormalTensorFeatures
+          ? computeNormalTensorFeatures(
+                mesh, NormalTensorOptions{options.normalTensorSmoothingIterations})
+          : std::vector<NormalTensorVertex>();
+  std::vector<char> discreteFeatureVertex(mesh.vertices.size(), 0);
+  for (const auto& [key, info] : edges) {
+    bool discrete = false;
+    if (info.faces.size() == 1 || info.faces.size() > 2) {
+      discrete = true;
+    } else if (info.faces.size() == 2) {
+      const double dot = std::clamp(
+          std::abs(normals[info.faces[0]].dot(normals[info.faces[1]])), -1.0, 1.0);
+      discrete = std::acos(dot) >= threshold;
+    }
+    if (discrete) {
+      const auto [a, b] = unpackEdgeKey(key);
+      discreteFeatureVertex[a] = 1;
+      discreteFeatureVertex[b] = 1;
+    }
+  }
 
   for (const auto& [key, info] : edges) {
     CandidateEdge edge;
@@ -85,12 +187,17 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
     } else if (info.faces.size() > 2) {
       edge.nonManifold = true;
     }
+    edge.normalTensor =
+        !edge.boundary && !edge.dihedral && !edge.nonManifold &&
+        normalTensorEdgeCandidate(edge, tensor, discreteFeatureVertex, mesh, options,
+                                  analysis);
 
-    if (edge.boundary || edge.dihedral || edge.nonManifold) {
+    if (edge.boundary || edge.dihedral || edge.normalTensor || edge.nonManifold) {
       result.push_back(edge);
       ++analysis.featureEdges;
       if (edge.boundary) ++analysis.boundaryFeatureEdges;
       if (edge.dihedral) ++analysis.dihedralFeatureEdges;
+      if (edge.normalTensor) ++analysis.normalTensorFeatureEdges;
       if (edge.nonManifold) ++analysis.nonManifoldFeatureEdges;
     }
   }
@@ -206,6 +313,62 @@ Vec3 fallbackTangentFromNeighbors(int id, const std::vector<int>& neighbors,
 }
 
 } // namespace
+
+std::vector<NormalTensorVertex>
+computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options) {
+  std::vector<NormalTensorVertex> result(mesh.vertices.size());
+  if (mesh.empty()) {
+    return result;
+  }
+
+  std::vector<Eigen::Matrix3d> tensors(mesh.vertices.size(), Eigen::Matrix3d::Zero());
+  std::vector<double> weights(mesh.vertices.size(), 0.0);
+  for (const Face& face : mesh.faces) {
+    const Vec3& a = mesh.vertices[face.v[0]];
+    const Vec3& b = mesh.vertices[face.v[1]];
+    const Vec3& c = mesh.vertices[face.v[2]];
+    const Vec3 normal = triangleNormal(a, b, c);
+    const double area = triangleArea(a, b, c);
+    if (normal.norm() <= 1e-20 || area <= 1e-24) {
+      continue;
+    }
+    const Eigen::Matrix3d tensor = normal * normal.transpose();
+    for (int id : face.v) {
+      tensors[id] += area * tensor;
+      weights[id] += area;
+    }
+  }
+
+  for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
+    if (weights[i] > 1e-24) {
+      tensors[i] /= weights[i];
+    }
+  }
+
+  const std::vector<std::vector<int>> neighbors = buildVertexNeighbors(mesh);
+  const int iterations = std::clamp(options.smoothingIterations, 0, 8);
+  for (int iter = 0; iter < iterations; ++iter) {
+    std::vector<Eigen::Matrix3d> next = tensors;
+    for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
+      if (neighbors[i].empty()) {
+        continue;
+      }
+      Eigen::Matrix3d sum = tensors[i];
+      double count = 1.0;
+      for (int nb : neighbors[i]) {
+        sum += tensors[nb];
+        count += 1.0;
+      }
+      next[i] = sum / count;
+    }
+    tensors.swap(next);
+  }
+
+  for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
+    result[i] = analyzeNormalTensor(tensors[i]);
+  }
+  return result;
+}
 
 FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options) {
   FeatureAnalysis analysis;

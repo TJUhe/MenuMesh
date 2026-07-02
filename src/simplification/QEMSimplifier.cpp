@@ -9,10 +9,12 @@
 #include <cstdint>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <queue>
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace lq {
 namespace {
@@ -138,8 +140,9 @@ buildEdgeInfo(const Mesh& mesh, const std::vector<Vec3>* faceNormals = nullptr) 
   return edges;
 }
 
-std::vector<double> computeFeatureScores(const Mesh& mesh, WeightMode mode,
-                                         double angleDeg) {
+std::vector<double> computeFeatureScores(const Mesh& mesh,
+                                         const SimplifyOptions& options) {
+  const WeightMode mode = options.weightMode;
   std::vector<double> score(mesh.vertices.size(), 0.0);
   if (mode == WeightMode::Uniform) {
     return score;
@@ -166,6 +169,15 @@ std::vector<double> computeFeatureScores(const Mesh& mesh, WeightMode mode,
     return score;
   }
 
+  if (mode == WeightMode::NormalTensor) {
+    const std::vector<NormalTensorVertex> tensor = computeNormalTensorFeatures(
+        mesh, NormalTensorOptions{options.normalTensorSmoothingIterations});
+    for (int i = 0; i < static_cast<int>(tensor.size()); ++i) {
+      score[i] = tensor[i].featureScore;
+    }
+    return score;
+  }
+
   std::vector<Vec3> faceNormals(mesh.faces.size(), Vec3::Zero());
   for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
     const Face& f = mesh.faces[fi];
@@ -174,7 +186,7 @@ std::vector<double> computeFeatureScores(const Mesh& mesh, WeightMode mode,
   }
 
   const auto edgeInfo = buildEdgeInfo(mesh);
-  const double threshold = angleDeg * kPi / 180.0;
+  const double threshold = options.featureAngleDeg * kPi / 180.0;
   const double denom = std::max(1e-12, kPi - threshold);
   for (const auto& [key, info] : edgeInfo) {
     double edgeScore = 0.0;
@@ -271,7 +283,7 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
 
   const std::vector<double> featureScores =
       useNormalLineQuadrics
-          ? computeFeatureScores(mesh, options.weightMode, options.featureAngleDeg)
+          ? computeFeatureScores(mesh, options)
           : std::vector<double>();
 
   if (useNormalLineQuadrics) {
@@ -729,20 +741,6 @@ bool collapseWouldBeValid(int keep, int remove, const Vec3& newPosition,
   return removed;
 }
 
-void pushEdge(int a, int b, const std::vector<VertexState>& vertices,
-              std::priority_queue<Candidate>& queue, SimplifyReport& report) {
-  if (a == b || !vertices[a].active || !vertices[b].active) {
-    return;
-  }
-  const Mat4 q = vertices[a].q + vertices[b].q;
-  const SolveResult solve = solveOptimal(q, vertices[a].p, vertices[b].p);
-  if (solve.usedFallback) {
-    ++report.solverFallbacks;
-  }
-  queue.push(Candidate{solve.cost, std::min(a, b), std::max(a, b), vertices[a].version,
-                       vertices[b].version});
-}
-
 Mesh compactResult(const std::vector<VertexState>& vertices,
                    const std::vector<FaceState>& faces) {
   Mesh result;
@@ -773,11 +771,398 @@ Mesh compactResult(const std::vector<VertexState>& vertices,
   return result;
 }
 
+class InitialQuadricBuilder {
+public:
+  explicit InitialQuadricBuilder(const SimplifyOptions& options)
+      : options_(options) {}
+
+  std::vector<Mat4> build(const Mesh& mesh, const FeatureAnalysis* featureAnalysis,
+                          SimplifyReport& report) const {
+    std::vector<Mat4> quadrics;
+    computeInitialQuadrics(mesh, options_, featureAnalysis, quadrics,
+                           report.minAppliedLineWeight,
+                           report.maxAppliedLineWeight);
+    return quadrics;
+  }
+
+private:
+  const SimplifyOptions& options_;
+};
+
+class FeatureConstraintPolicy {
+public:
+  explicit FeatureConstraintPolicy(const SimplifyOptions& options)
+      : options_(options) {}
+
+  bool canCollapse(int keep, int remove, const std::vector<VertexState>& vertices,
+                   const std::vector<int>& activeLoopCounts) const {
+    return featureCollapseAllowed(keep, remove, vertices, activeLoopCounts, options_);
+  }
+
+  bool projectPlacement(int keep, int remove,
+                        const std::vector<VertexState>& vertices,
+                        Vec3& position) const {
+    return projectFeaturePlacement(keep, remove, vertices, options_, position);
+  }
+
+private:
+  const SimplifyOptions& options_;
+};
+
+class CandidateQueue {
+public:
+  void clear() { queue_ = std::priority_queue<Candidate>(); }
+  bool empty() const { return queue_.empty(); }
+
+  Candidate pop() {
+    Candidate candidate = queue_.top();
+    queue_.pop();
+    return candidate;
+  }
+
+  void pushEdge(int a, int b, const std::vector<VertexState>& vertices,
+                SimplifyReport& report) {
+    if (a == b || !vertices[a].active || !vertices[b].active) {
+      return;
+    }
+    const Mat4 q = vertices[a].q + vertices[b].q;
+    const SolveResult solve = solveOptimal(q, vertices[a].p, vertices[b].p);
+    if (solve.usedFallback) {
+      ++report.solverFallbacks;
+    }
+    queue_.push(Candidate{solve.cost, std::min(a, b), std::max(a, b),
+                          vertices[a].version, vertices[b].version});
+  }
+
+private:
+  std::priority_queue<Candidate> queue_;
+};
+
+class SimplificationRun {
+public:
+  SimplificationRun(const Mesh& input, const SimplifyOptions& options)
+      : input_(input),
+        options_(options),
+        quadrics_(options),
+        featurePolicy_(options) {}
+
+  Mesh execute(SimplifyReport* outReport) {
+    initializeReport();
+    analyzeFeatures();
+    initializeVertices();
+    initializeFaces();
+    initializeBudget();
+    rebuildQueue();
+    collapseUntilTarget();
+
+    Mesh result = compactResult(vertices_, faces_);
+    report_.finalVertices = static_cast<int>(result.vertices.size());
+    report_.finalFaces = static_cast<int>(result.faces.size());
+    if (outReport) {
+      *outReport = report_;
+    }
+    return result;
+  }
+
+private:
+  void initializeReport() {
+    report_ = SimplifyReport{};
+    report_.initialVertices = static_cast<int>(input_.vertices.size());
+    report_.initialFaces = static_cast<int>(input_.faces.size());
+  }
+
+  void analyzeFeatures() {
+    featureAnalysis_ = FeatureAnalysis{};
+    featureAnalysisPtr_ = nullptr;
+    if (!options_.preserveFeatureCurves) {
+      return;
+    }
+
+    FeatureOptions featureOptions;
+    featureOptions.featureAngleDeg = options_.featureAngleDeg;
+    featureOptions.circleFitRelativeThreshold = options_.circleFitRelativeThreshold;
+    featureOptions.minFeatureLoopVertices =
+        std::max(5, options_.minFeatureLoopVertices);
+    featureOptions.useNormalTensorFeatures = options_.useNormalTensorFeatures;
+    featureOptions.normalTensorFeatureThreshold =
+        options_.normalTensorFeatureThreshold;
+    featureOptions.normalTensorMinEdgeAlignment =
+        options_.normalTensorMinEdgeAlignment;
+    featureOptions.normalTensorSmoothingIterations =
+        options_.normalTensorSmoothingIterations;
+    featureAnalysis_ = detectFeatureCurves(input_, featureOptions);
+    featureAnalysisPtr_ = &featureAnalysis_;
+    report_.featureLoops = static_cast<int>(featureAnalysis_.loops.size());
+    report_.normalTensorFeatureEdges = featureAnalysis_.normalTensorFeatureEdges;
+    for (const FeatureLoop& loop : featureAnalysis_.loops) {
+      if (loop.circular) {
+        ++report_.circularFeatureLoops;
+      }
+    }
+    for (const VertexFeature& vertex : featureAnalysis_.vertices) {
+      if (vertex.isFeature) {
+        ++report_.featureVertices;
+      }
+    }
+  }
+
+  void initializeVertices() {
+    const std::vector<Mat4> initialQuadrics =
+        quadrics_.build(input_, featureAnalysisPtr_, report_);
+    vertices_.assign(input_.vertices.size(), VertexState{});
+    for (int i = 0; i < static_cast<int>(input_.vertices.size()); ++i) {
+      vertices_[i].p = input_.vertices[i];
+      vertices_[i].q = initialQuadrics[i];
+      initializeVertexFeature(i);
+    }
+
+    activeLoopCounts_.clear();
+    if (!featureAnalysisPtr_) {
+      return;
+    }
+    activeLoopCounts_.assign(featureAnalysisPtr_->loops.size(), 0);
+    for (const VertexState& vertex : vertices_) {
+      if (vertex.isFeature && vertex.featureLoopId >= 0 &&
+          vertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
+        ++activeLoopCounts_[vertex.featureLoopId];
+      }
+    }
+  }
+
+  void initializeVertexFeature(int vertexId) {
+    if (!featureAnalysisPtr_ ||
+        vertexId >= static_cast<int>(featureAnalysisPtr_->vertices.size())) {
+      return;
+    }
+    const VertexFeature& vf = featureAnalysisPtr_->vertices[vertexId];
+    VertexState& vertex = vertices_[vertexId];
+    vertex.isFeature = vf.isFeature;
+    vertex.circularFeature = vf.circular;
+    vertex.featureJunction = vf.junction;
+    vertex.featureLoopId = vf.loopId;
+    vertex.curveTangent = vf.tangent;
+    vertex.circleCenter = vf.circleCenter;
+    vertex.circleNormal = vf.circleNormal;
+    vertex.circleRadius = vf.circleRadius;
+  }
+
+  void initializeFaces() {
+    faces_.assign(input_.faces.size(), FaceState{});
+    for (int i = 0; i < static_cast<int>(input_.faces.size()); ++i) {
+      faces_[i].v = input_.faces[i].v;
+    }
+    topology_ =
+        std::make_unique<DynamicTopology>(faces_, static_cast<int>(vertices_.size()));
+    activeFaceCount_ = static_cast<int>(faces_.size());
+  }
+
+  void initializeBudget() {
+    targetFaces_ =
+        options_.targetFaces > 0
+            ? options_.targetFaces
+            : std::max(4, static_cast<int>(std::llround(
+                              input_.faces.size() * options_.targetRatio)));
+    const double diag = std::max(1e-12, input_.bboxDiag());
+    areaEps_ = diag * diag * 1e-18;
+
+    const int initialActiveEdgeCount =
+        static_cast<int>(collectActiveEdges(faces_).size());
+    maxAttemptsWithoutCollapse_ =
+        std::max(1000, std::max(1, initialActiveEdgeCount) * 6);
+    attemptsWithoutCollapse_ = 0;
+    stalePops_ = 0;
+  }
+
+  void rebuildQueue() {
+    queue_.clear();
+    for (const auto& [a, b] : collectActiveEdges(faces_)) {
+      queue_.pushEdge(a, b, vertices_, report_);
+    }
+    ++report_.queueRebuilds;
+  }
+
+  void collapseUntilTarget() {
+    while (activeFaceCount_ > targetFaces_) {
+      if (!ensureQueueHasCandidates()) {
+        break;
+      }
+
+      const Candidate candidate = queue_.pop();
+      if (!isCurrentCandidate(candidate)) {
+        handleStaleCandidate();
+        continue;
+      }
+      stalePops_ = 0;
+
+      if (!tryCollapse(candidate.a, candidate.b)) {
+        if (attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_) {
+          break;
+        }
+        continue;
+      }
+      attemptsWithoutCollapse_ = 0;
+
+      if (options_.verbose && report_.collapsedEdges % 1000 == 0) {
+        std::cerr << "collapsed " << report_.collapsedEdges << ", faces "
+                  << activeFaceCount_ << "/" << targetFaces_ << "\n";
+      }
+    }
+  }
+
+  bool ensureQueueHasCandidates() {
+    if (!queue_.empty()) {
+      return true;
+    }
+    rebuildQueue();
+    return !queue_.empty();
+  }
+
+  bool isCurrentCandidate(const Candidate& candidate) const {
+    const int a = candidate.a;
+    const int b = candidate.b;
+    return a >= 0 && b >= 0 && a < static_cast<int>(vertices_.size()) &&
+           b < static_cast<int>(vertices_.size()) && vertices_[a].active &&
+           vertices_[b].active && vertices_[a].version == candidate.versionA &&
+           vertices_[b].version == candidate.versionB &&
+           areAdjacent(a, b, faces_, *topology_);
+  }
+
+  void handleStaleCandidate() {
+    if (++stalePops_ > 10000) {
+      rebuildQueue();
+      stalePops_ = 0;
+    }
+  }
+
+  bool tryCollapse(int keep, int remove) {
+    const Mat4 mergedQ = vertices_[keep].q + vertices_[remove].q;
+    const SolveResult solve =
+        solveOptimal(mergedQ, vertices_[keep].p, vertices_[remove].p);
+    if (solve.usedFallback) {
+      ++report_.solverFallbacks;
+    }
+
+    if (!featurePolicy_.canCollapse(keep, remove, vertices_, activeLoopCounts_)) {
+      rejectFeatureCollapse(keep, remove);
+      return false;
+    }
+
+    Vec3 collapsePosition = solve.position;
+    if (featurePolicy_.projectPlacement(keep, remove, vertices_, collapsePosition)) {
+      ++report_.projectedFeaturePlacements;
+    }
+
+    if (!collapseWouldBeValid(keep, remove, collapsePosition, faces_, vertices_,
+                              *topology_, areaEps_)) {
+      rejectTopologyCollapse(keep, remove);
+      return false;
+    }
+
+    applyCollapse(keep, remove, collapsePosition, mergedQ);
+    return true;
+  }
+
+  void rejectFeatureCollapse(int keep, int remove) {
+    ++report_.rejectedCollapses;
+    ++report_.featureRejectedCollapses;
+    bumpVersions(keep, remove);
+    if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ &&
+        options_.verbose) {
+      std::cerr << "stopped: feature constraints leave no valid collapses\n";
+    }
+  }
+
+  void rejectTopologyCollapse(int keep, int remove) {
+    ++report_.rejectedCollapses;
+    bumpVersions(keep, remove);
+    if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ &&
+        options_.verbose) {
+      std::cerr << "stopped: topology checks leave no valid collapses\n";
+    }
+  }
+
+  void bumpVersions(int keep, int remove) {
+    vertices_[keep].version++;
+    vertices_[remove].version++;
+  }
+
+  void applyCollapse(int keep, int remove, const Vec3& position,
+                     const Mat4& mergedQ) {
+    const bool mergedFeatureLoop =
+        vertices_[keep].isFeature && vertices_[remove].isFeature &&
+        vertices_[keep].featureLoopId == vertices_[remove].featureLoopId &&
+        vertices_[keep].featureLoopId >= 0 &&
+        vertices_[keep].featureLoopId < static_cast<int>(activeLoopCounts_.size());
+
+    vertices_[keep].p = position;
+    vertices_[keep].q = mergedQ;
+    refreshCircularTangent(vertices_[keep]);
+    vertices_[remove].active = false;
+    if (mergedFeatureLoop) {
+      --activeLoopCounts_[vertices_[keep].featureLoopId];
+    }
+    bumpVersions(keep, remove);
+
+    rewriteIncidentFaces(keep, remove);
+    ++report_.collapsedEdges;
+
+    for (int neighbor : activeNeighborsOf(keep, faces_, vertices_, *topology_)) {
+      queue_.pushEdge(keep, neighbor, vertices_, report_);
+    }
+  }
+
+  void rewriteIncidentFaces(int keep, int remove) {
+    const std::vector<int> removeIncidentFaces(
+        topology_->vertexFaces[remove].begin(), topology_->vertexFaces[remove].end());
+    for (int faceId : removeIncidentFaces) {
+      FaceState& face = faces_[faceId];
+      if (!face.active || !containsVertex(face, remove)) {
+        continue;
+      }
+      topology_->removeFace(faceId, face);
+      for (int& id : face.v) {
+        if (id == remove) {
+          id = keep;
+        }
+      }
+      if (face.v[0] == face.v[1] || face.v[1] == face.v[2] ||
+          face.v[0] == face.v[2] || topology_->hasDuplicateFace(faceId, face)) {
+        face.active = false;
+        --activeFaceCount_;
+      } else {
+        topology_->addFace(faceId, face);
+      }
+    }
+  }
+
+  const Mesh& input_;
+  const SimplifyOptions& options_;
+  SimplifyReport report_;
+  FeatureAnalysis featureAnalysis_;
+  const FeatureAnalysis* featureAnalysisPtr_ = nullptr;
+  std::vector<VertexState> vertices_;
+  std::vector<FaceState> faces_;
+  std::unique_ptr<DynamicTopology> topology_;
+  std::vector<int> activeLoopCounts_;
+  CandidateQueue queue_;
+  InitialQuadricBuilder quadrics_;
+  FeatureConstraintPolicy featurePolicy_;
+  int activeFaceCount_ = 0;
+  int targetFaces_ = 0;
+  double areaEps_ = 0.0;
+  int maxAttemptsWithoutCollapse_ = 0;
+  int attemptsWithoutCollapse_ = 0;
+  int stalePops_ = 0;
+};
+
 } // namespace
 
 WeightMode parseWeightMode(const std::string& value) {
   if (value == "uniform") return WeightMode::Uniform;
   if (value == "dihedral") return WeightMode::Dihedral;
+  if (value == "normal-tensor" || value == "normal_tensor") {
+    return WeightMode::NormalTensor;
+  }
   if (value == "height") return WeightMode::Height;
   if (value == "xband") return WeightMode::XBand;
   throw std::invalid_argument("Unknown weight mode: " + value);
@@ -789,6 +1174,8 @@ std::string toString(WeightMode mode) {
     return "uniform";
   case WeightMode::Dihedral:
     return "dihedral";
+  case WeightMode::NormalTensor:
+    return "normal-tensor";
   case WeightMode::Height:
     return "height";
   case WeightMode::XBand:
@@ -797,221 +1184,30 @@ std::string toString(WeightMode mode) {
   return "unknown";
 }
 
+QEMSimplifier::QEMSimplifier(SimplifyOptions options)
+    : options_(std::move(options)) {}
+
+void QEMSimplifier::setOptions(SimplifyOptions options) {
+  options_ = std::move(options);
+}
+
+Mesh QEMSimplifier::simplify(const Mesh& input) {
+  return simplify(input, nullptr);
+}
+
+Mesh QEMSimplifier::simplify(const Mesh& input, SimplifyReport* outReport) {
+  SimplificationRun run(input, options_);
+  Mesh output = run.execute(&report_);
+  if (outReport) {
+    *outReport = report_;
+  }
+  return output;
+}
+
 Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
                   SimplifyReport* outReport) {
-  SimplifyReport report;
-  report.initialVertices = static_cast<int>(input.vertices.size());
-  report.initialFaces = static_cast<int>(input.faces.size());
-
-  FeatureAnalysis featureAnalysis;
-  const FeatureAnalysis* featureAnalysisPtr = nullptr;
-  if (options.preserveFeatureCurves) {
-    FeatureOptions featureOptions;
-    featureOptions.featureAngleDeg = options.featureAngleDeg;
-    featureOptions.circleFitRelativeThreshold = options.circleFitRelativeThreshold;
-    featureOptions.minFeatureLoopVertices =
-        std::max(5, std::min(options.minFeatureLoopVertices, 8));
-    featureAnalysis = detectFeatureCurves(input, featureOptions);
-    featureAnalysisPtr = &featureAnalysis;
-    report.featureLoops = static_cast<int>(featureAnalysis.loops.size());
-    for (const FeatureLoop& loop : featureAnalysis.loops) {
-      if (loop.circular) {
-        ++report.circularFeatureLoops;
-      }
-    }
-    for (const VertexFeature& vertex : featureAnalysis.vertices) {
-      if (vertex.isFeature) {
-        ++report.featureVertices;
-      }
-    }
-  }
-
-  std::vector<Mat4> initialQuadrics;
-  computeInitialQuadrics(input, options, featureAnalysisPtr, initialQuadrics,
-                         report.minAppliedLineWeight, report.maxAppliedLineWeight);
-
-  std::vector<VertexState> vertices(input.vertices.size());
-  for (int i = 0; i < static_cast<int>(input.vertices.size()); ++i) {
-    vertices[i].p = input.vertices[i];
-    vertices[i].q = initialQuadrics[i];
-    if (featureAnalysisPtr &&
-        i < static_cast<int>(featureAnalysisPtr->vertices.size())) {
-      const VertexFeature& vf = featureAnalysisPtr->vertices[i];
-      vertices[i].isFeature = vf.isFeature;
-      vertices[i].circularFeature = vf.circular;
-      vertices[i].featureJunction = vf.junction;
-      vertices[i].featureLoopId = vf.loopId;
-      vertices[i].curveTangent = vf.tangent;
-      vertices[i].circleCenter = vf.circleCenter;
-      vertices[i].circleNormal = vf.circleNormal;
-      vertices[i].circleRadius = vf.circleRadius;
-    }
-  }
-
-  std::vector<int> activeLoopCounts;
-  if (featureAnalysisPtr) {
-    activeLoopCounts.assign(featureAnalysisPtr->loops.size(), 0);
-    for (const VertexState& vertex : vertices) {
-      if (vertex.isFeature && vertex.featureLoopId >= 0 &&
-          vertex.featureLoopId < static_cast<int>(activeLoopCounts.size())) {
-        ++activeLoopCounts[vertex.featureLoopId];
-      }
-    }
-  }
-
-  std::vector<FaceState> faces(input.faces.size());
-  for (int i = 0; i < static_cast<int>(input.faces.size()); ++i) {
-    faces[i].v = input.faces[i].v;
-  }
-  DynamicTopology topology(faces, static_cast<int>(vertices.size()));
-
-  int activeFaceCount = static_cast<int>(faces.size());
-  const int targetFaces =
-      options.targetFaces > 0
-          ? options.targetFaces
-          : std::max(4, static_cast<int>(
-                            std::llround(input.faces.size() * options.targetRatio)));
-  const double diag = std::max(1e-12, input.bboxDiag());
-  const double areaEps = diag * diag * 1e-18;
-
-  std::priority_queue<Candidate> queue;
-  const int initialActiveEdgeCount = static_cast<int>(collectActiveEdges(faces).size());
-  const int maxAttemptsWithoutCollapse =
-      std::max(1000, std::max(1, initialActiveEdgeCount) * 6);
-  int attemptsWithoutCollapse = 0;
-  auto rebuildQueue = [&]() {
-    queue = std::priority_queue<Candidate>();
-    for (const auto& [a, b] : collectActiveEdges(faces)) {
-      pushEdge(a, b, vertices, queue, report);
-    }
-    ++report.queueRebuilds;
-  };
-  rebuildQueue();
-
-  int stalePops = 0;
-  while (activeFaceCount > targetFaces) {
-    if (queue.empty()) {
-      rebuildQueue();
-      if (queue.empty()) {
-        break;
-      }
-    }
-
-    Candidate candidate = queue.top();
-    queue.pop();
-    const int a = candidate.a;
-    const int b = candidate.b;
-    if (a < 0 || b < 0 || a >= static_cast<int>(vertices.size()) ||
-        b >= static_cast<int>(vertices.size()) || !vertices[a].active ||
-        !vertices[b].active || vertices[a].version != candidate.versionA ||
-        vertices[b].version != candidate.versionB ||
-        !areAdjacent(a, b, faces, topology)) {
-      if (++stalePops > 10000) {
-        rebuildQueue();
-        stalePops = 0;
-      }
-      continue;
-    }
-    stalePops = 0;
-
-    const Mat4 mergedQ = vertices[a].q + vertices[b].q;
-    const SolveResult solve = solveOptimal(mergedQ, vertices[a].p, vertices[b].p);
-    if (solve.usedFallback) {
-      ++report.solverFallbacks;
-    }
-
-    const int keep = a;
-    const int remove = b;
-    if (!featureCollapseAllowed(keep, remove, vertices, activeLoopCounts, options)) {
-      ++report.rejectedCollapses;
-      ++report.featureRejectedCollapses;
-      vertices[keep].version++;
-      vertices[remove].version++;
-      if (++attemptsWithoutCollapse > maxAttemptsWithoutCollapse) {
-        if (options.verbose) {
-          std::cerr << "stopped: feature constraints leave no valid collapses\n";
-        }
-        break;
-      }
-      continue;
-    }
-
-    Vec3 collapsePosition = solve.position;
-    if (projectFeaturePlacement(keep, remove, vertices, options, collapsePosition)) {
-      ++report.projectedFeaturePlacements;
-    }
-
-    if (!collapseWouldBeValid(keep, remove, collapsePosition, faces, vertices, topology,
-                              areaEps)) {
-      ++report.rejectedCollapses;
-      vertices[keep].version++;
-      vertices[remove].version++;
-      if (++attemptsWithoutCollapse > maxAttemptsWithoutCollapse) {
-        if (options.verbose) {
-          std::cerr << "stopped: topology checks leave no valid collapses\n";
-        }
-        break;
-      }
-      continue;
-    }
-
-    const bool mergedFeatureLoop =
-        vertices[keep].isFeature && vertices[remove].isFeature &&
-        vertices[keep].featureLoopId == vertices[remove].featureLoopId &&
-        vertices[keep].featureLoopId >= 0 &&
-        vertices[keep].featureLoopId < static_cast<int>(activeLoopCounts.size());
-
-    vertices[keep].p = collapsePosition;
-    vertices[keep].q = mergedQ;
-    refreshCircularTangent(vertices[keep]);
-    vertices[remove].active = false;
-    if (mergedFeatureLoop) {
-      --activeLoopCounts[vertices[keep].featureLoopId];
-    }
-    vertices[keep].version++;
-    vertices[remove].version++;
-
-    const std::vector<int> removeIncidentFaces(topology.vertexFaces[remove].begin(),
-                                               topology.vertexFaces[remove].end());
-    for (int faceId : removeIncidentFaces) {
-      FaceState& face = faces[faceId];
-      if (!face.active || !containsVertex(face, remove)) {
-        continue;
-      }
-      topology.removeFace(faceId, face);
-      for (int& id : face.v) {
-        if (id == remove) {
-          id = keep;
-        }
-      }
-      if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2] ||
-          topology.hasDuplicateFace(faceId, face)) {
-        face.active = false;
-        --activeFaceCount;
-      } else {
-        topology.addFace(faceId, face);
-      }
-    }
-    ++report.collapsedEdges;
-    attemptsWithoutCollapse = 0;
-
-    for (int neighbor : activeNeighborsOf(keep, faces, vertices, topology)) {
-      pushEdge(keep, neighbor, vertices, queue, report);
-    }
-
-    if (options.verbose && report.collapsedEdges % 1000 == 0) {
-      std::cerr << "collapsed " << report.collapsedEdges << ", faces "
-                << activeFaceCount << "/" << targetFaces << "\n";
-    }
-  }
-
-  Mesh result = compactResult(vertices, faces);
-  report.finalVertices = static_cast<int>(result.vertices.size());
-  report.finalFaces = static_cast<int>(result.faces.size());
-  if (outReport) {
-    *outReport = report;
-  }
-  return result;
+  QEMSimplifier simplifier(options);
+  return simplifier.simplify(input, outReport);
 }
 
 } // namespace lq

@@ -13,6 +13,25 @@ struct FeatureOptions {
   double featureAngleDeg = 40.0;
   double circleFitRelativeThreshold = 0.05;
   int minFeatureLoopVertices = 8;
+  bool useNormalTensorFeatures = true;
+  double normalTensorFeatureThreshold = 0.16;
+  double normalTensorMinEdgeAlignment = 0.45;
+  int normalTensorSmoothingIterations = 0;
+};
+
+/// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
+struct NormalTensorOptions {
+  int smoothingIterations = 0;
+};
+
+/// Per-vertex normal-tensor decomposition and feature saliency.
+struct NormalTensorVertex {
+  Vec3 normal = Vec3(0.0, 0.0, 1.0);
+  Vec3 creaseTangent = Vec3(1.0, 0.0, 0.0);
+  double surfaceSaliency = 0.0;
+  double creaseSaliency = 0.0;
+  double cornerSaliency = 0.0;
+  double featureScore = 0.0;
 };
 
 /// One connected feature curve or loop detected in the mesh.
@@ -51,7 +70,9 @@ struct FeatureAnalysis {
   int featureEdges = 0;
   int boundaryFeatureEdges = 0;
   int dihedralFeatureEdges = 0;
+  int normalTensorFeatureEdges = 0;
   int nonManifoldFeatureEdges = 0;
+  double maxNormalTensorFeatureScore = 0.0;
 };
 
 /// Error of a detected loop against a circular reference curve.
@@ -63,7 +84,12 @@ struct DirectionalCurveError {
   double planeMax = 0.0;
 };
 
-/// Detects boundary, non-manifold, dihedral, and circular feature curves.
+/// Computes local normal-tensor scores from one-ring face normals.
+LQ_API std::vector<NormalTensorVertex>
+computeNormalTensorFeatures(const Mesh& mesh,
+                            const NormalTensorOptions& options = {});
+
+/// Detects boundary, non-manifold, dihedral, tensor, and circular feature curves.
 LQ_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh,
                                            const FeatureOptions& options);
 

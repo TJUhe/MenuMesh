@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <iomanip>
 #include <iostream>
@@ -31,6 +33,34 @@ std::vector<PerformanceCase> discoverLargeMeshCases() {
   std::vector<PerformanceCase> cases;
   const std::filesystem::path root = externalDataDir();
 
+  auto addIfExists = [&](const std::filesystem::path& relativePath) {
+    const std::filesystem::path path = root / relativePath;
+    if (std::filesystem::exists(path)) {
+      cases.push_back({relativePath.parent_path().empty()
+                           ? path.stem().string()
+                           : relativePath.parent_path().generic_string() + "/" +
+                                 path.stem().string(),
+                       relativePath});
+    }
+  };
+
+  auto addDirectory = [&](const std::filesystem::path& relativeDir) {
+    const std::filesystem::path dir = root / relativeDir;
+    if (!std::filesystem::exists(dir)) {
+      return;
+    }
+    for (const std::filesystem::directory_entry& entry :
+         std::filesystem::directory_iterator(dir)) {
+      if (!entry.is_regular_file() || entry.path().extension() != ".stl") {
+        continue;
+      }
+      const std::filesystem::path relativePath = relativeDir / entry.path().filename();
+      cases.push_back(
+          {relativeDir.generic_string() + "/" + entry.path().stem().string(),
+           relativePath});
+    }
+  };
+
   const std::vector<std::string> rootLargeFiles = {
       "casting_aimshape_2014.stl",
       "fandisk_2014.stl",
@@ -39,23 +69,10 @@ std::vector<PerformanceCase> discoverLargeMeshCases() {
   };
 
   for (const std::string& fileName : rootLargeFiles) {
-    const std::filesystem::path path = root / fileName;
-    if (std::filesystem::exists(path)) {
-      cases.push_back({path.stem().string(), fileName});
-    }
+    addIfExists(fileName);
   }
-
-  const std::filesystem::path largeDir = root / "large";
-  if (std::filesystem::exists(largeDir)) {
-    for (const std::filesystem::directory_entry& entry :
-         std::filesystem::directory_iterator(largeDir)) {
-      if (!entry.is_regular_file() || entry.path().extension() != ".stl") {
-        continue;
-      }
-      cases.push_back({"large/" + entry.path().stem().string(),
-                       std::filesystem::path("large") / entry.path().filename()});
-    }
-  }
+  addDirectory("large");
+  addDirectory("thingi10k");
 
   std::sort(cases.begin(), cases.end(),
             [](const PerformanceCase& a, const PerformanceCase& b) {
@@ -90,11 +107,44 @@ std::string propertyPrefix(std::string name) {
   return name;
 }
 
+bool isBinaryStlFile(const std::filesystem::path& path, std::uint32_t& triangleCount) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) {
+    return false;
+  }
+  in.seekg(0, std::ios::end);
+  const std::streamoff size = in.tellg();
+  if (size < 84) {
+    return false;
+  }
+  in.seekg(80, std::ios::beg);
+  std::uint32_t count = 0;
+  in.read(reinterpret_cast<char*>(&count), sizeof(count));
+  if (!in) {
+    return false;
+  }
+  triangleCount = count;
+  return size == static_cast<std::streamoff>(84 + 50ull * triangleCount);
+}
+
 } // namespace
+
+TEST(LineQuadricsQemPerformance, LargeExternalMeshInputsAreBinaryStl) {
+  const std::vector<PerformanceCase> cases = discoverLargeMeshCases();
+  ASSERT_GE(cases.size(), 100u);
+
+  for (const PerformanceCase& testCase : cases) {
+    SCOPED_TRACE(testCase.relativePath.generic_string());
+    std::uint32_t triangleCount = 0;
+    const std::filesystem::path path = externalDataDir() / testCase.relativePath;
+    EXPECT_TRUE(isBinaryStlFile(path, triangleCount));
+    EXPECT_GT(triangleCount, 0u);
+  }
+}
 
 TEST(LineQuadricsQemPerformance, LargeExternalMeshesSimplifyAtNinetyPercent) {
   const std::vector<PerformanceCase> cases = discoverLargeMeshCases();
-  ASSERT_GE(cases.size(), 14u);
+  ASSERT_GE(cases.size(), 100u);
 
   std::cout << "\nlarge mesh performance, ratio=0.90\n";
   std::cout << "model,vertices,input_faces,output_faces,load_ms,simplify_ms,"

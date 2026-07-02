@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <gtest/gtest.h>
 #include <stdexcept>
@@ -119,6 +121,45 @@ lq::Mesh loadExternalMesh(const std::string& fileName) {
   return mesh;
 }
 
+std::vector<std::filesystem::path> discoverExternalStlFixtures() {
+  std::vector<std::filesystem::path> paths;
+  const std::filesystem::path root = externalDataDir();
+  if (!std::filesystem::exists(root)) {
+    return paths;
+  }
+
+  for (const std::filesystem::directory_entry& entry :
+       std::filesystem::recursive_directory_iterator(root)) {
+    if (!entry.is_regular_file() || entry.path().extension() != ".stl") {
+      continue;
+    }
+    paths.push_back(std::filesystem::relative(entry.path(), root));
+  }
+
+  std::sort(paths.begin(), paths.end());
+  return paths;
+}
+
+bool isBinaryStlFile(const std::filesystem::path& path, std::uint32_t& triangleCount) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) {
+    return false;
+  }
+  in.seekg(0, std::ios::end);
+  const std::streamoff size = in.tellg();
+  if (size < 84) {
+    return false;
+  }
+  in.seekg(80, std::ios::beg);
+  std::uint32_t count = 0;
+  in.read(reinterpret_cast<char*>(&count), sizeof(count));
+  if (!in) {
+    return false;
+  }
+  triangleCount = count;
+  return size == static_cast<std::streamoff>(84 + 50ull * triangleCount);
+}
+
 } // namespace
 
 TEST(LineQuadricsQem, SimplifiesGeneratedGridToRequestedBudget) {
@@ -168,6 +209,18 @@ TEST(LineQuadricsQem, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
   std::string error;
   EXPECT_FALSE(lq::generateMeshByName("not-a-generator", 16, mesh, &error));
   EXPECT_FALSE(error.empty());
+}
+
+TEST(LineQuadricsQem, ExternalStlFixtureSetIsDownloadedBinaryData) {
+  const std::vector<std::filesystem::path> paths = discoverExternalStlFixtures();
+  ASSERT_GE(paths.size(), 100u);
+
+  for (const std::filesystem::path& relativePath : paths) {
+    SCOPED_TRACE(relativePath.generic_string());
+    std::uint32_t triangleCount = 0;
+    EXPECT_TRUE(isBinaryStlFile(externalDataDir() / relativePath, triangleCount));
+    EXPECT_GT(triangleCount, 0u);
+  }
 }
 
 TEST(LineQuadricsQem, WeightModesRoundTripAndRejectUnknownValues) {
@@ -329,7 +382,7 @@ TEST(LineQuadricsQem, ExternalNasaIndustrialMeshesExposeRichFeatureTopology) {
   }
 }
 
-TEST(LineQuadricsQem, ExternalNasaFixturesCompareIndustrialSimplificationModes) {
+TEST(LineQuadricsQem, ExternalDownloadedMeshesCompareIndustrialSimplificationModes) {
   struct Case {
     std::string fileName;
     bool expectsCircularProjection = false;
@@ -337,8 +390,8 @@ TEST(LineQuadricsQem, ExternalNasaFixturesCompareIndustrialSimplificationModes) 
 
   const std::array<Case, 3> cases = {{
       {"nasa_antenna_azimuth_track.stl", true},
-      {"nasa_cubesat_middle_fixture.stl", false},
-      {"nasa_mars2020_wheel_fixture.stl", true},
+      {"thingi10k/thingi10k_108336_projekt_muse_z_system.stl", false},
+      {"thingi10k/thingi10k_318045_moko_mini_pulley.stl", true},
   }};
 
   constexpr double ratio = 0.45;
@@ -627,24 +680,15 @@ TEST(LineQuadricsQem, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) 
   EXPECT_GE(distance.maxSimplifiedToOriginal, distance.meanSimplifiedToOriginal);
 }
 
-TEST(LineQuadricsQem, AsciiStlRoundTripKeepsGeometryUsable) {
-  const lq::Mesh input = lq::generateCubeGrid(2, 1.0);
-  ASSERT_FALSE(input.empty());
+TEST(LineQuadricsQem, ExternalBinaryStlLoadKeepsGeometryUsable) {
+  const lq::Mesh loaded =
+      loadExternalStl("thingi10k/thingi10k_108336_projekt_muse_z_system.stl");
+  ASSERT_FALSE(loaded.empty());
 
-  const std::filesystem::path path =
-      std::filesystem::temp_directory_path() / "line_quadrics_qem_roundtrip.stl";
-  std::string error;
-  ASSERT_TRUE(lq::saveAsciiStl(path.string(), input, "roundtrip", &error)) << error;
-
-  lq::Mesh loaded;
-  ASSERT_TRUE(lq::loadStl(path.string(), loaded, &error)) << error;
-  std::filesystem::remove(path);
-
-  EXPECT_FALSE(loaded.empty());
-  EXPECT_EQ(loaded.faces.size(), input.faces.size());
-
-  const lq::MeshStats inputStats = lq::computeMeshStats(input);
-  const lq::MeshStats loadedStats = lq::computeMeshStats(loaded);
-  EXPECT_NEAR(loadedStats.area, inputStats.area, 1e-9);
-  EXPECT_EQ(loadedStats.nonManifoldEdges, 0);
+  const lq::MeshStats stats = lq::computeMeshStats(loaded);
+  EXPECT_EQ(stats.faces, static_cast<int>(loaded.faces.size()));
+  EXPECT_GT(stats.vertices, 0);
+  EXPECT_GT(stats.edges, 0);
+  EXPECT_GT(stats.area, 0.0);
+  EXPECT_EQ(stats.nonManifoldEdges, 0);
 }

@@ -14,6 +14,14 @@ faces.
   Tsuchie and Higashi 2014.
 - `tests/data/external/fandisk_2014.stl`: public Fandisk model from
   `common-3d-test-models`, related to Tsuchie and Higashi 2014.
+- `tests/data/external/thingi10k/*.stl`: 97 real-world models from the public
+  Thingi10K dataset mirror, selected as binary STL files with permissive
+  CC BY/CC BY-SA style licenses and recorded in
+  `tests/data/external/thingi10k/README.md`.
+
+The committed performance set now contains at least 100 binary STL files. The
+CTest performance suite verifies that every input has the binary STL layout
+`84 + 50 * triangle_count` bytes before running simplification.
 
 ## Commands
 
@@ -46,6 +54,28 @@ Run a 90% ratio smoke pass over all 10 large models:
   --feature-angle-deg 25 --samples 120 `
   --metrics-csv examples\output\large_validation\<model>_line_090_metrics.csv
 ```
+
+Run the full 100-file visual/CSV validation batch from VSCode:
+
+```text
+Terminal > Run Task... > run: large validation 100 stl
+```
+
+This writes generated STL and CSV files under
+`examples/output/large_validation_100/`. These are intentionally ignored by Git.
+Open `summary.csv` first to compare face counts, quality, and distance metrics,
+then inspect selected `*_line_090.stl` files in MeshLab, CAD Assistant, 3D
+Builder, or any STL viewer available on the machine. In VSCode, the equivalent
+tasks are:
+
+- `test: mingw+ninja release performance`
+- `run: large validation 100 stl`
+- `open: large validation output`
+- `open: large validation summary`
+
+To debug the performance test source, set breakpoints in
+`tests/performance_tests.cpp` and launch `Debug Performance Tests (MinGW GDB)`
+or `Debug Performance Tests (MSVC)` from the VSCode Run and Debug panel.
 
 Run a deeper 50% ratio pass over representative medium/large models:
 

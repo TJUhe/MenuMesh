@@ -55,6 +55,22 @@
       "preLaunchTask": "build: mingw+ninja debug tests"
     },
     {
+      "name": "Debug Performance Tests (MinGW GDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_performance_tests.exe",
+      "args": [
+        "--gtest_filter=${input:performanceGtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "build: mingw+ninja debug performance tests"
+    },
+    {
       "name": "Run GoogleTest All (MinGW)",
       "type": "cppdbg",
       "request": "launch",
@@ -93,6 +109,20 @@
       "preLaunchTask": "build: msvc vs2022 debug tests"
     },
     {
+      "name": "Debug Performance Tests (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2022-debug/bin/Debug/line_quadrics_qem_performance_tests.exe",
+      "args": [
+        "--gtest_filter=${input:performanceGtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc vs2022 debug performance tests"
+    },
+    {
       "name": "Feature Report Current Pipe Coupling",
       "type": "cppdbg",
       "request": "launch",
@@ -120,6 +150,12 @@
       "type": "promptString",
       "description": "GoogleTest filter",
       "default": "LineQuadricsQem.*"
+    },
+    {
+      "id": "performanceGtestFilter",
+      "type": "promptString",
+      "description": "Performance GoogleTest filter",
+      "default": "LineQuadricsQemPerformance.*"
     }
   ]
 }

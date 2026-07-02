@@ -18,6 +18,14 @@
       "dependsOn": "configure: mingw+ninja release"
     },
     {
+      "label": "build: mingw+ninja release all",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-release", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
       "label": "configure: mingw+ninja debug",
       "type": "shell",
       "command": "cmake",
@@ -41,6 +49,14 @@
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
+      "label": "build: mingw+ninja debug performance tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-debug", "--target", "line_quadrics_qem_performance_tests", "--parallel", "2"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja debug"
+    },
+    {
       "label": "build: mingw+ninja debug all",
       "type": "shell",
       "command": "cmake",
@@ -55,6 +71,22 @@
       "args": ["-E", "chdir", "build/mingw-ninja-debug", "ctest", "--output-on-failure"],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja debug all"
+    },
+    {
+      "label": "test: mingw+ninja release performance",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-E", "chdir", "build/mingw-ninja-release", "ctest", "-L", "performance", "--output-on-failure"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release all"
+    },
+    {
+      "label": "run: mingw+ninja debug performance gtest",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_performance_tests.exe",
+      "args": ["--gtest_color=yes"],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja debug performance tests"
     },
     {
       "label": "run: mingw+ninja debug gtest",
@@ -129,6 +161,14 @@
       "type": "shell",
       "command": "cmake",
       "args": ["--build", "build/msvc-vs2022-debug", "--target", "line_quadrics_qem_tests", "--config", "Debug", "--parallel", "2"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc vs2022 debug"
+    },
+    {
+      "label": "build: msvc vs2022 debug performance tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/msvc-vs2022-debug", "--target", "line_quadrics_qem_performance_tests", "--config", "Debug", "--parallel", "2"],
       "problemMatcher": ["$msCompile"],
       "dependsOn": "configure: msvc vs2022 debug"
     },
@@ -225,6 +265,34 @@
       "args": ["validate-external", "--ratio", "0.25", "--samples", "800"],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "run: large validation 100 stl",
+      "type": "shell",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$ErrorActionPreference='Stop'; $root='${workspaceFolder}'; $exe=Join-Path $root 'build/mingw-ninja-release/bin/linequadrics.exe'; $dataRoot=Join-Path $root 'tests/data/external'; $out=Join-Path $root 'examples/output/large_validation_100'; New-Item -ItemType Directory -Force -Path $out | Out-Null; Get-ChildItem -LiteralPath $out -File | Where-Object { $_.Extension -in '.stl','.csv' } | Remove-Item -Force; $inputs=@(); $inputs += Get-ChildItem -LiteralPath $dataRoot -Filter '*.stl' -File; $inputs += Get-ChildItem -LiteralPath (Join-Path $dataRoot 'large') -Filter '*.stl' -File; $inputs += Get-ChildItem -LiteralPath (Join-Path $dataRoot 'thingi10k') -Filter '*.stl' -File; $inputs=$inputs | Sort-Object FullName; if($inputs.Count -lt 100){ throw \"Expected at least 100 STL inputs, found $($inputs.Count).\" }; foreach($input in $inputs){ $rel=$input.FullName.Substring($dataRoot.Length + 1); $stem=[IO.Path]::GetFileNameWithoutExtension($rel.Replace('\\','_').Replace('/','_')); if($stem.StartsWith('thingi10k_thingi10k_')){ $stem=$stem.Substring('thingi10k_'.Length) }; $stl=Join-Path $out ($stem + '_line_090.stl'); $csv=Join-Path $out ($stem + '_metrics.csv'); & $exe simplify $input.FullName $stl --method line --ratio 0.90 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --samples 80 --metrics-csv $csv; if($LASTEXITCODE -ne 0){ exit $LASTEXITCODE } }; $summary=Join-Path $out 'summary.csv'; $wrote=$false; Get-ChildItem -LiteralPath $out -Filter '*_metrics.csv' -File | Sort-Object FullName | ForEach-Object { $lines=Get-Content -LiteralPath $_.FullName; if($lines.Count -ge 2){ if(-not $wrote){ Set-Content -LiteralPath $summary -Value ('case,' + $lines[0]); $wrote=$true }; $case=$_.BaseName -replace '_metrics$',''; Add-Content -LiteralPath $summary -Value ($case + ',' + $lines[1]) } }; Write-Host \"Wrote large validation outputs to $out\""
+      ],
+      "problemMatcher": [],
+      "dependsOn": "build: mingw+ninja release"
+    },
+    {
+      "label": "open: large validation output",
+      "type": "shell",
+      "command": "explorer.exe",
+      "args": ["${workspaceFolder}\\examples\\output\\large_validation_100"],
+      "problemMatcher": []
+    },
+    {
+      "label": "open: large validation summary",
+      "type": "shell",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "start", "", "${workspaceFolder}\\examples\\output\\large_validation_100\\summary.csv"],
+      "problemMatcher": []
     }
   ]
 }

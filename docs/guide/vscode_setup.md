@@ -124,6 +124,11 @@ Open `Terminal > Run Task...` and choose:
 - `run: full demo data`
 - `run: feature validation`
 - `run: external validation`
+- `test: mingw+ninja release performance`
+- `run: mingw+ninja debug performance gtest`
+- `run: large validation 100 stl`
+- `open: large validation output`
+- `open: large validation summary`
 
 On Windows 7 / 4GB RAM, run the C++ command-line program only and inspect STL
 files with a lightweight viewer.
@@ -200,3 +205,21 @@ beetle.obj
 cow.obj
 suzanne.obj
 ```
+
+Run the committed 100-file binary STL validation batch from VSCode:
+
+```text
+Terminal > Run Task... > run: large validation 100 stl
+```
+
+The task writes generated STL files and metrics CSV files to
+`examples/output/large_validation_100/`. Open `summary.csv` first, then open any
+`*_line_090.stl` in MeshLab, CAD Assistant, Windows 3D Builder, or another STL
+viewer. The output directory is ignored by Git, so repeated validation runs do
+not create tracked result files.
+
+To step through the performance code, open the Run and Debug panel and launch
+`Debug Performance Tests (MinGW GDB)` or `Debug Performance Tests (MSVC)`. Both
+launch configurations run `line_quadrics_qem_performance_tests.exe` with a
+GoogleTest filter defaulting to `LineQuadricsQemPerformance.*`, so breakpoints in
+`tests/performance_tests.cpp` are hit directly.

@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-07-03
+
+### Added
+
+- Added local geometric tolerance guards for edge collapse, including
+  `maxLocalError`, `maxLocalErrorRatio`, and rejection accounting for collapses
+  that exceed the local drift budget.
+- Added an explicit feature-graph layer for feature loops, shared vertices,
+  junctions, multi-feature ownership, and curve-aware collapse policies.
+- Added per-loop feature-curve budgets for circular and elliptical loops, with
+  circular projection and resampling-oriented protection replacing the old
+  fixed `minFeatureLoopVertices`-only behavior.
+- Added multi-scale, locally normalized normal-tensor feature detection knobs
+  and reporting so weak features can be compared against dihedral-only
+  detection.
+- Added dataset-level validation coverage for feature recall, curve drift,
+  sampled distance, topology, triangle quality, and rejection-count consistency.
+- Added VS Code demonstration tasks for selected meshes, algorithm presets,
+  ratio sweeps, feature reports, and algorithm comparisons.
+
+### Changed
+
+- Simplification now combines QEM ranking with pre-collapse legality and
+  tolerance guards instead of relying only on post-hoc sampled distance.
+- The C API report now exposes the new rejection counters, including
+  curve-budget and local-error rejections.
+- VS Code workflows were trimmed to the two supported Ninja chains:
+  `mingw+ninja` as the primary path and `msvc+ninja` as the backup/debug path.
+  Fixed `--parallel 2` limits were removed from Ninja tasks so CMake/Ninja can
+  use all available parallelism.
+- Documentation now calls out demonstration-ready meshes and parameter
+  examples for algorithm selection, feature protection, normal-tensor detection,
+  and conservative industrial-safe simplification.
+
+### Verified
+
+- `ctest --test-dir build\\mingw-ninja-debug --output-on-failure`
+- `cmake --build build\\mingw-ninja-release --target linequadrics --parallel`
+- `linequadrics feature-report tests\\data\\feature_fixtures\\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv examples\\output\\vscode_demo\\coaxial_hole_plate\\feature_report\\features.csv`
+- `linequadrics simplify tests\\data\\feature_fixtures\\coaxial_hole_plate.obj examples\\output\\vscode_demo\\coaxial_hole_plate\\feature-curves_r0_50\\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv examples\\output\\vscode_demo\\coaxial_hole_plate\\feature-curves_r0_50\\metrics.csv`
+
 ## 2026-07-01
 
 ### Changed

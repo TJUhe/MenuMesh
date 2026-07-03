@@ -53,18 +53,19 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 ## 构建
 
-推荐 MinGW + Ninja：
+推荐 MinGW + Ninja。`--parallel` 不指定数字时，CMake 会让 Ninja 按可用核心数并行：
 
 ```powershell
 cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/mingw-ninja-release --target linequadrics --parallel 2
+cmake --build build/mingw-ninja-release --target linequadrics --parallel
 ```
 
-Windows 7 / 小内存机器优先用 MinGW Makefiles：
+MSVC + Ninja 可作为备用链路，需要从 VS Developer Command Prompt 或已经带有
+`cl.exe`、`rc.exe`、`mt.exe` 的终端启动：
 
 ```powershell
-cmake -S . -B build/mingw-makefiles-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/mingw-makefiles-release --target linequadrics --parallel 1
+cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/msvc-ninja-release --target linequadrics --parallel
 ```
 
 完整工业库构建、测试、文档目标：
@@ -229,6 +230,36 @@ cmake -E chdir build/industrial ctest -L performance --output-on-failure
 
 每项能力、性能指标、输出文件和验收口径见
 [`docs/design/industrial_validation.md`](docs/design/industrial_validation.md)。
+
+## VS Code 演示入口
+
+`.vscode/tasks.json` 只保留 MinGW+Ninja 和 MSVC+Ninja 两条链路。现场演示优先使用
+`Terminal > Run Task...`：
+
+- `demo: feature report selected mesh`：查看输入网格的 feature edge、loop、circle/ellipse 识别。
+- `demo: simplify selected mesh (mingw+ninja release)`：从下拉框选择 mesh、preset、ratio、sample count。
+- `demo: algorithm comparison selected mesh`：同一 mesh/ratio 下比较 `standard-qem`、`line-qem`、`dihedral-line`、`feature-curves`、`normal-tensor`。
+- `demo: ratio sweep selected mesh`：固定算法预设，生成多档 ratio 的 STL 和 `metrics.csv`。
+- `open: vscode demo output`：打开 `examples/output/vscode_demo`。
+
+最有说明力的算法选型案例：
+
+| 案例 | 推荐 preset | 说明 |
+| --- | --- | --- |
+| `tests/data/feature_fixtures/coaxial_hole_plate.obj` | `feature-curves` | 4 个圆 loop 清楚，适合讲曲线预算、圆投影和 `projected_feature_placements`。 |
+| `tests/data/feature_fixtures/elliptical_hole_plate.obj` | `feature-curves` | 适合观察圆/椭圆拟合、过度保护和 curve drift 之间的取舍。 |
+| `tests/data/external/fandisk_2014.stl` | `dihedral-line` | 硬边明显，适合比较普通 QEM 和 line/dihedral 权重。 |
+| `tests/data/external/casting_aimshape_2014.stl` | `industrial-safe` | 工业特征密集，适合展示质量 guard、局部误差 guard 和拒绝计数。 |
+| `examples/input/pipe_coupling.stl` | `feature-report` | 管件/孔特征直观，适合作为讲解 feature report 的起点。 |
+
+最有说明力的参数选型案例：
+
+| 参数 | 建议案例 | 观察点 |
+| --- | --- | --- |
+| `--feature-angle-deg 15/25/45` | `fandisk_2014.stl` | 二面角阈值如何改变硬边候选数量。 |
+| `--max-feature-curve-deviation-ratio 0.02/0.05` | `coaxial_hole_plate.obj` | 曲线预算如何限制圆 loop 漂移。 |
+| `--max-local-error-ratio 0.01/0.02` | `casting_aimshape_2014.stl` | 局部几何误差 guard 如何增加 `error_rejected_collapses`。 |
+| `--weight-mode normal-tensor` | `boss_pocket_plate.obj` | normal tensor 对弱特征的补充，以及对噪声/采样的敏感性。 |
 
 ## 主要指标
 

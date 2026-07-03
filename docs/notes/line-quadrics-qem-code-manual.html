@@ -275,9 +275,13 @@ $$Q_i=Q_i^{plane}+Q_i^{normalLine}+Q_i^{boundary}+Q_i^{featureCurve}$$
 <tr><td><code>--method line</code></td><td>开启 $Q_i^{normalLine}$</td><td>默认路径。</td></tr>
 <tr><td><code>--line-weight W</code></td><td>$W a_i Q_\ell(v_i,n_i)$</td><td>法线方向 line quadric 强度。</td></tr>
 <tr><td><code>--weight-mode dihedral</code></td><td>$W+\beta s_i$</td><td>硬边附近增加 line weight。</td></tr>
+<tr><td><code>--weight-mode normal-tensor</code></td><td>$W+\beta t_i$</td><td>使用多尺度 normal tensor 特征分数调整 line weight，适合观察弱特征。</td></tr>
 <tr><td><code>--boundary-weight G</code></td><td>$G\|e\|Q_{boundary}$</td><td>边界边添加额外支撑平面。</td></tr>
 <tr><td><code>--preserve-feature-curves</code></td><td>启用检测、约束、曲线项</td><td>保护折痕/边界 loop，圆形 loop 会投影回圆。</td></tr>
 <tr><td><code>--feature-curve-weight E</code></td><td>$E a_i Q_\ell(v_i,\tau_i)$</td><td>沿特征切线建立 line quadric。</td></tr>
+<tr><td><code>--max-feature-curve-deviation-ratio R</code></td><td>collapse legality filter</td><td>拒绝让 feature loop 原始 placement 漂移超过 $R$ 倍 bbox 对角线的坍缩。</td></tr>
+<tr><td><code>--max-local-error-ratio R</code></td><td>collapse legality filter</td><td>在坍缩前检查局部几何漂移，超过 $R$ 倍 bbox 对角线则拒绝。</td></tr>
+<tr><td><code>--industrial-safe</code></td><td>组合保护 preset</td><td>启用边界保护、质量 guard、normal deviation guard、局部误差 guard 和局部自交检查。</td></tr>
 </tbody>
 </table>
 
@@ -286,23 +290,52 @@ $$Q_i=Q_i^{plane}+Q_i^{normalLine}+Q_i^{boundary}+Q_i^{featureCurve}$$
 <p>论文和本程序实验都把小权重作为合理起点，例如 <code>1e-3</code>。过大的 line weight 会让均匀采样和局部形状保持之间的平衡偏向正则项，可能牺牲几何误差。</p>
 </div>
 
+<h3>7.1 演示时最有说明力的参数组合</h3>
+
+<table>
+<thead><tr><th>目标</th><th>输入网格</th><th>推荐参数</th><th>观察指标</th></tr></thead>
+<tbody>
+<tr><td>普通 QEM 对照</td><td><code>tests/data/external/fandisk_2014.stl</code></td><td><code>--method standard --ratio 0.25</code></td><td>边长分布、硬边保留、采样距离。</td></tr>
+<tr><td>Line quadrics 改善采样</td><td><code>tests/data/external/fandisk_2014.stl</code></td><td><code>--method line --line-weight 1e-3 --weight-mode dihedral --feature-angle-deg 25</code></td><td><code>mean_triangle_quality</code>、<code>edge_length_cv</code>。</td></tr>
+<tr><td>圆形 loop 保护</td><td><code>tests/data/feature_fixtures/coaxial_hole_plate.obj</code></td><td><code>--preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05</code></td><td><code>circular_feature_loops</code>、<code>projected_feature_placements</code>。</td></tr>
+<tr><td>局部误差/tolerance guard</td><td><code>tests/data/external/casting_aimshape_2014.stl</code></td><td><code>--industrial-safe --max-local-error-ratio 0.02</code></td><td><code>error_rejected_collapses</code>、<code>quality_rejected_collapses</code>、输出拓扑。</td></tr>
+<tr><td>normal tensor 弱特征</td><td><code>tests/data/feature_fixtures/boss_pocket_plate.obj</code></td><td><code>--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-scales 3</code></td><td><code>normal_tensor_feature_edges</code> 和 line weight range。</td></tr>
+</tbody>
+</table>
+
 <h2 id="s8"><span class="num">8</span>报告、测试与质量指标</h2>
 
 <h3>8.1 测试覆盖</h3>
 
-<p>当前 GoogleTest 覆盖三个基础契约：</p>
+<p>当前 GoogleTest 覆盖基础契约和算法保护契约：</p>
 
 <ul>
 <li>生成平面网格后能按目标比例减少面数。</li>
 <li>圆柱硬边能被特征检测识别。</li>
 <li>生成 cube 后能计算合理的 mesh stats。</li>
+<li>C API 报告字段和拒绝计数总和一致。</li>
+<li>局部误差、三角形质量、拓扑、normal flip、自交和曲线预算拒绝路径可审计。</li>
+<li>feature graph、圆/椭圆 loop、normal tensor 多尺度检测有回归覆盖。</li>
 </ul>
 
-<pre><code>ctest --test-dir build/industrial -C Release --output-on-failure</code></pre>
+<pre><code>ctest --test-dir build/mingw-ninja-debug --output-on-failure</code></pre>
 
 <h3>8.2 Metrics</h3>
 
 <p><code>computeMeshStats</code> 会输出顶点数、面数、边数、边界边、非流形边、面积、平均三角形质量、最小三角形质量、平均边长、边长变异系数。<code>compareMeshesBySampledDistance</code> 用采样点估计原网格到简化网格、简化网格到原网格的双向距离。</p>
+
+<p>简化报告现在还输出拒绝计数细分：<code>feature_rejected_collapses</code>、<code>boundary_rejected_collapses</code>、<code>topology_rejected_collapses</code>、<code>normal_flip_rejected_collapses</code>、<code>quality_rejected_collapses</code>、<code>self_intersection_rejected_collapses</code>、<code>curve_budget_rejected_collapses</code>、<code>error_rejected_collapses</code>。演示时不要只看输出面数；这些拒绝计数能解释为什么某个 preset 更保守，也能定位是特征预算、局部误差还是拓扑合法性挡住了坍缩。</p>
+
+<h3>8.3 VS Code 演示任务</h3>
+
+<p><code>.vscode/tasks.json</code> 现在只保留 <code>mingw+ninja</code> 和 <code>msvc+ninja</code> 两条链路。Ninja 构建任务使用 <code>--parallel</code> 不指定数字，让 CMake/Ninja 使用可用核心。现场演示优先运行：</p>
+
+<ul>
+<li><code>demo: feature report selected mesh</code>：生成输入特征报告。</li>
+<li><code>demo: simplify selected mesh (mingw+ninja release)</code>：从下拉框选择 mesh、preset、ratio 和 samples。</li>
+<li><code>demo: algorithm comparison selected mesh</code>：同一网格上比较 standard QEM、line QEM、dihedral-line、feature-curves、normal-tensor。</li>
+<li><code>demo: ratio sweep selected mesh</code>：固定算法预设，扫多档 ratio。</li>
+</ul>
 
 <h2 id="s9"><span class="num">9</span>外部程序调用方式</h2>
 

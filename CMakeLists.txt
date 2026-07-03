@@ -22,9 +22,13 @@ option(LQ_BUILD_TESTS "Build GoogleTest based tests" ON)
 option(LQ_BUILD_PERFORMANCE_TESTS "Build large mesh performance tests" OFF)
 option(LQ_BUILD_DOCS "Enable the Doxygen docs-api target when Doxygen is available" ON)
 option(LQ_ENABLE_INSTALL "Enable install rules and CMake package export" ON)
+set(LQ_GOOGLETEST_PROVIDER "auto" CACHE STRING
+  "GoogleTest provider for tests: auto, package, or source"
+)
+set_property(CACHE LQ_GOOGLETEST_PROVIDER PROPERTY STRINGS auto package source)
 set(LQ_GOOGLETEST_SOURCE_DIR
   "${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/googletest"
-  CACHE PATH "Path to the vendored GoogleTest source tree"
+  CACHE PATH "Path to a GoogleTest source tree when LQ_GOOGLETEST_PROVIDER is source or auto fallback"
 )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -170,16 +174,48 @@ if(LQ_BUILD_EXAMPLES)
 endif()
 
 if(BUILD_TESTING AND LQ_BUILD_TESTS)
-  if(NOT EXISTS "${LQ_GOOGLETEST_SOURCE_DIR}/CMakeLists.txt")
+  if(NOT LQ_GOOGLETEST_PROVIDER MATCHES "^(auto|package|source)$")
     message(FATAL_ERROR
-      "GoogleTest was not found at LQ_GOOGLETEST_SOURCE_DIR='${LQ_GOOGLETEST_SOURCE_DIR}'. "
-      "Expected the vendored source tree under thirdParty/googletest."
+      "LQ_GOOGLETEST_PROVIDER must be one of: auto, package, source."
     )
   endif()
 
-  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-  add_subdirectory("${LQ_GOOGLETEST_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/thirdParty/googletest" EXCLUDE_FROM_ALL)
+  if(LQ_GOOGLETEST_PROVIDER STREQUAL "auto" OR
+     LQ_GOOGLETEST_PROVIDER STREQUAL "package")
+    find_package(GTest QUIET)
+    if(TARGET GTest::Main AND NOT TARGET GTest::gtest_main)
+      add_library(GTest::gtest_main INTERFACE IMPORTED)
+      target_link_libraries(GTest::gtest_main INTERFACE GTest::Main)
+    endif()
+  endif()
+
+  if(NOT TARGET GTest::gtest_main AND
+     (LQ_GOOGLETEST_PROVIDER STREQUAL "auto" OR
+      LQ_GOOGLETEST_PROVIDER STREQUAL "source"))
+    if(EXISTS "${LQ_GOOGLETEST_SOURCE_DIR}/CMakeLists.txt")
+      set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+      set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+      add_subdirectory("${LQ_GOOGLETEST_SOURCE_DIR}"
+        "${CMAKE_CURRENT_BINARY_DIR}/thirdParty/googletest"
+        EXCLUDE_FROM_ALL
+      )
+    elseif(LQ_GOOGLETEST_PROVIDER STREQUAL "source")
+      message(FATAL_ERROR
+        "GoogleTest source tree was not found at "
+        "LQ_GOOGLETEST_SOURCE_DIR='${LQ_GOOGLETEST_SOURCE_DIR}'."
+      )
+    endif()
+  endif()
+
+  if(NOT TARGET GTest::gtest_main)
+    message(FATAL_ERROR
+      "GoogleTest was not found. Install a package discoverable by "
+      "find_package(GTest), or configure with "
+      "-DLQ_GOOGLETEST_PROVIDER=source "
+      "-DLQ_GOOGLETEST_SOURCE_DIR=/path/to/googletest."
+    )
+  endif()
+
   add_subdirectory(tests)
 endif()
 

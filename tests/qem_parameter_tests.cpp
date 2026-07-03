@@ -91,6 +91,30 @@ int countCircularLoops(const lq::FeatureAnalysis& analysis) {
                     [](const lq::FeatureLoop& loop) { return loop.circular; }));
 }
 
+double maxCircularRelativeError(const lq::FeatureAnalysis& analysis) {
+  double maxError = 0.0;
+  for (const lq::FeatureLoop& loop : analysis.loops) {
+    if (!loop.circular || loop.radius <= 1e-12) {
+      continue;
+    }
+    const double relative =
+        (loop.rmsRadialError + loop.rmsPlaneError) / std::max(1e-12, loop.radius);
+    maxError = std::max(maxError, relative);
+  }
+  return maxError;
+}
+
+std::vector<lq::FeatureLoop> innerEllipseLoops(const lq::FeatureAnalysis& analysis) {
+  std::vector<lq::FeatureLoop> loops;
+  for (const lq::FeatureLoop& loop : analysis.loops) {
+    if (loop.primitive == lq::FeaturePrimitiveType::Ellipse && loop.majorRadius < 1.0 &&
+        loop.minorRadius > 0.0) {
+      loops.push_back(loop);
+    }
+  }
+  return loops;
+}
+
 lq::SimplifyOptions standardOptions(double ratio) {
   lq::SimplifyOptions options;
   options.targetRatio = ratio;
@@ -208,25 +232,150 @@ TEST(LineQuadricsQemParameters, FeatureProtectionChangesCircularHoleDiagnostics)
   EXPECT_GT(countCircularLoops(lowFeatures), 0);
 }
 
-TEST(LineQuadricsQemParameters, EllipsePrimitiveRemainsReportOnly) {
+TEST(LineQuadricsQemParameters,
+     FeatureProtectedCircularLoopsRemainDetectableAfterAggressiveSimplify) {
+  const lq::Mesh input = loadCaseMesh("feature_fixtures/coaxial_hole_plate.obj");
+  ASSERT_FALSE(input.empty());
+
+  lq::SimplifyOptions options = protectedOptions(0.25);
+  options.protectAllFeatureEdges = false;
+  options.circleFitRelativeThreshold = 0.04;
+  options.minFeatureLoopVertices = 12;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  expectBudget(result, input, 0.25);
+  EXPECT_GT(result.report.circularFeatureLoops, 0);
+  EXPECT_GT(result.report.projectedFeaturePlacements, 0);
+
+  lq::FeatureOptions outputFeatureOptions = circularFeatureOptions();
+  outputFeatureOptions.circleFitRelativeThreshold = 0.16;
+  outputFeatureOptions.minFeatureLoopVertices = options.minCircularFeatureLoopVertices;
+  const lq::FeatureAnalysis outputFeatures =
+      lq::detectFeatureCurves(result.mesh, outputFeatureOptions);
+
+  EXPECT_GE(countCircularLoops(outputFeatures), 4);
+}
+
+TEST(LineQuadricsQemParameters, EllipsePrimitiveUsesPrimitiveFeatureProjection) {
   const lq::Mesh input = loadCaseMesh("feature_fixtures/elliptical_hole_plate.obj");
   ASSERT_FALSE(input.empty());
 
   lq::FeatureOptions featureOptions = circularFeatureOptions();
   featureOptions.ellipseFitRelativeThreshold = 0.03;
   const lq::FeatureAnalysis features = lq::detectFeatureCurves(input, featureOptions);
-  ASSERT_GT(std::count_if(features.loops.begin(), features.loops.end(),
-                          [](const lq::FeatureLoop& loop) {
-                            return loop.primitive ==
-                                       lq::FeaturePrimitiveType::Ellipse &&
-                                   !loop.circular;
-                          }),
-            0);
+  ASSERT_GE(innerEllipseLoops(features).size(), 2u);
 
   lq::SimplifyOptions options = protectedOptions(0.85);
   options.ellipseFitRelativeThreshold = 0.03;
+  options.minFeatureLoopVertices = 8;
   const SimplifiedMesh result = simplifyWithReport(input, options);
 
   expectBudget(result, input, 0.85);
   EXPECT_GT(result.report.featureLoops, 0);
+  EXPECT_GT(result.report.projectedFeaturePlacements, 0);
+  EXPECT_GT(result.report.featureRejectedCollapses, 0);
+
+  lq::FeatureOptions outputFeatureOptions = circularFeatureOptions();
+  outputFeatureOptions.ellipseFitRelativeThreshold = 0.12;
+  outputFeatureOptions.minFeatureLoopVertices = 6;
+  const lq::FeatureAnalysis outputFeatures =
+      lq::detectFeatureCurves(result.mesh, outputFeatureOptions);
+  const std::vector<lq::FeatureLoop> outputEllipses = innerEllipseLoops(outputFeatures);
+
+  ASSERT_GE(outputEllipses.size(), 2u);
+  for (const lq::FeatureLoop& loop : outputEllipses) {
+    EXPECT_NEAR(loop.axisRatio, 0.45 / 0.8, 0.10);
+    EXPECT_LT(loop.rmsEllipseError, 0.08);
+    EXPECT_LT(loop.rmsPlaneError, 0.05);
+  }
+}
+
+TEST(LineQuadricsQemParameters,
+     EllipsePrimitiveIsProtectedWithoutProtectAllFeatureEdges) {
+  const lq::Mesh input = loadCaseMesh("feature_fixtures/elliptical_hole_plate.obj");
+  ASSERT_FALSE(input.empty());
+
+  lq::SimplifyOptions options = protectedOptions(0.85);
+  options.protectAllFeatureEdges = false;
+  options.ellipseFitRelativeThreshold = 0.03;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  expectBudget(result, input, 0.85);
+  EXPECT_GT(result.report.featureRejectedCollapses, 0);
+  EXPECT_GT(result.report.projectedFeaturePlacements, 0);
+
+  lq::FeatureOptions outputFeatureOptions = circularFeatureOptions();
+  outputFeatureOptions.ellipseFitRelativeThreshold = 0.12;
+  outputFeatureOptions.minFeatureLoopVertices = 6;
+  const lq::FeatureAnalysis outputFeatures =
+      lq::detectFeatureCurves(result.mesh, outputFeatureOptions);
+
+  EXPECT_GE(innerEllipseLoops(outputFeatures).size(), 2u);
+}
+
+TEST(LineQuadricsQemParameters, StrictQualityModeImprovesWorstThingi10kFixture) {
+  const lq::Mesh input = loadCaseMesh(
+      "external/thingi10k/thingi10k_104188_iphone_tank_case_gen_4_and_4s.stl");
+  ASSERT_FALSE(input.empty());
+
+  lq::SimplifyOptions defaultOptions = lineOptions(0.50);
+  const SimplifiedMesh defaultResult = simplifyWithReport(input, defaultOptions);
+
+  lq::SimplifyOptions strictOptions = lineOptions(0.50);
+  strictOptions.preserveBoundary = true;
+  strictOptions.minTriangleQuality = 1e-4;
+  strictOptions.maxNormalDeviationDeg = 75.0;
+  const SimplifiedMesh strictResult = simplifyWithReport(input, strictOptions);
+
+  expectBudget(defaultResult, input, 0.50);
+  expectBudget(strictResult, input, 0.50);
+  EXPECT_GT(strictResult.report.qualityRejectedCollapses, 0);
+
+  const lq::MeshStats defaultStats = lq::computeMeshStats(defaultResult.mesh);
+  const lq::MeshStats strictStats = lq::computeMeshStats(strictResult.mesh);
+  EXPECT_GT(strictStats.minTriangleQuality, defaultStats.minTriangleQuality);
+}
+
+TEST(LineQuadricsQemParameters, IndustrialGateChecksFeatureDriftDistanceAndTopology) {
+  const lq::Mesh input = loadCaseMesh("feature_fixtures/coaxial_hole_plate.obj");
+  ASSERT_FALSE(input.empty());
+
+  const lq::FeatureAnalysis originalFeatures =
+      lq::detectFeatureCurves(input, circularFeatureOptions());
+  ASSERT_GE(countCircularLoops(originalFeatures), 4);
+
+  lq::SimplifyOptions options = protectedOptions(0.80);
+  options.protectAllFeatureEdges = false;
+  options.preserveBoundary = true;
+  options.preventLocalIntersections = true;
+  options.maxLocalErrorRatio = 0.05;
+  options.maxFeatureCurveDeviationRatio = 0.10;
+  options.minTriangleQuality = 1e-6;
+  options.maxNormalDeviationDeg = 85.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  expectBudget(result, input, 0.80);
+  EXPECT_EQ(result.report.rejectedCollapses,
+            result.report.featureRejectedCollapses +
+                result.report.boundaryRejectedCollapses +
+                result.report.topologyRejectedCollapses +
+                result.report.normalFlipRejectedCollapses +
+                result.report.qualityRejectedCollapses +
+                result.report.selfIntersectionRejectedCollapses +
+                result.report.curveBudgetRejectedCollapses +
+                result.report.errorRejectedCollapses);
+
+  const lq::FeatureAnalysis outputFeatures =
+      lq::detectFeatureCurves(result.mesh, circularFeatureOptions());
+  EXPECT_GE(countCircularLoops(outputFeatures), 2);
+  EXPECT_LT(maxCircularRelativeError(outputFeatures), 0.10);
+
+  const lq::MeshStats inputStats = lq::computeMeshStats(input);
+  const lq::MeshStats outputStats = lq::computeMeshStats(result.mesh);
+  EXPECT_LE(outputStats.nonManifoldEdges, inputStats.nonManifoldEdges);
+  EXPECT_GE(outputStats.minTriangleQuality, 0.0);
+
+  const lq::DistanceStats distance =
+      lq::compareMeshesBySampledDistance(input, result.mesh, 512);
+  EXPECT_LT(distance.maxOriginalToSimplified, 0.20 * input.bboxDiag());
 }

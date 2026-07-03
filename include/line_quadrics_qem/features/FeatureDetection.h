@@ -28,11 +28,13 @@ struct FeatureOptions {
   double normalTensorFeatureThreshold = 0.16;
   double normalTensorMinEdgeAlignment = 0.45;
   int normalTensorSmoothingIterations = 0;
+  int normalTensorScaleCount = 1;
 };
 
 /// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
 struct NormalTensorOptions {
   int smoothingIterations = 0;
+  int scaleCount = 1;
 };
 
 /// Per-vertex normal-tensor decomposition and feature saliency.
@@ -78,17 +80,52 @@ struct VertexFeature {
   bool isFeature = false;
   bool circular = false;
   bool junction = false;
+  FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
   int loopId = -1;
   Vec3 tangent = Vec3::Zero();
   Vec3 circleCenter = Vec3::Zero();
   Vec3 circleNormal = Vec3(0.0, 0.0, 1.0);
   double circleRadius = 0.0;
+  Vec3 ellipseCenter = Vec3::Zero();
+  Vec3 ellipseNormal = Vec3(0.0, 0.0, 1.0);
+  Vec3 ellipseMajorAxis = Vec3(1.0, 0.0, 0.0);
+  Vec3 ellipseMinorAxis = Vec3(0.0, 1.0, 0.0);
+  double ellipseMajorRadius = 0.0;
+  double ellipseMinorRadius = 0.0;
+};
+
+/// One edge in the explicit feature graph.
+struct FeatureGraphEdge {
+  int a = -1;
+  int b = -1;
+  bool boundary = false;
+  bool dihedral = false;
+  bool normalTensor = false;
+  bool nonManifold = false;
+  int signedKind = 0;
+};
+
+/// Per-vertex ownership in the explicit feature graph.
+struct FeatureGraphVertex {
+  std::vector<int> incidentEdges;
+  std::vector<int> loopIds;
+  bool junction = false;
+  bool shared = false;
+};
+
+/// Explicit graph view of detected feature edges and recovered loops.
+struct FeatureGraph {
+  std::vector<FeatureGraphEdge> edges;
+  std::vector<FeatureGraphVertex> vertices;
+  std::vector<int> junctionVertices;
+  std::vector<int> sharedVertices;
 };
 
 /// Full feature-detection result for a mesh.
 struct FeatureAnalysis {
   std::vector<VertexFeature> vertices;
   std::vector<FeatureLoop> loops;
+  FeatureGraph graph;
   int featureEdges = 0;
   int boundaryFeatureEdges = 0;
   int dihedralFeatureEdges = 0;

@@ -84,54 +84,40 @@ Available configure/build layouts:
 
 | Build directory | Generator | Compiler | Notes |
 | --- | --- | --- | --- |
-| `build/mingw-ninja-release` / `debug` | Ninja | MinGW `g++` | Recommended on modern machines when Ninja is installed. |
-| `build/mingw-makefiles-release` / `debug` | MinGW Makefiles | MinGW `g++` | Best fallback for Windows 7; no Ninja required. |
-| `build/msvc-vs2022-release` / `debug` | Visual Studio 17 2022 | MSVC | Use on machines with Visual Studio Build Tools. |
-| `build/msvc-ninja-release` / `debug` | Ninja | MSVC `cl` | Use from a VS Developer Command Prompt or a VSCode terminal where `cl.exe` is on `PATH`. |
+| `build/mingw-ninja-release` / `debug` | Ninja | MinGW `g++` | Primary live-demo and development path. |
+| `build/msvc-ninja-release` / `debug` | Ninja | MSVC `cl` | Backup path when debugging with MSVC tools is useful. |
 
-For Windows 7, prefer:
+The workspace tasks intentionally keep only these Ninja chains. Older
+MinGW-Makefiles and Visual-Studio-generator tasks are not exposed in VS Code so
+the live-demo menu stays short and the build directories stay predictable.
 
-```text
-build/mingw-makefiles-release
-```
-
-or, if Ninja is available:
-
-```text
-build/mingw-ninja-release
-```
-
-Use CMake 3.18.6 or newer. Do not use CMake 4.x as the Win7 baseline.
-MinGW-w64 `GCC 10.5.0 x86_64 POSIX SEH MSVCRT` is the recommended
-compiler family for the old-machine path.
+Use CMake 3.18.6 or newer. MinGW-w64 `GCC 10.5.0 x86_64 POSIX SEH
+MSVCRT` is still the recommended compiler family for old-machine compatibility,
+but the maintained workspace path is `mingw+ninja`.
 
 `msvc-ninja-*` also needs the Visual Studio resource/link tools (`rc.exe`,
 `mt.exe`, Windows SDK libraries) on `PATH`. If configure fails with missing
 `rc` or `mt`, start VSCode from "x64 Native Tools Command Prompt for VS 2022" or
-use `msvc-vs2022-*` instead.
+use the MinGW+Ninja tasks.
 
 ## VSCode Tasks
 
 Open `Terminal > Run Task...` and choose:
 
 - `build: mingw+ninja release`
-- `build: mingw makefiles release`
-- `build: msvc vs2022 release`
 - `build: msvc+ninja release`
-- `run: quick demo data`
-- `run: quick demo data (mingw makefiles)`
-- `run: quick demo data (msvc vs2022)`
-- `run: full demo data`
+- `demo: feature report selected mesh`
+- `demo: simplify selected mesh (mingw+ninja release)`
+- `demo: algorithm comparison selected mesh`
+- `demo: ratio sweep selected mesh`
 - `run: feature validation`
 - `run: external validation`
-- `test: mingw+ninja release performance`
-- `run: mingw+ninja debug performance gtest`
-- `run: large validation 100 stl`
-- `open: large validation output`
-- `open: large validation summary`
+- `test: mingw+ninja debug`
+- `test: msvc+ninja debug`
+- `open: vscode demo output`
 
-On Windows 7 / 4GB RAM, run the C++ command-line program only and inspect STL
-files with a lightweight viewer.
+The `demo:*` tasks ask for a mesh, algorithm preset, ratio, feature angle, and
+sample count. Outputs are written under `examples/output/vscode_demo/`.
 
 ## Command-Line Equivalents
 
@@ -139,48 +125,54 @@ MinGW + Ninja:
 
 ```powershell
 cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/mingw-ninja-release --target linequadrics --parallel 2
-```
-
-MinGW Makefiles, safest on Windows 7:
-
-```powershell
-cmake -S . -B build/mingw-makefiles-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/mingw-makefiles-release --target linequadrics --parallel 1
-```
-
-MSVC Visual Studio generator:
-
-```powershell
-cmake -S . -B build/msvc-vs2022-release -G "Visual Studio 17 2022" -A x64
-cmake --build build/msvc-vs2022-release --target linequadrics --config Release --parallel 2
+cmake --build build/mingw-ninja-release --target linequadrics --parallel
 ```
 
 MSVC + Ninja, from a VS Developer Command Prompt:
 
 ```powershell
 cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/msvc-ninja-release --target linequadrics --parallel 2
+cmake --build build/msvc-ninja-release --target linequadrics --parallel
 ```
 
-## Native Workflow Commands
+## Demo-Oriented Workflow Commands
 
-Generate quick demo data:
+Feature report for a clean circular-loop fixture:
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe demo --quick --samples 500
+.\build\mingw-ninja-release\bin\linequadrics.exe feature-report `
+  tests\data\feature_fixtures\coaxial_hole_plate.obj `
+  --feature-angle-deg 25 `
+  --circle-fit-threshold 0.04 `
+  --ellipse-fit-threshold 0.05 `
+  --csv examples\output\vscode_demo\coaxial_hole_plate\feature_report\features.csv
 ```
 
-Generate the full demo set:
+Feature-curve simplification with local curve budget:
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe demo --samples 1000
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+  tests\data\feature_fixtures\coaxial_hole_plate.obj `
+  examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\simplified.stl `
+  --method line --ratio 0.50 --line-weight 1e-3 `
+  --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 `
+  --preserve-feature-curves --feature-curve-weight 0.08 `
+  --max-feature-curve-deviation-ratio 0.05 `
+  --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 `
+  --min-circular-feature-loop-vertices 12 `
+  --samples 128 `
+  --metrics-csv examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\metrics.csv
 ```
 
-Summarize metrics manually:
+Algorithm comparison for a hard-edge CAD model:
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe summarize-metrics examples\output examples\output\demo_summary.csv
+.\build\mingw-ninja-release\bin\linequadrics.exe ratio-sweep `
+  tests\data\external\fandisk_2014.stl `
+  examples\output\vscode_demo\fandisk_2014\ratio_sweep_dihedral-line `
+  --method line --line-weight 1e-3 `
+  --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 `
+  --ratios "0.8,0.5,0.25,0.1" --samples 512
 ```
 
 Run generated industrial feature validation:
@@ -206,20 +198,37 @@ cow.obj
 suzanne.obj
 ```
 
-Run the committed 100-file binary STL validation batch from VSCode:
+## Most Useful Demo Cases
 
-```text
-Terminal > Run Task... > run: large validation 100 stl
-```
+| Purpose | Mesh | Preset / parameters | What to explain |
+| --- | --- | --- | --- |
+| Feature-loop preservation | `tests/data/feature_fixtures/coaxial_hole_plate.obj` | `feature-curves`, ratio `0.50` or `0.25` | Four circular loops, curve projection, and `projected_feature_placements`. |
+| Ellipse/circle budget tradeoff | `tests/data/feature_fixtures/elliptical_hole_plate.obj` | `feature-curves` | Why per-loop budgets are better than only a global minimum vertex count. |
+| Hard-edge line quadrics | `tests/data/external/fandisk_2014.stl` | `dihedral-line`, `--feature-angle-deg 15/25/45` | How dihedral feature weighting changes preservation and triangle quality. |
+| Conservative industrial run | `tests/data/external/casting_aimshape_2014.stl` | `industrial-safe`, `--max-local-error-ratio 0.02` | Local error guards, quality guards, and rejection counters. |
+| Weak-feature experiment | `tests/data/feature_fixtures/boss_pocket_plate.obj` | `normal-tensor` | Normal-tensor scoring as a supplement to dihedral features. |
 
-The task writes generated STL files and metrics CSV files to
-`examples/output/large_validation_100/`. Open `summary.csv` first, then open any
-`*_line_090.stl` in MeshLab, CAD Assistant, Windows 3D Builder, or another STL
-viewer. The output directory is ignored by Git, so repeated validation runs do
-not create tracked result files.
+## Debugging Workflow
 
-To step through the performance code, open the Run and Debug panel and launch
-`Debug Performance Tests (MinGW GDB)` or `Debug Performance Tests (MSVC)`. Both
-launch configurations run `line_quadrics_qem_performance_tests.exe` with a
-GoogleTest filter defaulting to `LineQuadricsQemPerformance.*`, so breakpoints in
-`tests/performance_tests.cpp` are hit directly.
+Use the Run and Debug panel:
+
+- `Debug CLI Feature Curves (MinGW Ninja)` for curve budgets and circular
+  projection.
+- `Debug CLI Industrial Safe (MinGW Ninja)` for local error, quality, normal
+  flip, and topology rejection paths.
+- `Debug CLI Normal Tensor (MinGW Ninja)` for tensor feature scoring.
+- `Debug Feature Report (MinGW Ninja)` for feature graph, loop tracing, and
+  primitive fitting.
+- `Debug Unit Tests Filter (MinGW Ninja)` for focused GoogleTest debugging.
+
+Recommended breakpoints:
+
+- `src/simplification/QEMSimplifier.cpp`: collapse candidate construction,
+  `tryCollapse`, `collapseRejectReason`, curve-budget rejection, local-error
+  rejection, and report counter increments.
+- `src/features/FeatureDetection.cpp`: feature edge collection, feature graph
+  traversal, circle/ellipse fitting, and normal-tensor feature scoring.
+
+For live demos, start with `coaxial_hole_plate` or `fandisk_2014`. Save
+`industrial-safe` on `casting_aimshape_2014` for the moment when you want to
+explain why stronger guards cost more time and produce more rejected collapses.

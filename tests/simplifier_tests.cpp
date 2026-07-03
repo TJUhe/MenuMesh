@@ -22,6 +22,60 @@ int countCircularLoops(const lq::FeatureAnalysis& analysis) {
                     [](const lq::FeatureLoop& loop) { return loop.circular; }));
 }
 
+int countBoundaryVertices(const lq::Mesh& mesh) {
+  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+  if (!topologyResult.ok()) {
+    return -1;
+  }
+  std::vector<char> boundary(mesh.vertices.size(), 0);
+  for (const lq::TopologyEdge& edge : topologyResult.value().edges()) {
+    if (!edge.boundary()) {
+      continue;
+    }
+    boundary[edge.vertices[0]] = 1;
+    boundary[edge.vertices[1]] = 1;
+  }
+  return static_cast<int>(std::count(boundary.begin(), boundary.end(), 1));
+}
+
+int countBoundaryComponents(const lq::Mesh& mesh) {
+  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+  if (!topologyResult.ok()) {
+    return -1;
+  }
+
+  std::vector<std::vector<int>> adjacency(mesh.vertices.size());
+  for (const lq::TopologyEdge& edge : topologyResult.value().edges()) {
+    if (!edge.boundary()) {
+      continue;
+    }
+    adjacency[edge.vertices[0]].push_back(edge.vertices[1]);
+    adjacency[edge.vertices[1]].push_back(edge.vertices[0]);
+  }
+
+  int components = 0;
+  std::vector<char> visited(mesh.vertices.size(), 0);
+  for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
+    if (adjacency[seed].empty() || visited[seed]) {
+      continue;
+    }
+    ++components;
+    std::vector<int> stack{seed};
+    visited[seed] = 1;
+    while (!stack.empty()) {
+      const int v = stack.back();
+      stack.pop_back();
+      for (int neighbor : adjacency[v]) {
+        if (!visited[neighbor]) {
+          visited[neighbor] = 1;
+          stack.push_back(neighbor);
+        }
+      }
+    }
+  }
+  return components;
+}
+
 lq::FeatureOptions circularFeatureOptions() {
   lq::FeatureOptions options;
   options.featureAngleDeg = 25.0;
@@ -108,6 +162,72 @@ lq::Mesh loadExternalMesh(const std::string& fileName) {
   if (!lq::loadMesh(path.string(), mesh, &error)) {
     ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
   }
+  return mesh;
+}
+
+lq::Mesh makeLocalIntersectionGuardMesh() {
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),   lq::Vec3(0.1, 0.0, 0.0),    lq::Vec3(0.1, 1.0, 0.0),
+      lq::Vec3(0.2, -1.0, 0.0),  lq::Vec3(0.12, -0.3, -1.0), lq::Vec3(0.12, 0.3, 1.0),
+      lq::Vec3(0.12, 0.9, -1.0),
+  };
+  mesh.faces = {
+      lq::Face{{0, 1, 2}},
+      lq::Face{{0, 3, 1}},
+      lq::Face{{1, 2, 3}},
+      lq::Face{{4, 5, 6}},
+  };
+  return mesh;
+}
+
+lq::Mesh makeSpatialIntersectionGuardMeshWithFarFaces() {
+  lq::Mesh mesh = makeLocalIntersectionGuardMesh();
+  for (int i = 0; i < 96; ++i) {
+    const int base = static_cast<int>(mesh.vertices.size());
+    const double x = 100.0 + 3.0 * static_cast<double>(i);
+    mesh.vertices.push_back(lq::Vec3(x, 100.0, 0.0));
+    mesh.vertices.push_back(lq::Vec3(x + 1.4, 100.0, 0.0));
+    mesh.vertices.push_back(lq::Vec3(x, 101.2, 0.0));
+    mesh.faces.push_back(lq::Face{{base, base + 1, base + 2}});
+  }
+  return mesh;
+}
+
+lq::Mesh makeCoplanarOverlapGuardMesh() {
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0), lq::Vec3(2.0, 0.0, 0.0), lq::Vec3(0.0, -0.2, 0.0),
+      lq::Vec3(1.0, 0.0, 0.0), lq::Vec3(0.0, 1.0, 0.0), lq::Vec3(0.2, 0.2, 0.0),
+      lq::Vec3(0.7, 0.2, 0.0), lq::Vec3(0.2, 0.7, 0.0),
+  };
+  mesh.faces = {
+      lq::Face{{0, 1, 2}},
+      lq::Face{{1, 3, 4}},
+      lq::Face{{5, 6, 7}},
+  };
+  return mesh;
+}
+
+lq::Mesh makeCoplanarSeparatedGuardMesh() {
+  lq::Mesh mesh = makeCoplanarOverlapGuardMesh();
+  mesh.vertices[5] = lq::Vec3(2.2, 2.2, 0.0);
+  mesh.vertices[6] = lq::Vec3(2.7, 2.2, 0.0);
+  mesh.vertices[7] = lq::Vec3(2.2, 2.7, 0.0);
+  return mesh;
+}
+
+lq::Mesh makePolygonalFeatureChordMesh() {
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0), lq::Vec3(3.0, 0.0, 0.0),  lq::Vec3(2.5, 1.0, 0.0),
+      lq::Vec3(1.2, 2.2, 0.0), lq::Vec3(-0.4, 1.3, 0.0),
+  };
+  mesh.faces = {
+      lq::Face{{0, 1, 3}},
+      lq::Face{{1, 2, 3}},
+      lq::Face{{0, 3, 4}},
+  };
   return mesh;
 }
 
@@ -204,6 +324,226 @@ TEST(LineQuadricsQem, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
 
   expectBudgetedSimplification(result, input, 0.70);
   EXPECT_GT(result.report.maxAppliedLineWeight, result.report.minAppliedLineWeight);
+}
+
+TEST(LineQuadricsQem, StrictTriangleQualityRejectsPoorCollapsePlacements) {
+  const lq::Mesh input = lq::generatePlaneGrid(4, 1.0, false);
+
+  lq::SimplifyOptions options = standardQemOptions(0.25);
+  options.minTriangleQuality = 0.95;
+  options.maxNormalDeviationDeg = 180.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.qualityRejectedCollapses, 0);
+  EXPECT_EQ(result.report.rejectedCollapses,
+            result.report.topologyRejectedCollapses +
+                result.report.normalFlipRejectedCollapses +
+                result.report.qualityRejectedCollapses +
+                result.report.boundaryRejectedCollapses +
+                result.report.selfIntersectionRejectedCollapses +
+                result.report.curveBudgetRejectedCollapses +
+                result.report.errorRejectedCollapses +
+                result.report.featureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, StrictNormalDeviationRejectsFoldoverRisk) {
+  const lq::Mesh input = lq::generateCubeGrid(3, 1.0);
+
+  lq::SimplifyOptions options = standardQemOptions(0.25);
+  options.minTriangleQuality = 0.0;
+  options.maxNormalDeviationDeg = 0.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.normalFlipRejectedCollapses, 0);
+  EXPECT_EQ(result.report.rejectedCollapses,
+            result.report.topologyRejectedCollapses +
+                result.report.normalFlipRejectedCollapses +
+                result.report.qualityRejectedCollapses +
+                result.report.boundaryRejectedCollapses +
+                result.report.selfIntersectionRejectedCollapses +
+                result.report.curveBudgetRejectedCollapses +
+                result.report.errorRejectedCollapses +
+                result.report.featureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, StrictLocalErrorRejectsLargeVertexDrift) {
+  const lq::Mesh input = lq::generatePlaneGrid(3, 2.0, false);
+
+  lq::SimplifyOptions options = standardQemOptions(0.25);
+  options.maxNormalDeviationDeg = 180.0;
+  options.maxLocalErrorRatio = 1e-12;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.errorRejectedCollapses, 0);
+  EXPECT_EQ(result.report.rejectedCollapses,
+            result.report.topologyRejectedCollapses +
+                result.report.normalFlipRejectedCollapses +
+                result.report.qualityRejectedCollapses +
+                result.report.boundaryRejectedCollapses +
+                result.report.selfIntersectionRejectedCollapses +
+                result.report.curveBudgetRejectedCollapses +
+                result.report.errorRejectedCollapses +
+                result.report.featureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved) {
+  const lq::Mesh input = lq::generatePlaneGrid(8, 2.0, false);
+  const lq::MeshStats inputStats = lq::computeMeshStats(input);
+  ASSERT_GT(inputStats.boundaryEdges, 0);
+  ASSERT_EQ(1, countBoundaryComponents(input));
+
+  lq::SimplifyOptions options = standardQemOptions(0.08);
+  options.preserveBoundary = true;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+  const lq::MeshStats outputStats = lq::computeMeshStats(result.mesh);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+  EXPECT_LT(outputStats.boundaryEdges, inputStats.boundaryEdges);
+  EXPECT_LT(countBoundaryVertices(result.mesh), countBoundaryVertices(input));
+  EXPECT_EQ(1, countBoundaryComponents(result.mesh));
+  EXPECT_EQ(0, outputStats.nonManifoldEdges);
+  EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
+}
+
+TEST(LineQuadricsQem, KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse) {
+  const lq::Mesh input = lq::generateHolePlaneGrid(16, 2.0, 0.35);
+  const lq::MeshStats inputStats = lq::computeMeshStats(input);
+  ASSERT_GT(inputStats.boundaryEdges, 0);
+  ASSERT_GE(countBoundaryComponents(input), 2);
+
+  lq::SimplifyOptions options = standardQemOptions(0.15);
+  options.preserveBoundary = true;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+  const lq::MeshStats outputStats = lq::computeMeshStats(result.mesh);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+  EXPECT_EQ(countBoundaryComponents(input), countBoundaryComponents(result.mesh));
+  EXPECT_LE(outputStats.boundaryEdges, inputStats.boundaryEdges);
+  EXPECT_EQ(0, outputStats.nonManifoldEdges);
+  EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
+}
+
+TEST(LineQuadricsQem, LocalIntersectionGuardRejectsIntersectingCollapse) {
+  const lq::Mesh input = makeLocalIntersectionGuardMesh();
+
+  lq::SimplifyOptions options = standardQemOptions(0.25);
+  options.targetFaces = 1;
+  options.preventLocalIntersections = true;
+  options.maxNormalDeviationDeg = 180.0;
+  options.minTriangleQuality = 0.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
+  EXPECT_EQ(result.report.rejectedCollapses,
+            result.report.topologyRejectedCollapses +
+                result.report.normalFlipRejectedCollapses +
+                result.report.qualityRejectedCollapses +
+                result.report.boundaryRejectedCollapses +
+                result.report.selfIntersectionRejectedCollapses +
+                result.report.curveBudgetRejectedCollapses +
+                result.report.errorRejectedCollapses +
+                result.report.featureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, LocalIntersectionGuardFindsIndexedDistantCandidates) {
+  const lq::Mesh input = makeSpatialIntersectionGuardMeshWithFarFaces();
+
+  lq::SimplifyOptions options = standardQemOptions(0.98);
+  options.targetFaces = static_cast<int>(input.faces.size()) - 1;
+  options.preventLocalIntersections = true;
+  options.maxNormalDeviationDeg = 180.0;
+  options.minTriangleQuality = 0.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
+  EXPECT_EQ(result.report.rejectedCollapses,
+            result.report.topologyRejectedCollapses +
+                result.report.normalFlipRejectedCollapses +
+                result.report.qualityRejectedCollapses +
+                result.report.boundaryRejectedCollapses +
+                result.report.selfIntersectionRejectedCollapses +
+                result.report.curveBudgetRejectedCollapses +
+                result.report.errorRejectedCollapses +
+                result.report.featureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, LocalIntersectionGuardRejectsCoplanarTriangleOverlap) {
+  const lq::Mesh input = makeCoplanarOverlapGuardMesh();
+
+  lq::SimplifyOptions options = standardQemOptions(0.25);
+  options.targetFaces = 1;
+  options.preventLocalIntersections = true;
+  options.maxNormalDeviationDeg = 180.0;
+  options.minTriangleQuality = 0.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
+}
+
+TEST(LineQuadricsQem, LocalIntersectionGuardAllowsCoplanarSeparatedTriangles) {
+  const lq::Mesh input = makeCoplanarSeparatedGuardMesh();
+
+  lq::SimplifyOptions options = standardQemOptions(0.25);
+  options.targetFaces = 1;
+  options.preventLocalIntersections = true;
+  options.maxNormalDeviationDeg = 180.0;
+  options.minTriangleQuality = 0.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, LocalIntersectionGuardAllowsSharedCoplanarEdges) {
+  const lq::Mesh input = lq::generatePlaneGrid(3, 1.0, false);
+
+  lq::SimplifyOptions options = standardQemOptions(0.55);
+  options.preventLocalIntersections = true;
+  options.maxNormalDeviationDeg = 180.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+  EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, StrictPolygonalFeatureCurveBudgetRejectsChordPlacement) {
+  const lq::Mesh input = makePolygonalFeatureChordMesh();
+
+  lq::SimplifyOptions options = standardQemOptions(0.25);
+  options.targetFaces = 1;
+  options.preserveFeatureCurves = true;
+  options.protectAllFeatureEdges = false;
+  options.useNormalTensorFeatures = false;
+  options.featureAngleDeg = 179.0;
+  options.circleFitRelativeThreshold = 0.0;
+  options.ellipseFitRelativeThreshold = 0.0;
+  options.minFeatureLoopVertices = 3;
+  options.maxFeatureCurveDeviationRatio = 1e-9;
+  options.maxNormalDeviationDeg = 180.0;
+  options.minTriangleQuality = 0.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.featureLoops, 0);
+  EXPECT_GT(result.report.curveBudgetRejectedCollapses, 0);
+  EXPECT_EQ(result.report.rejectedCollapses,
+            result.report.topologyRejectedCollapses +
+                result.report.normalFlipRejectedCollapses +
+                result.report.qualityRejectedCollapses +
+                result.report.boundaryRejectedCollapses +
+                result.report.selfIntersectionRejectedCollapses +
+                result.report.curveBudgetRejectedCollapses +
+                result.report.errorRejectedCollapses +
+                result.report.featureRejectedCollapses);
 }
 
 TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {

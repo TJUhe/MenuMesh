@@ -88,6 +88,14 @@ void fillReport(const lq::SimplifyReport& source, LqSimplifyReport& target) {
   target.feature_vertices = source.featureVertices;
   target.normal_tensor_feature_edges = source.normalTensorFeatureEdges;
   target.feature_rejected_collapses = source.featureRejectedCollapses;
+  target.boundary_rejected_collapses = source.boundaryRejectedCollapses;
+  target.topology_rejected_collapses = source.topologyRejectedCollapses;
+  target.normal_flip_rejected_collapses = source.normalFlipRejectedCollapses;
+  target.quality_rejected_collapses = source.qualityRejectedCollapses;
+  target.self_intersection_rejected_collapses =
+      source.selfIntersectionRejectedCollapses;
+  target.curve_budget_rejected_collapses = source.curveBudgetRejectedCollapses;
+  target.error_rejected_collapses = source.errorRejectedCollapses;
   target.projected_feature_placements = source.projectedFeaturePlacements;
   target.min_applied_line_weight = source.minAppliedLineWeight;
   target.max_applied_line_weight = source.maxAppliedLineWeight;
@@ -367,15 +375,26 @@ void lq_simplify_options_init(LqSimplifyOptions* options) {
   options->adaptive_scale = 0;
   options->adaptive_base_line_weight = 1e-2;
   options->boundary_weight = 0.0;
+  options->preserve_boundary = 0;
   options->preserve_feature_curves = 0;
   options->protect_all_feature_edges = 0;
   options->feature_curve_weight = 0.05;
+  options->max_feature_curve_deviation_ratio = 0.0;
   options->circle_fit_relative_threshold = 0.05;
+  options->ellipse_fit_relative_threshold = 0.05;
+  options->near_circle_axis_ratio_tolerance = 0.08;
   options->min_feature_loop_vertices = 16;
+  options->min_circular_feature_loop_vertices = 6;
   options->use_normal_tensor_features = 1;
   options->normal_tensor_feature_threshold = 0.16;
   options->normal_tensor_min_edge_alignment = 0.45;
   options->normal_tensor_smoothing_iterations = 0;
+  options->normal_tensor_scale_count = 1;
+  options->min_triangle_quality = 0.0;
+  options->max_normal_deviation_deg = 90.0;
+  options->max_local_error = 0.0;
+  options->max_local_error_ratio = 0.0;
+  options->prevent_local_intersections = 0;
   options->verbose = 0;
 }
 
@@ -403,12 +422,20 @@ LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
       cppOptions.adaptiveScale = boolFromInt(options->adaptive_scale);
       cppOptions.adaptiveBaseLineWeight = options->adaptive_base_line_weight;
       cppOptions.boundaryWeight = options->boundary_weight;
+      cppOptions.preserveBoundary = boolFromInt(options->preserve_boundary);
       cppOptions.preserveFeatureCurves = boolFromInt(options->preserve_feature_curves);
       cppOptions.protectAllFeatureEdges =
           boolFromInt(options->protect_all_feature_edges);
       cppOptions.featureCurveWeight = options->feature_curve_weight;
+      cppOptions.maxFeatureCurveDeviationRatio =
+          options->max_feature_curve_deviation_ratio;
       cppOptions.circleFitRelativeThreshold = options->circle_fit_relative_threshold;
+      cppOptions.ellipseFitRelativeThreshold = options->ellipse_fit_relative_threshold;
+      cppOptions.nearCircleAxisRatioTolerance =
+          options->near_circle_axis_ratio_tolerance;
       cppOptions.minFeatureLoopVertices = options->min_feature_loop_vertices;
+      cppOptions.minCircularFeatureLoopVertices =
+          options->min_circular_feature_loop_vertices;
       cppOptions.useNormalTensorFeatures =
           boolFromInt(options->use_normal_tensor_features);
       cppOptions.normalTensorFeatureThreshold =
@@ -417,6 +444,13 @@ LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
           options->normal_tensor_min_edge_alignment;
       cppOptions.normalTensorSmoothingIterations =
           options->normal_tensor_smoothing_iterations;
+      cppOptions.normalTensorScaleCount = options->normal_tensor_scale_count;
+      cppOptions.minTriangleQuality = options->min_triangle_quality;
+      cppOptions.maxNormalDeviationDeg = options->max_normal_deviation_deg;
+      cppOptions.maxLocalError = options->max_local_error;
+      cppOptions.maxLocalErrorRatio = options->max_local_error_ratio;
+      cppOptions.preventLocalIntersections =
+          boolFromInt(options->prevent_local_intersections);
       cppOptions.verbose = boolFromInt(options->verbose);
     }
 

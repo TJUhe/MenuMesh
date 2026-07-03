@@ -529,6 +529,10 @@ facesByKey[sorted(a,b,c)] = 具有同一顶点集合的活动 face id 集合</co
         |     |-- link condition
         |     |-- degenerate triangle area check
         |     |-- duplicate face check
+        |     |-- normal flip / triangle quality guard
+        |     |-- local self-intersection guard
+        |     |-- local geometry error guard
+        |     |-- per-loop feature curve budget
         |
         |-- update only remove incident faces
         |-- update DynamicTopology locally
@@ -539,10 +543,15 @@ facesByKey[sorted(a,b,c)] = 具有同一顶点集合的活动 face id 集合</co
 <table>
 <tr><th>文件</th><th>责任</th></tr>
 <tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>QEM、line quadrics、优先队列、合法性、增量邻接、collapse 主循环</td></tr>
-<tr><td><code>src/features/FeatureDetection.cpp</code></td><td>边界/dihedral/non-manifold 特征边检测，feature loop 和圆形 loop 拟合</td></tr>
+<tr><td><code>src/features/FeatureDetection.cpp</code></td><td>边界/dihedral/non-manifold/normal-tensor 特征边检测，FeatureGraph、feature loop、圆/椭圆 loop 拟合</td></tr>
 <tr><td><code>src/core/MeshTopology.cpp</code></td><td>公共只读拓扑缓存，用于 metrics 和后续算法模块</td></tr>
 <tr><td><code>src/simplification/Metrics.cpp</code></td><td>边界边、非流形边、面积、三角形质量、采样距离等评估指标</td></tr>
 </table>
+
+<div class="callout success">
+<div class="callout-title">2026-07-03 之后的主链路变化</div>
+<p>当前版本不再把 QEM cost 当作唯一决策依据。QEM/line quadrics 仍负责候选排序，但每次 edge collapse 还要通过拓扑、法线翻转、三角形质量、局部自交、局部几何误差和 feature-loop 预算检查。这样 sampled distance 从“事后发现问题”变成了“事后量化效果”，而不是唯一的安全网。</p>
+</div>
 
 <h2 id="s9"><span class="num">9</span>用 Casting 模型把原理说透</h2>
 
@@ -771,14 +780,27 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 
 <p>如果只想验证程序没有被改坏，直接跑 CTest：</p>
 
-<pre><code>cmake -E chdir build\codex-industrial ctest -C Release --output-on-failure</code></pre>
+<pre><code>ctest --test-dir build\mingw-ninja-debug --output-on-failure</code></pre>
 
 <p>当前结果为：</p>
 
-<pre><code>27/27 tests passed
-Total Test time ~= 1.4 sec</code></pre>
+<pre><code>59/59 tests passed</code></pre>
 
-<p>其中 <code>Public2014CastingModelKeepsClosedTopologyAfterLineSimplify</code> 是专门为 Casting 拓扑合法性加入的回归测试。</p>
+<p>其中包括 C API 报告、局部误差 guard、曲线预算、FeatureGraph、normal tensor、多数据集 validation gate 和 Casting/Fandisk 拓扑合法性相关测试。</p>
+
+<h3>10.7 VS Code 演示路线</h3>
+
+<p>当前仓库的 <code>.vscode/tasks.json</code> 已精简为 <code>mingw+ninja</code> 主链路和 <code>msvc+ninja</code> 备用链路。现场建议按下面顺序讲：</p>
+
+<table>
+<tr><th>任务</th><th>推荐输入</th><th>讲什么</th></tr>
+<tr><td><code>demo: feature report selected mesh</code></td><td><code>coaxial_hole_plate.obj</code></td><td>4 个圆形 loop、圆拟合误差和 feature graph。</td></tr>
+<tr><td><code>demo: algorithm comparison selected mesh</code></td><td><code>fandisk_2014.stl</code></td><td>standard QEM、line QEM、dihedral-line、feature-curves、normal-tensor 的差异。</td></tr>
+<tr><td><code>demo: ratio sweep selected mesh</code></td><td><code>fandisk_2014.stl</code> 或 <code>coaxial_hole_plate.obj</code></td><td>同一算法在 0.8、0.5、0.25、0.1 ratio 下的误差和质量变化。</td></tr>
+<tr><td><code>Debug CLI Industrial Safe (MinGW Ninja)</code></td><td><code>casting_aimshape_2014.stl</code></td><td>为什么质量、局部误差和特征约束会带来更多 rejected collapses。</td></tr>
+</table>
+
+<p>最有说明力的参数实验是：在 Fandisk 上扫 <code>--feature-angle-deg 15/25/45</code>，在 coaxial hole 上扫 <code>--max-feature-curve-deviation-ratio 0.02/0.05</code>，在 Casting 上比较是否开启 <code>--industrial-safe --max-local-error-ratio 0.02</code>。这些例子分别说明“特征识别阈值”“曲线预算”和“工业安全 guard”的作用。</p>
 
 <h2 id="s11"><span class="num">11</span>参考文献和代码依据</h2>
 
@@ -827,14 +849,17 @@ Total Test time ~= 1.4 sec</code></pre>
 <li>Feature curve 机制让圆孔、硬边、连续线结构可以被显式识别和报告。</li>
 <li>Link condition 把拓扑合法性变成硬约束，避免闭合二流形简化出坏几何。</li>
 <li>DynamicTopology 把大模型运行时间从分钟级拉回秒级。</li>
+<li>局部几何误差、三角形质量、normal flip、局部自交和 per-loop 曲线预算让坍缩拒绝原因可审计。</li>
+<li>FeatureGraph 明确表达复杂 loop、junction、共享顶点和多特征归属，不再只依赖单个连通分量。</li>
+<li>多尺度 normal tensor 作为 dihedral 之外的弱特征候选，有助于暴露非均匀采样和噪声敏感性。</li>
 </ul>
 
 <h3>12.2 当前边界</h3>
 
 <ul>
-<li>当前 feature detection 主要依赖边界、dihedral 和简单 loop/circle fitting，还不是完整 normal tensor 实现。</li>
-<li>hard feature 模式仍然可能过保守，尤其是 Casting 这类密集工业特征模型。</li>
-<li>当前合法性检查已经覆盖 link condition 和面积退化，但还应继续加入 normal flip、最小角、局部自交检查。</li>
+<li>normal tensor 已经接入多尺度评分，但阈值仍需要更多真实工业数据校准。</li>
+<li>hard feature / industrial-safe 模式仍然可能过保守，尤其是 Casting 这类密集工业特征模型。</li>
+<li>局部 tolerance guard 比 sampled distance 更早介入，但还不是严格 Hausdorff envelope。</li>
 <li>当前 DynamicTopology 是 simplifier 内部结构，后续应逐步和公共 <code>MeshTopology</code> / 半边结构统一。</li>
 </ul>
 
@@ -856,7 +881,7 @@ Total Test time ~= 1.4 sec</code></pre>
 </div>
 
 <div class="footer">
-当前网格简化程序原理说明 · 基于 docs 内论文笔记与当前 C++ 实现 · 2026-07-01
+当前网格简化程序原理说明 · 基于 docs 内论文笔记与当前 C++ 实现 · 2026-07-03
 </div>
 
 </body>

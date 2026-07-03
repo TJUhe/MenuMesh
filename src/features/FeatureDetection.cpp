@@ -30,6 +30,7 @@ struct CandidateEdge {
   bool normalTensor = false;
   bool nonManifold = false;
   int signedKind = 0;
+  double angleRad = 0.0;
 };
 
 struct PrimitiveFit {
@@ -206,7 +207,8 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
   const std::vector<NormalTensorVertex> tensor =
       options.useNormalTensorFeatures
           ? computeNormalTensorFeatures(
-                mesh, NormalTensorOptions{options.normalTensorSmoothingIterations})
+                mesh, NormalTensorOptions{options.normalTensorSmoothingIterations,
+                                          options.normalTensorScaleCount})
           : std::vector<NormalTensorVertex>();
   std::vector<char> discreteFeatureVertex(mesh.vertices.size(), 0);
   for (const auto& [key, info] : edges) {
@@ -236,7 +238,8 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
     } else if (info.faces.size() == 2) {
       const double dot = std::clamp(
           std::abs(normals[info.faces[0]].dot(normals[info.faces[1]])), -1.0, 1.0);
-      edge.dihedral = std::acos(dot) >= threshold;
+      edge.angleRad = std::acos(dot);
+      edge.dihedral = edge.angleRad >= threshold;
       if (edge.dihedral) {
         edge.signedKind = signedDihedralKind(mesh, normals, info, a, b);
       }
@@ -353,11 +356,10 @@ PrimitiveFit fitPrimitive(const Mesh& mesh, const FeatureLoop& loop,
     const Vec3 de = mesh.vertices[id] - mean;
     const double ex = de.dot(u);
     const double ey = de.dot(v);
-    const double ellipse =
-        (std::sqrt((ex * ex) / (majorRadius * majorRadius) +
-                   (ey * ey) / (minorRadius * minorRadius)) -
-         1.0) *
-        std::sqrt(majorRadius * minorRadius);
+    const double ellipse = (std::sqrt((ex * ex) / (majorRadius * majorRadius) +
+                                      (ey * ey) / (minorRadius * minorRadius)) -
+                            1.0) *
+                           std::sqrt(majorRadius * minorRadius);
     ellipseSq += ellipse * ellipse;
     ellipseMax = std::max(ellipseMax, std::abs(ellipse));
   }
@@ -489,26 +491,41 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
   }
 
   const std::vector<std::vector<int>> neighbors = buildVertexNeighbors(mesh);
-  const int iterations = std::clamp(options.smoothingIterations, 0, 8);
-  for (int iter = 0; iter < iterations; ++iter) {
+  const int baseIterations = std::clamp(options.smoothingIterations, 0, 8);
+  const int scaleCount = std::clamp(options.scaleCount, 1, 8);
+
+  auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current) {
     std::vector<Eigen::Matrix3d> next = tensors;
-    for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
+    next = current;
+    for (int i = 0; i < static_cast<int>(current.size()); ++i) {
       if (neighbors[i].empty()) {
         continue;
       }
-      Eigen::Matrix3d sum = tensors[i];
+      Eigen::Matrix3d sum = current[i];
       double count = 1.0;
       for (int nb : neighbors[i]) {
-        sum += tensors[nb];
+        sum += current[nb];
         count += 1.0;
       }
       next[i] = sum / count;
     }
-    tensors.swap(next);
+    current.swap(next);
+  };
+
+  for (int iter = 0; iter < baseIterations; ++iter) {
+    smoothOnce(tensors);
   }
 
-  for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
-    result[i] = analyzeNormalTensor(tensors[i]);
+  for (int scale = 0; scale < scaleCount; ++scale) {
+    for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
+      const NormalTensorVertex candidate = analyzeNormalTensor(tensors[i]);
+      if (scale == 0 || candidate.featureScore > result[i].featureScore) {
+        result[i] = candidate;
+      }
+    }
+    if (scale + 1 < scaleCount) {
+      smoothOnce(tensors);
+    }
   }
   return result;
 }
@@ -522,8 +539,31 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
 
   const std::vector<CandidateEdge> featureEdges =
       collectFeatureEdges(mesh, options, analysis);
+  analysis.graph.vertices.assign(mesh.vertices.size(), FeatureGraphVertex{});
+  analysis.graph.edges.reserve(featureEdges.size());
+  for (const CandidateEdge& edge : featureEdges) {
+    FeatureGraphEdge graphEdge;
+    graphEdge.a = edge.a;
+    graphEdge.b = edge.b;
+    graphEdge.boundary = edge.boundary;
+    graphEdge.dihedral = edge.dihedral;
+    graphEdge.normalTensor = edge.normalTensor;
+    graphEdge.nonManifold = edge.nonManifold;
+    graphEdge.signedKind = edge.signedKind;
+    const int edgeId = static_cast<int>(analysis.graph.edges.size());
+    analysis.graph.edges.push_back(graphEdge);
+    if (edge.a >= 0 && edge.a < static_cast<int>(analysis.graph.vertices.size())) {
+      analysis.graph.vertices[edge.a].incidentEdges.push_back(edgeId);
+    }
+    if (edge.b >= 0 && edge.b < static_cast<int>(analysis.graph.vertices.size())) {
+      analysis.graph.vertices[edge.b].incidentEdges.push_back(edgeId);
+    }
+  }
+  const double loopTraceAngle =
+      std::max(options.featureAngleDeg * kPi / 180.0, 40.0 * kPi / 180.0);
 
   std::vector<std::vector<int>> adjacency(mesh.vertices.size());
+  std::vector<char> traceVertex(mesh.vertices.size(), 0);
   std::unordered_map<std::uint64_t, bool> edgeIsBoundary;
   edgeIsBoundary.reserve(featureEdges.size());
   std::unordered_map<std::uint64_t, int> edgeSignedKind;
@@ -531,8 +571,15 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   std::vector<std::pair<int, int>> graphEdges;
   graphEdges.reserve(featureEdges.size());
   for (const CandidateEdge& edge : featureEdges) {
+    const bool traceEdge = edge.boundary || edge.nonManifold || edge.normalTensor ||
+                           (edge.dihedral && edge.angleRad >= loopTraceAngle);
+    if (!traceEdge) {
+      continue;
+    }
     adjacency[edge.a].push_back(edge.b);
     adjacency[edge.b].push_back(edge.a);
+    traceVertex[edge.a] = 1;
+    traceVertex[edge.b] = 1;
     edgeIsBoundary[edgeKey(edge.a, edge.b)] = edge.boundary;
     edgeSignedKind[edgeKey(edge.a, edge.b)] = edge.signedKind;
     graphEdges.emplace_back(edge.a, edge.b);
@@ -561,16 +608,25 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   auto assignLoopToVertices = [&](const FeatureLoop& loop) {
     for (int id : loop.vertices) {
       VertexFeature& vf = analysis.vertices[id];
+      if (id >= 0 && id < static_cast<int>(analysis.graph.vertices.size())) {
+        FeatureGraphVertex& gv = analysis.graph.vertices[id];
+        if (std::find(gv.loopIds.begin(), gv.loopIds.end(), loop.id) ==
+            gv.loopIds.end()) {
+          gv.loopIds.push_back(loop.id);
+        }
+      }
       const bool alreadyFeature = vf.isFeature;
       if (!alreadyFeature) {
         vf.isFeature = true;
         vf.loopId = loop.id;
         vf.circular = loop.circular;
+        vf.primitive = loop.primitive;
       }
       vf.junction = vf.junction || alreadyFeature || adjacency[id].size() != 2;
       if (loop.circular && (!alreadyFeature || !vf.circular)) {
         vf.loopId = loop.id;
         vf.circular = true;
+        vf.primitive = loop.primitive;
         vf.circleCenter = loop.center;
         vf.circleNormal = loop.normal;
         vf.circleRadius = loop.radius;
@@ -581,7 +637,36 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
         } else {
           vf.tangent = fallbackTangentFromNeighbors(id, adjacency[id], mesh);
         }
+      } else if (loop.primitive == FeaturePrimitiveType::Ellipse &&
+                 (!alreadyFeature || vf.primitive == FeaturePrimitiveType::Unknown ||
+                  vf.tangent.norm() <= 1e-20)) {
+        vf.loopId = loop.id;
+        vf.primitive = loop.primitive;
+        vf.ellipseCenter = loop.center;
+        vf.ellipseNormal = loop.normal;
+        vf.ellipseMajorAxis = loop.majorAxis;
+        vf.ellipseMinorAxis = loop.minorAxis;
+        vf.ellipseMajorRadius = loop.majorRadius;
+        vf.ellipseMinorRadius = loop.minorRadius;
+        Vec3 major = loop.majorAxis;
+        Vec3 minor = loop.minorAxis;
+        if (major.norm() > 1e-20 && minor.norm() > 1e-20 && loop.majorRadius > 1e-20 &&
+            loop.minorRadius > 1e-20) {
+          major.normalize();
+          minor.normalize();
+          const Vec3 delta = mesh.vertices[id] - loop.center;
+          const double theta = std::atan2(delta.dot(minor) / loop.minorRadius,
+                                          delta.dot(major) / loop.majorRadius);
+          Vec3 tangent = -loop.majorRadius * std::sin(theta) * major +
+                         loop.minorRadius * std::cos(theta) * minor;
+          vf.tangent = tangent.norm() > 1e-20
+                           ? tangent.normalized()
+                           : fallbackTangentFromNeighbors(id, adjacency[id], mesh);
+        } else {
+          vf.tangent = fallbackTangentFromNeighbors(id, adjacency[id], mesh);
+        }
       } else if (!alreadyFeature || vf.tangent.norm() <= 1e-20) {
+        vf.primitive = loop.primitive;
         vf.tangent = fallbackTangentFromNeighbors(id, adjacency[id], mesh);
       }
     }
@@ -612,6 +697,481 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
 
     assignLoopToVertices(loop);
     analysis.loops.push_back(std::move(loop));
+  };
+
+  auto cycleSignature = [](const std::vector<int>& vertices) {
+    std::vector<std::uint64_t> keys;
+    keys.reserve(vertices.size());
+    for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
+      keys.push_back(edgeKey(vertices[i], vertices[(i + 1) % vertices.size()]));
+    }
+    std::sort(keys.begin(), keys.end());
+    std::ostringstream out;
+    for (std::uint64_t key : keys) {
+      out << key << ';';
+    }
+    return out.str();
+  };
+
+  auto cycleHasUniqueVertices = [](const std::vector<int>& vertices) {
+    std::unordered_set<int> seen;
+    seen.reserve(vertices.size());
+    for (int id : vertices) {
+      if (!seen.insert(id).second) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  auto cycleEdgesFollowCircle = [&](const std::vector<int>& vertices,
+                                    const PrimitiveFit& fit) {
+    if (!fit.valid ||
+        (fit.primitive != FeaturePrimitiveType::Circle &&
+         fit.primitive != FeaturePrimitiveType::NearCircle) ||
+        fit.radius <= 1e-20 || fit.normal.norm() <= 1e-20) {
+      return false;
+    }
+
+    Vec3 normal = fit.normal.normalized();
+    const double allowed =
+        std::max(3.0 * options.circleFitRelativeThreshold, 0.08) * fit.radius;
+    for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
+      const Vec3 midpoint = 0.5 * (mesh.vertices[vertices[i]] +
+                                   mesh.vertices[vertices[(i + 1) % vertices.size()]]);
+      const Vec3 delta = midpoint - fit.center;
+      const double plane = std::abs(delta.dot(normal));
+      const Vec3 inPlane = delta - normal * delta.dot(normal);
+      const double radial = std::abs(inPlane.norm() - fit.radius);
+      if (std::max(radial, plane) > allowed) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  auto addCircularCycle = [&](std::vector<int> vertices,
+                              std::unordered_set<std::string>& seenCycles) {
+    if (static_cast<int>(vertices.size()) < options.minFeatureLoopVertices ||
+        !cycleHasUniqueVertices(vertices)) {
+      return;
+    }
+    const std::string signature = cycleSignature(vertices);
+    if (!seenCycles.insert(signature).second) {
+      return;
+    }
+
+    FeatureLoop loop;
+    loop.id = loopId++;
+    loop.vertices = std::move(vertices);
+    loop.edgeCount = static_cast<int>(loop.vertices.size());
+    loop.closed = true;
+    int boundaryEdges = 0;
+    for (int i = 0; i < static_cast<int>(loop.vertices.size()); ++i) {
+      const int a = loop.vertices[i];
+      const int b = loop.vertices[(i + 1) % loop.vertices.size()];
+      if (edgeBoundary(a, b)) {
+        ++boundaryEdges;
+      }
+      const int sign = edgeSign(a, b);
+      if (sign > 0) ++loop.convexEdges;
+      if (sign < 0) ++loop.concaveEdges;
+      if (sign == 0 && !edgeBoundary(a, b)) ++loop.unknownSignedEdges;
+    }
+    loop.mostlyBoundary =
+        boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+
+    const PrimitiveFit fit = fitPrimitive(mesh, loop, options);
+    applyPrimitiveFit(fit, loop);
+    if (!loop.circular || !cycleEdgesFollowCircle(loop.vertices, fit)) {
+      --loopId;
+      return;
+    }
+    assignLoopToVertices(loop);
+    analysis.loops.push_back(std::move(loop));
+  };
+
+  auto addGraphCycle = [&](std::vector<int> vertices,
+                           std::unordered_set<std::string>& seenCycles) {
+    if (static_cast<int>(vertices.size()) < options.minFeatureLoopVertices ||
+        !cycleHasUniqueVertices(vertices)) {
+      return;
+    }
+    const std::string signature = cycleSignature(vertices);
+    if (!seenCycles.insert(signature).second) {
+      return;
+    }
+
+    FeatureLoop loop;
+    loop.id = loopId++;
+    loop.vertices = std::move(vertices);
+    loop.edgeCount = static_cast<int>(loop.vertices.size());
+    loop.closed = true;
+    int boundaryEdges = 0;
+    for (int i = 0; i < static_cast<int>(loop.vertices.size()); ++i) {
+      const int a = loop.vertices[i];
+      const int b = loop.vertices[(i + 1) % loop.vertices.size()];
+      if (edgeBoundary(a, b)) {
+        ++boundaryEdges;
+      }
+      const int sign = edgeSign(a, b);
+      if (sign > 0) ++loop.convexEdges;
+      if (sign < 0) ++loop.concaveEdges;
+      if (sign == 0 && !edgeBoundary(a, b)) ++loop.unknownSignedEdges;
+    }
+    loop.mostlyBoundary =
+        boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+
+    const PrimitiveFit fit = fitPrimitive(mesh, loop, options);
+    applyPrimitiveFit(fit, loop);
+    if (!fit.valid || loop.primitive != FeaturePrimitiveType::PolygonalLoop) {
+      --loopId;
+      return;
+    }
+    assignLoopToVertices(loop);
+    analysis.loops.push_back(std::move(loop));
+  };
+
+  struct FeatureChain {
+    std::vector<int> vertices;
+    int loEndpoint = -1;
+    int hiEndpoint = -1;
+  };
+
+  auto traceJunctionChains = [&]() {
+    std::vector<FeatureChain> chains;
+    std::vector<char> isJunction(adjacency.size(), 0);
+    for (int i = 0; i < static_cast<int>(adjacency.size()); ++i) {
+      isJunction[i] = !adjacency[i].empty() && adjacency[i].size() != 2;
+    }
+
+    std::unordered_set<std::string> seenChains;
+    for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
+      if (!isJunction[seed]) {
+        continue;
+      }
+      for (int nb : adjacency[seed]) {
+        std::vector<int> chain;
+        chain.push_back(seed);
+        int previous = seed;
+        int current = nb;
+        while (true) {
+          chain.push_back(current);
+          if (current != seed && isJunction[current]) {
+            break;
+          }
+          if (adjacency[current].size() != 2) {
+            break;
+          }
+          int next = -1;
+          for (int candidate : adjacency[current]) {
+            if (candidate != previous) {
+              next = candidate;
+              break;
+            }
+          }
+          if (next < 0) {
+            break;
+          }
+          previous = current;
+          current = next;
+        }
+
+        const int end = chain.back();
+        if (end == seed || !isJunction[end]) {
+          continue;
+        }
+        const std::string signature = cycleSignature(chain);
+        if (!seenChains.insert(signature).second) {
+          continue;
+        }
+        FeatureChain featureChain;
+        featureChain.loEndpoint = std::min(seed, end);
+        featureChain.hiEndpoint = std::max(seed, end);
+        if (seed == featureChain.loEndpoint) {
+          featureChain.vertices = std::move(chain);
+        } else {
+          featureChain.vertices.assign(chain.rbegin(), chain.rend());
+        }
+        chains.push_back(std::move(featureChain));
+      }
+    }
+    return chains;
+  };
+
+  auto recoverCircularCyclesThroughJunctions = [&]() {
+    const std::vector<FeatureChain> chains = traceJunctionChains();
+    std::unordered_set<std::string> seenCycles;
+    for (int i = 0; i < static_cast<int>(chains.size()); ++i) {
+      for (int j = i + 1; j < static_cast<int>(chains.size()); ++j) {
+        if (chains[i].loEndpoint != chains[j].loEndpoint ||
+            chains[i].hiEndpoint != chains[j].hiEndpoint) {
+          continue;
+        }
+        std::vector<int> cycle = chains[i].vertices;
+        for (int k = static_cast<int>(chains[j].vertices.size()) - 2; k > 0; --k) {
+          cycle.push_back(chains[j].vertices[k]);
+        }
+        addCircularCycle(std::move(cycle), seenCycles);
+      }
+    }
+  };
+
+  recoverCircularCyclesThroughJunctions();
+
+  auto recoverSmallCycleBasis = [&]() {
+    if (analysis.normalTensorFeatureEdges > 0) {
+      return;
+    }
+
+    std::vector<char> componentVisited(mesh.vertices.size(), 0);
+    std::unordered_set<std::string> seenCycles;
+    for (const FeatureLoop& loop : analysis.loops) {
+      if (loop.closed) {
+        seenCycles.insert(cycleSignature(loop.vertices));
+      }
+    }
+
+    constexpr int kMaxCycleComponentVertices = 160;
+    constexpr int kMaxCycleComponentEdges = 240;
+    constexpr int kMaxCycleRank = 32;
+    constexpr int kMaxCycleVertices = 80;
+    std::vector<int> parent(mesh.vertices.size(), -1);
+    std::vector<int> depth(mesh.vertices.size(), 0);
+    for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
+      if (componentVisited[seed] || adjacency[seed].empty()) {
+        continue;
+      }
+
+      std::vector<int> component;
+      std::queue<int> queue;
+      queue.push(seed);
+      componentVisited[seed] = 1;
+      parent[seed] = seed;
+      depth[seed] = 0;
+      int edgeCount2x = 0;
+      std::unordered_set<std::uint64_t> treeEdges;
+      while (!queue.empty()) {
+        const int v = queue.front();
+        queue.pop();
+        component.push_back(v);
+        edgeCount2x += static_cast<int>(adjacency[v].size());
+        for (int nb : adjacency[v]) {
+          if (!componentVisited[nb]) {
+            componentVisited[nb] = 1;
+            parent[nb] = v;
+            depth[nb] = depth[v] + 1;
+            treeEdges.insert(edgeKey(v, nb));
+            queue.push(nb);
+          }
+        }
+      }
+
+      const int edgeCount = edgeCount2x / 2;
+      const int cycleRank = edgeCount - static_cast<int>(component.size()) + 1;
+      if (static_cast<int>(component.size()) < options.minFeatureLoopVertices ||
+          static_cast<int>(component.size()) > kMaxCycleComponentVertices ||
+          edgeCount > kMaxCycleComponentEdges || cycleRank <= 0 ||
+          cycleRank > kMaxCycleRank) {
+        continue;
+      }
+
+      std::sort(component.begin(), component.end());
+      auto treePathCycle = [&](int u, int v) {
+        std::vector<int> uPath;
+        std::vector<int> vPath;
+        int a = u;
+        int b = v;
+        while (a != b) {
+          if (depth[a] >= depth[b]) {
+            uPath.push_back(a);
+            a = parent[a];
+          } else {
+            vPath.push_back(b);
+            b = parent[b];
+          }
+          if (a < 0 || b < 0) {
+            return std::vector<int>{};
+          }
+        }
+        uPath.push_back(a);
+        std::vector<int> cycle = std::move(uPath);
+        for (auto it = vPath.rbegin(); it != vPath.rend(); ++it) {
+          cycle.push_back(*it);
+        }
+        return cycle;
+      };
+
+      for (int v : component) {
+        std::vector<int> neighbors = adjacency[v];
+        std::sort(neighbors.begin(), neighbors.end());
+        for (int nb : neighbors) {
+          if (v >= nb || treeEdges.find(edgeKey(v, nb)) != treeEdges.end()) {
+            continue;
+          }
+          std::vector<int> cycle = treePathCycle(v, nb);
+          if (static_cast<int>(cycle.size()) <= kMaxCycleVertices) {
+            addGraphCycle(std::move(cycle), seenCycles);
+          }
+        }
+      }
+    }
+  };
+
+  recoverSmallCycleBasis();
+
+  auto recoverCircularVertexClusters = [&]() {
+    if (analysis.normalTensorFeatureEdges > 0) {
+      return;
+    }
+
+    const bool alreadyHasCircularLoop =
+        std::any_of(analysis.loops.begin(), analysis.loops.end(),
+                    [](const FeatureLoop& loop) { return loop.circular; });
+    if (alreadyHasCircularLoop) {
+      return;
+    }
+
+    std::vector<int> candidates;
+    for (int id = 0; id < static_cast<int>(traceVertex.size()); ++id) {
+      if (traceVertex[id]) {
+        candidates.push_back(id);
+      }
+    }
+    if (static_cast<int>(candidates.size()) < options.minFeatureLoopVertices ||
+        candidates.size() > 120) {
+      return;
+    }
+
+    auto vertexSetSignature = [](std::vector<int> ids) {
+      std::sort(ids.begin(), ids.end());
+      std::ostringstream out;
+      for (int id : ids) {
+        out << id << ';';
+      }
+      return out.str();
+    };
+
+    auto fitCircleFromThree = [&](int ia, int ib, int ic, Vec3& center, Vec3& normal,
+                                  double& radius) {
+      const Vec3& a = mesh.vertices[ia];
+      const Vec3& b = mesh.vertices[ib];
+      const Vec3& c = mesh.vertices[ic];
+      const Vec3 ab = b - a;
+      const Vec3 ac = c - a;
+      normal = ab.cross(ac);
+      const double n2 = normal.squaredNorm();
+      if (n2 <= 1e-20) {
+        return false;
+      }
+      const Vec3 term1 = ac.squaredNorm() * normal.cross(ab);
+      const Vec3 term2 = ab.squaredNorm() * ac.cross(normal);
+      center = a + (term1 + term2) / (2.0 * n2);
+      radius = (center - a).norm();
+      normal.normalize();
+      return std::isfinite(radius) && radius > 1e-20 && center.allFinite();
+    };
+
+    auto sortAroundCircle = [&](std::vector<int> ids, const Vec3& center,
+                                const Vec3& normal) {
+      Vec3 axisX = mesh.vertices[ids.front()] - center;
+      axisX -= normal * axisX.dot(normal);
+      if (axisX.norm() <= 1e-20) {
+        axisX = std::abs(normal.x()) < 0.9 ? Vec3(1.0, 0.0, 0.0) : Vec3(0.0, 1.0, 0.0);
+        axisX -= normal * axisX.dot(normal);
+      }
+      axisX.normalize();
+      const Vec3 axisY = normal.cross(axisX).normalized();
+      std::sort(ids.begin(), ids.end(), [&](int lhs, int rhs) {
+        const Vec3 dl = mesh.vertices[lhs] - center;
+        const Vec3 dr = mesh.vertices[rhs] - center;
+        const double al = std::atan2(dl.dot(axisY), dl.dot(axisX));
+        const double ar = std::atan2(dr.dot(axisY), dr.dot(axisX));
+        return al < ar;
+      });
+      return ids;
+    };
+
+    auto angularCoverage = [&](const std::vector<int>& ids, const Vec3& center,
+                               const Vec3& normal) {
+      Vec3 axisX = mesh.vertices[ids.front()] - center;
+      axisX -= normal * axisX.dot(normal);
+      if (axisX.norm() <= 1e-20) {
+        return 0.0;
+      }
+      axisX.normalize();
+      const Vec3 axisY = normal.cross(axisX).normalized();
+      std::vector<double> angles;
+      angles.reserve(ids.size());
+      for (int id : ids) {
+        const Vec3 d = mesh.vertices[id] - center;
+        double angle = std::atan2(d.dot(axisY), d.dot(axisX));
+        if (angle < 0.0) {
+          angle += 2.0 * kPi;
+        }
+        angles.push_back(angle);
+      }
+      std::sort(angles.begin(), angles.end());
+      double maxGap = 0.0;
+      for (int i = 0; i < static_cast<int>(angles.size()); ++i) {
+        const double a = angles[i];
+        const double b = i + 1 < static_cast<int>(angles.size())
+                             ? angles[i + 1]
+                             : angles.front() + 2.0 * kPi;
+        maxGap = std::max(maxGap, b - a);
+      }
+      return 2.0 * kPi - maxGap;
+    };
+
+    std::unordered_set<std::string> seenClusters;
+    for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
+      for (int j = i + 1; j < static_cast<int>(candidates.size()); ++j) {
+        for (int k = j + 1; k < static_cast<int>(candidates.size()); ++k) {
+          Vec3 center;
+          Vec3 normal;
+          double radius = 0.0;
+          if (!fitCircleFromThree(candidates[i], candidates[j], candidates[k], center,
+                                  normal, radius)) {
+            continue;
+          }
+          const double allowed =
+              std::max(3.0 * options.circleFitRelativeThreshold, 0.08) * radius;
+          std::vector<int> cluster;
+          for (int id : candidates) {
+            const Vec3 delta = mesh.vertices[id] - center;
+            const double plane = std::abs(delta.dot(normal));
+            const Vec3 inPlane = delta - normal * delta.dot(normal);
+            const double radial = std::abs(inPlane.norm() - radius);
+            if (std::max(plane, radial) <= allowed) {
+              cluster.push_back(id);
+            }
+          }
+          if (static_cast<int>(cluster.size()) < options.minFeatureLoopVertices ||
+              angularCoverage(cluster, center, normal) < 1.5 * kPi) {
+            continue;
+          }
+          const std::string signature = vertexSetSignature(cluster);
+          if (!seenClusters.insert(signature).second) {
+            continue;
+          }
+
+          cluster = sortAroundCircle(std::move(cluster), center, normal);
+          FeatureLoop loop;
+          loop.id = loopId++;
+          loop.vertices = std::move(cluster);
+          loop.edgeCount = static_cast<int>(loop.vertices.size());
+          loop.closed = true;
+          const PrimitiveFit fit = fitPrimitive(mesh, loop, options);
+          applyPrimitiveFit(fit, loop);
+          if (!loop.circular) {
+            --loopId;
+            continue;
+          }
+          assignLoopToVertices(loop);
+          analysis.loops.push_back(std::move(loop));
+        }
+      }
+    }
   };
 
   auto traceOpenChain = [&](int seed, int firstNeighbor) {
@@ -806,6 +1366,24 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     analysis.loops.push_back(std::move(loop));
   }
 
+  recoverCircularVertexClusters();
+
+  analysis.graph.junctionVertices.clear();
+  analysis.graph.sharedVertices.clear();
+  for (int id = 0; id < static_cast<int>(analysis.graph.vertices.size()); ++id) {
+    FeatureGraphVertex& vertex = analysis.graph.vertices[id];
+    vertex.junction = vertex.incidentEdges.size() != 2 || vertex.loopIds.size() > 1 ||
+                      (id < static_cast<int>(analysis.vertices.size()) &&
+                       analysis.vertices[id].junction);
+    vertex.shared = vertex.loopIds.size() > 1;
+    if (vertex.junction && !vertex.incidentEdges.empty()) {
+      analysis.graph.junctionVertices.push_back(id);
+    }
+    if (vertex.shared) {
+      analysis.graph.sharedVertices.push_back(id);
+    }
+  }
+
   return analysis;
 }
 
@@ -858,15 +1436,14 @@ std::string featureLoopRowCsv(const FeatureLoop& loop) {
       << (loop.circular ? 1 : 0) << "," << (loop.mostlyBoundary ? 1 : 0) << ","
       << loop.center.x() << "," << loop.center.y() << "," << loop.center.z() << ","
       << loop.normal.x() << "," << loop.normal.y() << "," << loop.normal.z() << ","
-      << loop.majorAxis.x() << "," << loop.majorAxis.y() << ","
-      << loop.majorAxis.z() << "," << loop.minorAxis.x() << ","
-      << loop.minorAxis.y() << "," << loop.minorAxis.z() << "," << loop.radius
-      << "," << loop.majorRadius << "," << loop.minorRadius << ","
-      << loop.axisRatio << "," << loop.rmsRadialError << ","
+      << loop.majorAxis.x() << "," << loop.majorAxis.y() << "," << loop.majorAxis.z()
+      << "," << loop.minorAxis.x() << "," << loop.minorAxis.y() << ","
+      << loop.minorAxis.z() << "," << loop.radius << "," << loop.majorRadius << ","
+      << loop.minorRadius << "," << loop.axisRatio << "," << loop.rmsRadialError << ","
       << loop.maxRadialError << "," << loop.rmsEllipseError << ","
-      << loop.maxEllipseError << "," << loop.rmsPlaneError << ","
-      << loop.maxPlaneError << "," << loop.convexEdges << "," << loop.concaveEdges
-      << "," << loop.unknownSignedEdges;
+      << loop.maxEllipseError << "," << loop.rmsPlaneError << "," << loop.maxPlaneError
+      << "," << loop.convexEdges << "," << loop.concaveEdges << ","
+      << loop.unknownSignedEdges;
   return out.str();
 }
 

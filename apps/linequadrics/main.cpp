@@ -132,6 +132,9 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
       getDoubleArg(args, "--boundary-weight", options.boundaryWeight);
   options.featureCurveWeight =
       getDoubleArg(args, "--feature-curve-weight", options.featureCurveWeight);
+  options.maxFeatureCurveDeviationRatio =
+      getDoubleArg(args, "--max-feature-curve-deviation-ratio",
+                   options.maxFeatureCurveDeviationRatio);
   options.circleFitRelativeThreshold =
       getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
   options.ellipseFitRelativeThreshold = getDoubleArg(
@@ -140,6 +143,9 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
       args, "--near-circle-axis-ratio-tolerance", options.nearCircleAxisRatioTolerance);
   options.minFeatureLoopVertices =
       getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
+  options.minCircularFeatureLoopVertices =
+      getIntArg(args, "--min-circular-feature-loop-vertices",
+                options.minCircularFeatureLoopVertices);
   options.adaptiveBaseLineWeight =
       getDoubleArg(args, "--adaptive-base-line-weight", options.adaptiveBaseLineWeight);
   options.normalTensorFeatureThreshold = getDoubleArg(
@@ -148,11 +154,30 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
       args, "--normal-tensor-edge-alignment", options.normalTensorMinEdgeAlignment);
   options.normalTensorSmoothingIterations = getIntArg(
       args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
+  options.normalTensorScaleCount =
+      getIntArg(args, "--normal-tensor-scales", options.normalTensorScaleCount);
+  options.minTriangleQuality =
+      getDoubleArg(args, "--min-triangle-quality", options.minTriangleQuality);
+  options.maxNormalDeviationDeg =
+      getDoubleArg(args, "--max-normal-deviation-deg", options.maxNormalDeviationDeg);
+  options.maxLocalError =
+      getDoubleArg(args, "--max-local-error", options.maxLocalError);
+  options.maxLocalErrorRatio =
+      getDoubleArg(args, "--max-local-error-ratio", options.maxLocalErrorRatio);
   options.verbose = hasFlag(args, "--verbose");
   options.adaptiveScale = hasFlag(args, "--adaptive-scale");
+  options.preserveBoundary = hasFlag(args, "--preserve-boundary");
+  options.preventLocalIntersections = hasFlag(args, "--prevent-local-intersections");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
   options.protectAllFeatureEdges = hasFlag(args, "--protect-all-feature-edges");
   options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
+  if (hasFlag(args, "--industrial-safe")) {
+    options.preserveBoundary = true;
+    options.minTriangleQuality = std::max(options.minTriangleQuality, 1e-4);
+    options.maxNormalDeviationDeg = std::min(options.maxNormalDeviationDeg, 75.0);
+    options.maxLocalErrorRatio = std::max(options.maxLocalErrorRatio, 0.02);
+    options.preventLocalIntersections = true;
+  }
 
   const std::string mode = getArg(args, "--weight-mode", "uniform");
   options.weightMode = lq::parseWeightMode(mode);
@@ -218,20 +243,32 @@ void printUsage() {
       << "  --feature-angle-deg A           Dihedral threshold for feature mode\n"
       << "  --adaptive-scale                Add small line quadrics then scale Q\n"
       << "  --boundary-weight W             Optional boundary plane quadrics\n"
+      << "  --preserve-boundary             Preserve open boundary topology\n"
       << "  --preserve-feature-curves       Protect detected crease/boundary loops\n"
       << "  --protect-all-feature-edges     Also hard-lock non-circular feature edges\n"
       << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
+      << "  --max-feature-curve-deviation-ratio R  Reject polygonal feature "
+         "collapses whose raw placement drifts beyond R*bbox_diag\n"
       << "  --circle-fit-threshold R        Relative fit threshold for circular loops\n"
       << "  --ellipse-fit-threshold R       Relative fit threshold for ellipse "
          "reports\n"
       << "  --near-circle-axis-ratio-tolerance R  Axis-ratio tolerance for "
          "near-circles\n"
       << "  --min-feature-loop-vertices N   Stop collapsing a loop below N vertices\n"
+      << "  --min-circular-feature-loop-vertices N  Stop circular loops below N\n"
       << "  --normal-tensor-threshold S     Feature score threshold for tensor edges\n"
       << "  --normal-tensor-edge-alignment A Minimum edge/tangent alignment\n"
       << "  --normal-tensor-smoothing N     Optional tensor smoothing iterations\n"
+      << "  --normal-tensor-scales N        Number of tensor smoothing scales\n"
       << "  --no-normal-tensor-features     Disable tensor candidates in feature "
          "detection\n"
+      << "  --min-triangle-quality Q        Reject collapses below quality Q in [0,1]\n"
+      << "  --max-normal-deviation-deg A    Reject local face normal changes above A\n"
+      << "  --max-local-error D             Reject local collapse drift above D\n"
+      << "  --max-local-error-ratio R       Reject local drift above R*bbox diagonal\n"
+      << "  --prevent-local-intersections   Reject local triangle intersections\n"
+      << "  --industrial-safe               Enable conservative boundary/quality "
+         "guards\n"
       << "  --metrics-csv path              Write one-row CSV metrics\n"
       << "  --samples N                     Distance sample count\n"
       << "  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1\n"
@@ -764,6 +801,15 @@ int commandSimplify(const Args& args) {
   printStats("output", outStats);
   std::cout << "collapsed=" << report.collapsedEdges
             << " rejected=" << report.rejectedCollapses
+            << " feature_rejected=" << report.featureRejectedCollapses
+            << " boundary_rejected=" << report.boundaryRejectedCollapses
+            << " topology_rejected=" << report.topologyRejectedCollapses
+            << " normal_flip_rejected=" << report.normalFlipRejectedCollapses
+            << " quality_rejected=" << report.qualityRejectedCollapses
+            << " self_intersection_rejected="
+            << report.selfIntersectionRejectedCollapses
+            << " curve_budget_rejected=" << report.curveBudgetRejectedCollapses
+            << " error_rejected=" << report.errorRejectedCollapses
             << " solver_fallbacks=" << report.solverFallbacks << " line_weight_range=["
             << report.minAppliedLineWeight << ", " << report.maxAppliedLineWeight
             << "]\n";
@@ -773,6 +819,7 @@ int commandSimplify(const Args& args) {
               << " feature_vertices=" << report.featureVertices
               << " normal_tensor_feature_edges=" << report.normalTensorFeatureEdges
               << " feature_rejected=" << report.featureRejectedCollapses
+              << " curve_budget_rejected=" << report.curveBudgetRejectedCollapses
               << " projected_feature_placements=" << report.projectedFeaturePlacements
               << "\n";
   }
@@ -790,13 +837,22 @@ int commandSimplify(const Args& args) {
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "feature_loops,circular_feature_loops,feature_vertices,"
            "normal_tensor_feature_edges,"
-           "feature_rejected_collapses,projected_feature_placements,"
+           "feature_rejected_collapses,boundary_rejected_collapses,"
+           "topology_rejected_collapses,normal_flip_rejected_collapses,"
+           "quality_rejected_collapses,self_intersection_rejected_collapses,"
+           "curve_budget_rejected_collapses,error_rejected_collapses,"
+           "projected_feature_placements,"
            "min_line_weight,max_line_weight\n";
     csv << lq::statsRowCsv("output", outStats, &distance) << ","
         << report.collapsedEdges << "," << report.rejectedCollapses << ","
         << report.solverFallbacks << "," << report.featureLoops << ","
         << report.circularFeatureLoops << "," << report.featureVertices << ","
         << report.normalTensorFeatureEdges << "," << report.featureRejectedCollapses
+        << "," << report.boundaryRejectedCollapses << ","
+        << report.topologyRejectedCollapses << "," << report.normalFlipRejectedCollapses
+        << "," << report.qualityRejectedCollapses << ","
+        << report.selfIntersectionRejectedCollapses << ","
+        << report.curveBudgetRejectedCollapses << "," << report.errorRejectedCollapses
         << "," << report.projectedFeaturePlacements << ","
         << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
   }

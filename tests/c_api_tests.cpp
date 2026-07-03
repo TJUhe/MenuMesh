@@ -152,9 +152,101 @@ TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
   lq_mesh_destroy(input);
 }
 
+TEST_F(CApiTest, ExposesLegalityOptionsAndDetailedRejectDiagnostics) {
+  LqMeshHandle* input = lq_mesh_create(context);
+  LqMeshHandle* output = lq_mesh_create(context);
+  ASSERT_NE(input, nullptr);
+  ASSERT_NE(output, nullptr);
+
+  ASSERT_EQ(LQ_STATUS_OK, lq_generate_mesh(context, "plane", 8, input));
+
+  LqSimplifyOptions options;
+  lq_simplify_options_init(&options);
+  options.target_ratio = 0.08;
+  options.use_line_quadrics = 0;
+  options.preserve_boundary = 1;
+  options.min_triangle_quality = 0.80;
+  options.max_normal_deviation_deg = 180.0;
+
+  LqSimplifyReport report;
+  EXPECT_EQ(LQ_STATUS_OK, lq_simplify_mesh(context, input, &options, output, &report));
+  EXPECT_GT(report.boundary_rejected_collapses, 0);
+  EXPECT_GT(report.quality_rejected_collapses, 0);
+  EXPECT_EQ(
+      report.rejected_collapses,
+      report.feature_rejected_collapses + report.boundary_rejected_collapses +
+          report.topology_rejected_collapses + report.normal_flip_rejected_collapses +
+          report.quality_rejected_collapses +
+          report.self_intersection_rejected_collapses +
+          report.curve_budget_rejected_collapses + report.error_rejected_collapses);
+
+  lq_mesh_destroy(output);
+  lq_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, ExposesFeatureCurveBudgetOptionAndDiagnostics) {
+  LqMeshHandle* input = lq_mesh_create(context);
+  LqMeshHandle* output = lq_mesh_create(context);
+  ASSERT_NE(input, nullptr);
+  ASSERT_NE(output, nullptr);
+
+  const LqVec3 vertices[] = {
+      {0.0, 0.0, 0.0}, {3.0, 0.0, 0.0},  {2.5, 1.0, 0.0},
+      {1.2, 2.2, 0.0}, {-0.4, 1.3, 0.0},
+  };
+  const LqFace faces[] = {
+      {{0, 1, 3}},
+      {{1, 2, 3}},
+      {{0, 3, 4}},
+  };
+  ASSERT_EQ(LQ_STATUS_OK, lq_mesh_set_data(context, input, vertices, 5, faces, 3));
+
+  LqSimplifyOptions options;
+  lq_simplify_options_init(&options);
+  options.target_faces = 1;
+  options.target_ratio = 0.25;
+  options.use_line_quadrics = 0;
+  options.preserve_feature_curves = 1;
+  options.protect_all_feature_edges = 0;
+  options.use_normal_tensor_features = 0;
+  options.feature_angle_deg = 179.0;
+  options.circle_fit_relative_threshold = 0.0;
+  options.ellipse_fit_relative_threshold = 0.0;
+  options.min_feature_loop_vertices = 3;
+  options.max_feature_curve_deviation_ratio = 1e-9;
+  options.max_normal_deviation_deg = 180.0;
+  options.min_triangle_quality = 0.0;
+
+  LqSimplifyReport report;
+  EXPECT_EQ(LQ_STATUS_OK, lq_simplify_mesh(context, input, &options, output, &report));
+  EXPECT_GT(report.feature_loops, 0);
+  EXPECT_GT(report.curve_budget_rejected_collapses, 0);
+  EXPECT_EQ(
+      report.rejected_collapses,
+      report.feature_rejected_collapses + report.boundary_rejected_collapses +
+          report.topology_rejected_collapses + report.normal_flip_rejected_collapses +
+          report.quality_rejected_collapses +
+          report.self_intersection_rejected_collapses +
+          report.curve_budget_rejected_collapses + report.error_rejected_collapses);
+
+  lq_mesh_destroy(output);
+  lq_mesh_destroy(input);
+}
+
 TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
   LqSimplifyOptions options;
   lq_simplify_options_init(&options);
 
   EXPECT_DOUBLE_EQ(0.05, options.circle_fit_relative_threshold);
+  EXPECT_DOUBLE_EQ(0.05, options.ellipse_fit_relative_threshold);
+  EXPECT_DOUBLE_EQ(0.08, options.near_circle_axis_ratio_tolerance);
+  EXPECT_DOUBLE_EQ(0.0, options.max_feature_curve_deviation_ratio);
+  EXPECT_EQ(6, options.min_circular_feature_loop_vertices);
+  EXPECT_EQ(0, options.preserve_boundary);
+  EXPECT_DOUBLE_EQ(0.0, options.min_triangle_quality);
+  EXPECT_DOUBLE_EQ(90.0, options.max_normal_deviation_deg);
+  EXPECT_EQ(1, options.normal_tensor_scale_count);
+  EXPECT_DOUBLE_EQ(0.0, options.max_local_error);
+  EXPECT_DOUBLE_EQ(0.0, options.max_local_error_ratio);
+  EXPECT_EQ(0, options.prevent_local_intersections);
 }

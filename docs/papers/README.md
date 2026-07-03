@@ -1,6 +1,6 @@
 # Paper PDF Index
 
-This directory stores open-access or publicly available PDFs that support the notes in `docs/design/feature_curve_constraints.md`.
+This directory stores open-access or publicly available PDFs that support the notes in `docs/design/feature_curve_constraints.md` and the algorithm review in `docs/design/algorithm_review_and_roadmap.md`.
 
 I did not use Sci-Hub or other copyright-bypass sources. When a paper was not available from an author page, institution page, arXiv, conference open page, or other public source, it is listed under "not included" instead of being mirrored here.
 
@@ -16,6 +16,10 @@ I did not use Sci-Hub or other copyright-bypass sources. When a paper was not av
 | `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | Feature-preserving simplification using vertex-cover ideas; relevant to protecting small/salient features during contraction. | https://www.grahn.cse.bth.se/Papers/cgv2008.pdf |
 | `jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | Identifies C1/C2 discontinuities in CAD surface meshes; relevant to hard/transition feature loop detection. | https://www.ams.sunysb.edu/~jiao/papers/feature_detect.pdf |
 | `tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | Normal tensor framework for surface feature lines; relevant to more robust feature-line extraction beyond simple dihedral thresholds. | https://www.cad-journal.net/files/vol_11/CAD_11%282%29_2014_172-181.pdf |
+| `lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | Edge-collapse simplification with memory-efficient local decisions; useful context for boundary/volume/shape preservation constraints. | https://faculty.cc.gatech.edu/~turk/my_papers/memless_vis98.pdf |
+| `hoppe_1996_progressive_meshes.pdf` | Progressive mesh edge-collapse framework; useful context for legality, reconstruction, and constrained simplification workflows. | https://hhoppe.com/pm.pdf |
+| `garland_heckbert_1998_color_texture_qem.pdf` | Extends QEM to preserve attributes; useful for treating geometry and auxiliary constraints as separate error terms. | https://www.cs.cmu.edu/~garland/Papers/quadric2.pdf |
+| `garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | Large-mesh adaptive simplification; useful for thinking about scalable local simplification policies. | https://mgarland.org/papers/massive.pdf |
 
 ## Useful References Not Included As PDFs
 
@@ -23,6 +27,9 @@ I did not use Sci-Hub or other copyright-bypass sources. When a paper was not av
 | --- | --- | --- |
 | CGAL Surface Mesh Simplification documentation | Online documentation, not a paper PDF. It is still important for constrained edges and constrained placement. | https://doc.cgal.org/latest/Surface_mesh_simplification/index.html |
 | OpenMesh Decimation Framework documentation | Online documentation, not a paper PDF. It shows the engineering pattern of cost modules plus legality modules. | https://www.graphics.rwth-aachen.de/media/openmesh_static/Documentations/OpenMesh-6.2-Documentation/a00004.html |
+| libigl `qslim` implementation | Open-source reference for QEM-style edge-collapse simplification in a compact geometry-processing library. | https://github.com/libigl/libigl |
+| MeshLab / VCGLib simplification filters | Open-source reference for production-oriented mesh decimation filters and mesh-quality safeguards. | https://github.com/cnr-isti-vclab/meshlab |
+| CGAL constrained edge-map examples | Open-source/reference implementation pattern for keeping selected edges from being collapsed. | https://doc.cgal.org/latest/Surface_mesh_simplification/index.html |
 | Yamakawa and Shimada, Polygon Crawling Feature-Edge Extraction | I found citation and landing pages, but not a direct open PDF suitable for mirroring. | https://doi.org/10.1007/s00366-009-0165-y |
 | A Novel Boundary Extraction Algorithm on Triangular Meshes of STL Model | I found bibliographic/abstract pages, but not a direct open PDF suitable for mirroring. | https://doi.org/10.4028/www.scientific.net/AMR.472-475.2549 |
 

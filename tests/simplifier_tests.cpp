@@ -164,6 +164,21 @@ lq::Mesh makePolygonalFeatureChordMesh() {
   return mesh;
 }
 
+lq::Mesh makePlacementFallbackMesh() {
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),
+      lq::Vec3(1.0, 0.0, 0.0),
+      lq::Vec3(0.0, 0.9, 0.0),
+      lq::Vec3(1.0, 0.1, 0.0),
+  };
+  mesh.faces = {
+      lq::Face{{0, 1, 2}},
+      lq::Face{{1, 3, 2}},
+  };
+  return mesh;
+}
+
 } // namespace
 
 TEST(LineQuadricsQem, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
@@ -278,6 +293,21 @@ TEST(LineQuadricsQem, StrictTriangleQualityRejectsPoorCollapsePlacements) {
                 result.report.curveBudgetRejectedCollapses +
                 result.report.errorRejectedCollapses +
                 result.report.featureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, TriesEndpointPlacementWhenBestPlacementFailsLegality) {
+  const lq::Mesh input = makePlacementFallbackMesh();
+
+  lq::SimplifyOptions options = standardQemOptions(0.5);
+  options.targetFaces = 1;
+  options.minTriangleQuality = 0.35;
+  options.maxNormalDeviationDeg = 180.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget,
+            result.report.terminationReason);
+  EXPECT_EQ(1, result.report.finalFaces);
+  EXPECT_EQ(0, result.report.rejectedCollapses);
 }
 
 TEST(LineQuadricsQem, StrictNormalDeviationRejectsFoldoverRisk) {
@@ -407,7 +437,7 @@ TEST(LineQuadricsQem, LocalIntersectionGuardFindsIndexedDistantCandidates) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, LocalIntersectionGuardRejectsCoplanarTriangleOverlap) {
+TEST(LineQuadricsQem, LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap) {
   const lq::Mesh input = makeCoplanarOverlapGuardMesh();
 
   lq::SimplifyOptions options = standardQemOptions(0.25);
@@ -418,7 +448,10 @@ TEST(LineQuadricsQem, LocalIntersectionGuardRejectsCoplanarTriangleOverlap) {
   const SimplifiedMesh result = simplifyWithReport(input, options);
 
   EXPECT_FALSE(result.mesh.empty());
-  EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
+  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget,
+            result.report.terminationReason);
+  EXPECT_EQ(1, result.report.finalFaces);
+  EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }
 
 TEST(LineQuadricsQem, LocalIntersectionGuardAllowsCoplanarSeparatedTriangles) {

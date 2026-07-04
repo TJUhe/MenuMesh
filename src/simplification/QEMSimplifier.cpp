@@ -373,8 +373,8 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
   }
 }
 
-SolveResult solveOptimal(const Mat4& q, const Vec3& a, const Vec3& b) {
-  SolveResult result;
+std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a,
+                                                  const Vec3& b) {
   std::vector<Vec3> candidates;
   candidates.reserve(4);
   candidates.push_back(a);
@@ -397,21 +397,36 @@ SolveResult solveOptimal(const Mat4& q, const Vec3& a, const Vec3& b) {
     }
   }
 
-  result.usedFallback = !solved;
-  result.cost = std::numeric_limits<double>::infinity();
+  std::vector<SolveResult> results;
+  results.reserve(candidates.size());
   for (const Vec3& p : candidates) {
     const double cost = evaluateQuadric(q, p);
-    if (std::isfinite(cost) && cost < result.cost) {
-      result.cost = cost;
-      result.position = p;
+    if (!std::isfinite(cost)) {
+      continue;
+    }
+    bool duplicate = false;
+    for (const SolveResult& existing : results) {
+      if ((existing.position - p).squaredNorm() <= 1e-24) {
+        duplicate = true;
+        break;
+      }
+    }
+    if (!duplicate) {
+      results.push_back(SolveResult{p, cost, !solved});
     }
   }
-  if (!std::isfinite(result.cost)) {
-    result.position = 0.5 * (a + b);
-    result.cost = 0.0;
-    result.usedFallback = true;
+  if (results.empty()) {
+    results.push_back(SolveResult{0.5 * (a + b), 0.0, true});
   }
-  return result;
+  std::stable_sort(results.begin(), results.end(),
+                   [](const SolveResult& lhs, const SolveResult& rhs) {
+                     return lhs.cost < rhs.cost;
+                   });
+  return results;
+}
+
+SolveResult solveOptimal(const Mat4& q, const Vec3& a, const Vec3& b) {
+  return solvePlacementCandidates(q, a, b).front();
 }
 
 Vec3 projectToCircle(const Vec3& p, const VertexState& feature) {
@@ -1012,9 +1027,9 @@ private:
 
   bool tryCollapse(int keep, int remove) {
     const Mat4 mergedQ = vertices_[keep].q + vertices_[remove].q;
-    const SolveResult solve =
-        solveOptimal(mergedQ, vertices_[keep].p, vertices_[remove].p);
-    if (solve.usedFallback) {
+    const std::vector<SolveResult> placements =
+        solvePlacementCandidates(mergedQ, vertices_[keep].p, vertices_[remove].p);
+    if (!placements.empty() && placements.front().usedFallback) {
       ++report_.solverFallbacks;
     }
 
@@ -1030,30 +1045,60 @@ private:
       return false;
     }
 
-    Vec3 collapsePosition = solve.position;
-    projectBoundaryPlacement(keep, remove, boundaryDecision, vertices_,
-                             collapsePosition);
-    if (!curveBudgetAllows(keep, remove, collapsePosition)) {
+    const bool featureCurveCollapse =
+        options_.preserveFeatureCurves && vertices_[keep].isFeature &&
+        vertices_[remove].isFeature &&
+        vertices_[keep].featureLoopId == vertices_[remove].featureLoopId;
+    const bool tryFallbackPlacements =
+        !featureCurveCollapse &&
+        (options_.minTriangleQuality > 0.0 || maxLocalError_ > 0.0 ||
+         options_.preventLocalIntersections);
+    CollapseRejectReason firstRejectReason = CollapseRejectReason::None;
+    bool sawCurveBudgetReject = false;
+    bool projectedFeaturePlacement = false;
+    Vec3 collapsePosition = placements.front().position;
+    const int placementCount =
+        tryFallbackPlacements ? static_cast<int>(placements.size()) : 1;
+    for (int placementIndex = 0; placementIndex < placementCount;
+         ++placementIndex) {
+      collapsePosition = placements[placementIndex].position;
+      projectBoundaryPlacement(keep, remove, boundaryDecision, vertices_,
+                               collapsePosition);
+      if (!curveBudgetAllows(keep, remove, collapsePosition)) {
+        sawCurveBudgetReject = true;
+        continue;
+      }
+      const bool projected = featurePolicy_.projectPlacement(
+          keep, remove, vertices_, featureCurves_, collapsePosition);
+
+      const CollapseRejectReason rejectReason = collapseRejectReason(
+          keep, remove, collapsePosition, faces_, vertices_, *topology_, areaEps_,
+          options_.minTriangleQuality, minNormalDot_, maxLocalError_,
+          options_.preventLocalIntersections,
+          options_.preventLocalIntersections ? &spatialIndex_ : nullptr);
+      if (rejectReason == CollapseRejectReason::None) {
+        projectedFeaturePlacement = projected;
+        applyCollapse(keep, remove, collapsePosition, mergedQ);
+        if (projectedFeaturePlacement) {
+          ++report_.projectedFeaturePlacements;
+        }
+        return true;
+      }
+      if (firstRejectReason == CollapseRejectReason::None) {
+        firstRejectReason = rejectReason;
+      }
+    }
+
+    if (firstRejectReason != CollapseRejectReason::None) {
+      rejectLegalityCollapse(keep, remove, firstRejectReason);
+      return false;
+    }
+    if (sawCurveBudgetReject) {
       rejectCurveBudgetCollapse(keep, remove);
       return false;
     }
-    if (featurePolicy_.projectPlacement(keep, remove, vertices_, featureCurves_,
-                                        collapsePosition)) {
-      ++report_.projectedFeaturePlacements;
-    }
-
-    const CollapseRejectReason rejectReason = collapseRejectReason(
-        keep, remove, collapsePosition, faces_, vertices_, *topology_, areaEps_,
-        options_.minTriangleQuality, minNormalDot_, maxLocalError_,
-        options_.preventLocalIntersections,
-        options_.preventLocalIntersections ? &spatialIndex_ : nullptr);
-    if (rejectReason != CollapseRejectReason::None) {
-      rejectLegalityCollapse(keep, remove, rejectReason);
-      return false;
-    }
-
-    applyCollapse(keep, remove, collapsePosition, mergedQ);
-    return true;
+    rejectLegalityCollapse(keep, remove, CollapseRejectReason::Topology);
+    return false;
   }
 
   void rejectFeatureCollapse(int keep, int remove) {

@@ -1,7 +1,8 @@
 # QEM, Line Quadrics, and Curve Feature Constraints
 
 本文解释当前曲线特征保护方案：为什么普通 QEM 和 normal-line quadrics 不足以
-稳定保护圆孔、轴肩、圆环和槽边，以及当前代码如何把曲线约束加入边坍缩流程。
+稳定保护圆孔、轴肩、圆环、椭圆孔和多段折痕，以及当前代码如何把曲线约束加入
+边坍缩流程。
 
 ## 1. 基本直觉
 
@@ -44,8 +45,8 @@ E_curve(x) = dist(x, tangent_line)^2
 
 ```text
 feature edge detection
-feature loop / circle fitting
-collapse legality + projected placement
+feature graph + loop / primitive fitting
+collapse legality + curve budget + projected placement
 ```
 
 拓扑约束：
@@ -53,13 +54,29 @@ collapse legality + projected placement
 - 不允许 feature vertex 坍缩到 non-feature vertex。
 - 不允许跨越不同 feature loop 坍缩。
 - 不允许坍缩 feature junction。
-- loop 顶点数低于 `--min-feature-loop-vertices` 后停止继续缩减。
+- loop 顶点数低于 `--min-feature-loop-vertices` 或
+  `--min-circular-feature-loop-vertices` 后停止继续缩减；如果同时设置了
+  `--max-feature-curve-deviation-ratio`，圆/椭圆 loop 最低仍保留 4 个顶点，
+  其他 polygonal loop 最低保留 3 个顶点。
 
 几何约束：
 
-- 对近圆 feature loop 拟合 `center`、`radius`、`normal`。
+- 对圆/近圆 feature loop 拟合 `center`、`radius`、`normal`。
+- 对椭圆 feature loop 拟合中心、平面法向、长短轴和长短半径。
+- 对非圆 polygonal loop 保存原始采样折线。
 - 为 loop 顶点加入 `Q_feature_tangent_line`。
-- 同一圆形 loop 内的坍缩结果会投影回拟合圆。
+- 同一圆形 loop 内的坍缩结果会投影回拟合圆；椭圆 loop 投影回拟合椭圆；
+  其他 polygonal loop 投影回原始折线最近段，退化时退回切线投影。
+- 启用 `--max-feature-curve-deviation-ratio` 后，先检查原始 QEM placement
+  离曲线是否已经超过 `ratio * bbox_diag`，超过则拒绝，而不是强行投影。
+
+合法性约束：
+
+- link-condition / duplicate-face / degenerate-face 检查防止明显拓扑破坏。
+- `--max-normal-deviation-deg` 拒绝局部法向翻转或过大偏转。
+- `--min-triangle-quality` 拒绝过差三角形。
+- `--max-local-error` 或 `--max-local-error-ratio` 拒绝局部点位漂移过大。
+- `--prevent-local-intersections` 使用局部空间索引拒绝局部三角形相交。
 
 总误差项可以理解为：
 
@@ -82,6 +99,12 @@ Q_total =
 
 ```powershell
 .\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_curve.stl --method line --ratio 0.20 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --circle-fit-threshold 0.04 --min-feature-loop-vertices 16
+```
+
+带曲线预算和圆环顶点预算的常用版本：
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_curve.stl --method line --ratio 0.20 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 1000 --metrics-csv metrics.csv
 ```
 
 比较特征漂移：
@@ -112,12 +135,21 @@ Q_total =
 再打开对应 STL 目检：孔、轴肩、槽边是否仍可辨认，是否出现破洞、异常翻面或
 局部坍塌。
 
+同时看 `metrics.csv` 中的：
+
+| 列 | 含义 |
+| --- | --- |
+| `feature_rejected_collapses` | feature policy 拦截的坍缩数。 |
+| `curve_budget_rejected_collapses` | 曲线预算拦截的坍缩数。 |
+| `projected_feature_placements` | placement 被投影回圆/椭圆/折线的次数。 |
+| `normal_flip_rejected_collapses`、`quality_rejected_collapses`、`error_rejected_collapses` | legality filters 对输出稳定性的影响。 |
+
 ## 6. 工程边界
 
-当前方案可以验证圆形 CAD/STL 特征保护是否比普通 line QEM 更稳，但它不是完整
-B-Rep 特征识别系统。复杂法兰、相交孔、碎片化硬边和非圆曲线还需要：
+当前方案可以验证圆形、椭圆和 polygonal feature loop 保护是否比普通 line QEM
+更稳，但它不是完整 B-Rep 特征识别系统。复杂法兰、相交孔、碎片化硬边和非圆曲线还需要：
 
-- 更强的 feature graph 多环追踪。
-- 半边拓扑和更严格的 collapse legality filter。
-- 自交检测、法向翻转检测和强边界约束。
+- 更强的 feature graph 多环追踪和 loop ownership。
+- primitive-aware boundary placement。
+- 更严格的误差 envelope / Hausdorff filter。
 - 上游 STEP/B-Rep 语义输入时，直接使用 CAD feature recognition，而不是从 STL 猜。

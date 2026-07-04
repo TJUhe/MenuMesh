@@ -2,66 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug CLI Standard QEM (MinGW Ninja)",
+      "name": "(MinGW Ninja) Debug CLI Feature Curves",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
       "args": [
         "simplify",
         "${input:launchMesh}",
-        "examples/output/vscode_debug_standard.stl",
-        "--method",
-        "standard",
-        "--ratio",
-        "${input:launchRatio}",
-        "--samples",
-        "${input:launchSamples}",
-        "--metrics-csv",
-        "examples/output/vscode_debug_standard_metrics.csv"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug"
-    },
-    {
-      "name": "Debug CLI Line QEM (MinGW Ninja)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
-      "args": [
-        "simplify",
-        "${input:launchMesh}",
-        "examples/output/vscode_debug_line.stl",
-        "--method",
-        "line",
-        "--line-weight",
-        "1e-3",
-        "--ratio",
-        "${input:launchRatio}",
-        "--samples",
-        "${input:launchSamples}",
-        "--metrics-csv",
-        "examples/output/vscode_debug_line_metrics.csv"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug"
-    },
-    {
-      "name": "Debug CLI Feature Curves (MinGW Ninja)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
-      "args": [
-        "simplify",
-        "${input:launchMesh}",
-        "examples/output/vscode_debug_feature_curves.stl",
+        "output/vscode_debug_feature_curves.stl",
         "--method",
         "line",
         "--line-weight",
@@ -88,7 +36,7 @@
         "--samples",
         "${input:launchSamples}",
         "--metrics-csv",
-        "examples/output/vscode_debug_feature_curves_metrics.csv"
+        "output/vscode_debug_feature_curves_metrics.csv"
       ],
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
@@ -98,87 +46,7 @@
       "preLaunchTask": "build: mingw+ninja debug"
     },
     {
-      "name": "Debug CLI Industrial Safe (MinGW Ninja)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
-      "args": [
-        "simplify",
-        "${input:launchMesh}",
-        "examples/output/vscode_debug_industrial_safe.stl",
-        "--method",
-        "line",
-        "--line-weight",
-        "1e-3",
-        "--weight-mode",
-        "dihedral",
-        "--feature-boost",
-        "0.08",
-        "--feature-angle-deg",
-        "${input:launchFeatureAngle}",
-        "--preserve-feature-curves",
-        "--feature-curve-weight",
-        "0.08",
-        "--max-feature-curve-deviation-ratio",
-        "0.05",
-        "--max-local-error-ratio",
-        "0.02",
-        "--industrial-safe",
-        "--ratio",
-        "${input:launchRatio}",
-        "--samples",
-        "${input:launchSamples}",
-        "--metrics-csv",
-        "examples/output/vscode_debug_industrial_safe_metrics.csv"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug"
-    },
-    {
-      "name": "Debug CLI Normal Tensor (MinGW Ninja)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
-      "args": [
-        "simplify",
-        "${input:launchMesh}",
-        "examples/output/vscode_debug_normal_tensor.stl",
-        "--method",
-        "line",
-        "--line-weight",
-        "1e-3",
-        "--weight-mode",
-        "normal-tensor",
-        "--feature-boost",
-        "0.08",
-        "--feature-angle-deg",
-        "179",
-        "--normal-tensor-threshold",
-        "0.06",
-        "--normal-tensor-edge-alignment",
-        "0.2",
-        "--normal-tensor-scales",
-        "3",
-        "--ratio",
-        "${input:launchRatio}",
-        "--samples",
-        "${input:launchSamples}",
-        "--metrics-csv",
-        "examples/output/vscode_debug_normal_tensor_metrics.csv"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug"
-    },
-    {
-      "name": "Debug Feature Report (MinGW Ninja)",
+      "name": "(MinGW Ninja) Debug CLI Feature Report",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/linequadrics.exe",
@@ -196,7 +64,7 @@
         "--normal-tensor-edge-alignment",
         "0.2",
         "--csv",
-        "examples/output/vscode_debug_features.csv"
+        "output/vscode_debug_features.csv"
       ],
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
@@ -206,7 +74,7 @@
       "preLaunchTask": "build: mingw+ninja debug"
     },
     {
-      "name": "Debug Unit Tests Filter (MinGW Ninja)",
+      "name": "(MinGW Ninja) Debug Unit Tests Filter",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/line_quadrics_qem_tests.exe",
@@ -222,7 +90,7 @@
       "preLaunchTask": "build: mingw+ninja debug tests"
     },
     {
-      "name": "Debug Dataset Tests Filter (MinGW Ninja)",
+      "name": "(MinGW Ninja) Debug Performance Tests Filter",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/mingw-ninja-debug-performance/bin/line_quadrics_qem_performance_tests.exe",
@@ -238,14 +106,14 @@
       "preLaunchTask": "build: mingw+ninja debug performance tests"
     },
     {
-      "name": "Debug CLI Feature Curves (MSVC Ninja)",
+      "name": "(MSVC VS2022) Debug CLI Feature Curves",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-ninja-debug/bin/linequadrics.exe",
+      "program": "${workspaceFolder}/build/msvc-vs2022/bin/Debug/linequadrics.exe",
       "args": [
         "simplify",
         "${input:launchMesh}",
-        "examples/output/vscode_debug_msvc_feature_curves.stl",
+        "output/vscode_debug_msvc_feature_curves.stl",
         "--method",
         "line",
         "--line-weight",
@@ -266,18 +134,18 @@
         "--samples",
         "${input:launchSamples}",
         "--metrics-csv",
-        "examples/output/vscode_debug_msvc_feature_curves_metrics.csv"
+        "output/vscode_debug_msvc_feature_curves_metrics.csv"
       ],
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc+ninja debug"
+      "preLaunchTask": "build: msvc+vs2022 debug"
     },
     {
-      "name": "Debug Unit Tests Filter (MSVC Ninja)",
+      "name": "(MSVC VS2022) Debug Unit Tests Filter",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-ninja-debug/bin/line_quadrics_qem_tests.exe",
+      "program": "${workspaceFolder}/build/msvc-vs2022/bin/Debug/line_quadrics_qem_tests.exe",
       "args": [
         "--gtest_filter=${input:gtestFilter}",
         "--gtest_color=yes"
@@ -285,7 +153,57 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc+ninja debug tests"
+      "preLaunchTask": "build: msvc+vs2022 debug tests"
+    },
+    {
+      "name": "(MSVC VS2019) Debug CLI Feature Curves",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2019/bin/Debug/linequadrics.exe",
+      "args": [
+        "simplify",
+        "${input:launchMesh}",
+        "output/vscode_debug_msvc2019_feature_curves.stl",
+        "--method",
+        "line",
+        "--line-weight",
+        "1e-3",
+        "--weight-mode",
+        "dihedral",
+        "--feature-boost",
+        "0.08",
+        "--feature-angle-deg",
+        "${input:launchFeatureAngle}",
+        "--preserve-feature-curves",
+        "--feature-curve-weight",
+        "0.08",
+        "--max-feature-curve-deviation-ratio",
+        "0.05",
+        "--ratio",
+        "${input:launchRatio}",
+        "--samples",
+        "${input:launchSamples}",
+        "--metrics-csv",
+        "output/vscode_debug_msvc2019_feature_curves_metrics.csv"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc+vs2019 debug"
+    },
+    {
+      "name": "(MSVC VS2019) Debug Unit Tests Filter",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/msvc-vs2019/bin/Debug/line_quadrics_qem_tests.exe",
+      "args": [
+        "--gtest_filter=${input:gtestFilter}",
+        "--gtest_color=yes"
+      ],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: msvc+vs2019 debug tests"
     }
   ],
   "inputs": [
@@ -300,11 +218,7 @@
         "tests/data/feature_fixtures/boss_pocket_plate.obj",
         "tests/data/feature_fixtures/near_circular_hole_plate.obj",
         "tests/data/external/fandisk_2014.stl",
-        "tests/data/external/casting_aimshape_2014.stl",
-        "examples/input/pipe_coupling.stl",
-        "examples/input/flange_curve.stl",
-        "examples/input/pulley.stl",
-        "examples/input/stepped_shaft.stl"
+        "tests/data/external/casting_aimshape_2014.stl"
       ]
     },
     {

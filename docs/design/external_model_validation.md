@@ -2,7 +2,7 @@
 
 This document records an extra validation pass using public benchmark models.
 The model files are not committed to the repository. Place them under
-`examples/external/common_3d_test_models/` when needed.
+`tests/data/external/common_3d_test_models/` when needed.
 
 ## Source
 
@@ -42,7 +42,7 @@ The validation command looks for these models:
 | `cow.obj` | Organic model; tests false feature over-protection. |
 | `suzanne.obj` | Low-poly hard-edged model without true CAD circular loops. |
 
-Outputs are written to `examples/output/external_model_validation/`. Start with
+Outputs are written to `tests/output/external_model_validation/`. Start with
 `external_summary.csv`; it records input/output face counts, circular-loop
 matches/misses, and rejected collapses for each model.
 

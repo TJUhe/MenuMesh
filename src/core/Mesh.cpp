@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <exception>
@@ -74,10 +75,18 @@ bool isBinaryStl(const std::string& path, uint32_t& triangleCount) {
   }
 
   triangleCount = readUint32LE(header.data() + 80);
-  const auto fileSize = std::filesystem::file_size(path);
+  std::error_code ec;
+  const auto fileSize = std::filesystem::file_size(path, ec);
+  if (ec) {
+    return false;
+  }
   const auto expectedSize = static_cast<std::uintmax_t>(84) +
                             static_cast<std::uintmax_t>(triangleCount) * 50u;
   return fileSize == expectedSize;
+}
+
+bool finitePoint(const Vec3& p) {
+  return std::isfinite(p.x()) && std::isfinite(p.y()) && std::isfinite(p.z());
 }
 
 bool readBinaryTriangles(const std::string& path,
@@ -112,6 +121,10 @@ bool readBinaryTriangles(const std::string& path,
       tri[k] = Vec3(readFloatLE(record.data() + offset + 0),
                     readFloatLE(record.data() + offset + 4),
                     readFloatLE(record.data() + offset + 8));
+      if (!finitePoint(tri[k])) {
+        if (error) *error = "Binary STL contains a non-finite vertex coordinate.";
+        return false;
+      }
     }
     triangles.push_back(tri);
   }
@@ -140,6 +153,10 @@ bool readAsciiTriangles(const std::string& path,
         if (error) *error = "Malformed ASCII STL vertex record.";
         return false;
       }
+      if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) {
+        if (error) *error = "ASCII STL contains a non-finite vertex coordinate.";
+        return false;
+      }
       pending.emplace_back(x, y, z);
       if (pending.size() == 3) {
         triangles.push_back({pending[0], pending[1], pending[2]});
@@ -150,6 +167,10 @@ bool readAsciiTriangles(const std::string& path,
 
   if (triangles.empty()) {
     if (error) *error = "No triangles found in ASCII STL.";
+    return false;
+  }
+  if (!pending.empty()) {
+    if (error) *error = "ASCII STL ended with an incomplete triangle.";
     return false;
   }
   return true;
@@ -288,6 +309,10 @@ void Mesh::removeUnusedVertices() {
 
 bool loadStl(const std::string& path, Mesh& mesh, std::string* error,
              double weldRelativeEpsilon) {
+  if (!std::isfinite(weldRelativeEpsilon) || weldRelativeEpsilon < 0.0) {
+    if (error) *error = "weldRelativeEpsilon must be finite and non-negative.";
+    return false;
+  }
   std::vector<std::array<Vec3, 3>> triangles;
   std::string localError;
   if (!readBinaryTriangles(path, triangles, &localError)) {
@@ -349,6 +374,10 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
       double y = 0.0;
       double z = 0.0;
       if (ss >> x >> y >> z) {
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) {
+          if (error) *error = "OBJ contains a non-finite vertex coordinate.";
+          return false;
+        }
         positions.emplace_back(x, y, z);
       }
     } else if (tag == "f") {
@@ -422,9 +451,25 @@ bool validateMeshIndices(const Mesh& mesh, std::string* error) {
   return true;
 }
 
+bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
+  if (!validateMeshIndices(mesh, error)) {
+    return false;
+  }
+  for (std::size_t vertexIndex = 0; vertexIndex < mesh.vertices.size(); ++vertexIndex) {
+    if (!finitePoint(mesh.vertices[vertexIndex])) {
+      if (error) {
+        *error = "Mesh vertex " + std::to_string(vertexIndex) +
+                 " contains a non-finite coordinate.";
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
 bool saveAsciiStl(const std::string& path, const Mesh& mesh,
                   const std::string& solidName, std::string* error) {
-  if (!validateMeshIndices(mesh, error)) {
+  if (!validateMeshGeometry(mesh, error)) {
     return false;
   }
   const std::filesystem::path outputPath(path);

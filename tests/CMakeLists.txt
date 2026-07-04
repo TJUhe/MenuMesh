@@ -1,8 +1,13 @@
 add_executable(line_quadrics_qem_tests
+  src/TestSupport.cpp
   c_api_tests.cpp
   feature_detection_tests.cpp
   qem_parameter_tests.cpp
   simplifier_tests.cpp
+)
+target_include_directories(line_quadrics_qem_tests
+  PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 target_link_libraries(line_quadrics_qem_tests
   PRIVATE
@@ -43,7 +48,12 @@ add_custom_target(unit-tests
 
 if(LQ_BUILD_PERFORMANCE_TESTS)
   add_executable(line_quadrics_qem_performance_tests
+    src/TestSupport.cpp
     qem_dataset_tests.cpp
+  )
+  target_include_directories(line_quadrics_qem_performance_tests
+    PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/include"
   )
   target_link_libraries(line_quadrics_qem_performance_tests
     PRIVATE

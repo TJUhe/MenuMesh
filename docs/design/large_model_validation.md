@@ -28,31 +28,32 @@ CTest performance suite verifies that every input has the binary STL layout
 Build the Release CLI:
 
 ```powershell
-cmake --build build\codex-industrial --config Release --parallel
+cmake -S . -B build\mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build build\mingw-ninja-release --target linequadrics --parallel
 ```
 
 The committed large fixture set is also exposed as a CTest performance label:
 
 ```powershell
-ctest --test-dir build\codex-industrial -C Release -L performance --output-on-failure
+ctest --test-dir build\mingw-ninja-release -L performance --output-on-failure
 ```
 
 Normal regression runs can exclude these longer checks:
 
 ```powershell
-ctest --test-dir build\codex-industrial -C Release -LE performance --output-on-failure
+ctest --test-dir build\mingw-ninja-release -LE performance --output-on-failure
 ```
 
 Run a 90% ratio smoke pass over all 10 large models:
 
 ```powershell
-.\build\codex-industrial\bin\Release\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
   tests\data\external\large\<model>.stl `
-  examples\output\large_validation\<model>_line_090.stl `
+  tests\output\large_validation\<model>_line_090.stl `
   --method line --ratio 0.9 `
   --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 `
   --feature-angle-deg 25 --samples 120 `
-  --metrics-csv examples\output\large_validation\<model>_line_090_metrics.csv
+  --metrics-csv tests\output\large_validation\<model>_line_090_metrics.csv
 ```
 
 Run the full 100-file visual/CSV validation batch from VSCode:
@@ -62,7 +63,7 @@ Terminal > Run Task... > run: large validation 100 stl
 ```
 
 This writes generated STL and CSV files under
-`examples/output/large_validation_100/`. These are intentionally ignored by Git.
+`tests/output/large_validation_100/`. These are intentionally ignored by Git.
 Open `summary.csv` first to compare face counts, quality, and distance metrics,
 then inspect selected `*_line_090.stl` files in MeshLab, CAD Assistant, 3D
 Builder, or any STL viewer available on the machine. In VSCode, the equivalent
@@ -80,13 +81,13 @@ or `Debug Performance Tests (MSVC)` from the VSCode Run and Debug panel.
 Run a deeper 50% ratio pass over representative medium/large models:
 
 ```powershell
-.\build\codex-industrial\bin\Release\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
   tests\data\external\large\<model>.stl `
-  examples\output\large_validation\<model>_line_050.stl `
+  tests\output\large_validation\<model>_line_050.stl `
   --method line --ratio 0.5 `
   --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 `
   --feature-angle-deg 25 --samples 160 `
-  --metrics-csv examples\output\large_validation\<model>_line_050_metrics.csv
+  --metrics-csv tests\output\large_validation\<model>_line_050_metrics.csv
 ```
 
 ## 90% Ratio Results

@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-07-05
+
+### Changed
+
+- Refreshed the documentation so user-facing commands, generated HTML notes,
+  and algorithm explanations follow the current C++ implementation instead of
+  older experiment paths.
+- Documented the Windows MinGW/Ninja configure requirement to specify both
+  `-DCMAKE_C_COMPILER=gcc` and `-DCMAKE_CXX_COMPILER=g++`; specifying only the
+  C++ compiler can leave CMake mixing `cl.exe` with MinGW and fail before build.
+- Updated feature-curve docs and practice-result HTML to describe the current
+  line/curve validation outputs, circular/elliptic/polygonal feature policies,
+  projection counters, curve-budget rejections, and cases where curve
+  protection improves geometry but not every match count.
+- Corrected generated algorithm notes to use the current
+  `collapseRejectReason(...)` legality path, including link-condition topology,
+  triangle quality, normal deviation, local error, and optional local
+  self-intersection guards.
+- Clarified source boundaries: Garland-Heckbert QEM, Liu/Rahimzadeh/Zordan line
+  quadrics, Tsuchie-Higashi normal tensor feature lines, and Xu et al. CWF are
+  cited as source ideas; the docs now separate those ideas from what this
+  repository currently implements.
+
+### Verified
+
+- `cmake -S . -B build/doccheck -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DLQ_BUILD_DOCS=OFF`
+- `cmake --build build/doccheck --parallel`
+- `cmake -E chdir build/doccheck ctest --output-on-failure`
+- `.\build\doccheck\bin\linequadrics.exe --help`
+- `.\build\doccheck\bin\linequadrics.exe feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv output\doccheck\features.csv`
+- `.\build\doccheck\bin\linequadrics.exe simplify tests\data\feature_fixtures\coaxial_hole_plate.obj output\doccheck\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv output\doccheck\metrics.csv`
+- `.\build\doccheck\bin\linequadrics.exe validate-features --ratio 0.20 --n 48 --samples 64 --output-dir output\doccheck\feature_validation`
+- `.\build\doccheck\bin\linequadrics.exe validate-external --ratio 0.25 --samples 64 --output-dir output\doccheck\external_validation`
+- `.\build\doccheck\bin\linequadrics.exe demo --quick --samples 64 --output-dir output\doccheck\demo --input-dir output\doccheck\demo_input`
+
 ## 2026-07-03
 
 ### Added

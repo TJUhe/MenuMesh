@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Line Quadrics QEM 程序说明书</title>
+<script>
+MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+:root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a2e;--dim:#666;--accent:#2563eb;--green:#059669;--orange:#ea580c;--red:#dc2626;--code-bg:#f5f5f5;--callout-bg:#f8faff;--warn-bg:#fff8f0;--danger-bg:#fef2f2;--success-bg:#f0fdf4}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.8;max-width:920px;margin:0 auto}
+.header{background:linear-gradient(135deg,#12384f,#26395f);color:#fff;padding:44px 36px 36px}
+.header h1{font-size:26px;font-weight:700;margin-bottom:6px}
+.header .subtitle{color:#dbeafe;font-size:14px}
+.header .meta{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+.tag{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#e0e7ff;padding:3px 10px;border-radius:4px;font-size:12px}
+.content{padding:28px 36px 60px}
+h2{font-size:21px;font-weight:700;margin-top:44px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--accent)}
+h2 .num{display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;background:var(--accent);color:#fff;border-radius:6px;font-size:15px;margin-right:8px;vertical-align:middle}
+h3{font-size:17px;font-weight:600;margin-top:28px;margin-bottom:10px;color:var(--accent)}
+h4{font-size:15px;font-weight:600;margin-top:18px;margin-bottom:6px}
+p{margin-bottom:10px}
+ul,ol{padding-left:22px;margin-bottom:10px}li{margin:3px 0}
+code{background:var(--code-bg);padding:1px 5px;border-radius:3px;font-size:13px;font-family:"Consolas",monospace;color:var(--accent)}
+pre{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:14px 18px;margin:12px 0;overflow-x:auto;font-size:13px;line-height:1.6}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th{background:#eff6ff;text-align:left;padding:9px 12px;border-bottom:2px solid var(--accent);font-weight:600}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:#f9fafb}
+.callout{border-radius:8px;padding:14px 18px;margin:14px 0;border-left:4px solid;background:var(--callout-bg);border-color:var(--accent)}
+.callout-title{font-weight:600;font-size:14px;margin-bottom:6px;color:var(--accent)}
+.callout.warn{background:var(--warn-bg);border-color:var(--orange)}.callout.warn .callout-title{color:var(--orange)}
+.callout.danger{background:var(--danger-bg);border-color:var(--red)}.callout.danger .callout-title{color:var(--red)}
+.callout.success{background:var(--success-bg);border-color:var(--green)}.callout.success .callout-title{color:var(--green)}
+.formula{background:#f8f9fc;border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin:10px 0;overflow-x:auto}
+.formula .label{float:right;color:var(--dim);font-size:12px;font-family:sans-serif}
+.toc{background:#f8f9fc;border:1px solid var(--border);border-radius:8px;padding:18px 22px;margin:20px 0}
+.toc-title{font-weight:700;margin-bottom:10px;font-size:15px}
+.toc ol{padding-left:20px}.toc li{margin:4px 0}
+.toc a{color:var(--accent);text-decoration:none;font-size:14px}.toc a:hover{text-decoration:underline}
+.diagram{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:16px;margin:14px 0;font-family:"Consolas",monospace;font-size:12.5px;white-space:pre;line-height:1.55;overflow-x:auto}
+.footer{text-align:center;padding:20px;color:var(--dim);font-size:13px;border-top:1px solid var(--border)}
+@media(max-width:768px){.content{padding:20px 18px 40px}.header{padding:28px 20px}}
+</style>
+<link rel="stylesheet" href="eye-care.css">
+</head>
+<body>
+
+<div class="header">
+<h1>Line Quadrics QEM 程序说明书</h1>
+<div class="subtitle">面向当前 C++ 动态库与 CLI 实现：模块、入口、数据流、参数、测试与工程化边界</div>
+<div class="meta">
+<span class="tag">代码说明书</span><span class="tag">动态库 API</span><span class="tag">CLI</span><span class="tag">CTest</span><span class="tag">Doxygen</span>
+</div>
+</div>
+
+<div class="content">
+
+<div class="toc">
+<div class="toc-title">目录</div>
+<ol>
+<li><a href="#s1">这份程序实现了什么</a></li>
+<li><a href="#s2">论文出处与实现边界</a></li>
+<li><a href="#s3">工程目标与构建产物</a></li>
+<li><a href="#s4">公共 API 与数据结构</a></li>
+<li><a href="#s5">核心源码模块说明</a></li>
+<li><a href="#s6">simplifyMesh 执行流程</a></li>
+<li><a href="#s7">参数如何映射到算法项</a></li>
+<li><a href="#s8">报告、测试与质量指标</a></li>
+<li><a href="#s9">外部程序调用方式</a></li>
+<li><a href="#s10">有没有更好的论文方法</a></li>
+<li><a href="#s11">可参考的 GitHub 项目</a></li>
+<li><a href="#s12">当前实现的风险与后续增强点</a></li>
+</ol>
+</div>
+
+<h2 id="s1"><span class="num">1</span>这份程序实现了什么</h2>
+
+<p>当前仓库实现的是一个基于边坍缩的三角网格简化库。它以 Garland-Heckbert 标准 QEM 为基础，加入 Liu、Rahimzadeh、Zordan 在 SGP 2025 论文中提出的 Line Quadrics 思想，用很小的线二次型权重改善标准 QEM 在平坦区域的退化排序问题。</p>
+
+<p>从工程角度看，它现在有两层使用方式：</p>
+
+<ul>
+<li><strong>动态库</strong>：目标名 <code>line_quadrics_qem</code>，外部 CMake 工程可以通过 <code>find_package(line_quadrics_qem CONFIG REQUIRED)</code> 使用。</li>
+<li><strong>CLI 程序</strong>：目标名 <code>linequadrics</code>，用于生成 demo 网格、简化 STL/OBJ、输出 metrics、做 sweep 实验和特征报告。</li>
+</ul>
+
+<div class="callout">
+<div class="callout-title">我对你原网页的判断</div>
+<p>你给的 <code>qem-line-quadrics-notes.html</code> 对当前程序很有启发意义，因为它把“标准 QEM 的零误差平坦区”和“Line Quadrics 为什么能补上切向约束”讲成了同一个数学故事。当前程序的核心代码正是沿着这个故事组织的：先建立平面 quadric，再把顶点法线方向的 line quadric 作为正则项加进去。</p>
+</div>
+
+<h2 id="s2"><span class="num">2</span>论文出处与实现边界</h2>
+
+<h3>2.1 主要论文来源</h3>
+
+<table>
+<thead><tr><th>用途</th><th>论文</th><th>本仓库对应文件</th></tr></thead>
+<tbody>
+<tr><td>标准 QEM</td><td>Michael Garland, Paul S. Heckbert. <em>Surface Simplification Using Quadric Error Metrics</em>. SIGGRAPH 1997.</td><td><code>docs/papers/garland_heckbert_1997_surface_simplification_qem.pdf</code></td></tr>
+<tr><td>Line Quadrics</td><td>Hsueh-Ti Derek Liu, Mehdi Rahimzadeh, Victor Zordan. <em>Controlling Quadric Error Simplification with Line Quadrics</em>. SGP 2025.</td><td><code>docs/papers/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code></td></tr>
+<tr><td>边界 quadric 背景</td><td>Garland, Heckbert. <em>Simplifying Surfaces with Color and Texture</em>. SIGGRAPH 1998.</td><td>当前仓库未镜像该 PDF，但边界约束思想与 QEM 扩展路线一致。</td></tr>
+<tr><td>特征保持背景</td><td>Wang 2008、Vidal et al. 2011、Jiao and Bayyana 2008、Tsuchie and Higashi 2014 等。</td><td><code>docs/papers/README.md</code> 中有索引。</td></tr>
+</tbody>
+</table>
+
+<h3>2.2 边界项和特征曲线项的文献依据</h3>
+
+<table>
+<thead><tr><th>当前程序项</th><th>文献依据强度</th><th>推荐引用</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>boundaryWeight</code> 边界 plane quadric</td><td>较直接</td><td>Garland-Heckbert 1998；Garland 博士论文；CGAL Surface Mesh Simplification 文档</td><td>这些资料都支持在边界/不连续处加入额外约束平面或 pseudo-faces，使边界顶点的 quadric 更强，减少边界漂移。</td></tr>
+<tr><td><code>featureCurveWeight</code> tangent-line quadric</td><td>组合式依据</td><td>Liu-Rahimzadeh-Zordan 2025；Vidal-Wolf-Dupont 2011；Jiao-Bayyana 2008；Hussain-Grahn-Persson 2008</td><td>Line Quadrics 论文支持用 line quadrics 做可控/特征敏感简化；CAD 特征线检测论文支持先识别特征曲线；特征保持简化论文支持对特征边/点做硬约束或优先保护。本程序把这些思想组合成“沿特征切线的一维 line quadric + collapse 拒绝规则”。</td></tr>
+</tbody>
+</table>
+
+<h3>2.3 当前程序不是论文的逐字逐句复刻</h3>
+
+<p>本程序复现了 Line Quadrics 对 QEM 的关键增强，但也加入了工程实验分支：</p>
+
+<ul>
+<li><code>weightMode</code> 提供 uniform、dihedral、height、xband 四种权重模式，用来观察不同区域权重如何影响简化。</li>
+<li><code>boundaryWeight</code> 增加边界 plane quadric，用来缓解边界漂移。</li>
+<li><code>preserveFeatureCurves</code> 增加特征 loop 检测、圆拟合、最小顶点数保护和圆投影。</li>
+<li>求解器对奇异矩阵使用端点/中点 fallback 候选集，优先保证程序稳定运行。</li>
+</ul>
+
+<h2 id="s3"><span class="num">3</span>工程目标与构建产物</h2>
+
+<p>顶层 <code>CMakeLists.txt</code> 现在围绕库目标组织：</p>
+
+<table>
+<thead><tr><th>目标</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>line_quadrics_qem</code></td><td>核心动态库，默认生成 DLL/SO/dylib。</td></tr>
+<tr><td><code>linequadrics</code></td><td>命令行工具，链接核心库。</td></tr>
+<tr><td><code>linequadrics_basic_simplify</code></td><td>外部调用风格的最小示例程序。</td></tr>
+<tr><td><code>line_quadrics_qem_tests</code></td><td>GoogleTest 测试程序。</td></tr>
+<tr><td><code>format</code> / <code>check-format</code></td><td>clang-format 格式化和检查。</td></tr>
+<tr><td><code>docs-api</code></td><td>Doxygen API 文档生成。</td></tr>
+</tbody>
+</table>
+
+<pre><code>cmake -S . -B build/industrial
+cmake --build build/industrial --config Release --parallel
+ctest --test-dir build/industrial -C Release --output-on-failure</code></pre>
+
+<div class="callout success">
+<div class="callout-title">Windows DLL 拷贝处理</div>
+<p>库包提供了 <code>line_quadrics_qem_copy_runtime_dependencies(target)</code>。外部 CMake 程序链接库后调用这一行，Windows 下会自动把 <code>line_quadrics_qem.dll</code> 拷到目标 exe 旁边；静态库或非 Windows 平台则不做事。</p>
+</div>
+
+<h2 id="s4"><span class="num">4</span>公共 API 与数据结构</h2>
+
+<h3>4.1 Mesh</h3>
+
+<pre><code>namespace lq {
+using Vec3 = Eigen::Vector3d;
+using Mat4 = Eigen::Matrix4d;
+
+struct Face {
+  std::array&lt;int, 3&gt; v{};
+};
+
+struct Mesh {
+  std::vector&lt;Vec3&gt; vertices;
+  std::vector&lt;Face&gt; faces;
+};
+}</code></pre>
+
+<p><code>Mesh</code> 是没有半边结构的简单三角网格容器。算法内部会临时构建边表、活动面、活动顶点、版本号和优先队列；公共 API 保持轻量，便于动态库调用。</p>
+
+<h3>4.2 SimplifyOptions</h3>
+
+<table>
+<thead><tr><th>字段</th><th>默认值</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>targetFaces</code></td><td><code>-1</code></td><td>目标面数；大于 0 时优先于比例。</td></tr>
+<tr><td><code>targetRatio</code></td><td><code>0.25</code></td><td>目标面数比例。</td></tr>
+<tr><td><code>useLineQuadrics</code></td><td><code>true</code></td><td>是否启用普通 line quadric。</td></tr>
+<tr><td><code>lineWeight</code></td><td><code>1e-3</code></td><td>普通 line quadric 基础权重。</td></tr>
+<tr><td><code>weightMode</code></td><td><code>Uniform</code></td><td>普通 line quadric 的区域增强模式。</td></tr>
+<tr><td><code>featureBoost</code></td><td><code>0.05</code></td><td>特征分数对 line weight 的增量。</td></tr>
+<tr><td><code>boundaryWeight</code></td><td><code>0.0</code></td><td>边界 plane quadric 权重。</td></tr>
+<tr><td><code>preserveFeatureCurves</code></td><td><code>false</code></td><td>是否启用特征 loop 保护。</td></tr>
+<tr><td><code>featureCurveWeight</code></td><td><code>0.05</code></td><td>特征曲线 tangent-line quadric 权重。</td></tr>
+</tbody>
+</table>
+
+<h3>4.3 SimplifyReport</h3>
+
+<p><code>SimplifyReport</code> 用于观察算法行为，例如实际坍缩边数、拒绝坍缩次数、fallback 求解次数、检测到的特征 loop 数、圆形特征 loop 数、投影放置次数等。这些字段对调参很重要，因为不同输入网格的失败原因通常不在最终 STL 里，而在中间统计里。</p>
+
+<h2 id="s5"><span class="num">5</span>核心源码模块说明</h2>
+
+<table>
+<thead><tr><th>文件</th><th>职责</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>src/core/Mesh.cpp</code></td><td>基础网格 I/O 与几何函数</td><td>STL/OBJ 读取、ASCII STL 输出、bbox、面积、法线、唯一边。</td></tr>
+<tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>简化算法核心</td><td>平面 quadric、line quadric、边界项、特征项、边坍缩循环。</td></tr>
+<tr><td><code>src/features/FeatureDetection.cpp</code></td><td>特征边/环检测</td><td>边界边、二面角边、非流形边、特征 loop、圆拟合、切线。</td></tr>
+<tr><td><code>src/simplification/Metrics.cpp</code></td><td>质量指标</td><td>面积、边数、边界边、非流形边、三角形质量、采样距离。</td></tr>
+<tr><td><code>src/core/MeshGenerators.cpp</code></td><td>测试与 demo 几何</td><td>平面、孔洞、ridge、圆柱、torus、flange、stepped shaft 等。</td></tr>
+<tr><td><code>apps/linequadrics/main.cpp</code></td><td>CLI 编排</td><td>参数解析、generate/simplify/compare/sweep/demo 等命令。</td></tr>
+</tbody>
+</table>
+
+<h2 id="s6"><span class="num">6</span>simplifyMesh 执行流程</h2>
+
+<p>核心流程如下：</p>
+
+<div class="diagram">simplifyMesh(input, options, report)
+  1. 如果 preserveFeatureCurves，先 detectFeatureCurves(input)
+  2. computeInitialQuadrics()
+     - 面 plane quadric
+     - 可选 boundary quadric
+     - 可选 normal line quadric
+     - 可选 feature tangent line quadric
+  3. 初始化 VertexState / FaceState
+  4. collectActiveEdges() 并构建优先队列
+  5. 循环直到 activeFaceCount <= targetFaces
+     a. 弹出最低代价候选边
+     b. 检查版本号、端点活动状态、邻接关系
+     c. 合并端点 quadric，求解新位置
+     d. 特征约束检查
+     e. 圆形特征投影
+     f. 退化面/合法性检查
+     g. 写回顶点、重写面、删除退化面和重复面
+     h. 把受影响邻边重新压入队列
+  6. compactResult() 输出 Mesh</div>
+
+<h3>6.1 顶点状态</h3>
+
+<p>内部 <code>VertexState</code> 不只保存位置和 quadric，还保存：</p>
+
+<ul>
+<li><code>active</code>：顶点是否仍存在。</li>
+<li><code>version</code>：优先队列 stale candidate 检查。</li>
+<li><code>isFeature</code>、<code>featureLoopId</code>、<code>circularFeature</code>：特征约束。</li>
+<li><code>curveTangent</code>、<code>circleCenter</code>、<code>circleNormal</code>、<code>circleRadius</code>：特征曲线和圆投影。</li>
+</ul>
+
+<h3>6.2 候选边代价</h3>
+
+<p>对候选边 $(i,j)$，程序先合并 quadric：</p>
+
+<div class="formula">
+$$Q_{ij}=Q_i+Q_j$$
+</div>
+
+<p>再通过 <code>solveOptimal</code> 得到新位置 $x$ 和代价：</p>
+
+<div class="formula">
+$$cost(i,j)=\bar{x}^{\top}Q_{ij}\bar{x}$$
+</div>
+
+<p>优先队列按 <code>cost</code> 从小到大弹出，形成局部贪心简化。</p>
+
+<h2 id="s7"><span class="num">7</span>参数如何映射到算法项</h2>
+
+<p>当前程序最终可以理解为给每个顶点构造如下 quadric：</p>
+
+<div class="formula">
+$$Q_i=Q_i^{plane}+Q_i^{normalLine}+Q_i^{boundary}+Q_i^{featureCurve}$$
+</div>
+
+<table>
+<thead><tr><th>参数</th><th>进入的项</th><th>代码含义</th></tr></thead>
+<tbody>
+<tr><td><code>--method standard</code></td><td>关闭 $Q_i^{normalLine}$</td><td>只用标准 QEM 及用户显式开启的其他项。</td></tr>
+<tr><td><code>--method line</code></td><td>开启 $Q_i^{normalLine}$</td><td>默认路径。</td></tr>
+<tr><td><code>--line-weight W</code></td><td>$W a_i Q_\ell(v_i,n_i)$</td><td>法线方向 line quadric 强度。</td></tr>
+<tr><td><code>--weight-mode dihedral</code></td><td>$W+\beta s_i$</td><td>硬边附近增加 line weight。</td></tr>
+<tr><td><code>--weight-mode normal-tensor</code></td><td>$W+\beta t_i$</td><td>使用多尺度 normal tensor 特征分数调整 line weight，适合观察弱特征。</td></tr>
+<tr><td><code>--boundary-weight G</code></td><td>$G\|e\|Q_{boundary}$</td><td>边界边添加额外支撑平面。</td></tr>
+<tr><td><code>--preserve-feature-curves</code></td><td>启用检测、约束、曲线项</td><td>保护折痕/边界 loop，圆形 loop 会投影回圆。</td></tr>
+<tr><td><code>--feature-curve-weight E</code></td><td>$E a_i Q_\ell(v_i,\tau_i)$</td><td>沿特征切线建立 line quadric。</td></tr>
+<tr><td><code>--max-feature-curve-deviation-ratio R</code></td><td>collapse legality filter</td><td>拒绝让 feature loop 原始 placement 漂移超过 $R$ 倍 bbox 对角线的坍缩。</td></tr>
+<tr><td><code>--max-local-error-ratio R</code></td><td>collapse legality filter</td><td>在坍缩前检查局部几何漂移，超过 $R$ 倍 bbox 对角线则拒绝。</td></tr>
+<tr><td><code>--industrial-safe</code></td><td>组合保护 preset</td><td>启用边界保护、质量 guard、normal deviation guard、局部误差 guard 和局部自交检查。</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<div class="callout-title">lineWeight 不宜盲目放大</div>
+<p>论文和本程序实验都把小权重作为合理起点，例如 <code>1e-3</code>。过大的 line weight 会让均匀采样和局部形状保持之间的平衡偏向正则项，可能牺牲几何误差。</p>
+</div>
+
+<h3>7.1 演示时最有说明力的参数组合</h3>
+
+<table>
+<thead><tr><th>目标</th><th>输入网格</th><th>推荐参数</th><th>观察指标</th></tr></thead>
+<tbody>
+<tr><td>普通 QEM 对照</td><td><code>tests/data/external/fandisk_2014.stl</code></td><td><code>--method standard --ratio 0.25</code></td><td>边长分布、硬边保留、采样距离。</td></tr>
+<tr><td>Line quadrics 改善采样</td><td><code>tests/data/external/fandisk_2014.stl</code></td><td><code>--method line --line-weight 1e-3 --weight-mode dihedral --feature-angle-deg 25</code></td><td><code>mean_triangle_quality</code>、<code>edge_length_cv</code>。</td></tr>
+<tr><td>圆形 loop 保护</td><td><code>tests/data/feature_fixtures/coaxial_hole_plate.obj</code></td><td><code>--preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05</code></td><td><code>circular_feature_loops</code>、<code>projected_feature_placements</code>。</td></tr>
+<tr><td>局部误差/tolerance guard</td><td><code>tests/data/external/casting_aimshape_2014.stl</code></td><td><code>--industrial-safe --max-local-error-ratio 0.02</code></td><td><code>error_rejected_collapses</code>、<code>quality_rejected_collapses</code>、输出拓扑。</td></tr>
+<tr><td>normal tensor 弱特征</td><td><code>tests/data/feature_fixtures/boss_pocket_plate.obj</code></td><td><code>--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-scales 3</code></td><td><code>normal_tensor_feature_edges</code> 和 line weight range。</td></tr>
+</tbody>
+</table>
+
+<h2 id="s8"><span class="num">8</span>报告、测试与质量指标</h2>
+
+<h3>8.1 测试覆盖</h3>
+
+<p>当前 GoogleTest 覆盖基础契约和算法保护契约：</p>
+
+<ul>
+<li>生成平面网格后能按目标比例减少面数。</li>
+<li>圆柱硬边能被特征检测识别。</li>
+<li>生成 cube 后能计算合理的 mesh stats。</li>
+<li>C API 报告字段和拒绝计数总和一致。</li>
+<li>局部误差、三角形质量、拓扑、normal flip、自交和曲线预算拒绝路径可审计。</li>
+<li>feature graph、圆/椭圆 loop、normal tensor 多尺度检测有回归覆盖。</li>
+</ul>
+
+<pre><code>ctest --test-dir build/mingw-ninja-debug --output-on-failure</code></pre>
+
+<h3>8.2 Metrics</h3>
+
+<p><code>computeMeshStats</code> 会输出顶点数、面数、边数、边界边、非流形边、面积、平均三角形质量、最小三角形质量、平均边长、边长变异系数。<code>compareMeshesBySampledDistance</code> 用采样点估计原网格到简化网格、简化网格到原网格的双向距离。</p>
+
+<p>简化报告现在还输出拒绝计数细分：<code>feature_rejected_collapses</code>、<code>boundary_rejected_collapses</code>、<code>topology_rejected_collapses</code>、<code>normal_flip_rejected_collapses</code>、<code>quality_rejected_collapses</code>、<code>self_intersection_rejected_collapses</code>、<code>curve_budget_rejected_collapses</code>、<code>error_rejected_collapses</code>。演示时不要只看输出面数；这些拒绝计数能解释为什么某个 preset 更保守，也能定位是特征预算、局部误差还是拓扑合法性挡住了坍缩。</p>
+
+<h3>8.3 VS Code 演示任务</h3>
+
+<p><code>.vscode/tasks.json</code> 现在只保留 <code>mingw+ninja</code> 和 <code>msvc+ninja</code> 两条链路。Ninja 构建任务使用 <code>--parallel</code> 不指定数字，让 CMake/Ninja 使用可用核心。现场演示优先运行：</p>
+
+<ul>
+<li><code>demo: feature report selected mesh</code>：生成输入特征报告。</li>
+<li><code>demo: simplify selected mesh (mingw+ninja release)</code>：从下拉框选择 mesh、preset、ratio 和 samples。</li>
+<li><code>demo: algorithm comparison selected mesh</code>：同一网格上比较 standard QEM、line QEM、dihedral-line、feature-curves、normal-tensor。</li>
+<li><code>demo: ratio sweep selected mesh</code>：固定算法预设，扫多档 ratio。</li>
+</ul>
+
+<h2 id="s9"><span class="num">9</span>外部程序调用方式</h2>
+
+<h3>9.1 CMake 调用</h3>
+
+<pre><code>find_package(line_quadrics_qem CONFIG REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
+line_quadrics_qem_copy_runtime_dependencies(my_app)</code></pre>
+
+<h3>9.2 C++ 调用</h3>
+
+<pre><code>#include "line_quadrics_qem/Mesh.h"
+#include "line_quadrics_qem/QEMSimplifier.h"
+
+int main() {
+  lq::Mesh input;
+  std::string error;
+  if (!lq::loadMesh("input.stl", input, &error)) {
+    return 1;
+  }
+
+  lq::SimplifyOptions options;
+  options.targetRatio = 0.2;
+  options.lineWeight = 1e-3;
+
+  lq::SimplifyReport report;
+  lq::Mesh output = lq::simplifyMesh(input, options, &report);
+  lq::saveAsciiStl("output.stl", output);
+}</code></pre>
+
+<h2 id="s10"><span class="num">10</span>有没有更好的论文方法</h2>
+
+<p>有。当前程序的边界项和 tangent-line 特征曲线项是一个轻量、容易集成进 QEM 的方案。如果要继续往工业软件方向走，可以按目标选择更强方法。</p>
+
+<table>
+<thead><tr><th>目标</th><th>更强方法</th><th>代表参考</th><th>对当前程序的启发</th></tr></thead>
+<tbody>
+<tr><td>边界保持更稳</td><td>约束式边坍缩：把边界、feature edge 标成 constrained edge，不允许跨越或破坏约束边。</td><td>CGAL Surface Mesh Simplification 的 constrained edges / placement filter；Hoppe 1996 Progressive Meshes 中的 discontinuity curves。</td><td>比单纯加 <code>boundaryWeight</code> 更硬。可以新增 <code>constrainedEdges</code> 输入，边界边默认不跨边坍缩。</td></tr>
+<tr><td>边界和体积同时保持</td><td>Lindstrom-Turk memoryless simplification，用体积保持、边界面积保持、三角形形状优化作为约束序列。</td><td>Lindstrom and Turk, <em>Fast and Memory Efficient Polygonal Simplification</em>, VIS 1998。</td><td>适合加一个 <code>PlacementPolicy</code>，在 QEM placement 之外提供体积/边界约束 placement。</td></tr>
+<tr><td>特征线识别更可靠</td><td>不要只靠二面角；引入 CAD 特征线、C0/C1/C2 discontinuity、normal tensor、曲率多尺度检测。</td><td>Vidal-Wolf-Dupont 2011；Jiao-Bayyana 2008；Tsuchie-Higashi 2014。</td><td>当前 <code>detectFeatureCurves</code> 可替换为更强 detector，输出仍然是 feature vertices/loops/tangents。</td></tr>
+<tr><td>特征保持更强</td><td>特征边硬约束 + 特征边独立简化 + 曲面区域简化，再重建/缝合。</td><td>Peyrot-Payan-Antonini 2014 aliasing-free simplification；Hussain-Grahn-Persson 2008 feature-preserving simplification。</td><td>比 tangent-line soft constraint 更稳定，适合 CAD 模型：先简化 feature graph，再简化 patch interior。</td></tr>
+<tr><td>特征敏感误差更统一</td><td>把位置和法线一起放进高维 feature-sensitive metric，或用 normal-guided QEM。</td><td>Wei and Lou 2010 feature sensitive metric；Zheng et al. 2014 normal-guided QEM denoising。</td><td>可以把当前 <code>lineWeight</code> 扩展为“位置误差 + 法线误差 + 特征距离”的组合能量。</td></tr>
+<tr><td>误差有硬保证</td><td>Hausdorff envelope / tolerance volume；每次坍缩必须满足误差界。</td><td>Hausdorff envelope surface simplification 文献；CGAL/工程库中的 placement filter 思路。</td><td>工业精度要求高时，这是比 QEM 代价更可靠的验收层。QEM 可做候选排序，Hausdorff/tolerance 做硬过滤。</td></tr>
+</tbody>
+</table>
+
+<h3>10.1 较新的圆孔识别/孔特征论文线索</h3>
+
+<table>
+<thead><tr><th>论文/方向</th><th>年份</th><th>适合什么输入</th><th>对当前程序的改进点</th></tr></thead>
+<tbody>
+<tr><td>Yip, Stahl, Schellewald. <em>Robust Hole-Detection in Triangular Meshes Irrespective of the Presence of Singular Vertices</em>. Computer-Aided Design.</td><td>2024</td><td>三角网格</td><td>当前程序把 feature loop 当作普通图连通分量处理。该方法专门解决 triangular mesh 的 hole/boundary traversal，尤其强调 singular vertices 下的 boundary 唯一性和 hole/main-boundary 分类。适合先替换当前 boundary loop 提取层。</td></tr>
+<tr><td>Zhang et al. <em>Multi-Scale and Irregularly Distributed Circular Hole Feature Extraction from Engine Cylinder Point Clouds</em>. Computer-Aided Design.</td><td>2024</td><td>点云/工业扫描</td><td>面向发动机缸体这种多尺度、不规则分布圆孔。可借鉴“多尺度候选 + 曲率中心/孔点聚集”的思路，改善小孔、缺点孔、密集孔识别。</td></tr>
+<tr><td>Zhang et al. <em>CHBS-Net: 3D Point Cloud Segmentation Network with Key Feature Guidance for Circular Hole Boundaries</em>. Machines.</td><td>2023</td><td>点云/检测数据</td><td>如果上游是扫描点云而不是 STL，先分割圆孔边界点，再拟合圆，比在简化后的三角网格上靠二面角找圆更稳。</td></tr>
+<tr><td>Zhao. <em>A Novel Computational Paradigm for Reconstructing Solid CAD Features from a Segmented Manifold Triangular Mesh</em>. Applied Sciences.</td><td>2024</td><td>已分割三角网格</td><td>从 mesh patch 中提取 cross-sectional sketches 和 feature paths，再用 Open CASCADE 重建实体特征。对圆孔来说，方向是从“识别边界圆”升级到“恢复参数化 CAD 特征”。</td></tr>
+<tr><td>AAGNet / BrepMFR / BRepNet 系列 machining feature recognition</td><td>2023-2024</td><td>STEP/B-Rep</td><td>如果能拿到原始 B-Rep，不建议从 STL 猜孔。直接在 face-edge graph 上识别 through hole、blind hole、counterbore、countersink 等加工特征，语义更强。</td></tr>
+</tbody>
+</table>
+
+<div class="callout success">
+<div class="callout-title">最推荐的当前程序改造顺序</div>
+<p>对现有 STL/三角网格，优先引入 Yip et al. 2024 的 robust boundary/hole traversal，再在每个 hole boundary 上做加权圆/椭圆/RANSAC 拟合、平面一致性检查和 cylinder-axis 验证。若输入来自扫描点云，再考虑 CHBS-Net 或 2024 多尺度圆孔提取。若上游能提供 STEP，则直接走 B-Rep feature recognition，别从 STL 反推。</p>
+</div>
+
+<div class="callout">
+<div class="callout-title">推荐演进路线</div>
+<p>短期最划算的是保留当前 Line Quadrics 作为排序/正则项，同时增加 constrained-edge collapse 和 Hausdorff/tolerance filter。中期再把 <code>detectFeatureCurves</code> 换成 normal tensor 或 CAD discontinuity detector。长期如果要处理真正 CAD/B-Rep 风格模型，最好走“特征图先简化、面片内部再简化、最后约束缝合”的 patch-aware pipeline。</p>
+</div>
+
+<h2 id="s11"><span class="num">11</span>可参考的 GitHub 项目</h2>
+
+<p>这些项目不一定适合直接引入依赖，但很适合拆开借鉴架构、算法模块和测试方式。</p>
+
+<table>
+<thead><tr><th>项目</th><th>方向</th><th>最值得借鉴的点</th><th>注意事项</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/Mauhing/hole-detection-on-triangle-mesh">Mauhing/hole-detection-on-triangle-mesh</a></td><td>三角网格孔洞/边界检测</td><td>和 Yip et al. 2024 配套，重点处理 singular vertices 下的 boundary traversal、complex boundary decomposition、hole/main-boundary 分类。最适合改进当前圆孔候选 loop 提取。</td><td>Python 参考实现。建议移植算法思想到 C++，不要直接作为运行时依赖。</td></tr>
+<tr><td><a href="https://github.com/CGAL/cgal">CGAL/cgal</a></td><td>工业级几何算法库</td><td>Surface Mesh Simplification 的 policy-based 设计、constrained edges、placement filter、Garland-Heckbert 和 Lindstrom-Turk cost/placement。适合重构当前 simplifier 架构。</td><td>许可证和依赖较重；可先借鉴接口设计，不一定直接引入。</td></tr>
+<tr><td><a href="https://www.graphics.rwth-aachen.de/software/openmesh/">OpenMesh</a></td><td>半边网格与 decimation framework</td><td>Decimater module 设计：每个模块提供 collapse_priority / legality，以插件方式组合成本函数和硬约束。适合当前程序拆分 QEM cost、feature legality、boundary filter。</td><td>需要从当前简单 Mesh 结构升级到半边或至少构建半边视图。</td></tr>
+<tr><td><a href="https://github.com/cnr-isti-vclab/vcglib">VCG / MeshLab</a></td><td>成熟三角网格处理</td><td>高质量 QEM edge-collapse 简化、拓扑清理、曲率、网格质量工具。适合对比输出质量和学习工程细节。</td><td>GPL 生态，需要注意许可证；直接嵌入商业动态库通常不合适。</td></tr>
+<tr><td><a href="https://github.com/zeux/meshoptimizer">meshoptimizer</a></td><td>实时渲染网格优化</td><td>C/C++ API、跨语言 FFI、attribute seam/border preserving simplification、target error 设计。适合学习工业 API 和高速实现。</td><td>目标偏 glTF/实时渲染，不是 CAD 圆孔语义识别。</td></tr>
+<tr><td><a href="https://github.com/libigl/libigl">libigl</a></td><td>几何处理研究库</td><td>简洁的矩阵式几何处理接口、decimate/qslim、边界 loop、几何算子。适合做算法原型和单元测试 oracle。</td><td>偏研究/工具库，和工业动态库 API 风格不同。</td></tr>
+<tr><td><a href="https://github.com/PointCloudLibrary/pcl">PointCloudLibrary/pcl</a></td><td>点云处理与 RANSAC 模型拟合</td><td>若输入来自扫描点云，可直接参考 sample consensus、plane/cylinder/sphere 等模型拟合流程。圆孔识别可走“平面分割 + 边界点 + RANSAC circle/cylinder”。</td><td>依赖较大；当前项目是 mesh-first，不宜立即整体引入。</td></tr>
+<tr><td><a href="https://github.com/leomariga/pyRANSAC-3D">pyRANSAC-3D</a></td><td>轻量 3D RANSAC 几何拟合</td><td>circle/cylinder/sphere 等模型拟合接口简单，适合参考圆/圆柱 RANSAC 的阈值和迭代结构。</td><td>Python 项目；适合参考算法，不适合直接进入 C++ 库。</td></tr>
+<tr><td><a href="https://github.com/ai4ce/BAGSFit">ai4ce/BAGSFit</a></td><td>点云 primitive segmentation/fitting</td><td>把 boundary-aware segmentation 和 primitive fitting 结合，适合参考“先分割、再拟合”的反向工程路线。</td><td>深度学习路线，需要数据集和训练，不是短期工程替换。</td></tr>
+<tr><td><a href="https://github.com/AutodeskAILab/BRepNet">AutodeskAILab/BRepNet</a></td><td>B-Rep 拓扑神经网络</td><td>如果上游能提供 STEP/B-Rep，应该在 coedge/face/edge graph 上识别孔、槽、倒角等制造特征，而不是从 STL 反推。</td><td>ML/B-Rep pipeline，和当前 STL simplifier 是上游语义增强关系。</td></tr>
+<tr><td><a href="https://github.com/AutodeskAILab/UV-Net">AutodeskAILab/UV-Net</a></td><td>B-Rep 几何深度学习</td><td>学习 CAD face 的参数域几何和拓扑邻接，可作为未来 machining feature recognition 的基础。</td><td>需要 B-Rep 数据和训练环境。</td></tr>
+</tbody>
+</table>
+
+<div class="callout success">
+<div class="callout-title">对圆孔识别最实用的组合</div>
+<p>当前 STL 路线下，优先参考 <code>Mauhing/hole-detection-on-triangle-mesh</code>，把 boundary loop 提取做稳；然后参考 PCL 或 pyRANSAC-3D 的 RANSAC 思路，对候选 loop 做 plane + circle/cylinder 鲁棒拟合；最后再把识别出的圆孔 loop 交给当前 <code>preserveFeatureCurves</code> 做硬约束和投影。若将来有 STEP/B-Rep 输入，再参考 BRepNet/UV-Net 做语义孔特征识别。</p>
+</div>
+
+<h2 id="s12"><span class="num">12</span>当前实现的风险与后续增强点</h2>
+
+<ul>
+<li><strong>C++ ABI</strong>：当前公共 API 暴露 <code>std::vector</code>、<code>std::string</code>、Eigen 类型，适合同编译器/同运行时的 C++ 项目。若要做跨语言 SDK，建议新增 C ABI 包装层。</li>
+<li><strong>拓扑保护</strong>：当前有基础退化检查和重复面删除，但还不是完整工业拓扑证明。可继续增加 link condition、自交检测、边界环一致性检查。</li>
+<li><strong>特征检测</strong>：当前主要靠边界、二面角和圆拟合。更复杂 CAD 模型可以引入 normal tensor、曲率、多尺度特征线方法。</li>
+<li><strong>误差度量</strong>：当前没有严格 Hausdorff 误差界。若用于生产，需要增加误差界、属性保持、法线保持和材质/纹理属性迁移。</li>
+</ul>
+
+</div>
+
+<div class="footer">Line Quadrics QEM 程序说明书 · 基于当前仓库实现 · 论文来源见第 2 节</div>
+</body>
+</html>

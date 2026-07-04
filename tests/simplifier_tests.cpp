@@ -1,3 +1,4 @@
+#include "TestSupport.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/core/MeshTopology.h"
 #include "line_quadrics_qem/features/FeatureDetection.h"
@@ -16,11 +17,11 @@
 
 namespace {
 
-int countCircularLoops(const lq::FeatureAnalysis& analysis) {
-  return static_cast<int>(
-      std::count_if(analysis.loops.begin(), analysis.loops.end(),
-                    [](const lq::FeatureLoop& loop) { return loop.circular; }));
-}
+using lq::test::countCircularLoops;
+using lq::test::loadExternalMesh;
+using lq::test::loadExternalStl;
+using lq::test::SimplifiedMesh;
+using lq::test::simplifyWithReport;
 
 int countBoundaryVertices(const lq::Mesh& mesh) {
   const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
@@ -77,92 +78,24 @@ int countBoundaryComponents(const lq::Mesh& mesh) {
 }
 
 lq::FeatureOptions circularFeatureOptions() {
-  lq::FeatureOptions options;
-  options.featureAngleDeg = 25.0;
-  options.circleFitRelativeThreshold = 0.04;
-  options.minFeatureLoopVertices = 8;
-  return options;
+  return lq::test::circularFeatureOptions(0.04);
 }
 
 lq::SimplifyOptions standardQemOptions(double ratio) {
-  lq::SimplifyOptions options;
-  options.targetRatio = ratio;
-  options.useLineQuadrics = false;
-  options.lineWeight = 0.0;
-  return options;
+  return lq::test::standardOptions(ratio);
 }
 
 lq::SimplifyOptions paperLineQuadricsOptions(double ratio) {
-  lq::SimplifyOptions options;
-  options.targetRatio = ratio;
-  options.useLineQuadrics = true;
-  options.lineWeight = 1e-3;
-  options.weightMode = lq::WeightMode::Dihedral;
-  options.featureBoost = 0.08;
-  options.featureAngleDeg = 25.0;
-  return options;
+  return lq::test::lineOptions(ratio);
 }
 
 lq::SimplifyOptions protectedIndustrialFeatureOptions(double ratio) {
-  lq::SimplifyOptions options = paperLineQuadricsOptions(ratio);
-  options.preserveFeatureCurves = true;
-  options.protectAllFeatureEdges = true;
-  options.featureCurveWeight = 0.08;
-  options.circleFitRelativeThreshold = 0.05;
-  options.minFeatureLoopVertices = 8;
-  return options;
-}
-
-struct SimplifiedMesh {
-  lq::Mesh mesh;
-  lq::SimplifyReport report;
-};
-
-SimplifiedMesh simplifyWithReport(const lq::Mesh& input,
-                                  const lq::SimplifyOptions& options) {
-  SimplifiedMesh result;
-  lq::QEMSimplifier simplifier(options);
-  result.mesh = simplifier.simplify(input, &result.report);
-  return result;
+  return lq::test::protectedOptions(ratio);
 }
 
 void expectBudgetedSimplification(const SimplifiedMesh& result, const lq::Mesh& input,
                                   double ratio) {
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-  EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
-  EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
-  EXPECT_LE(result.report.finalFaces,
-            static_cast<int>(std::llround(input.faces.size() * ratio)) + 2);
-  EXPECT_GT(result.report.collapsedEdges, 0);
-}
-
-std::filesystem::path externalDataDir() {
-#ifdef LQ_TEST_EXTERNAL_DATA_DIR
-  return std::filesystem::path(LQ_TEST_EXTERNAL_DATA_DIR);
-#else
-  return std::filesystem::path(__FILE__).parent_path() / "data" / "external";
-#endif
-}
-
-lq::Mesh loadExternalStl(const std::string& fileName) {
-  lq::Mesh mesh;
-  std::string error;
-  const std::filesystem::path path = externalDataDir() / fileName;
-  if (!lq::loadStl(path.string(), mesh, &error)) {
-    ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
-  }
-  return mesh;
-}
-
-lq::Mesh loadExternalMesh(const std::string& fileName) {
-  lq::Mesh mesh;
-  std::string error;
-  const std::filesystem::path path = externalDataDir() / fileName;
-  if (!lq::loadMesh(path.string(), mesh, &error)) {
-    ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
-  }
-  return mesh;
+  lq::test::expectBudget(result, input, ratio);
 }
 
 lq::Mesh makeLocalIntersectionGuardMesh() {
@@ -515,7 +448,7 @@ TEST(LineQuadricsQem, LocalIntersectionGuardAllowsSharedCoplanarEdges) {
   EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, StrictPolygonalFeatureCurveBudgetRejectsChordPlacement) {
+TEST(LineQuadricsQem, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
   const lq::Mesh input = makePolygonalFeatureChordMesh();
 
   lq::SimplifyOptions options = standardQemOptions(0.25);
@@ -534,7 +467,9 @@ TEST(LineQuadricsQem, StrictPolygonalFeatureCurveBudgetRejectsChordPlacement) {
 
   EXPECT_FALSE(result.mesh.empty());
   EXPECT_GT(result.report.featureLoops, 0);
-  EXPECT_GT(result.report.curveBudgetRejectedCollapses, 0);
+  EXPECT_GT(result.report.featureRejectedCollapses, 0);
+  EXPECT_EQ(lq::SimplifyTerminationReason::RejectionLimit,
+            result.report.terminationReason);
   EXPECT_EQ(result.report.rejectedCollapses,
             result.report.topologyRejectedCollapses +
                 result.report.normalFlipRejectedCollapses +
@@ -544,6 +479,24 @@ TEST(LineQuadricsQem, StrictPolygonalFeatureCurveBudgetRejectsChordPlacement) {
                 result.report.curveBudgetRejectedCollapses +
                 result.report.errorRejectedCollapses +
                 result.report.featureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, PreservesPolygonalFeatureCurvesWithoutProtectAllFeatureEdges) {
+  const lq::Mesh input = lq::generateCubeGrid(4, 1.0);
+
+  lq::SimplifyOptions options = standardQemOptions(0.35);
+  options.preserveFeatureCurves = true;
+  options.protectAllFeatureEdges = false;
+  options.useNormalTensorFeatures = false;
+  options.featureAngleDeg = 25.0;
+  options.minFeatureLoopVertices = 4;
+  options.maxNormalDeviationDeg = 180.0;
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  EXPECT_FALSE(result.mesh.empty());
+  EXPECT_GT(result.report.featureLoops, 0);
+  EXPECT_GT(result.report.featureVertices, 0);
+  EXPECT_GT(result.report.featureRejectedCollapses, 0);
 }
 
 TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {
@@ -560,6 +513,8 @@ TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {
   EXPECT_EQ(copiedReport.finalFaces, simplifier.report().finalFaces);
   EXPECT_EQ(copiedReport.collapsedEdges, simplifier.report().collapsedEdges);
   EXPECT_LT(simplifier.report().finalFaces, simplifier.report().initialFaces);
+  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget,
+            simplifier.report().terminationReason);
 }
 
 TEST(LineQuadricsQem, ReportsFeatureLoopsOnCylinderCreases) {
@@ -776,6 +731,17 @@ TEST(LineQuadricsQem, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
       std::filesystem::temp_directory_path() / "line_quadrics_invalid.stl";
   EXPECT_FALSE(lq::saveAsciiStl(stlPath.string(), invalid, "invalid", &error));
   EXPECT_FALSE(error.empty());
+
+  lq::Mesh nonFinite;
+  nonFinite.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),
+      lq::Vec3(std::numeric_limits<double>::infinity(), 0.0, 0.0),
+      lq::Vec3(0.0, 1.0, 0.0),
+  };
+  nonFinite.faces = {{{0, 1, 2}}};
+  error.clear();
+  EXPECT_FALSE(lq::validateMeshGeometry(nonFinite, &error));
+  EXPECT_FALSE(error.empty());
 }
 
 TEST(LineQuadricsQem, SimplifierRejectsInvalidOptionsAndMeshes) {
@@ -793,6 +759,11 @@ TEST(LineQuadricsQem, SimplifierRejectsInvalidOptionsAndMeshes) {
   };
   invalid.faces = {{{0, 1, 5}}};
   EXPECT_THROW(lq::simplifyMesh(invalid, lq::SimplifyOptions{}), std::invalid_argument);
+
+  lq::Mesh nonFinite = input;
+  nonFinite.vertices[0].x() = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_THROW(lq::simplifyMesh(nonFinite, lq::SimplifyOptions{}),
+               std::invalid_argument);
 }
 
 TEST(LineQuadricsQem, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) {

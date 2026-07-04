@@ -47,6 +47,8 @@ LQ_API bool loadMesh(const std::string& path, Mesh& mesh, std::string* error = n
                      double weldRelativeEpsilon = 1e-9);
 /// Returns false and writes an error when any face index is out of range.
 LQ_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
+/// Returns false when indices are invalid or vertex coordinates are not finite.
+LQ_API bool validateMeshGeometry(const Mesh& mesh, std::string* error = nullptr);
 /// Writes the mesh as an ASCII STL file.
 LQ_API bool saveAsciiStl(const std::string& path, const Mesh& mesh,
                          const std::string& solidName = "mesh",

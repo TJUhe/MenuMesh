@@ -5,9 +5,11 @@
 #include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
 #include <algorithm>
+#include <cmath>
 #include <exception>
 #include <limits>
 #include <new>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -42,6 +44,9 @@ LqStatus translateException(LqContext* context, const std::exception& ex) {
   if (dynamic_cast<const std::bad_alloc*>(&ex) != nullptr) {
     return fail(context, LQ_STATUS_OUT_OF_MEMORY, ex.what());
   }
+  if (dynamic_cast<const std::invalid_argument*>(&ex) != nullptr) {
+    return fail(context, LQ_STATUS_INVALID_ARGUMENT, ex.what());
+  }
   return fail(context, LQ_STATUS_ALGORITHM_ERROR, ex.what());
 }
 
@@ -74,6 +79,23 @@ bool convertWeightMode(LqWeightMode input, lq::WeightMode& output) {
   return false;
 }
 
+LqSimplifyTerminationReason
+convertTerminationReason(lq::SimplifyTerminationReason input) {
+  switch (input) {
+  case lq::SimplifyTerminationReason::NotStarted:
+    return LQ_SIMPLIFY_TERMINATION_NOT_STARTED;
+  case lq::SimplifyTerminationReason::ReachedTarget:
+    return LQ_SIMPLIFY_TERMINATION_REACHED_TARGET;
+  case lq::SimplifyTerminationReason::AlreadyAtOrBelowTarget:
+    return LQ_SIMPLIFY_TERMINATION_ALREADY_AT_OR_BELOW_TARGET;
+  case lq::SimplifyTerminationReason::NoCandidates:
+    return LQ_SIMPLIFY_TERMINATION_NO_CANDIDATES;
+  case lq::SimplifyTerminationReason::RejectionLimit:
+    return LQ_SIMPLIFY_TERMINATION_REJECTION_LIMIT;
+  }
+  return LQ_SIMPLIFY_TERMINATION_NOT_STARTED;
+}
+
 void fillReport(const lq::SimplifyReport& source, LqSimplifyReport& target) {
   target.initial_vertices = source.initialVertices;
   target.initial_faces = source.initialFaces;
@@ -97,6 +119,7 @@ void fillReport(const lq::SimplifyReport& source, LqSimplifyReport& target) {
   target.curve_budget_rejected_collapses = source.curveBudgetRejectedCollapses;
   target.error_rejected_collapses = source.errorRejectedCollapses;
   target.projected_feature_placements = source.projectedFeaturePlacements;
+  target.termination_reason = convertTerminationReason(source.terminationReason);
   target.min_applied_line_weight = source.minAppliedLineWeight;
   target.max_applied_line_weight = source.maxAppliedLineWeight;
 }
@@ -112,21 +135,6 @@ void fillStats(const lq::MeshStats& source, LqMeshStats& target) {
   target.min_triangle_quality = source.minTriangleQuality;
   target.mean_edge_length = source.meanEdgeLength;
   target.edge_length_cv = source.edgeLengthCv;
-}
-
-bool meshIndicesAreValid(const lq::Mesh& mesh) {
-  if (mesh.vertices.size() >
-      static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    return false;
-  }
-  for (const lq::Face& face : mesh.faces) {
-    for (int id : face.v) {
-      if (id < 0 || id >= static_cast<int>(mesh.vertices.size())) {
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 } // namespace
@@ -222,9 +230,10 @@ LqStatus lq_mesh_set_data(LqContext* context, LqMeshHandle* mesh,
       face.v = {faces[i].v[0], faces[i].v[1], faces[i].v[2]};
       next.faces.push_back(face);
     }
-    if (!meshIndicesAreValid(next)) {
+    std::string error;
+    if (!lq::validateMeshGeometry(next, &error)) {
       return fail(context, LQ_STATUS_INVALID_ARGUMENT,
-                  "Face indices must reference valid vertices.");
+                  error.empty() ? "Mesh geometry is invalid." : error);
     }
     mesh->mesh = std::move(next);
     return LQ_STATUS_OK;
@@ -302,6 +311,10 @@ LqStatus lq_load_mesh(LqContext* context, const char* path, LqMeshHandle* mesh,
   if (!path || !mesh) {
     return fail(context, LQ_STATUS_INVALID_ARGUMENT,
                 "Path and mesh handle must be valid.");
+  }
+  if (!std::isfinite(weld_relative_epsilon) || weld_relative_epsilon < 0.0) {
+    return fail(context, LQ_STATUS_INVALID_ARGUMENT,
+                "weld_relative_epsilon must be finite and non-negative.");
   }
   std::string error;
   try {

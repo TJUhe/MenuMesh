@@ -1,8 +1,7 @@
 # Large Public Mesh Validation Set
 
-This directory stores STL meshes with more than 10k triangulated faces for
-manual and batch validation of simplification topology, quality, and distance
-metrics.
+STL meshes with more than 10k triangulated faces for manual and batch validation
+of simplification topology, quality, and distance metrics.
 
 Most models come from Alec Jacobson's `common-3d-test-models` repository:
 

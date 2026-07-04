@@ -8,9 +8,9 @@ discovery pass.
 
 Generated files:
 
-- `examples/output/current_data_probe/line025_probe_summary.csv`
-- `examples/output/current_data_probe/curve025_probe_summary.csv`
-- `examples/output/current_data_probe/thingi10k_full_line025/summary.csv`
+- `tests/output/current_data_probe/line025_probe_summary.csv`
+- `tests/output/current_data_probe/curve025_probe_summary.csv`
+- `tests/output/current_data_probe/thingi10k_full_line025/summary.csv`
 
 Main simplify settings:
 

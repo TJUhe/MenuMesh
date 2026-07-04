@@ -1,7 +1,8 @@
+#include "TestSupport.h"
 #include "line_quadrics_qem/api/CApi.h"
 
-#include <filesystem>
 #include <gtest/gtest.h>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -19,13 +20,7 @@ protected:
   LqContext* context = nullptr;
 };
 
-std::filesystem::path dataRoot() {
-#ifdef LQ_TEST_DATA_DIR
-  return std::filesystem::path(LQ_TEST_DATA_DIR);
-#else
-  return std::filesystem::path(__FILE__).parent_path() / "data";
-#endif
-}
+using lq::test::dataRoot;
 
 } // namespace
 
@@ -58,6 +53,7 @@ TEST_F(CApiTest, SimplifiesRealStlThroughOpaqueHandles) {
   EXPECT_EQ(static_cast<int>(inputFaces), report.initial_faces);
   EXPECT_GT(report.collapsed_edges, 0);
   EXPECT_LT(report.final_faces, report.initial_faces);
+  EXPECT_EQ(LQ_SIMPLIFY_TERMINATION_REACHED_TARGET, report.termination_reason);
 
   LqMeshStats stats;
   EXPECT_EQ(LQ_STATUS_OK, lq_compute_mesh_stats(context, output, &stats));
@@ -100,6 +96,36 @@ TEST_F(CApiTest, CopiesMeshDataOnlyIntoCallerOwnedBuffers) {
   lq_mesh_destroy(mesh);
 }
 
+TEST_F(CApiTest, RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh) {
+  LqMeshHandle* mesh = lq_mesh_create(context);
+  ASSERT_NE(mesh, nullptr);
+
+  const LqVec3 vertices[] = {
+      {0.0, 0.0, 0.0},
+      {1.0, 0.0, 0.0},
+      {0.0, 1.0, 0.0},
+  };
+  const LqFace faces[] = {{{0, 1, 2}}};
+  ASSERT_EQ(LQ_STATUS_OK, lq_mesh_set_data(context, mesh, vertices, 3, faces, 1));
+
+  const LqVec3 invalidVertices[] = {
+      {0.0, 0.0, 0.0},
+      {std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0},
+      {0.0, 1.0, 0.0},
+  };
+  EXPECT_EQ(LQ_STATUS_INVALID_ARGUMENT,
+            lq_mesh_set_data(context, mesh, invalidVertices, 3, faces, 1));
+  EXPECT_NE('\0', lq_context_last_error(context)[0]);
+
+  size_t vertexCount = 0;
+  size_t faceCount = 0;
+  EXPECT_EQ(LQ_STATUS_OK, lq_mesh_get_counts(context, mesh, &vertexCount, &faceCount));
+  EXPECT_EQ(3u, vertexCount);
+  EXPECT_EQ(1u, faceCount);
+
+  lq_mesh_destroy(mesh);
+}
+
 TEST_F(CApiTest, RejectsInvalidFaceIndicesWithoutReplacingMesh) {
   LqMeshHandle* mesh = lq_mesh_create(context);
   ASSERT_NE(mesh, nullptr);
@@ -124,6 +150,27 @@ TEST_F(CApiTest, RejectsInvalidFaceIndicesWithoutReplacingMesh) {
   EXPECT_EQ(1u, faceCount);
 
   lq_mesh_destroy(mesh);
+}
+
+TEST_F(CApiTest, MapsInvalidSimplifyOptionsToInvalidArgumentStatus) {
+  LqMeshHandle* input = lq_mesh_create(context);
+  LqMeshHandle* output = lq_mesh_create(context);
+  ASSERT_NE(input, nullptr);
+  ASSERT_NE(output, nullptr);
+
+  ASSERT_EQ(LQ_STATUS_OK, lq_generate_mesh(context, "plane", 8, input));
+
+  LqSimplifyOptions options;
+  lq_simplify_options_init(&options);
+  options.target_ratio = 0.0;
+
+  LqSimplifyReport report;
+  EXPECT_EQ(LQ_STATUS_INVALID_ARGUMENT,
+            lq_simplify_mesh(context, input, &options, output, &report));
+  EXPECT_NE('\0', lq_context_last_error(context)[0]);
+
+  lq_mesh_destroy(output);
+  lq_mesh_destroy(input);
 }
 
 TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
@@ -184,7 +231,7 @@ TEST_F(CApiTest, ExposesLegalityOptionsAndDetailedRejectDiagnostics) {
   lq_mesh_destroy(input);
 }
 
-TEST_F(CApiTest, ExposesFeatureCurveBudgetOptionAndDiagnostics) {
+TEST_F(CApiTest, ExposesFeatureCurveProtectionDiagnostics) {
   LqMeshHandle* input = lq_mesh_create(context);
   LqMeshHandle* output = lq_mesh_create(context);
   ASSERT_NE(input, nullptr);
@@ -220,7 +267,8 @@ TEST_F(CApiTest, ExposesFeatureCurveBudgetOptionAndDiagnostics) {
   LqSimplifyReport report;
   EXPECT_EQ(LQ_STATUS_OK, lq_simplify_mesh(context, input, &options, output, &report));
   EXPECT_GT(report.feature_loops, 0);
-  EXPECT_GT(report.curve_budget_rejected_collapses, 0);
+  EXPECT_GT(report.feature_rejected_collapses, 0);
+  EXPECT_EQ(LQ_SIMPLIFY_TERMINATION_REJECTION_LIMIT, report.termination_reason);
   EXPECT_EQ(
       report.rejected_collapses,
       report.feature_rejected_collapses + report.boundary_rejected_collapses +

@@ -1,4 +1,4 @@
-# VSCode Build Setup
+﻿# VSCode Build Setup
 
 This project is set up around VSCode tasks, explicit CMake command lines, and
 CMake Tools. The old root PowerShell scripts were removed; the common workflows
@@ -67,7 +67,7 @@ If the C/C++ extension reports missing headers after a fresh checkout, configure
 once:
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ```
 
 Then run `C/C++: Reset IntelliSense Database` from the VSCode command palette.
@@ -117,14 +117,14 @@ Open `Terminal > Run Task...` and choose:
 - `open: vscode demo output`
 
 The `demo:*` tasks ask for a mesh, algorithm preset, ratio, feature angle, and
-sample count. Outputs are written under `examples/output/vscode_demo/`.
+sample count. Outputs are written under `output/vscode_demo/`.
 
 ## Command-Line Equivalents
 
 MinGW + Ninja:
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build build/mingw-ninja-release --target linequadrics --parallel
 ```
 
@@ -145,7 +145,7 @@ Feature report for a clean circular-loop fixture:
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
   --ellipse-fit-threshold 0.05 `
-  --csv examples\output\vscode_demo\coaxial_hole_plate\feature_report\features.csv
+  --csv output\vscode_demo\coaxial_hole_plate\feature_report\features.csv
 ```
 
 Feature-curve simplification with local curve budget:
@@ -153,7 +153,7 @@ Feature-curve simplification with local curve budget:
 ```powershell
 .\build\mingw-ninja-release\bin\linequadrics.exe simplify `
   tests\data\feature_fixtures\coaxial_hole_plate.obj `
-  examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\simplified.stl `
+  output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\simplified.stl `
   --method line --ratio 0.50 --line-weight 1e-3 `
   --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 `
   --preserve-feature-curves --feature-curve-weight 0.08 `
@@ -161,7 +161,7 @@ Feature-curve simplification with local curve budget:
   --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 `
   --min-circular-feature-loop-vertices 12 `
   --samples 128 `
-  --metrics-csv examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\metrics.csv
+  --metrics-csv output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\metrics.csv
 ```
 
 Algorithm comparison for a hard-edge CAD model:
@@ -169,7 +169,7 @@ Algorithm comparison for a hard-edge CAD model:
 ```powershell
 .\build\mingw-ninja-release\bin\linequadrics.exe ratio-sweep `
   tests\data\external\fandisk_2014.stl `
-  examples\output\vscode_demo\fandisk_2014\ratio_sweep_dihedral-line `
+  output\vscode_demo\fandisk_2014\ratio_sweep_dihedral-line `
   --method line --line-weight 1e-3 `
   --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 `
   --ratios "0.8,0.5,0.25,0.1" --samples 512
@@ -182,7 +182,7 @@ Run generated industrial feature validation:
 ```
 
 Run external model validation after placing OBJ files under
-`examples/external/common_3d_test_models/`:
+`tests/data/external/common_3d_test_models/`:
 
 ```powershell
 .\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800

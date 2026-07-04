@@ -78,8 +78,12 @@ set(LQ_LIBRARY_SOURCES
   src/core/MeshGenerators.cpp
   src/core/MeshTopology.cpp
   src/features/FeatureDetection.cpp
+  src/simplification/CollapseLegality.cpp
+  src/simplification/DynamicTopology.cpp
+  src/simplification/GeometryPredicates.cpp
   src/simplification/Metrics.cpp
   src/simplification/QEMSimplifier.cpp
+  src/simplification/SpatialFaceIndex.cpp
 )
 
 if(LQ_BUILD_SHARED_LIBRARY)
@@ -166,6 +170,20 @@ if(LQ_BUILD_CLI)
 
   if(BUILD_TESTING)
     add_test(NAME linequadrics_cli_help COMMAND linequadrics --help)
+    add_test(NAME linequadrics_cli_rejects_unknown_option
+      COMMAND linequadrics simplify --not-a-real-option
+    )
+    add_test(NAME linequadrics_cli_rejects_missing_option_value
+      COMMAND linequadrics generate --type
+    )
+    add_test(NAME linequadrics_cli_rejects_malformed_number
+      COMMAND linequadrics generate --type plane --n 12x --out bad.stl
+    )
+    set_tests_properties(linequadrics_cli_rejects_unknown_option
+      linequadrics_cli_rejects_missing_option_value
+      linequadrics_cli_rejects_malformed_number
+      PROPERTIES WILL_FAIL TRUE
+    )
   endif()
 endif()
 
@@ -228,6 +246,7 @@ file(GLOB_RECURSE LQ_FORMAT_FILES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.h"
 )
 
 if(CLANG_FORMAT_EXE)

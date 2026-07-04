@@ -1,9 +1,8 @@
 build/
 *.stl
 !tests/data/external/**/*.stl
-examples/input/*.stl
-examples/external/
-examples/output/
+output/
+tests/output/
 node_modules/
 dist-viewer/
 viewer-server.pid

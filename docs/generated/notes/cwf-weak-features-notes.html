@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CWF 弱特征巩固：论文、数学推导与当前程序扩展</title>
+<script>
+MathJax = {
+  tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+:root{
+  --bg:#f7f7f4;
+  --paper:#fff;
+  --ink:#1e2028;
+  --muted:#626775;
+  --line:#deded6;
+  --accent:#166a5b;
+  --accent-2:#315f9f;
+  --gold:#a35f00;
+  --red:#b42318;
+  --green:#087443;
+  --code:#f0f3f1;
+  --soft:#f2f7f5;
+  --warn:#fff6e8;
+  --danger:#fff1f0;
+  --success:#edf8f1;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{overflow-x:hidden}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  line-height:1.78;
+}
+a{color:var(--accent-2);text-decoration:none}
+a:hover{text-decoration:underline}
+.page{max-width:1080px;margin:0 auto;background:var(--paper);min-height:100vh;box-shadow:0 0 0 1px rgba(0,0,0,.04)}
+.hero{
+  min-height:440px;
+  padding:46px 44px 28px;
+  color:#fff;
+  background:
+    linear-gradient(rgba(10,31,36,.72),rgba(10,31,36,.74)),
+    url("https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1600&q=75");
+  background-size:cover;
+  background-position:center;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.hero-top{max-width:820px}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#cde7e0;margin-bottom:10px}
+h1{font-size:34px;line-height:1.22;margin:0 0 14px;font-weight:750;letter-spacing:0}
+.subtitle{font-size:17px;max-width:780px;color:#e7f2ee;margin-bottom:18px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{
+  border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.12);
+  color:#eefbf7;
+  padding:4px 10px;
+  border-radius:4px;
+  font-size:12px;
+}
+.hero-bottom{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  margin-top:28px;
+}
+.signal{
+  border:1px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.12);
+  padding:12px 14px;
+  border-radius:6px;
+  min-height:96px;
+}
+.signal strong{display:block;font-size:14px;margin-bottom:4px;color:#fff}
+.signal span{display:block;color:#dcece8;font-size:13px;line-height:1.55}
+.content{padding:30px 44px 68px}
+.toc{
+  border:1px solid var(--line);
+  background:#fafbf9;
+  padding:18px 22px;
+  border-radius:8px;
+  margin:8px 0 30px;
+}
+.toc-title{font-weight:700;margin-bottom:8px}
+.toc ol{margin:0;padding-left:20px;columns:2;column-gap:34px}
+.toc li{break-inside:avoid;margin:5px 0;font-size:14px}
+h2{
+  margin:46px 0 14px;
+  padding-bottom:8px;
+  border-bottom:2px solid var(--accent);
+  font-size:23px;
+  line-height:1.35;
+}
+h2 .num{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:30px;
+  height:30px;
+  border-radius:6px;
+  background:var(--accent);
+  color:#fff;
+  font-size:15px;
+  margin-right:9px;
+}
+h3{font-size:18px;color:var(--accent);margin:28px 0 10px}
+h4{font-size:15px;margin:20px 0 8px}
+p{margin:0 0 11px}
+ul,ol{padding-left:22px;margin:8px 0 12px}
+li{margin:4px 0}
+code{
+  background:var(--code);
+  color:#185f54;
+  padding:1px 5px;
+  border-radius:3px;
+  font-family:Consolas,"SFMono-Regular",Menlo,monospace;
+  font-size:.92em;
+  overflow-wrap:anywhere;
+}
+pre{
+  background:#1f2429;
+  color:#e7edf2;
+  padding:14px 16px;
+  border-radius:7px;
+  overflow:auto;
+  contain:paint;
+  font-size:13px;
+  line-height:1.6;
+}
+pre code{background:transparent;color:inherit;padding:0;overflow-wrap:normal}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th{background:#edf5f2;text-align:left;border-bottom:2px solid var(--accent);padding:9px 11px}
+td{border-bottom:1px solid var(--line);padding:9px 11px;vertical-align:top}
+tr:nth-child(even) td{background:#fafafa}
+.formula{
+  border:1px solid var(--line);
+  background:#fbfcfb;
+  border-radius:7px;
+  padding:10px 14px;
+  margin:12px 0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  contain:paint;
+}
+.formula mjx-container{
+  display:block;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+.formula mjx-container svg{max-width:none}
+.label{float:right;color:var(--muted);font-size:12px}
+.callout{
+  border-left:4px solid var(--accent);
+  background:var(--soft);
+  padding:14px 16px;
+  border-radius:7px;
+  margin:14px 0;
+}
+.callout-title{font-weight:700;color:var(--accent);font-size:14px;margin-bottom:5px}
+.warn{background:var(--warn);border-color:var(--gold)}
+.warn .callout-title{color:var(--gold)}
+.danger{background:var(--danger);border-color:var(--red)}
+.danger .callout-title{color:var(--red)}
+.success{background:var(--success);border-color:var(--green)}
+.success .callout-title{color:var(--green)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.box{
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:14px 16px;
+  background:#fff;
+}
+.box h3{margin-top:0}
+.flow{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin:14px 0;
+}
+.step{
+  border:1px solid var(--line);
+  background:#f9fbfa;
+  border-radius:6px;
+  padding:11px 10px;
+  min-height:116px;
+}
+.step b{display:block;color:var(--accent);font-size:13px;margin-bottom:4px}
+.step span{display:block;font-size:13px;color:var(--muted);line-height:1.5}
+.mini-diagram{
+  border:1px solid var(--line);
+  background:#fbfcfb;
+  border-radius:8px;
+  padding:16px;
+  margin:14px 0;
+}
+.ribbon{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:10px;
+  margin:16px 0;
+}
+.ribbon div{
+  padding:11px 12px;
+  border-radius:6px;
+  background:#f5f7f7;
+  border:1px solid var(--line);
+  font-size:13px;
+}
+.ribbon strong{display:block;color:var(--accent);font-size:14px;margin-bottom:3px}
+.footer{
+  border-top:1px solid var(--line);
+  padding:18px 44px;
+  color:var(--muted);
+  font-size:13px;
+  background:#fafafa;
+}
+@media(max-width:820px){
+  .hero{padding:32px 22px 22px;min-height:520px}
+  h1{font-size:27px}
+  .content{padding:24px 20px 48px}
+  .hero-bottom,.grid-2,.flow,.ribbon{grid-template-columns:1fr}
+  .toc ol{columns:1}
+  .formula mjx-container svg{max-width:100% !important;height:auto}
+  .page,.content,section,ul,ol{max-width:100%}
+}
+</style>
+<link rel="stylesheet" href="eye-care.css">
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <div class="hero-top">
+      <div class="eyebrow">CWF / Consolidating Weak Features</div>
+      <h1>CWF 弱特征巩固：论文做了什么，当前程序能增加什么</h1>
+      <p class="subtitle">面向 <em>CWF: Consolidating Weak Features in High-quality Mesh Simplification</em> 的中文推导笔记。它把 QEM 式几何保真、CVT 式均匀采样、以及弱特征对齐放进同一个连续优化目标里。</p>
+      <div class="meta">
+        <span class="tag">Normal Anisotropy</span>
+        <span class="tag">CVT / RVD</span>
+        <span class="tag">Weak Features</span>
+        <span class="tag">QEM Extension</span>
+        <span class="tag">MathJax</span>
+      </div>
+    </div>
+    <div class="hero-bottom" aria-label="three central claims">
+      <div class="signal">
+        <strong>不是普通特征保护</strong>
+        <span>目标不是只锁住硬边，而是让弱脊线、缓变折痕、平滑过渡中的结构在简化后更明显、更连贯。</span>
+      </div>
+      <div class="signal">
+        <strong>不是纯 QEM</strong>
+        <span>QEM 强在几何误差；CWF 使用法向各向异性能量，把 QEM 的思想扩展到 Voronoi 区域积分。</span>
+      </div>
+      <div class="signal">
+        <strong>不是纯 CVT</strong>
+        <span>CVT 强在均匀采样；CWF 用衰减权重先保证分布质量，再把优化焦点转向特征对齐。</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="content">
+    <nav class="toc">
+      <div class="toc-title">目录</div>
+      <ol>
+        <li><a href="#what">论文主要讲了什么</a></li>
+        <li><a href="#position">它和当前程序的关系</a></li>
+        <li><a href="#pipeline">CWF 算法流程</a></li>
+        <li><a href="#objective">总目标函数</a></li>
+        <li><a href="#na">Normal Anisotropy 推导</a></li>
+        <li><a href="#cvt">CVT 项推导</a></li>
+        <li><a href="#kernel">统一核矩阵</a></li>
+        <li><a href="#gradient">梯度与 L-BFGS</a></li>
+        <li><a href="#decay">衰减权重与停止条件</a></li>
+        <li><a href="#feature">为什么能巩固弱特征</a></li>
+        <li><a href="#program">当前程序可以增加什么</a></li>
+        <li><a href="#roadmap">工程路线图</a></li>
+      </ol>
+    </nav>
+
+    <section id="what">
+      <h2><span class="num">1</span>论文主要讲了什么</h2>
+      <p>这篇论文关注一个很具体、但在网格简化里很难的问题：简化后既要几何误差小，又要三角形质量高，还要让强特征和弱特征对齐。传统方法经常只能偏向其中一两项。</p>
+      <div class="grid-2">
+        <div class="box">
+          <h3>QEM 的长处和短处</h3>
+          <p>QEM 根据局部平面距离评估 collapse 或顶点移动，强在几何保真，也能自然吸住硬边和角点。但它不直接优化三角形质量，而且弱特征如果没有足够大的二面角，很容易被简化过程磨平。</p>
+        </div>
+        <div class="box">
+          <h3>CVT 的长处和短处</h3>
+          <p>CVT 通过移动采样点，让点分布更均匀，生成的三角形通常质量更好。但标准 CVT 并不知道哪里是特征线，可能把点均匀地铺开，而不是沿着弱脊线或过渡线聚拢。</p>
+        </div>
+      </div>
+      <p>CWF 的核心就是把这两种力量合到一个目标函数里：用 normal anisotropy 项继承 QEM 的特征对齐能力，用 CVT 项保持均匀采样，再用一个逐步衰减的权重自动调平两者。</p>
+      <div class="callout success">
+        <div class="callout-title">一句话版</div>
+        <p>CWF 不是先检测特征再保护特征，而是让优化过程自己把采样点拉向强/弱特征，同时维持尽量好的三角形质量。</p>
+      </div>
+    </section>
+
+    <section id="position">
+      <h2><span class="num">2</span>它和当前程序的关系</h2>
+      <p>当前仓库的核心是 edge-collapse 风格的 QEM / line quadrics。CWF 则更像“点集重采样 + RVD + 连续优化 + 对偶三角化”。所以它不是当前代码的一个小参数，而是另一类简化框架。</p>
+      <table>
+        <tr><th>维度</th><th>当前程序</th><th>CWF 论文</th><th>可借鉴点</th></tr>
+        <tr>
+          <td>基本操作</td>
+          <td>边折叠 edge collapse</td>
+          <td>移动 $N$ 个点，反复算 RVD 并优化位置</td>
+          <td>可以先做 CWF-lite，不必马上重写核心</td>
+        </tr>
+        <tr>
+          <td>几何误差</td>
+          <td>plane QEM + line quadric</td>
+          <td>normal anisotropy 区域积分</td>
+          <td>把“局部面 quadric”扩展成“区域 quadric”思想</td>
+        </tr>
+        <tr>
+          <td>采样质量</td>
+          <td>间接通过 line quadric、三角形合法性改善</td>
+          <td>CVT 项直接鼓励均匀点分布</td>
+          <td>加入 collapse cost 的质量项或后处理 relaxation</td>
+        </tr>
+        <tr>
+          <td>弱特征</td>
+          <td>主要依靠二面角、边界、圆环拟合</td>
+          <td>通过法向各向异性把点拉向弱特征</td>
+          <td>增加 normal-variation 弱特征评分和动态权重</td>
+        </tr>
+      </table>
+      <div class="callout warn">
+        <div class="callout-title">不要混淆</div>
+        <p>当前程序可以做“受 CWF 启发的演示”，例如弱特征评分、权重调度、质量-特征对照实验；但如果要完整复现 CWF，需要实现 RVD、数值积分、L-BFGS、RVD 对偶网格生成，这会是一条新的算法管线。</p>
+      </div>
+    </section>
+
+    <section id="pipeline">
+      <h2><span class="num">3</span>CWF 算法流程</h2>
+      <div class="flow">
+        <div class="step"><b>1. 初始化点集</b><span>在输入曲面 $S$ 上放置目标数量的 movable sites：$\{x_i\}_{i=1}^{N}$。</span></div>
+        <div class="step"><b>2. 曲面分解</b><span>根据 sites 计算 Restricted Voronoi Diagram，得到每个点控制的区域 $\Omega_i$。</span></div>
+        <div class="step"><b>3. 积分求能量</b><span>对每个 $\Omega_i$ 上的多边形做数值积分，计算 $E_{NA}$ 和 $E_{CVT}$。</span></div>
+        <div class="step"><b>4. 优化点位置</b><span>用 L-BFGS 最小化总能量，移动 sites 使它们更均匀并贴近特征。</span></div>
+        <div class="step"><b>5. 生成网格</b><span>取 RVD 的对偶生成简化三角网格；每轮降低 CVT 权重。</span></div>
+      </div>
+      <p>这个流程的关键是“点的位置”和“点之间的连接”被解耦了。先只优化点在曲面上的位置，再从 RVD 的对偶关系生成三角网格。</p>
+    </section>
+
+    <section id="objective">
+      <h2><span class="num">4</span>总目标函数</h2>
+      <p>论文把目标函数写成两项：</p>
+      <div class="formula">
+        $$E(\{x_i\}_{i=1}^{N})=\lambda_{NA}E_{NA}+\lambda_{CVT}E_{CVT}$$
+        <span class="label">(1)</span>
+      </div>
+      <p>其中：</p>
+      <ul>
+        <li>$E_{NA}$ 是 normal anisotropy 项，主要负责几何保真和特征对齐。</li>
+        <li>$E_{CVT}$ 是 CVT 项，主要负责均匀点分布和三角形质量。</li>
+        <li>$\lambda_{NA}$ 在优化过程中保持不变。</li>
+        <li>$\lambda_{CVT}$ 会逐轮衰减，让优化从“先铺匀点”逐渐转向“对齐特征”。</li>
+      </ul>
+      <div class="callout">
+        <div class="callout-title">为什么只两项就够</div>
+        <p>论文的设计很漂亮：它没有把“弱特征”作为显式标签输入，而是通过 normal anisotropy 的能量地形，让位于特征附近的点自然被拉向点、线或角点。</p>
+      </div>
+    </section>
+
+    <section id="na">
+      <h2><span class="num">5</span>Normal Anisotropy 项推导</h2>
+      <p>对每个 site $x_i$，它控制一个曲面区域 $\Omega_i$。对区域里的任意曲面点 $x$，记该点法向为 $n_x$。normal anisotropy 项定义为：</p>
+      <div class="formula">
+        $$E_{NA}=\sum_i\int_{\Omega_i}\left((x-x_i)^T n_x\right)^2\,ds$$
+        <span class="label">(2)</span>
+      </div>
+      <p>把平方项写成二次型：</p>
+      <div class="formula">
+        $$\left((x-x_i)^T n_x\right)^2=(x-x_i)^T n_x n_x^T (x-x_i)$$
+        <span class="label">(3)</span>
+      </div>
+      <p>因此：</p>
+      <div class="formula">
+        $$E_{NA}=\sum_i\int_{\Omega_i}(x-x_i)^T M_{NA}(x)(x-x_i)\,ds,\qquad M_{NA}(x)=n_xn_x^T$$
+        <span class="label">(4)</span>
+      </div>
+      <h3>5.1 和 QEM 的关系</h3>
+      <p>QEM 的基本项是点到平面的平方距离。如果平面法向为 $n$，平面上一点为 $p$，则：</p>
+      <div class="formula">
+        $$d^2=(n^T(y-p))^2=(y-p)^Tnn^T(y-p)$$
+        <span class="label">(5)</span>
+      </div>
+      <p>可以看到，QEM 的局部平面误差和 CWF 的 normal anisotropy 用的是同一个核心矩阵 $nn^T$。区别在于：</p>
+      <table>
+        <tr><th>方法</th><th>误差被谁评估</th><th>积分/求和范围</th></tr>
+        <tr><td>QEM</td><td>collapse 后的新顶点 $y$</td><td>边端点邻接三角面</td></tr>
+        <tr><td>CWF normal anisotropy</td><td>movable site $x_i$</td><td>RVD 区域 $\Omega_i$ 上的连续曲面点</td></tr>
+      </table>
+      <p>所以可以把 CWF 的 $E_{NA}$ 理解为“区域化、连续化的 QEM”。这也是它能保几何、吸特征的根源。</p>
+      <h3>5.2 固定区域时的最小化</h3>
+      <p>先暂时假设 $\Omega_i$ 不随 $x_i$ 变化，并且矩阵 $M(x)$ 已知。单个 cell 的能量是：</p>
+      <div class="formula">
+        $$E_i(x_i)=\int_{\Omega_i}(x-x_i)^TM(x)(x-x_i)\,ds$$
+        <span class="label">(6)</span>
+      </div>
+      <p>展开：</p>
+      <div class="formula">
+        $$E_i=x_i^T\left(\int_{\Omega_i}M\,ds\right)x_i-2x_i^T\left(\int_{\Omega_i}Mx\,ds\right)+\int_{\Omega_i}x^TMx\,ds$$
+        <span class="label">(7)</span>
+      </div>
+      <p>对 $x_i$ 求导：</p>
+      <div class="formula">
+        $$\nabla_{x_i}E_i=2\left(\int_{\Omega_i}M\,ds\right)x_i-2\int_{\Omega_i}Mx\,ds$$
+        <span class="label">(8)</span>
+      </div>
+      <p>令梯度为零，得到固定 cell 下的最优点：</p>
+      <div class="formula">
+        $$x_i^*=\left(\int_{\Omega_i}M\,ds\right)^{-1}\left(\int_{\Omega_i}Mx\,ds\right)$$
+        <span class="label">(9)</span>
+      </div>
+      <p>这条式子很有用：如果 $M=I$，它就是普通质心；如果 $M=n_xn_x^T$，它会偏向让 site 靠近局部平面、折线或角点。</p>
+    </section>
+
+    <section id="cvt">
+      <h2><span class="num">6</span>CVT 项推导</h2>
+      <p>CVT 项写成：</p>
+      <div class="formula">
+        $$E_{CVT}=\sum_{i=1}^{N}\int_{\Omega_i}(x-x_i)^TM_{CVT}(x-x_i)\,ds$$
+        <span class="label">(10)</span>
+      </div>
+      <p>最常见选择是 $M_{CVT}=I$，此时它就是点到 site 的欧氏平方距离积分：</p>
+      <div class="formula">
+        $$E_{CVT}=\sum_i\int_{\Omega_i}\|x-x_i\|^2\,ds$$
+        <span class="label">(11)</span>
+      </div>
+      <p>固定 $\Omega_i$ 时，对 $x_i$ 求导：</p>
+      <div class="formula">
+        $$\nabla_{x_i}E_{CVT}=\int_{\Omega_i}-2M_{CVT}(x-x_i)\,ds$$
+        <span class="label">(12)</span>
+      </div>
+      <p>当 $M_{CVT}=I$，令梯度为零得到：</p>
+      <div class="formula">
+        $$x_i^*=\frac{\int_{\Omega_i}x\,ds}{\int_{\Omega_i}1\,ds}$$
+        <span class="label">(13)</span>
+      </div>
+      <p>这就是 cell 的曲面质心。CVT 的本质是让每个 site 回到自己 Voronoi 区域的质心，因此点会趋于均匀铺开。</p>
+    </section>
+
+    <section id="kernel">
+      <h2><span class="num">7</span>统一核矩阵</h2>
+      <p>论文把两个能量项统一写成一个核矩阵：</p>
+      <div class="formula">
+        $$E(\{x_i\})=\sum_i\int_{\Omega_i}(x-x_i)^TM(x)(x-x_i)\,ds$$
+        <span class="label">(14)</span>
+      </div>
+      <div class="formula">
+        $$M(x)=\lambda_{NA}M_{NA}(x)+\lambda_{CVT}M_{CVT}$$
+        <span class="label">(15)</span>
+      </div>
+      <p>其中：</p>
+      <div class="formula">
+        $$M_{NA}(x)=n_xn_x^T$$
+        <span class="label">(16)</span>
+      </div>
+      <p>如果 $M_{CVT}=I$，则：</p>
+      <div class="formula">
+        $$M(x)=\lambda_{NA}n_xn_x^T+\lambda_{CVT}I$$
+        <span class="label">(17)</span>
+      </div>
+      <div class="callout success">
+        <div class="callout-title">几何解释</div>
+        <p>$n_xn_x^T$ 只惩罚法向方向的偏离，像 QEM；$I$ 惩罚所有方向的偏离，像普通 CVT。两者合起来，就是“既靠近原曲面，又不要让点分布坏掉”。</p>
+      </div>
+      <h3>7.1 和 line quadrics 的互补关系</h3>
+      <p>当前程序里的 line quadric 使用的是点到法线方向直线的距离。它的投影矩阵是：</p>
+      <div class="formula">
+        $$P_n=I-nn^T$$
+        <span class="label">(18)</span>
+      </div>
+      <p>这恰好与 CWF 的 $nn^T$ 互补：</p>
+      <div class="formula">
+        $$nn^T+(I-nn^T)=I$$
+        <span class="label">(19)</span>
+      </div>
+      <table>
+        <tr><th>项</th><th>惩罚方向</th><th>解决的问题</th></tr>
+        <tr><td>QEM / CWF NA</td><td>法向方向</td><td>不要离开原曲面；靠近特征线交汇处</td></tr>
+        <tr><td>Line Quadric</td><td>切向方向</td><td>不要在平面内乱滑；改善采样均匀性</td></tr>
+        <tr><td>CVT</td><td>所有方向</td><td>点分布和三角形质量</td></tr>
+      </table>
+    </section>
+
+    <section id="gradient">
+      <h2><span class="num">8</span>梯度与 L-BFGS</h2>
+      <p>论文使用 L-BFGS 最小化目标函数。CVT 项的梯度相对直接：</p>
+      <div class="formula">
+        $$\nabla_{x_i}E_{CVT}=\int_{\Omega_i}-2M_{CVT}(x-x_i)\,ds$$
+        <span class="label">(20)</span>
+      </div>
+      <p>normal anisotropy 项更复杂，因为 $\Omega_i$ 本身依赖 sites，移动 $x_i$ 会改变 RVD 边界。完整推导会出现区域内部项和 cell 边界项：</p>
+      <div class="formula">
+        $$\nabla_{x_i}E_{NA}=\int_{\Omega_i}-2((x-x_i)\cdot n_x)n_x\,ds+\text{boundary terms}$$
+        <span class="label">(21)</span>
+      </div>
+      <p>论文观察到后面的边界项相对较小，因此实际优化中采用近似：</p>
+      <div class="formula">
+        $$\nabla_{x_i}E_{NA}\approx\int_{\Omega_i}-2((x-x_i)\cdot n_x)n_x\,ds$$
+        <span class="label">(22)</span>
+      </div>
+      <p>合并两项后：</p>
+      <div class="formula">
+        $$\nabla_{x_i}E\approx
+        \lambda_{NA}\int_{\Omega_i}-2((x-x_i)\cdot n_x)n_x\,ds
+        +\lambda_{CVT}\int_{\Omega_i}-2M_{CVT}(x-x_i)\,ds$$
+        <span class="label">(23)</span>
+      </div>
+      <h3>8.1 数值积分</h3>
+      <p>RVD 的每个 cell 由曲面上的若干凸多边形组成。论文把每个 $k$ 边形分成 $k-2$ 个三角形，然后使用 Albrecht-Collatz quadrature，在每个三角形上取 6 个积分点近似积分。</p>
+      <div class="formula">
+        $$\int_{\Omega_i}f(x)\,ds\approx\sum_{T\subset\Omega_i}\sum_{q=1}^{6}w_q\,A_T\,f(x_q)$$
+        <span class="label">(24)</span>
+      </div>
+      <p>这一步是完整 CWF 和当前 edge-collapse QEM 差异最大的地方：当前程序没有 RVD，也没有区域积分。</p>
+    </section>
+
+    <section id="decay">
+      <h2><span class="num">9</span>衰减权重与停止条件</h2>
+      <p>论文指出，$E_{NA}$ 和 $E_{CVT}$ 的数量级可能差很多。CAD 模型中，$E_{NA}$ 甚至可以接近 0；如果 $E_{CVT}$ 一直很强，就可能阻止点真正贴到特征上。</p>
+      <p>因此论文固定 $\lambda_{NA}$，让 $\lambda_{CVT}$ 逐轮衰减：</p>
+      <div class="formula">
+        $$\lambda_{CVT}^{(k)}=\lambda_{CVT}^{(k-1)}\tau,\qquad \tau=0.95$$
+        <span class="label">(25)</span>
+      </div>
+      <p>直观上：</p>
+      <div class="ribbon">
+        <div><strong>早期</strong>CVT 权重大，先把采样点铺匀，避免糟糕三角形。</div>
+        <div><strong>中期</strong>两项竞争，点分布仍稳定，同时开始向特征移动。</div>
+        <div><strong>后期</strong>CVT 权重变小，normal anisotropy 更能把点拉到弱特征上。</div>
+      </div>
+      <p>停止条件有两个：</p>
+      <div class="formula">
+        $$\|\nabla E\|<10^{-8}$$
+        <span class="label">(26)</span>
+      </div>
+      <div class="formula">
+        $$E_{CVT}^{(k)}\ge \mu\min_{0\le j<k}E_{CVT}^{(j)},\qquad \mu=1.05$$
+        <span class="label">(27)</span>
+      </div>
+      <p>第二个条件是防止过度优化特征对齐后，三角形质量明显变差。</p>
+    </section>
+
+    <section id="feature">
+      <h2><span class="num">10</span>为什么它能巩固弱特征</h2>
+      <p>先看强特征。若一个 cell 横跨两张平面，法向分别为 $n_1,n_2$，忽略 CVT 项时有：</p>
+      <div class="formula">
+        $$E_i(x_i)\approx \int_{\Omega_i^1}((x-x_i)^Tn_1)^2ds+\int_{\Omega_i^2}((x-x_i)^Tn_2)^2ds$$
+        <span class="label">(28)</span>
+      </div>
+      <p>这等价于让 $x_i$ 同时靠近两张平面。两张平面的交线就是能量低谷，所以点会向特征线移动。</p>
+      <div class="mini-diagram">
+        <strong>能量图像：</strong>
+        <p>单平面只有一个法向约束，切向自由；两平面相交时，两个法向约束共同作用，最低能量区域变成两平面的交线；三组法向相交时，最低区域变成角点。</p>
+      </div>
+      <p>弱特征没有明显的硬折角，但在较大范围内存在持续的法向变化。normal anisotropy 不是只看一条边的二面角，而是积分整个 $\Omega_i$ 内的法向矩阵：</p>
+      <div class="formula">
+        $$A_i=\int_{\Omega_i}n_xn_x^T\,ds$$
+        <span class="label">(29)</span>
+      </div>
+      <p>当一个区域覆盖弱脊线两侧，$A_i$ 会记录这种跨区域的法向分布，优化点会向能同时降低多侧法向误差的位置移动。这个位置往往就是弱特征附近。</p>
+      <div class="callout">
+        <div class="callout-title">和二面角检测的差别</div>
+        <p>二面角方法问的是“这条边两侧法向差是否超过阈值”；CWF 问的是“这个区域里哪个 site 位置能同时解释所有法向变化”。前者容易漏掉缓变弱特征，后者更适合捕捉大尺度的柔和结构。</p>
+      </div>
+    </section>
+
+    <section id="program">
+      <h2><span class="num">11</span>当前程序可以增加什么</h2>
+      <p>完整 CWF 是一条新管线，但当前程序已经有 QEM、line quadrics、曲线特征约束和验证指标。最现实的做法是先加一个 CWF-inspired 实验层。</p>
+      <h3>11.1 增加弱特征评分</h3>
+      <p>可以为每个顶点计算一个 normal-variation score，而不是只用二面角阈值：</p>
+      <div class="formula">
+        $$C_i=\sum_{f\in N(i)}A_f\,n_fn_f^T$$
+        <span class="label">(30)</span>
+      </div>
+      <p>对 $C_i$ 做特征值分解，设 $\sigma_1\ge\sigma_2\ge\sigma_3$。一种简单弱特征分数可以是：</p>
+      <div class="formula">
+        $$s_i=\frac{\sigma_2}{\sigma_1+\epsilon}$$
+        <span class="label">(31)</span>
+      </div>
+      <p>强平面区域 $\sigma_2$ 很小；折线或弱脊线附近，法向分布有第二主方向，$s_i$ 会变大。</p>
+      <h3>11.2 增加动态权重调度</h3>
+      <p>当前程序已有 `lineWeight`、`featureBoost`、`featureCurveWeight`。可以模仿 CWF 的衰减思想，建立随 collapse 进度变化的权重：</p>
+      <div class="formula">
+        $$w_{quality}(t)=w_{quality}^{0}\tau^t,\qquad
+        w_{feature}(t)=w_{feature}^{0}\left(1-\tau^t\right)$$
+        <span class="label">(32)</span>
+      </div>
+      <p>前期更重采样质量，后期更重特征保护。这不等价于 CWF，但可以做出同样的“先铺匀、再对齐”演示逻辑。</p>
+      <h3>11.3 增加弱特征验证模型</h3>
+      <p>现有 `ridge`、`terrace`、`bump`、`flange` 适合继续扩展。建议新增：</p>
+      <ul>
+        <li>`soft-ridge`：低二面角、宽过渡的弱脊线。</li>
+        <li>`shallow-groove`：浅槽，普通二面角阈值容易漏。</li>
+        <li>`mobius-band` 或 `smooth-twist`：类似论文里 Mobius-ring 的柔和结构。</li>
+        <li>`weak-flange-fillet`：圆孔和倒角混合，测试强/弱特征同时存在。</li>
+      </ul>
+      <h3>11.4 增加新的 CLI 演示命令</h3>
+      <pre><code>linequadrics validate-weak-features --ratio 0.20 --n 96 --samples 1000
+
+linequadrics simplify input.stl output.stl ^
+  --method line ^
+  --weak-feature-mode normal-anisotropy ^
+  --weak-feature-boost 0.04 ^
+  --weight-schedule cwf-decay ^
+  --quality-weight 0.05 ^
+  --quality-decay 0.95</code></pre>
+      <p>这组命令可以明确告诉读者：当前程序不是完整 CWF，而是在 QEM/line-quadrics 框架内吸收 CWF 的弱特征与权重调度思想。</p>
+    </section>
+
+    <section id="roadmap">
+      <h2><span class="num">12</span>工程路线图</h2>
+      <table>
+        <tr><th>阶段</th><th>改动</th><th>收益</th><th>风险</th></tr>
+        <tr>
+          <td>Phase A</td>
+          <td>新增这份网页和文档说明</td>
+          <td>把论文、数学和当前代码关系讲清楚</td>
+          <td>无算法变化</td>
+        </tr>
+        <tr>
+          <td>Phase B</td>
+          <td>加入 normal-variation 弱特征分数</td>
+          <td>比纯二面角更容易发现浅脊、缓变槽</td>
+          <td>噪声模型上可能误报</td>
+        </tr>
+        <tr>
+          <td>Phase C</td>
+          <td>加入 CWF-like 权重调度和质量项</td>
+          <td>演示“先质量、后特征”的思想</td>
+          <td>需要调参，可能影响 collapse 达标率</td>
+        </tr>
+        <tr>
+          <td>Phase D</td>
+          <td>实现 RVD + L-BFGS + 对偶三角化</td>
+          <td>接近完整 CWF 复现</td>
+          <td>工程量大，和当前 edge-collapse 核心不同</td>
+        </tr>
+      </table>
+      <div class="callout success">
+        <div class="callout-title">建议</div>
+        <p>短期最值得做 Phase B/C。这样可以在当前程序上直接生成 STL/CSV 对照结果，验证弱特征评分和权重调度有没有用。完整 CWF 复现适合另开模块，不建议塞进现有 `simplifyMesh` 主流程里。</p>
+      </div>
+      <h3>参考资料</h3>
+      <ul>
+        <li>Rui Xu et al. <em>CWF: Consolidating Weak Features in High-quality Mesh Simplification</em>. ACM TOG 2024. 本仓库 PDF：<code>docs/papers/xu_2024_cwf_consolidating_weak_features.pdf</code>，公开来源：<a href="https://arxiv.org/pdf/2404.15661">arXiv 2404.15661</a>。</li>
+        <li>Garland and Heckbert. <em>Surface Simplification Using Quadric Error Metrics</em>. SIGGRAPH 1997.</li>
+        <li>Lévy and Liu. <em>Lp Centroidal Voronoi Tessellation and its applications</em>. 2010.</li>
+        <li>Liu, Rahimzadeh, Zordan. <em>Controlling Quadric Error Simplification with Line Quadrics</em>. SGP 2025.</li>
+      </ul>
+    </section>
+  </main>
+  <footer class="footer">
+    CWF 弱特征巩固笔记 · 为 line-quadrics-qem 当前程序扩展准备 · 2026-07-01
+  </footer>
+</div>
+</body>
+</html>

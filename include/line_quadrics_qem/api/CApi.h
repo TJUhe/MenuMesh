@@ -28,6 +28,14 @@ typedef enum LqWeightMode {
   LQ_WEIGHT_MODE_NORMAL_TENSOR = 4
 } LqWeightMode;
 
+typedef enum LqSimplifyTerminationReason {
+  LQ_SIMPLIFY_TERMINATION_NOT_STARTED = 0,
+  LQ_SIMPLIFY_TERMINATION_REACHED_TARGET = 1,
+  LQ_SIMPLIFY_TERMINATION_ALREADY_AT_OR_BELOW_TARGET = 2,
+  LQ_SIMPLIFY_TERMINATION_NO_CANDIDATES = 3,
+  LQ_SIMPLIFY_TERMINATION_REJECTION_LIMIT = 4
+} LqSimplifyTerminationReason;
+
 typedef struct LqVec3 {
   double x;
   double y;
@@ -94,6 +102,7 @@ typedef struct LqSimplifyReport {
   int curve_budget_rejected_collapses;
   int error_rejected_collapses;
   int projected_feature_placements;
+  LqSimplifyTerminationReason termination_reason;
   double min_applied_line_weight;
   double max_applied_line_weight;
 } LqSimplifyReport;

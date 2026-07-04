@@ -1,12 +1,11 @@
+#include "TestSupport.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/features/FeatureDetection.h"
 
 #include <algorithm>
 #include <cmath>
-#include <filesystem>
 #include <gtest/gtest.h>
 #include <limits>
-#include <string>
 #include <vector>
 
 namespace {
@@ -17,11 +16,8 @@ struct PlaneCluster {
   double area = 0.0;
 };
 
-int countCircularLoops(const lq::FeatureAnalysis& analysis) {
-  return static_cast<int>(
-      std::count_if(analysis.loops.begin(), analysis.loops.end(),
-                    [](const lq::FeatureLoop& loop) { return loop.circular; }));
-}
+using lq::test::countCircularLoops;
+using lq::test::loadFixtureMesh;
 
 int countClosedLoops(const lq::FeatureAnalysis& analysis) {
   return static_cast<int>(
@@ -40,24 +36,6 @@ lq::FeatureOptions discreteOnlyOptions() {
   lq::FeatureOptions options;
   options.useNormalTensorFeatures = false;
   return options;
-}
-
-std::filesystem::path dataRoot() {
-#ifdef LQ_TEST_DATA_DIR
-  return std::filesystem::path(LQ_TEST_DATA_DIR);
-#else
-  return std::filesystem::path(__FILE__).parent_path() / "data";
-#endif
-}
-
-lq::Mesh loadFixtureMesh(const std::string& relativePath) {
-  lq::Mesh mesh;
-  std::string error;
-  const std::filesystem::path path = dataRoot() / relativePath;
-  if (!lq::loadMesh(path.string(), mesh, &error)) {
-    ADD_FAILURE() << "Failed to load fixture " << path.string() << ": " << error;
-  }
-  return mesh;
 }
 
 std::vector<PlaneCluster> clusterCoplanarFaces(const lq::Mesh& mesh,

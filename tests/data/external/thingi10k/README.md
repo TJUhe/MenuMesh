@@ -1,6 +1,7 @@
 ﻿# Thingi10K Binary STL Fixtures
 
-This directory contains 97 real-world binary STL fixtures selected from the public Thingi10K dataset mirror on Hugging Face:
+97 real-world binary STL fixtures selected from the public Thingi10K dataset
+mirror on Hugging Face:
 
 - Dataset: `Thingi10K/Thingi10K`
 - Raw source path: `raw_meshes/<file_id>.stl`

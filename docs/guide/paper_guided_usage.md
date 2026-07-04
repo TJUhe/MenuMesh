@@ -85,15 +85,33 @@ non_manifold_edges
 
 ## 5. 软特征保持
 
-当前程序实现的是“给疑似重要顶点提高 line quadric 权重”：
+当前程序有两层特征相关能力。第一层是“给疑似重要顶点提高 normal-line
+quadric 权重”：
 
 ```powershell
 .\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_feature.stl --ratio 0.15 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 30
 ```
 
 `--weight-mode dihedral` 不是论文 Sec. 4.4.2 的 edge dihedral plane quadric；
-它只是用二面角检测硬边附近顶点并提高 line weight。若要更完整复现论文中的边
-特征项，下一步应单独实现 edge dihedral plane quadrics。
+它只是用二面角检测硬边附近顶点并提高 line weight。
+
+第二层是当前已经落地的曲线特征保护。它会先运行 `detectFeatureCurves()`，
+恢复 feature graph / loop，拟合圆、近圆或椭圆，并把同一 loop 内的 placement
+投影回圆、椭圆或原始 polyline：
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_curve.stl --method line --ratio 0.20 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 1000 --metrics-csv metrics.csv
+```
+
+这仍然不是完整复现论文中的 edge dihedral plane quadrics。若要更完整复现论文中
+的边特征项，下一步应单独实现 edge dihedral plane quadrics，或把当前 feature
+graph 作为 constrained edges 输入给独立的 legality / placement policy。
+
+对弱特征，可以把权重来源切到 normal tensor：
+
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_nt.stl --ratio 0.25 --line-weight 1e-3 --weight-mode normal-tensor --feature-boost 0.08 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3
+```
 
 推荐案例：
 
@@ -102,6 +120,9 @@ ridge_dihedral
 terrace_dihedral
 cube_dihedral
 thin_fin_dihedral
+tests/data/feature_fixtures/coaxial_hole_plate.obj
+tests/data/feature_fixtures/elliptical_hole_plate.obj
+tests/data/feature_fixtures/boss_pocket_plate.obj
 ```
 
 ## 6. 边界不是 line quadrics 本身
@@ -113,7 +134,9 @@ thin_fin_dihedral
 ```
 
 这对应 Garland-Heckbert 风格的 boundary plane quadric，不是 line quadrics 的一
-部分。它用于把“内部采样均匀性”和“边界保持”分开观察。
+部分。当前程序还提供 `--preserve-boundary`，这会启用 boundary legality
+policy：允许同一当前边界边上的合法坍缩，拒绝边界到内部或跨边界环的坍缩。
+边界项用于改 placement 代价，`--preserve-boundary` 用于改可否坍缩，二者不要混淆。
 
 ## 7. 噪声短板
 

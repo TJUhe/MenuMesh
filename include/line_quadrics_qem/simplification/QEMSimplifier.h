@@ -16,6 +16,15 @@ enum class WeightMode {
   XBand,
 };
 
+/// Reason one simplification run stopped.
+enum class SimplifyTerminationReason {
+  NotStarted,
+  ReachedTarget,
+  AlreadyAtOrBelowTarget,
+  NoCandidates,
+  RejectionLimit,
+};
+
 /// User-facing controls for one simplification run.
 struct SimplifyOptions {
   int targetFaces = -1;
@@ -74,6 +83,7 @@ struct SimplifyReport {
   int curveBudgetRejectedCollapses = 0;
   int errorRejectedCollapses = 0;
   int projectedFeaturePlacements = 0;
+  SimplifyTerminationReason terminationReason = SimplifyTerminationReason::NotStarted;
   double minAppliedLineWeight = 0.0;
   double maxAppliedLineWeight = 0.0;
 };
@@ -105,6 +115,8 @@ private:
 LQ_API WeightMode parseWeightMode(const std::string& value);
 /// Converts a weight mode to its stable lowercase string representation.
 LQ_API std::string toString(WeightMode mode);
+/// Converts a termination reason to its stable lowercase string representation.
+LQ_API std::string toString(SimplifyTerminationReason reason);
 
 /// Simplifies a mesh with standard QEM or line-quadrics-augmented QEM.
 /// Prefer QEMSimplifier for new code that needs an object-oriented API.

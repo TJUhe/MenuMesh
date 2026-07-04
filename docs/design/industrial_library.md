@@ -36,8 +36,9 @@ or any lightweight STL viewer available on the target machine.
 | `cmake/` | Installed package configuration. |
 | `docs/guide/sdk_integration.md` | CMake, Visual Studio, and C ABI integration guide. |
 | `docs/design/industrial_validation.md` | Command-level validation matrix and performance checks. |
-| `examples/input/` | Reproducible sample STL inputs. |
-| `examples/output/` | Generated validation outputs, not a required source dependency. |
+| `output/demo_input/` | Generated demo STL inputs. |
+| `output/` | Demo and manual experiment outputs, not a required source dependency. |
+| `tests/output/` | Generated validation outputs, ignored by git. |
 
 ## Configure And Build
 

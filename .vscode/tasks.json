@@ -2,262 +2,781 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "configure: mingw+ninja release",
-      "type": "shell",
+      "label": "configure: mingw+ninja debug",
+      "type": "process",
       "command": "cmake",
-      "args": ["-S", ".", "-B", "build/mingw-ninja-release", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/mingw-ninja-debug",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_C_COMPILER=gcc",
+        "-DCMAKE_CXX_COMPILER=g++",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
       "problemMatcher": []
     },
     {
-      "label": "configure: mingw+ninja debug",
-      "type": "shell",
+      "label": "configure: mingw+ninja release",
+      "type": "process",
       "command": "cmake",
-      "args": ["-S", ".", "-B", "build/mingw-ninja-debug", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/mingw-ninja-release",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_C_COMPILER=gcc",
+        "-DCMAKE_CXX_COMPILER=g++",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
       "problemMatcher": []
     },
     {
       "label": "configure: mingw+ninja debug performance",
-      "type": "shell",
+      "type": "process",
       "command": "cmake",
-      "args": ["-S", ".", "-B", "build/mingw-ninja-debug-performance", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DLQ_BUILD_PERFORMANCE_TESTS=ON"],
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/mingw-ninja-debug-performance",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_C_COMPILER=gcc",
+        "-DCMAKE_CXX_COMPILER=g++",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
       "problemMatcher": []
     },
     {
-      "label": "build: mingw+ninja release",
-      "type": "shell",
+      "label": "configure: msvc+vs2022",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-release", "--target", "linequadrics", "--parallel"],
-      "group": "build",
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja release"
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/msvc-vs2022",
+        "-G",
+        "Visual Studio 17 2022",
+        "-A",
+        "x64",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
     },
     {
-      "label": "build: mingw+ninja release all",
-      "type": "shell",
+      "label": "configure: msvc+vs2022 performance",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-release", "--parallel"],
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja release"
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/msvc-vs2022-performance",
+        "-G",
+        "Visual Studio 17 2022",
+        "-A",
+        "x64",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: msvc+vs2019",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/msvc-vs2019",
+        "-G",
+        "Visual Studio 16 2019",
+        "-A",
+        "x64",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: msvc+vs2019 performance",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "build/msvc-vs2019-performance",
+        "-G",
+        "Visual Studio 16 2019",
+        "-A",
+        "x64",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: msvc custom visual studio",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "-S",
+        ".",
+        "-B",
+        "${input:msvcCustomBuildDir}",
+        "-G",
+        "${input:msvcGenerator}",
+        "-A",
+        "${input:msvcArch}",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_BUILD_PERFORMANCE_TESTS=${input:msvcPerformanceTests}"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
     },
     {
       "label": "build: mingw+ninja debug",
-      "type": "shell",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-debug", "--target", "linequadrics", "--parallel"],
+      "args": [
+        "--build",
+        "build/mingw-ninja-debug",
+        "--target",
+        "linequadrics",
+        "--parallel"
+      ],
+      "group": "build",
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
       "label": "build: mingw+ninja debug tests",
-      "type": "shell",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-debug", "--target", "line_quadrics_qem_tests", "--parallel"],
+      "args": [
+        "--build",
+        "build/mingw-ninja-debug",
+        "--target",
+        "line_quadrics_qem_tests",
+        "--parallel"
+      ],
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
       "label": "build: mingw+ninja debug all",
-      "type": "shell",
+      "type": "process",
       "command": "cmake",
       "args": ["--build", "build/mingw-ninja-debug", "--parallel"],
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
-      "label": "build: mingw+ninja debug performance tests",
-      "type": "shell",
+      "label": "build: mingw+ninja release",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-debug-performance", "--target", "line_quadrics_qem_performance_tests", "--parallel"],
+      "args": [
+        "--build",
+        "build/mingw-ninja-release",
+        "--target",
+        "linequadrics",
+        "--parallel"
+      ],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
+      "label": "build: mingw+ninja release all",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "build/mingw-ninja-release", "--parallel"],
+      "problemMatcher": ["$gcc"],
+      "dependsOn": "configure: mingw+ninja release"
+    },
+    {
+      "label": "build: mingw+ninja debug performance tests",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/mingw-ninja-debug-performance",
+        "--target",
+        "line_quadrics_qem_performance_tests",
+        "--parallel"
+      ],
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja debug performance"
     },
     {
-      "label": "test: mingw+ninja debug",
-      "type": "shell",
+      "label": "build: msvc+vs2022 debug",
+      "type": "process",
       "command": "cmake",
-      "args": ["-E", "chdir", "build/mingw-ninja-debug", "ctest", "-LE", "performance", "--output-on-failure"],
+      "args": [
+        "--build",
+        "build/msvc-vs2022",
+        "--config",
+        "Debug",
+        "--target",
+        "linequadrics",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2022"
+    },
+    {
+      "label": "build: msvc+vs2022 debug tests",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/msvc-vs2022",
+        "--config",
+        "Debug",
+        "--target",
+        "line_quadrics_qem_tests",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2022"
+    },
+    {
+      "label": "build: msvc+vs2022 release",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/msvc-vs2022",
+        "--config",
+        "Release",
+        "--target",
+        "linequadrics",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2022"
+    },
+    {
+      "label": "build: msvc+vs2022 debug performance tests",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/msvc-vs2022-performance",
+        "--config",
+        "Debug",
+        "--target",
+        "line_quadrics_qem_performance_tests",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2022 performance"
+    },
+    {
+      "label": "build: msvc+vs2019 debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/msvc-vs2019",
+        "--config",
+        "Debug",
+        "--target",
+        "linequadrics",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2019"
+    },
+    {
+      "label": "build: msvc+vs2019 debug tests",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/msvc-vs2019",
+        "--config",
+        "Debug",
+        "--target",
+        "line_quadrics_qem_tests",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2019"
+    },
+    {
+      "label": "build: msvc+vs2019 release",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/msvc-vs2019",
+        "--config",
+        "Release",
+        "--target",
+        "linequadrics",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2019"
+    },
+    {
+      "label": "build: msvc+vs2019 debug performance tests",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/msvc-vs2019-performance",
+        "--config",
+        "Debug",
+        "--target",
+        "line_quadrics_qem_performance_tests",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc+vs2019 performance"
+    },
+    {
+      "label": "build: msvc custom debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${input:msvcCustomBuildDir}",
+        "--config",
+        "Debug",
+        "--target",
+        "linequadrics",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc custom visual studio"
+    },
+    {
+      "label": "build: msvc custom debug tests",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${input:msvcCustomBuildDir}",
+        "--config",
+        "Debug",
+        "--target",
+        "line_quadrics_qem_tests",
+        "--parallel"
+      ],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: msvc custom visual studio"
+    },
+    {
+      "label": "test: mingw+ninja debug",
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--test-dir",
+        "build/mingw-ninja-debug",
+        "-LE",
+        "performance",
+        "--output-on-failure"
+      ],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja debug all"
     },
     {
       "label": "test: mingw+ninja release",
-      "type": "shell",
-      "command": "cmake",
-      "args": ["-E", "chdir", "build/mingw-ninja-release", "ctest", "-LE", "performance", "--output-on-failure"],
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--test-dir",
+        "build/mingw-ninja-release",
+        "-LE",
+        "performance",
+        "--output-on-failure"
+      ],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release all"
     },
     {
       "label": "test: mingw+ninja debug performance",
-      "type": "shell",
-      "command": "cmake",
-      "args": ["-E", "chdir", "build/mingw-ninja-debug-performance", "ctest", "-L", "performance", "--output-on-failure"],
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--test-dir",
+        "build/mingw-ninja-debug-performance",
+        "-L",
+        "performance",
+        "--output-on-failure"
+      ],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja debug performance tests"
     },
     {
-      "label": "configure: msvc+ninja release",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: msvc+ninja debug",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -S . -B build/msvc-ninja-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF"],
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: msvc+ninja debug performance",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -S . -B build/msvc-ninja-debug-performance -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=ON"],
-      "problemMatcher": []
-    },
-    {
-      "label": "build: msvc+ninja release",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-release --target linequadrics --parallel"],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+ninja release"
-    },
-    {
-      "label": "build: msvc+ninja debug",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-debug --target linequadrics --parallel"],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+ninja debug"
-    },
-    {
-      "label": "build: msvc+ninja debug tests",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-debug --target line_quadrics_qem_tests --parallel"],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+ninja debug"
-    },
-    {
-      "label": "build: msvc+ninja debug performance tests",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake --build build/msvc-ninja-debug-performance --target line_quadrics_qem_performance_tests --parallel"],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+ninja debug performance"
-    },
-    {
-      "label": "test: msvc+ninja debug",
-      "type": "shell",
-      "command": "cmd.exe",
-      "args": ["/d", "/c", "call \"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat\" -arch=x64 -host_arch=x64 && cmake -E chdir build/msvc-ninja-debug ctest -LE performance --output-on-failure"],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc+ninja debug tests"
-    },
-    {
-      "label": "demo: simplify selected mesh (mingw+ninja release)",
-      "type": "shell",
-      "command": "powershell.exe",
+      "label": "test: msvc+vs2022 debug",
+      "type": "process",
+      "command": "ctest",
       "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        "$root='${workspaceFolder}'; $exe=Join-Path $root 'build\\mingw-ninja-release\\bin\\linequadrics.exe'; $meshRel='${input:demoMesh}'; $mesh=Join-Path $root $meshRel; $ratio='${input:demoRatio}'; $preset='${input:demoPreset}'; $case=[IO.Path]::GetFileNameWithoutExtension($meshRel); $outDir=Join-Path $root ('examples\\output\\vscode_demo\\'+$case+'\\'+$preset+'_r'+($ratio -replace '\\.','_')); New-Item -ItemType Directory -Force -Path $outDir | Out-Null; $out=Join-Path $outDir 'simplified.stl'; $metrics=Join-Path $outDir 'metrics.csv'; $flags=@('simplify',$mesh,$out,'--ratio',$ratio,'--samples','${input:demoSamples}','--metrics-csv',$metrics); switch($preset){ 'standard-qem' { $flags += @('--method','standard') } 'line-qem' { $flags += @('--method','line','--line-weight','1e-3') } 'dihedral-line' { $flags += @('--method','line','--line-weight','1e-3','--weight-mode','dihedral','--feature-boost','0.08','--feature-angle-deg','${input:demoFeatureAngle}') } 'feature-curves' { $flags += @('--method','line','--line-weight','1e-3','--weight-mode','dihedral','--feature-boost','0.08','--feature-angle-deg','${input:demoFeatureAngle}','--preserve-feature-curves','--feature-curve-weight','0.08','--max-feature-curve-deviation-ratio','0.05','--circle-fit-threshold','0.04','--ellipse-fit-threshold','0.05','--min-circular-feature-loop-vertices','12') } 'industrial-safe' { $flags += @('--method','line','--line-weight','1e-3','--weight-mode','dihedral','--feature-boost','0.08','--feature-angle-deg','${input:demoFeatureAngle}','--preserve-feature-curves','--feature-curve-weight','0.08','--max-feature-curve-deviation-ratio','0.05','--max-local-error-ratio','0.02','--industrial-safe') } 'normal-tensor' { $flags += @('--method','line','--line-weight','1e-3','--weight-mode','normal-tensor','--feature-boost','0.08','--feature-angle-deg','179','--normal-tensor-threshold','0.06','--normal-tensor-edge-alignment','0.2','--normal-tensor-scales','3') } } & $exe @flags; if($LASTEXITCODE -ne 0){ exit $LASTEXITCODE }; Write-Host \"Output: $outDir\""
+        "--test-dir",
+        "build/msvc-vs2022",
+        "-C",
+        "Debug",
+        "-LE",
+        "performance",
+        "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release"
+      "dependsOn": "build: msvc+vs2022 debug tests"
+    },
+    {
+      "label": "test: msvc+vs2019 debug",
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--test-dir",
+        "build/msvc-vs2019",
+        "-C",
+        "Debug",
+        "-LE",
+        "performance",
+        "--output-on-failure"
+      ],
+      "problemMatcher": [],
+      "dependsOn": "build: msvc+vs2019 debug tests"
+    },
+    {
+      "label": "test: msvc custom debug",
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--test-dir",
+        "${input:msvcCustomBuildDir}",
+        "-C",
+        "Debug",
+        "-LE",
+        "performance",
+        "--output-on-failure"
+      ],
+      "problemMatcher": [],
+      "dependsOn": "build: msvc custom debug tests"
+    },
+    {
+      "label": "prepare: vscode demo output",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "-E",
+        "make_directory",
+        "${workspaceFolder}/output/vscode_demo/ratio_sweep"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "demo: simplify standard selected mesh",
+      "type": "process",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "args": [
+        "simplify",
+        "${input:demoMesh}",
+        "output/vscode_demo/standard.stl",
+        "--method",
+        "standard",
+        "--ratio",
+        "${input:demoRatio}",
+        "--samples",
+        "${input:demoSamples}",
+        "--metrics-csv",
+        "output/vscode_demo/standard_metrics.csv"
+      ],
+      "problemMatcher": [],
+      "dependsOn": [
+        "prepare: vscode demo output",
+        "build: mingw+ninja release"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "demo: simplify feature curves selected mesh",
+      "type": "process",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "args": [
+        "simplify",
+        "${input:demoMesh}",
+        "output/vscode_demo/feature_curves.stl",
+        "--method",
+        "line",
+        "--line-weight",
+        "1e-3",
+        "--weight-mode",
+        "dihedral",
+        "--feature-boost",
+        "0.08",
+        "--feature-angle-deg",
+        "${input:demoFeatureAngle}",
+        "--preserve-feature-curves",
+        "--feature-curve-weight",
+        "0.08",
+        "--max-feature-curve-deviation-ratio",
+        "0.05",
+        "--circle-fit-threshold",
+        "0.04",
+        "--ellipse-fit-threshold",
+        "0.05",
+        "--min-circular-feature-loop-vertices",
+        "12",
+        "--ratio",
+        "${input:demoRatio}",
+        "--samples",
+        "${input:demoSamples}",
+        "--metrics-csv",
+        "output/vscode_demo/feature_curves_metrics.csv"
+      ],
+      "problemMatcher": [],
+      "dependsOn": [
+        "prepare: vscode demo output",
+        "build: mingw+ninja release"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "demo: simplify normal tensor selected mesh",
+      "type": "process",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "args": [
+        "simplify",
+        "${input:demoMesh}",
+        "output/vscode_demo/normal_tensor.stl",
+        "--method",
+        "line",
+        "--line-weight",
+        "1e-3",
+        "--weight-mode",
+        "normal-tensor",
+        "--feature-boost",
+        "0.08",
+        "--feature-angle-deg",
+        "179",
+        "--normal-tensor-threshold",
+        "0.06",
+        "--normal-tensor-edge-alignment",
+        "0.2",
+        "--normal-tensor-scales",
+        "3",
+        "--ratio",
+        "${input:demoRatio}",
+        "--samples",
+        "${input:demoSamples}",
+        "--metrics-csv",
+        "output/vscode_demo/normal_tensor_metrics.csv"
+      ],
+      "problemMatcher": [],
+      "dependsOn": [
+        "prepare: vscode demo output",
+        "build: mingw+ninja release"
+      ],
+      "dependsOrder": "sequence"
     },
     {
       "label": "demo: feature report selected mesh",
-      "type": "shell",
-      "command": "powershell.exe",
+      "type": "process",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        "$root='${workspaceFolder}'; $exe=Join-Path $root 'build\\mingw-ninja-release\\bin\\linequadrics.exe'; $meshRel='${input:demoMesh}'; $mesh=Join-Path $root $meshRel; $case=[IO.Path]::GetFileNameWithoutExtension($meshRel); $outDir=Join-Path $root ('examples\\output\\vscode_demo\\'+$case+'\\feature_report'); New-Item -ItemType Directory -Force -Path $outDir | Out-Null; $csv=Join-Path $outDir 'features.csv'; & $exe feature-report $mesh --feature-angle-deg '${input:demoFeatureAngle}' --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv $csv; if($LASTEXITCODE -ne 0){ exit $LASTEXITCODE }; Write-Host \"Feature CSV: $csv\""
+        "feature-report",
+        "${input:demoMesh}",
+        "--feature-angle-deg",
+        "${input:demoFeatureAngle}",
+        "--circle-fit-threshold",
+        "0.04",
+        "--ellipse-fit-threshold",
+        "0.05",
+        "--normal-tensor-threshold",
+        "0.06",
+        "--normal-tensor-edge-alignment",
+        "0.2",
+        "--csv",
+        "output/vscode_demo/features.csv"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release"
+      "dependsOn": [
+        "prepare: vscode demo output",
+        "build: mingw+ninja release"
+      ],
+      "dependsOrder": "sequence"
     },
     {
       "label": "demo: ratio sweep selected mesh",
-      "type": "shell",
-      "command": "powershell.exe",
+      "type": "process",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        "$root='${workspaceFolder}'; $exe=Join-Path $root 'build\\mingw-ninja-release\\bin\\linequadrics.exe'; $meshRel='${input:demoMesh}'; $mesh=Join-Path $root $meshRel; $case=[IO.Path]::GetFileNameWithoutExtension($meshRel); $preset='${input:demoPreset}'; $outDir=Join-Path $root ('examples\\output\\vscode_demo\\'+$case+'\\ratio_sweep_'+$preset); New-Item -ItemType Directory -Force -Path $outDir | Out-Null; $flags=@('ratio-sweep',$mesh,$outDir,'--ratios','${input:demoRatios}','--samples','${input:demoSamples}'); if($preset -eq 'standard-qem'){ $flags += @('--method','standard') } else { $flags += @('--method','line','--line-weight','1e-3') }; if($preset -eq 'dihedral-line' -or $preset -eq 'feature-curves' -or $preset -eq 'industrial-safe'){ $flags += @('--weight-mode','dihedral','--feature-boost','0.08','--feature-angle-deg','${input:demoFeatureAngle}') }; if($preset -eq 'feature-curves' -or $preset -eq 'industrial-safe'){ $flags += @('--preserve-feature-curves','--feature-curve-weight','0.08','--max-feature-curve-deviation-ratio','0.05','--circle-fit-threshold','0.04','--ellipse-fit-threshold','0.05','--min-circular-feature-loop-vertices','12') }; if($preset -eq 'industrial-safe'){ $flags += @('--max-local-error-ratio','0.02','--industrial-safe') }; if($preset -eq 'normal-tensor'){ $flags += @('--weight-mode','normal-tensor','--feature-boost','0.08','--feature-angle-deg','179','--normal-tensor-threshold','0.06','--normal-tensor-edge-alignment','0.2','--normal-tensor-scales','3') }; & $exe @flags; if($LASTEXITCODE -ne 0){ exit $LASTEXITCODE }; Write-Host \"Sweep output: $outDir\""
+        "ratio-sweep",
+        "${input:demoMesh}",
+        "output/vscode_demo/ratio_sweep",
+        "--method",
+        "line",
+        "--line-weight",
+        "1e-3",
+        "--weight-mode",
+        "dihedral",
+        "--feature-boost",
+        "0.08",
+        "--feature-angle-deg",
+        "${input:demoFeatureAngle}",
+        "--ratios",
+        "${input:demoRatios}",
+        "--samples",
+        "${input:demoSamples}"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release"
-    },
-    {
-      "label": "demo: algorithm comparison selected mesh",
-      "type": "shell",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        "$root='${workspaceFolder}'; $exe=Join-Path $root 'build\\mingw-ninja-release\\bin\\linequadrics.exe'; $meshRel='${input:demoMesh}'; $mesh=Join-Path $root $meshRel; $ratio='${input:demoRatio}'; $case=[IO.Path]::GetFileNameWithoutExtension($meshRel); $outDir=Join-Path $root ('examples\\output\\vscode_demo\\'+$case+'\\algorithm_compare_r'+($ratio -replace '\\.','_')); New-Item -ItemType Directory -Force -Path $outDir | Out-Null; $presets=@('standard-qem','line-qem','dihedral-line','feature-curves','normal-tensor'); foreach($preset in $presets){ $out=Join-Path $outDir ($preset+'.stl'); $metrics=Join-Path $outDir ($preset+'_metrics.csv'); $flags=@('simplify',$mesh,$out,'--ratio',$ratio,'--samples','${input:demoSamples}','--metrics-csv',$metrics); switch($preset){ 'standard-qem' { $flags += @('--method','standard') } 'line-qem' { $flags += @('--method','line','--line-weight','1e-3') } 'dihedral-line' { $flags += @('--method','line','--line-weight','1e-3','--weight-mode','dihedral','--feature-boost','0.08','--feature-angle-deg','${input:demoFeatureAngle}') } 'feature-curves' { $flags += @('--method','line','--line-weight','1e-3','--weight-mode','dihedral','--feature-boost','0.08','--feature-angle-deg','${input:demoFeatureAngle}','--preserve-feature-curves','--feature-curve-weight','0.08','--max-feature-curve-deviation-ratio','0.05','--circle-fit-threshold','0.04','--ellipse-fit-threshold','0.05','--min-circular-feature-loop-vertices','12') } 'normal-tensor' { $flags += @('--method','line','--line-weight','1e-3','--weight-mode','normal-tensor','--feature-boost','0.08','--feature-angle-deg','179','--normal-tensor-threshold','0.06','--normal-tensor-edge-alignment','0.2','--normal-tensor-scales','3') } }; Write-Host \"=== $preset ===\"; & $exe @flags; if($LASTEXITCODE -ne 0){ exit $LASTEXITCODE } }; & $exe summarize-metrics $outDir (Join-Path $outDir 'summary.csv'); Write-Host \"Comparison output: $outDir\""
+      "dependsOn": [
+        "prepare: vscode demo output",
+        "build: mingw+ninja release"
       ],
-      "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release"
+      "dependsOrder": "sequence"
     },
     {
       "label": "run: feature validation",
-      "type": "shell",
+      "type": "process",
       "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
-      "args": ["validate-features", "--ratio", "0.20", "--n", "96", "--samples", "1000"],
+      "args": [
+        "validate-features",
+        "--ratio",
+        "0.20",
+        "--n",
+        "96",
+        "--samples",
+        "1000",
+        "--output-dir",
+        "tests/output/feature_curve_validation"
+      ],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release"
     },
     {
       "label": "run: external validation",
-      "type": "shell",
+      "type": "process",
       "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
-      "args": ["validate-external", "--ratio", "0.25", "--samples", "800"],
+      "args": [
+        "validate-external",
+        "--input-dir",
+        "tests/data/external/common_3d_test_models",
+        "--ratio",
+        "0.25",
+        "--samples",
+        "800",
+        "--output-dir",
+        "tests/output/external_model_validation"
+      ],
       "problemMatcher": [],
       "dependsOn": "build: mingw+ninja release"
     },
     {
       "label": "check: format",
-      "type": "shell",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-debug", "--target", "check-format", "--parallel"],
+      "args": [
+        "--build",
+        "build/mingw-ninja-debug",
+        "--target",
+        "check-format",
+        "--parallel"
+      ],
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
       "label": "format",
-      "type": "shell",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-debug", "--target", "format", "--parallel"],
+      "args": [
+        "--build",
+        "build/mingw-ninja-debug",
+        "--target",
+        "format",
+        "--parallel"
+      ],
       "problemMatcher": [],
       "dependsOn": "configure: mingw+ninja debug"
     },
     {
       "label": "build: docs-api",
-      "type": "shell",
+      "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-release", "--target", "docs-api", "--parallel"],
+      "args": [
+        "--build",
+        "build/mingw-ninja-release",
+        "--target",
+        "docs-api",
+        "--parallel"
+      ],
       "problemMatcher": [],
       "dependsOn": "configure: mingw+ninja release"
     },
     {
       "label": "open: vscode demo output",
-      "type": "shell",
+      "type": "process",
       "command": "explorer.exe",
-      "args": ["${workspaceFolder}\\examples\\output\\vscode_demo"],
-      "problemMatcher": []
+      "args": ["${workspaceFolder}\\output\\vscode_demo"],
+      "problemMatcher": [],
+      "dependsOn": "prepare: vscode demo output"
     }
   ],
   "inputs": [
@@ -272,19 +791,8 @@
         "tests/data/feature_fixtures/boss_pocket_plate.obj",
         "tests/data/feature_fixtures/near_circular_hole_plate.obj",
         "tests/data/external/fandisk_2014.stl",
-        "tests/data/external/casting_aimshape_2014.stl",
-        "examples/input/pipe_coupling.stl",
-        "examples/input/flange_curve.stl",
-        "examples/input/pulley.stl",
-        "examples/input/stepped_shaft.stl"
+        "tests/data/external/casting_aimshape_2014.stl"
       ]
-    },
-    {
-      "id": "demoPreset",
-      "type": "pickString",
-      "description": "Algorithm / guard preset",
-      "default": "feature-curves",
-      "options": ["standard-qem", "line-qem", "dihedral-line", "feature-curves", "industrial-safe", "normal-tensor"]
     },
     {
       "id": "demoRatio",
@@ -312,6 +820,43 @@
       "description": "Feature angle in degrees",
       "default": "25",
       "options": ["15", "25", "35", "45", "179"]
+    },
+    {
+      "id": "msvcGenerator",
+      "type": "pickString",
+      "description": "MSVC Visual Studio CMake generator",
+      "default": "Visual Studio 17 2022",
+      "options": [
+        "Visual Studio 17 2022",
+        "Visual Studio 16 2019",
+        "Visual Studio 15 2017"
+      ]
+    },
+    {
+      "id": "msvcArch",
+      "type": "pickString",
+      "description": "MSVC generator platform",
+      "default": "x64",
+      "options": ["x64", "Win32", "ARM64"]
+    },
+    {
+      "id": "msvcCustomBuildDir",
+      "type": "pickString",
+      "description": "MSVC custom build directory",
+      "default": "build/msvc-custom",
+      "options": [
+        "build/msvc-custom",
+        "build/msvc-vs2022",
+        "build/msvc-vs2019",
+        "build/msvc-vs2017"
+      ]
+    },
+    {
+      "id": "msvcPerformanceTests",
+      "type": "pickString",
+      "description": "Build performance tests in custom MSVC tree",
+      "default": "OFF",
+      "options": ["OFF", "ON"]
     }
   ]
 }

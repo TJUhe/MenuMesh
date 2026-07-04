@@ -64,18 +64,18 @@ loop/circle fitting + QEM cost terms + collapse legality + projected placement.
 Detect feature loops:
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-report examples\input\pipe_coupling.stl `
+.\build\mingw-ninja-release\bin\linequadrics.exe feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
   --min-feature-loop-vertices 8 `
-  --csv examples\output\feature_curve_validation\pipe_coupling_features.csv
+  --csv tests\output\feature_curve_validation\pipe_coupling_features.csv
 ```
 
 Simplify with circular feature protection:
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify examples\input\pipe_coupling.stl `
-  examples\output\feature_curve_validation\pipe_coupling_curve.stl `
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify tests\data\feature_fixtures\coaxial_hole_plate.obj `
+  tests\output\feature_curve_validation\pipe_coupling_curve.stl `
   --method line `
   --ratio 0.20 `
   --line-weight 1e-3 `
@@ -91,11 +91,11 @@ Simplify with circular feature protection:
 Compare circular features after simplification:
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare examples\input\pipe_coupling.stl `
-  examples\output\feature_curve_validation\pipe_coupling_curve.stl `
+.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare tests\data\feature_fixtures\coaxial_hole_plate.obj `
+  tests\output\feature_curve_validation\pipe_coupling_curve.stl `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
-  --csv examples\output\feature_curve_validation\pipe_coupling_curve_feature_compare.csv
+  --csv tests\output\feature_curve_validation\pipe_coupling_curve_feature_compare.csv
 ```
 
 Run all validation cases:

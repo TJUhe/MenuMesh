@@ -1,4 +1,4 @@
-# Line Quadrics QEM
+﻿# Line Quadrics QEM
 
 这是一个面向工业库形态整理的 C++17 网格简化内核。核心目标是复现并扩展
 `Controlling Quadric Error Simplification with Line Quadrics` 的 QEM + line
@@ -14,12 +14,12 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 这些 HTML 是论文说明和当前程序结果的可浏览笔记，可以直接用浏览器打开：
 
-- [QEM 与 Line Quadrics 说明](docs/notes/qem-line-quadrics-notes.html)
-- [Line Quadrics 数学原理展开](docs/notes/line-quadrics-qem-theory-explained.html)
-- [当前程序原理说明](docs/notes/line-quadrics-qem-program-principles.html)
-- [代码阅读手册](docs/notes/line-quadrics-qem-code-manual.html)
-- [Xu 2024 CWF 弱特征合并论文说明](docs/notes/cwf-weak-features-notes.html)
-- [凸台圆孔等圆特征实践结果](docs/notes/circular-feature-practice-results.html)
+- [QEM 与 Line Quadrics 说明](docs/generated/notes/qem-line-quadrics-notes.html)
+- [Line Quadrics 数学原理展开](docs/generated/notes/line-quadrics-qem-theory-explained.html)
+- [当前程序原理说明](docs/generated/notes/line-quadrics-qem-program-principles.html)
+- [代码阅读手册](docs/generated/notes/line-quadrics-qem-code-manual.html)
+- [Xu 2024 CWF 弱特征合并论文说明](docs/generated/notes/cwf-weak-features-notes.html)
+- [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
 
 ## 工业内核边界
 
@@ -43,10 +43,10 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | 路径 | 说明 |
 | --- | --- |
 | `build*/` | CMake 构建目录，生成物。 |
-| `examples/input/*.stl` | 可复现实验输入；可由 CLI 重新生成。 |
-| `examples/output/` | STL/CSV 验证输出，属于实验结果。 |
-| `examples/external/` | 外部 OBJ 基准模型本地放置目录，不作为库交付物。 |
-| `docs/notes/*.html`、`docs/api/` | 生成/导出的说明文档，不作为源码入口。 |
+| `output/` | demo/手工实验输出，属于本地生成物。 |
+| `tests/data/` | 单元测试、性能测试和外部验证输入。 |
+| `tests/output/` | 测试/验证生成的 STL、CSV 等输出，属于本地生成物。 |
+| `docs/generated/notes/*.html`、`docs/api/` | 生成/导出的说明文档，不作为源码入口。 |
 
 网页 viewer、Node/Vite 配置已经从源码入口中筛掉。要看形状时，直接打开 CLI
 生成的 STL；要看性能和误差时，读取 CSV 指标。
@@ -56,7 +56,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 推荐 MinGW + Ninja。`--parallel` 不指定数字时，CMake 会让 Ninja 按可用核心数并行：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build build/mingw-ninja-release --target linequadrics --parallel
 ```
 
@@ -240,7 +240,7 @@ cmake -E chdir build/industrial ctest -L performance --output-on-failure
 - `demo: simplify selected mesh (mingw+ninja release)`：从下拉框选择 mesh、preset、ratio、sample count。
 - `demo: algorithm comparison selected mesh`：同一 mesh/ratio 下比较 `standard-qem`、`line-qem`、`dihedral-line`、`feature-curves`、`normal-tensor`。
 - `demo: ratio sweep selected mesh`：固定算法预设，生成多档 ratio 的 STL 和 `metrics.csv`。
-- `open: vscode demo output`：打开 `examples/output/vscode_demo`。
+- `open: vscode demo output`：打开 `output/vscode_demo`。
 
 最有说明力的算法选型案例：
 
@@ -250,7 +250,7 @@ cmake -E chdir build/industrial ctest -L performance --output-on-failure
 | `tests/data/feature_fixtures/elliptical_hole_plate.obj` | `feature-curves` | 适合观察圆/椭圆拟合、过度保护和 curve drift 之间的取舍。 |
 | `tests/data/external/fandisk_2014.stl` | `dihedral-line` | 硬边明显，适合比较普通 QEM 和 line/dihedral 权重。 |
 | `tests/data/external/casting_aimshape_2014.stl` | `industrial-safe` | 工业特征密集，适合展示质量 guard、局部误差 guard 和拒绝计数。 |
-| `examples/input/pipe_coupling.stl` | `feature-report` | 管件/孔特征直观，适合作为讲解 feature report 的起点。 |
+| `tests/data/feature_fixtures/coaxial_hole_plate.obj` | `feature-report` | 管件/孔特征直观，适合作为讲解 feature report 的起点。 |
 
 最有说明力的参数选型案例：
 

@@ -265,7 +265,10 @@ The 2026-07-02 probe produced concrete gates that are now partially covered by
 gtests: circular-loop rediscovery on `coaxial_hole_plate.obj`, strict
 triangle-quality mode on a low-quality Thingi10K output, local self-intersection
 rejection on a synthetic near-overlap mesh, and boundary preservation on open
-boundary fixtures.
+boundary fixtures. The SDK headers now document the same production split used
+in this roadmap: QEM and line quadrics rank candidates, then explicit hard
+filters account for topology, boundary, normal, quality, local-error,
+self-intersection, and feature-policy rejections.
 
 Recommended direction:
 

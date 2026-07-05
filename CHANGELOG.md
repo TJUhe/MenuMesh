@@ -36,6 +36,10 @@
 - Expanded feature-detection API and algorithm comments so the CAD/STL graph
   path, tensor weak-feature path, and bounded circular repair fallback document
   their intended regimes and failure modes.
+- Expanded simplification SDK and C ABI comments so target selection,
+  line-quadric ranking costs, feature-detection thresholds, hard legality
+  filters, feature protection policies, and rejection counters are documented at
+  the API boundary.
 - Reworked feature-curve collapse policy so polygonal/generic crease vertices
   are no longer automatically rejected in the default protected mode. The strict
   old behavior is still available via `all-feature-edges`.

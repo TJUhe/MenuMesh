@@ -37,9 +37,13 @@ typedef enum LqSimplifyTerminationReason {
 } LqSimplifyTerminationReason;
 
 typedef enum LqFeatureProtectionMode {
+  /* Disable hard feature-curve protection. */
   LQ_FEATURE_PROTECTION_NONE = 0,
+  /* Hard-protect circular and near-circular loops only. */
   LQ_FEATURE_PROTECTION_CIRCULAR_ONLY = 1,
+  /* Hard-protect fitted primitive loops: circle, near-circle, and ellipse. */
   LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES = 2,
+  /* Legacy strict behavior: hard-protect every detected feature edge. */
   LQ_FEATURE_PROTECTION_ALL_FEATURE_EDGES = 3
 } LqFeatureProtectionMode;
 
@@ -54,8 +58,10 @@ typedef struct LqFace {
 } LqFace;
 
 typedef struct LqSimplifyOptions {
+  /* Target selection. target_faces > 0 overrides target_ratio. */
   int target_faces;
   double target_ratio;
+  /* QEM and line-quadric candidate-ranking costs. */
   int use_line_quadrics;
   double line_weight;
   LqWeightMode weight_mode;
@@ -63,22 +69,27 @@ typedef struct LqSimplifyOptions {
   double feature_angle_deg;
   int adaptive_scale;
   double adaptive_base_line_weight;
+  /* Boundary and feature policies. Hard filters run after QEM ranking. */
   double boundary_weight;
   int preserve_boundary;
   int preserve_feature_curves;
+  /* Compatibility alias for LQ_FEATURE_PROTECTION_ALL_FEATURE_EDGES. */
   int protect_all_feature_edges;
   double feature_curve_weight;
   double max_feature_curve_deviation_ratio;
+  /* Feature detection thresholds used before simplification. */
   double circle_fit_relative_threshold;
   double ellipse_fit_relative_threshold;
   double near_circle_axis_ratio_tolerance;
   int min_feature_loop_vertices;
   int min_circular_feature_loop_vertices;
+  /* Normal-tensor weak-feature evidence. */
   int use_normal_tensor_features;
   double normal_tensor_feature_threshold;
   double normal_tensor_min_edge_alignment;
   int normal_tensor_smoothing_iterations;
   int normal_tensor_scale_count;
+  /* Hard legality filters. Zero local-error budgets disable those tests. */
   double min_triangle_quality;
   double max_normal_deviation_deg;
   double max_local_error;
@@ -98,10 +109,12 @@ typedef struct LqSimplifyReport {
   /* Current collapse candidates whose placement solve used fallback candidates. */
   int solver_fallbacks;
   int queue_rebuilds;
+  /* Feature-detection summary from the input mesh. */
   int feature_loops;
   int circular_feature_loops;
   int feature_vertices;
   int normal_tensor_feature_edges;
+  /* First hard filter that rejected each current collapse candidate. */
   int feature_rejected_collapses;
   int primitive_feature_rejected_collapses;
   int generic_feature_rejected_collapses;

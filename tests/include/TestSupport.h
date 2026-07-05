@@ -39,6 +39,7 @@ SimplifyOptions lineOptions(double ratio);
 SimplifyOptions protectedOptions(double ratio);
 
 SimplifiedMesh simplifyWithReport(const Mesh& input, const SimplifyOptions& options);
+void expectReportCountersConsistent(const SimplifyReport& report);
 void expectBudget(const SimplifiedMesh& result, const Mesh& input, double ratio);
 int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue);
 

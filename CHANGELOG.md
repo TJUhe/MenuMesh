@@ -16,6 +16,9 @@
   compatibility alias for the strict `all-feature-edges` behavior.
 - Added primitive/generic feature rejection counters to C++ and C reports so
   validation can prove whether the new policy is reducing generic hard locks.
+- Added a shared simplification-report counter invariant to the test support so
+  every `simplifyWithReport` fixture checks rejection totals and primitive vs
+  generic feature-rejection subcounts.
 - Added `docs/design/feature_protection_roadmap.md` to record the external
   model probe results and the first implemented CGAL/OpenMesh-style policy
   split: primitive-curve hard protection plus soft generic-crease behavior.

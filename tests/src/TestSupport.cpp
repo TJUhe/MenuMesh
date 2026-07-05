@@ -195,10 +195,25 @@ SimplifiedMesh simplifyWithReport(const Mesh& input, const SimplifyOptions& opti
   SimplifiedMesh result;
   QEMSimplifier simplifier(options);
   result.mesh = simplifier.simplify(input, &result.report);
+  expectReportCountersConsistent(result.report);
   return result;
 }
 
+void expectReportCountersConsistent(const SimplifyReport& report) {
+  const int rejectionTotal =
+      report.featureRejectedCollapses + report.boundaryRejectedCollapses +
+      report.topologyRejectedCollapses + report.normalFlipRejectedCollapses +
+      report.qualityRejectedCollapses + report.selfIntersectionRejectedCollapses +
+      report.curveBudgetRejectedCollapses + report.errorRejectedCollapses;
+  EXPECT_EQ(report.rejectedCollapses, rejectionTotal);
+
+  const int featureSubtypeTotal =
+      report.primitiveFeatureRejectedCollapses + report.genericFeatureRejectedCollapses;
+  EXPECT_EQ(report.featureRejectedCollapses, featureSubtypeTotal);
+}
+
 void expectBudget(const SimplifiedMesh& result, const Mesh& input, double ratio) {
+  expectReportCountersConsistent(result.report);
   EXPECT_FALSE(result.mesh.empty());
   EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
   EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));

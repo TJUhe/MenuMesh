@@ -288,6 +288,9 @@ GTest acceptance:
 - Rejection counters remain internally consistent:
   `rejectedCollapses == feature + boundary + topology + normal + quality +
   self_intersection + curve_budget`.
+- Done: shared GTest support checks rejection-counter consistency for every
+  `simplifyWithReport` fixture, including primitive/generic feature-rejection
+  subcounts.
 
 ## Recommended Next Implementation Order
 

@@ -27,14 +27,17 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 | 路径 | 角色 |
 | --- | --- |
-| `include/line_quadrics_qem/` | 公共 C++ API；`core/`、`features/`、`simplification/`、`api/` 为分层入口，根目录保留兼容转发头。 |
-| `src/` | 按职责分层的库实现：`core/`、`features/`、`simplification/`、`api/`。 |
+| `include/line_quadrics_qem/` | Public SDK API root; use `core/`, `features/`, `algorithms/`, and `api/` as the only entry layers. |
+| `src/` | Library implementation grouped by responsibility: `core/`, `features/`, `algorithms/`, and `api/`. |
+| `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
 | `apps/linequadrics/` | `linequadrics` CLI，作为库的应用层消费者。 |
 | `tests/` | GoogleTest/CTest 回归测试。 |
-| `thirdParty/googletest/` | 随仓库携带的 GoogleTest 源码，用于离线构建测试。 |
-| `thirdParty/vscode-extensions/` | 适配 VSCode 1.70.2 的 C++/CMake 离线 VSIX 插件包。 |
+| `thirdParty/eigen/` | Eigen 头文件包；Eigen 是 header-only，不存在需要链接的动态库。 |
+| `thirdParty/googletest/` | GoogleTest 预编译包，默认用于本仓库测试，不作为 SDK 运行时依赖。 |
 | `examples/basic_simplify.cpp` | 模拟外部客户程序调用动态库。 |
-| `cmake/` | `find_package(line_quadrics_qem CONFIG REQUIRED)` 安装包配置。 |
+| `examples/sdk_consumer/` | 真正按“已安装 SDK”方式验证的下游小工程。 |
+| `adm/templates/` | SDK 安装辅助模板，目前用于生成 Visual Studio `.props`；普通编译不依赖它。 |
+| `adm/vscode-extensions/` | 适配 VSCode 1.70.2 的 C++/CMake 离线 VSIX 插件包。 |
 | `docs/design/industrial_library.md` | 动态库、安装、运行时布局和集成边界。 |
 | `docs/design/industrial_validation.md` | 每项能力/性能的验证命令、CSV 指标和通过标准。 |
 
@@ -77,13 +80,23 @@ cmake -E chdir build/industrial ctest --output-on-failure
 cmake --build build/industrial --target docs-api
 ```
 
+查看并验证 SDK 发布目录：
+
+```powershell
+cmake -S . -B build/sdk-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DLQ_ENABLE_INSTALL=ON -DLQ_GOOGLETEST_PROVIDER=prebuilt -DLQ_EIGEN_PROVIDER=vendored
+cmake --build build/sdk-release --target sdk-consumer-test --parallel
+```
+
+该目标会安装到 `build/sdk-release/sdk/`，再用 `examples/sdk_consumer/`
+作为独立下游工程，只通过这个 SDK 目录编译并运行 C++/C 两个示例。
+
 ## 核心 API
 
 最小外部调用入口：
 
 ```cpp
 #include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/simplification/QEMSimplifier.h"
+#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 
 lq::SimplifyOptions options;
 options.targetRatio = 0.2;
@@ -95,7 +108,9 @@ lq::QEMSimplifier simplifier(options);
 lq::Mesh simplified = simplifier.simplify(input, &report);
 ```
 
-安装后外部 CMake 工程可使用：
+安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
+如果下游本身也是 CMake 工程，并且安装 SDK 时打开了
+`-DLQ_INSTALL_CMAKE_CONFIG=ON`，也可以选择使用可选的 CMake config：
 
 ```cmake
 find_package(line_quadrics_qem CONFIG REQUIRED)
@@ -105,10 +120,11 @@ line_quadrics_qem_copy_runtime_dependencies(my_app)
 
 ## Visual Studio 使用
 
-推荐先把库安装成一个 SDK 目录，再让 Visual Studio 工程引用安装产物：
+这是推荐的工业 SDK 集成方式：先把库安装成一个 SDK 目录，再让 Visual Studio
+工程引用安装产物。下游不需要依赖本仓库源码，也不需要使用 `find_package`。
 
 ```powershell
-cmake -S . -B build/vs-release -G "Visual Studio 17 2022" -A x64
+cmake -S . -B build/vs-release -G "Visual Studio 17 2022" -A x64 -DLQ_ENABLE_INSTALL=ON
 cmake --build build/vs-release --config Release --parallel
 cmake --install build/vs-release --config Release --prefix C:\opt\line-quadrics-qem
 ```
@@ -120,13 +136,14 @@ C:\opt\line-quadrics-qem
   bin\line_quadrics_qem.dll
   include\line_quadrics_qem\...
   lib\line_quadrics_qem.lib
-  lib\cmake\line_quadrics_qem\...
+  share\line_quadrics_qem\thirdParty\eigen\include\Eigen\...
   share\line_quadrics_qem\msvc\line_quadrics_qem.props
 ```
 
-### Visual Studio CMake 工程
+### 可选：Visual Studio CMake 工程
 
-在你的 `CMakeLists.txt` 中使用：
+只有下游工程本身采用 CMake，并且安装 SDK 时显式打开
+`-DLQ_INSTALL_CMAKE_CONFIG=ON`，才需要这一段。在你的 `CMakeLists.txt` 中使用：
 
 ```cmake
 find_package(line_quadrics_qem CONFIG REQUIRED)
@@ -142,7 +159,7 @@ line_quadrics_qem_copy_runtime_dependencies(my_app)
 cmake -S . -B build -Dline_quadrics_qem_DIR=C:\opt\line-quadrics-qem\lib\cmake\line_quadrics_qem
 ```
 
-### 传统 `.vcxproj` 工程
+### 推荐：传统 `.vcxproj` 工程
 
 在 Visual Studio 中打开你的项目，进入：
 
@@ -162,15 +179,16 @@ C:\opt\line-quadrics-qem\share\line_quadrics_qem\msvc\line_quadrics_qem.props
 - `lib\line_quadrics_qem.lib` 链接库；
 - 构建后把 `bin\line_quadrics_qem.dll` 复制到你的程序输出目录。
 
-如果使用 C++ API，例如 `line_quadrics_qem/core/Mesh.h`，还需要把 Eigen
-头文件目录填到项目属性 `LQEigenIncludeDir`。如果只使用
-`line_quadrics_qem/api/CApi.h` 这套 C ABI，则调用方不需要包含 Eigen 头。
+如果使用 C++ API，例如 `line_quadrics_qem/core/Mesh.h`，属性表默认会引用
+SDK 自带的 Eigen 头文件目录。需要统一公司内部 Eigen 版本时，可以覆盖
+`LQEigenIncludeDir`。如果只使用 `line_quadrics_qem/api/CApi.h` 这套 C ABI，
+调用方不需要包含 Eigen 头。
 
 最小 C++ 调用：
 
 ```cpp
 #include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/simplification/QEMSimplifier.h"
+#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 
 int main() {
   lq::Mesh input;
@@ -219,8 +237,13 @@ cmake -E chdir build/industrial ctest -L performance --output-on-failure
 工业特征验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
 ```
+
+该命令默认复制四个外部成品 STL 作为验证输入：
+Thingi10K spindle、NASA antenna azimuth track、Thingi10K mini pulley 和
+OpenFOAM flange。可用 `--spindle-input`、`--ring-input`、`--pulley-input`、
+`--flange-input` 替换为下游自己的成品模型。
 
 外部 OBJ 基准验证：
 

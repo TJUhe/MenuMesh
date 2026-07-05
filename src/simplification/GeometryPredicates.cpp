@@ -1,4 +1,4 @@
-#include "simplification/GeometryPredicates.h"
+#include "detail/GeometryPredicates.h"
 
 #include <Eigen/Core>
 #include <algorithm>

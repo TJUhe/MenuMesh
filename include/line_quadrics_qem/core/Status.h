@@ -20,21 +20,16 @@ enum class StatusCode {
 /// Lightweight status object for operation results and validation diagnostics.
 class Status {
 public:
-  Status() = default;
-  Status(StatusCode code, std::string message)
-      : code_(code), message_(std::move(message)) {}
+  LQ_API Status();
+  LQ_API Status(StatusCode code, std::string message);
 
-  static Status success() { return {}; }
-  static Status invalidArgument(std::string message) {
-    return {StatusCode::InvalidArgument, std::move(message)};
-  }
-  static Status topologyError(std::string message) {
-    return {StatusCode::TopologyError, std::move(message)};
-  }
+  LQ_API static Status success();
+  LQ_API static Status invalidArgument(std::string message);
+  LQ_API static Status topologyError(std::string message);
 
-  bool ok() const { return code_ == StatusCode::Ok; }
-  StatusCode code() const { return code_; }
-  const std::string& message() const { return message_; }
+  LQ_API bool ok() const;
+  LQ_API StatusCode code() const;
+  LQ_API const std::string& message() const;
 
 private:
   StatusCode code_ = StatusCode::Ok;

@@ -1,4 +1,4 @@
-# Documentation Layout
+﻿# Documentation Layout
 
 Documentation root for the project.
 
@@ -11,7 +11,8 @@ Docs must follow the program, not the other way around.
   changes.
 - Algorithm explanations must describe the current implementation in
   `src/simplification/QEMSimplifier.cpp`, `src/features/FeatureDetection.cpp`,
-  and the public options in `include/line_quadrics_qem/`.
+  the private helpers in `src/simplification/detail/`, and the public
+  options in `include/line_quadrics_qem/`.
 - Paper notes should separate source ideas from implemented behavior. If a
   paper suggests a technique that is not implemented, say so explicitly.
 - Generated HTML notes under `generated/notes/` are still reference artifacts,
@@ -21,6 +22,7 @@ Docs must follow the program, not the other way around.
 | Path | Purpose |
 | --- | --- |
 | `design/` | Architecture notes, algorithm design, validation plans, and roadmaps. |
+| `design/source_organization.md` | Public/private source layout policy and module growth rules. |
 | `guide/` | User-facing and developer-facing usage guides. |
 | `papers/` | Canonical paper PDF archive and paper index. |
 | `generated/notes/` | Exported HTML/PDF/ZIP notes and browsable reports. |

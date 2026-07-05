@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace lq {
@@ -17,9 +18,9 @@ struct TopologyEdge {
   std::vector<int> faces;
   std::vector<int> faceCorners;
 
-  bool boundary() const { return faces.size() == 1; }
-  bool manifoldInterior() const { return faces.size() == 2; }
-  bool nonManifold() const { return faces.size() > 2; }
+  LQ_API bool boundary() const;
+  LQ_API bool manifoldInterior() const;
+  LQ_API bool nonManifold() const;
 };
 
 /// Per-vertex incident edge/face lists built once and reused by algorithms.
@@ -36,25 +37,29 @@ struct VertexTopology {
 /// preflight.
 class MeshTopology {
 public:
+  LQ_API MeshTopology();
+  LQ_API ~MeshTopology();
+
+  LQ_API MeshTopology(const MeshTopology& other);
+  LQ_API MeshTopology& operator=(const MeshTopology& other);
+  LQ_API MeshTopology(MeshTopology&& other) noexcept;
+  LQ_API MeshTopology& operator=(MeshTopology&& other) noexcept;
+
   static LQ_API Result<MeshTopology> build(const Mesh& mesh, bool validate = true);
 
-  int vertexCount() const { return vertexCount_; }
-  int faceCount() const { return faceCount_; }
-  int edgeCount() const { return static_cast<int>(edges_.size()); }
-  int boundaryEdgeCount() const { return boundaryEdgeCount_; }
-  int nonManifoldEdgeCount() const { return nonManifoldEdgeCount_; }
+  LQ_API int vertexCount() const;
+  LQ_API int faceCount() const;
+  LQ_API int edgeCount() const;
+  LQ_API int boundaryEdgeCount() const;
+  LQ_API int nonManifoldEdgeCount() const;
 
-  const std::vector<TopologyEdge>& edges() const { return edges_; }
-  const TopologyEdge& edge(EdgeId id) const { return edges_[id.id]; }
-  const VertexTopology& vertex(VertexId id) const { return vertices_[id.id]; }
+  LQ_API const std::vector<TopologyEdge>& edges() const;
+  LQ_API const TopologyEdge& edge(EdgeId id) const;
+  LQ_API const VertexTopology& vertex(VertexId id) const;
 
 private:
-  int vertexCount_ = 0;
-  int faceCount_ = 0;
-  int boundaryEdgeCount_ = 0;
-  int nonManifoldEdgeCount_ = 0;
-  std::vector<TopologyEdge> edges_;
-  std::vector<VertexTopology> vertices_;
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 /// Returns a packed key for an undirected vertex pair.

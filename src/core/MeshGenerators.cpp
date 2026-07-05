@@ -101,86 +101,6 @@ void addQuad(Mesh& mesh, int a, int b, int c, int d) {
   mesh.faces.push_back({{a, c, d}});
 }
 
-void addCylinderWall(Mesh& mesh, const Vec3& center, double radius, double z0,
-                     double z1, int segments, bool inward) {
-  constexpr double pi = 3.141592653589793238462643383279502884;
-  std::vector<int> lower(segments);
-  std::vector<int> upper(segments);
-  for (int i = 0; i < segments; ++i) {
-    const double t = 2.0 * pi * static_cast<double>(i) / segments;
-    lower[i] = addVertex(mesh, Vec3(center.x() + radius * std::cos(t),
-                                    center.y() + radius * std::sin(t), z0));
-    upper[i] = addVertex(mesh, Vec3(center.x() + radius * std::cos(t),
-                                    center.y() + radius * std::sin(t), z1));
-  }
-
-  for (int i = 0; i < segments; ++i) {
-    const int next = (i + 1) % segments;
-    if (!inward) {
-      addQuad(mesh, lower[i], lower[next], upper[next], upper[i]);
-    } else {
-      addQuad(mesh, lower[i], upper[i], upper[next], lower[next]);
-    }
-  }
-}
-
-bool insideAnyBoltHole(const Vec3& p, int holes, double boltRadius, double holeRadius) {
-  constexpr double pi = 3.141592653589793238462643383279502884;
-  for (int i = 0; i < holes; ++i) {
-    const double theta = 2.0 * pi * static_cast<double>(i) / holes;
-    const Vec3 c(boltRadius * std::cos(theta), boltRadius * std::sin(theta), p.z());
-    if ((p.head<2>() - c.head<2>()).norm() < holeRadius * 0.98) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void addAnnularDisk(Mesh& mesh, double r0, double r1, double z, int rings, int segments,
-                    bool top, int boltHoles = 0, double boltRadius = 0.0,
-                    double boltHoleRadius = 0.0) {
-  constexpr double pi = 3.141592653589793238462643383279502884;
-  std::vector<std::vector<int>> index(
-      rings + 1, std::vector<int>(static_cast<std::size_t>(segments), -1));
-  for (int r = 0; r <= rings; ++r) {
-    const double a = static_cast<double>(r) / rings;
-    const double rr = r0 + (r1 - r0) * a;
-    for (int i = 0; i < segments; ++i) {
-      const double t = 2.0 * pi * static_cast<double>(i) / segments;
-      index[r][i] = addVertex(mesh, Vec3(rr * std::cos(t), rr * std::sin(t), z));
-    }
-  }
-
-  for (int r = 0; r < rings; ++r) {
-    const double a0 = static_cast<double>(r) / rings;
-    const double a1 = static_cast<double>(r + 1) / rings;
-    const double rr0 = r0 + (r1 - r0) * a0;
-    const double rr1 = r0 + (r1 - r0) * a1;
-    for (int i = 0; i < segments; ++i) {
-      const double t0 = 2.0 * pi * static_cast<double>(i) / segments;
-      const double t1 = 2.0 * pi * static_cast<double>(i + 1) / segments;
-      const Vec3 p00(rr0 * std::cos(t0), rr0 * std::sin(t0), z);
-      const Vec3 p10(rr1 * std::cos(t0), rr1 * std::sin(t0), z);
-      const Vec3 p01(rr0 * std::cos(t1), rr0 * std::sin(t1), z);
-      const Vec3 p11(rr1 * std::cos(t1), rr1 * std::sin(t1), z);
-      const Vec3 center = 0.25 * (p00 + p10 + p01 + p11);
-      if (boltHoles > 0 &&
-          insideAnyBoltHole(center, boltHoles, boltRadius, boltHoleRadius)) {
-        continue;
-      }
-      const int v00 = index[r][i];
-      const int v10 = index[r + 1][i];
-      const int v01 = index[r][(i + 1) % segments];
-      const int v11 = index[r + 1][(i + 1) % segments];
-      if (top) {
-        addQuad(mesh, v00, v10, v11, v01);
-      } else {
-        addQuad(mesh, v00, v01, v11, v10);
-      }
-    }
-  }
-}
-
 Mesh generateLatheProfile(const std::vector<std::pair<double, double>>& rz,
                           int segments) {
   constexpr double pi = 3.141592653589793238462643383279502884;
@@ -462,46 +382,6 @@ Mesh generateThinFinGrid(int n, double size) {
   return mesh;
 }
 
-Mesh generateFlangedBossGrid(int n) {
-  const int segments = std::max(48, n);
-  const int boltSegments = std::max(18, n / 3);
-  const int radialRings = std::max(10, n / 5);
-  constexpr int boltHoles = 6;
-
-  const double flangeRadius = 1.15;
-  const double flangeThickness = 0.18;
-  const double bossRadius = 0.42;
-  const double bossHeight = 0.58;
-  const double boreRadius = 0.16;
-  const double boltRadius = 0.78;
-  const double boltHoleRadius = 0.105;
-
-  Mesh mesh;
-  addAnnularDisk(mesh, bossRadius, flangeRadius, 0.0, radialRings, segments, true,
-                 boltHoles, boltRadius, boltHoleRadius);
-  addAnnularDisk(mesh, boreRadius, flangeRadius, -flangeThickness, radialRings,
-                 segments, false, boltHoles, boltRadius, boltHoleRadius);
-  addAnnularDisk(mesh, boreRadius, bossRadius, bossHeight, std::max(4, n / 10),
-                 segments, true);
-
-  addCylinderWall(mesh, Vec3(0, 0, 0), flangeRadius, -flangeThickness, 0.0, segments,
-                  false);
-  addCylinderWall(mesh, Vec3(0, 0, 0), bossRadius, 0.0, bossHeight, segments, false);
-  addCylinderWall(mesh, Vec3(0, 0, 0), boreRadius, -flangeThickness, bossHeight,
-                  segments, true);
-
-  constexpr double pi = 3.141592653589793238462643383279502884;
-  for (int i = 0; i < boltHoles; ++i) {
-    const double theta = 2.0 * pi * static_cast<double>(i) / boltHoles;
-    const Vec3 center(boltRadius * std::cos(theta), boltRadius * std::sin(theta), 0.0);
-    addCylinderWall(mesh, center, boltHoleRadius, -flangeThickness, 0.0, boltSegments,
-                    true);
-  }
-
-  mesh.removeUnusedVertices();
-  return mesh;
-}
-
 Mesh generateSteppedShaftGrid(int n) {
   const int segments = std::max(64, n);
   const std::vector<std::pair<double, double>> profile = {
@@ -555,8 +435,6 @@ bool generateMeshByName(const std::string& type, int n, Mesh& mesh,
     mesh = generateCubeGrid(std::max(1, n / 3), 2.0);
   } else if (type == "thin-fin") {
     mesh = generateThinFinGrid(n, 2.0);
-  } else if (type == "flange" || type == "flanged-boss") {
-    mesh = generateFlangedBossGrid(std::max(48, n));
   } else if (type == "stepped-shaft") {
     mesh = generateSteppedShaftGrid(std::max(64, n));
   } else if (type == "pipe-coupling") {
@@ -567,7 +445,7 @@ bool generateMeshByName(const std::string& type, int n, Mesh& mesh,
     if (error) {
       *error = "Unknown generator type. Use plane, clustered-plane, hole-plane, "
                "ridge, noisy-plane, sine-terrain, terrace, bump, cylinder, torus, "
-               "cube, thin-fin, flange, stepped-shaft, pipe-coupling, or pulley.";
+               "cube, thin-fin, stepped-shaft, pipe-coupling, or pulley.";
     }
     return false;
   }

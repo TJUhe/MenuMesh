@@ -18,23 +18,15 @@
     "${workspaceFolder}/include",
     "${workspaceFolder}/src",
     "${workspaceFolder}/apps/linequadrics",
-    "${workspaceFolder}/thirdParty/googletest/googletest/include",
-    "${workspaceFolder}/build/_deps/eigen-src",
-    "${workspaceFolder}/build/mingw-ninja-release/_deps/eigen-src",
-    "${workspaceFolder}/build/mingw-makefiles-release/_deps/eigen-src",
-    "${workspaceFolder}/build/hierarchy-check/_deps/eigen-src",
-    "${workspaceFolder}/build/codex-industrial/_deps/eigen-src"
+    "${workspaceFolder}/thirdParty/eigen/include",
+    "${workspaceFolder}/thirdParty/googletest/prebuilt/mingw-x64-shared/include"
   ],
   "C_Cpp.default.browse.path": [
     "${workspaceFolder}/include",
     "${workspaceFolder}/src",
     "${workspaceFolder}/apps",
-    "${workspaceFolder}/thirdParty/googletest/googletest/include",
-    "${workspaceFolder}/build/_deps/eigen-src",
-    "${workspaceFolder}/build/mingw-ninja-release/_deps/eigen-src",
-    "${workspaceFolder}/build/mingw-makefiles-release/_deps/eigen-src",
-    "${workspaceFolder}/build/hierarchy-check/_deps/eigen-src",
-    "${workspaceFolder}/build/codex-industrial/_deps/eigen-src"
+    "${workspaceFolder}/thirdParty/eigen/include",
+    "${workspaceFolder}/thirdParty/googletest/prebuilt/mingw-x64-shared/include"
   ],
   "C_Cpp.errorSquiggles": "enabled",
   "files.associations": {

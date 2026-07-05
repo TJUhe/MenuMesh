@@ -1,6 +1,6 @@
-#include "simplification/SpatialFaceIndex.h"
+#include "detail/SpatialFaceIndex.h"
 
-#include "simplification/GeometryPredicates.h"
+#include "detail/GeometryPredicates.h"
 
 #include <algorithm>
 #include <cmath>

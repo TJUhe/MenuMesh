@@ -21,6 +21,7 @@ target_compile_definitions(line_quadrics_qem_tests
 )
 lq_apply_warnings(line_quadrics_qem_tests)
 lq_copy_runtime_dependencies(line_quadrics_qem_tests)
+lq_copy_gtest_runtime_dependencies(line_quadrics_qem_tests)
 
 include(GoogleTest)
 gtest_discover_tests(line_quadrics_qem_tests
@@ -67,6 +68,7 @@ if(LQ_BUILD_PERFORMANCE_TESTS)
   )
   lq_apply_warnings(line_quadrics_qem_performance_tests)
   lq_copy_runtime_dependencies(line_quadrics_qem_performance_tests)
+  lq_copy_gtest_runtime_dependencies(line_quadrics_qem_performance_tests)
 
   gtest_discover_tests(line_quadrics_qem_performance_tests
     PROPERTIES

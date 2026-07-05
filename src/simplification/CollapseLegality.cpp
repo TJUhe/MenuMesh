@@ -1,6 +1,6 @@
-#include "simplification/CollapseLegality.h"
+#include "detail/CollapseLegality.h"
 
-#include "simplification/GeometryPredicates.h"
+#include "detail/GeometryPredicates.h"
 
 #include <algorithm>
 #include <cmath>

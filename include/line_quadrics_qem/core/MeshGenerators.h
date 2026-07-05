@@ -31,8 +31,6 @@ LQ_API Mesh generateTorusGrid(int majorSegments, int minorSegments, double major
 LQ_API Mesh generateCubeGrid(int n, double size);
 /// Generates a thin-fin stress case.
 LQ_API Mesh generateThinFinGrid(int n, double size);
-/// Generates a flanged-boss industrial test case.
-LQ_API Mesh generateFlangedBossGrid(int n);
 /// Generates a stepped-shaft industrial test case.
 LQ_API Mesh generateSteppedShaftGrid(int n);
 /// Generates a pipe-coupling industrial test case.

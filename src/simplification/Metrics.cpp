@@ -1,4 +1,4 @@
-#include "line_quadrics_qem/simplification/Metrics.h"
+#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
 
 #include "line_quadrics_qem/core/MeshTopology.h"
 

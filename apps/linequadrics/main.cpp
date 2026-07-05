@@ -1,8 +1,8 @@
+#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
+#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/Mesh.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/features/FeatureDetection.h"
-#include "line_quadrics_qem/simplification/Metrics.h"
-#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -347,8 +347,8 @@ void printUsage() {
       << "  linequadrics face-sweep input.stl out_dir [options]\n\n"
       << "  linequadrics demo [--quick] [--samples N]\n\n"
       << "  linequadrics summarize-metrics [output_root] [summary.csv]\n\n"
-      << "  linequadrics validate-features [--ratio R] [--n N] "
-         "[--output-dir dir]\n\n"
+      << "  linequadrics validate-features [--ratio R] [--samples N] "
+         "[--input-dir dir] [--output-dir dir]\n\n"
       << "  linequadrics validate-external [--input-dir dir] [--ratio R] "
          "[--output-dir dir]\n\n"
       << "Simplify options:\n"
@@ -390,11 +390,19 @@ void printUsage() {
       << "  --metrics-csv path              Write one-row CSV metrics\n"
       << "  --samples N                     Distance sample count\n"
       << "  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1\n"
-      << "  --faces list                    For face-sweep, e.g. 1000,900,800\n";
+      << "  --faces list                    For face-sweep, e.g. 1000,900,800\n"
+      << "  --spindle-input path            External spindle/shaft STL for "
+         "validate-features\n"
+      << "  --ring-input path               External ring/track STL for "
+         "validate-features\n"
+      << "  --pulley-input path             External pulley STL for "
+         "validate-features\n"
+      << "  --flange-input path             External finished flange STL for demo/"
+         "validate-features\n";
   std::cout << "\nGenerator types:\n"
             << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
             << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
-            << "  flange, stepped-shaft, pipe-coupling, pulley\n";
+            << "  stepped-shaft, pipe-coupling, pulley\n";
 }
 
 void printStats(const std::string& label, const lq::MeshStats& stats) {
@@ -492,6 +500,17 @@ void runGenerate(const fs::path& inputDir, const std::string& name,
                  const std::string& type, int n) {
   commandGenerate(makeArgs({"--type", type, "--n", std::to_string(n), "--out",
                             pathString(inputDir / (name + ".stl"))}));
+}
+
+fs::path copyExternalInput(const fs::path& inputDir, const std::string& name,
+                           const fs::path& source) {
+  if (!fs::exists(source)) {
+    throw std::runtime_error("External input does not exist: " + source.string());
+  }
+  fs::create_directories(inputDir);
+  const fs::path destination = inputDir / (name + ".stl");
+  fs::copy_file(source, destination, fs::copy_options::overwrite_existing);
+  return destination;
 }
 
 void runSweep(const fs::path& input, const fs::path& outDir,
@@ -1168,26 +1187,28 @@ int commandSummarizeMetrics(const Args& args) {
 int commandDemo(const Args& args) {
   const fs::path inputDir = getArg(args, "--input-dir", "output/demo_input");
   const fs::path outputDir = getArg(args, "--output-dir", "output/demo");
+  const fs::path flangeSource =
+      getArg(args, "--flange-input", "tests/data/external/openfoam_flange.stl");
   const bool quick = hasFlag(args, "--quick");
   const std::string samples = getArg(args, "--samples", quick ? "500" : "1000");
   fs::create_directories(inputDir);
   fs::create_directories(outputDir);
 
   if (quick) {
-    runGenerate(inputDir, "flange", "flange", 72);
-    const fs::path flange = inputDir / "flange.stl";
-    runSweep(flange, outputDir / "flange_standard_budget",
+    const fs::path flange =
+        copyExternalInput(inputDir, "external_flange", flangeSource);
+    runSweep(flange, outputDir / "external_flange_standard_budget",
              {"--method", "standard", "--ratio", "0.15", "--weights", "0", "--samples",
               samples});
-    runSweep(flange, outputDir / "flange_line_budget",
+    runSweep(flange, outputDir / "external_flange_line_budget",
              {"--method", "line", "--ratio", "0.15", "--weight-mode", "dihedral",
               "--feature-boost", "0.08", "--feature-angle-deg", "25", "--weights",
               "1e-4,1e-3,1e-2", "--samples", samples});
-    runRatioSweep(flange, outputDir / "flange_ratio_dihedral",
+    runRatioSweep(flange, outputDir / "external_flange_ratio_dihedral",
                   {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
                    "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
                    "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
-    runFaceSweep(flange, outputDir / "flange_face_ladder",
+    runFaceSweep(flange, outputDir / "external_flange_face_ladder",
                  {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
                   "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
                   "--faces", "1000,900,800,700,600,500,400,300,200,100", "--samples",
@@ -1207,7 +1228,7 @@ int commandDemo(const Args& args) {
   runGenerate(inputDir, "torus", "torus", 48);
   runGenerate(inputDir, "cube", "cube", 45);
   runGenerate(inputDir, "thin_fin", "thin-fin", 48);
-  runGenerate(inputDir, "flange", "flange", 72);
+  const fs::path flange = copyExternalInput(inputDir, "external_flange", flangeSource);
 
   runSweep(
       inputDir / "clustered_plane.stl", outputDir / "clustered_plane",
@@ -1252,11 +1273,10 @@ int commandDemo(const Args& args) {
             "--feature-boost", "0.1", "--feature-angle-deg", "20", "--weights", "1e-3",
             "--samples", samples});
 
-  const fs::path flange = inputDir / "flange.stl";
-  runSweep(flange, outputDir / "flange_standard_budget",
+  runSweep(flange, outputDir / "external_flange_standard_budget",
            {"--method", "standard", "--ratio", "0.15", "--weights", "0", "--samples",
             samples});
-  runSweep(flange, outputDir / "flange_line_budget",
+  runSweep(flange, outputDir / "external_flange_line_budget",
            {"--method", "line", "--ratio", "0.15", "--weight-mode", "dihedral",
             "--feature-boost", "0.08", "--feature-angle-deg", "25", "--weights",
             "1e-4,1e-3,1e-2", "--samples", samples});
@@ -1270,11 +1290,11 @@ int commandDemo(const Args& args) {
                 {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
                  "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
                  "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
-  runRatioSweep(flange, outputDir / "flange_ratio_dihedral",
+  runRatioSweep(flange, outputDir / "external_flange_ratio_dihedral",
                 {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
                  "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
                  "--ratios", "0.8,0.5,0.25,0.15,0.08,0.05", "--samples", samples});
-  runFaceSweep(flange, outputDir / "flange_face_ladder",
+  runFaceSweep(flange, outputDir / "external_flange_face_ladder",
                {"--method", "line", "--line-weight", "1e-3", "--weight-mode",
                 "dihedral", "--feature-boost", "0.08", "--feature-angle-deg", "25",
                 "--faces", "1000,900,800,700,600,500,400,300,200,100", "--samples",
@@ -1287,27 +1307,36 @@ int commandDemo(const Args& args) {
 int commandValidateFeatures(const Args& args) {
   struct CaseSpec {
     std::string name;
-    std::string type;
-    int n;
+    fs::path externalInput;
   };
-  const fs::path inputDir = getArg(args, "--input-dir", "tests/output/generated_inputs");
+  const fs::path inputDir =
+      getArg(args, "--input-dir", "tests/output/generated_inputs");
   const fs::path outDir =
       getArg(args, "--output-dir", "tests/output/feature_curve_validation");
+  const fs::path spindleSource =
+      getArg(args, "--spindle-input",
+             "tests/data/external/thingi10k/"
+             "thingi10k_79361_zheng3_tinkeriffic_40mm_spool_spindle.stl");
+  const fs::path ringSource = getArg(
+      args, "--ring-input", "tests/data/external/nasa_antenna_azimuth_track.stl");
+  const fs::path pulleySource =
+      getArg(args, "--pulley-input",
+             "tests/data/external/thingi10k/thingi10k_318045_moko_mini_pulley.stl");
+  const fs::path flangeSource =
+      getArg(args, "--flange-input", "tests/data/external/openfoam_flange.stl");
   const std::string ratio = getArg(args, "--ratio", "0.20");
-  const int n = getIntArg(args, "--n", 96);
   const std::string samples = getArg(args, "--samples", "1000");
   const std::vector<CaseSpec> cases = {
-      {"stepped_shaft", "stepped-shaft", n},
-      {"pipe_coupling", "pipe-coupling", n},
-      {"pulley", "pulley", n},
-      {"flange_curve", "flange", std::max(72, static_cast<int>(n * 0.75))},
+      {"external_spindle", spindleSource},
+      {"external_ring_track", ringSource},
+      {"external_pulley", pulleySource},
+      {"external_flange", flangeSource},
   };
   fs::create_directories(inputDir);
   fs::create_directories(outDir);
 
   for (const CaseSpec& spec : cases) {
-    runGenerate(inputDir, spec.name, spec.type, spec.n);
-    const fs::path input = inputDir / (spec.name + ".stl");
+    const fs::path input = copyExternalInput(inputDir, spec.name, spec.externalInput);
     runFeatureReport(input, {"--feature-angle-deg", "25", "--circle-fit-threshold",
                              "0.04", "--min-feature-loop-vertices", "8", "--csv",
                              pathString(outDir / (spec.name + "_features.csv"))});

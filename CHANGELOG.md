@@ -2,8 +2,26 @@
 
 ## 2026-07-05
 
+### Added
+
+- Added `docs/design/feature_protection_roadmap.md` to record the external
+  model probe results and the next algorithm direction: CGAL/OpenMesh-style
+  policy separation, primitive-curve hard protection, soft generic-crease
+  costs, placement/envelope filters, and multi-loop feature ownership.
+- Added a shared "Feature Protection Roadmap" section to every generated HTML
+  note under `docs/generated/notes/` so the browser-readable documentation
+  carries the same algorithm direction as the Markdown design docs.
+
 ### Changed
 
+- Reworked `validate-features` to use finished external STL fixtures by
+  default: Thingi10K spindle, NASA antenna azimuth track, Thingi10K mini
+  pulley, and OpenFOAM flange. The old procedural shaft/coupling/pulley
+  validation path is no longer the default industrial feature test.
+- Updated feature validation docs and generated HTML results to report the
+  current external-model behavior honestly, including `rejection-limit`
+  terminations and cases where current curve protection over-constrains
+  fragmented industrial STL feature graphs.
 - Refreshed the documentation so user-facing commands, generated HTML notes,
   and algorithm explanations follow the current C++ implementation instead of
   older experiment paths.
@@ -25,13 +43,24 @@
 
 ### Verified
 
+- Deleted `build/`, then configured with
+  `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_ENABLE_INSTALL=ON -DLQ_GOOGLETEST_PROVIDER=prebuilt -DLQ_EIGEN_PROVIDER=vendored`
+- `cmake --build build --parallel`
+- `ctest --test-dir build -C Release --output-on-failure`
+- `.\build\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000 --input-dir tests\output\generated_inputs --output-dir tests\output\feature_curve_validation`
+- External probe on `nasa_cubesat_middle`, `nasa_mars2020_wheel`,
+  `casting_aimshape_2014`, `fandisk_2014`,
+  `thingi10k_37880_functional_differential_gear_system`, and
+  `large/rocker_arm.stl`; outputs are under
+  `tests/output/new_model_validation/` and expose the current
+  feature-policy over-protection risks.
 - `cmake -S . -B build/doccheck -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DLQ_BUILD_DOCS=OFF`
 - `cmake --build build/doccheck --parallel`
 - `cmake -E chdir build/doccheck ctest --output-on-failure`
 - `.\build\doccheck\bin\linequadrics.exe --help`
 - `.\build\doccheck\bin\linequadrics.exe feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv output\doccheck\features.csv`
 - `.\build\doccheck\bin\linequadrics.exe simplify tests\data\feature_fixtures\coaxial_hole_plate.obj output\doccheck\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv output\doccheck\metrics.csv`
-- `.\build\doccheck\bin\linequadrics.exe validate-features --ratio 0.20 --n 48 --samples 64 --output-dir output\doccheck\feature_validation`
+- `.\build\doccheck\bin\linequadrics.exe validate-features --ratio 0.20 --samples 64 --output-dir output\doccheck\feature_validation`
 - `.\build\doccheck\bin\linequadrics.exe validate-external --ratio 0.25 --samples 64 --output-dir output\doccheck\external_validation`
 - `.\build\doccheck\bin\linequadrics.exe demo --quick --samples 64 --output-dir output\doccheck\demo --input-dir output\doccheck\demo_input`
 

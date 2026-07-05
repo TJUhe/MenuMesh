@@ -116,7 +116,7 @@ Q_total =
 批量验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
 ```
 
 ## 5. 验证指标

@@ -144,7 +144,7 @@ LQ_API LqStatus lq_mesh_copy_faces(LqContext* context, const LqMeshHandle* mesh,
                                    size_t* faces_written);
 
 LQ_API LqStatus lq_load_mesh(LqContext* context, const char* path, LqMeshHandle* mesh,
-                             double weld_relative_epsilon);
+                             double merge_relative_epsilon);
 LQ_API LqStatus lq_save_ascii_stl(LqContext* context, const char* path,
                                   const LqMeshHandle* mesh, const char* solid_name);
 LQ_API LqStatus lq_generate_mesh(LqContext* context, const char* name, int n,

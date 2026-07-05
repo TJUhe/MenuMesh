@@ -1,9 +1,9 @@
 #include "TestSupport.h"
+#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
+#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/core/MeshTopology.h"
 #include "line_quadrics_qem/features/FeatureDetection.h"
-#include "line_quadrics_qem/simplification/Metrics.h"
-#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
 #include <algorithm>
 #include <array>
@@ -183,10 +183,10 @@ lq::Mesh makePlacementFallbackMesh() {
 
 TEST(LineQuadricsQem, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
   const std::vector<std::string> names = {
-      "plane",       "clustered-plane", "hole-plane",    "ridge",
-      "noisy-plane", "sine-terrain",    "terrace",       "bump",
-      "cylinder",    "torus",           "cube",          "thin-fin",
-      "flange",      "stepped-shaft",   "pipe-coupling", "pulley",
+      "plane",         "clustered-plane", "hole-plane", "ridge",
+      "noisy-plane",   "sine-terrain",    "terrace",    "bump",
+      "cylinder",      "torus",           "cube",       "thin-fin",
+      "stepped-shaft", "pipe-coupling",   "pulley",
   };
 
   for (const std::string& name : names) {
@@ -208,6 +208,23 @@ TEST(LineQuadricsQem, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
   std::string error;
   EXPECT_FALSE(lq::generateMeshByName("not-a-generator", 16, mesh, &error));
   EXPECT_FALSE(error.empty());
+
+  error.clear();
+  EXPECT_FALSE(lq::generateMeshByName("flange", 24, mesh, &error));
+  EXPECT_FALSE(error.empty());
+}
+
+TEST(LineQuadricsQem, ExternalFinishedFlangeFixtureLoadsWithFeatures) {
+  const lq::Mesh mesh = loadExternalStl("openfoam_flange.stl");
+  ASSERT_FALSE(mesh.empty());
+  EXPECT_GT(mesh.faces.size(), 1000u);
+
+  lq::FeatureOptions options = lq::test::circularFeatureOptions(0.08);
+  options.featureAngleDeg = 25.0;
+  const lq::FeatureAnalysis analysis = lq::detectFeatureCurves(mesh, options);
+  EXPECT_GT(analysis.featureEdges, 0);
+  EXPECT_GT(analysis.graph.edges.size(), 0u);
+  EXPECT_GT(analysis.loops.size(), 0u);
 }
 
 TEST(LineQuadricsQem, WeightModesRoundTripAndRejectUnknownValues) {
@@ -550,6 +567,34 @@ TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {
             simplifier.report().terminationReason);
 }
 
+TEST(LineQuadricsQem, QEMSimplifierCopiesPimplStateIndependently) {
+  lq::SimplifyOptions options = paperLineQuadricsOptions(0.60);
+  lq::QEMSimplifier original(options);
+
+  const lq::Mesh input = lq::generatePlaneGrid(8, 1.0, false);
+  const lq::Mesh output = original.simplify(input);
+  ASSERT_FALSE(output.empty());
+
+  lq::QEMSimplifier copied = original;
+  EXPECT_EQ(original.options().targetRatio, copied.options().targetRatio);
+  EXPECT_EQ(original.report().finalFaces, copied.report().finalFaces);
+
+  lq::QEMSimplifier moved = std::move(copied);
+  EXPECT_EQ(original.report().finalFaces, moved.report().finalFaces);
+
+  lq::SimplifyOptions movedFromOptions;
+  movedFromOptions.targetRatio = 0.75;
+  copied.setOptions(movedFromOptions);
+  EXPECT_DOUBLE_EQ(0.75, copied.options().targetRatio);
+
+  lq::SimplifyOptions copiedOptions = copied.options();
+  copiedOptions.targetRatio = 0.25;
+  copied.setOptions(copiedOptions);
+
+  EXPECT_DOUBLE_EQ(0.60, original.options().targetRatio);
+  EXPECT_DOUBLE_EQ(0.25, copied.options().targetRatio);
+}
+
 TEST(LineQuadricsQem, ReportsFeatureLoopsOnCylinderCreases) {
   const lq::Mesh input = lq::generateCylinderGrid(32, 4, 1.0, 2.0);
   lq::FeatureOptions options;
@@ -723,6 +768,23 @@ TEST(LineQuadricsQem, MeshTopologyCachesBoundaryAndNonManifoldEdges) {
   EXPECT_EQ(stats.edges, topology.edgeCount());
   EXPECT_EQ(stats.boundaryEdges, topology.boundaryEdgeCount());
   EXPECT_EQ(stats.nonManifoldEdges, topology.nonManifoldEdgeCount());
+}
+
+TEST(LineQuadricsQem, MeshTopologyCopiesAndMovesPimplCache) {
+  const lq::Mesh mesh = lq::generatePlaneGrid(4, 1.0, false);
+  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+  ASSERT_TRUE(topologyResult.ok()) << topologyResult.status().message();
+
+  lq::MeshTopology copied = topologyResult.value();
+  EXPECT_EQ(topologyResult.value().vertexCount(), copied.vertexCount());
+  EXPECT_EQ(topologyResult.value().edgeCount(), copied.edgeCount());
+  EXPECT_EQ(topologyResult.value().boundaryEdgeCount(), copied.boundaryEdgeCount());
+
+  lq::MeshTopology moved = std::move(copied);
+  EXPECT_EQ(static_cast<int>(mesh.vertices.size()), moved.vertexCount());
+  EXPECT_GT(moved.edgeCount(), 0);
+  EXPECT_GT(moved.boundaryEdgeCount(), 0);
+  EXPECT_EQ(0, copied.vertexCount());
 }
 
 TEST(LineQuadricsQem, MeshTopologyRejectsInvalidFaces) {

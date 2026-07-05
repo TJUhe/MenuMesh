@@ -45,7 +45,7 @@ old build trees, but it should not be used as the documented validation path.
 | 同面数质量对比 | `linequadrics sweep input.stl out_dir --ratio 0.15 --weights "0,1e-4,1e-3"` | `out_dir/metrics.csv` | 同一目标面数下比较 `mean_triangle_quality`、`edge_length_cv`、距离误差。 |
 | 不同简化率稳定性 | `linequadrics ratio-sweep input.stl out_dir --method line --line-weight 1e-3 --ratios "0.8,0.5,0.25,0.1"` | `out_dir/metrics.csv`、多档 STL | `faces` 随 ratio 下降；STL 在各档可打开。 |
 | 圆/曲线特征检测 | `linequadrics feature-report input.stl --csv features.csv` | `features.csv` | 记录 feature edge、loop、circle fit 结果。 |
-| 曲线特征保持 | `linequadrics validate-features --ratio 0.20 --n 96 --samples 1000` | `tests/output/feature_curve_validation/*`，生成输入在 `tests/output/generated_inputs/*` | 对 stepped shaft、pipe coupling、pulley、flange 输出 line/curve 两套 STL、metrics CSV 和 feature-compare CSV。 |
+| 曲线特征保持 | `linequadrics validate-features --ratio 0.20 --samples 1000` | `tests/output/feature_curve_validation/*`，复制后的外部成品输入在 `tests/output/generated_inputs/*` | 对 Thingi10K spindle、NASA antenna azimuth track、Thingi10K mini pulley 和 OpenFOAM flange 输出 line/curve 两套 STL、metrics CSV 和 feature-compare CSV；可用 `--spindle-input`、`--ring-input`、`--pulley-input`、`--flange-input` 替换为下游模型。 |
 | 特征误差对比 | `linequadrics feature-compare original.stl simplified.stl --csv compare.csv` | `compare.csv` | 查看 `status`、`radial_rms`、`plane_rms`、`radius_error`，曲线约束结果应减少关键圆特征漂移。 |
 | 外部模型鲁棒性 | `linequadrics validate-external --ratio 0.25 --samples 800` | `tests/output/external_model_validation/external_summary.csv` | 默认读取 `tests/data/external/common_3d_test_models/` 中的 `fandisk.obj`、`rocker_arm.obj`、`beetle.obj`、`cow.obj`、`suzanne.obj`。至少找到一个模型才通过；一个都找不到时命令返回错误并说明缺失目录。 |
 | STL 可视确认 | 打开输出 STL | STL 查看器画面 | 无明显破洞、翻面、异常坍塌；特征环仍可辨认。 |
@@ -101,12 +101,21 @@ old build trees, but it should not be used as the documented validation path.
 
 1. 先跑 CMake 构建和 CTest，证明库、CLI、示例和单元测试闭环成立。
 2. 跑 `demo --quick`，证明基础 STL/CSV 输出可复现。
-3. 跑 `validate-features`，证明工业风格圆/轴肩/槽特征可被度量。
-4. 打开关键 STL：`pipe_coupling_line.stl`、`pipe_coupling_curve.stl`、
-   `pulley_line.stl`、`pulley_curve.stl`。
+3. 跑 `validate-features`，证明外部工业风格圆/轴肩/槽特征可被度量。
+4. 打开关键 STL：`external_spindle_line.stl`、`external_ring_track_line.stl`、
+   `external_pulley_line.stl`、`external_flange_line.stl`，并对照各自的
+   `*_curve.stl`。
 5. 对照 feature compare CSV，检查曲线约束是否降低关键圆环的半径漂移和平面漂移。
 6. 跑 `validate-external`，用于发现过保护、误检和复杂特征图问题；若使用
    自己的 OBJ 集，传入 `--input-dir your_dir`。
+
+新增外部模型探针结果记录在
+[`feature_protection_roadmap.md`](feature_protection_roadmap.md)。当前主要风险是
+`--preserve-feature-curves` 对碎片化工业 STL 过保护：CubeSat、Mars wheel 和
+differential gear 会暴露 `rejection-limit`、目标面数未达到和曲线模式误差过大的
+问题。后续算法应参考 CGAL/OpenMesh/VCG 的 decimation policy 分层，把 primitive
+curve 硬保护、generic crease 软约束、placement/envelope filter 和拓扑/质量 filter
+拆开。
 
 ## 4. 当前方案能验证什么
 

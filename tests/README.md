@@ -8,5 +8,6 @@
 | `output/` | Local validation outputs from CLI validation commands; ignored by git. |
 
 GTest and CTest runtime logs belong to the build tree. CLI validation artifacts,
-such as generated STL and CSV files from `validate-features` or
-`validate-external`, belong under `tests/output/`.
+such as copied external validation STL files and CSV files from
+`validate-features` or generated reports from `validate-external`, belong under
+`tests/output/`.

@@ -1,4 +1,4 @@
-#include "simplification/DynamicTopology.h"
+#include "detail/DynamicTopology.h"
 
 #include <algorithm>
 #include <cstdint>

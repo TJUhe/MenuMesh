@@ -1,8 +1,8 @@
 #include "line_quadrics_qem/api/CApi.h"
 
+#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
+#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
-#include "line_quadrics_qem/simplification/Metrics.h"
-#include "line_quadrics_qem/simplification/QEMSimplifier.h"
 
 #include <algorithm>
 #include <cmath>
@@ -306,20 +306,20 @@ LqStatus lq_mesh_copy_faces(LqContext* context, const LqMeshHandle* mesh, LqFace
 }
 
 LqStatus lq_load_mesh(LqContext* context, const char* path, LqMeshHandle* mesh,
-                      double weld_relative_epsilon) {
+                      double merge_relative_epsilon) {
   clearError(context);
   if (!path || !mesh) {
     return fail(context, LQ_STATUS_INVALID_ARGUMENT,
                 "Path and mesh handle must be valid.");
   }
-  if (!std::isfinite(weld_relative_epsilon) || weld_relative_epsilon < 0.0) {
+  if (!std::isfinite(merge_relative_epsilon) || merge_relative_epsilon < 0.0) {
     return fail(context, LQ_STATUS_INVALID_ARGUMENT,
-                "weld_relative_epsilon must be finite and non-negative.");
+                "merge_relative_epsilon must be finite and non-negative.");
   }
   std::string error;
   try {
     lq::Mesh loaded;
-    if (!lq::loadMesh(path, loaded, &error, weld_relative_epsilon)) {
+    if (!lq::loadMesh(path, loaded, &error, merge_relative_epsilon)) {
       return fail(context, LQ_STATUS_IO_ERROR, error);
     }
     mesh->mesh = std::move(loaded);

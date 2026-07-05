@@ -26,7 +26,7 @@ struct Mesh {
   std::vector<Face> faces;
 
   /// Returns true when either vertex or face storage is empty.
-  bool empty() const { return vertices.empty() || faces.empty(); }
+  LQ_API bool empty() const;
   /// Axis-aligned bounding-box minimum corner.
   LQ_API Vec3 bboxMin() const;
   /// Axis-aligned bounding-box maximum corner.
@@ -39,12 +39,12 @@ struct Mesh {
 
 /// Loads an STL file, automatically handling ASCII and binary encodings.
 LQ_API bool loadStl(const std::string& path, Mesh& mesh, std::string* error = nullptr,
-                    double weldRelativeEpsilon = 1e-9);
+                    double mergeRelativeEpsilon = 1e-9);
 /// Loads a simple OBJ triangle mesh.
 LQ_API bool loadObj(const std::string& path, Mesh& mesh, std::string* error = nullptr);
 /// Loads a mesh by file extension. Supported formats are STL and OBJ.
 LQ_API bool loadMesh(const std::string& path, Mesh& mesh, std::string* error = nullptr,
-                     double weldRelativeEpsilon = 1e-9);
+                     double mergeRelativeEpsilon = 1e-9);
 /// Returns false and writes an error when any face index is out of range.
 LQ_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
 /// Returns false when indices are invalid or vertex coordinates are not finite.

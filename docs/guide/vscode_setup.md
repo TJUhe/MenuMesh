@@ -17,27 +17,27 @@ Install the extensions listed in `.vscode/extensions.json`:
 - Vim (`vscodevim.vim`), optional editor keybindings
 
 For VSCode 1.70.2 or offline machines, this repository also carries compatible
-VSIX packages under `thirdParty/vscode-extensions/`:
+VSIX files under `adm/vscode-extensions/`:
 
 - CMake Tools (`ms-vscode.cmake-tools` 1.19.52, `engines.vscode: ^1.67.0`)
 - Vim (`vscodevim.vim` 1.24.3, `engines.vscode: ^1.67.0`)
 
-The old clangd VSIX is still kept in `thirdParty/vscode-extensions/` as a
-legacy optional package, but the workspace settings now use Microsoft's C/C++
+The old clangd VSIX is still kept in `adm/vscode-extensions/` as a
+legacy optional extension bundle, but the workspace settings now use Microsoft's C/C++
 extension (`ms-vscode.cpptools`) instead of clangd.
 
 Install them from the repository root:
 
 ```powershell
-code --install-extension thirdParty\vscode-extensions\ms-vscode.cmake-tools-1.19.52.vsix
-code --install-extension thirdParty\vscode-extensions\vscodevim.vim-1.24.3.vsix
+code --install-extension adm\vscode-extensions\ms-vscode.cmake-tools-1.19.52.vsix
+code --install-extension adm\vscode-extensions\vscodevim.vim-1.24.3.vsix
 ```
 
 Microsoft's C/C++ extension reads the CMake Tools configuration provider and
-the fallback paths in `.vscode/settings.json`. If Eigen diagnostics appear
-before CMake has configured the project, configure once so FetchContent creates
-`build/_deps/eigen-src`, then run `C/C++: Reset IntelliSense Database` from the
-VSCode command palette.
+the fallback paths in `.vscode/settings.json`. Eigen diagnostics should resolve
+from the checked-in header bundle at `thirdParty/eigen/include`; after changing
+toolchains, run `C/C++: Reset IntelliSense Database` from the VSCode command
+palette.
 
 The primary editor configuration is MinGW-first:
 
@@ -175,10 +175,10 @@ Algorithm comparison for a hard-edge CAD model:
   --ratios "0.8,0.5,0.25,0.1" --samples 512
 ```
 
-Run generated industrial feature validation:
+Run external industrial feature validation:
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --n 96 --samples 1000
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
 ```
 
 Run external model validation after placing OBJ files under

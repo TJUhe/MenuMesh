@@ -176,8 +176,8 @@ bool readAsciiTriangles(const std::string& path,
   return true;
 }
 
-void weldTriangles(const std::vector<std::array<Vec3, 3>>& triangles, Mesh& mesh,
-                   double weldRelativeEpsilon) {
+void mergeDuplicateTriangleVertices(const std::vector<std::array<Vec3, 3>>& triangles,
+                                    Mesh& mesh, double mergeRelativeEpsilon) {
   mesh.vertices.clear();
   mesh.faces.clear();
 
@@ -196,7 +196,7 @@ void weldTriangles(const std::vector<std::array<Vec3, 3>>& triangles, Mesh& mesh
   }
 
   const double diag = (hi - lo).norm();
-  const double eps = std::max({diag * weldRelativeEpsilon, 1e-12});
+  const double eps = std::max({diag * mergeRelativeEpsilon, 1e-12});
 
   std::unordered_map<QuantizedKey, int, QuantizedKeyHash> indexOf;
   indexOf.reserve(triangles.size() * 3);
@@ -237,6 +237,10 @@ struct FaceKeyHash {
 };
 
 } // namespace
+
+bool Mesh::empty() const {
+  return vertices.empty() || faces.empty();
+}
 
 Vec3 Mesh::bboxMin() const {
   Vec3 lo(std::numeric_limits<double>::infinity(),
@@ -308,9 +312,9 @@ void Mesh::removeUnusedVertices() {
 }
 
 bool loadStl(const std::string& path, Mesh& mesh, std::string* error,
-             double weldRelativeEpsilon) {
-  if (!std::isfinite(weldRelativeEpsilon) || weldRelativeEpsilon < 0.0) {
-    if (error) *error = "weldRelativeEpsilon must be finite and non-negative.";
+             double mergeRelativeEpsilon) {
+  if (!std::isfinite(mergeRelativeEpsilon) || mergeRelativeEpsilon < 0.0) {
+    if (error) *error = "mergeRelativeEpsilon must be finite and non-negative.";
     return false;
   }
   std::vector<std::array<Vec3, 3>> triangles;
@@ -323,7 +327,7 @@ bool loadStl(const std::string& path, Mesh& mesh, std::string* error,
     }
   }
 
-  weldTriangles(triangles, mesh, weldRelativeEpsilon);
+  mergeDuplicateTriangleVertices(triangles, mesh, mergeRelativeEpsilon);
   mesh.removeUnusedVertices();
   return !mesh.empty();
 }
@@ -412,14 +416,14 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
 }
 
 bool loadMesh(const std::string& path, Mesh& mesh, std::string* error,
-              double weldRelativeEpsilon) {
+              double mergeRelativeEpsilon) {
   std::string extension = std::filesystem::path(path).extension().string();
   for (char& ch : extension) {
     ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
   }
 
   if (extension == ".stl") {
-    return loadStl(path, mesh, error, weldRelativeEpsilon);
+    return loadStl(path, mesh, error, mergeRelativeEpsilon);
   }
   if (extension == ".obj") {
     return loadObj(path, mesh, error);

@@ -3,6 +3,7 @@
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/core/MeshTopology.h"
+#include "line_quadrics_qem/core/PlainMesh.h"
 #include "line_quadrics_qem/features/FeatureDetection.h"
 
 #include <algorithm>
@@ -550,6 +551,26 @@ TEST(LineQuadricsQem, PrimitiveModeKeepsPolygonalFeaturesSoftByDefault) {
   EXPECT_GT(result.report.featureLoops, 0);
   EXPECT_GT(result.report.featureVertices, 0);
   EXPECT_EQ(0, result.report.genericFeatureRejectedCollapses);
+}
+
+TEST(LineQuadricsQem, PlainMeshRoundTripsWithoutEigenInExchangeType) {
+  lq::PlainMesh plain;
+  plain.vertices = {
+      {0.0, 0.0, 0.0},
+      {1.0, 0.0, 0.0},
+      {0.0, 1.0, 0.0},
+  };
+  plain.faces = {{{{0, 1, 2}}}};
+
+  const lq::Mesh mesh = lq::toMesh(plain);
+  ASSERT_EQ(3u, mesh.vertices.size());
+  ASSERT_EQ(1u, mesh.faces.size());
+
+  const lq::PlainMesh roundTrip = lq::toPlainMesh(mesh);
+  EXPECT_EQ(plain.vertices.size(), roundTrip.vertices.size());
+  EXPECT_EQ(plain.faces.size(), roundTrip.faces.size());
+  EXPECT_DOUBLE_EQ(1.0, roundTrip.vertices[1].x);
+  EXPECT_EQ(2, roundTrip.faces[0].v[2]);
 }
 
 TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {

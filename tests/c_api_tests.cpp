@@ -173,6 +173,26 @@ TEST_F(CApiTest, MapsInvalidSimplifyOptionsToInvalidArgumentStatus) {
   lq_mesh_destroy(input);
 }
 
+TEST_F(CApiTest, RejectsUninitializedSimplifyOptionsAbiStruct) {
+  LqMeshHandle* input = lq_mesh_create(context);
+  LqMeshHandle* output = lq_mesh_create(context);
+  ASSERT_NE(input, nullptr);
+  ASSERT_NE(output, nullptr);
+
+  ASSERT_EQ(LQ_STATUS_OK, lq_generate_mesh(context, "plane", 8, input));
+
+  LqSimplifyOptions options{};
+  options.target_ratio = 0.5;
+
+  LqSimplifyReport report;
+  EXPECT_EQ(LQ_STATUS_INVALID_ARGUMENT,
+            lq_simplify_mesh(context, input, &options, output, &report));
+  EXPECT_NE('\0', lq_context_last_error(context)[0]);
+
+  lq_mesh_destroy(output);
+  lq_mesh_destroy(input);
+}
+
 TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
   LqMeshHandle* input = lq_mesh_create(context);
   LqMeshHandle* output = lq_mesh_create(context);
@@ -287,6 +307,8 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
   LqSimplifyOptions options;
   lq_simplify_options_init(&options);
 
+  EXPECT_EQ(sizeof(LqSimplifyOptions), options.struct_size);
+  EXPECT_EQ(LQ_ABI_VERSION, options.abi_version);
   EXPECT_DOUBLE_EQ(0.05, options.circle_fit_relative_threshold);
   EXPECT_DOUBLE_EQ(0.05, options.ellipse_fit_relative_threshold);
   EXPECT_DOUBLE_EQ(0.08, options.near_circle_axis_ratio_tolerance);
@@ -301,4 +323,14 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
   EXPECT_EQ(0, options.prevent_local_intersections);
   EXPECT_EQ(LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES,
             options.feature_protection_mode);
+
+  LqSimplifyReport report;
+  lq_simplify_report_init(&report);
+  EXPECT_EQ(sizeof(LqSimplifyReport), report.struct_size);
+  EXPECT_EQ(LQ_ABI_VERSION, report.abi_version);
+
+  LqMeshStats stats;
+  lq_mesh_stats_init(&stats);
+  EXPECT_EQ(sizeof(LqMeshStats), stats.struct_size);
+  EXPECT_EQ(LQ_ABI_VERSION, stats.abi_version);
 }

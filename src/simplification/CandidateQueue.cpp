@@ -26,8 +26,10 @@ void CandidateQueue::pushEdge(int a, int b, const std::vector<VertexState>& vert
   }
   const Mat4 q = vertices[a].q + vertices[b].q;
   const SolveResult solve = solveOptimal(q, vertices[a].p, vertices[b].p);
-  queue_.push(Candidate{solve.cost, std::min(a, b), std::max(a, b), vertices[a].version,
-                        vertices[b].version});
+  const int first = std::min(a, b);
+  const int second = std::max(a, b);
+  queue_.push(Candidate{solve.cost, first, second, vertices[first].version,
+                        vertices[second].version});
 }
 
 } // namespace lq

@@ -11,6 +11,8 @@ extern "C" {
 typedef struct LqContext LqContext;
 typedef struct LqMeshHandle LqMeshHandle;
 
+#define LQ_ABI_VERSION 1u
+
 typedef enum LqStatus {
   LQ_STATUS_OK = 0,
   LQ_STATUS_INVALID_ARGUMENT = 1,
@@ -58,6 +60,9 @@ typedef struct LqFace {
 } LqFace;
 
 typedef struct LqSimplifyOptions {
+  /* Must be set by lq_simplify_options_init before calling lq_simplify_mesh. */
+  size_t struct_size;
+  unsigned int abi_version;
   /* Target selection. target_faces > 0 overrides target_ratio. */
   int target_faces;
   double target_ratio;
@@ -100,6 +105,9 @@ typedef struct LqSimplifyOptions {
 } LqSimplifyOptions;
 
 typedef struct LqSimplifyReport {
+  /* Filled by the library; can also be initialized by lq_simplify_report_init. */
+  size_t struct_size;
+  unsigned int abi_version;
   int initial_vertices;
   int initial_faces;
   int final_vertices;
@@ -132,6 +140,9 @@ typedef struct LqSimplifyReport {
 } LqSimplifyReport;
 
 typedef struct LqMeshStats {
+  /* Filled by the library; can also be initialized by lq_mesh_stats_init. */
+  size_t struct_size;
+  unsigned int abi_version;
   int vertices;
   int faces;
   int edges;
@@ -175,6 +186,8 @@ LQ_API LqStatus lq_generate_mesh(LqContext* context, const char* name, int n,
                                  LqMeshHandle* mesh);
 
 LQ_API void lq_simplify_options_init(LqSimplifyOptions* options);
+LQ_API void lq_simplify_report_init(LqSimplifyReport* report);
+LQ_API void lq_mesh_stats_init(LqMeshStats* stats);
 LQ_API LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
                                  const LqSimplifyOptions* options, LqMeshHandle* output,
                                  LqSimplifyReport* report);

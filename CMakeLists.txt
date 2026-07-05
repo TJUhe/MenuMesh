@@ -109,6 +109,7 @@ set(LQ_PUBLIC_HEADERS
   include/line_quadrics_qem/core/Mesh.h
   include/line_quadrics_qem/core/MeshGenerators.h
   include/line_quadrics_qem/core/MeshTopology.h
+  include/line_quadrics_qem/core/PlainMesh.h
   include/line_quadrics_qem/core/Status.h
   include/line_quadrics_qem/features/FeatureDetection.h
 )
@@ -118,6 +119,7 @@ set(LQ_LIBRARY_SOURCES
   src/core/Mesh.cpp
   src/core/MeshGenerators.cpp
   src/core/MeshTopology.cpp
+  src/core/PlainMesh.cpp
   src/core/Status.cpp
   src/features/FeatureDetection.cpp
   src/simplification/CandidateQueue.cpp

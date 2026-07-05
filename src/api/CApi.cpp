@@ -58,6 +58,18 @@ bool boolFromInt(int value) {
   return value != 0;
 }
 
+template <typename T>
+void initializeAbiStruct(T& value) {
+  value = T{};
+  value.struct_size = sizeof(T);
+  value.abi_version = LQ_ABI_VERSION;
+}
+
+template <typename T>
+bool abiStructLooksInitialized(const T& value) {
+  return value.struct_size >= sizeof(T) && value.abi_version == LQ_ABI_VERSION;
+}
+
 bool convertWeightMode(LqWeightMode input, lq::WeightMode& output) {
   switch (input) {
   case LQ_WEIGHT_MODE_UNIFORM:
@@ -116,6 +128,7 @@ convertTerminationReason(lq::SimplifyTerminationReason input) {
 }
 
 void fillReport(const lq::SimplifyReport& source, LqSimplifyReport& target) {
+  initializeAbiStruct(target);
   target.initial_vertices = source.initialVertices;
   target.initial_faces = source.initialFaces;
   target.final_vertices = source.finalVertices;
@@ -147,6 +160,7 @@ void fillReport(const lq::SimplifyReport& source, LqSimplifyReport& target) {
 }
 
 void fillStats(const lq::MeshStats& source, LqMeshStats& target) {
+  initializeAbiStruct(target);
   target.vertices = source.vertices;
   target.faces = source.faces;
   target.edges = source.edges;
@@ -400,6 +414,7 @@ void lq_simplify_options_init(LqSimplifyOptions* options) {
   if (!options) {
     return;
   }
+  initializeAbiStruct(*options);
   options->target_faces = -1;
   options->target_ratio = 0.25;
   options->use_line_quadrics = 1;
@@ -434,6 +449,20 @@ void lq_simplify_options_init(LqSimplifyOptions* options) {
   options->feature_protection_mode = LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES;
 }
 
+void lq_simplify_report_init(LqSimplifyReport* report) {
+  if (!report) {
+    return;
+  }
+  initializeAbiStruct(*report);
+}
+
+void lq_mesh_stats_init(LqMeshStats* stats) {
+  if (!stats) {
+    return;
+  }
+  initializeAbiStruct(*stats);
+}
+
 LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
                           const LqSimplifyOptions* options, LqMeshHandle* output,
                           LqSimplifyReport* report) {
@@ -445,6 +474,11 @@ LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
   try {
     lq::SimplifyOptions cppOptions;
     if (options) {
+      if (!abiStructLooksInitialized(*options)) {
+        return fail(context, LQ_STATUS_INVALID_ARGUMENT,
+                    "LqSimplifyOptions must be initialized with "
+                    "lq_simplify_options_init for this ABI version.");
+      }
       cppOptions.targetFaces = options->target_faces;
       cppOptions.targetRatio = options->target_ratio;
       cppOptions.useLineQuadrics = boolFromInt(options->use_line_quadrics);

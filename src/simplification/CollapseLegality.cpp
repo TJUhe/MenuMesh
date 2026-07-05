@@ -38,19 +38,32 @@ CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input) {
   std::vector<NewTriangle> newTriangles;
   std::vector<Vec3> localReferencePoints;
   const bool measureLocalError = maxLocalError > 0.0;
+  auto addLocalReferencePoint = [&](const Vec3& point) {
+    localReferencePoints.push_back(point);
+  };
+  auto addOldTriangleReferenceSamples = [&](const FaceState& face) {
+    const Vec3& a = vertices[face.v[0]].p;
+    const Vec3& b = vertices[face.v[1]].p;
+    const Vec3& c = vertices[face.v[2]].p;
+    addLocalReferencePoint(a);
+    addLocalReferencePoint(b);
+    addLocalReferencePoint(c);
+    addLocalReferencePoint(0.5 * (a + b));
+    addLocalReferencePoint(0.5 * (b + c));
+    addLocalReferencePoint(0.5 * (c + a));
+    addLocalReferencePoint((a + b + c) / 3.0);
+  };
   if (measureLocalError) {
-    localReferencePoints.push_back(vertices[keep].p);
-    localReferencePoints.push_back(vertices[remove].p);
+    addLocalReferencePoint(vertices[keep].p);
+    addLocalReferencePoint(vertices[remove].p);
   }
   for (int faceId : touchedFaces) {
     const FaceState& face = faces[faceId];
     if (!face.active) {
       continue;
     }
-    for (int id : face.v) {
-      if (id != keep && id != remove && vertices[id].active) {
-        localReferencePoints.push_back(vertices[id].p);
-      }
+    if (measureLocalError) {
+      addOldTriangleReferenceSamples(face);
     }
     bool touches = false;
     std::array<int, 3> mapped = face.v;

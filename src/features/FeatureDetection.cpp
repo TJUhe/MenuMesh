@@ -672,24 +672,32 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     }
   };
 
-  auto addLoop = [&](std::vector<int> vertices, int edgeCount, int boundaryEdges,
-                     int convexEdges, int concaveEdges, int unknownSignedEdges,
-                     bool closed) {
-    if (vertices.empty() || edgeCount <= 0) {
+  struct TraceLoopStats {
+    int edgeCount = 0;
+    int boundaryEdges = 0;
+    int convexEdges = 0;
+    int concaveEdges = 0;
+    int unknownSignedEdges = 0;
+    bool closed = false;
+  };
+
+  auto addLoop = [&](std::vector<int> vertices, const TraceLoopStats& stats) {
+    if (vertices.empty() || stats.edgeCount <= 0) {
       return;
     }
 
     FeatureLoop loop;
     loop.id = loopId++;
     loop.vertices = std::move(vertices);
-    loop.edgeCount = edgeCount;
-    loop.closed = closed;
+    loop.edgeCount = stats.edgeCount;
+    loop.closed = stats.closed;
     loop.mostlyBoundary =
         loop.edgeCount > 0 &&
-        boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
-    loop.convexEdges = convexEdges;
-    loop.concaveEdges = concaveEdges;
-    loop.unknownSignedEdges = unknownSignedEdges;
+        stats.boundaryEdges >=
+            static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+    loop.convexEdges = stats.convexEdges;
+    loop.concaveEdges = stats.concaveEdges;
+    loop.unknownSignedEdges = stats.unknownSignedEdges;
     if (loop.closed &&
         static_cast<int>(loop.vertices.size()) >= options.minFeatureLoopVertices) {
       applyPrimitiveFit(fitPrimitive(mesh, loop, options), loop);
@@ -1052,24 +1060,33 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       return out.str();
     };
 
-    auto fitCircleFromThree = [&](int ia, int ib, int ic, Vec3& center, Vec3& normal,
-                                  double& radius) {
+    struct ThreePointCircle {
+      bool valid = false;
+      Vec3 center = Vec3::Zero();
+      Vec3 normal = Vec3(0.0, 0.0, 1.0);
+      double radius = 0.0;
+    };
+
+    auto fitCircleFromThree = [&](int ia, int ib, int ic) {
+      ThreePointCircle result;
       const Vec3& a = mesh.vertices[ia];
       const Vec3& b = mesh.vertices[ib];
       const Vec3& c = mesh.vertices[ic];
       const Vec3 ab = b - a;
       const Vec3 ac = c - a;
-      normal = ab.cross(ac);
-      const double n2 = normal.squaredNorm();
+      result.normal = ab.cross(ac);
+      const double n2 = result.normal.squaredNorm();
       if (n2 <= 1e-20) {
-        return false;
+        return result;
       }
-      const Vec3 term1 = ac.squaredNorm() * normal.cross(ab);
-      const Vec3 term2 = ab.squaredNorm() * ac.cross(normal);
-      center = a + (term1 + term2) / (2.0 * n2);
-      radius = (center - a).norm();
-      normal.normalize();
-      return std::isfinite(radius) && radius > 1e-20 && center.allFinite();
+      const Vec3 term1 = ac.squaredNorm() * result.normal.cross(ab);
+      const Vec3 term2 = ab.squaredNorm() * ac.cross(result.normal);
+      result.center = a + (term1 + term2) / (2.0 * n2);
+      result.radius = (result.center - a).norm();
+      result.normal.normalize();
+      result.valid = std::isfinite(result.radius) && result.radius > 1e-20 &&
+                     result.center.allFinite();
+      return result;
     };
 
     auto sortAroundCircle = [&](std::vector<int> ids, const Vec3& center,
@@ -1127,27 +1144,26 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
     for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
       for (int j = i + 1; j < static_cast<int>(candidates.size()); ++j) {
         for (int k = j + 1; k < static_cast<int>(candidates.size()); ++k) {
-          Vec3 center;
-          Vec3 normal;
-          double radius = 0.0;
-          if (!fitCircleFromThree(candidates[i], candidates[j], candidates[k], center,
-                                  normal, radius)) {
+          const ThreePointCircle circle =
+              fitCircleFromThree(candidates[i], candidates[j], candidates[k]);
+          if (!circle.valid) {
             continue;
           }
           const double allowed =
-              std::max(3.0 * options.circleFitRelativeThreshold, 0.08) * radius;
+              std::max(3.0 * options.circleFitRelativeThreshold, 0.08) *
+              circle.radius;
           std::vector<int> cluster;
           for (int id : candidates) {
-            const Vec3 delta = mesh.vertices[id] - center;
-            const double plane = std::abs(delta.dot(normal));
-            const Vec3 inPlane = delta - normal * delta.dot(normal);
-            const double radial = std::abs(inPlane.norm() - radius);
+            const Vec3 delta = mesh.vertices[id] - circle.center;
+            const double plane = std::abs(delta.dot(circle.normal));
+            const Vec3 inPlane = delta - circle.normal * delta.dot(circle.normal);
+            const double radial = std::abs(inPlane.norm() - circle.radius);
             if (std::max(plane, radial) <= allowed) {
               cluster.push_back(id);
             }
           }
           if (static_cast<int>(cluster.size()) < options.minFeatureLoopVertices ||
-              angularCoverage(cluster, center, normal) < 1.5 * kPi) {
+              angularCoverage(cluster, circle.center, circle.normal) < 1.5 * kPi) {
             continue;
           }
           const std::string signature = vertexSetSignature(cluster);
@@ -1155,7 +1171,8 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
             continue;
           }
 
-          cluster = sortAroundCircle(std::move(cluster), center, normal);
+          cluster = sortAroundCircle(std::move(cluster), circle.center,
+                                     circle.normal);
           FeatureLoop loop;
           loop.id = loopId++;
           loop.vertices = std::move(cluster);
@@ -1177,12 +1194,7 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   auto traceOpenChain = [&](int seed, int firstNeighbor) {
     std::vector<int> vertices;
     vertices.push_back(seed);
-    int edgeCount = 0;
-    int boundaryEdges = 0;
-    int convexEdges = 0;
-    int concaveEdges = 0;
-    int unknownSignedEdges = 0;
-    bool closed = false;
+    TraceLoopStats stats;
 
     int previous = seed;
     int current = firstNeighbor;
@@ -1191,18 +1203,20 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
         break;
       }
       markEdge(previous, current);
-      ++edgeCount;
+      ++stats.edgeCount;
       if (edgeBoundary(previous, current)) {
-        ++boundaryEdges;
+        ++stats.boundaryEdges;
       }
       const int sign = edgeSign(previous, current);
-      if (sign > 0) ++convexEdges;
-      if (sign < 0) ++concaveEdges;
-      if (sign == 0 && !edgeBoundary(previous, current)) ++unknownSignedEdges;
+      if (sign > 0) ++stats.convexEdges;
+      if (sign < 0) ++stats.concaveEdges;
+      if (sign == 0 && !edgeBoundary(previous, current)) {
+        ++stats.unknownSignedEdges;
+      }
       vertices.push_back(current);
       if (current == seed) {
         vertices.pop_back();
-        closed = true;
+        stats.closed = true;
         break;
       }
 
@@ -1224,37 +1238,33 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       current = next;
     }
 
-    addLoop(std::move(vertices), edgeCount, boundaryEdges, convexEdges, concaveEdges,
-            unknownSignedEdges, closed);
+    addLoop(std::move(vertices), stats);
   };
 
   auto traceClosedLoop = [&](int seed, int firstNeighbor) {
     std::vector<int> vertices;
     vertices.push_back(seed);
-    int edgeCount = 0;
-    int boundaryEdges = 0;
-    int convexEdges = 0;
-    int concaveEdges = 0;
-    int unknownSignedEdges = 0;
+    TraceLoopStats stats;
     int previous = seed;
     int current = firstNeighbor;
-    bool closed = false;
 
     while (true) {
       if (edgeVisited(previous, current)) {
         break;
       }
       markEdge(previous, current);
-      ++edgeCount;
+      ++stats.edgeCount;
       if (edgeBoundary(previous, current)) {
-        ++boundaryEdges;
+        ++stats.boundaryEdges;
       }
       const int sign = edgeSign(previous, current);
-      if (sign > 0) ++convexEdges;
-      if (sign < 0) ++concaveEdges;
-      if (sign == 0 && !edgeBoundary(previous, current)) ++unknownSignedEdges;
+      if (sign > 0) ++stats.convexEdges;
+      if (sign < 0) ++stats.concaveEdges;
+      if (sign == 0 && !edgeBoundary(previous, current)) {
+        ++stats.unknownSignedEdges;
+      }
       if (current == seed) {
-        closed = true;
+        stats.closed = true;
         break;
       }
       vertices.push_back(current);
@@ -1273,8 +1283,7 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       current = next;
     }
 
-    addLoop(std::move(vertices), edgeCount, boundaryEdges, convexEdges, concaveEdges,
-            unknownSignedEdges, closed);
+    addLoop(std::move(vertices), stats);
   };
 
   for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {

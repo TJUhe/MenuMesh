@@ -78,6 +78,8 @@ struct SimplifyReport {
   int finalFaces = 0;
   int collapsedEdges = 0;
   int rejectedCollapses = 0;
+  /// Number of current collapse candidates whose placement solve used fallback
+  /// endpoint/midpoint candidates instead of a stable linear-system optimum.
   int solverFallbacks = 0;
   int queueRebuilds = 0;
   int featureLoops = 0;

@@ -117,11 +117,13 @@ int activeIncidentFaceCountForEdge(int a, int b, const std::vector<FaceState>& f
   return count;
 }
 
-BoundaryCollapseDecision
-boundaryCollapseDecision(int keep, int remove, const std::vector<FaceState>& faces,
-                         const std::vector<VertexState>& vertices,
-                         const DynamicTopology& topology,
-                         const SimplifyOptions& options) {
+BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input) {
+  const int keep = input.edge.keep;
+  const int remove = input.edge.remove;
+  const std::vector<FaceState>& faces = input.faces;
+  const std::vector<VertexState>& vertices = input.vertices;
+  const DynamicTopology& topology = input.topology;
+  const SimplifyOptions& options = input.options;
   if (!options.preserveBoundary) {
     return {};
   }

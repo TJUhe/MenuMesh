@@ -9,7 +9,6 @@ Canonical paper archive for the `line-quadrics-qem` project.
 | `garland_heckbert_1997_surface_simplification_qem.pdf` | Original quadric error metric paper; explains plane quadrics and edge contraction. | https://www.cs.cmu.edu/~garland/Papers/quadrics.pdf |
 | `liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | Main paper reproduced by this project; explains line quadrics as soft control for QEM simplification. | https://www.dgp.toronto.edu/~hsuehtil/pdf/lineQuadric.pdf |
 | `wang_2008_feature_sensitive_metric.pdf` | Feature-sensitive metric paper; supports the idea that position-only QEM should be extended with normal/feature information. | https://cg.cs.tsinghua.edu.cn/papers/weijin.pdf |
-| `xu_2024_cwf_consolidating_weak_features.pdf` | Weak-feature simplification paper; useful for understanding feature alignment, quality, and accuracy as a combined objective. | https://arxiv.org/pdf/2404.15661 |
 | `vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | Robust CAD triangular mesh feature-line extraction; relevant to identifying feature edges before simplification. | https://www.scitepress.org/Papers/2011/33617/33617.pdf |
 | `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | Feature-preserving simplification using vertex-cover ideas; relevant to protecting small/salient features during contraction. | https://www.grahn.cse.bth.se/Papers/cgv2008.pdf |
 | `jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | Identifies C1/C2 discontinuities in CAD surface meshes; relevant to hard/transition feature loop detection. | https://www.ams.sunysb.edu/~jiao/papers/feature_detect.pdf |
@@ -47,4 +46,3 @@ Canonical paper archive for the `line-quadrics-qem` project.
 | Year | Paper | Source | Status |
 | ---: | --- | --- | --- |
 | 2026 | *A Structure-Aware Triangular Mesh Simplification Based on Graph Neural Network (GNN)-Guided Quadric Error Metrics (QEM)* | DOI: https://doi.org/10.3390/math14101610 | Candidate reference for GNN-guided QEM. |
-| 2025 | *SDF-CWF: Consolidating Weak Features in High-Quality Mesh Extraction from Signed Distance Functions* | DOI: https://doi.org/10.1016/j.cad.2025.103912 | Candidate reference for weak-feature consolidation in SDF mesh extraction. |

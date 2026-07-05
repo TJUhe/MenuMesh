@@ -38,6 +38,11 @@ struct FaceState {
   bool active = true;
 };
 
+struct CollapseEdge {
+  int keep = -1;
+  int remove = -1;
+};
+
 struct Candidate {
   double cost = 0.0;
   int a = -1;

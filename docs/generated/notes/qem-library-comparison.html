@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QEM 相关开源库与当前库的差异、借鉴和取舍</title>
+<style>
+:root {
+  --bg: #f7f8f3;
+  --card: #ffffff;
+  --panel: #edf3ea;
+  --border: #cdd8cd;
+  --text: #1f2933;
+  --dim: #59636b;
+  --accent: #207f4c;
+  --accent-2: #315f86;
+  --warn: #9a6422;
+  --danger: #a33a3a;
+  --code-bg: #e8efe7;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  max-width: 1120px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.78;
+}
+.header {
+  padding: 42px 40px 34px;
+  color: #fff;
+  background: linear-gradient(135deg, #23423a, #315f86);
+}
+.header h1 {
+  margin: 0 0 10px;
+  font-size: 30px;
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+.subtitle {
+  max-width: 880px;
+  color: #e8f2ea;
+  font-size: 15px;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.tag {
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 4px;
+  padding: 3px 9px;
+  color: #f7fbf7;
+  background: rgba(255,255,255,.14);
+  font-size: 12px;
+}
+.content { padding: 30px 40px 56px; }
+h2 {
+  margin: 42px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent);
+  font-size: 22px;
+}
+h3 {
+  margin: 28px 0 10px;
+  color: var(--accent-2);
+  font-size: 17px;
+}
+p { margin: 0 0 12px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: #006600;
+  background: var(--code-bg);
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 13px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 20px;
+  background: var(--card);
+  font-size: 14px;
+}
+th {
+  padding: 9px 11px;
+  border-bottom: 2px solid var(--accent);
+  background: var(--panel);
+  text-align: left;
+  vertical-align: top;
+}
+td {
+  padding: 10px 11px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:nth-child(even) td { background: #f0f7f0; }
+ul, ol { margin: 8px 0 12px; padding-left: 24px; }
+li { margin: 4px 0; }
+.toc, .callout, .grid-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+.toc {
+  padding: 16px 20px;
+  margin: 20px 0 26px;
+}
+.toc-title { margin-bottom: 8px; font-weight: 700; }
+.callout {
+  margin: 16px 0;
+  padding: 14px 18px;
+  border-left: 4px solid var(--accent);
+}
+.callout.warn { border-left-color: var(--warn); background: #fbf3e2; }
+.callout.danger { border-left-color: var(--danger); background: #f8e7e7; }
+.callout-title {
+  margin-bottom: 6px;
+  color: #253d24;
+  font-weight: 700;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+.grid-card { padding: 15px 16px; }
+.grid-card h3 { margin-top: 0; }
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 18px 24px 30px;
+  color: var(--dim);
+  text-align: center;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .header { padding: 28px 20px; }
+  .header h1 { font-size: 24px; }
+  .content { padding: 22px 18px 42px; }
+  .grid { grid-template-columns: 1fr; }
+  table { font-size: 13px; }
+}
+</style>
+<link rel="stylesheet" href="eye-care.css">
+</head>
+<body>
+<div class="header">
+  <h1>QEM 相关开源库与当前库的差异、借鉴和取舍</h1>
+  <div class="subtitle">
+    面向当前 <code>line-quadrics-qem</code> 工业化网格简化内核：说明我们和 CGAL、OpenMesh、libigl、MeshLab/VCGLib 等开源库有什么不同，从它们身上学到了什么，哪些地方还不如它们，以及为什么当前库要这样设计。
+  </div>
+  <div class="meta">
+    <span class="tag">QEM</span>
+    <span class="tag">Line Quadrics</span>
+    <span class="tag">Feature Preservation</span>
+    <span class="tag">Industrial SDK</span>
+    <span class="tag">2026-07-05</span>
+  </div>
+</div>
+
+<div class="content">
+  <div class="toc">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#position">当前库的定位</a></li>
+      <li><a href="#matrix">开源库对比总表</a></li>
+      <li><a href="#lessons">我们学习到了什么</a></li>
+      <li><a href="#limits">当前库还有哪些不足</a></li>
+      <li><a href="#why">为什么不直接照搬成熟库</a></li>
+      <li><a href="#next">后续改进方向</a></li>
+      <li><a href="#refs">资料和代码依据</a></li>
+    </ol>
+  </div>
+
+  <section id="position">
+    <h2>1. 当前库的定位</h2>
+    <p>
+      当前库不是一个通用几何处理框架，也不是单文件 QEM demo。它的目标是把经典 QEM、2025 line quadrics 思路、CAD/STL 特征识别、坍缩合法性检查、SDK/C ABI 和命令行验证收拢到一个可构建、可测试、可集成的 C++17 动态库里。
+    </p>
+    <p>
+      这意味着它的评判标准和开源库略有不同：我们不是追求覆盖所有网格算法，而是优先把“工业件三角网格能否在简化后保持孔、硬边、圆/椭圆 loop、边界和拓扑合法性”这件事做成可审计流程。
+    </p>
+    <div class="callout">
+      <div class="callout-title">一句话概括</div>
+      <p>
+        CGAL/OpenMesh 更像成熟的可组合框架，libigl 更像清晰的研究与教学工具，MeshLab/VCGLib 更像实用滤波器集合；当前库更像一个正在成形的专用工业 mesh kernel，重点是 QEM + line quadrics + 特征约束 + SDK 交付。
+      </p>
+    </div>
+  </section>
+
+  <section id="matrix">
+    <h2>2. 开源库对比总表</h2>
+    <table>
+      <tr>
+        <th>库/系统</th>
+        <th>擅长什么</th>
+        <th>我们学到了什么</th>
+        <th>对当前目标的不足</th>
+        <th>当前库的对应做法</th>
+      </tr>
+      <tr>
+        <td><a href="https://doc.cgal.org/latest/Surface_mesh_simplification/index.html">CGAL Surface Mesh Simplification</a></td>
+        <td>策略化 surface mesh simplification，围绕 edge collapse 组织 cost、placement、stop predicate、filter 和 constrained edges。</td>
+        <td>把“代价排序”和“能不能坍缩”拆开；用策略对象表达 placement/filter；把受约束边作为一等输入。</td>
+        <td>模板和概念体系较重；通用 SMS 不直接表达 line quadrics、圆/椭圆特征投影、当前 C ABI 报告字段和本项目 CLI 指标。</td>
+        <td><code>SimplificationRun</code> 中把 quadric cost、feature policy、boundary policy、legality guard、report counters 分层；但保持一个轻量 SDK API。</td>
+      </tr>
+      <tr>
+        <td><a href="https://www.graphics.rwth-aachen.de/media/openmesh_static/Documentations/OpenMesh-6.2-Documentation/a00004.html">OpenMesh Decimation Framework</a></td>
+        <td>基于半边网格的 decimater，支持连续 cost module 和二值 legality module 组合。</td>
+        <td>一个队列优先级模块不应该吞掉所有逻辑；normal、aspect ratio、Hausdorff、topology 等检查应作为独立 veto。</td>
+        <td>需要引入 OpenMesh 数据结构和模块体系；默认不提供本项目需要的 CAD primitive loop 保护、line-quadric 权重和 SDK 安装边界。</td>
+        <td>当前库暂用简单 <code>Mesh</code> exchange format + 私有 <code>DynamicTopology</code>，避免公共 API 直接绑定半边框架。</td>
+      </tr>
+      <tr>
+        <td><a href="https://libigl.github.io/libigl-python-bindings/igl_docs/#qslim">libigl qslim / decimate</a></td>
+        <td>紧凑的 QEM/qslim 与 decimation 工具，适合作为算法阅读和 baseline。</td>
+        <td>QEM 的核心可以保持小而清晰：累加平面 quadric，维护候选边队列，按目标面数停止。</td>
+        <td>更偏研究/工具箱调用；工业 STL 的边界、特征 loop、局部误差、报告计数和 C ABI 不是它的主要交付面。</td>
+        <td>保留标准 QEM baseline，并在其上叠加 line quadrics、feature curve quadrics 和合法性过滤，便于对比普通 QEM 与增强版本。</td>
+      </tr>
+      <tr>
+        <td><a href="https://pymeshlab.readthedocs.io/en/latest/filter_list.html#meshing-decimation-quadric-edge-collapse">MeshLab / VCGLib / PyMeshLab quadric decimation</a></td>
+        <td>实用型三角网格滤波器，参数覆盖 boundary、normal、topology、quality、planar quadric、weighted simplification 等常见工程开关。</td>
+        <td>用户需要可解释旋钮和可复现输出，而不是只给一个 ratio；质量、边界、法向和拓扑保护必须能单独开关。</td>
+        <td>滤波器接口更适合批处理和 UI；很难把每次拒绝坍缩的原因、特征 loop 所属关系和 SDK ABI 诊断直接嵌入下游应用。</td>
+        <td>CLI 输出 STL/CSV，<code>SimplifyReport</code> 区分 feature、boundary、topology、normal flip、quality、intersection、local error 等拒绝原因。</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/sp4cerat/Fast-Quadric-Mesh-Simplification">Fast Quadric Mesh Simplification</a> 等轻量 QEM 实现</td>
+        <td>代码短、速度快、容易嵌入，用于快速减面或游戏/可视化资产处理。</td>
+        <td>性能和依赖控制很重要；QEM 内核不应为了架构漂亮而牺牲可部署性。</td>
+        <td>通常缺少完整特征图、工业合法性检查、误差 envelope、详细报告和 SDK 集成策略。</td>
+        <td>当前库保持 Eigen + 自有小型拓扑缓存，优先把严格检查做成局部/增量查询，避免每次坍缩全局扫描。</td>
+      </tr>
+    </table>
+  </section>
+
+  <section id="lessons">
+    <h2>3. 我们学习到了什么</h2>
+    <div class="grid">
+      <div class="grid-card">
+        <h3>3.1 QEM 是排序骨架，不是全部规则</h3>
+        <p>
+          成熟库都没有把最小 quadric cost 当作唯一真理。CGAL/OpenMesh 的共同启发是：cost 负责“先试谁”，filter/module 负责“能不能做”。当前库因此把 <code>solvePlacementCandidates()</code> 的候选位置送入 feature、boundary、topology、normal、quality、intersection 和 local-error 检查。
+        </p>
+      </div>
+      <div class="grid-card">
+        <h3>3.2 合法性要比目标面数更硬</h3>
+        <p>
+          如果为了达到 ratio 牺牲 link condition、边界、法向翻转或自交，结果在工业件上不可用。当前库宁愿报告 <code>rejection-limit</code> 或 <code>no-candidates</code>，也不在 guard 失败时强行坍缩。
+        </p>
+      </div>
+      <div class="grid-card">
+        <h3>3.3 用户需要可解释的参数和计数</h3>
+        <p>
+          MeshLab 类工具的实用价值之一，是把边界、法向、质量、planar quadric 等开关暴露给用户。当前库对应地提供 <code>lineWeight</code>、<code>featureProtectionMode</code>、<code>maxLocalErrorRatio</code>、<code>minTriangleQuality</code> 等参数，并在 report 中解释拒绝原因。
+        </p>
+      </div>
+      <div class="grid-card">
+        <h3>3.4 数据结构要服务于验证闭环</h3>
+        <p>
+          OpenMesh 的半边结构很完整，但当前库的公共 API 先保留简单 <code>Mesh</code>，把可变拓扑、空间索引和候选队列放在私有实现里。这样下游 SDK 调用稳定，同时内部还能逐步替换成更强的 editable topology。
+        </p>
+      </div>
+    </div>
+
+    <table>
+      <tr>
+        <th>借鉴点</th>
+        <th>当前代码里的落点</th>
+        <th>为什么重要</th>
+      </tr>
+      <tr>
+        <td>cost / placement / legality 分离</td>
+        <td><code>Quadrics.cpp</code>、<code>FeatureConstraints.cpp</code>、<code>CollapseLegality.cpp</code></td>
+        <td>同一个 QEM 候选位置可能因特征、边界、局部误差或三角形质量被拒绝，不能混成一个黑箱代价。</td>
+      </tr>
+      <tr>
+        <td>模块化拒绝原因</td>
+        <td><code>SimplifyReport</code> 中的 <code>featureRejectedCollapses</code>、<code>topologyRejectedCollapses</code> 等字段</td>
+        <td>验证时能判断是参数过严、特征检测过密，还是拓扑/质量 guard 真正拦住了危险坍缩。</td>
+      </tr>
+      <tr>
+        <td>保留普通 QEM baseline</td>
+        <td><code>useLineQuadrics=false</code> 或 CLI 的 standard QEM 路线</td>
+        <td>没有 baseline 就无法证明 line quadrics 和 feature policy 真的改善了目标模型。</td>
+      </tr>
+      <tr>
+        <td>局部增量检查</td>
+        <td><code>DynamicTopology</code>、<code>SpatialFaceIndex</code>、候选队列版本号</td>
+        <td>严格检查必须跑得动。大模型上每步全局扫描会把验证流程拖垮。</td>
+      </tr>
+      <tr>
+        <td>把受保护结构显式建模</td>
+        <td><code>FeatureGraph</code>、<code>FeatureLoop</code>、圆/椭圆 primitive 参数</td>
+        <td>CAD/STL 的孔、法兰边和硬折线不是单点属性，必须作为 loop 或 curve 结构被跟踪。</td>
+      </tr>
+    </table>
+  </section>
+
+  <section id="limits">
+    <h2>4. 当前库还有哪些不足</h2>
+    <table>
+      <tr>
+        <th>维度</th>
+        <th>成熟开源库的优势</th>
+        <th>当前库的不足</th>
+        <th>风险</th>
+      </tr>
+      <tr>
+        <td>通用性</td>
+        <td>CGAL/OpenMesh 覆盖更多 mesh 类型、属性、拓扑操作和生态工具。</td>
+        <td>当前库只聚焦简化、特征检测、指标和 SDK 集成，还不是完整 polygon mesh kernel。</td>
+        <td>遇到修复、重网格、布尔、属性传播时仍需外部工具或后续模块。</td>
+      </tr>
+      <tr>
+        <td>鲁棒几何</td>
+        <td>CGAL 在几何谓词、内核和鲁棒性方面积累深。</td>
+        <td>当前 self-intersection、coplanar overlap、local error 仍主要是 double + epsilon 策略。</td>
+        <td>极端尺度、近退化三角形、几乎共面的工业 STL 仍可能出现误判。</td>
+      </tr>
+      <tr>
+        <td>拓扑结构</td>
+        <td>OpenMesh 半边结构天然适合局部编辑、属性绑定和邻接遍历。</td>
+        <td>当前可变拓扑是简化器私有实现，公共 <code>MeshTopology</code> 与内部 <code>DynamicTopology</code> 还没有统一。</td>
+        <td>后续 repair/remesh/boolean 共享拓扑能力时需要一次结构升级。</td>
+      </tr>
+      <tr>
+        <td>特征图</td>
+        <td>成熟库虽然不一定专注 CAD primitive，但框架通常能承载更复杂属性和约束。</td>
+        <td>当前 feature graph 已能恢复一部分 junction/cycle，但多环共享、嵌套 loop、长样条特征和冲突归属仍不完整。</td>
+        <td>密集工业模型可能过度保护、漏保护，或把一条真实特征切成多个碎片。</td>
+      </tr>
+      <tr>
+        <td>验证数据</td>
+        <td>MeshLab/CGAL/OpenMesh 有更长时间的用户验证和生态反馈。</td>
+        <td>当前测试正在增长，但还缺少系统的 labeled feature precision/recall、严格 Hausdorff envelope 和跨平台性能基线。</td>
+        <td>算法看起来通过了若干样例，但还不能宣称覆盖任意 CAD/STL 输入。</td>
+      </tr>
+    </table>
+
+    <div class="callout warn">
+      <div class="callout-title">不要误读当前库</div>
+      <p>
+        当前库已经超过“普通 QEM demo”，但仍不是 CGAL/OpenMesh 级别的通用几何平台。它更像一个专用能力逐步做深的工业内核：在本项目关心的 QEM、line quadrics、特征保护和 SDK 验证上更聚焦，在通用网格生态和鲁棒内核上仍要继续补课。
+      </p>
+    </div>
+  </section>
+
+  <section id="why">
+    <h2>5. 为什么当前库要这样做</h2>
+    <h3>5.1 为什么要加入 line quadrics</h3>
+    <p>
+      标准 QEM 对局部平面区域的法向误差敏感，但对切向漂移约束弱。line quadrics 给每个顶点的法向线加入点到线距离项，相当于给平面切向也补上可控惩罚。这样做不是为了替代 QEM，而是为了让普通 QEM 在平坦区域的病态求解和采样漂移更可控。
+    </p>
+
+    <h3>5.2 为什么要做 feature graph 和 primitive 保护</h3>
+    <p>
+      CAD/STL 输入没有 B-Rep 语义，孔、凸台、法兰边、椭圆环和硬边只能从三角网格推断。只把 feature 作为顶点 bool 会丢掉“这是一条闭合 loop”以及“这条 loop 拟合成圆/椭圆”的信息。当前库因此把 <code>FeatureLoop</code>、<code>FeaturePrimitiveType</code> 和顶点的 loop ownership 写入检测结果，再在简化时投影和限制坍缩。
+    </p>
+
+    <h3>5.3 为什么默认不是保护所有特征边</h3>
+    <p>
+      早期 <code>--preserve-feature-curves</code> 太容易把碎片化工业特征全部硬锁住，导致模型达不到目标面数。现在默认 <code>primitive-curves</code>：圆、近圆、椭圆等工程语义更强的 primitive 作为硬保护；普通多边形/二面角特征更多作为软代价和 guard 输入。这样是在“保住关键几何”和“允许简化继续发生”之间取中间值。
+    </p>
+
+    <h3>5.4 为什么要自己保留 SDK 边界</h3>
+    <p>
+      直接把 CGAL/OpenMesh 的数据结构暴露给下游，会让 ABI、编译器、模板依赖和部署复杂度进入客户工程。当前库对外保留 <code>Mesh</code>、<code>SimplifyOptions</code>、<code>SimplifyReport</code> 和 C ABI，内部再逐步增强拓扑与几何检查。这让工程集成比算法框架更窄，也更容易在 Visual Studio/C API 场景下落地。
+    </p>
+  </section>
+
+  <section id="next">
+    <h2>6. 后续改进方向</h2>
+    <ol>
+      <li>把 legality policy 明确模块化，继续向 CGAL/OpenMesh 的 cost、placement、filter、stop 分离靠拢。</li>
+      <li>把当前 <code>DynamicTopology</code> 与公共 <code>MeshTopology</code> 演进成可复用 editable topology，供 repair/remesh/boolean 共享。</li>
+      <li>引入更严格的 Hausdorff 或 envelope 误差过滤，替代当前局部采样误差的保守近似。</li>
+      <li>增强 feature graph ownership：处理多环共享、junction、嵌套 loop、样条/多段线特征和 per-loop 预算。</li>
+      <li>让 normal tensor/normal voting 真正多尺度化，降低非均匀采样和噪声导致的误检。</li>
+      <li>建立 labeled CAD/STL 验证集，报告 feature precision/recall、loop recall、normal error、topology delta、triangle quality 和运行时间。</li>
+    </ol>
+  </section>
+
+  <section id="refs">
+    <h2>7. 资料和代码依据</h2>
+    <table>
+      <tr>
+        <th>类别</th>
+        <th>资料</th>
+        <th>用途</th>
+      </tr>
+      <tr>
+        <td>外部开源库</td>
+        <td>
+          <a href="https://doc.cgal.org/latest/Surface_mesh_simplification/index.html">CGAL Surface Mesh Simplification</a><br>
+          <a href="https://www.graphics.rwth-aachen.de/media/openmesh_static/Documentations/OpenMesh-6.2-Documentation/a00004.html">OpenMesh Decimation Framework</a><br>
+          <a href="https://libigl.github.io/libigl-python-bindings/igl_docs/#qslim">libigl qslim docs</a><br>
+          <a href="https://pymeshlab.readthedocs.io/en/latest/filter_list.html#meshing-decimation-quadric-edge-collapse">PyMeshLab quadric edge collapse filter</a>
+        </td>
+        <td>用于比较 QEM/edge-collapse 框架、模块化 decimation 和工程参数暴露方式。</td>
+      </tr>
+      <tr>
+        <td>本地论文</td>
+        <td>
+          <code>docs/papers/garland_heckbert_1997_surface_simplification_qem.pdf</code><br>
+          <code>docs/papers/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code><br>
+          <code>docs/papers/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</code><br>
+          <code>docs/papers/rose_2025_mesh_simplification_edge_collapse_guide.pdf</code>
+        </td>
+        <td>用于支撑 QEM、line quadrics、normal tensor feature 和 edge-collapse 工程策略。</td>
+      </tr>
+      <tr>
+        <td>本地实现</td>
+        <td>
+          <code>include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h</code><br>
+          <code>src/simplification/Quadrics.cpp</code><br>
+          <code>src/simplification/SimplificationRun.cpp</code><br>
+          <code>src/simplification/FeatureConstraints.cpp</code><br>
+          <code>src/simplification/CollapseLegality.cpp</code>
+        </td>
+        <td>用于确认当前库真实实现了哪些 options、report counters、feature policy 和 legality guard。</td>
+      </tr>
+      <tr>
+        <td>本地设计文档</td>
+        <td>
+          <code>docs/design/algorithm_review_and_roadmap.md</code><br>
+          <code>docs/design/feature_protection_roadmap.md</code><br>
+          <code>docs/design/industrial_library.md</code><br>
+          <code>docs/design/architecture.md</code>
+        </td>
+        <td>用于说明当前库为什么从研究原型向工业 SDK 收拢，以及哪些不足已被列入路线图。</td>
+      </tr>
+    </table>
+  </section>
+</div>
+
+<div class="footer">
+  QEM 开源库对比说明 · 基于当前 C++ 实现、docs 设计记录与公开库文档 · 2026-07-05
+</div>
+</body>
+</html>

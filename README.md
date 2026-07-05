@@ -18,8 +18,8 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 - [Line Quadrics 数学原理展开](docs/generated/notes/line-quadrics-qem-theory-explained.html)
 - [当前程序原理说明](docs/generated/notes/line-quadrics-qem-program-principles.html)
 - [代码阅读手册](docs/generated/notes/line-quadrics-qem-code-manual.html)
-- [Xu 2024 CWF 弱特征合并论文说明](docs/generated/notes/cwf-weak-features-notes.html)
 - [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
+- [QEM 相关开源库与当前库对比](docs/generated/notes/qem-library-comparison.html)
 
 ## 工业内核边界
 
@@ -305,6 +305,7 @@ OpenFOAM flange。可用 `--spindle-input`、`--ring-input`、`--pulley-input`�
 | `non_manifold_edges` | 非流形风险提示。 |
 | `radial_rms`、`plane_rms` | 圆形特征半径漂移和平面漂移。 |
 | `feature_rejected_collapses` | 特征约束实际拦截了多少坍缩。 |
+| `solver_fallbacks` | 当前候选 placement 求解退化到端点/中点候选集的次数，不含队列入队预排序。 |
 
 STL 目检重点：
 

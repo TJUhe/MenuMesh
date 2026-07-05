@@ -33,11 +33,15 @@ bool areAdjacent(int a, int b, const std::vector<FaceState>& faces,
 int activeIncidentFaceCountForEdge(int a, int b, const std::vector<FaceState>& faces,
                                    const DynamicTopology& topology);
 
-BoundaryCollapseDecision
-boundaryCollapseDecision(int keep, int remove, const std::vector<FaceState>& faces,
-                         const std::vector<VertexState>& vertices,
-                         const DynamicTopology& topology,
-                         const SimplifyOptions& options);
+struct BoundaryCollapseInput {
+  CollapseEdge edge;
+  const std::vector<FaceState>& faces;
+  const std::vector<VertexState>& vertices;
+  const DynamicTopology& topology;
+  const SimplifyOptions& options;
+};
+
+BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input);
 
 std::vector<int> activeNeighborsOf(int v, const std::vector<FaceState>& faces,
                                    const std::vector<VertexState>& vertices,

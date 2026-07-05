@@ -9,35 +9,51 @@
 namespace lq {
 namespace {
 
-void addGridFaces(int n, int base, Mesh& mesh, bool flip = false) {
-  for (int y = 0; y < n; ++y) {
-    for (int x = 0; x < n; ++x) {
-      const int v00 = base + y * (n + 1) + x;
-      const int v10 = v00 + 1;
-      const int v01 = v00 + (n + 1);
-      const int v11 = v01 + 1;
-      if (!flip) {
-        mesh.faces.push_back({{v00, v10, v11}});
-        mesh.faces.push_back({{v00, v11, v01}});
-      } else {
-        mesh.faces.push_back({{v00, v11, v10}});
-        mesh.faces.push_back({{v00, v01, v11}});
-      }
-    }
-  }
-}
+struct GridCell {
+  int n = 0;
+  int base = 0;
+  int x = 0;
+  int y = 0;
+  bool flip = false;
+};
 
-void addGridCellFaces(int n, int base, int x, int y, Mesh& mesh, bool flip = false) {
-  const int v00 = base + y * (n + 1) + x;
+struct GridPatch {
+  int n = 0;
+  double size = 0.0;
+  Vec3 origin = Vec3::Zero();
+  Vec3 ux = Vec3::Zero();
+  Vec3 uy = Vec3::Zero();
+  bool flip = false;
+};
+
+struct RectGridPatch {
+  int nx = 0;
+  int ny = 0;
+  Vec3 origin = Vec3::Zero();
+  Vec3 uxFull = Vec3::Zero();
+  Vec3 uyFull = Vec3::Zero();
+  bool flip = false;
+};
+
+void addGridCellFaces(const GridCell& cell, Mesh& mesh) {
+  const int v00 = cell.base + cell.y * (cell.n + 1) + cell.x;
   const int v10 = v00 + 1;
-  const int v01 = v00 + (n + 1);
+  const int v01 = v00 + (cell.n + 1);
   const int v11 = v01 + 1;
-  if (!flip) {
+  if (!cell.flip) {
     mesh.faces.push_back({{v00, v10, v11}});
     mesh.faces.push_back({{v00, v11, v01}});
   } else {
     mesh.faces.push_back({{v00, v11, v10}});
     mesh.faces.push_back({{v00, v01, v11}});
+  }
+}
+
+void addGridFaces(int n, int base, Mesh& mesh, bool flip = false) {
+  for (int y = 0; y < n; ++y) {
+    for (int x = 0; x < n; ++x) {
+      addGridCellFaces(GridCell{n, base, x, y, flip}, mesh);
+    }
   }
 }
 
@@ -50,36 +66,34 @@ double coordFromIndex(int i, int n, double size, bool clustered) {
   return (u - 0.5) * size;
 }
 
-void appendFaceGrid(Mesh& mesh, int n, double size, const Vec3& origin, const Vec3& ux,
-                    const Vec3& uy, bool flip = false) {
+void appendFaceGrid(Mesh& mesh, const GridPatch& patch) {
   const int base = static_cast<int>(mesh.vertices.size());
-  for (int y = 0; y <= n; ++y) {
-    for (int x = 0; x <= n; ++x) {
-      const double sx = (static_cast<double>(x) / n - 0.5) * size;
-      const double sy = (static_cast<double>(y) / n - 0.5) * size;
-      mesh.vertices.push_back(origin + sx * ux + sy * uy);
+  for (int y = 0; y <= patch.n; ++y) {
+    for (int x = 0; x <= patch.n; ++x) {
+      const double sx = (static_cast<double>(x) / patch.n - 0.5) * patch.size;
+      const double sy = (static_cast<double>(y) / patch.n - 0.5) * patch.size;
+      mesh.vertices.push_back(patch.origin + sx * patch.ux + sy * patch.uy);
     }
   }
-  addGridFaces(n, base, mesh, flip);
+  addGridFaces(patch.n, base, mesh, patch.flip);
 }
 
-void appendRectGrid(Mesh& mesh, int nx, int ny, const Vec3& origin, const Vec3& uxFull,
-                    const Vec3& uyFull, bool flip = false) {
+void appendRectGrid(Mesh& mesh, const RectGridPatch& patch) {
   const int base = static_cast<int>(mesh.vertices.size());
-  for (int y = 0; y <= ny; ++y) {
-    for (int x = 0; x <= nx; ++x) {
-      const double sx = static_cast<double>(x) / nx - 0.5;
-      const double sy = static_cast<double>(y) / ny - 0.5;
-      mesh.vertices.push_back(origin + sx * uxFull + sy * uyFull);
+  for (int y = 0; y <= patch.ny; ++y) {
+    for (int x = 0; x <= patch.nx; ++x) {
+      const double sx = static_cast<double>(x) / patch.nx - 0.5;
+      const double sy = static_cast<double>(y) / patch.ny - 0.5;
+      mesh.vertices.push_back(patch.origin + sx * patch.uxFull + sy * patch.uyFull);
     }
   }
-  for (int y = 0; y < ny; ++y) {
-    for (int x = 0; x < nx; ++x) {
-      const int v00 = base + y * (nx + 1) + x;
+  for (int y = 0; y < patch.ny; ++y) {
+    for (int x = 0; x < patch.nx; ++x) {
+      const int v00 = base + y * (patch.nx + 1) + x;
       const int v10 = v00 + 1;
-      const int v01 = v00 + (nx + 1);
+      const int v01 = v00 + (patch.nx + 1);
       const int v11 = v01 + 1;
-      if (!flip) {
+      if (!patch.flip) {
         mesh.faces.push_back({{v00, v10, v11}});
         mesh.faces.push_back({{v00, v11, v01}});
       } else {
@@ -168,7 +182,7 @@ Mesh generateHolePlaneGrid(int n, double size, double radius) {
       if (std::sqrt(cx * cx + cy * cy) * size < radius) {
         continue;
       }
-      addGridCellFaces(n, 0, x, y, mesh);
+      addGridCellFaces(GridCell{n, 0, x, y}, mesh);
     }
   }
   mesh.removeUnusedVertices();
@@ -347,12 +361,18 @@ Mesh generateCubeGrid(int n, double size) {
   n = std::max(1, n);
   Mesh mesh;
   const double half = 0.5 * size;
-  appendFaceGrid(mesh, n, size, Vec3(0, 0, half), Vec3(1, 0, 0), Vec3(0, 1, 0));
-  appendFaceGrid(mesh, n, size, Vec3(0, 0, -half), Vec3(1, 0, 0), Vec3(0, -1, 0));
-  appendFaceGrid(mesh, n, size, Vec3(half, 0, 0), Vec3(0, 1, 0), Vec3(0, 0, 1));
-  appendFaceGrid(mesh, n, size, Vec3(-half, 0, 0), Vec3(0, -1, 0), Vec3(0, 0, 1));
-  appendFaceGrid(mesh, n, size, Vec3(0, half, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1));
-  appendFaceGrid(mesh, n, size, Vec3(0, -half, 0), Vec3(1, 0, 0), Vec3(0, 0, 1));
+  appendFaceGrid(mesh, GridPatch{n, size, Vec3(0, 0, half), Vec3(1, 0, 0),
+                                 Vec3(0, 1, 0)});
+  appendFaceGrid(mesh, GridPatch{n, size, Vec3(0, 0, -half), Vec3(1, 0, 0),
+                                 Vec3(0, -1, 0)});
+  appendFaceGrid(mesh, GridPatch{n, size, Vec3(half, 0, 0), Vec3(0, 1, 0),
+                                 Vec3(0, 0, 1)});
+  appendFaceGrid(mesh, GridPatch{n, size, Vec3(-half, 0, 0), Vec3(0, -1, 0),
+                                 Vec3(0, 0, 1)});
+  appendFaceGrid(mesh, GridPatch{n, size, Vec3(0, half, 0), Vec3(-1, 0, 0),
+                                 Vec3(0, 0, 1)});
+  appendFaceGrid(mesh, GridPatch{n, size, Vec3(0, -half, 0), Vec3(1, 0, 0),
+                                 Vec3(0, 0, 1)});
   return mesh;
 }
 
@@ -367,18 +387,29 @@ Mesh generateThinFinGrid(int n, double size) {
   const int ny = std::max(4, n / 3);
   const int nt = 1;
 
-  appendRectGrid(mesh, nx, ny, Vec3(0.0, 0.0, 0.5 * finHeight),
-                 Vec3(0.0, finLength, 0.0), Vec3(0.0, 0.0, finHeight));
-  appendRectGrid(mesh, nx, ny, Vec3(finThickness, 0.0, 0.5 * finHeight),
-                 Vec3(0.0, finLength, 0.0), Vec3(0.0, 0.0, finHeight), true);
-  appendRectGrid(mesh, nt, ny,
-                 Vec3(0.5 * finThickness, -0.5 * finLength, 0.5 * finHeight),
-                 Vec3(finThickness, 0.0, 0.0), Vec3(0.0, 0.0, finHeight));
-  appendRectGrid(mesh, nt, ny,
-                 Vec3(0.5 * finThickness, 0.5 * finLength, 0.5 * finHeight),
-                 Vec3(finThickness, 0.0, 0.0), Vec3(0.0, 0.0, finHeight), true);
-  appendRectGrid(mesh, nt, nx, Vec3(0.5 * finThickness, 0.0, finHeight),
-                 Vec3(finThickness, 0.0, 0.0), Vec3(0.0, finLength, 0.0));
+  appendRectGrid(mesh, RectGridPatch{nx, ny, Vec3(0.0, 0.0, 0.5 * finHeight),
+                                     Vec3(0.0, finLength, 0.0),
+                                     Vec3(0.0, 0.0, finHeight)});
+  appendRectGrid(mesh, RectGridPatch{nx, ny,
+                                     Vec3(finThickness, 0.0, 0.5 * finHeight),
+                                     Vec3(0.0, finLength, 0.0),
+                                     Vec3(0.0, 0.0, finHeight), true});
+  appendRectGrid(mesh, RectGridPatch{
+                           nt, ny,
+                           Vec3(0.5 * finThickness, -0.5 * finLength,
+                                0.5 * finHeight),
+                           Vec3(finThickness, 0.0, 0.0),
+                           Vec3(0.0, 0.0, finHeight)});
+  appendRectGrid(mesh, RectGridPatch{
+                           nt, ny,
+                           Vec3(0.5 * finThickness, 0.5 * finLength,
+                                0.5 * finHeight),
+                           Vec3(finThickness, 0.0, 0.0),
+                           Vec3(0.0, 0.0, finHeight), true});
+  appendRectGrid(mesh, RectGridPatch{nt, nx,
+                                     Vec3(0.5 * finThickness, 0.0, finHeight),
+                                     Vec3(finThickness, 0.0, 0.0),
+                                     Vec3(0.0, finLength, 0.0)});
   return mesh;
 }
 

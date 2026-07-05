@@ -39,12 +39,17 @@ envelope/tolerance, topology, quality, and feature behavior.
 - **MeshLab/VCG decimation**: quadric collapse with topology, boundary, quality,
   planar, and weighting knobs. The key lesson is to prefer soft penalties for
   many feature classes instead of hard-locking every detected edge.
-- **CWF weak-feature simplification**: consolidate weak/fragmented features
-  before decimation. The key lesson is that feature graphs need cleanup and
-  ownership before they are used as constraints.
 - **Line quadrics and recent QEM work**: line/feature quadrics are useful
   ranking terms, but they do not replace explicit topology, quality, and
   tolerance filters.
+
+This matches the current repository direction from the QEM literature corpus:
+use standard QEM and line quadrics as the candidate-cost backbone, then add
+explicit collapse filters and policy separation before heavier machinery such
+as learned saliency. The main failure mode to keep visible is over-protection:
+hard feature locking can preserve edge vertices while preventing target face
+counts or producing poor local valence. Stage 1 therefore treats primitive
+curves as hard constraints and generic creases as soft ranking/guard inputs.
 
 ## Implemented Stage 1
 
@@ -65,6 +70,10 @@ envelope/tolerance, topology, quality, and feature behavior.
    legacy `protectAllFeatureEdges` / `--protect-all-feature-edges` alias.
 5. Added primitive/generic rejection counters so validation can show where
    hard constraints are still active.
+6. Kept `solver_fallbacks` as an execution diagnostic for current collapse
+   candidates only. Queue pre-sorting no longer increments the counter, so the
+   value reflects accepted/rejected candidate processing rather than internal
+   lazy-queue churn.
 
 ## Stage 1 Validation
 
@@ -88,9 +97,7 @@ mode; remaining feature rejections are primitive-circle/ellipse protection.
 2. Add multi-loop ownership for dense CAD/STL graphs: split high-degree feature
    components into simple cycles, fit primitives per cycle, and preserve
    ownership through simplification.
-3. Consider weak-feature consolidation before decimation for CWF-style dense
-   graphs.
-4. Keep validation honest: continue reporting `rejection-limit`, primitive vs
+3. Keep validation honest: continue reporting `rejection-limit`, primitive vs
    generic rejected collapse counts, projected placements, target-face miss, and
    feature-compare recall.
 

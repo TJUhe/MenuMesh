@@ -86,8 +86,14 @@ old build trees, but it should not be used as the documented validation path.
 
 拒绝计数：
 
+- `solver_fallbacks`：实际弹出的当前坍缩候选里，placement 线性系统不稳定而
+  回退到端点/中点候选集的次数。它不再统计 lazy priority queue 内部入队时的
+  预排序求解，因此可与 `collapsed_edges + rejected_collapses` 对照理解。
 - `feature_rejected_collapses`：feature vertex 与非 feature vertex、跨 loop、
   junction 或低于 loop 顶点预算的坍缩被拒绝。
+- `primitive_feature_rejected_collapses` / `generic_feature_rejected_collapses`：
+  分别表示 circle / near-circle / ellipse 等 primitive 曲线硬保护，以及
+  `all-feature-edges` 模式下 generic polygonal / dihedral feature 的硬保护。
 - `boundary_rejected_collapses`：`--preserve-boundary` 下非法边界坍缩被拒绝。
 - `topology_rejected_collapses`、`normal_flip_rejected_collapses`、
   `quality_rejected_collapses`、`self_intersection_rejected_collapses`、

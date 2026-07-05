@@ -20,16 +20,12 @@ Candidate CandidateQueue::pop() {
   return candidate;
 }
 
-void CandidateQueue::pushEdge(int a, int b, const std::vector<VertexState>& vertices,
-                              SimplifyReport& report) {
+void CandidateQueue::pushEdge(int a, int b, const std::vector<VertexState>& vertices) {
   if (a == b || !vertices[a].active || !vertices[b].active) {
     return;
   }
   const Mat4 q = vertices[a].q + vertices[b].q;
   const SolveResult solve = solveOptimal(q, vertices[a].p, vertices[b].p);
-  if (solve.usedFallback) {
-    ++report.solverFallbacks;
-  }
   queue_.push(Candidate{solve.cost, std::min(a, b), std::max(a, b), vertices[a].version,
                         vertices[b].version});
 }

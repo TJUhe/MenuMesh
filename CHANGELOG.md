@@ -25,6 +25,10 @@
 
 ### Changed
 
+- Changed `solverFallbacks` / `solver_fallbacks` accounting so it counts only
+  current collapse candidates processed by the simplification loop. Lazy queue
+  insertion still solves a provisional placement for ordering, but no longer
+  inflates the public diagnostic counter.
 - Reworked feature-curve collapse policy so polygonal/generic crease vertices
   are no longer automatically rejected in the default protected mode. The strict
   old behavior is still available via `all-feature-edges`.
@@ -51,9 +55,12 @@
   triangle quality, normal deviation, local error, and optional local
   self-intersection guards.
 - Clarified source boundaries: Garland-Heckbert QEM, Liu/Rahimzadeh/Zordan line
-  quadrics, Tsuchie-Higashi normal tensor feature lines, and Xu et al. CWF are
-  cited as source ideas; the docs now separate those ideas from what this
-  repository currently implements.
+  quadrics, and Tsuchie-Higashi normal tensor feature lines are cited as source
+  ideas; the docs now separate those ideas from what this repository currently
+  implements.
+- Clarified industrial validation docs and SDK headers so `solver_fallbacks`
+  is interpreted as an execution-time placement fallback metric, not as a queue
+  pre-sorting statistic.
 
 ### Verified
 

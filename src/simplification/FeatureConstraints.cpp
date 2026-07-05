@@ -46,12 +46,15 @@ bool isGenericFeature(const VertexState& vertex) {
 }
 
 FeatureCollapseRejectKind featureCollapseRejectKind(
-    int keep, int remove, const std::vector<VertexState>& vertices,
-    const std::vector<int>& activeLoopCounts, const SimplifyOptions& options) {
+    const FeatureCollapseInput& input, const SimplifyOptions& options) {
   const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options);
   if (mode == FeatureProtectionMode::None) {
     return FeatureCollapseRejectKind::None;
   }
+  const int keep = input.edge.keep;
+  const int remove = input.edge.remove;
+  const std::vector<VertexState>& vertices = input.vertices;
+  const std::vector<int>& activeLoopCounts = input.activeLoopCounts;
   const VertexState& a = vertices[keep];
   const VertexState& b = vertices[remove];
   if (!a.isFeature && !b.isFeature) {
@@ -102,14 +105,16 @@ FeatureCollapseRejectKind featureCollapseRejectKind(
   return FeatureCollapseRejectKind::None;
 }
 
-bool projectFeaturePlacement(int keep, int remove,
-                             const std::vector<VertexState>& vertices,
-                             const std::vector<FeatureCurveConstraint>& curves,
+bool projectFeaturePlacement(const FeatureProjectionInput& input,
                              const SimplifyOptions& options, Vec3& position) {
   const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options);
   if (mode == FeatureProtectionMode::None) {
     return false;
   }
+  const int keep = input.edge.keep;
+  const int remove = input.edge.remove;
+  const std::vector<VertexState>& vertices = input.vertices;
+  const std::vector<FeatureCurveConstraint>& curves = input.curves;
   const VertexState& a = vertices[keep];
   const VertexState& b = vertices[remove];
   if (!a.isFeature || !b.isFeature || a.featureLoopId != b.featureLoopId) {
@@ -281,14 +286,14 @@ void refreshEllipseTangent(VertexState& vertex) {
   }
 }
 
-bool projectBoundaryPlacement(int keep, int remove,
-                              const BoundaryCollapseDecision& decision,
-                              const std::vector<VertexState>& vertices,
-                              Vec3& position) {
-  if (!decision.boundaryEdge) {
+bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& position) {
+  if (!input.decision.boundaryEdge) {
     return false;
   }
 
+  const int keep = input.edge.keep;
+  const int remove = input.edge.remove;
+  const std::vector<VertexState>& vertices = input.vertices;
   const Vec3& a = vertices[keep].p;
   const Vec3& b = vertices[remove].p;
   const Vec3 edge = b - a;
@@ -306,28 +311,25 @@ FeatureConstraintPolicy::FeatureConstraintPolicy(const SimplifyOptions& options)
     : options_(options) {
 }
 
-FeatureCollapseRejectKind FeatureConstraintPolicy::collapseRejectKind(
-    int keep, int remove, const std::vector<VertexState>& vertices,
-    const std::vector<int>& activeLoopCounts) const {
-  return featureCollapseRejectKind(keep, remove, vertices, activeLoopCounts,
-                                   options_);
+FeatureCollapseRejectKind
+FeatureConstraintPolicy::collapseRejectKind(const FeatureCollapseInput& input) const {
+  return featureCollapseRejectKind(input, options_);
 }
 
 bool FeatureConstraintPolicy::isHardProtectedCollapse(
-    int keep, int remove, const std::vector<VertexState>& vertices) const {
+    CollapseEdge edge, const std::vector<VertexState>& vertices) const {
   const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options_);
   if (mode == FeatureProtectionMode::None) {
     return false;
   }
-  return isPrimitiveProtected(vertices[keep], mode) &&
-         isPrimitiveProtected(vertices[remove], mode) &&
-         vertices[keep].featureLoopId == vertices[remove].featureLoopId;
+  return isPrimitiveProtected(vertices[edge.keep], mode) &&
+         isPrimitiveProtected(vertices[edge.remove], mode) &&
+         vertices[edge.keep].featureLoopId == vertices[edge.remove].featureLoopId;
 }
 
-bool FeatureConstraintPolicy::projectPlacement(
-    int keep, int remove, const std::vector<VertexState>& vertices,
-    const std::vector<FeatureCurveConstraint>& curves, Vec3& position) const {
-  return projectFeaturePlacement(keep, remove, vertices, curves, options_, position);
+bool FeatureConstraintPolicy::projectPlacement(const FeatureProjectionInput& input,
+                                               Vec3& position) const {
+  return projectFeaturePlacement(input, options_, position);
 }
 
 } // namespace lq

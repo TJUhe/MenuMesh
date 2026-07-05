@@ -95,6 +95,7 @@ typedef struct LqSimplifyReport {
   int final_faces;
   int collapsed_edges;
   int rejected_collapses;
+  /* Current collapse candidates whose placement solve used fallback candidates. */
   int solver_fallbacks;
   int queue_rebuilds;
   int feature_loops;

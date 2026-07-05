@@ -9,14 +9,20 @@
 
 namespace lq {
 
-CollapseRejectReason collapseRejectReason(int keep, int remove, const Vec3& newPosition,
-                                          const std::vector<FaceState>& faces,
-                                          const std::vector<VertexState>& vertices,
-                                          const DynamicTopology& topology,
-                                          double areaEps, double minTriangleQuality,
-                                          double minNormalDot, double maxLocalError,
-                                          bool preventLocalIntersections,
-                                          const SpatialFaceIndex* spatialIndex) {
+CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input) {
+  const int keep = input.edge.keep;
+  const int remove = input.edge.remove;
+  const Vec3& newPosition = input.newPosition;
+  const std::vector<FaceState>& faces = input.mesh.faces;
+  const std::vector<VertexState>& vertices = input.mesh.vertices;
+  const DynamicTopology& topology = input.mesh.topology;
+  const double areaEps = input.areaEps;
+  const double minTriangleQuality = input.minTriangleQuality;
+  const double minNormalDot = input.minNormalDot;
+  const double maxLocalError = input.maxLocalError;
+  const bool preventLocalIntersections = input.preventLocalIntersections;
+  const SpatialFaceIndex* spatialIndex = input.spatialIndex;
+
   if (!collapseWouldPreserveLinkCondition(keep, remove, faces, vertices, topology)) {
     return CollapseRejectReason::Topology;
   }

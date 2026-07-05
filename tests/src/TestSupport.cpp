@@ -206,6 +206,8 @@ void expectBudget(const SimplifiedMesh& result, const Mesh& input, double ratio)
   EXPECT_LE(result.report.finalFaces,
             static_cast<int>(std::llround(input.faces.size() * ratio)) + 2);
   EXPECT_GT(result.report.collapsedEdges, 0);
+  EXPECT_LE(result.report.solverFallbacks,
+            result.report.collapsedEdges + result.report.rejectedCollapses);
 }
 
 int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue) {

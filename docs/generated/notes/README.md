@@ -7,7 +7,8 @@ track the current program. When the CLI, `SimplifyOptions`, feature detection,
 or validation outputs change, update the affected HTML notes in the same change.
 
 - `*.html`: browsable algorithm notes, code-reading guides, and experiment
-  reports.
+  reports. `qem-library-comparison.html` records the comparison between
+  QEM-related open-source libraries and the current SDK-style implementation.
 - `*.pdf`: exported reading copies.
 - `*.zip`: bundled note archives.
 - `eye-care.css`: shared stylesheet for the exported HTML notes.

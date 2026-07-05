@@ -189,7 +189,7 @@ void SimplificationRun::initializeBudget() {
 void SimplificationRun::rebuildQueue() {
   queue_.clear();
   for (const auto& [a, b] : collectActiveEdges(faces_)) {
-    queue_.pushEdge(a, b, vertices_, report_);
+    queue_.pushEdge(a, b, vertices_);
   }
   ++report_.queueRebuilds;
 }
@@ -263,6 +263,7 @@ void SimplificationRun::handleStaleCandidate() {
 }
 
 bool SimplificationRun::tryCollapse(int keep, int remove) {
+  const CollapseEdge edge{keep, remove};
   const Mat4 mergedQ = vertices_[keep].q + vertices_[remove].q;
   const std::vector<SolveResult> placements =
       solvePlacementCandidates(mergedQ, vertices_[keep].p, vertices_[remove].p);
@@ -271,21 +272,21 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
   }
 
   const FeatureCollapseRejectKind featureRejectKind =
-      featurePolicy_.collapseRejectKind(keep, remove, vertices_, activeLoopCounts_);
+      featurePolicy_.collapseRejectKind({edge, vertices_, activeLoopCounts_});
   if (featureRejectKind != FeatureCollapseRejectKind::None) {
     rejectFeatureCollapse(keep, remove, featureRejectKind);
     return false;
   }
 
   const BoundaryCollapseDecision boundaryDecision =
-      boundaryCollapseDecision(keep, remove, faces_, vertices_, *topology_, options_);
+      boundaryCollapseDecision({edge, faces_, vertices_, *topology_, options_});
   if (!boundaryDecision.allowed) {
     rejectBoundaryCollapse(keep, remove);
     return false;
   }
 
   const bool featureCurveCollapse =
-      featurePolicy_.isHardProtectedCollapse(keep, remove, vertices_);
+      featurePolicy_.isHardProtectedCollapse(edge, vertices_);
   const bool tryFallbackPlacements =
       !featureCurveCollapse &&
       (options_.minTriangleQuality > 0.0 || maxLocalError_ > 0.0 ||
@@ -298,20 +299,26 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
       tryFallbackPlacements ? static_cast<int>(placements.size()) : 1;
   for (int placementIndex = 0; placementIndex < placementCount; ++placementIndex) {
     collapsePosition = placements[placementIndex].position;
-    projectBoundaryPlacement(keep, remove, boundaryDecision, vertices_,
-                             collapsePosition);
+    projectBoundaryPlacement({edge, boundaryDecision, vertices_}, collapsePosition);
     if (!curveBudgetAllows(keep, remove, collapsePosition)) {
       sawCurveBudgetReject = true;
       continue;
     }
-    const bool projected = featurePolicy_.projectPlacement(
-        keep, remove, vertices_, featureCurves_, collapsePosition);
+    const bool projected =
+        featurePolicy_.projectPlacement({edge, vertices_, featureCurves_},
+                                        collapsePosition);
 
-    const CollapseRejectReason rejectReason = collapseRejectReason(
-        keep, remove, collapsePosition, faces_, vertices_, *topology_, areaEps_,
-        options_.minTriangleQuality, minNormalDot_, maxLocalError_,
-        options_.preventLocalIntersections,
-        options_.preventLocalIntersections ? &spatialIndex_ : nullptr);
+    const CollapseRejectReason rejectReason =
+        collapseRejectReason({edge,
+                              collapsePosition,
+                              {faces_, vertices_, *topology_},
+                              areaEps_,
+                              options_.minTriangleQuality,
+                              minNormalDot_,
+                              maxLocalError_,
+                              options_.preventLocalIntersections,
+                              options_.preventLocalIntersections ? &spatialIndex_
+                                                                 : nullptr});
     if (rejectReason == CollapseRejectReason::None) {
       projectedFeaturePlacement = projected;
       applyCollapse(keep, remove, collapsePosition, mergedQ);
@@ -496,7 +503,7 @@ void SimplificationRun::applyCollapse(int keep, int remove, const Vec3& position
   ++report_.collapsedEdges;
 
   for (int neighbor : activeNeighborsOf(keep, faces_, vertices_, *topology_)) {
-    queue_.pushEdge(keep, neighbor, vertices_, report_);
+    queue_.pushEdge(keep, neighbor, vertices_);
   }
 }
 

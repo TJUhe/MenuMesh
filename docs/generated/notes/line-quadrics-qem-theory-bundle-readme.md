@@ -30,9 +30,6 @@ This bundle accompanies `line-quadrics-qem-theory-explained.pdf`.
 - `wang_2008_feature_sensitive_metric.pdf`  
   Feature-sensitive simplification metric. Supports extending position-only QEM with feature/normal information.
 
-- `xu_2024_cwf_consolidating_weak_features.pdf`  
-  Weak-feature consolidation for high-quality simplification. Relevant to feature graph and weak feature preservation.
-
 - `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf`  
   Feature-preserving simplification via vertex-cover ideas.
 
@@ -55,4 +52,3 @@ This bundle accompanies `line-quadrics-qem-theory-explained.pdf`.
 - CHBS-Net 2023 and Zhang et al. 2024 point-cloud circular-hole detection.
 
 Those are referenced as online documentation or were not present as local PDFs in this repository at bundle creation time.
-

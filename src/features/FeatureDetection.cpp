@@ -1028,6 +1028,10 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
 
   recoverSmallCycleBasis();
 
+  // Repair sparse CAD circular loops that were fragmented before graph tracing
+  // could close them. This is intentionally skipped once tensor edges are
+  // present: tensor evidence changes the regime from clean CAD loop repair to
+  // weak-feature extraction, where triplet circle voting can hallucinate loops.
   auto recoverCircularVertexClusters = [&]() {
     if (analysis.normalTensorFeatureEdges > 0) {
       return;
@@ -1140,10 +1144,22 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
       return 2.0 * kPi - maxGap;
     };
 
+    // Keep the fallback bounded on fragmented CAD/STL feature graphs. The
+    // deterministic cap makes the worst case predictable while still covering
+    // small exported holes, which are the only intended input for this repair.
+    constexpr int kMaxCircularClusterTripletScans = 32768;
     std::unordered_set<std::string> seenClusters;
-    for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
-      for (int j = i + 1; j < static_cast<int>(candidates.size()); ++j) {
-        for (int k = j + 1; k < static_cast<int>(candidates.size()); ++k) {
+    int tripletScans = 0;
+    for (int i = 0; i < static_cast<int>(candidates.size()) &&
+                    tripletScans < kMaxCircularClusterTripletScans;
+         ++i) {
+      for (int j = i + 1; j < static_cast<int>(candidates.size()) &&
+                          tripletScans < kMaxCircularClusterTripletScans;
+           ++j) {
+        for (int k = j + 1; k < static_cast<int>(candidates.size()) &&
+                            tripletScans < kMaxCircularClusterTripletScans;
+             ++k) {
+          ++tripletScans;
           const ThreePointCircle circle =
               fitCircleFromThree(candidates[i], candidates[j], candidates[k]);
           if (!circle.valid) {

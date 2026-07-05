@@ -18,16 +18,32 @@ enum class FeaturePrimitiveType {
 };
 
 /// Parameters for crease, boundary, and feature-loop detection.
+///
+/// The detector is tuned for CAD/STL-style meshes first: explicit boundary and
+/// dihedral evidence form the feature graph, while tensor evidence is a
+/// secondary signal for weak creases. Thresholds should therefore be chosen
+/// against the mesh scale and provenance instead of reused blindly across
+/// scanned/noisy and clean CAD inputs.
 struct FeatureOptions {
+  /// Dihedral angle threshold for hard feature edges, in degrees.
   double featureAngleDeg = 40.0;
+  /// Relative radial tolerance used when validating circular loops.
   double circleFitRelativeThreshold = 0.05;
+  /// Relative residual tolerance used when validating elliptical loops.
   double ellipseFitRelativeThreshold = 0.05;
+  /// Axis-ratio tolerance below which an ellipse is treated as near-circular.
   double nearCircleAxisRatioTolerance = 0.08;
+  /// Minimum ordered vertices required before a traced curve is reported.
   int minFeatureLoopVertices = 8;
+  /// Enables tensor-derived weak feature candidates in addition to graph edges.
   bool useNormalTensorFeatures = true;
+  /// Minimum tensor saliency score for weak feature classification.
   double normalTensorFeatureThreshold = 0.16;
+  /// Minimum edge/tangent alignment for accepting tensor-derived edge evidence.
   double normalTensorMinEdgeAlignment = 0.45;
+  /// One-ring normal smoothing passes before tensor scoring.
   int normalTensorSmoothingIterations = 0;
+  /// Number of tensor scales sampled for weak feature scoring.
   int normalTensorScaleCount = 1;
 };
 
@@ -122,6 +138,10 @@ struct FeatureGraph {
 };
 
 /// Full feature-detection result for a mesh.
+///
+/// Counts distinguish the evidence source used to build the explicit graph.
+/// Downstream simplification should prefer `loops` and `vertices` for feature
+/// ownership, and use the counters for diagnostics and policy validation.
 struct FeatureAnalysis {
   std::vector<VertexFeature> vertices;
   std::vector<FeatureLoop> loops;
@@ -150,7 +170,12 @@ struct DirectionalCurveError {
 LQ_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options = {});
 
-/// Detects boundary, non-manifold, dihedral, tensor, and circular feature curves.
+/// Detects boundary, non-manifold, dihedral, tensor, and fitted primitive curves.
+///
+/// The implementation first traces graph-supported loops, then applies bounded
+/// CAD repair fallbacks for sparse circular loops. It is not a general
+/// curvature-ridge extractor for noisy scans; enable tensor features and tune
+/// scale/threshold parameters for that regime.
 LQ_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh,
                                            const FeatureOptions& options);
 

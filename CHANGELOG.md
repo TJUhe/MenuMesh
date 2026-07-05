@@ -29,6 +29,13 @@
   current collapse candidates processed by the simplification loop. Lazy queue
   insertion still solves a provisional placement for ordering, but no longer
   inflates the public diagnostic counter.
+- Bounded the circular vertex-cluster fallback used by feature detection to
+  32768 deterministic three-point circle scans. This keeps fragmented CAD/STL
+  feature graphs from spending unbounded time in the fallback while preserving
+  the existing graph-loop and primitive-fit paths.
+- Expanded feature-detection API and algorithm comments so the CAD/STL graph
+  path, tensor weak-feature path, and bounded circular repair fallback document
+  their intended regimes and failure modes.
 - Reworked feature-curve collapse policy so polygonal/generic crease vertices
   are no longer automatically rejected in the default protected mode. The strict
   old behavior is still available via `all-feature-edges`.

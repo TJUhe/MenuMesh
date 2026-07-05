@@ -97,7 +97,11 @@ mode; remaining feature rejections are primitive-circle/ellipse protection.
 2. Add multi-loop ownership for dense CAD/STL graphs: split high-degree feature
    components into simple cycles, fit primitives per cycle, and preserve
    ownership through simplification.
-3. Keep validation honest: continue reporting `rejection-limit`, primitive vs
+3. Continue turning fallback recovery into bounded policies. The circular
+   vertex-cluster repair path now has a 32768 triplet-scan ceiling; future
+   graph recovery should expose similar budgets and diagnostics instead of
+   relying on exhaustive enumeration.
+4. Keep validation honest: continue reporting `rejection-limit`, primitive vs
    generic rejected collapse counts, projected placements, target-face miss, and
    feature-compare recall.
 

@@ -198,7 +198,13 @@ from strong loop-tracing edges and has a conservative circular vertex-cluster
 fallback for fragmented low-vertex circular loops. That fallback is deliberately
 disabled when normal-tensor feature edges are present and capped to small
 candidate sets; it is a CAD circular-loop repair, not a general tensor-voting
-curve extractor.
+curve extractor. The fallback is also bounded to 32768 deterministic
+three-point circle scans so fragmented feature graphs have a predictable
+runtime ceiling before the pipeline returns to the traced graph loops and
+ordinary primitive-fit validation. The public feature-detection API now also
+documents that split explicitly: graph-supported CAD/STL loops are the primary
+path, tensor evidence is a weak-feature signal, and circular vertex-cluster
+recovery is a bounded repair rather than a general voting detector.
 
 Recommended direction:
 
@@ -220,6 +226,8 @@ GTest acceptance:
   ellipse RMS, and plane RMS within thresholds on the fixture.
 - Done: a polygonal feature loop with an internal chord rejects an off-curve raw
   collapse placement before projection.
+- Done: circular vertex-cluster recovery has a bounded three-point scan budget
+  instead of exhaustive enumeration over all candidate triples.
 - Remaining: aggressive simplification keeps ellipse center, axis/radius, and
   phase-continuity within thresholds.
 - A polyline crease can lose vertices but keeps endpoints, tangent continuity,

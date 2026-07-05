@@ -255,6 +255,7 @@ TEST_F(CApiTest, ExposesFeatureCurveProtectionDiagnostics) {
   options.use_line_quadrics = 0;
   options.preserve_feature_curves = 1;
   options.protect_all_feature_edges = 0;
+  options.feature_protection_mode = LQ_FEATURE_PROTECTION_ALL_FEATURE_EDGES;
   options.use_normal_tensor_features = 0;
   options.feature_angle_deg = 179.0;
   options.circle_fit_relative_threshold = 0.0;
@@ -268,6 +269,7 @@ TEST_F(CApiTest, ExposesFeatureCurveProtectionDiagnostics) {
   EXPECT_EQ(LQ_STATUS_OK, lq_simplify_mesh(context, input, &options, output, &report));
   EXPECT_GT(report.feature_loops, 0);
   EXPECT_GT(report.feature_rejected_collapses, 0);
+  EXPECT_GT(report.generic_feature_rejected_collapses, 0);
   EXPECT_EQ(LQ_SIMPLIFY_TERMINATION_REJECTION_LIMIT, report.termination_reason);
   EXPECT_EQ(
       report.rejected_collapses,
@@ -297,4 +299,6 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
   EXPECT_DOUBLE_EQ(0.0, options.max_local_error);
   EXPECT_DOUBLE_EQ(0.0, options.max_local_error_ratio);
   EXPECT_EQ(0, options.prevent_local_intersections);
+  EXPECT_EQ(LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES,
+            options.feature_protection_mode);
 }

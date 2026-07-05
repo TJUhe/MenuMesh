@@ -504,6 +504,7 @@ TEST(LineQuadricsQem, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
   lq::SimplifyOptions options = standardQemOptions(0.25);
   options.targetFaces = 1;
   options.preserveFeatureCurves = true;
+  options.featureProtectionMode = lq::FeatureProtectionMode::AllFeatureEdges;
   options.protectAllFeatureEdges = false;
   options.useNormalTensorFeatures = false;
   options.featureAngleDeg = 179.0;
@@ -518,6 +519,7 @@ TEST(LineQuadricsQem, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
   EXPECT_FALSE(result.mesh.empty());
   EXPECT_GT(result.report.featureLoops, 0);
   EXPECT_GT(result.report.featureRejectedCollapses, 0);
+  EXPECT_GT(result.report.genericFeatureRejectedCollapses, 0);
   EXPECT_EQ(lq::SimplifyTerminationReason::RejectionLimit,
             result.report.terminationReason);
   EXPECT_EQ(result.report.rejectedCollapses,
@@ -531,12 +533,13 @@ TEST(LineQuadricsQem, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, PreservesPolygonalFeatureCurvesWithoutProtectAllFeatureEdges) {
+TEST(LineQuadricsQem, PrimitiveModeKeepsPolygonalFeaturesSoftByDefault) {
   const lq::Mesh input = lq::generateCubeGrid(4, 1.0);
 
   lq::SimplifyOptions options = standardQemOptions(0.35);
   options.preserveFeatureCurves = true;
   options.protectAllFeatureEdges = false;
+  options.featureProtectionMode = lq::FeatureProtectionMode::PrimitiveCurves;
   options.useNormalTensorFeatures = false;
   options.featureAngleDeg = 25.0;
   options.minFeatureLoopVertices = 4;
@@ -546,7 +549,7 @@ TEST(LineQuadricsQem, PreservesPolygonalFeatureCurvesWithoutProtectAllFeatureEdg
   EXPECT_FALSE(result.mesh.empty());
   EXPECT_GT(result.report.featureLoops, 0);
   EXPECT_GT(result.report.featureVertices, 0);
-  EXPECT_GT(result.report.featureRejectedCollapses, 0);
+  EXPECT_EQ(0, result.report.genericFeatureRejectedCollapses);
 }
 
 TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {

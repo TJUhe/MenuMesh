@@ -270,8 +270,10 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
     ++report_.solverFallbacks;
   }
 
-  if (!featurePolicy_.canCollapse(keep, remove, vertices_, activeLoopCounts_)) {
-    rejectFeatureCollapse(keep, remove);
+  const FeatureCollapseRejectKind featureRejectKind =
+      featurePolicy_.collapseRejectKind(keep, remove, vertices_, activeLoopCounts_);
+  if (featureRejectKind != FeatureCollapseRejectKind::None) {
+    rejectFeatureCollapse(keep, remove, featureRejectKind);
     return false;
   }
 
@@ -283,9 +285,7 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
   }
 
   const bool featureCurveCollapse =
-      options_.preserveFeatureCurves && vertices_[keep].isFeature &&
-      vertices_[remove].isFeature &&
-      vertices_[keep].featureLoopId == vertices_[remove].featureLoopId;
+      featurePolicy_.isHardProtectedCollapse(keep, remove, vertices_);
   const bool tryFallbackPlacements =
       !featureCurveCollapse &&
       (options_.minTriangleQuality > 0.0 || maxLocalError_ > 0.0 ||
@@ -337,11 +337,17 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
   return false;
 }
 
-void SimplificationRun::rejectFeatureCollapse(int keep, int remove) {
+void SimplificationRun::rejectFeatureCollapse(int keep, int remove,
+                                              FeatureCollapseRejectKind kind) {
   (void)keep;
   (void)remove;
   ++report_.rejectedCollapses;
   ++report_.featureRejectedCollapses;
+  if (kind == FeatureCollapseRejectKind::Primitive) {
+    ++report_.primitiveFeatureRejectedCollapses;
+  } else if (kind == FeatureCollapseRejectKind::Generic) {
+    ++report_.genericFeatureRejectedCollapses;
+  }
   if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ && options_.verbose) {
     std::cerr << "stopped: feature constraints leave no valid collapses\n";
   }

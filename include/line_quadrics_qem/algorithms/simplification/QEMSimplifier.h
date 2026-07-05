@@ -26,6 +26,14 @@ enum class SimplifyTerminationReason {
   RejectionLimit,
 };
 
+/// Hard feature-constraint policy used when preserveFeatureCurves is enabled.
+enum class FeatureProtectionMode {
+  None,
+  CircularOnly,
+  PrimitiveCurves,
+  AllFeatureEdges,
+};
+
 /// User-facing controls for one simplification run.
 struct SimplifyOptions {
   int targetFaces = -1;
@@ -40,6 +48,7 @@ struct SimplifyOptions {
   double boundaryWeight = 0.0;
   bool preserveBoundary = false;
   bool preserveFeatureCurves = false;
+  FeatureProtectionMode featureProtectionMode = FeatureProtectionMode::PrimitiveCurves;
   bool protectAllFeatureEdges = false;
   double featureCurveWeight = 0.05;
   double maxFeatureCurveDeviationRatio = 0.0;
@@ -76,6 +85,8 @@ struct SimplifyReport {
   int featureVertices = 0;
   int normalTensorFeatureEdges = 0;
   int featureRejectedCollapses = 0;
+  int primitiveFeatureRejectedCollapses = 0;
+  int genericFeatureRejectedCollapses = 0;
   int boundaryRejectedCollapses = 0;
   int topologyRejectedCollapses = 0;
   int normalFlipRejectedCollapses = 0;
@@ -124,6 +135,10 @@ LQ_API WeightMode parseWeightMode(const std::string& value);
 LQ_API std::string toString(WeightMode mode);
 /// Converts a termination reason to its stable lowercase string representation.
 LQ_API std::string toString(SimplifyTerminationReason reason);
+/// Parses a feature-protection mode from a stable lowercase string.
+LQ_API FeatureProtectionMode parseFeatureProtectionMode(const std::string& value);
+/// Converts a feature-protection mode to its stable lowercase string representation.
+LQ_API std::string toString(FeatureProtectionMode mode);
 
 /// Simplifies a mesh with standard QEM or line-quadrics-augmented QEM.
 /// Prefer QEMSimplifier for new code that needs an object-oriented API.

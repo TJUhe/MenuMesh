@@ -183,6 +183,33 @@ TEST(LineQuadricsQemParameters,
   EXPECT_GE(innerEllipseLoops(outputFeatures).size(), 2u);
 }
 
+TEST(LineQuadricsQemParameters,
+     PrimitiveModeSoftensGenericCreasesOnExternalFandisk) {
+  const lq::Mesh input = loadCaseMesh("external/fandisk_2014.stl");
+  ASSERT_FALSE(input.empty());
+
+  lq::SimplifyOptions primitive = protectedOptions(0.25);
+  primitive.protectAllFeatureEdges = false;
+  primitive.featureProtectionMode = lq::FeatureProtectionMode::PrimitiveCurves;
+  primitive.useNormalTensorFeatures = false;
+  primitive.featureAngleDeg = 30.0;
+  primitive.maxNormalDeviationDeg = 85.0;
+  primitive.minTriangleQuality = 1e-6;
+  const SimplifiedMesh primitiveResult = simplifyWithReport(input, primitive);
+
+  lq::SimplifyOptions strict = primitive;
+  strict.featureProtectionMode = lq::FeatureProtectionMode::AllFeatureEdges;
+  const SimplifiedMesh strictResult = simplifyWithReport(input, strict);
+
+  expectBudget(primitiveResult, input, 0.25);
+  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget,
+            primitiveResult.report.terminationReason);
+  EXPECT_EQ(0, primitiveResult.report.genericFeatureRejectedCollapses);
+  EXPECT_GT(strictResult.report.genericFeatureRejectedCollapses, 0);
+  EXPECT_LT(primitiveResult.report.featureRejectedCollapses,
+            strictResult.report.featureRejectedCollapses);
+}
+
 TEST(LineQuadricsQemParameters, StrictQualityModeImprovesWorstThingi10kFixture) {
   const lq::Mesh input = loadCaseMesh(
       "external/thingi10k/thingi10k_104188_iphone_tank_case_gen_4_and_4s.stl");

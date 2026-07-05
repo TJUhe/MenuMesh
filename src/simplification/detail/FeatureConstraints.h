@@ -19,8 +19,11 @@ class FeatureConstraintPolicy {
 public:
   explicit FeatureConstraintPolicy(const SimplifyOptions& options);
 
-  bool canCollapse(int keep, int remove, const std::vector<VertexState>& vertices,
-                   const std::vector<int>& activeLoopCounts) const;
+  FeatureCollapseRejectKind collapseRejectKind(
+      int keep, int remove, const std::vector<VertexState>& vertices,
+      const std::vector<int>& activeLoopCounts) const;
+  bool isHardProtectedCollapse(int keep, int remove,
+                               const std::vector<VertexState>& vertices) const;
   bool projectPlacement(int keep, int remove, const std::vector<VertexState>& vertices,
                         const std::vector<FeatureCurveConstraint>& curves,
                         Vec3& position) const;

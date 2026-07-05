@@ -54,6 +54,12 @@ struct SolveResult {
   bool usedFallback = false;
 };
 
+enum class FeatureCollapseRejectKind {
+  None,
+  Primitive,
+  Generic,
+};
+
 enum class CollapseRejectReason {
   None,
   Topology,

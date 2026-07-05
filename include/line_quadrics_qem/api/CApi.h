@@ -36,6 +36,13 @@ typedef enum LqSimplifyTerminationReason {
   LQ_SIMPLIFY_TERMINATION_REJECTION_LIMIT = 4
 } LqSimplifyTerminationReason;
 
+typedef enum LqFeatureProtectionMode {
+  LQ_FEATURE_PROTECTION_NONE = 0,
+  LQ_FEATURE_PROTECTION_CIRCULAR_ONLY = 1,
+  LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES = 2,
+  LQ_FEATURE_PROTECTION_ALL_FEATURE_EDGES = 3
+} LqFeatureProtectionMode;
+
 typedef struct LqVec3 {
   double x;
   double y;
@@ -78,6 +85,7 @@ typedef struct LqSimplifyOptions {
   double max_local_error_ratio;
   int prevent_local_intersections;
   int verbose;
+  LqFeatureProtectionMode feature_protection_mode;
 } LqSimplifyOptions;
 
 typedef struct LqSimplifyReport {
@@ -94,6 +102,8 @@ typedef struct LqSimplifyReport {
   int feature_vertices;
   int normal_tensor_feature_edges;
   int feature_rejected_collapses;
+  int primitive_feature_rejected_collapses;
+  int generic_feature_rejected_collapses;
   int boundary_rejected_collapses;
   int topology_rejected_collapses;
   int normal_flip_rejected_collapses;

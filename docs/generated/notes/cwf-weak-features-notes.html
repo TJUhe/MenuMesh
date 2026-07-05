@@ -673,14 +673,13 @@ linequadrics simplify input.stl output.stl ^
 </div>
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
   <h2 style="margin-top:0">Feature Protection Roadmap</h2>
-  <p>The latest external-model probe shows that <code>--preserve-feature-curves</code> can over-protect fragmented industrial STL feature graphs such as CubeSat, Mars wheel, and differential gear. The mesh topology counters stay clean; the main problem is an overly hard feature policy.</p>
-  <p>The next implementation should follow CGAL Surface Mesh Simplification, OpenMesh Decimater, MeshLab/VCG quadric decimation, and CWF weak-feature simplification patterns: keep QEM/line quadrics as candidate costs, then separate topology, normal deviation, triangle quality, feature placement, envelope/tolerance, and feature ownership into independent policies.</p>
+  <p>Stage 1 is implemented. <code>--preserve-feature-curves</code> now uses <code>--feature-protection-mode primitive-curves</code> by default: circle, near-circle, and ellipse loops stay hard-protected, while generic polygonal and dihedral creases are soft cost/guard inputs instead of automatic hard locks.</p>
+  <p>The strict legacy behavior remains available as <code>--feature-protection-mode all-feature-edges</code> or <code>--protect-all-feature-edges</code>. The SDK also exposes <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code> with <code>none</code>, <code>circular-only</code>, <code>primitive-curves</code>, and <code>all-feature-edges</code>.</p>
   <ul>
-    <li>Add <code>FeatureProtectionMode</code>: <code>none</code>, <code>primitive-curves</code>, <code>circular-only</code>, and <code>all-feature-edges</code>.</li>
-    <li>Hard-protect only primitive curves by default: <code>circle</code>, <code>near-circle</code>, and <code>ellipse</code>.</li>
-    <li>Move generic polygonal and dihedral creases to soft cost, normal guard, and placement/envelope filters.</li>
-    <li>Add multi-loop ownership for dense CAD/STL feature graphs.</li>
-    <li>Keep validation honest by reporting <code>rejection-limit</code>, feature rejected collapses, projection count, target-face miss, and feature-compare recall.</li>
+    <li>Mars wheel: <code>all-feature-edges</code> stopped at 10974 faces with 468702 feature rejections; <code>primitive-curves</code> reached 9066 faces with 31 feature rejections and 0 generic rejections.</li>
+    <li>Differential gear: <code>all-feature-edges</code> stopped at 2662 faces with 68993 feature rejections; <code>primitive-curves</code> reached 1236 faces with 0 feature rejections.</li>
+    <li>Fandisk: both modes reached target, but generic feature rejections dropped from 513 to 0.</li>
+    <li>The remaining roadmap is envelope/Hausdorff placement filters, multi-loop ownership for dense feature graphs, and CWF-style weak-feature consolidation.</li>
   </ul>
   <p>Source design note: <code>docs/design/feature_protection_roadmap.md</code>.</p>
 </section>

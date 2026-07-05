@@ -46,6 +46,13 @@ Outputs are written to `tests/output/external_model_validation/`. Start with
 `external_summary.csv`; it records input/output face counts, circular-loop
 matches/misses, and rejected collapses for each model.
 
+The current default protected run uses:
+
+```text
+--preserve-feature-curves
+--feature-protection-mode primitive-curves
+```
+
 ## Observed results
 
 | Model | Input circular loops | Main issue found | Current behavior after fix |
@@ -60,7 +67,7 @@ The key change prompted by these tests is:
 
 ```text
 --preserve-feature-curves
-  hard-protects circular feature loops by default
+  hard-protects circle, near-circle, and ellipse feature loops by default
 
 --protect-all-feature-edges
   opt-in mode for also hard-locking non-circular feature edges

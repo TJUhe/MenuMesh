@@ -34,7 +34,7 @@ private:
   bool isCurrentCandidate(const Candidate& candidate) const;
   void handleStaleCandidate();
   bool tryCollapse(int keep, int remove);
-  void rejectFeatureCollapse(int keep, int remove);
+  void rejectFeatureCollapse(int keep, int remove, FeatureCollapseRejectKind kind);
   void rejectBoundaryCollapse(int keep, int remove);
   void rejectCurveBudgetCollapse(int keep, int remove);
   bool curveBudgetAllows(int keep, int remove, const Vec3& position) const;

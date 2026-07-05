@@ -150,21 +150,20 @@ loop. That is good for clean rings, but not enough for dense CAD graphs where
 several circular loops are connected by extra boundary or dihedral edges. The
 external spindle, ring track, pulley, and flange fixtures show this clearly.
 
-External models show that the current strong circular-loop policy is still too
-aggressive for fragmented industrial STL graphs. The default validation keeps
-this visible instead of hiding it behind procedural geometry. Use
-`--protect-all-feature-edges` only when intentionally testing non-circular
-hard-edge preservation.
+External models showed that the old strong feature policy was too aggressive
+for fragmented industrial STL graphs. The current default is
+`--feature-protection-mode primitive-curves`: circle, near-circle, and ellipse
+loops are hard-protected, while generic polygonal/dihedral creases are soft
+cost and legality-filter inputs. Use `--protect-all-feature-edges` only when
+intentionally testing non-circular hard-edge preservation.
 
-The detector can also report `near-circle`, `ellipse`, and `polygonal-loop`
-primitive labels. Only `circle` and `near-circle` are treated as circular
-features for hard projection. Ellipse support is currently a reporting and
-validation aid, not an ellipse-constrained placement policy.
+The detector reports `circle`, `near-circle`, `ellipse`, and
+`polygonal-loop` primitive labels. Circle, near-circle, and ellipse primitives
+are hard-protected by the default `primitive-curves` policy; polygonal loops
+remain soft by default.
 
-The C ABI keeps its existing `LqSimplifyOptions` layout for binary
-compatibility. New primitive-fit knobs are exposed through the C++ API and CLI.
-If C callers need those controls later, add a versioned options struct or a
-size-tagged extension instead of appending fields to the existing struct.
+The C ABI exposes `LqFeatureProtectionMode` on `LqSimplifyOptions`; existing
+callers can keep using `protect_all_feature_edges` as the strict legacy alias.
 
 The next upgrade should be multi-loop tracing inside one connected component:
 
@@ -183,14 +182,13 @@ preservation on arbitrary industrial STL files.
 
 Additional validation on `nasa_cubesat_middle`, `nasa_mars2020_wheel`,
 `thingi10k_differential_gear`, `fandisk_2014`, and `rocker_arm_large` shows
-that the next fix should be policy separation, not another single global
-threshold. The curve mode currently protects too many generic feature vertices,
-so fragmented CAD/STL graphs can hit `rejection-limit` before reaching the face
-budget.
+that the first fix had to be policy separation, not another single global
+threshold. Stage 1 is now implemented and removes generic hard locks from the
+default feature mode.
 
-The planned direction is documented in
+The implemented direction and remaining work are documented in
 [`feature_protection_roadmap.md`](feature_protection_roadmap.md): borrow the
 policy split used by CGAL/OpenMesh-style decimators, keep QEM/line quadrics as
 candidate costs, make primitive curves the default hard-protected class, move
-generic polygonal creases to soft costs and placement/envelope filters, and add
-multi-loop ownership for dense feature graphs.
+generic polygonal creases to soft costs, and keep multi-loop ownership plus
+envelope/Hausdorff filters as the next stage.

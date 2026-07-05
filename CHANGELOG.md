@@ -4,24 +4,38 @@
 
 ### Added
 
+- Added `FeatureProtectionMode` for feature-curve simplification:
+  `none`, `circular-only`, `primitive-curves`, and `all-feature-edges`.
+  The default `primitive-curves` policy hard-protects only circle,
+  near-circle, and ellipse primitives; generic polygonal/dihedral creases stay
+  as soft line-quadric costs plus the existing topology, normal, quality, and
+  local-error filters.
+- Added `--feature-protection-mode` to the CLI and
+  `LqFeatureProtectionMode` to the C ABI. The legacy
+  `--protect-all-feature-edges` / `protect_all_feature_edges` switch remains a
+  compatibility alias for the strict `all-feature-edges` behavior.
+- Added primitive/generic feature rejection counters to C++ and C reports so
+  validation can prove whether the new policy is reducing generic hard locks.
 - Added `docs/design/feature_protection_roadmap.md` to record the external
-  model probe results and the next algorithm direction: CGAL/OpenMesh-style
-  policy separation, primitive-curve hard protection, soft generic-crease
-  costs, placement/envelope filters, and multi-loop feature ownership.
+  model probe results and the first implemented CGAL/OpenMesh-style policy
+  split: primitive-curve hard protection plus soft generic-crease behavior.
 - Added a shared "Feature Protection Roadmap" section to every generated HTML
   note under `docs/generated/notes/` so the browser-readable documentation
   carries the same algorithm direction as the Markdown design docs.
 
 ### Changed
 
+- Reworked feature-curve collapse policy so polygonal/generic crease vertices
+  are no longer automatically rejected in the default protected mode. The strict
+  old behavior is still available via `all-feature-edges`.
 - Reworked `validate-features` to use finished external STL fixtures by
   default: Thingi10K spindle, NASA antenna azimuth track, Thingi10K mini
   pulley, and OpenFOAM flange. The old procedural shaft/coupling/pulley
   validation path is no longer the default industrial feature test.
 - Updated feature validation docs and generated HTML results to report the
-  current external-model behavior honestly, including `rejection-limit`
-  terminations and cases where current curve protection over-constrains
-  fragmented industrial STL feature graphs.
+  new primitive/generic policy split and the before/after probe results where
+  `primitive-curves` removes generic hard locks on fragmented industrial STL
+  feature graphs.
 - Refreshed the documentation so user-facing commands, generated HTML notes,
   and algorithm explanations follow the current C++ implementation instead of
   older experiment paths.
@@ -48,6 +62,15 @@
 - `cmake --build build --parallel`
 - `ctest --test-dir build -C Release --output-on-failure`
 - `.\build\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000 --input-dir tests\output\generated_inputs --output-dir tests\output\feature_curve_validation`
+- Feature-policy validation under `tests/output/feature_policy_validation/`:
+  `primitive-curves` reached target on `nasa_mars2020_wheel` at 9066 faces with
+  31 feature rejections and 0 generic feature rejections, while
+  `all-feature-edges` stopped at 10974 faces with 468702 feature rejections.
+  On `thingi10k_37880_functional_differential_gear_system`,
+  `primitive-curves` reached target at 1236 faces with 0 feature rejections,
+  while `all-feature-edges` stopped at 2662 faces with 68993 feature
+  rejections. On `fandisk_2014`, both reached target, but generic feature
+  rejections dropped from 513 to 0.
 - External probe on `nasa_cubesat_middle`, `nasa_mars2020_wheel`,
   `casting_aimshape_2014`, `fandisk_2014`,
   `thingi10k_37880_functional_differential_gear_system`, and

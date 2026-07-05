@@ -79,6 +79,25 @@ bool convertWeightMode(LqWeightMode input, lq::WeightMode& output) {
   return false;
 }
 
+bool convertFeatureProtectionMode(LqFeatureProtectionMode input,
+                                  lq::FeatureProtectionMode& output) {
+  switch (input) {
+  case LQ_FEATURE_PROTECTION_NONE:
+    output = lq::FeatureProtectionMode::None;
+    return true;
+  case LQ_FEATURE_PROTECTION_CIRCULAR_ONLY:
+    output = lq::FeatureProtectionMode::CircularOnly;
+    return true;
+  case LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES:
+    output = lq::FeatureProtectionMode::PrimitiveCurves;
+    return true;
+  case LQ_FEATURE_PROTECTION_ALL_FEATURE_EDGES:
+    output = lq::FeatureProtectionMode::AllFeatureEdges;
+    return true;
+  }
+  return false;
+}
+
 LqSimplifyTerminationReason
 convertTerminationReason(lq::SimplifyTerminationReason input) {
   switch (input) {
@@ -110,6 +129,9 @@ void fillReport(const lq::SimplifyReport& source, LqSimplifyReport& target) {
   target.feature_vertices = source.featureVertices;
   target.normal_tensor_feature_edges = source.normalTensorFeatureEdges;
   target.feature_rejected_collapses = source.featureRejectedCollapses;
+  target.primitive_feature_rejected_collapses =
+      source.primitiveFeatureRejectedCollapses;
+  target.generic_feature_rejected_collapses = source.genericFeatureRejectedCollapses;
   target.boundary_rejected_collapses = source.boundaryRejectedCollapses;
   target.topology_rejected_collapses = source.topologyRejectedCollapses;
   target.normal_flip_rejected_collapses = source.normalFlipRejectedCollapses;
@@ -409,6 +431,7 @@ void lq_simplify_options_init(LqSimplifyOptions* options) {
   options->max_local_error_ratio = 0.0;
   options->prevent_local_intersections = 0;
   options->verbose = 0;
+  options->feature_protection_mode = LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES;
 }
 
 LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
@@ -437,6 +460,11 @@ LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
       cppOptions.boundaryWeight = options->boundary_weight;
       cppOptions.preserveBoundary = boolFromInt(options->preserve_boundary);
       cppOptions.preserveFeatureCurves = boolFromInt(options->preserve_feature_curves);
+      if (!convertFeatureProtectionMode(options->feature_protection_mode,
+                                        cppOptions.featureProtectionMode)) {
+        return fail(context, LQ_STATUS_INVALID_ARGUMENT,
+                    "Unknown feature protection mode.");
+      }
       cppOptions.protectAllFeatureEdges =
           boolFromInt(options->protect_all_feature_edges);
       cppOptions.featureCurveWeight = options->feature_curve_weight;

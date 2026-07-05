@@ -1,12 +1,14 @@
 # Feature Protection Roadmap
 
 This note records the current conclusion after validating the simplifier on
-new external meshes and checking related literature/open-source designs.
+external meshes and checking related literature/open-source designs. Stage 1
+of the roadmap is now implemented in the SDK API and CLI.
 
-## Problem Found
+## Problem Found Before Stage 1
 
-The current `--preserve-feature-curves` mode is too hard for fragmented
-industrial STL feature graphs.
+The old `--preserve-feature-curves` mode was too hard for fragmented
+industrial STL feature graphs because every detected feature loop could become
+a hard collapse constraint.
 
 New validation outputs under `tests/output/new_model_validation/` show:
 
@@ -44,30 +46,53 @@ envelope/tolerance, topology, quality, and feature behavior.
   ranking terms, but they do not replace explicit topology, quality, and
   tolerance filters.
 
-## Planned Algorithm Direction
+## Implemented Stage 1
 
-1. Add a `FeatureProtectionMode` concept:
+1. Added `FeatureProtectionMode`:
    - `none`
-   - `primitive-curves`
    - `circular-only`
+   - `primitive-curves`
    - `all-feature-edges`
-2. Make the default curve mode hard-protect only primitive curves:
-   `circle`, `near-circle`, and `ellipse`.
-3. Treat generic polygonal/dihedral feature loops as soft costs by default:
-   feature weights, normal-deviation guards, and optional placement filters,
-   but not automatic feature-to-non-feature collapse vetoes.
-4. Split feature handling into independent modules:
-   - feature cost weighting
-   - feature placement projection
-   - feature distance/envelope filter
-   - topology and triangle-quality filters
-5. Add multi-loop ownership for dense CAD/STL graphs:
-   split high-degree feature components into simple cycles, fit primitives per
-   cycle, and preserve ownership through simplification.
-6. Keep validation honest:
-   report `rejection-limit`, feature rejected collapse counts, projected
-   placements, face target miss, and feature-compare recall instead of hiding
-   bad cases behind procedural models.
+2. Made `primitive-curves` the default hard policy when
+   `preserveFeatureCurves` is enabled. It hard-protects only `circle`,
+   `near-circle`, and `ellipse` primitives.
+3. Moved generic polygonal/dihedral feature loops out of the default hard
+   collapse veto. They still affect ranking through feature curve quadrics and
+   line-quadric feature weighting, then pass through the existing topology,
+   normal-deviation, triangle-quality, local-error, and optional intersection
+   filters.
+4. Preserved the old strict behavior as `all-feature-edges` and through the
+   legacy `protectAllFeatureEdges` / `--protect-all-feature-edges` alias.
+5. Added primitive/generic rejection counters so validation can show where
+   hard constraints are still active.
+
+## Stage 1 Validation
+
+Outputs are under `tests/output/feature_policy_validation/`.
+
+| Model | `all-feature-edges` | `primitive-curves` | Effect |
+| --- | --- | --- | --- |
+| `nasa_mars2020_wheel` | 10974 faces, `rejection-limit`, 468702 feature rejections, 466681 generic rejections | 9066 faces, `reached-target`, 31 feature rejections, 0 generic rejections | Fragmented wheel creases no longer hard-lock the queue. |
+| `thingi10k_37880_functional_differential_gear_system` | 2662 faces, `rejection-limit`, 68993 feature rejections, 68184 generic rejections | 1236 faces, `reached-target`, 0 feature rejections | Dense gear features become soft ranking cues instead of a stop condition. |
+| `fandisk_2014` | 3236 faces, `reached-target`, 513 generic rejections | 3236 faces, `reached-target`, 0 generic rejections | Non-circular hard edges influence cost/guards without feature hard locks. |
+
+The normal, topology, triangle-quality, local-error, and optional intersection
+guards remain independent legality filters. `validate-features` also passes on
+the four default external fixtures with 0 generic feature rejections in curve
+mode; remaining feature rejections are primitive-circle/ellipse protection.
+
+## Remaining Direction
+
+1. Add a stricter envelope/Hausdorff placement filter for production tolerance
+   control.
+2. Add multi-loop ownership for dense CAD/STL graphs: split high-degree feature
+   components into simple cycles, fit primitives per cycle, and preserve
+   ownership through simplification.
+3. Consider weak-feature consolidation before decimation for CWF-style dense
+   graphs.
+4. Keep validation honest: continue reporting `rejection-limit`, primitive vs
+   generic rejected collapse counts, projected placements, target-face miss, and
+   feature-compare recall.
 
 ## Expected Impact
 

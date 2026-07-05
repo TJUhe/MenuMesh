@@ -102,11 +102,19 @@ lq::SimplifyOptions options;
 options.targetRatio = 0.2;
 options.useLineQuadrics = true;
 options.lineWeight = 1e-3;
+options.preserveFeatureCurves = true;
+options.featureProtectionMode = lq::FeatureProtectionMode::PrimitiveCurves;
 
 lq::SimplifyReport report;
 lq::QEMSimplifier simplifier(options);
 lq::Mesh simplified = simplifier.simplify(input, &report);
 ```
+
+`FeatureProtectionMode::PrimitiveCurves` is the default protected feature
+policy. It hard-protects fitted circle, near-circle, and ellipse loops while
+leaving generic polygonal/dihedral creases as soft costs plus legality filters.
+Use `AllFeatureEdges` only when intentionally reproducing the older strict
+feature-lock behavior.
 
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
 如果下游本身也是 CMake 工程，并且安装 SDK 时打开了

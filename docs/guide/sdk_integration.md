@@ -137,6 +137,8 @@ lq_generate_mesh(ctx, "cylinder", 32, input);
 LqSimplifyOptions options;
 lq_simplify_options_init(&options);
 options.target_ratio = 0.35;
+options.preserve_feature_curves = 1;
+options.feature_protection_mode = LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES;
 
 LqSimplifyReport report;
 LqStatus status = lq_simplify_mesh(ctx, input, &options, output, &report);
@@ -148,3 +150,8 @@ lq_mesh_destroy(output);
 lq_mesh_destroy(input);
 lq_context_destroy(ctx);
 ```
+
+`LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES` is the default SDK feature policy:
+circle, near-circle, and ellipse loops are hard-protected; generic
+polygonal/dihedral creases remain soft cost and legality-filter signals. Use
+`LQ_FEATURE_PROTECTION_ALL_FEATURE_EDGES` only for the stricter legacy behavior.

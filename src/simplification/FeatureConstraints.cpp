@@ -7,30 +7,83 @@
 namespace lq {
 namespace {
 
-bool featureCollapseAllowed(int keep, int remove,
-                            const std::vector<VertexState>& vertices,
-                            const std::vector<int>& activeLoopCounts,
-                            const SimplifyOptions& options) {
+FeatureProtectionMode effectiveFeatureProtectionMode(const SimplifyOptions& options) {
   if (!options.preserveFeatureCurves) {
-    return true;
+    return FeatureProtectionMode::None;
   }
+  if (options.protectAllFeatureEdges) {
+    return FeatureProtectionMode::AllFeatureEdges;
+  }
+  return options.featureProtectionMode;
+}
 
+bool isCircularPrimitive(FeaturePrimitiveType primitive) {
+  return primitive == FeaturePrimitiveType::Circle ||
+         primitive == FeaturePrimitiveType::NearCircle;
+}
+
+bool isPrimitiveProtected(const VertexState& vertex, FeatureProtectionMode mode) {
+  if (!vertex.isFeature) {
+    return false;
+  }
+  switch (mode) {
+  case FeatureProtectionMode::None:
+    return false;
+  case FeatureProtectionMode::CircularOnly:
+    return vertex.circularFeature || isCircularPrimitive(vertex.featurePrimitive);
+  case FeatureProtectionMode::PrimitiveCurves:
+    return vertex.circularFeature || isCircularPrimitive(vertex.featurePrimitive) ||
+           vertex.featurePrimitive == FeaturePrimitiveType::Ellipse;
+  case FeatureProtectionMode::AllFeatureEdges:
+    return vertex.isFeature;
+  }
+  return false;
+}
+
+bool isGenericFeature(const VertexState& vertex) {
+  return vertex.isFeature &&
+         !isPrimitiveProtected(vertex, FeatureProtectionMode::PrimitiveCurves);
+}
+
+FeatureCollapseRejectKind featureCollapseRejectKind(
+    int keep, int remove, const std::vector<VertexState>& vertices,
+    const std::vector<int>& activeLoopCounts, const SimplifyOptions& options) {
+  const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options);
+  if (mode == FeatureProtectionMode::None) {
+    return FeatureCollapseRejectKind::None;
+  }
   const VertexState& a = vertices[keep];
   const VertexState& b = vertices[remove];
   if (!a.isFeature && !b.isFeature) {
-    return true;
+    return FeatureCollapseRejectKind::None;
   }
+
+  const bool aProtected = isPrimitiveProtected(a, mode);
+  const bool bProtected = isPrimitiveProtected(b, mode);
+  if (mode != FeatureProtectionMode::AllFeatureEdges && !aProtected && !bProtected) {
+    return FeatureCollapseRejectKind::None;
+  }
+  if (mode != FeatureProtectionMode::AllFeatureEdges && aProtected != bProtected) {
+    return FeatureCollapseRejectKind::Primitive;
+  }
+
+  const FeatureCollapseRejectKind rejectKind =
+      mode == FeatureProtectionMode::AllFeatureEdges &&
+              (isGenericFeature(a) || isGenericFeature(b))
+          ? FeatureCollapseRejectKind::Generic
+          : FeatureCollapseRejectKind::Primitive;
+
   if (a.isFeature != b.isFeature) {
-    return false;
+    return rejectKind;
   }
   if (a.featureLoopId < 0 || a.featureLoopId != b.featureLoopId) {
-    return false;
+    return rejectKind;
   }
   if (a.featureJunction || b.featureJunction) {
-    return false;
+    return rejectKind;
   }
   if (a.featureLoopId >= static_cast<int>(activeLoopCounts.size())) {
-    return false;
+    return rejectKind;
   }
   const int minActiveLoopVertices = (a.circularFeature || b.circularFeature)
                                         ? options.minCircularFeatureLoopVertices
@@ -43,22 +96,26 @@ bool featureCollapseAllowed(int keep, int remove,
         (a.circularFeature || b.circularFeature || ellipseFeature) ? 4 : 3;
     if (!hasCurveErrorBudget ||
         activeLoopCounts[a.featureLoopId] <= absoluteMinLoopVertices) {
-      return false;
+      return rejectKind;
     }
   }
-  return true;
+  return FeatureCollapseRejectKind::None;
 }
 
 bool projectFeaturePlacement(int keep, int remove,
                              const std::vector<VertexState>& vertices,
                              const std::vector<FeatureCurveConstraint>& curves,
                              const SimplifyOptions& options, Vec3& position) {
-  if (!options.preserveFeatureCurves) {
+  const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options);
+  if (mode == FeatureProtectionMode::None) {
     return false;
   }
   const VertexState& a = vertices[keep];
   const VertexState& b = vertices[remove];
   if (!a.isFeature || !b.isFeature || a.featureLoopId != b.featureLoopId) {
+    return false;
+  }
+  if (!isPrimitiveProtected(a, mode) && !isPrimitiveProtected(b, mode)) {
     return false;
   }
   if (a.circularFeature) {
@@ -69,15 +126,18 @@ bool projectFeaturePlacement(int keep, int remove,
     position = projectToCircle(position, b);
     return true;
   }
-  if (a.featurePrimitive == FeaturePrimitiveType::Ellipse) {
+  if (mode == FeatureProtectionMode::PrimitiveCurves &&
+      a.featurePrimitive == FeaturePrimitiveType::Ellipse) {
     position = projectToEllipse(position, a);
     return true;
   }
-  if (b.featurePrimitive == FeaturePrimitiveType::Ellipse) {
+  if (mode == FeatureProtectionMode::PrimitiveCurves &&
+      b.featurePrimitive == FeaturePrimitiveType::Ellipse) {
     position = projectToEllipse(position, b);
     return true;
   }
-  if (a.featureLoopId >= 0 && a.featureLoopId < static_cast<int>(curves.size()) &&
+  if (mode == FeatureProtectionMode::AllFeatureEdges && a.featureLoopId >= 0 &&
+      a.featureLoopId < static_cast<int>(curves.size()) &&
       curves[a.featureLoopId].valid &&
       curves[a.featureLoopId].primitive == FeaturePrimitiveType::PolygonalLoop) {
     const FeatureCurveConstraint& curve = curves[a.featureLoopId];
@@ -246,10 +306,22 @@ FeatureConstraintPolicy::FeatureConstraintPolicy(const SimplifyOptions& options)
     : options_(options) {
 }
 
-bool FeatureConstraintPolicy::canCollapse(
+FeatureCollapseRejectKind FeatureConstraintPolicy::collapseRejectKind(
     int keep, int remove, const std::vector<VertexState>& vertices,
     const std::vector<int>& activeLoopCounts) const {
-  return featureCollapseAllowed(keep, remove, vertices, activeLoopCounts, options_);
+  return featureCollapseRejectKind(keep, remove, vertices, activeLoopCounts,
+                                   options_);
+}
+
+bool FeatureConstraintPolicy::isHardProtectedCollapse(
+    int keep, int remove, const std::vector<VertexState>& vertices) const {
+  const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options_);
+  if (mode == FeatureProtectionMode::None) {
+    return false;
+  }
+  return isPrimitiveProtected(vertices[keep], mode) &&
+         isPrimitiveProtected(vertices[remove], mode) &&
+         vertices[keep].featureLoopId == vertices[remove].featureLoopId;
 }
 
 bool FeatureConstraintPolicy::projectPlacement(

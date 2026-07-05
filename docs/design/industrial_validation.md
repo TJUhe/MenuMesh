@@ -109,13 +109,20 @@ old build trees, but it should not be used as the documented validation path.
 6. 跑 `validate-external`，用于发现过保护、误检和复杂特征图问题；若使用
    自己的 OBJ 集，传入 `--input-dir your_dir`。
 
-新增外部模型探针结果记录在
-[`feature_protection_roadmap.md`](feature_protection_roadmap.md)。当前主要风险是
-`--preserve-feature-curves` 对碎片化工业 STL 过保护：CubeSat、Mars wheel 和
-differential gear 会暴露 `rejection-limit`、目标面数未达到和曲线模式误差过大的
-问题。后续算法应参考 CGAL/OpenMesh/VCG 的 decimation policy 分层，把 primitive
-curve 硬保护、generic crease 软约束、placement/envelope filter 和拓扑/质量 filter
-拆开。
+新增外部模型探针和第一阶段策略落地结果记录在
+[`feature_protection_roadmap.md`](feature_protection_roadmap.md)。当前
+`--preserve-feature-curves` 默认使用 `--feature-protection-mode primitive-curves`：
+只对 circle / near-circle / ellipse 做硬保护，generic polygonal / dihedral crease
+默认作为软代价和 normal/quality/local-error filter 的输入。旧的强保护行为仍可用
+`--feature-protection-mode all-feature-edges` 或 `--protect-all-feature-edges` 重现。
+
+这次验证中，Mars wheel 从 `all-feature-edges` 的 10974 faces / `rejection-limit` /
+468702 feature rejections 改善为 `primitive-curves` 的 9066 faces /
+`reached-target` / 31 feature rejections；differential gear 从 2662 faces /
+`rejection-limit` / 68993 feature rejections 改善为 1236 faces /
+`reached-target` / 0 feature rejections。Fandisk 两种模式都能达到目标，但 generic
+feature rejections 从 513 降为 0。这说明算法提升已经生效：generic crease 不再把
+简化队列硬锁死。
 
 ## 4. 当前方案能验证什么
 

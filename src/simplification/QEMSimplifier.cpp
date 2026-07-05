@@ -57,6 +57,36 @@ std::string toString(SimplifyTerminationReason reason) {
   return "unknown";
 }
 
+FeatureProtectionMode parseFeatureProtectionMode(const std::string& value) {
+  if (value == "none") return FeatureProtectionMode::None;
+  if (value == "circular-only" || value == "circular_only") {
+    return FeatureProtectionMode::CircularOnly;
+  }
+  if (value == "primitive-curves" || value == "primitive_curves" ||
+      value == "primitive") {
+    return FeatureProtectionMode::PrimitiveCurves;
+  }
+  if (value == "all-feature-edges" || value == "all_feature_edges" ||
+      value == "all") {
+    return FeatureProtectionMode::AllFeatureEdges;
+  }
+  throw std::invalid_argument("Unknown feature protection mode: " + value);
+}
+
+std::string toString(FeatureProtectionMode mode) {
+  switch (mode) {
+  case FeatureProtectionMode::None:
+    return "none";
+  case FeatureProtectionMode::CircularOnly:
+    return "circular-only";
+  case FeatureProtectionMode::PrimitiveCurves:
+    return "primitive-curves";
+  case FeatureProtectionMode::AllFeatureEdges:
+    return "all-feature-edges";
+  }
+  return "unknown";
+}
+
 QEMSimplifier::QEMSimplifier() : impl_(std::make_unique<Impl>()) {
 }
 

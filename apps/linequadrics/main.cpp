@@ -48,6 +48,7 @@ const std::unordered_set<std::string>& valueFlags() {
       "--feature-angle-deg",
       "--adaptive-base-line-weight",
       "--boundary-weight",
+      "--feature-protection-mode",
       "--feature-curve-weight",
       "--max-feature-curve-deviation-ratio",
       "--circle-fit-threshold",
@@ -285,6 +286,9 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   options.preserveBoundary = hasFlag(args, "--preserve-boundary");
   options.preventLocalIntersections = hasFlag(args, "--prevent-local-intersections");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
+  options.featureProtectionMode = lq::parseFeatureProtectionMode(
+      getArg(args, "--feature-protection-mode",
+             lq::toString(options.featureProtectionMode)));
   options.protectAllFeatureEdges = hasFlag(args, "--protect-all-feature-edges");
   options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
   if (hasFlag(args, "--industrial-safe")) {
@@ -363,7 +367,12 @@ void printUsage() {
       << "  --boundary-weight W             Optional boundary plane quadrics\n"
       << "  --preserve-boundary             Preserve open boundary topology\n"
       << "  --preserve-feature-curves       Protect detected crease/boundary loops\n"
-      << "  --protect-all-feature-edges     Also hard-lock non-circular feature edges\n"
+      << "  --feature-protection-mode none|circular-only|primitive-curves|"
+         "all-feature-edges\n"
+      << "                                  Hard policy for detected features; "
+         "default primitive-curves\n"
+      << "  --protect-all-feature-edges     Compatibility alias for "
+         "all-feature-edges\n"
       << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
       << "  --max-feature-curve-deviation-ratio R  Reject polygonal feature "
          "collapses whose raw placement drifts beyond R*bbox_diag\n"
@@ -955,8 +964,16 @@ int commandSimplify(const Args& args) {
     std::cout << "feature_loops=" << report.featureLoops
               << " circular_feature_loops=" << report.circularFeatureLoops
               << " feature_vertices=" << report.featureVertices
+              << " feature_protection_mode="
+              << lq::toString(options.protectAllFeatureEdges
+                                  ? lq::FeatureProtectionMode::AllFeatureEdges
+                                  : options.featureProtectionMode)
               << " normal_tensor_feature_edges=" << report.normalTensorFeatureEdges
               << " feature_rejected=" << report.featureRejectedCollapses
+              << " primitive_feature_rejected="
+              << report.primitiveFeatureRejectedCollapses
+              << " generic_feature_rejected="
+              << report.genericFeatureRejectedCollapses
               << " curve_budget_rejected=" << report.curveBudgetRejectedCollapses
               << " projected_feature_placements=" << report.projectedFeaturePlacements
               << "\n";
@@ -974,8 +991,10 @@ int commandSimplify(const Args& args) {
     csv << lq::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "feature_loops,circular_feature_loops,feature_vertices,"
-           "normal_tensor_feature_edges,"
+           "normal_tensor_feature_edges,feature_protection_mode,"
            "feature_rejected_collapses,boundary_rejected_collapses,"
+           "primitive_feature_rejected_collapses,"
+           "generic_feature_rejected_collapses,"
            "topology_rejected_collapses,normal_flip_rejected_collapses,"
            "quality_rejected_collapses,self_intersection_rejected_collapses,"
            "curve_budget_rejected_collapses,error_rejected_collapses,"
@@ -985,8 +1004,14 @@ int commandSimplify(const Args& args) {
         << report.collapsedEdges << "," << report.rejectedCollapses << ","
         << report.solverFallbacks << "," << report.featureLoops << ","
         << report.circularFeatureLoops << "," << report.featureVertices << ","
-        << report.normalTensorFeatureEdges << "," << report.featureRejectedCollapses
+        << report.normalTensorFeatureEdges << ","
+        << lq::toString(options.protectAllFeatureEdges
+                            ? lq::FeatureProtectionMode::AllFeatureEdges
+                            : options.featureProtectionMode)
+        << "," << report.featureRejectedCollapses
         << "," << report.boundaryRejectedCollapses << ","
+        << report.primitiveFeatureRejectedCollapses << ","
+        << report.genericFeatureRejectedCollapses << ","
         << report.topologyRejectedCollapses << "," << report.normalFlipRejectedCollapses
         << "," << report.qualityRejectedCollapses << ","
         << report.selfIntersectionRejectedCollapses << ","

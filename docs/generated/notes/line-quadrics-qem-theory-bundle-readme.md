@@ -10,17 +10,17 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `garland_heckbert_1997_surface_simplification_qem.pdf` | 原始 QEM 参考。 |
-| `liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | line quadrics 主参考。 |
-| `garland_heckbert_1998_color_texture_qem.pdf` | 属性 QEM 扩展参考。 |
-| `garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | 大模型自适应简化参考。 |
-| `hoppe_1996_progressive_meshes.pdf` | progressive mesh 和 edge collapse 框架参考。 |
-| `lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | 局部 placement 与保持约束参考。 |
-| `wang_2008_feature_sensitive_metric.pdf` | 特征敏感误差度量参考。 |
-| `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | 特征保持简化参考。 |
-| `jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | CAD 不连续检测参考。 |
-| `vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | CAD 三角网格特征线提取参考。 |
-| `tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | normal tensor 特征检测参考。 |
+| `docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf` | 原始 QEM 参考。 |
+| `docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | line quadrics 主参考。 |
+| `docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf` | 属性 QEM 扩展参考。 |
+| `docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | 大模型自适应简化参考。 |
+| `docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf` | progressive mesh 和 edge collapse 框架参考。 |
+| `docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | 局部 placement 与保持约束参考。 |
+| `docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf` | 特征敏感误差度量参考。 |
+| `docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | 特征保持简化参考。 |
+| `docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | CAD 不连续检测参考。 |
+| `docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | CAD 三角网格特征线提取参考。 |
+| `docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | normal tensor 特征检测参考。 |
 
 ## 未随包但常被提到的参考
 

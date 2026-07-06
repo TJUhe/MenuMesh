@@ -101,7 +101,7 @@ tr:nth-child(even) td{background:#f9fafb}
 
 <div class="callout">
 <div class="callout-title">论文出处</div>
-<p>标准 QEM 部分来自 Michael Garland 和 Paul S. Heckbert 的 <em>Surface Simplification Using Quadric Error Metrics</em>（SIGGRAPH 1997）。Line Quadrics 部分来自 Hsueh-Ti Derek Liu、Mehdi Rahimzadeh、Victor Zordan 的 <em>Controlling Quadric Error Simplification with Line Quadrics</em>（SGP 2025）。本仓库对应 PDF 位于 <code>docs/papers/garland_heckbert_1997_surface_simplification_qem.pdf</code> 和 <code>docs/papers/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code>。</p>
+<p>标准 QEM 部分来自 Michael Garland 和 Paul S. Heckbert 的 <em>Surface Simplification Using Quadric Error Metrics</em>（SIGGRAPH 1997）。Line Quadrics 部分来自 Hsueh-Ti Derek Liu、Mehdi Rahimzadeh、Victor Zordan 的 <em>Controlling Quadric Error Simplification with Line Quadrics</em>（SGP 2025）。本仓库对应 PDF 位于 <code>docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</code> 和 <code>docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code>。</p>
 </div>
 
 <p>当前程序把输入三角网格简化到指定面数或比例。核心库入口是 <code>lq::simplifyMesh</code>，输入为 <code>lq::Mesh</code> 与 <code>lq::SimplifyOptions</code>，输出为新的 <code>lq::Mesh</code>，同时可填充 <code>lq::SimplifyReport</code>。</p>

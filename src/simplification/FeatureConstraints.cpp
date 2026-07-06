@@ -4,7 +4,7 @@
 #include <cmath>
 #include <limits>
 
-namespace lq {
+namespace lq::simplification {
 namespace {
 
 FeatureProtectionMode effectiveFeatureProtectionMode(const SimplifyOptions& options) {
@@ -332,4 +332,4 @@ bool FeatureConstraintPolicy::projectPlacement(const FeatureProjectionInput& inp
   return projectFeaturePlacement(input, options_, position);
 }
 
-} // namespace lq
+} // namespace lq::simplification

@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 namespace {
 
 struct NewTriangle {
@@ -247,4 +247,4 @@ CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input) {
   return CollapseRejectReason::None;
 }
 
-} // namespace lq
+} // namespace lq::simplification

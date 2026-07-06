@@ -1,6 +1,6 @@
 # ManuMesh SDK 集成指南
 
-ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；C ABI 适合插件、宿主程序、跨语言绑定或 ABI 边界更严格的场景。当前二进制、include 路径和 namespace 仍保留 `line_quadrics_qem` / `lq` 兼容标识。
+ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；C ABI 适合插件、宿主程序、跨语言绑定或 ABI 边界更严格的场景。当前二进制、include 路径和 `lq` 根命名空间仍保留兼容标识；新 C++ 代码推荐使用 `lq::simplification` 和 `lq::feature` 两个功能命名空间，根命名空间下的同名入口作为旧源码兼容 alias。
 
 ## 构建 SDK
 
@@ -39,17 +39,17 @@ Eigen-backed 便利入口适合同编译器、同 C++ ABI 的消费工程：
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/Mesh.h"
 
-lq::SimplifyOptions options;
+lq::simplification::SimplifyOptions options;
 options.targetRatio = 0.25;
 options.useLineQuadrics = true;
 options.lineWeight = 1e-3;
 options.preserveFeatureCurves = true;
 
-lq::SimplifyReport report;
-lq::Mesh output = lq::simplifyMesh(input, options, &report);
+lq::simplification::SimplifyReport report;
+lq::Mesh output = lq::simplification::simplifyMesh(input, options, &report);
 ```
 
-需要复用配置时使用 `lq::QEMSimplifier` 对象。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
+需要复用配置时使用 `lq::simplification::QEMSimplifier` 对象。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
 
 如果宿主程序不希望自己的 C++ 交换类型暴露 Eigen，使用 `PlainMesh` 入口：
 
@@ -57,9 +57,10 @@ lq::Mesh output = lq::simplifyMesh(input, options, &report);
 #include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
 
 lq::PlainMesh input;
-lq::SimplifyOptions options;
-lq::SimplifyReport report;
-lq::PlainMesh output = lq::simplifyPlainMesh(input, options, &report);
+lq::simplification::SimplifyOptions options;
+lq::simplification::SimplifyReport report;
+lq::PlainMesh output =
+    lq::simplification::simplifyPlainMesh(input, options, &report);
 ```
 
 `SimplificationTypes.h` 包含 `SimplifyOptions`、`SimplifyReport` 和相关枚举，不依赖 Eigen；`QEMSimplifier.h` 仍包含 Eigen-backed `Mesh`。
@@ -69,9 +70,9 @@ lq::PlainMesh output = lq::simplifyPlainMesh(input, options, &report);
 ```cpp
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
-lq::FeatureOptions featureOptions;
-lq::FeatureDetector detector(featureOptions);
-lq::FeatureAnalysis features = detector.analyze(input);
+lq::feature::FeatureOptions featureOptions;
+lq::feature::FeatureDetector detector(featureOptions);
+lq::feature::FeatureAnalysis features = detector.analyze(input);
 ```
 
 ## C ABI 最小流程

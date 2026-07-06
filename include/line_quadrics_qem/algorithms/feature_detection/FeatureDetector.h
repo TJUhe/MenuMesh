@@ -7,7 +7,12 @@
 #include <string>
 #include <vector>
 
-namespace lq {
+namespace lq::feature {
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4251)
+#endif
 
 /// Stateful feature-detection facade.
 ///
@@ -38,6 +43,10 @@ private:
   std::unique_ptr<Impl> impl_;
 };
 
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 /// Computes local normal-tensor scores from one-ring face normals.
 LQ_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options = {});
@@ -64,5 +73,17 @@ LQ_API std::string featureReportHeaderCsv();
 LQ_API std::string featureLoopRowCsv(const FeatureLoop& loop);
 /// Stable string name for a fitted feature primitive.
 LQ_API std::string toString(FeaturePrimitiveType primitive);
+
+} // namespace lq::feature
+
+namespace lq {
+
+using feature::computeNormalTensorFeatures;
+using feature::detectFeatureCurves;
+using feature::FeatureDetector;
+using feature::featureLoopRowCsv;
+using feature::featureReportHeaderCsv;
+using feature::measureLoopAgainstCircle;
+using feature::toString;
 
 } // namespace lq

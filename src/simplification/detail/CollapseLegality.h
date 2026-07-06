@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 struct MeshStateView {
   const std::vector<FaceState>& faces;
@@ -28,4 +28,4 @@ struct CollapseLegalityInput {
 
 CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input);
 
-} // namespace lq
+} // namespace lq::simplification

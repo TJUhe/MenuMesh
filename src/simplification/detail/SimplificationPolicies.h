@@ -3,7 +3,7 @@
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
 #include "line_quadrics_qem/algorithms/simplification/SimplificationTypes.h"
 
-namespace lq {
+namespace lq::simplification {
 
 struct TargetPolicy {
   int targetFaces = -1;
@@ -48,4 +48,4 @@ struct SimplificationPolicies {
   static SimplificationPolicies fromOptions(const SimplifyOptions& options);
 };
 
-} // namespace lq
+} // namespace lq::simplification

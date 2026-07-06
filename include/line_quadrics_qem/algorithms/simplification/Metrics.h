@@ -5,7 +5,7 @@
 
 #include <string>
 
-namespace lq {
+namespace lq::simplification {
 
 /// Basic geometric and topological mesh quality metrics.
 struct MeshStats {
@@ -41,5 +41,16 @@ LQ_API std::string statsHeaderCsv();
 /// CSV row for a labeled mesh-statistics record.
 LQ_API std::string statsRowCsv(const std::string& label, const MeshStats& stats,
                                const DistanceStats* distance = nullptr);
+
+} // namespace lq::simplification
+
+namespace lq {
+
+using simplification::compareMeshesBySampledDistance;
+using simplification::computeMeshStats;
+using simplification::DistanceStats;
+using simplification::MeshStats;
+using simplification::statsHeaderCsv;
+using simplification::statsRowCsv;
 
 } // namespace lq

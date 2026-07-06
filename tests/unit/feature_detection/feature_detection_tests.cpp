@@ -6,6 +6,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <limits>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -19,6 +20,8 @@ struct PlaneCluster {
 
 using lq::test::countCircularLoops;
 using lq::test::loadFixtureMesh;
+
+namespace feature = lq::feature;
 
 int countClosedLoops(const lq::FeatureAnalysis& analysis) {
   return static_cast<int>(
@@ -175,6 +178,33 @@ bool hasClosedLoopWithVertices(const lq::FeatureAnalysis& features,
 }
 
 } // namespace
+
+TEST(FeatureDetection, FeatureNamespaceApiAndLegacyAliasesMatch) {
+  static_assert(std::is_same_v<lq::FeatureAnalysis, feature::FeatureAnalysis>);
+  static_assert(std::is_same_v<lq::FeatureDetector, feature::FeatureDetector>);
+  static_assert(
+      std::is_same_v<lq::FeaturePrimitiveType, feature::FeaturePrimitiveType>);
+
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),
+      lq::Vec3(1.0, 0.0, 0.0),
+      lq::Vec3(0.0, 1.0, 0.0),
+  };
+  mesh.faces = {{{0, 1, 2}}};
+
+  feature::FeatureOptions options = discreteOnlyOptions();
+  options.minFeatureLoopVertices = 3;
+  feature::FeatureDetector detector(options);
+
+  const feature::FeatureAnalysis direct = feature::detectFeatureCurves(mesh, options);
+  const feature::FeatureAnalysis objectResult = detector.analyze(mesh);
+  const lq::FeatureAnalysis legacy = lq::detectFeatureCurves(mesh, options);
+
+  EXPECT_EQ(direct.featureEdges, objectResult.featureEdges);
+  EXPECT_EQ(direct.loops.size(), legacy.loops.size());
+  EXPECT_EQ("circle", feature::toString(feature::FeaturePrimitiveType::Circle));
+}
 
 TEST(FeatureDetection, ClassifiesBoundaryEdgesOnOpenTriangle) {
   lq::Mesh mesh;

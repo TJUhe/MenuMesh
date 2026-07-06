@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace lq {
+namespace lq::simplification {
 
 int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
   if (targetFaces > 0) {
@@ -66,4 +66,4 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
   return policies;
 }
 
-} // namespace lq
+} // namespace lq::simplification

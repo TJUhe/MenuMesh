@@ -104,7 +104,7 @@ tr:nth-child(even) td{background:#f9fafb}
 <p>标准 QEM 部分来自 Michael Garland 和 Paul S. Heckbert 的 <em>Surface Simplification Using Quadric Error Metrics</em>（SIGGRAPH 1997）。Line Quadrics 部分来自 Hsueh-Ti Derek Liu、Mehdi Rahimzadeh、Victor Zordan 的 <em>Controlling Quadric Error Simplification with Line Quadrics</em>（SGP 2025）。本仓库对应 PDF 位于 <code>docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</code> 和 <code>docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code>。</p>
 </div>
 
-<p>当前程序把输入三角网格简化到指定面数或比例。核心库入口是 <code>lq::simplifyMesh</code>，输入为 <code>lq::Mesh</code> 与 <code>lq::SimplifyOptions</code>，输出为新的 <code>lq::Mesh</code>，同时可填充 <code>lq::SimplifyReport</code>。</p>
+<p>当前程序把输入三角网格简化到指定面数或比例。核心库入口是 <code>lq::simplification::simplifyMesh</code>，输入为 <code>lq::Mesh</code> 与 <code>lq::simplification::SimplifyOptions</code>，输出为新的 <code>lq::Mesh</code>，同时可填充 <code>lq::simplification::SimplifyReport</code>。根 <code>lq</code> 下的同名符号只作为旧源码兼容 alias 保留。</p>
 
 <div class="diagram">输入 STL/OBJ 或生成器 Mesh
         │
@@ -739,11 +739,11 @@ $$F_{target}=
 <table>
 <thead><tr><th>公共头</th><th>主要内容</th></tr></thead>
 <tbody>
-<tr><td><code>include/line_quadrics_qem/Mesh.h</code></td><td><code>Mesh</code>、STL/OBJ 读写、基础几何函数。</td></tr>
-<tr><td><code>include/line_quadrics_qem/QEMSimplifier.h</code></td><td><code>SimplifyOptions</code>、<code>SimplifyReport</code>、<code>simplifyMesh</code>。</td></tr>
-<tr><td><code>include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h</code></td><td>特征边、特征 loop、圆特征检测。</td></tr>
-<tr><td><code>include/line_quadrics_qem/Metrics.h</code></td><td>网格质量和距离指标。</td></tr>
-<tr><td><code>include/line_quadrics_qem/MeshGenerators.h</code></td><td>示例和测试用几何生成器。</td></tr>
+<tr><td><code>include/line_quadrics_qem/core/Mesh.h</code></td><td><code>Mesh</code>、STL/OBJ 读写、基础几何函数。</td></tr>
+<tr><td><code>include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h</code></td><td><code>lq::simplification</code> 中的 <code>SimplifyOptions</code>、<code>SimplifyReport</code>、<code>simplifyMesh</code>。</td></tr>
+<tr><td><code>include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h</code></td><td><code>lq::feature</code> 中的特征边、特征 loop、圆特征检测。</td></tr>
+<tr><td><code>include/line_quadrics_qem/algorithms/simplification/Metrics.h</code></td><td>网格质量和距离指标。</td></tr>
+<tr><td><code>include/line_quadrics_qem/core/MeshGenerators.h</code></td><td>示例和测试用几何生成器。</td></tr>
 </tbody>
 </table>
 

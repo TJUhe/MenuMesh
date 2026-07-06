@@ -31,7 +31,7 @@ docs/                           当前设计、指南、论文索引和历史生
 - `QEMSimplifier`：隐藏单次简化运行状态、队列、动态拓扑和策略对象。
 - `FeatureDetector`：隐藏检测器内部配置和后续可能加入的缓存、策略或统计字段。
 
-`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
+`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。真实功能命名空间按模块拆开：特征检测位于 `lq::feature`，QEM/line-quadrics 简化位于 `lq::simplification`；`lq::FeatureAnalysis`、`lq::SimplifyOptions` 等根命名空间符号只是源码兼容 alias。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
 
 ## 公共私有层
 
@@ -66,29 +66,32 @@ QEM/line quadrics 只负责候选折叠排序和局部几何优化，工业级�
 简化主入口：
 
 ```cpp
-lq::Mesh simplifyMesh(const lq::Mesh& input,
-                      const lq::SimplifyOptions& options,
-                      lq::SimplifyReport* report = nullptr);
+namespace lq::simplification {
+Mesh simplifyMesh(const lq::Mesh& input,
+                  const SimplifyOptions& options,
+                  SimplifyReport* report = nullptr);
+}
 ```
 
 需要复用配置时使用对象入口：
 
 ```cpp
-lq::QEMSimplifier simplifier(options);
+lq::simplification::QEMSimplifier simplifier(options);
 lq::Mesh output = simplifier.simplify(input, &report);
 ```
 
 不希望在 C++ 交换类型里暴露 Eigen 时使用：
 
 ```cpp
-lq::PlainMesh output = lq::simplifyPlainMesh(inputPlain, options, &report);
+lq::PlainMesh output =
+    lq::simplification::simplifyPlainMesh(inputPlain, options, &report);
 ```
 
 特征检测提供平级对象入口：
 
 ```cpp
-lq::FeatureDetector detector(featureOptions);
-lq::FeatureAnalysis features = detector.analyze(mesh);
+lq::feature::FeatureDetector detector(featureOptions);
+lq::feature::FeatureAnalysis features = detector.analyze(mesh);
 ```
 
 C API 使用 `LqContext`、`LqMeshHandle`、`LqSimplifyOptions`、`LqSimplifyReport` 和 `LqMeshStats`。所有公开 C 结构体调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移。同一 `LQ_ABI_VERSION` 内，输入结构体允许尾部较短的旧 `struct_size`，库只读取存在的字段，新增尾部字段使用默认值；未初始化或 ABI 版本不匹配仍会被拒绝。

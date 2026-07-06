@@ -9,7 +9,7 @@
 #include <cmath>
 #include <limits>
 
-namespace lq {
+namespace lq::simplification {
 
 double evaluateQuadric(const Mat4& q, const Vec3& p) {
   Eigen::Vector4d h;
@@ -318,4 +318,4 @@ std::vector<Mat4> InitialQuadricBuilder::build(const Mesh& mesh,
   return quadrics;
 }
 
-} // namespace lq
+} // namespace lq::simplification

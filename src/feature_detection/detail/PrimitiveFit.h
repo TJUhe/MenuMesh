@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace lq::feature_detection_detail {
+namespace lq::feature::primitive_fit_detail {
 
 struct PrimitiveFit {
   bool valid = false;
@@ -35,4 +35,4 @@ DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
                                                const Vec3& center, const Vec3& normalIn,
                                                double radius);
 
-} // namespace lq::feature_detection_detail
+} // namespace lq::feature::primitive_fit_detail

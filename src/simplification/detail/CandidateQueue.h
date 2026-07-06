@@ -6,7 +6,7 @@
 #include <queue>
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 class CandidateQueue {
 public:
@@ -19,4 +19,4 @@ private:
   std::priority_queue<Candidate> queue_;
 };
 
-} // namespace lq
+} // namespace lq::simplification

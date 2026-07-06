@@ -6,7 +6,12 @@
 
 #include <memory>
 
-namespace lq {
+namespace lq::simplification {
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4251)
+#endif
 
 /// Stateful object API for configuring and running mesh simplification.
 class LQ_API QEMSimplifier {
@@ -37,9 +42,20 @@ private:
   std::unique_ptr<Impl> impl_;
 };
 
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 /// Simplifies a mesh with standard QEM or line-quadrics-augmented QEM.
 /// Prefer QEMSimplifier for new code that needs an object-oriented API.
 LQ_API Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
                          SimplifyReport* report = nullptr);
+
+} // namespace lq::simplification
+
+namespace lq {
+
+using simplification::QEMSimplifier;
+using simplification::simplifyMesh;
 
 } // namespace lq

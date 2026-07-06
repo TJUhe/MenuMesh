@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 class SpatialFaceIndex {
 public:
@@ -34,4 +34,4 @@ private:
   std::vector<std::vector<CellCoord>> faceCells_;
 };
 
-} // namespace lq
+} // namespace lq::simplification

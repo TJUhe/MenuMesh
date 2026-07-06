@@ -4,7 +4,7 @@
 #include <Eigen/Eigenvalues>
 #include <algorithm>
 
-namespace lq {
+namespace lq::feature {
 namespace {
 
 NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
@@ -59,7 +59,8 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
     }
   }
 
-  const std::vector<std::vector<int>> neighbors = detail::buildVertexNeighbors(mesh);
+  const std::vector<std::vector<int>> neighbors =
+      lq::detail::buildVertexNeighbors(mesh);
   const int baseIterations = std::clamp(options.smoothingIterations, 0, 8);
   const int scaleCount = std::clamp(options.scaleCount, 1, 8);
 
@@ -99,4 +100,4 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
   return result;
 }
 
-} // namespace lq
+} // namespace lq::feature

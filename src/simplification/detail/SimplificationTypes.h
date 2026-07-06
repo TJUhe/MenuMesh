@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 /// Mutable vertex record used only during one simplification run.
 ///
@@ -124,4 +124,4 @@ struct CellCoordHash {
   }
 };
 
-} // namespace lq
+} // namespace lq::simplification

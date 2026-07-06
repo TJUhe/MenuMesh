@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace lq {
+namespace lq::simplification {
 
 struct QEMSimplifier::Impl {
   SimplifyOptions options;
@@ -167,4 +167,4 @@ PlainMesh simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& optio
   return toPlainMesh(simplifyMesh(toMesh(input), options, outReport));
 }
 
-} // namespace lq
+} // namespace lq::simplification

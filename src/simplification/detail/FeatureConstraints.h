@@ -5,7 +5,7 @@
 
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 Vec3 projectToCircle(const Vec3& p, const VertexState& feature);
 Vec3 projectToEllipse(const Vec3& p, const VertexState& feature);
@@ -45,4 +45,4 @@ private:
   const SimplifyOptions& options_;
 };
 
-} // namespace lq
+} // namespace lq::simplification

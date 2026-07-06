@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace lq::feature_detection_detail {
+namespace lq::feature::primitive_fit_detail {
 namespace {
 
 struct LoopFitFrame {
@@ -296,4 +296,4 @@ DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
   return error;
 }
 
-} // namespace lq::feature_detection_detail
+} // namespace lq::feature::primitive_fit_detail

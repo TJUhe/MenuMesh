@@ -11,7 +11,7 @@
 #include <sstream>
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 namespace {
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
@@ -385,4 +385,4 @@ std::string statsRowCsv(const std::string& label, const MeshStats& stats,
   return out.str();
 }
 
-} // namespace lq
+} // namespace lq::simplification

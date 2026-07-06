@@ -352,8 +352,8 @@ line_quadrics_qem_copy_runtime_dependencies(my_app)</code></pre>
 
 <h3>9.2 C++ 调用</h3>
 
-<pre><code>#include "line_quadrics_qem/Mesh.h"
-#include "line_quadrics_qem/QEMSimplifier.h"
+<pre><code>#include "line_quadrics_qem/core/Mesh.h"
+#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 
 int main() {
   lq::Mesh input;
@@ -362,12 +362,13 @@ int main() {
     return 1;
   }
 
-  lq::SimplifyOptions options;
+  lq::simplification::SimplifyOptions options;
   options.targetRatio = 0.2;
   options.lineWeight = 1e-3;
 
-  lq::SimplifyReport report;
-  lq::Mesh output = lq::simplifyMesh(input, options, &report);
+  lq::simplification::SimplifyReport report;
+  lq::Mesh output =
+      lq::simplification::simplifyMesh(input, options, &report);
   lq::saveAsciiStl("output.stl", output);
 }</code></pre>
 

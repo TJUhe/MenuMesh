@@ -4,7 +4,7 @@
 
 #include <string>
 
-namespace lq {
+namespace lq::simplification {
 
 /// Built-in strategies for spatially varying line-quadric weights.
 enum class WeightMode {
@@ -165,5 +165,18 @@ LQ_API std::string toString(SimplifyTerminationReason reason);
 LQ_API FeatureProtectionMode parseFeatureProtectionMode(const std::string& value);
 /// Converts a feature-protection mode to its stable lowercase string representation.
 LQ_API std::string toString(FeatureProtectionMode mode);
+
+} // namespace lq::simplification
+
+namespace lq {
+
+using simplification::FeatureProtectionMode;
+using simplification::parseFeatureProtectionMode;
+using simplification::parseWeightMode;
+using simplification::SimplifyOptions;
+using simplification::SimplifyReport;
+using simplification::SimplifyTerminationReason;
+using simplification::toString;
+using simplification::WeightMode;
 
 } // namespace lq

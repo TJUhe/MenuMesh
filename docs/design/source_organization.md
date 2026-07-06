@@ -60,7 +60,7 @@ src/feature_detection/PrimitiveFit.cpp        circle/near-circle/ellipse primiti
 src/feature_detection/detail/PrimitiveFit.h   primitive fitting 私有数据结构和 helper 声明
 ```
 
-特征检测已经是与 QEM 简化平级的模块。它不能反向依赖 `src/simplification/`；简化、验证、修复或未来重网格模块可以消费 `FeatureAnalysis`。
+特征检测已经是与 QEM 简化平级的模块。它不能反向依赖 `src/simplification/`；简化、验证、修复或未来重网格模块可以消费 `FeatureAnalysis`。公共 C++ API 的真实命名空间按功能拆分：`lq::feature` 承载检测器、特征选项和分析结果，`lq::simplification` 承载 QEM/line-quadrics 简化器、简化选项、报告和指标；`lq::FeatureAnalysis`、`lq::QEMSimplifier` 等根命名空间符号只作为旧源码兼容 alias 保留。
 
 ## include 规则
 

@@ -13,7 +13,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 class SimplificationRun {
 public:
@@ -77,4 +77,4 @@ private:
   int stalePops_ = 0;
 };
 
-} // namespace lq
+} // namespace lq::simplification

@@ -1,6 +1,6 @@
 #include "detail/ResultBuilder.h"
 
-namespace lq {
+namespace lq::simplification {
 
 Mesh compactResult(const std::vector<VertexState>& vertices,
                    const std::vector<FaceState>& faces) {
@@ -32,4 +32,4 @@ Mesh compactResult(const std::vector<VertexState>& vertices,
   return result;
 }
 
-} // namespace lq
+} // namespace lq::simplification

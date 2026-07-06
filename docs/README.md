@@ -5,7 +5,7 @@
 ## 当前代码事实
 
 - 构建系统是 CMake，主路径为 MinGW + Ninja，VS Code 任务保存在 `.vscode/tasks.json`。
-- 产品名是 ManuMesh；当前源码级兼容标识仍保留 `line_quadrics_qem` 库目标、`linequadrics` CLI 和 `lq` C++ namespace。
+- 产品名是 ManuMesh；当前源码级兼容标识仍保留 `line_quadrics_qem` 库目标、`linequadrics` CLI 和 `lq` 根命名空间。新 C++ 代码推荐使用 `lq::feature` 与 `lq::simplification`，根命名空间下的同名符号作为旧源码兼容 alias。
 - 公共 C++ SDK 位于 `include/line_quadrics_qem/`，C ABI 位于 `include/line_quadrics_qem/api/CApi.h`。
 - 当前已实现能力包括 STL/OBJ 读写、内置网格生成、QEM/line-quadrics 简化、特征检测、特征曲线保护、质量/拓扑/局部误差过滤、CLI 批处理、C API 和回归测试。
 - 当前没有实现通用布尔运算、offset/thickening、完整 B-Rep 特征识别或通用去噪器；这些只能作为 ManuMesh 路线图描述。

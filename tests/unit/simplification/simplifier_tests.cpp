@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -24,6 +25,8 @@ using lq::test::loadExternalMesh;
 using lq::test::loadExternalStl;
 using lq::test::SimplifiedMesh;
 using lq::test::simplifyWithReport;
+
+namespace simplification = lq::simplification;
 
 int countBoundaryVertices(const lq::Mesh& mesh) {
   const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
@@ -243,6 +246,26 @@ TEST(LineQuadricsQem, WeightModesRoundTripAndRejectUnknownValues) {
   EXPECT_EQ("xband", lq::toString(lq::WeightMode::XBand));
 
   EXPECT_THROW(lq::parseWeightMode("paper"), std::invalid_argument);
+}
+
+TEST(LineQuadricsQem, SimplificationNamespaceApiAndLegacyAliasesMatch) {
+  static_assert(std::is_same_v<lq::SimplifyOptions, simplification::SimplifyOptions>);
+  static_assert(std::is_same_v<lq::SimplifyReport, simplification::SimplifyReport>);
+  static_assert(std::is_same_v<lq::QEMSimplifier, simplification::QEMSimplifier>);
+
+  const lq::Mesh input = lq::generatePlaneGrid(4, 1.0, false);
+  simplification::SimplifyOptions options = standardQemOptions(0.5);
+  options.targetFaces = 8;
+
+  simplification::SimplifyReport report;
+  const lq::Mesh output = simplification::simplifyMesh(input, options, &report);
+  EXPECT_LE(output.faces.size(), static_cast<std::size_t>(options.targetFaces));
+  EXPECT_EQ(output.faces.size(), static_cast<std::size_t>(report.finalFaces));
+  EXPECT_EQ("uniform", simplification::toString(simplification::WeightMode::Uniform));
+
+  const lq::PlainMesh plainOutput =
+      simplification::simplifyPlainMesh(lq::toPlainMesh(input), options, nullptr);
+  EXPECT_EQ(output.faces.size(), plainOutput.faces.size());
 }
 
 TEST(LineQuadricsQem, NormalTensorScoresSeparatePlaneFromRidge) {

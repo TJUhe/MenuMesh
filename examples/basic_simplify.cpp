@@ -8,20 +8,21 @@
 int main() {
   lq::Mesh input = lq::generateCylinderGrid(48, 12, 1.0, 2.0);
 
-  lq::SimplifyOptions options;
+  lq::simplification::SimplifyOptions options;
   options.targetRatio = 0.35;
   options.useLineQuadrics = true;
   options.lineWeight = 1e-3;
   options.boundaryWeight = 1.0;
 
-  lq::SimplifyReport report;
-  lq::QEMSimplifier simplifier(options);
+  lq::simplification::SimplifyReport report;
+  lq::simplification::QEMSimplifier simplifier(options);
   lq::Mesh simplified = simplifier.simplify(input, &report);
   if (simplified.empty()) {
     throw std::runtime_error("simplifier returned an empty mesh");
   }
 
-  const lq::MeshStats stats = lq::computeMeshStats(simplified);
+  const lq::simplification::MeshStats stats =
+      lq::simplification::computeMeshStats(simplified);
   std::cout << "input_faces=" << input.faces.size()
             << " simplified_faces=" << stats.faces
             << " collapsed_edges=" << report.collapsedEdges << "\n";

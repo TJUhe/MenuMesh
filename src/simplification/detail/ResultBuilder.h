@@ -5,9 +5,9 @@
 
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 Mesh compactResult(const std::vector<VertexState>& vertices,
                    const std::vector<FaceState>& faces);
 
-} // namespace lq
+} // namespace lq::simplification

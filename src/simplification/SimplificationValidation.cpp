@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace lq {
+namespace lq::simplification {
 namespace {
 
 void requireFiniteNonNegative(double value, const char* name) {
@@ -92,4 +92,4 @@ void validateSimplifierInput(const Mesh& input) {
   }
 }
 
-} // namespace lq
+} // namespace lq::simplification

@@ -4,7 +4,7 @@ ManuMesh 是一个面向增材制造的 C++17 多边形网格几何内核。当�
 `Controlling Quadric Error Simplification with Line Quadrics` 的 QEM + line
 quadrics 思路，并提供可构建、可测试、可度量、可由外部程序调用的库接口。
 
-当前产品名是 ManuMesh；源码级兼容标识仍保留 `line_quadrics_qem` 库目标、`linequadrics` CLI、`lq` namespace 和 `include/line_quadrics_qem/` 头文件路径。
+当前产品名是 ManuMesh；源码级兼容标识仍保留 `line_quadrics_qem` 库目标、`linequadrics` CLI、`lq` 根命名空间和 `include/line_quadrics_qem/` 头文件路径。新代码推荐把功能入口写成 `lq::simplification::...` 和 `lq::feature::...`，根命名空间下的同名符号保留为源码兼容 alias。
 
 当前仓库刻意不再把网页预览作为主入口。结果检查走更稳定的工业验证路径：
 
@@ -30,7 +30,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | 路径 | 角色 |
 | --- | --- |
 | `include/line_quadrics_qem/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
-| `include/line_quadrics_qem/algorithms/feature_detection/` | 平级特征检测模块，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
+| `include/line_quadrics_qem/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `lq::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
 | `include/line_quadrics_qem/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
 | `include/line_quadrics_qem/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
 | `include/line_quadrics_qem/features/` | 旧 include 路径兼容层，新代码不要继续使用。 |
@@ -105,15 +105,16 @@ cmake --build build/sdk-release --target sdk-consumer-test --parallel
 #include "line_quadrics_qem/core/Mesh.h"
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 
-lq::SimplifyOptions options;
+lq::simplification::SimplifyOptions options;
 options.targetRatio = 0.2;
 options.useLineQuadrics = true;
 options.lineWeight = 1e-3;
 options.preserveFeatureCurves = true;
-options.featureProtectionMode = lq::FeatureProtectionMode::PrimitiveCurves;
+options.featureProtectionMode =
+    lq::simplification::FeatureProtectionMode::PrimitiveCurves;
 
-lq::SimplifyReport report;
-lq::QEMSimplifier simplifier(options);
+lq::simplification::SimplifyReport report;
+lq::simplification::QEMSimplifier simplifier(options);
 lq::Mesh simplified = simplifier.simplify(input, &report);
 ```
 
@@ -124,9 +125,9 @@ lq::Mesh simplified = simplifier.simplify(input, &report);
 ```cpp
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
-lq::FeatureOptions featureOptions;
-lq::FeatureDetector detector(featureOptions);
-lq::FeatureAnalysis features = detector.analyze(input);
+lq::feature::FeatureOptions featureOptions;
+lq::feature::FeatureDetector detector(featureOptions);
+lq::feature::FeatureAnalysis features = detector.analyze(input);
 ```
 
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
@@ -148,9 +149,10 @@ vendored Eigen，则通过 `find_dependency(Eigen3 3.3 NO_MODULE)` 寻找系统 
 #include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
 
 lq::PlainMesh plainInput;
-lq::SimplifyOptions options;
-lq::SimplifyReport report;
-lq::PlainMesh plainOutput = lq::simplifyPlainMesh(plainInput, options, &report);
+lq::simplification::SimplifyOptions options;
+lq::simplification::SimplifyReport report;
+lq::PlainMesh plainOutput =
+    lq::simplification::simplifyPlainMesh(plainInput, options, &report);
 ```
 
 ## Visual Studio 使用
@@ -235,12 +237,12 @@ int main() {
     return 1;
   }
 
-  lq::SimplifyOptions options;
+  lq::simplification::SimplifyOptions options;
   options.targetRatio = 0.25;
   options.useLineQuadrics = true;
 
-  lq::SimplifyReport report;
-  lq::QEMSimplifier simplifier(options);
+  lq::simplification::SimplifyReport report;
+  lq::simplification::QEMSimplifier simplifier(options);
   lq::Mesh output = simplifier.simplify(input, &report);
   return output.empty() ? 1 : 0;
 }

@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace lq {
+namespace lq::simplification {
 namespace {
 
 bool aabbOverlap(const Vec3& aLo, const Vec3& aHi, const Vec3& bLo, const Vec3& bHi,
@@ -262,4 +262,4 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
   return false;
 }
 
-} // namespace lq
+} // namespace lq::simplification

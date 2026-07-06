@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 bool containsVertex(const FaceState& face, int vertex);
 
@@ -58,4 +58,4 @@ bool collapseWouldPreserveLinkCondition(int keep, int remove,
                                         const std::vector<VertexState>& vertices,
                                         const DynamicTopology& topology);
 
-} // namespace lq
+} // namespace lq::simplification

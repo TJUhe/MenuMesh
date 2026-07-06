@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace lq {
+namespace lq::simplification {
 
 double evaluateQuadric(const Mat4& q, const Vec3& p);
 Mat4 planeQuadric(const Vec3& normal, const Vec3& point);
@@ -33,4 +33,4 @@ private:
   const SimplifyOptions& options_;
 };
 
-} // namespace lq
+} // namespace lq::simplification

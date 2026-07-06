@@ -15,7 +15,7 @@
 #include <memory>
 #include <utility>
 
-namespace lq {
+namespace lq::simplification {
 
 SimplificationRun::SimplificationRun(const Mesh& input, const SimplifyOptions& options)
     : input_(input), options_(options),
@@ -541,4 +541,4 @@ void SimplificationRun::rewriteIncidentFaces(int keep, int remove) {
   }
 }
 
-} // namespace lq
+} // namespace lq::simplification

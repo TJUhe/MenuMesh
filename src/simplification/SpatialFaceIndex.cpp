@@ -6,7 +6,7 @@
 #include <cmath>
 #include <limits>
 
-namespace lq {
+namespace lq::simplification {
 
 void SpatialFaceIndex::rebuild(const std::vector<FaceState>& faces,
                                const std::vector<VertexState>& vertices) {
@@ -158,4 +158,4 @@ std::vector<CellCoord> SpatialFaceIndex::cellsForAabb(const Vec3& lo,
   return result;
 }
 
-} // namespace lq
+} // namespace lq::simplification

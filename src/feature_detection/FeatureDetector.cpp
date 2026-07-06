@@ -17,15 +17,15 @@
 #include <unordered_set>
 #include <utility>
 
-namespace lq {
+namespace lq::feature {
 namespace {
 
 constexpr double kPi = 3.141592653589793238462643383279502884;
 
-using feature_detection_detail::applyPrimitiveFit;
-using feature_detection_detail::cycleEdgesFollowCircle;
-using feature_detection_detail::fitPrimitive;
-using feature_detection_detail::PrimitiveFit;
+using primitive_fit_detail::applyPrimitiveFit;
+using primitive_fit_detail::cycleEdgesFollowCircle;
+using primitive_fit_detail::fitPrimitive;
+using primitive_fit_detail::PrimitiveFit;
 
 struct CandidateEdge {
   int a = -1;
@@ -1161,8 +1161,8 @@ DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
                                                const FeatureLoop& loop,
                                                const Vec3& center, const Vec3& normalIn,
                                                double radius) {
-  return feature_detection_detail::measureLoopAgainstCircle(mesh, loop, center,
-                                                            normalIn, radius);
+  return primitive_fit_detail::measureLoopAgainstCircle(mesh, loop, center, normalIn,
+                                                        radius);
 }
 
 std::string featureReportHeaderCsv() {
@@ -1208,4 +1208,4 @@ std::string toString(FeaturePrimitiveType primitive) {
   return "unknown";
 }
 
-} // namespace lq
+} // namespace lq::feature

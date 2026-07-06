@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace lq {
+namespace lq::simplification {
 
 void CandidateQueue::clear() {
   queue_ = std::priority_queue<Candidate>();
@@ -32,4 +32,4 @@ void CandidateQueue::pushEdge(int a, int b, const std::vector<VertexState>& vert
                         vertices[second].version});
 }
 
-} // namespace lq
+} // namespace lq::simplification

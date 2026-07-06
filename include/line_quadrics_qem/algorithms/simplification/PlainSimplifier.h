@@ -4,7 +4,7 @@
 #include "line_quadrics_qem/algorithms/simplification/SimplificationTypes.h"
 #include "line_quadrics_qem/core/PlainMesh.h"
 
-namespace lq {
+namespace lq::simplification {
 
 /// Simplifies a mesh through the Eigen-free C++ exchange type.
 ///
@@ -14,5 +14,11 @@ namespace lq {
 LQ_API PlainMesh simplifyPlainMesh(const PlainMesh& input,
                                    const SimplifyOptions& options,
                                    SimplifyReport* report = nullptr);
+
+} // namespace lq::simplification
+
+namespace lq {
+
+using simplification::simplifyPlainMesh;
 
 } // namespace lq

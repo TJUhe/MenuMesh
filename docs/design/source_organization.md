@@ -20,7 +20,7 @@ Tessellix 采用小型几何内核布局：公共 SDK 头文件和实现文件�
 | `src/simplification/detail/` | 简化专属私有头 | 只能被简化实现模块使用，不安装。 |
 | `apps/linequadrics/` | CLI | 像外部消费者一样调用库。 |
 | `examples/` | SDK 使用示例 | 只 include 公共头。 |
-| `tests/` | 回归和验证测试 | 优先走公共 API，少量白盒测试可用内部细节。 |
+| `tests/` | 回归和验证测试 | `support/` 放公共测试辅助，`unit/` 按功能分单元测试，`performance/` 放大模型/数据集测试，`data/` 放 fixture。 |
 | `docs/` | 设计、指南、论文、生成笔记 | 必须描述当前代码，不写成愿景幻灯片。 |
 
 ## 当前公共私有层

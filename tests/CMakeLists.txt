@@ -1,15 +1,15 @@
 set(LQ_UNIT_TEST_SOURCES
-  src/TestSupport.cpp
-  c_api_tests.cpp
-  feature_detection_tests.cpp
-  qem_parameter_tests.cpp
-  simplifier_tests.cpp
+  support/TestSupport.cpp
+  unit/api/c_api_tests.cpp
+  unit/feature_detection/feature_detection_tests.cpp
+  unit/simplification/qem_parameter_tests.cpp
+  unit/simplification/simplifier_tests.cpp
 )
 
 add_executable(line_quadrics_qem_tests ${LQ_UNIT_TEST_SOURCES})
 target_include_directories(line_quadrics_qem_tests
   PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support"
 )
 target_link_libraries(line_quadrics_qem_tests
   PRIVATE
@@ -55,14 +55,14 @@ add_custom_target(unit-tests
 
 if(LQ_BUILD_PERFORMANCE_TESTS)
   set(LQ_PERFORMANCE_TEST_SOURCES
-    src/TestSupport.cpp
-    qem_dataset_tests.cpp
+    support/TestSupport.cpp
+    performance/qem_dataset_tests.cpp
   )
 
   add_executable(line_quadrics_qem_performance_tests ${LQ_PERFORMANCE_TEST_SOURCES})
   target_include_directories(line_quadrics_qem_performance_tests
     PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/include"
+      "${CMAKE_CURRENT_SOURCE_DIR}/support"
   )
   target_link_libraries(line_quadrics_qem_performance_tests
     PRIVATE

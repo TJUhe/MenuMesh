@@ -14,8 +14,9 @@ include/line_quadrics_qem/      安装级公共 SDK 头文件
 src/common/detail/              跨算法私有工具，不安装
 src/core/                       公共 core 类型的实现
 src/feature_detection/          特征检测实现，只依赖 core 和私有 common
+src/feature_detection/detail/   特征检测专属 primitive fitting 等私有 helper
 src/simplification/             简化实现，可消费 FeatureAnalysis
-src/simplification/detail/      简化专属私有状态和策略
+src/simplification/detail/      简化专属私有状态、policy 分组和策略
 apps/linequadrics/              CLI，按外部用户方式调用 SDK
 examples/                       C/C++ SDK 使用示例
 tests/                          GoogleTest 和 CTest 回归验证
@@ -30,7 +31,7 @@ docs/                           当前设计、指南、论文索引和历史生
 - `QEMSimplifier`：隐藏单次简化运行状态、队列、动态拓扑和策略对象。
 - `FeatureDetector`：隐藏检测器内部配置和后续可能加入的缓存、策略或统计字段。
 
-`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
+`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
 
 ## 公共私有层
 
@@ -53,6 +54,11 @@ QEM/line quadrics 只负责候选折叠排序和局部几何优化，工业级�
 
 `Mesh` 仍是轻量交换格式：稠密顶点数组加三角面索引数组。需要重复邻接查询时，算法应构建 `MeshTopology`、私有 common 查询结果，或运行时动态拓扑，而不是在每个模块里重复扫描并复制一套局部工具。
 
+`Mesh` 是 Eigen-backed 便利类型，适合同编译器、同 C++ ABI 的 SDK 消费方。
+`PlainMesh` 是 Eigen-free C++ 交换类型；`PlainSimplifier.h` 提供
+`simplifyPlainMesh()`，内部转换为 `Mesh` 后复用同一套简化实现。真正跨语言或
+严格 ABI 边界仍优先使用 `api/CApi.h`。
+
 未来若加入可编辑半边拓扑，应使用 `VertexId`、`EdgeId`、`HalfedgeId`、`FaceId` 等 typed handle，配合 generation-aware free list 和显式 compaction。属性不要塞进基础顶点结构，应以类型化数组挂在拓扑旁边，方便重映射、导出和 ABI 隔离。
 
 ## API 形态
@@ -72,6 +78,12 @@ lq::QEMSimplifier simplifier(options);
 lq::Mesh output = simplifier.simplify(input, &report);
 ```
 
+不希望在 C++ 交换类型里暴露 Eigen 时使用：
+
+```cpp
+lq::PlainMesh output = lq::simplifyPlainMesh(inputPlain, options, &report);
+```
+
 特征检测提供平级对象入口：
 
 ```cpp
@@ -79,4 +91,4 @@ lq::FeatureDetector detector(featureOptions);
 lq::FeatureAnalysis features = detector.analyze(mesh);
 ```
 
-C API 使用 `LqContext`、`LqMeshHandle`、`LqSimplifyOptions`、`LqSimplifyReport` 和 `LqMeshStats`。所有公开 C 结构体调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移。
+C API 使用 `LqContext`、`LqMeshHandle`、`LqSimplifyOptions`、`LqSimplifyReport` 和 `LqMeshStats`。所有公开 C 结构体调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移。同一 `LQ_ABI_VERSION` 内，输入结构体允许尾部较短的旧 `struct_size`，库只读取存在的字段，新增尾部字段使用默认值；未初始化或 ABI 版本不匹配仍会被拒绝。

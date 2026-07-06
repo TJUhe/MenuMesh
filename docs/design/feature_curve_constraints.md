@@ -1,4 +1,4 @@
-﻿# 特征曲线约束说明
+# 特征曲线约束说明
 
 ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurves()`、`FeatureConstraints.cpp` 和 `SimplifyOptions` 中的 feature 相关参数共同实现。它不是完整 CAD 约束求解器，而是在三角网格上识别特征 loop，并在 QEM collapse 中加入软成本、投影和硬拒绝策略。
 

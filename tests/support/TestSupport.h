@@ -1,8 +1,8 @@
 #pragma once
 
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <cstddef>
 #include <filesystem>

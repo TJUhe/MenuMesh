@@ -10,12 +10,13 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `include/line_quadrics_qem/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
 | `include/line_quadrics_qem/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
 | `include/line_quadrics_qem/features/` | 旧特征检测 include 兼容层 | 保留给旧调用方，新代码不要继续使用。 |
-| `include/line_quadrics_qem/algorithms/simplification/` | QEM 简化选项、报告、指标和入口 | 当前主要 decimation 模块。 |
+| `include/line_quadrics_qem/algorithms/simplification/` | QEM 简化选项、报告、指标、Eigen-backed 入口和 PlainMesh 入口 | 当前主要 decimation 模块；`SimplificationTypes.h` 不依赖 Eigen。 |
 | `include/line_quadrics_qem/api/` | C ABI | 不暴露 STL、Eigen 或 C++ 异常。 |
 | `src/common/` | 跨算法私有实现工具 | 只能被库内部使用，不安装。 |
 | `src/common/detail/` | 私有公共头 | 放多个算法共享但尚不稳定的 mesh 查询、key、hash 等工具。 |
 | `src/core/` | 基础数据结构实现 | 与公共 core 头对应。 |
 | `src/feature_detection/` | 特征检测实现 | 对应 `FeatureDetector` 算法模块。 |
+| `src/feature_detection/detail/` | 特征检测私有 helper | primitive fitting 等不稳定实现细节。 |
 | `src/simplification/` | 简化算法实现 | 公开薄入口和拆分后的内部模块。 |
 | `src/simplification/detail/` | 简化专属私有头 | 只能被简化实现模块使用，不安装。 |
 | `apps/linequadrics/` | CLI | 像外部消费者一样调用库。 |
@@ -37,6 +38,7 @@ src/common/detail/MeshQueries.h            无向边 key、面 key、边-面邻�
 ```text
 src/simplification/QEMSimplifier.cpp          公共对象 API、pimpl 和 simplifyMesh 包装
 src/simplification/SimplificationRun.cpp      单次运行编排和 collapse loop
+src/simplification/SimplificationPolicies.cpp 公开扁平 options 到内部 target/features/legality policy 的转换
 src/simplification/Quadrics.cpp               面 quadric、line quadric、placement 求解
 src/simplification/FeatureConstraints.cpp     特征曲线策略、预算和投影
 src/simplification/CandidateQueue.cpp         折叠候选优先队列
@@ -52,7 +54,10 @@ src/simplification/SpatialFaceIndex.cpp       局部自交查询的空间哈希
 ## 当前特征检测模块拆分
 
 ```text
-src/feature_detection/FeatureDetector.cpp     FeatureDetector pimpl、便捷函数、特征图追踪和 primitive 拟合
+src/feature_detection/FeatureDetector.cpp     FeatureDetector pimpl、特征边收集、feature graph 和 loop/cycle 恢复主流程
+src/feature_detection/NormalTensor.cpp        normal-tensor 特征评分公开函数实现
+src/feature_detection/PrimitiveFit.cpp        circle/near-circle/ellipse primitive 拟合和误差度量
+src/feature_detection/detail/PrimitiveFit.h   primitive fitting 私有数据结构和 helper 声明
 ```
 
 特征检测已经是与 QEM 简化平级的模块。它不能反向依赖 `src/simplification/`；简化、验证、修复或未来重网格模块可以消费 `FeatureAnalysis`。

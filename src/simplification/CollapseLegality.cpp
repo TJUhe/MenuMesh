@@ -42,8 +42,7 @@ void addOldTriangleReferenceSamples(const FaceState& face,
 }
 
 bool containsBothEndpoints(const FaceState& face, int keep, int remove) {
-  const bool containsKeep =
-      face.v[0] == keep || face.v[1] == keep || face.v[2] == keep;
+  const bool containsKeep = face.v[0] == keep || face.v[1] == keep || face.v[2] == keep;
   const bool containsRemove =
       face.v[0] == remove || face.v[1] == remove || face.v[2] == remove;
   return containsKeep && containsRemove;
@@ -64,9 +63,9 @@ bool remapCollapsedFace(const FaceState& face, int keep, int remove,
   return touches;
 }
 
-std::array<Vec3, 3> mappedTrianglePositions(
-    const std::array<int, 3>& mapped, int keep, const Vec3& newPosition,
-    const std::vector<VertexState>& vertices) {
+std::array<Vec3, 3> mappedTrianglePositions(const std::array<int, 3>& mapped, int keep,
+                                            const Vec3& newPosition,
+                                            const std::vector<VertexState>& vertices) {
   std::array<Vec3, 3> p = {
       vertices[mapped[0]].p,
       vertices[mapped[1]].p,
@@ -80,10 +79,10 @@ std::array<Vec3, 3> mappedTrianglePositions(
   return p;
 }
 
-CollapseRejectReason collectNewTriangles(
-    const CollapseLegalityInput& input,
-    const std::unordered_set<int>& touchedFaces, std::vector<NewTriangle>& newTriangles,
-    std::vector<Vec3>& localReferencePoints) {
+CollapseRejectReason collectNewTriangles(const CollapseLegalityInput& input,
+                                         const std::unordered_set<int>& touchedFaces,
+                                         std::vector<NewTriangle>& newTriangles,
+                                         std::vector<Vec3>& localReferencePoints) {
   const int keep = input.edge.keep;
   const int remove = input.edge.remove;
   const std::vector<FaceState>& faces = input.mesh.faces;
@@ -124,8 +123,7 @@ CollapseRejectReason collectNewTriangles(
     }
     if (input.minNormalDot > -1.0 && oldNormal.norm() > 1e-20) {
       const Vec3 newNormal = triangleNormal(a, b, c);
-      if (newNormal.norm() <= 1e-20 ||
-          oldNormal.dot(newNormal) < input.minNormalDot) {
+      if (newNormal.norm() <= 1e-20 || oldNormal.dot(newNormal) < input.minNormalDot) {
         return CollapseRejectReason::NormalFlip;
       }
     }
@@ -169,10 +167,10 @@ bool sharesVertex(const std::array<int, 3>& a, const std::array<int, 3>& b) {
   return false;
 }
 
-CollapseRejectReason checkLocalIntersections(
-    const CollapseLegalityInput& input,
-    const std::unordered_set<int>& touchedFaces,
-    const std::vector<NewTriangle>& newTriangles) {
+CollapseRejectReason
+checkLocalIntersections(const CollapseLegalityInput& input,
+                        const std::unordered_set<int>& touchedFaces,
+                        const std::vector<NewTriangle>& newTriangles) {
   if (!input.preventLocalIntersections) {
     return CollapseRejectReason::None;
   }
@@ -180,8 +178,7 @@ CollapseRejectReason checkLocalIntersections(
   const double eps = std::sqrt(std::max(input.areaEps, 1e-30));
   const std::vector<FaceState>& faces = input.mesh.faces;
   const std::vector<VertexState>& vertices = input.mesh.vertices;
-  const bool useSpatialCandidates =
-      input.spatialIndex && input.spatialIndex->enabled();
+  const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
   for (const NewTriangle& tri : newTriangles) {
     const auto [triLo, triHi] = triangleAabb(tri.p, eps);
     const std::vector<int> spatialCandidates =
@@ -219,8 +216,7 @@ CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input) {
   const int keep = input.edge.keep;
   const int remove = input.edge.remove;
   if (!collapseWouldPreserveLinkCondition(keep, remove, input.mesh.faces,
-                                          input.mesh.vertices,
-                                          input.mesh.topology)) {
+                                          input.mesh.vertices, input.mesh.topology)) {
     return CollapseRejectReason::Topology;
   }
 

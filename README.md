@@ -1,4 +1,4 @@
-﻿# ManuMesh
+# ManuMesh
 
 ManuMesh 是一个面向增材制造的 C++17 多边形网格几何内核。当前重点是复现并扩展
 `Controlling Quadric Error Simplification with Line Quadrics` 的 QEM + line
@@ -17,9 +17,9 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 这些 HTML 是论文说明和 ManuMesh 当前程序结果的可浏览历史笔记，可以直接用浏览器打开：
 
 - [QEM 与 Line Quadrics 说明](docs/generated/notes/qem-line-quadrics-notes.html)
-- [Line Quadrics 数学原理展开](docs/generated/notes/line-quadrics-qem-theory-explained.html)
-- [ManuMesh 程序原理说明](docs/generated/notes/line-quadrics-qem-program-principles.html)
-- [ManuMesh 代码阅读手册](docs/generated/notes/line-quadrics-qem-code-manual.html)
+- [Line Quadrics 数学原理展开](docs/generated/notes/manumesh-theory-explained.html)
+- [ManuMesh 程序原理说明](docs/generated/notes/manumesh-program-principles.html)
+- [ManuMesh 代码阅读手册](docs/generated/notes/manumesh-code-manual.html)
 - [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
 - [QEM 相关开源库与 ManuMesh 当前实现对比](docs/generated/notes/qem-library-comparison.html)
 
@@ -31,6 +31,8 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | --- | --- |
 | `include/line_quadrics_qem/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
 | `include/line_quadrics_qem/algorithms/feature_detection/` | 平级特征检测模块，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
+| `include/line_quadrics_qem/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
+| `include/line_quadrics_qem/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
 | `include/line_quadrics_qem/features/` | 旧 include 路径兼容层，新代码不要继续使用。 |
 | `src/` | 库实现按职责分组：`common/`、`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
 | `src/common/detail/` | 跨算法私有工具层，例如 mesh key、边-面邻接、面法向、顶点邻接和边界顶点查询；不属于 SDK。 |
@@ -137,6 +139,20 @@ target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
 line_quadrics_qem_copy_runtime_dependencies(my_app)
 ```
 
+该 config 会优先使用 SDK 自带的 vendored Eigen include；如果 SDK 内没有安装
+vendored Eigen，则通过 `find_dependency(Eigen3 3.3 NO_MODULE)` 寻找系统 Eigen。
+
+如果宿主程序不想在自己的 C++ 交换边界暴露 Eigen，可以使用 `PlainMesh` 入口：
+
+```cpp
+#include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
+
+lq::PlainMesh plainInput;
+lq::SimplifyOptions options;
+lq::SimplifyReport report;
+lq::PlainMesh plainOutput = lq::simplifyPlainMesh(plainInput, options, &report);
+```
+
 ## Visual Studio 使用
 
 这是推荐的工业 SDK 集成方式：先把库安装成一个 SDK 目录，再让 Visual Studio
@@ -202,6 +218,9 @@ C:\opt\manumesh\share\line_quadrics_qem\msvc\line_quadrics_qem.props
 SDK 自带的 Eigen 头文件目录。需要统一公司内部 Eigen 版本时，可以覆盖
 `LQEigenIncludeDir`。如果只使用 `line_quadrics_qem/api/CApi.h` 这套 C ABI，
 调用方不需要包含 Eigen 头。
+如果希望使用 C++ 但避免在宿主交换类型中暴露 Eigen，可包含
+`line_quadrics_qem/algorithms/simplification/PlainSimplifier.h` 并传入
+`lq::PlainMesh`。
 
 最小 C++ 调用：
 
@@ -258,6 +277,10 @@ cmake -E chdir build/industrial ctest -L performance --output-on-failure
 ```powershell
 .\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
 ```
+
+C ABI 的公开结构体仍必须先调用对应 `*_init`。同一 `LQ_ABI_VERSION`
+内，库会接受较旧的尾部较短 `struct_size`，缺失字段使用库默认值；未初始化
+或 ABI 版本不匹配的结构体仍会被拒绝。
 
 该命令默认复制四个外部成品 STL 作为验证输入：
 Thingi10K spindle、NASA antenna azimuth track、Thingi10K mini pulley 和

@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h`、`include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h`、`src/feature_detection/`、`src/simplification/`、`apps/linequadrics/main.cpp` 和当前 74 个非性能 CTest。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h`、`include/line_quadrics_qem/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/linequadrics/main.cpp` 和当前 76 个非性能 CTest。
 
 ## 当前已经实现
 
@@ -15,7 +15,7 @@
 | 合法性过滤 | 边界、拓扑、法线偏转、三角形质量、局部误差和局部自交过滤。 |
 | 诊断报告 | `SimplifyReport` / `LqSimplifyReport` 输出终止原因、拒绝计数、特征计数和权重范围。 |
 | CLI | `generate`、`simplify`、`compare`、`feature-report`、`feature-compare`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`summarize-metrics`、`validate-features`、`validate-external`。 |
-| SDK | C++ API 和 C ABI 均可用，示例位于 `examples/`。 |
+| SDK | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口和 C ABI 均可用，示例位于 `examples/`。 |
 
 ## 当前没有实现
 
@@ -31,7 +31,7 @@
 2. 特征检测目前以 CAD/STL 风格网格为主，噪声扫描件需要更稳健的预处理。
 3. `all-feature-edges` 会锁住太多 generic crease，可能导致 `rejection-limit`，默认 `primitive-curves` 更平衡。
 4. 局部自交和局部误差过滤改善安全性，但不是全局几何证明。
-5. C ABI 结构体依赖 `struct_size` 和 `abi_version`，外部调用必须初始化。
+5. C ABI 结构体依赖 `struct_size` 和 `abi_version`，外部调用必须初始化；同一 ABI 版本内允许旧尾部尺寸，缺失字段使用默认值。
 
 ## 短期路线
 

@@ -2,6 +2,7 @@
 
 #include "detail/SimplificationRun.h"
 #include "detail/SimplificationValidation.h"
+#include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
 
 #include <memory>
 #include <stdexcept>
@@ -66,8 +67,7 @@ FeatureProtectionMode parseFeatureProtectionMode(const std::string& value) {
       value == "primitive") {
     return FeatureProtectionMode::PrimitiveCurves;
   }
-  if (value == "all-feature-edges" || value == "all_feature_edges" ||
-      value == "all") {
+  if (value == "all-feature-edges" || value == "all_feature_edges" || value == "all") {
     return FeatureProtectionMode::AllFeatureEdges;
   }
   throw std::invalid_argument("Unknown feature protection mode: " + value);
@@ -160,6 +160,11 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
                   SimplifyReport* outReport) {
   QEMSimplifier simplifier(options);
   return simplifier.simplify(input, outReport);
+}
+
+PlainMesh simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& options,
+                            SimplifyReport* outReport) {
+  return toPlainMesh(simplifyMesh(toMesh(input), options, outReport));
 }
 
 } // namespace lq

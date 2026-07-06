@@ -10,7 +10,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 - C ABI：`api/CApi.h`。
 - CLI：`linequadrics.exe`，用于批处理、验证和示例。
 - 示例：C++ SDK 和 C ABI consumer。
-- 回归测试：74 个非性能测试，另有 performance 构建路径。
+- 回归测试：76 个非性能测试，另有 performance 构建路径。
 
 ## 当前核心能力
 
@@ -21,7 +21,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 | 特征检测 | boundary、dihedral、normal-tensor、loop、circle/ellipse fitting。 |
 | 简化 | standard QEM、line quadrics、ratio/face target、sweep。 |
 | 保护 | boundary、feature curves、triangle quality、normal deviation、local error、local intersections。 |
-| 集成 | C++ API、C ABI、SDK 安装、示例工程。 |
+| 集成 | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口、C ABI、SDK 安装、示例工程。 |
 
 ## 与完整工业几何内核的差距
 
@@ -40,7 +40,8 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 1. 先把 decimation 和 feature_detection 做成可靠 SDK，再扩展 repair/boolean/offset。
 2. 公共 API 只暴露稳定概念，私有 helper 留在 `src/.../detail/`。
 3. C ABI 不暴露 C++ 类型、异常或 Eigen。
-4. 所有“工业安全”说法必须绑定具体过滤器和测试数据，不做泛化承诺。
+4. C ABI 结构体只能向尾部追加；同一 ABI 版本内旧 `struct_size` 的缺失字段使用默认值。
+5. 所有“工业安全”说法必须绑定具体过滤器和测试数据，不做泛化承诺。
 
 ## 推荐对外表述
 

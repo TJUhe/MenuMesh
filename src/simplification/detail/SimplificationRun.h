@@ -4,6 +4,7 @@
 #include "detail/DynamicTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/Quadrics.h"
+#include "detail/SimplificationPolicies.h"
 #include "detail/SpatialFaceIndex.h"
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
@@ -52,6 +53,7 @@ private:
 
   const Mesh& input_;
   const SimplifyOptions& options_;
+  SimplificationPolicies policies_;
   SimplifyReport report_;
   FeatureAnalysis featureAnalysis_;
   const FeatureAnalysis* featureAnalysisPtr_ = nullptr;

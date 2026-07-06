@@ -1,10 +1,11 @@
 #include "TestSupport.h"
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 #include "line_quadrics_qem/algorithms/simplification/Metrics.h"
+#include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/core/MeshTopology.h"
 #include "line_quadrics_qem/core/PlainMesh.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <array>
@@ -571,6 +572,22 @@ TEST(LineQuadricsQem, PlainMeshRoundTripsWithoutEigenInExchangeType) {
   EXPECT_EQ(plain.faces.size(), roundTrip.faces.size());
   EXPECT_DOUBLE_EQ(1.0, roundTrip.vertices[1].x);
   EXPECT_EQ(2, roundTrip.faces[0].v[2]);
+}
+
+TEST(LineQuadricsQem, SimplifiesPlainMeshThroughEigenFreeEntryPoint) {
+  const lq::PlainMesh input = lq::toPlainMesh(lq::generatePlaneGrid(8, 1.0, false));
+
+  lq::SimplifyOptions options = standardQemOptions(0.50);
+  options.maxNormalDeviationDeg = 180.0;
+
+  lq::SimplifyReport report;
+  const lq::PlainMesh output = lq::simplifyPlainMesh(input, options, &report);
+
+  EXPECT_FALSE(output.faces.empty());
+  EXPECT_EQ(report.initialFaces, static_cast<int>(input.faces.size()));
+  EXPECT_EQ(report.finalFaces, static_cast<int>(output.faces.size()));
+  EXPECT_LT(report.finalFaces, report.initialFaces);
+  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget, report.terminationReason);
 }
 
 TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {

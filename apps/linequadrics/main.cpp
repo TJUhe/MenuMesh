@@ -1,5 +1,5 @@
-#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 #include "line_quadrics_qem/core/Mesh.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
@@ -286,9 +286,8 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   options.preserveBoundary = hasFlag(args, "--preserve-boundary");
   options.preventLocalIntersections = hasFlag(args, "--prevent-local-intersections");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
-  options.featureProtectionMode = lq::parseFeatureProtectionMode(
-      getArg(args, "--feature-protection-mode",
-             lq::toString(options.featureProtectionMode)));
+  options.featureProtectionMode = lq::parseFeatureProtectionMode(getArg(
+      args, "--feature-protection-mode", lq::toString(options.featureProtectionMode)));
   options.protectAllFeatureEdges = hasFlag(args, "--protect-all-feature-edges");
   options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
   if (hasFlag(args, "--industrial-safe")) {
@@ -338,7 +337,7 @@ lq::FeatureOptions parseFeatureOptions(const Args& args) {
 
 void printUsage() {
   std::cout
-      << "Line Quadrics QEM reproduction\n\n"
+      << "ManuMesh mesh simplification CLI\n\n"
       << "Commands:\n"
       << "  linequadrics generate --type clustered-plane --n 50 --out input.stl\n"
       << "  linequadrics simplify input.stl output.stl [options]\n"
@@ -523,9 +522,8 @@ fs::path copyExternalInput(const fs::path& inputDir, const std::string& name,
   ec.clear();
   fs::copy_file(source, destination, fs::copy_options::none, ec);
   if (ec) {
-    throw std::runtime_error("Failed to copy external input from " +
-                             source.string() + " to " +
-                             destination.string() + ": " + ec.message());
+    throw std::runtime_error("Failed to copy external input from " + source.string() +
+                             " to " + destination.string() + ": " + ec.message());
   }
   return destination;
 }
@@ -980,8 +978,7 @@ int commandSimplify(const Args& args) {
               << " feature_rejected=" << report.featureRejectedCollapses
               << " primitive_feature_rejected="
               << report.primitiveFeatureRejectedCollapses
-              << " generic_feature_rejected="
-              << report.genericFeatureRejectedCollapses
+              << " generic_feature_rejected=" << report.genericFeatureRejectedCollapses
               << " curve_budget_rejected=" << report.curveBudgetRejectedCollapses
               << " projected_feature_placements=" << report.projectedFeaturePlacements
               << "\n";
@@ -1016,8 +1013,8 @@ int commandSimplify(const Args& args) {
         << lq::toString(options.protectAllFeatureEdges
                             ? lq::FeatureProtectionMode::AllFeatureEdges
                             : options.featureProtectionMode)
-        << "," << report.featureRejectedCollapses
-        << "," << report.boundaryRejectedCollapses << ","
+        << "," << report.featureRejectedCollapses << ","
+        << report.boundaryRejectedCollapses << ","
         << report.primitiveFeatureRejectedCollapses << ","
         << report.genericFeatureRejectedCollapses << ","
         << report.topologyRejectedCollapses << "," << report.normalFlipRejectedCollapses

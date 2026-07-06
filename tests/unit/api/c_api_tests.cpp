@@ -1,6 +1,7 @@
 #include "TestSupport.h"
 #include "line_quadrics_qem/api/CApi.h"
 
+#include <cstddef>
 #include <gtest/gtest.h>
 #include <limits>
 #include <string>
@@ -193,6 +194,29 @@ TEST_F(CApiTest, RejectsUninitializedSimplifyOptionsAbiStruct) {
   lq_mesh_destroy(input);
 }
 
+TEST_F(CApiTest, AcceptsOlderTrailingSimplifyOptionsAbiStruct) {
+  LqMeshHandle* input = lq_mesh_create(context);
+  LqMeshHandle* output = lq_mesh_create(context);
+  ASSERT_NE(input, nullptr);
+  ASSERT_NE(output, nullptr);
+
+  ASSERT_EQ(LQ_STATUS_OK, lq_generate_mesh(context, "plane", 8, input));
+
+  LqSimplifyOptions options;
+  lq_simplify_options_init(&options);
+  options.target_ratio = 0.75;
+  options.feature_protection_mode = static_cast<LqFeatureProtectionMode>(999);
+  options.struct_size = offsetof(LqSimplifyOptions, feature_protection_mode);
+
+  LqSimplifyReport report;
+  EXPECT_EQ(LQ_STATUS_OK, lq_simplify_mesh(context, input, &options, output, &report));
+  EXPECT_GT(report.initial_faces, report.final_faces);
+  EXPECT_EQ(LQ_SIMPLIFY_TERMINATION_REACHED_TARGET, report.termination_reason);
+
+  lq_mesh_destroy(output);
+  lq_mesh_destroy(input);
+}
+
 TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
   LqMeshHandle* input = lq_mesh_create(context);
   LqMeshHandle* output = lq_mesh_create(context);
@@ -321,8 +345,7 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
   EXPECT_DOUBLE_EQ(0.0, options.max_local_error);
   EXPECT_DOUBLE_EQ(0.0, options.max_local_error_ratio);
   EXPECT_EQ(0, options.prevent_local_intersections);
-  EXPECT_EQ(LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES,
-            options.feature_protection_mode);
+  EXPECT_EQ(LQ_FEATURE_PROTECTION_PRIMITIVE_CURVES, options.feature_protection_mode);
 
   LqSimplifyReport report;
   lq_simplify_report_init(&report);

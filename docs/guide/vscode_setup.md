@@ -32,8 +32,8 @@ code --install-extension adm\vscode-extensions\vscodevim.vim-1.24.3.vsix
 
 ```text
 编译器：PATH 中的 gcc/g++
-构建目录：build/mingw-ninja-release
-编译数据库：build/mingw-ninja-release/compile_commands.json
+构建目录：build/${workspaceFolderBasename}/mingw-ninja-release
+编译数据库：build/${workspaceFolderBasename}/mingw-ninja-release/compile_commands.json
 ```
 
 仓库设置刻意避免写死机器相关的 MinGW 绝对路径。配置前请确保目标 MinGW 的 `bin` 目录在 `PATH` 中：
@@ -63,20 +63,21 @@ ManuMesh 当前支持 CMake 3.18.6 及以上版本，不依赖 `CMakePresets.jso
 
 | 构建目录 | 生成器 | 编译器 | 用途 |
 | --- | --- | --- | --- |
-| `build/mingw-ninja-debug` | Ninja | MinGW `g++` | 调试、单元测试、格式检查 |
-| `build/mingw-ninja-release` | Ninja | MinGW `g++` | 发布构建、演示、Release 测试 |
-| `build/mingw-ninja-debug-performance` | Ninja | MinGW `g++` | 性能测试 |
-| `build/mingw-ninja-release-performance` | Ninja | MinGW `g++` | Release 性能测试 |
-| `build/mingw-ninja-release-sdk` | Ninja | MinGW `g++` | 本地安装和 SDK consumer 测试 |
-| `build/msvc-vs2022` | Visual Studio 17 2022 | MSVC | VS2022 调试和发布构建 |
-| `build/msvc-vs2022-performance` | Visual Studio 17 2022 | MSVC | VS2022 性能测试 |
-| `build/msvc-vs2019` | Visual Studio 16 2019 | MSVC | VS2019 调试和发布构建 |
-| `build/msvc-vs2019-performance` | Visual Studio 16 2019 | MSVC | VS2019 性能测试 |
+| `build/${workspaceFolderBasename}/mingw-ninja-debug` | Ninja | MinGW `g++` | 调试、单元测试、格式检查 |
+| `build/${workspaceFolderBasename}/mingw-ninja-release` | Ninja | MinGW `g++` | 发布构建、演示、Release 测试 |
+| `build/${workspaceFolderBasename}/mingw-ninja-debug-performance` | Ninja | MinGW `g++` | 性能测试 |
+| `build/${workspaceFolderBasename}/mingw-ninja-release-performance` | Ninja | MinGW `g++` | Release 性能测试 |
+| `build/${workspaceFolderBasename}/mingw-ninja-release-sdk` | Ninja | MinGW `g++` | 本地安装和 SDK consumer 测试 |
+| `build/${workspaceFolderBasename}/msvc-vs2022` | Visual Studio 17 2022 | MSVC | VS2022 调试和发布构建 |
+| `build/${workspaceFolderBasename}/msvc-vs2022-performance` | Visual Studio 17 2022 | MSVC | VS2022 性能测试 |
+| `build/${workspaceFolderBasename}/msvc-vs2019` | Visual Studio 16 2019 | MSVC | VS2019 调试和发布构建 |
+| `build/${workspaceFolderBasename}/msvc-vs2019-performance` | Visual Studio 16 2019 | MSVC | VS2019 性能测试 |
 
 MinGW + Ninja 的 Release 配置命令：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja `
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
@@ -88,13 +89,15 @@ cmake -S . -B build/mingw-ninja-release -G Ninja `
 构建全部目标：
 
 ```powershell
-cmake --build build/mingw-ninja-release --parallel
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake --build $buildDir --parallel
 ```
 
 运行非性能测试：
 
 ```powershell
-cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
 
 ## Windows MinGW 运行时说明
@@ -109,20 +112,22 @@ Release 全量构建会生成测试程序。当前 CMake 配置使用 `gtest_add
 where g++
 where cmake
 where ninja
-Get-ChildItem build\mingw-ninja-release\bin\*.dll
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+Get-ChildItem "$buildDir\bin\*.dll"
 ```
 
 然后删除对应构建目录或重新运行 configure，再构建：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja `
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
   -DLQ_GOOGLETEST_PROVIDER=auto `
   -DLQ_BUILD_PERFORMANCE_TESTS=OFF
-cmake --build build/mingw-ninja-release --parallel
+cmake --build $buildDir --parallel
 ```
 
 ## VS Code 任务
@@ -208,15 +213,19 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 
 推荐断点：
 
-- `src/simplification/QEMSimplifier.cpp`：候选折叠构造、折叠合法性、曲线预算拒绝、局部误差拒绝、报告计数器递增。
-- `src/feature_detection/FeatureDetector.cpp`：特征边收集、特征图遍历、圆/椭圆拟合、normal-tensor 特征评分。
+- `src/simplification/SimplificationRun.cpp`：collapse loop、候选接受/拒绝、报告计数器递增。
+- `src/simplification/SimplificationPolicies.cpp`：公开 `SimplifyOptions` 到内部 target/features/legality policy 的转换。
+- `src/feature_detection/FeatureDetector.cpp`：特征边收集、特征图遍历和 loop/cycle 恢复主流程。
+- `src/feature_detection/PrimitiveFit.cpp`：圆、近圆和椭圆 primitive 拟合。
+- `src/feature_detection/NormalTensor.cpp`：normal-tensor 特征评分。
 
 ## 常用命令示例
 
 生成特征报告：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-report `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+& $exe feature-report `
   tests\data\feature_fixtures\coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -227,7 +236,8 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 带特征曲线保护的简化：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+& $exe simplify `
   tests\data\feature_fixtures\coaxial_hole_plate.obj `
   output\vscode_demo\feature_curves.stl `
   --method line `
@@ -249,7 +259,8 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 比例扫描：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe ratio-sweep `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+& $exe ratio-sweep `
   tests\data\external\fandisk_2014.stl `
   output\vscode_demo\ratio_sweep `
   --method line `
@@ -264,8 +275,9 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 外部验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+& $exe validate-features --ratio 0.20 --samples 1000
+& $exe validate-external --ratio 0.25 --samples 800
 ```
 
 ## 演示用例建议

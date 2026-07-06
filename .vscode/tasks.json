@@ -9,7 +9,7 @@
         "-S",
         ".",
         "-B",
-        "build/mingw-ninja-debug",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "-G",
         "Ninja",
         "-DCMAKE_BUILD_TYPE=Debug",
@@ -35,7 +35,7 @@
         "-S",
         ".",
         "-B",
-        "build/mingw-ninja-release",
+        "build/${workspaceFolderBasename}/mingw-ninja-release",
         "-G",
         "Ninja",
         "-DCMAKE_BUILD_TYPE=Release",
@@ -61,7 +61,7 @@
         "-S",
         ".",
         "-B",
-        "build/mingw-ninja-debug-performance",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug-performance",
         "-G",
         "Ninja",
         "-DCMAKE_BUILD_TYPE=Debug",
@@ -87,7 +87,7 @@
         "-S",
         ".",
         "-B",
-        "build/mingw-ninja-release-performance",
+        "build/${workspaceFolderBasename}/mingw-ninja-release-performance",
         "-G",
         "Ninja",
         "-DCMAKE_BUILD_TYPE=Release",
@@ -113,7 +113,7 @@
         "-S",
         ".",
         "-B",
-        "build/mingw-ninja-release-sdk",
+        "build/${workspaceFolderBasename}/mingw-ninja-release-sdk",
         "-G",
         "Ninja",
         "-DCMAKE_BUILD_TYPE=Release",
@@ -141,7 +141,7 @@
         "-S",
         ".",
         "-B",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "-G",
         "Visual Studio 17 2022",
         "-A",
@@ -165,7 +165,7 @@
         "-S",
         ".",
         "-B",
-        "build/msvc-vs2022-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2022-performance",
         "-G",
         "Visual Studio 17 2022",
         "-A",
@@ -189,7 +189,7 @@
         "-S",
         ".",
         "-B",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "-G",
         "Visual Studio 16 2019",
         "-A",
@@ -213,7 +213,7 @@
         "-S",
         ".",
         "-B",
-        "build/msvc-vs2019-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2019-performance",
         "-G",
         "Visual Studio 16 2019",
         "-A",
@@ -259,7 +259,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-debug",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "--target",
         "linequadrics",
         "--parallel"
@@ -274,7 +274,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-debug",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "--target",
         "line_quadrics_qem_tests",
         "--parallel"
@@ -286,7 +286,7 @@
       "label": "build: mingw+ninja debug all",
       "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-debug", "--parallel"],
+      "args": ["--build", "build/${workspaceFolderBasename}/mingw-ninja-debug", "--parallel"],
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja debug"
     },
@@ -296,7 +296,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-release",
+        "build/${workspaceFolderBasename}/mingw-ninja-release",
         "--target",
         "linequadrics",
         "--parallel"
@@ -308,7 +308,7 @@
       "label": "build: mingw+ninja release all",
       "type": "process",
       "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-release", "--parallel"],
+      "args": ["--build", "build/${workspaceFolderBasename}/mingw-ninja-release", "--parallel"],
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja release"
     },
@@ -318,7 +318,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-debug-performance",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug-performance",
         "--target",
         "line_quadrics_qem_performance_tests",
         "--parallel"
@@ -332,7 +332,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-release-performance",
+        "build/${workspaceFolderBasename}/mingw-ninja-release-performance",
         "--target",
         "line_quadrics_qem_performance_tests",
         "--parallel"
@@ -346,7 +346,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-release-sdk",
+        "build/${workspaceFolderBasename}/mingw-ninja-release-sdk",
         "--target",
         "sdk-consumer-test",
         "--parallel"
@@ -360,7 +360,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "--config",
         "Debug",
         "--target",
@@ -376,7 +376,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "--config",
         "Debug",
         "--target",
@@ -392,7 +392,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "--config",
         "Debug",
         "--parallel"
@@ -406,7 +406,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "--config",
         "Release",
         "--target",
@@ -422,7 +422,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "--config",
         "Release",
         "--parallel"
@@ -436,7 +436,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "--config",
         "Release",
         "--target",
@@ -452,7 +452,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2022-performance",
         "--config",
         "Debug",
         "--target",
@@ -468,7 +468,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2022-performance",
         "--config",
         "Release",
         "--target",
@@ -484,7 +484,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "--config",
         "Debug",
         "--target",
@@ -500,7 +500,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "--config",
         "Debug",
         "--target",
@@ -516,7 +516,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "--config",
         "Debug",
         "--parallel"
@@ -530,7 +530,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "--config",
         "Release",
         "--target",
@@ -546,7 +546,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "--config",
         "Release",
         "--parallel"
@@ -560,7 +560,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "--config",
         "Release",
         "--target",
@@ -576,7 +576,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2019-performance",
         "--config",
         "Debug",
         "--target",
@@ -592,7 +592,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2019-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2019-performance",
         "--config",
         "Release",
         "--target",
@@ -701,7 +701,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/mingw-ninja-debug",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "ctest",
         "-LE",
         "performance",
@@ -717,7 +717,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/mingw-ninja-release",
+        "build/${workspaceFolderBasename}/mingw-ninja-release",
         "ctest",
         "-LE",
         "performance",
@@ -733,7 +733,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/mingw-ninja-debug-performance",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug-performance",
         "ctest",
         "-L",
         "performance",
@@ -749,7 +749,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/mingw-ninja-release-performance",
+        "build/${workspaceFolderBasename}/mingw-ninja-release-performance",
         "ctest",
         "-L",
         "performance",
@@ -765,7 +765,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "ctest",
         "-C",
         "Debug",
@@ -783,7 +783,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2022",
+        "build/${workspaceFolderBasename}/msvc-vs2022",
         "ctest",
         "-C",
         "Release",
@@ -801,7 +801,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2022-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2022-performance",
         "ctest",
         "-C",
         "Debug",
@@ -819,7 +819,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2022-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2022-performance",
         "ctest",
         "-C",
         "Release",
@@ -837,7 +837,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "ctest",
         "-C",
         "Debug",
@@ -855,7 +855,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2019",
+        "build/${workspaceFolderBasename}/msvc-vs2019",
         "ctest",
         "-C",
         "Release",
@@ -873,7 +873,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2019-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2019-performance",
         "ctest",
         "-C",
         "Debug",
@@ -891,7 +891,7 @@
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2019-performance",
+        "build/${workspaceFolderBasename}/msvc-vs2019-performance",
         "ctest",
         "-C",
         "Release",
@@ -985,7 +985,7 @@
     {
       "label": "demo: simplify standard selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
         "simplify",
         "${input:demoMesh}",
@@ -1009,7 +1009,7 @@
     {
       "label": "demo: simplify feature curves selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
         "simplify",
         "${input:demoMesh}",
@@ -1052,7 +1052,7 @@
     {
       "label": "demo: simplify normal tensor selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
         "simplify",
         "${input:demoMesh}",
@@ -1090,7 +1090,7 @@
     {
       "label": "demo: feature report selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
         "feature-report",
         "${input:demoMesh}",
@@ -1117,7 +1117,7 @@
     {
       "label": "demo: ratio sweep selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
         "ratio-sweep",
         "${input:demoMesh}",
@@ -1147,7 +1147,7 @@
     {
       "label": "run: feature validation",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
         "validate-features",
         "--ratio",
@@ -1163,7 +1163,7 @@
     {
       "label": "run: external validation",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
       "args": [
         "validate-external",
         "--input-dir",
@@ -1184,7 +1184,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-debug",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "--target",
         "check-format",
         "--parallel"
@@ -1198,7 +1198,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-debug",
+        "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "--target",
         "format",
         "--parallel"
@@ -1212,7 +1212,7 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-release",
+        "build/${workspaceFolderBasename}/mingw-ninja-release",
         "--target",
         "docs-api",
         "--parallel"
@@ -1293,12 +1293,12 @@
       "id": "msvcCustomBuildDir",
       "type": "pickString",
       "description": "MSVC custom build directory",
-      "default": "build/msvc-custom",
+      "default": "build/ManuMesh/msvc-custom",
       "options": [
-        "build/msvc-custom",
-        "build/msvc-vs2022",
-        "build/msvc-vs2019",
-        "build/msvc-vs2017"
+        "build/ManuMesh/msvc-custom",
+        "build/ManuMesh/msvc-vs2022",
+        "build/ManuMesh/msvc-vs2019",
+        "build/ManuMesh/msvc-vs2017"
       ]
     },
     {

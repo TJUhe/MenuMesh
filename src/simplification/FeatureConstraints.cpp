@@ -45,8 +45,8 @@ bool isGenericFeature(const VertexState& vertex) {
          !isPrimitiveProtected(vertex, FeatureProtectionMode::PrimitiveCurves);
 }
 
-FeatureCollapseRejectKind featureCollapseRejectKind(
-    const FeatureCollapseInput& input, const SimplifyOptions& options) {
+FeatureCollapseRejectKind featureCollapseRejectKind(const FeatureCollapseInput& input,
+                                                    const SimplifyOptions& options) {
   const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options);
   if (mode == FeatureProtectionMode::None) {
     return FeatureCollapseRejectKind::None;

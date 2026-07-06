@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <exception>
 #include <limits>
 #include <new>
@@ -58,17 +59,28 @@ bool boolFromInt(int value) {
   return value != 0;
 }
 
-template <typename T>
-void initializeAbiStruct(T& value) {
+template <typename T> void initializeAbiStruct(T& value) {
   value = T{};
   value.struct_size = sizeof(T);
   value.abi_version = LQ_ABI_VERSION;
 }
 
-template <typename T>
-bool abiStructLooksInitialized(const T& value) {
-  return value.struct_size >= sizeof(T) && value.abi_version == LQ_ABI_VERSION;
+template <typename T> bool abiStructLooksInitialized(const T& value) {
+  constexpr std::size_t kMinimumInitializedSize =
+      offsetof(T, abi_version) + sizeof(value.abi_version);
+  return value.struct_size >= kMinimumInitializedSize &&
+         value.abi_version == LQ_ABI_VERSION;
 }
+
+bool abiFieldPresent(std::size_t structSize, std::size_t fieldOffset,
+                     std::size_t fieldSize) {
+  return fieldOffset <= std::numeric_limits<std::size_t>::max() - fieldSize &&
+         structSize >= fieldOffset + fieldSize;
+}
+
+#define LQ_SIMPLIFY_FIELD_PRESENT(options, field)                                      \
+  abiFieldPresent((options).struct_size, offsetof(LqSimplifyOptions, field),           \
+                  sizeof((options).field))
 
 bool convertWeightMode(LqWeightMode input, lq::WeightMode& output) {
   switch (input) {
@@ -479,54 +491,118 @@ LqStatus lq_simplify_mesh(LqContext* context, const LqMeshHandle* input,
                     "LqSimplifyOptions must be initialized with "
                     "lq_simplify_options_init for this ABI version.");
       }
-      cppOptions.targetFaces = options->target_faces;
-      cppOptions.targetRatio = options->target_ratio;
-      cppOptions.useLineQuadrics = boolFromInt(options->use_line_quadrics);
-      cppOptions.lineWeight = options->line_weight;
-      if (!convertWeightMode(options->weight_mode, cppOptions.weightMode)) {
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, target_faces)) {
+        cppOptions.targetFaces = options->target_faces;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, target_ratio)) {
+        cppOptions.targetRatio = options->target_ratio;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, use_line_quadrics)) {
+        cppOptions.useLineQuadrics = boolFromInt(options->use_line_quadrics);
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, line_weight)) {
+        cppOptions.lineWeight = options->line_weight;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, weight_mode) &&
+          !convertWeightMode(options->weight_mode, cppOptions.weightMode)) {
         return fail(context, LQ_STATUS_INVALID_ARGUMENT,
                     "Unknown simplification weight mode.");
       }
-      cppOptions.featureBoost = options->feature_boost;
-      cppOptions.featureAngleDeg = options->feature_angle_deg;
-      cppOptions.adaptiveScale = boolFromInt(options->adaptive_scale);
-      cppOptions.adaptiveBaseLineWeight = options->adaptive_base_line_weight;
-      cppOptions.boundaryWeight = options->boundary_weight;
-      cppOptions.preserveBoundary = boolFromInt(options->preserve_boundary);
-      cppOptions.preserveFeatureCurves = boolFromInt(options->preserve_feature_curves);
-      if (!convertFeatureProtectionMode(options->feature_protection_mode,
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, feature_boost)) {
+        cppOptions.featureBoost = options->feature_boost;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, feature_angle_deg)) {
+        cppOptions.featureAngleDeg = options->feature_angle_deg;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, adaptive_scale)) {
+        cppOptions.adaptiveScale = boolFromInt(options->adaptive_scale);
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, adaptive_base_line_weight)) {
+        cppOptions.adaptiveBaseLineWeight = options->adaptive_base_line_weight;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, boundary_weight)) {
+        cppOptions.boundaryWeight = options->boundary_weight;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, preserve_boundary)) {
+        cppOptions.preserveBoundary = boolFromInt(options->preserve_boundary);
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, preserve_feature_curves)) {
+        cppOptions.preserveFeatureCurves =
+            boolFromInt(options->preserve_feature_curves);
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, feature_protection_mode) &&
+          !convertFeatureProtectionMode(options->feature_protection_mode,
                                         cppOptions.featureProtectionMode)) {
         return fail(context, LQ_STATUS_INVALID_ARGUMENT,
                     "Unknown feature protection mode.");
       }
-      cppOptions.protectAllFeatureEdges =
-          boolFromInt(options->protect_all_feature_edges);
-      cppOptions.featureCurveWeight = options->feature_curve_weight;
-      cppOptions.maxFeatureCurveDeviationRatio =
-          options->max_feature_curve_deviation_ratio;
-      cppOptions.circleFitRelativeThreshold = options->circle_fit_relative_threshold;
-      cppOptions.ellipseFitRelativeThreshold = options->ellipse_fit_relative_threshold;
-      cppOptions.nearCircleAxisRatioTolerance =
-          options->near_circle_axis_ratio_tolerance;
-      cppOptions.minFeatureLoopVertices = options->min_feature_loop_vertices;
-      cppOptions.minCircularFeatureLoopVertices =
-          options->min_circular_feature_loop_vertices;
-      cppOptions.useNormalTensorFeatures =
-          boolFromInt(options->use_normal_tensor_features);
-      cppOptions.normalTensorFeatureThreshold =
-          options->normal_tensor_feature_threshold;
-      cppOptions.normalTensorMinEdgeAlignment =
-          options->normal_tensor_min_edge_alignment;
-      cppOptions.normalTensorSmoothingIterations =
-          options->normal_tensor_smoothing_iterations;
-      cppOptions.normalTensorScaleCount = options->normal_tensor_scale_count;
-      cppOptions.minTriangleQuality = options->min_triangle_quality;
-      cppOptions.maxNormalDeviationDeg = options->max_normal_deviation_deg;
-      cppOptions.maxLocalError = options->max_local_error;
-      cppOptions.maxLocalErrorRatio = options->max_local_error_ratio;
-      cppOptions.preventLocalIntersections =
-          boolFromInt(options->prevent_local_intersections);
-      cppOptions.verbose = boolFromInt(options->verbose);
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, protect_all_feature_edges)) {
+        cppOptions.protectAllFeatureEdges =
+            boolFromInt(options->protect_all_feature_edges);
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, feature_curve_weight)) {
+        cppOptions.featureCurveWeight = options->feature_curve_weight;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, max_feature_curve_deviation_ratio)) {
+        cppOptions.maxFeatureCurveDeviationRatio =
+            options->max_feature_curve_deviation_ratio;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, circle_fit_relative_threshold)) {
+        cppOptions.circleFitRelativeThreshold = options->circle_fit_relative_threshold;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, ellipse_fit_relative_threshold)) {
+        cppOptions.ellipseFitRelativeThreshold =
+            options->ellipse_fit_relative_threshold;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, near_circle_axis_ratio_tolerance)) {
+        cppOptions.nearCircleAxisRatioTolerance =
+            options->near_circle_axis_ratio_tolerance;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, min_feature_loop_vertices)) {
+        cppOptions.minFeatureLoopVertices = options->min_feature_loop_vertices;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, min_circular_feature_loop_vertices)) {
+        cppOptions.minCircularFeatureLoopVertices =
+            options->min_circular_feature_loop_vertices;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, use_normal_tensor_features)) {
+        cppOptions.useNormalTensorFeatures =
+            boolFromInt(options->use_normal_tensor_features);
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, normal_tensor_feature_threshold)) {
+        cppOptions.normalTensorFeatureThreshold =
+            options->normal_tensor_feature_threshold;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, normal_tensor_min_edge_alignment)) {
+        cppOptions.normalTensorMinEdgeAlignment =
+            options->normal_tensor_min_edge_alignment;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, normal_tensor_smoothing_iterations)) {
+        cppOptions.normalTensorSmoothingIterations =
+            options->normal_tensor_smoothing_iterations;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, normal_tensor_scale_count)) {
+        cppOptions.normalTensorScaleCount = options->normal_tensor_scale_count;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, min_triangle_quality)) {
+        cppOptions.minTriangleQuality = options->min_triangle_quality;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, max_normal_deviation_deg)) {
+        cppOptions.maxNormalDeviationDeg = options->max_normal_deviation_deg;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, max_local_error)) {
+        cppOptions.maxLocalError = options->max_local_error;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, max_local_error_ratio)) {
+        cppOptions.maxLocalErrorRatio = options->max_local_error_ratio;
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, prevent_local_intersections)) {
+        cppOptions.preventLocalIntersections =
+            boolFromInt(options->prevent_local_intersections);
+      }
+      if (LQ_SIMPLIFY_FIELD_PRESENT(*options, verbose)) {
+        cppOptions.verbose = boolFromInt(options->verbose);
+      }
     }
 
     lq::SimplifyReport cppReport;

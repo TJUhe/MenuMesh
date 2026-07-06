@@ -6,7 +6,6 @@
 #include "detail/FeatureConstraints.h"
 #include "detail/Quadrics.h"
 #include "detail/ResultBuilder.h"
-#include "detail/SimplificationConstants.h"
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
@@ -19,7 +18,9 @@
 namespace lq {
 
 SimplificationRun::SimplificationRun(const Mesh& input, const SimplifyOptions& options)
-    : input_(input), options_(options), quadrics_(options), featurePolicy_(options) {
+    : input_(input), options_(options),
+      policies_(SimplificationPolicies::fromOptions(options)), quadrics_(options),
+      featurePolicy_(options) {
 }
 
 Mesh SimplificationRun::execute(SimplifyReport* outReport) {
@@ -49,22 +50,11 @@ void SimplificationRun::initializeReport() {
 void SimplificationRun::analyzeFeatures() {
   featureAnalysis_ = FeatureAnalysis{};
   featureAnalysisPtr_ = nullptr;
-  if (!options_.preserveFeatureCurves) {
+  if (!policies_.features.enabled) {
     return;
   }
 
-  FeatureOptions featureOptions;
-  featureOptions.featureAngleDeg = options_.featureAngleDeg;
-  featureOptions.circleFitRelativeThreshold = options_.circleFitRelativeThreshold;
-  featureOptions.ellipseFitRelativeThreshold = options_.ellipseFitRelativeThreshold;
-  featureOptions.nearCircleAxisRatioTolerance = options_.nearCircleAxisRatioTolerance;
-  featureOptions.minFeatureLoopVertices = std::max(5, options_.minFeatureLoopVertices);
-  featureOptions.useNormalTensorFeatures = options_.useNormalTensorFeatures;
-  featureOptions.normalTensorFeatureThreshold = options_.normalTensorFeatureThreshold;
-  featureOptions.normalTensorMinEdgeAlignment = options_.normalTensorMinEdgeAlignment;
-  featureOptions.normalTensorSmoothingIterations =
-      options_.normalTensorSmoothingIterations;
-  featureOptions.normalTensorScaleCount = options_.normalTensorScaleCount;
+  const FeatureOptions featureOptions = policies_.features.toFeatureOptions();
   featureAnalysis_ = detectFeatureCurves(input_, featureOptions);
   featureAnalysisPtr_ = &featureAnalysis_;
   report_.featureLoops = static_cast<int>(featureAnalysis_.loops.size());
@@ -107,7 +97,7 @@ void SimplificationRun::initializeFeatureCurveConstraints() {
 void SimplificationRun::initializeVertices() {
   const std::vector<Mat4> initialQuadrics =
       quadrics_.build(input_, featureAnalysisPtr_, report_);
-  boundaryVertices_ = options_.preserveBoundary
+  boundaryVertices_ = policies_.legality.preserveBoundary
                           ? detail::computeBoundaryVertices(input_)
                           : std::vector<char>();
   vertices_.assign(input_.vertices.size(), VertexState{});
@@ -164,22 +154,18 @@ void SimplificationRun::initializeFaces() {
   topology_ =
       std::make_unique<DynamicTopology>(faces_, static_cast<int>(vertices_.size()));
   activeFaceCount_ = static_cast<int>(faces_.size());
-  if (options_.preventLocalIntersections) {
+  if (policies_.legality.preventLocalIntersections) {
     spatialIndex_.rebuild(faces_, vertices_);
   }
 }
 
 void SimplificationRun::initializeBudget() {
-  targetFaces_ = options_.targetFaces > 0
-                     ? options_.targetFaces
-                     : std::max(4, static_cast<int>(std::llround(
-                                       input_.faces.size() * options_.targetRatio)));
+  targetFaces_ =
+      policies_.target.resolveTargetFaceCount(static_cast<int>(input_.faces.size()));
   const double diag = std::max(1e-12, input_.bboxDiag());
   areaEps_ = diag * diag * 1e-18;
-  minNormalDot_ = options_.maxNormalDeviationDeg >= 180.0
-                      ? -1.0
-                      : std::cos(options_.maxNormalDeviationDeg * kPi / 180.0);
-  maxLocalError_ = std::max(options_.maxLocalError, options_.maxLocalErrorRatio * diag);
+  minNormalDot_ = policies_.legality.resolveMinNormalDot();
+  maxLocalError_ = policies_.legality.resolveMaxLocalError(diag);
 
   const int initialActiveEdgeCount =
       static_cast<int>(collectActiveEdges(faces_).size());
@@ -291,8 +277,8 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
       featurePolicy_.isHardProtectedCollapse(edge, vertices_);
   const bool tryFallbackPlacements =
       !featureCurveCollapse &&
-      (options_.minTriangleQuality > 0.0 || maxLocalError_ > 0.0 ||
-       options_.preventLocalIntersections);
+      (policies_.legality.minTriangleQuality > 0.0 || maxLocalError_ > 0.0 ||
+       policies_.legality.preventLocalIntersections);
   CollapseRejectReason firstRejectReason = CollapseRejectReason::None;
   bool sawCurveBudgetReject = false;
   if (acceptFirstLegalPlacement(edge, mergedQ, placements, boundaryDecision,
@@ -335,11 +321,11 @@ bool SimplificationRun::acceptFirstLegalPlacement(
          collapsePosition,
          {faces_, vertices_, *topology_},
          areaEps_,
-         options_.minTriangleQuality,
+         policies_.legality.minTriangleQuality,
          minNormalDot_,
          maxLocalError_,
-         options_.preventLocalIntersections,
-         options_.preventLocalIntersections ? &spatialIndex_ : nullptr});
+         policies_.legality.preventLocalIntersections,
+         policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr});
     if (rejectReason == CollapseRejectReason::None) {
       applyCollapse(edge.keep, edge.remove, collapsePosition, mergedQ);
       if (projected) {
@@ -485,7 +471,7 @@ void SimplificationRun::applyCollapse(int keep, int remove, const Vec3& position
 
   const std::unordered_set<int> affectedFaces =
       collectAffectedFacesForCollapse(keep, remove);
-  if (options_.preventLocalIntersections) {
+  if (policies_.legality.preventLocalIntersections) {
     for (int faceId : affectedFaces) {
       spatialIndex_.removeFace(faceId);
     }
@@ -502,7 +488,7 @@ void SimplificationRun::applyCollapse(int keep, int remove, const Vec3& position
   bumpVersions(keep, remove);
 
   rewriteIncidentFaces(keep, remove);
-  if (options_.preventLocalIntersections) {
+  if (policies_.legality.preventLocalIntersections) {
     for (int faceId : affectedFaces) {
       if (faceId >= 0 && faceId < static_cast<int>(faces_.size()) &&
           faces_[faceId].active) {

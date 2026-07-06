@@ -116,7 +116,9 @@ set(LQ_PUBLIC_HEADERS
   include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h
   include/line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h
   include/line_quadrics_qem/algorithms/simplification/Metrics.h
+  include/line_quadrics_qem/algorithms/simplification/PlainSimplifier.h
   include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h
+  include/line_quadrics_qem/algorithms/simplification/SimplificationTypes.h
   include/line_quadrics_qem/core/Handles.h
   include/line_quadrics_qem/core/Mesh.h
   include/line_quadrics_qem/core/MeshGenerators.h
@@ -135,6 +137,8 @@ set(LQ_LIBRARY_SOURCES
   src/core/PlainMesh.cpp
   src/core/Status.cpp
   src/feature_detection/FeatureDetector.cpp
+  src/feature_detection/NormalTensor.cpp
+  src/feature_detection/PrimitiveFit.cpp
   src/simplification/CandidateQueue.cpp
   src/simplification/CollapseLegality.cpp
   src/simplification/DynamicTopology.cpp
@@ -144,6 +148,7 @@ set(LQ_LIBRARY_SOURCES
   src/simplification/QEMSimplifier.cpp
   src/simplification/Quadrics.cpp
   src/simplification/ResultBuilder.cpp
+  src/simplification/SimplificationPolicies.cpp
   src/simplification/SimplificationRun.cpp
   src/simplification/SimplificationValidation.cpp
   src/simplification/SpatialFaceIndex.cpp
@@ -151,6 +156,10 @@ set(LQ_LIBRARY_SOURCES
 
 set(LQ_COMMON_PRIVATE_HEADERS
   src/common/detail/MeshQueries.h
+)
+
+set(LQ_FEATURE_DETECTION_PRIVATE_HEADERS
+  src/feature_detection/detail/PrimitiveFit.h
 )
 
 set(LQ_SIMPLIFICATION_PRIVATE_HEADERS
@@ -162,6 +171,7 @@ set(LQ_SIMPLIFICATION_PRIVATE_HEADERS
   src/simplification/detail/Quadrics.h
   src/simplification/detail/ResultBuilder.h
   src/simplification/detail/SimplificationConstants.h
+  src/simplification/detail/SimplificationPolicies.h
   src/simplification/detail/SimplificationRun.h
   src/simplification/detail/SimplificationTypes.h
   src/simplification/detail/SimplificationValidation.h
@@ -170,6 +180,7 @@ set(LQ_SIMPLIFICATION_PRIVATE_HEADERS
 
 set(LQ_PRIVATE_HEADERS
   ${LQ_COMMON_PRIVATE_HEADERS}
+  ${LQ_FEATURE_DETECTION_PRIVATE_HEADERS}
   ${LQ_SIMPLIFICATION_PRIVATE_HEADERS}
 )
 
@@ -201,6 +212,10 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/common/detail"
   PREFIX "Common Private Headers"
   FILES ${LQ_COMMON_PRIVATE_HEADERS}
 )
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/feature_detection/detail"
+  PREFIX "Feature Detection Private Headers"
+  FILES ${LQ_FEATURE_DETECTION_PRIVATE_HEADERS}
+)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/simplification/detail"
   PREFIX "Simplification Private Headers"
   FILES ${LQ_SIMPLIFICATION_PRIVATE_HEADERS}
@@ -217,17 +232,7 @@ target_include_directories(line_quadrics_qem
 )
 
 if(TARGET Eigen3::Eigen)
-  target_link_libraries(line_quadrics_qem PRIVATE Eigen3::Eigen)
-  get_target_property(LQ_RESOLVED_EIGEN_INCLUDE_DIRS
-    Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES
-  )
-  if(LQ_RESOLVED_EIGEN_INCLUDE_DIRS)
-    foreach(eigen_include_dir IN LISTS LQ_RESOLVED_EIGEN_INCLUDE_DIRS)
-      target_include_directories(line_quadrics_qem
-        PUBLIC "$<BUILD_INTERFACE:${eigen_include_dir}>"
-      )
-    endforeach()
-  endif()
+  target_link_libraries(line_quadrics_qem PUBLIC Eigen3::Eigen)
 elseif(DEFINED eigen_SOURCE_DIR)
   target_include_directories(line_quadrics_qem PUBLIC "${eigen_SOURCE_DIR}")
 else()

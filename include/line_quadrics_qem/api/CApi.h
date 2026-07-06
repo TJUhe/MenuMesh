@@ -60,7 +60,13 @@ typedef struct LqFace {
 } LqFace;
 
 typedef struct LqSimplifyOptions {
-  /* Must be set by lq_simplify_options_init before calling lq_simplify_mesh. */
+  /*
+   * Must be set by lq_simplify_options_init before calling lq_simplify_mesh.
+   *
+   * The library accepts older trailing struct sizes for the same ABI version;
+   *
+   * fields not present in struct_size keep the library default value.
+   */
   size_t struct_size;
   unsigned int abi_version;
   /* Target selection. target_faces > 0 overrides target_ratio. */

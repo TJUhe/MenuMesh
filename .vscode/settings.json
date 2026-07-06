@@ -3,7 +3,7 @@
   "cmake.configureOnOpen": false,
   "cmake.generator": "Ninja",
   "cmake.buildType": "Release",
-  "cmake.buildDirectory": "${workspaceFolder}/build/mingw-ninja-release",
+  "cmake.buildDirectory": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release",
   "cmake.configureSettings": {
     "CMAKE_C_COMPILER": "gcc",
     "CMAKE_CXX_COMPILER": "g++",
@@ -12,7 +12,7 @@
     "LQ_BUILD_PERFORMANCE_TESTS": "OFF"
   },
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/mingw-ninja-release/compile_commands.json",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/compile_commands.json",
   "C_Cpp.default.compilerPath": "g++",
   "C_Cpp.default.cStandard": "c17",
   "C_Cpp.default.cppStandard": "c++17",

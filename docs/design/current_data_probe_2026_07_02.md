@@ -44,7 +44,7 @@ stepped-shaft, pipe-coupling, pulley
 
 ## 当前测试覆盖
 
-`cmake -E chdir build/mingw-ninja-release ctest -N` 显示当前非性能测试共 74 个，覆盖：
+`cmake -E chdir build/mingw-ninja-release ctest -N` 显示当前非性能测试共 76 个，覆盖：
 
 - CLI 基本行为和错误拒绝。
 - 示例程序构建/运行。
@@ -52,8 +52,8 @@ stepped-shaft, pipe-coupling, pulley
 - normal tensor 特征证据。
 - 三角形质量、法线偏转、局部误差和自交过滤。
 - 边界、拓扑和 feature protection 策略。
-- C++ 对象 API、copy/move 和报告。
-- C ABI 输入校验、结构体初始化和诊断字段。
+- C++ 对象 API、PlainMesh 入口、copy/move 和报告。
+- C ABI 输入校验、结构体初始化、旧尾部 `struct_size` 兼容和诊断字段。
 
 ## 当前数据结论
 

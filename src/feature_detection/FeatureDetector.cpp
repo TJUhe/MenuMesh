@@ -1,8 +1,8 @@
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"
+#include "detail/PrimitiveFit.h"
 
-#include <Eigen/Eigenvalues>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -22,6 +22,11 @@ namespace {
 
 constexpr double kPi = 3.141592653589793238462643383279502884;
 
+using feature_detection_detail::applyPrimitiveFit;
+using feature_detection_detail::cycleEdgesFollowCircle;
+using feature_detection_detail::fitPrimitive;
+using feature_detection_detail::PrimitiveFit;
+
 struct CandidateEdge {
   int a = -1;
   int b = -1;
@@ -31,41 +36,6 @@ struct CandidateEdge {
   bool nonManifold = false;
   int signedKind = 0;
   double angleRad = 0.0;
-};
-
-struct PrimitiveFit {
-  bool valid = false;
-  FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
-  Vec3 center = Vec3::Zero();
-  Vec3 normal = Vec3(0.0, 0.0, 1.0);
-  Vec3 majorAxis = Vec3(1.0, 0.0, 0.0);
-  Vec3 minorAxis = Vec3(0.0, 1.0, 0.0);
-  double radius = 0.0;
-  double majorRadius = 0.0;
-  double minorRadius = 0.0;
-  double axisRatio = 0.0;
-  double rmsRadialError = 0.0;
-  double maxRadialError = 0.0;
-  double rmsEllipseError = 0.0;
-  double maxEllipseError = 0.0;
-  double rmsPlaneError = 0.0;
-  double maxPlaneError = 0.0;
-};
-
-struct LoopFitFrame {
-  bool valid = false;
-  Vec3 mean = Vec3::Zero();
-  Vec3 normal = Vec3(0.0, 0.0, 1.0);
-  Vec3 majorAxis = Vec3(1.0, 0.0, 0.0);
-  Vec3 minorAxis = Vec3(0.0, 1.0, 0.0);
-};
-
-struct PlaneCircleFit {
-  bool valid = false;
-  Vec3 center = Vec3::Zero();
-  double radius = 0.0;
-  double majorRadius = 0.0;
-  double minorRadius = 0.0;
 };
 
 struct TraceGraph {
@@ -114,25 +84,6 @@ int signedDihedralKind(const Mesh& mesh, const std::vector<Vec3>& normals,
   }
   const bool normalsPointTowardEachOther = side0 > 0.0 && side1 > 0.0;
   return normalsPointTowardEachOther ? -1 : 1;
-}
-
-NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
-  NormalTensorVertex result;
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(tensor);
-  if (eig.info() != Eigen::Success) {
-    return result;
-  }
-
-  const double l0 = std::max(0.0, eig.eigenvalues()(2));
-  const double l1 = std::max(0.0, eig.eigenvalues()(1));
-  const double l2 = std::max(0.0, eig.eigenvalues()(0));
-  result.normal = eig.eigenvectors().col(2).normalized();
-  result.creaseTangent = eig.eigenvectors().col(0).normalized();
-  result.surfaceSaliency = std::max(0.0, l0 - l1);
-  result.creaseSaliency = std::max(0.0, l1 - l2);
-  result.cornerSaliency = l2;
-  result.featureScore = std::max(result.creaseSaliency, result.cornerSaliency);
-  return result;
 }
 
 bool normalTensorEdgeCandidate(const CandidateEdge& edge,
@@ -242,218 +193,6 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
     }
   }
   return result;
-}
-
-LoopFitFrame fitLoopFrame(const Mesh& mesh, const FeatureLoop& loop) {
-  LoopFitFrame frame;
-  Vec3 mean = Vec3::Zero();
-  for (int id : loop.vertices) {
-    mean += mesh.vertices[id];
-  }
-  mean /= static_cast<double>(loop.vertices.size());
-
-  Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero();
-  for (int id : loop.vertices) {
-    const Vec3 d = mesh.vertices[id] - mean;
-    covariance += d * d.transpose();
-  }
-
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(covariance);
-  if (eig.info() != Eigen::Success) {
-    return frame;
-  }
-
-  Vec3 normal = eig.eigenvectors().col(0).normalized();
-  Vec3 u = eig.eigenvectors().col(2).normalized();
-  Vec3 v = normal.cross(u).normalized();
-  if (u.norm() <= 1e-20 || v.norm() <= 1e-20) {
-    return frame;
-  }
-
-  frame.valid = true;
-  frame.mean = mean;
-  frame.normal = normal;
-  frame.majorAxis = u;
-  frame.minorAxis = v;
-  return frame;
-}
-
-PlaneCircleFit solvePlaneCircle(const Mesh& mesh, const FeatureLoop& loop,
-                                const LoopFitFrame& frame) {
-  PlaneCircleFit circle;
-  Eigen::Matrix3d ata = Eigen::Matrix3d::Zero();
-  Eigen::Vector3d atb = Eigen::Vector3d::Zero();
-  double majorSq = 0.0;
-  double minorSq = 0.0;
-  for (int id : loop.vertices) {
-    const Vec3 d = mesh.vertices[id] - frame.mean;
-    const double x = d.dot(frame.majorAxis);
-    const double y = d.dot(frame.minorAxis);
-    majorSq += x * x;
-    minorSq += y * y;
-    Eigen::Vector3d row(2.0 * x, 2.0 * y, 1.0);
-    ata += row * row.transpose();
-    atb += row * (x * x + y * y);
-  }
-
-  Eigen::LDLT<Eigen::Matrix3d> ldlt(ata);
-  if (ldlt.info() != Eigen::Success) {
-    return circle;
-  }
-
-  const Eigen::Vector3d solution = ldlt.solve(atb);
-  if (!solution.allFinite()) {
-    return circle;
-  }
-
-  const double cx = solution.x();
-  const double cy = solution.y();
-  const double radiusSq = solution.z() + cx * cx + cy * cy;
-  if (radiusSq <= 1e-24 || !std::isfinite(radiusSq)) {
-    return circle;
-  }
-
-  const double invN = 1.0 / static_cast<double>(loop.vertices.size());
-  const double majorRadius = std::sqrt(std::max(0.0, 2.0 * majorSq * invN));
-  const double minorRadius = std::sqrt(std::max(0.0, 2.0 * minorSq * invN));
-  if (majorRadius <= 1e-20 || minorRadius <= 1e-20) {
-    return circle;
-  }
-
-  circle.valid = true;
-  circle.center = frame.mean + cx * frame.majorAxis + cy * frame.minorAxis;
-  circle.radius = std::sqrt(radiusSq);
-  circle.majorRadius = majorRadius;
-  circle.minorRadius = minorRadius;
-  return circle;
-}
-
-void measurePrimitiveFitErrors(const Mesh& mesh, const FeatureLoop& loop,
-                               const LoopFitFrame& frame, PrimitiveFit& fit) {
-  const double invN = 1.0 / static_cast<double>(loop.vertices.size());
-  double radialSq = 0.0;
-  double planeSq = 0.0;
-  double ellipseSq = 0.0;
-  double radialMax = 0.0;
-  double planeMax = 0.0;
-  double ellipseMax = 0.0;
-  for (int id : loop.vertices) {
-    const Vec3 d = mesh.vertices[id] - fit.center;
-    const double plane = d.dot(frame.normal);
-    const Vec3 inPlane = d - plane * frame.normal;
-    const double radial = inPlane.norm() - fit.radius;
-    radialSq += radial * radial;
-    planeSq += plane * plane;
-    radialMax = std::max(radialMax, std::abs(radial));
-    planeMax = std::max(planeMax, std::abs(plane));
-
-    const Vec3 de = mesh.vertices[id] - frame.mean;
-    const double ex = de.dot(frame.majorAxis);
-    const double ey = de.dot(frame.minorAxis);
-    const double ellipse = (std::sqrt((ex * ex) / (fit.majorRadius * fit.majorRadius) +
-                                      (ey * ey) / (fit.minorRadius * fit.minorRadius)) -
-                            1.0) *
-                           std::sqrt(fit.majorRadius * fit.minorRadius);
-    ellipseSq += ellipse * ellipse;
-    ellipseMax = std::max(ellipseMax, std::abs(ellipse));
-  }
-
-  fit.rmsRadialError = std::sqrt(radialSq * invN);
-  fit.maxRadialError = radialMax;
-  fit.rmsEllipseError = std::sqrt(ellipseSq * invN);
-  fit.maxEllipseError = ellipseMax;
-  fit.rmsPlaneError = std::sqrt(planeSq * invN);
-  fit.maxPlaneError = planeMax;
-}
-
-void classifyPrimitiveFit(const FeatureOptions& options, PrimitiveFit& fit) {
-  const double relRms =
-      (fit.rmsRadialError + fit.rmsPlaneError) / std::max(1e-12, fit.radius);
-  const double relMax =
-      std::max(fit.maxRadialError, fit.maxPlaneError) / std::max(1e-12, fit.radius);
-  const bool circleFit =
-      relRms <= options.circleFitRelativeThreshold &&
-      relMax <= std::max(3.0 * options.circleFitRelativeThreshold, 0.08);
-
-  const double ellipseScale =
-      std::max(1e-12, std::sqrt(fit.majorRadius * fit.minorRadius));
-  const double ellipseRelRms = (fit.rmsEllipseError + fit.rmsPlaneError) / ellipseScale;
-  const double ellipseRelMax =
-      std::max(fit.maxEllipseError, fit.maxPlaneError) / ellipseScale;
-  const bool ellipseFit =
-      ellipseRelRms <= options.ellipseFitRelativeThreshold &&
-      ellipseRelMax <= std::max(3.0 * options.ellipseFitRelativeThreshold, 0.08);
-
-  if (circleFit) {
-    const double axisError = std::abs(1.0 - fit.axisRatio);
-    if (axisError <= std::min(0.01, 0.25 * options.nearCircleAxisRatioTolerance)) {
-      fit.primitive = FeaturePrimitiveType::Circle;
-    } else if (axisError <= options.nearCircleAxisRatioTolerance) {
-      fit.primitive = FeaturePrimitiveType::NearCircle;
-    } else {
-      fit.primitive = FeaturePrimitiveType::Ellipse;
-    }
-  } else if (ellipseFit) {
-    fit.primitive =
-        std::abs(1.0 - fit.axisRatio) <= options.nearCircleAxisRatioTolerance
-            ? FeaturePrimitiveType::NearCircle
-            : FeaturePrimitiveType::Ellipse;
-  } else {
-    fit.primitive = FeaturePrimitiveType::PolygonalLoop;
-  }
-}
-
-PrimitiveFit fitPrimitive(const Mesh& mesh, const FeatureLoop& loop,
-                          const FeatureOptions& options) {
-  PrimitiveFit fit;
-  if (loop.vertices.size() < 5) {
-    return fit;
-  }
-
-  const LoopFitFrame frame = fitLoopFrame(mesh, loop);
-  if (!frame.valid) {
-    return fit;
-  }
-  const PlaneCircleFit circle = solvePlaneCircle(mesh, loop, frame);
-  if (!circle.valid) {
-    return fit;
-  }
-
-  fit.valid = true;
-  fit.center = circle.center;
-  fit.normal = frame.normal;
-  fit.majorAxis = frame.majorAxis;
-  fit.minorAxis = frame.minorAxis;
-  fit.radius = circle.radius;
-  fit.majorRadius = circle.majorRadius;
-  fit.minorRadius = circle.minorRadius;
-  fit.axisRatio = circle.minorRadius / std::max(1e-12, circle.majorRadius);
-  measurePrimitiveFitErrors(mesh, loop, frame, fit);
-  classifyPrimitiveFit(options, fit);
-  return fit;
-}
-
-void applyPrimitiveFit(const PrimitiveFit& fit, FeatureLoop& loop) {
-  if (!fit.valid) {
-    return;
-  }
-  loop.primitive = fit.primitive;
-  loop.circular = fit.primitive == FeaturePrimitiveType::Circle ||
-                  fit.primitive == FeaturePrimitiveType::NearCircle;
-  loop.center = fit.center;
-  loop.normal = fit.normal;
-  loop.majorAxis = fit.majorAxis;
-  loop.minorAxis = fit.minorAxis;
-  loop.radius = fit.radius;
-  loop.majorRadius = fit.majorRadius;
-  loop.minorRadius = fit.minorRadius;
-  loop.axisRatio = fit.axisRatio;
-  loop.rmsRadialError = fit.rmsRadialError;
-  loop.maxRadialError = fit.maxRadialError;
-  loop.rmsEllipseError = fit.rmsEllipseError;
-  loop.maxEllipseError = fit.maxEllipseError;
-  loop.rmsPlaneError = fit.rmsPlaneError;
-  loop.maxPlaneError = fit.maxPlaneError;
 }
 
 Vec3 fallbackTangentFromNeighbors(int id, const std::vector<int>& neighbors,
@@ -579,32 +318,6 @@ bool cycleHasUniqueVertices(const std::vector<int>& vertices) {
   seen.reserve(vertices.size());
   for (int id : vertices) {
     if (!seen.insert(id).second) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool cycleEdgesFollowCircle(const std::vector<int>& vertices, const PrimitiveFit& fit,
-                            const Mesh& mesh, const FeatureOptions& options) {
-  if (!fit.valid ||
-      (fit.primitive != FeaturePrimitiveType::Circle &&
-       fit.primitive != FeaturePrimitiveType::NearCircle) ||
-      fit.radius <= 1e-20 || fit.normal.norm() <= 1e-20) {
-    return false;
-  }
-
-  Vec3 normal = fit.normal.normalized();
-  const double allowed =
-      std::max(3.0 * options.circleFitRelativeThreshold, 0.08) * fit.radius;
-  for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
-    const Vec3 midpoint = 0.5 * (mesh.vertices[vertices[i]] +
-                                 mesh.vertices[vertices[(i + 1) % vertices.size()]]);
-    const Vec3 delta = midpoint - fit.center;
-    const double plane = std::abs(delta.dot(normal));
-    const Vec3 inPlane = delta - normal * delta.dot(normal);
-    const double radial = std::abs(inPlane.norm() - fit.radius);
-    if (std::max(radial, plane) > allowed) {
       return false;
     }
   }
@@ -1401,77 +1114,6 @@ FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const {
   return detectFeatureCurves(mesh, impl_->options);
 }
 
-std::vector<NormalTensorVertex>
-computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options) {
-  std::vector<NormalTensorVertex> result(mesh.vertices.size());
-  if (mesh.empty()) {
-    return result;
-  }
-
-  std::vector<Eigen::Matrix3d> tensors(mesh.vertices.size(), Eigen::Matrix3d::Zero());
-  std::vector<double> weights(mesh.vertices.size(), 0.0);
-  for (const Face& face : mesh.faces) {
-    const Vec3& a = mesh.vertices[face.v[0]];
-    const Vec3& b = mesh.vertices[face.v[1]];
-    const Vec3& c = mesh.vertices[face.v[2]];
-    const Vec3 normal = triangleNormal(a, b, c);
-    const double area = triangleArea(a, b, c);
-    if (normal.norm() <= 1e-20 || area <= 1e-24) {
-      continue;
-    }
-    const Eigen::Matrix3d tensor = normal * normal.transpose();
-    for (int id : face.v) {
-      tensors[id] += area * tensor;
-      weights[id] += area;
-    }
-  }
-
-  for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
-    if (weights[i] > 1e-24) {
-      tensors[i] /= weights[i];
-    }
-  }
-
-  const std::vector<std::vector<int>> neighbors = detail::buildVertexNeighbors(mesh);
-  const int baseIterations = std::clamp(options.smoothingIterations, 0, 8);
-  const int scaleCount = std::clamp(options.scaleCount, 1, 8);
-
-  auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current) {
-    std::vector<Eigen::Matrix3d> next = tensors;
-    next = current;
-    for (int i = 0; i < static_cast<int>(current.size()); ++i) {
-      if (neighbors[i].empty()) {
-        continue;
-      }
-      Eigen::Matrix3d sum = current[i];
-      double count = 1.0;
-      for (int nb : neighbors[i]) {
-        sum += current[nb];
-        count += 1.0;
-      }
-      next[i] = sum / count;
-    }
-    current.swap(next);
-  };
-
-  for (int iter = 0; iter < baseIterations; ++iter) {
-    smoothOnce(tensors);
-  }
-
-  for (int scale = 0; scale < scaleCount; ++scale) {
-    for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
-      const NormalTensorVertex candidate = analyzeNormalTensor(tensors[i]);
-      if (scale == 0 || candidate.featureScore > result[i].featureScore) {
-        result[i] = candidate;
-      }
-    }
-    if (scale + 1 < scaleCount) {
-      smoothOnce(tensors);
-    }
-  }
-  return result;
-}
-
 FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options) {
   FeatureAnalysis analysis;
   analysis.vertices.assign(mesh.vertices.size(), VertexFeature{});
@@ -1519,33 +1161,8 @@ DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
                                                const FeatureLoop& loop,
                                                const Vec3& center, const Vec3& normalIn,
                                                double radius) {
-  DirectionalCurveError error;
-  Vec3 normal = normalIn;
-  if (normal.norm() <= 1e-20 || radius <= 1e-20) {
-    return error;
-  }
-  normal.normalize();
-
-  for (int id : loop.vertices) {
-    if (id < 0 || id >= static_cast<int>(mesh.vertices.size())) {
-      continue;
-    }
-    const Vec3 d = mesh.vertices[id] - center;
-    const double plane = d.dot(normal);
-    const Vec3 inPlane = d - plane * normal;
-    const double radial = inPlane.norm() - radius;
-    error.radialRms += radial * radial;
-    error.planeRms += plane * plane;
-    error.radialMax = std::max(error.radialMax, std::abs(radial));
-    error.planeMax = std::max(error.planeMax, std::abs(plane));
-    ++error.samples;
-  }
-  if (error.samples > 0) {
-    const double inv = 1.0 / static_cast<double>(error.samples);
-    error.radialRms = std::sqrt(error.radialRms * inv);
-    error.planeRms = std::sqrt(error.planeRms * inv);
-  }
-  return error;
+  return feature_detection_detail::measureLoopAgainstCircle(mesh, loop, center,
+                                                            normalIn, radius);
 }
 
 std::string featureReportHeaderCsv() {

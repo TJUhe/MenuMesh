@@ -49,3 +49,223 @@ Get-ChildItem build\mingw-ninja-release\bin\*.dll
 ```
 
 如果 `where g++` 和实际希望使用的 MinGW 不一致，先修正 `PATH`，删除或重新配置 `build/mingw-ninja-release`，再重新构建。
+
+
+[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release 
+[main] 正在配置项目: line-quadrics-qem 
+[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\gcc.exe -DCMAKE_CXX_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\g++.exe -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_MAKEFILE=on --no-warn-unused-cli -SC:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem -Bc:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release -G Ninja
+[cmake] Not searching for unused variables given on the command line.
+[cmake] -- Configuring done
+[cmake] -- Generating done
+[cmake] -- Build files have been written to: C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[build] 正在启动生成
+[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target performance-tests --
+[build] [1/2   0% :: 0.008] Re-checking globbed directories...
+[build] [1/4  25% :: 1.145] Copying MinGW runtime dependencies
+[build] [2/4  50% :: 12.977] Building CXX object tests/CMakeFiles/line_quadrics_qem_performance_tests.dir/qem_dataset_tests.cpp.obj
+[build] [3/4  75% :: 13.777] Linking CXX executable bin\line_quadrics_qem_performance_tests.exe
+[build] [4/4 100% :: 14.025] Running large mesh performance tests
+[build] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests
+[build] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+[build]   Error running test executable.
+[build] 
+[build]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
+[build]     Result: Exit code 0xc0000139
+[build] 
+[build]   
+[build] 
+[build]     Output:
+[build]       
+[build] 
+[build] Call Stack (most recent call first):
+[build]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
+[build]   CTestTestfile.cmake:7 (include)
+[build] 
+[build] 
+[build] No tests were found!!!
+[driver] 生成完毕: 00:00:14.308
+[build] 生成已完成，退出代码为 0
+[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release linequadrics_c_api_basic, line_quadrics_qem_performance_tests
+[build] 正在启动生成
+[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target linequadrics_c_api_basic line_quadrics_qem_performance_tests --
+[build] [1/2   0% :: 0.005] Re-checking globbed directories...
+[build] ninja: error: unknown target 'line_quadrics_qem_performance_tests'
+[proc] 命令“"D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target linequadrics_c_api_basic line_quadrics_qem_performance_tests --”已退出，代码为 1
+[driver] 生成完毕: 00:00:00.467
+[build] 生成已完成，退出代码为 1
+
+[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release 
+[build] 正在启动生成
+[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target linequadrics_c_api_basic --
+[build] [1/2   0% :: 0.006] Re-checking globbed directories...
+[build] [1/1 100% :: 1.011] Copying MinGW runtime dependencies
+[driver] 生成完毕: 00:00:01.330
+[build] 生成已完成，退出代码为 0
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_help$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+[ctest]   Error running test executable.
+[ctest] 
+[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
+[ctest]     Result: Exit code 0xc0000139
+[ctest] 
+[ctest]   
+[ctest] 
+[ctest]     Output:
+[ctest]       
+[ctest] 
+[ctest] Call Stack (most recent call first):
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
+[ctest]   CTestTestfile.cmake:16 (subdirs)
+[ctest] 
+[ctest]     Start 1: linequadrics_cli_help
+[ctest] 
+[ctest] 1/1 Test #1: linequadrics_cli_help ............   Passed    0.08 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.16 sec
+[ctest] CTest 已完成，返回代码 0
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_rejects_unknown_option$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+[ctest]   Error running test executable.
+[ctest] 
+[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
+[ctest]     Result: Exit code 0xc0000139
+[ctest] 
+[ctest]   
+[ctest] 
+[ctest]     Output:
+[ctest]       
+[ctest] 
+[ctest] Call Stack (most recent call first):
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
+[ctest]   CTestTestfile.cmake:16 (subdirs)
+[ctest] 
+[ctest] 
+[ctest]     Start 2: linequadrics_cli_rejects_unknown_option
+[ctest] 1/1 Test #2: linequadrics_cli_rejects_unknown_option ...   Passed    0.10 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.19 sec
+[ctest] CTest 已完成，返回代码 0
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_rejects_missing_option_value$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+[ctest]   Error running test executable.
+[ctest] 
+[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
+[ctest]     Result: Exit code 0xc0000139
+[ctest] 
+[ctest]   
+[ctest] 
+[ctest]     Output:
+[ctest]       
+[ctest] 
+[ctest] Call Stack (most recent call first):
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
+[ctest]   CTestTestfile.cmake:16 (subdirs)
+[ctest] 
+[ctest] 
+[ctest]     Start 3: linequadrics_cli_rejects_missing_option_value
+[ctest] 1/1 Test #3: linequadrics_cli_rejects_missing_option_value ...   Passed    0.09 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.16 sec
+[ctest] CTest 已完成，返回代码 0
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_rejects_malformed_number$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+[ctest]   Error running test executable.
+[ctest] 
+[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
+[ctest]     Result: Exit code 0xc0000139
+[ctest] 
+[ctest]   
+[ctest] 
+[ctest]     Output:
+[ctest]       
+[ctest] 
+[ctest] Call Stack (most recent call first):
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
+[ctest]   CTestTestfile.cmake:16 (subdirs)
+[ctest] 
+[ctest] 
+[ctest]     Start 4: linequadrics_cli_rejects_malformed_number
+[ctest] 1/1 Test #4: linequadrics_cli_rejects_malformed_number ...   Passed    0.12 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.23 sec
+[ctest] CTest 已完成，返回代码 0
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_example_basic_simplify$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+[ctest]   Error running test executable.
+[ctest] 
+[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
+[ctest]     Result: Exit code 0xc0000139
+[ctest] 
+[ctest]   
+[ctest] 
+[ctest]     Output:
+[ctest]       
+[ctest] 
+[ctest]     Start 5: linequadrics_example_basic_simplify
+[ctest] Call Stack (most recent call first):
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
+[ctest]   CTestTestfile.cmake:16 (subdirs)
+[ctest] 
+[ctest] 
+[ctest] 1/1 Test #5: linequadrics_example_basic_simplify ...   Passed    0.13 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.22 sec
+[ctest] CTest 已完成，返回代码 0
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_example_c_api_basic$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+[ctest]   Error running test executable.
+[ctest] 
+[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
+[ctest]     Result: Exit code 0xc0000139
+[ctest] 
+[ctest]   
+[ctest] 
+[ctest]     Output:
+[ctest]       
+[ctest] 
+[ctest] Call Stack (most recent call first):
+[ctest]     Start 6: linequadrics_example_c_api_basic
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
+[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
+[ctest]   CTestTestfile.cmake:16 (subdirs)
+[ctest] 
+[ctest] 
+[ctest] 1/1 Test #6: linequadrics_example_c_api_basic ...   Passed    0.10 sec
+[ctest] 
+[ctest] 100% tests passed, 0 tests failed out of 1
+[ctest] 
+[ctest] Total Test time (real) =   0.24 sec
+[ctest] CTest 已完成，返回代码 0

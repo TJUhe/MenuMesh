@@ -176,7 +176,7 @@ cmake --build build\mingw-ninja-release --parallel
 
 <h3 id="p1-3">1.3 验证构建</h3>
 <pre><code># ① CTest 通过
-ctest --test-dir build\mingw-ninja-release -C Release -LE performance --output-on-failure
+cmake -E chdir build\mingw-ninja-release ctest -C Release -LE performance --output-on-failure
 
 # ② 生成+简化测试
 .\build\mingw-ninja-release\bin\linequadrics.exe generate --type clustered-plane --n 36 --out test.stl

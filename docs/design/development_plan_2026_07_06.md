@@ -33,7 +33,7 @@
 
 ## 风险控制
 
-- 每次算法改动至少跑 `ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure`。
+- 每次算法改动至少跑 `cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure`。
 - 涉及 performance fixture 时单独启用 `LQ_BUILD_PERFORMANCE_TESTS=ON`。
 - 不在公共头中暴露 `src/.../detail/...` 类型。
 - C ABI 结构体增加字段时只向后追加，并保持 `struct_size` 检查。

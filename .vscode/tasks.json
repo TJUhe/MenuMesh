@@ -692,10 +692,12 @@
     {
       "label": "test: mingw+ninja debug",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/mingw-ninja-debug",
+        "ctest",
         "-LE",
         "performance",
         "--output-on-failure"
@@ -706,10 +708,12 @@
     {
       "label": "test: mingw+ninja release",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/mingw-ninja-release",
+        "ctest",
         "-LE",
         "performance",
         "--output-on-failure"
@@ -720,10 +724,12 @@
     {
       "label": "test: mingw+ninja debug performance",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/mingw-ninja-debug-performance",
+        "ctest",
         "-L",
         "performance",
         "--output-on-failure"
@@ -734,10 +740,12 @@
     {
       "label": "test: mingw+ninja release performance",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/mingw-ninja-release-performance",
+        "ctest",
         "-L",
         "performance",
         "--output-on-failure"
@@ -748,10 +756,12 @@
     {
       "label": "test: msvc+vs2022 debug",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2022",
+        "ctest",
         "-C",
         "Debug",
         "-LE",
@@ -764,10 +774,12 @@
     {
       "label": "test: msvc+vs2022 release",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2022",
+        "ctest",
         "-C",
         "Release",
         "-LE",
@@ -780,10 +792,12 @@
     {
       "label": "test: msvc+vs2022 debug performance",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2022-performance",
+        "ctest",
         "-C",
         "Debug",
         "-L",
@@ -796,10 +810,12 @@
     {
       "label": "test: msvc+vs2022 release performance",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2022-performance",
+        "ctest",
         "-C",
         "Release",
         "-L",
@@ -812,10 +828,12 @@
     {
       "label": "test: msvc+vs2019 debug",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2019",
+        "ctest",
         "-C",
         "Debug",
         "-LE",
@@ -828,10 +846,12 @@
     {
       "label": "test: msvc+vs2019 release",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2019",
+        "ctest",
         "-C",
         "Release",
         "-LE",
@@ -844,10 +864,12 @@
     {
       "label": "test: msvc+vs2019 debug performance",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2019-performance",
+        "ctest",
         "-C",
         "Debug",
         "-L",
@@ -860,10 +882,12 @@
     {
       "label": "test: msvc+vs2019 release performance",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "build/msvc-vs2019-performance",
+        "ctest",
         "-C",
         "Release",
         "-L",
@@ -876,10 +900,12 @@
     {
       "label": "test: msvc custom debug",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "${input:msvcCustomBuildDir}",
+        "ctest",
         "-C",
         "Debug",
         "-LE",
@@ -892,10 +918,12 @@
     {
       "label": "test: msvc custom release",
       "type": "process",
-      "command": "ctest",
+      "command": "cmake",
       "args": [
-        "--test-dir",
+        "-E",
+        "chdir",
         "${input:msvcCustomBuildDir}",
+        "ctest",
         "-C",
         "Release",
         "-LE",

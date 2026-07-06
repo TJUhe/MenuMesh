@@ -780,7 +780,7 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 
 <p>如果只想验证程序没有被改坏，直接跑 CTest：</p>
 
-<pre><code>ctest --test-dir build\mingw-ninja-debug --output-on-failure</code></pre>
+<pre><code>cmake -E chdir build\mingw-ninja-debug ctest --output-on-failure</code></pre>
 
 <p>当前结果为：</p>
 

@@ -24,7 +24,7 @@ cmake -S . -B build/mingw-ninja-release -G Ninja `
   -DCMAKE_CXX_COMPILER=g++ `
   -DLQ_BUILD_PERFORMANCE_TESTS=OFF
 cmake --build build/mingw-ninja-release --parallel
-ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
+cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
 ```
 
 性能测试需要单独配置：
@@ -36,7 +36,7 @@ cmake -S . -B build/mingw-ninja-debug-performance -G Ninja `
   -DCMAKE_CXX_COMPILER=g++ `
   -DLQ_BUILD_PERFORMANCE_TESTS=ON
 cmake --build build/mingw-ninja-debug-performance --target line_quadrics_qem_performance_tests --parallel
-ctest --test-dir build/mingw-ninja-debug-performance -L performance --output-on-failure
+cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output-on-failure
 ```
 
 ## 手动抽样命令

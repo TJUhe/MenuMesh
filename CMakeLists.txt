@@ -702,13 +702,13 @@ if(LQ_ENABLE_INSTALL)
   endif()
 
   add_custom_target(sdk-consumer-test
-    COMMAND "${CMAKE_COMMAND}" -E rm -rf "${LQ_SDK_CONSUMER_BUILD_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E remove_directory "${LQ_SDK_CONSUMER_BUILD_DIR}"
     COMMAND "${CMAKE_COMMAND}" ${LQ_SDK_CONSUMER_CONFIGURE_ARGS}
     COMMAND "${CMAKE_COMMAND}" --build "${LQ_SDK_CONSUMER_BUILD_DIR}"
       --config "$<CONFIG>"
       --parallel
-    COMMAND "${CMAKE_CTEST_COMMAND}" --test-dir "${LQ_SDK_CONSUMER_BUILD_DIR}"
-      -C "$<CONFIG>"
+    COMMAND "${CMAKE_COMMAND}" -E chdir "${LQ_SDK_CONSUMER_BUILD_DIR}"
+      "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
       --output-on-failure
     DEPENDS sdk-install-local
     COMMENT "Building and running examples against the installed SDK"

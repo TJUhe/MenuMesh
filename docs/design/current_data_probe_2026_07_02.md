@@ -44,7 +44,7 @@ stepped-shaft, pipe-coupling, pulley
 
 ## 当前测试覆盖
 
-`ctest --test-dir build/mingw-ninja-release -N` 显示当前非性能测试共 72 个，覆盖：
+`cmake -E chdir build/mingw-ninja-release ctest -N` 显示当前非性能测试共 72 个，覆盖：
 
 - CLI 基本行为和错误拒绝。
 - 示例程序构建/运行。

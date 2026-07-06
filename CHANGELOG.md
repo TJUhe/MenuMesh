@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-07-06
+
+### Changed
+
+- 按 CMake 3.18 兼容语义重做测试注册：GoogleTest 用例由
+  `gtest_add_tests` 从源码静态注册，不再依赖 `gtest_discover_tests`
+  在构建或 CTest 枚举阶段启动测试可执行文件。
+- 将 CMake 自定义测试目标、SDK consumer 测试和 VS Code 测试任务统一为
+  `cmake -E chdir <builddir> ctest ...`，避免使用较新 CTest 才支持的
+  `--test-dir`。
+- 将 SDK consumer 清理步骤改为 `cmake -E remove_directory`，避免使用
+  CMake 3.18 不支持的 `cmake -E rm -rf`。
+- 固定 CMake Tools 默认 MinGW Release 构建目录，并默认关闭性能测试；
+  性能测试继续通过独立的 performance 构建目录和 VS Code 任务运行。
+
+### Verified
+
+- `git pull --ff-only`
+- `.vscode/tasks.json`、`.vscode/launch.json`、`.vscode/settings.json`
+  JSON 解析通过，69 个 task、8 个 launch 配置和 15 个输入项的引用链完整。
+- `cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF`
+- `cmake --build build/mingw-ninja-release --parallel`
+- `cmake -E chdir build/mingw-ninja-release ctest -N`
+- `cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure`
+- `cmake -S . -B build/mingw-ninja-release-performance -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=ON`
+- `cmake --build build/mingw-ninja-release-performance --target performance-tests --parallel`
+- `cmake -S . -B build/mingw-ninja-release-sdk -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF -DLQ_ENABLE_INSTALL=ON -DLQ_INSTALL_CMAKE_CONFIG=ON`
+- `cmake --build build/mingw-ninja-release-sdk --target sdk-consumer-test --parallel`
+
 ## 2026-07-05
 
 ### Added
@@ -81,7 +110,7 @@
 - Deleted `build/`, then configured with
   `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_ENABLE_INSTALL=ON -DLQ_GOOGLETEST_PROVIDER=prebuilt -DLQ_EIGEN_PROVIDER=vendored`
 - `cmake --build build --parallel`
-- `ctest --test-dir build -C Release --output-on-failure`
+- `cmake -E chdir build ctest -C Release --output-on-failure`
 - `.\build\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000 --input-dir tests\output\generated_inputs --output-dir tests\output\feature_curve_validation`
 - Feature-policy validation under `tests/output/feature_policy_validation/`:
   `primitive-curves` reached target on `nasa_mars2020_wheel` at 9066 faces with
@@ -144,7 +173,7 @@
 
 ### Verified
 
-- `ctest --test-dir build\\mingw-ninja-debug --output-on-failure`
+- `cmake -E chdir build\\mingw-ninja-debug ctest --output-on-failure`
 - `cmake --build build\\mingw-ninja-release --target linequadrics --parallel`
 - `linequadrics feature-report tests\\data\\feature_fixtures\\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv examples\\output\\vscode_demo\\coaxial_hole_plate\\feature_report\\features.csv`
 - `linequadrics simplify tests\\data\\feature_fixtures\\coaxial_hole_plate.obj examples\\output\\vscode_demo\\coaxial_hole_plate\\feature-curves_r0_50\\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv examples\\output\\vscode_demo\\coaxial_hole_plate\\feature-curves_r0_50\\metrics.csv`

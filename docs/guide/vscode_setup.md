@@ -93,14 +93,14 @@ cmake --build build/mingw-ninja-release --parallel
 运行非性能测试：
 
 ```powershell
-ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
+cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
 ```
 
 ## Windows MinGW 运行时说明
 
-Release 全量构建会生成测试程序。GoogleTest 的测试发现阶段需要启动测试可执行文件，因此 Windows 上必须能找到当前 MinGW 工具链对应的运行时 DLL，例如 `libstdc++-6.dll`、`libgcc_s_*.dll`、`libwinpthread-1.dll`。
+Release 全量构建会生成测试程序。当前 CMake 配置使用 `gtest_add_tests` 从源码静态注册 GoogleTest 用例，不再使用需要启动测试 exe 的 `gtest_discover_tests`。这样 CTest 运行单个 CLI 或示例测试时，不会因为另一个 GoogleTest exe 的运行时 DLL 问题而提前报错。
 
-仓库的 CMake 会把当前 `CMAKE_CXX_COMPILER` 所在目录中的 MinGW 运行时 DLL 复制到构建目录的 `bin` 下，并把 GoogleTest 预编译包中的 `libgtest.dll`、`libgtest_main.dll` 也复制到同一目录。这样可以避免测试程序启动时从系统 `PATH` 中捡到不匹配的 DLL。
+仓库的 CMake 仍会把当前 `CMAKE_CXX_COMPILER` 所在目录中的 MinGW 运行时 DLL 复制到构建目录的 `bin` 下，并把 GoogleTest 预编译包中的 `libgtest.dll`、`libgtest_main.dll` 也复制到同一目录。这样可以避免真正运行 GoogleTest exe 时从系统 `PATH` 中捡到不匹配的 DLL。
 
 如果另一台机器仍然出现 `0xc0000139`，优先检查：
 

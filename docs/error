@@ -13,13 +13,25 @@ CMake Error at .../GoogleTestAddTests.cmake:77 (message):
 
 `0xc0000139` 表示测试可执行文件启动时动态库符号解析失败，常见原因是 Windows 从 `PATH` 中加载到了错误版本的 MinGW 运行时 DLL，或测试 exe 所在目录缺少当前编译器对应的 `libstdc++-6.dll`、`libgcc_s_*.dll`、`libwinpthread-1.dll`。
 
-## 当前修复
+## 旧修复
 
 已在 `b81a45d` 中修复并推送：
 
 - CMake 会根据 `CMAKE_CXX_COMPILER` 所在目录收集 MinGW 运行时 DLL，并通过全局目标 `lq_mingw_runtime_dependencies` 复制到构建目录 `bin`。
 - GoogleTest 的 `gtest_discover_tests` 改为 `DISCOVERY_MODE PRE_TEST`，避免 Release 全量构建阶段因为测试发现提前启动 exe 而失败。
 - `docs/guide/vscode_setup.md` 已补充中文排查步骤。
+
+后续外部机器日志证明这个修复仍不完整：在 CMake 3.18 下，即使只运行 CLI 过滤测试或 `performance-tests` 目标，CTest 读取 `CTestTestfile.cmake` 时仍会 include `gtest_discover_tests` 生成的脚本，并尝试启动普通单元测试 exe。只要该 exe 的 MinGW/GoogleTest DLL 存在符号解析问题，就会反复输出 `0xc0000139`，污染与当前过滤项无关的测试。
+
+## 当前修复
+
+项目已经整体按 CMake 3.18 兼容方式调整：
+
+- 不再使用 `gtest_discover_tests`，改为 `gtest_add_tests` 从源码静态注册 GoogleTest 用例。CTest 枚举测试时不再启动任何测试 exe。
+- 自定义目标 `unit-tests`、`performance-tests`、`sdk-consumer-test` 不再使用较新 CTest 的 `--test-dir`，统一改为 `cmake -E chdir <builddir> ctest ...`。
+- `sdk-consumer-test` 不再使用 `cmake -E rm -rf`，改为 CMake 3.18 可用的 `cmake -E remove_directory`。
+- VS Code `tasks.json` 里的所有测试任务也统一用 `cmake -E chdir <builddir> ctest ...`。
+- CMake Tools 默认工作区设置固定普通 Release 构建树，并显式设置 `LQ_BUILD_PERFORMANCE_TESTS=OFF`；性能测试继续使用专门的 VS Code performance 构建任务。
 
 ## 当前验证命令
 
@@ -31,10 +43,20 @@ cmake -S . -B build/mingw-ninja-release -G Ninja `
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
   -DLQ_BUILD_PERFORMANCE_TESTS=OFF
 cmake --build build/mingw-ninja-release --parallel
-ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
+cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
 ```
 
-本机验证结果：Release 全量构建通过，非性能测试 72/72 通过。
+本机验证结果：
+
+- `git pull --ff-only`：远端已是最新。
+- `.vscode/tasks.json`、`.vscode/launch.json`、`.vscode/settings.json`：JSON 解析通过；69 个 task、8 个 launch 配置、15 个输入项的引用链完整。
+- `tasks.json`：未发现 `.ps1`、`.bat`、`.cmd`、`.py`、`.sh` 或仓库脚本入口；测试任务均直接调用 `cmake`。
+- `cmake --build build/mingw-ninja-release --parallel`：Release 全量构建通过。
+- `cmake -E chdir build/mingw-ninja-release ctest -N`：枚举 72 个非性能测试，构建树中未生成旧的 `GoogleTestAddTests` / `gtest_discover_tests` include 文件。
+- `cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure`：非性能测试 72/72 通过。
+- `cmake --build build/mingw-ninja-release-performance --target performance-tests --parallel`：性能测试 4/4 通过。
+- `cmake --build build/mingw-ninja-release-sdk --target sdk-consumer-test --parallel`：SDK consumer 构建和 2 个示例测试通过。
+- `cmake --build build/mingw-ninja-release --target docs-api --parallel`：Doxygen API 文档生成通过。
 
 ## 如果另一台机器仍失败
 

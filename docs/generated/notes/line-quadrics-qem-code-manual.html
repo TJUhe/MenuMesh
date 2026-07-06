@@ -147,7 +147,7 @@ tr:nth-child(even) td{background:#f9fafb}
 
 <pre><code>cmake -S . -B build/industrial
 cmake --build build/industrial --config Release --parallel
-ctest --test-dir build/industrial -C Release --output-on-failure</code></pre>
+cmake -E chdir build/industrial ctest -C Release --output-on-failure</code></pre>
 
 <div class="callout success">
 <div class="callout-title">Windows DLL 拷贝处理</div>
@@ -318,7 +318,7 @@ $$Q_i=Q_i^{plane}+Q_i^{normalLine}+Q_i^{boundary}+Q_i^{featureCurve}$$
 <li>feature graph、圆/椭圆 loop、normal tensor 多尺度检测有回归覆盖。</li>
 </ul>
 
-<pre><code>ctest --test-dir build/mingw-ninja-debug --output-on-failure</code></pre>
+<pre><code>cmake -E chdir build/mingw-ninja-debug ctest --output-on-failure</code></pre>
 
 <h3>8.2 Metrics</h3>
 

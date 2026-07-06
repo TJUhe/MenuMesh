@@ -7,7 +7,7 @@
 ```powershell
 .\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
 .\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
-ctest --test-dir build\mingw-ninja-release -LE performance --output-on-failure
+cmake -E chdir build\mingw-ninja-release ctest -LE performance --output-on-failure
 ```
 
 VS Code 中对应常用任务：

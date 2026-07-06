@@ -1,6 +1,6 @@
-# Tessellix 生成笔记说明
+# ManuMesh 生成笔记说明
 
-`docs/generated/notes/` 保存 Tessellix 的 HTML/PDF/ZIP 导出笔记和报告。它们是历史参考产物，不是当前 C++ 库的源代码布局说明；当前产品名为 Tessellix，源码级兼容标识仍保留 `line_quadrics_qem`、`linequadrics` 和 `lq`。
+`docs/generated/notes/` 保存 ManuMesh 的 HTML/PDF/ZIP 导出笔记和报告。它们是历史参考产物，不是当前 C++ 库的源代码布局说明；当前产品名为 ManuMesh，源码级兼容标识仍保留 `line_quadrics_qem`、`linequadrics` 和 `lq`。
 
 ## 当前维护规则
 

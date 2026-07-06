@@ -1,4 +1,4 @@
-PROJECT_NAME           = "Tessellix"
+PROJECT_NAME           = "ManuMesh"
 PROJECT_NUMBER         = @PROJECT_VERSION@
 PROJECT_BRIEF          = "面向增材制造的多边形网格几何内核"
 OUTPUT_DIRECTORY       = @LQ_DOXYGEN_OUTPUT_DIR@

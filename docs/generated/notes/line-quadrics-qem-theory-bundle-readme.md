@@ -1,10 +1,10 @@
-# Tessellix 理论包说明
+# ManuMesh 理论包说明
 
-本目录中的理论包用于配合 `line-quadrics-qem-theory-explained.pdf` 阅读。文件名保留英文，正文说明使用中文。该理论包是历史导出资料；当前产品名为 Tessellix，当前源码结构以 `docs/design/source_organization.md` 为准。
+本目录中的理论包用于配合 `line-quadrics-qem-theory-explained.pdf` 阅读。文件名保留英文，正文说明使用中文。该理论包是历史导出资料；当前产品名为 ManuMesh，当前源码结构以 `docs/design/source_organization.md` 为准。
 
 ## 主笔记
 
-- `line-quadrics-qem-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 Tessellix 当前程序如何把这些项解释为候选折叠的能量。
+- `line-quadrics-qem-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 ManuMesh 当前程序如何把这些项解释为候选折叠的能量。
 
 ## 随包论文
 
@@ -24,4 +24,4 @@
 
 ## 未随包但常被提到的参考
 
-CGAL、OpenMesh、libigl、MeshLab/VCGLib、Yamakawa/Shimada 等在线文档或论文用于工程对照。Tessellix 当前实现不逐字复刻这些库，而是借鉴它们的 cost/legality 分离、约束边和局部过滤思路。
+CGAL、OpenMesh、libigl、MeshLab/VCGLib、Yamakawa/Shimada 等在线文档或论文用于工程对照。ManuMesh 当前实现不逐字复刻这些库，而是借鉴它们的 cost/legality 分离、约束边和局部过滤思路。

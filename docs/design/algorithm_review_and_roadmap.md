@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 Tessellix 当前源码复核，而不是按早期设想描述。核对对象包括 `include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h`、`include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h`、`src/feature_detection/`、`src/simplification/`、`apps/linequadrics/main.cpp` 和当前 74 个非性能 CTest。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h`、`include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h`、`src/feature_detection/`、`src/simplification/`、`apps/linequadrics/main.cpp` 和当前 74 个非性能 CTest。
 
 ## 当前已经实现
 
@@ -50,4 +50,4 @@
 
 ## 长期路线
 
-Tessellix 的长期目标是一个可嵌入的增材制造多边形网格 SDK。QEM/line quadrics 是其中的 decimation 模块，不应承担所有修复、识别和布尔任务。未来模块应保持公共 API、实现、测试和文档边界清楚。
+ManuMesh 的长期目标是一个可嵌入的增材制造多边形网格 SDK。QEM/line quadrics 是其中的 decimation 模块，不应承担所有修复、识别和布尔任务。未来模块应保持公共 API、实现、测试和文档边界清楚。

@@ -1,6 +1,6 @@
 # VS Code 构建与调试说明
 
-Tessellix 以 VS Code 任务、显式 CMake 命令和 CMake Tools 为主要工作流。旧的根目录 PowerShell 脚本已经移除；常用构建、测试、演示和验证流程都在 `.vscode/tasks.json` 中维护。
+ManuMesh 以 VS Code 任务、显式 CMake 命令和 CMake Tools 为主要工作流。旧的根目录 PowerShell 脚本已经移除；常用构建、测试、演示和验证流程都在 `.vscode/tasks.json` 中维护。
 
 当前仓库按 C++ 几何内核维护。浏览器预览任务已经移除，生成的 STL 文件请用外部 STL/CAD 查看器打开，CSV 文件作为可度量的验证记录。
 
@@ -57,7 +57,7 @@ $env:PATH = "D:\path\to\mingw64\bin;$env:PATH"
 
 ## CMake 工作流
 
-Tessellix 当前支持 CMake 3.18.6 及以上版本，不依赖 `CMakePresets.json`。VS Code 任务直接调用 `cmake -S ... -B ...`，所以同样命令也可以在普通终端中运行。
+ManuMesh 当前支持 CMake 3.18.6 及以上版本，不依赖 `CMakePresets.json`。VS Code 任务直接调用 `cmake -S ... -B ...`，所以同样命令也可以在普通终端中运行。
 
 常用构建目录：
 

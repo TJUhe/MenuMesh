@@ -49,4 +49,4 @@
 
 ## 当前结论
 
-默认 `primitive-curves` 比旧式 `all-feature-edges` 更适合 Tessellix 当前实现：它保留圆/椭圆等工业 primitive，同时避免把普通硬边全部锁死导致过早 `rejection-limit`。对 Fandisk 这类 generic crease 很多的模型，应优先依赖软成本和质量过滤，而不是全部硬保护。
+默认 `primitive-curves` 比旧式 `all-feature-edges` 更适合 ManuMesh 当前实现：它保留圆/椭圆等工业 primitive，同时避免把普通硬边全部锁死导致过早 `rejection-limit`。对 Fandisk 这类 generic crease 很多的模型，应优先依赖软成本和质量过滤，而不是全部硬保护。

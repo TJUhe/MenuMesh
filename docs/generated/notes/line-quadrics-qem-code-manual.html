@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tessellix 程序说明书（历史导出）</title>
+<title>ManuMesh 程序说明书（历史导出）</title>
 <script>
 MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
 </script>
@@ -50,11 +50,11 @@ tr:nth-child(even) td{background:#f9fafb}
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>Tessellix 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>Tessellix</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
 </div>
 
 <div class="header">
-<h1>Tessellix 程序说明书（历史导出）</h1>
+<h1>ManuMesh 程序说明书（历史导出）</h1>
 <div class="subtitle">面向当前 C++ 动态库与 CLI 实现：模块、入口、数据流、参数、测试与工程化边界</div>
 <div class="meta">
 <span class="tag">代码说明书</span><span class="tag">动态库 API</span><span class="tag">CLI</span><span class="tag">CTest</span><span class="tag">Doxygen</span>
@@ -423,7 +423,7 @@ int main() {
 <tr><td><a href="https://github.com/cnr-isti-vclab/vcglib">VCG / MeshLab</a></td><td>成熟三角网格处理</td><td>高质量 QEM edge-collapse 简化、拓扑清理、曲率、网格质量工具。适合对比输出质量和学习工程细节。</td><td>GPL 生态，需要注意许可证；直接嵌入商业动态库通常不合适。</td></tr>
 <tr><td><a href="https://github.com/zeux/meshoptimizer">meshoptimizer</a></td><td>实时渲染网格优化</td><td>C/C++ API、跨语言 FFI、attribute seam/border preserving simplification、target error 设计。适合学习工业 API 和高速实现。</td><td>目标偏 glTF/实时渲染，不是 CAD 圆孔语义识别。</td></tr>
 <tr><td><a href="https://github.com/libigl/libigl">libigl</a></td><td>几何处理研究库</td><td>简洁的矩阵式几何处理接口、decimate/qslim、边界 loop、几何算子。适合做算法原型和单元测试 oracle。</td><td>偏研究/工具库，和工业动态库 API 风格不同。</td></tr>
-<tr><td><a href="https://github.com/PointCloudLibrary/pcl">PointCloudLibrary/pcl</a></td><td>点云处理与 RANSAC 模型拟合</td><td>若输入来自扫描点云，可直接参考 sample consensus、plane/cylinder/sphere 等模型拟合流程。圆孔识别可走“平面分割 + 边界点 + RANSAC circle/cylinder”。</td><td>依赖较大；Tessellix 当前是 mesh-first，不宜立即整体引入。</td></tr>
+<tr><td><a href="https://github.com/PointCloudLibrary/pcl">PointCloudLibrary/pcl</a></td><td>点云处理与 RANSAC 模型拟合</td><td>若输入来自扫描点云，可直接参考 sample consensus、plane/cylinder/sphere 等模型拟合流程。圆孔识别可走“平面分割 + 边界点 + RANSAC circle/cylinder”。</td><td>依赖较大；ManuMesh 当前是 mesh-first，不宜立即整体引入。</td></tr>
 <tr><td><a href="https://github.com/leomariga/pyRANSAC-3D">pyRANSAC-3D</a></td><td>轻量 3D RANSAC 几何拟合</td><td>circle/cylinder/sphere 等模型拟合接口简单，适合参考圆/圆柱 RANSAC 的阈值和迭代结构。</td><td>Python 项目；适合参考算法，不适合直接进入 C++ 库。</td></tr>
 <tr><td><a href="https://github.com/ai4ce/BAGSFit">ai4ce/BAGSFit</a></td><td>点云 primitive segmentation/fitting</td><td>把 boundary-aware segmentation 和 primitive fitting 结合，适合参考“先分割、再拟合”的反向工程路线。</td><td>深度学习路线，需要数据集和训练，不是短期工程替换。</td></tr>
 <tr><td><a href="https://github.com/AutodeskAILab/BRepNet">AutodeskAILab/BRepNet</a></td><td>B-Rep 拓扑神经网络</td><td>如果上游能提供 STEP/B-Rep，应该在 coedge/face/edge graph 上识别孔、槽、倒角等制造特征，而不是从 STL 反推。</td><td>ML/B-Rep pipeline，和当前 STL simplifier 是上游语义增强关系。</td></tr>
@@ -447,7 +447,7 @@ int main() {
 
 </div>
 
-<div class="footer">Tessellix 程序说明书（历史导出） · 基于当前仓库实现 · 论文来源见第 2 节</div>
+<div class="footer">ManuMesh 程序说明书（历史导出） · 基于当前仓库实现 · 论文来源见第 2 节</div>
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
   <h2 style="margin-top:0">特征保护路线图</h2>
   <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>

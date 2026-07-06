@@ -16,6 +16,7 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_GOOGLETEST_PROVIDER=auto",
         "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
       ],
       "presentation": {
@@ -41,6 +42,7 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_GOOGLETEST_PROVIDER=auto",
         "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
       ],
       "presentation": {
@@ -66,6 +68,7 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_GOOGLETEST_PROVIDER=auto",
         "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
       ],
       "presentation": {
@@ -91,6 +94,7 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_GOOGLETEST_PROVIDER=auto",
         "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
       ],
       "presentation": {
@@ -116,6 +120,7 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLQ_GOOGLETEST_PROVIDER=auto",
         "-DLQ_BUILD_PERFORMANCE_TESTS=OFF",
         "-DLQ_ENABLE_INSTALL=ON",
         "-DLQ_INSTALL_CMAKE_CONFIG=ON"
@@ -1147,8 +1152,6 @@
         "validate-features",
         "--ratio",
         "0.20",
-        "--n",
-        "96",
         "--samples",
         "1000",
         "--output-dir",

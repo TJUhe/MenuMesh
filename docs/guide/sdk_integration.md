@@ -12,6 +12,7 @@ cmake -S . -B build/mingw-ninja-release -G Ninja `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+  -DLQ_GOOGLETEST_PROVIDER=auto `
   -DLQ_BUILD_PERFORMANCE_TESTS=OFF
 cmake --build build/mingw-ninja-release --parallel
 ```
@@ -23,6 +24,7 @@ cmake -S . -B build/mingw-ninja-release -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
+  -DLQ_GOOGLETEST_PROVIDER=auto `
   -DLQ_ENABLE_INSTALL=ON
 cmake --build build/mingw-ninja-release --target sdk-install-local --parallel
 ```
@@ -65,9 +67,8 @@ Windows + MinGW 使用共享库时，应用目录需要：
 
 - `libline_quadrics_qem.dll`
 - 当前 MinGW 工具链对应的 `libstdc++-6.dll`、`libgcc_s_*.dll`、`libwinpthread-1.dll` 等运行时 DLL
-- 如果运行 GoogleTest 测试，还需要 `libgtest.dll` 和 `libgtest_main.dll`
 
-当前 CMake 会在构建目标时把必要 MinGW 运行时复制到构建目录 `bin`。外部分发时仍要确保这些 DLL 和 exe 放在同一目录，或由部署系统提供。
+当前 CMake 会在构建目标时把必要 MinGW 运行时复制到构建目录 `bin`。MinGW 下 `LQ_GOOGLETEST_PROVIDER=auto` 默认从仓库源码为当前编译器构建 GoogleTest，测试程序不再依赖仓库历史预编译的 `libgtest.dll` 和 `libgtest_main.dll`。外部分发时仍要确保运行库 DLL 和 exe 放在同一目录，或由部署系统提供。
 
 ## 示例工程
 

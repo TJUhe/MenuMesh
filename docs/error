@@ -1,4 +1,38 @@
 ﻿[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release 
+[2026-07-06 当前诊断]
+
+本次新增日志说明上一轮 CTest 注册修复已经生效：CTest 不再在枚举阶段 include `gtest_discover_tests` 生成脚本，也不再因为运行无关测试而提前启动 GoogleTest exe。新的失败点发生在真正执行 GoogleTest 用例时：
+
+```text
+CApiTest.* / FeatureDetection.* / LineQuadricsQem.* -> Exit code 0xc0000139
+LineQuadricsQemDataset.* -> Exit code 0xc0000139
+```
+
+同一构建树中 CLI 和示例测试可以通过，说明 `linequadrics.exe` 和 `line_quadrics_qem.dll` 本身可以启动；失败集中在链接 GoogleTest 的测试 exe。外部机器使用的是 `D:/code/qem/.../mingw64/bin/g++.exe`，日志中识别为 GNU 10.5.0，而仓库历史 MinGW GoogleTest 包是预编译 `libgtest.dll` / `libgtest_main.dll`。这类组合在 Windows 上很容易因为 DLL 依赖的 MinGW C++ 运行时符号版本不同而触发 `0xc0000139`。
+
+系统性修复策略：
+
+- MinGW 下 `LQ_GOOGLETEST_PROVIDER=auto` 不再优先使用仓库的预编译 GoogleTest DLL，而是跳过该 DLL 包，并通过仓库内 `thirdParty/googletest/source/googletest` 为当前 `gcc/g++` 构建 GoogleTest。
+- VS Code 的 MinGW 配置任务显式传入 `-DLQ_GOOGLETEST_PROVIDER=auto`，避免旧缓存或手动配置继续锁在 `prebuilt`。
+- 仍保留 `-DLQ_GOOGLETEST_PROVIDER=prebuilt` 作为显式选项，但只应在确认预编译包和当前 MinGW ABI 匹配时使用。
+- `validate-features` 重复运行失败也一并修复：复制外部输入前先删除旧目标文件，避免 `tests/output/generated_inputs/external_spindle.stl` 已存在时报 filesystem error。
+
+推荐重新验证时先删除旧构建目录，避免旧链接结果继续引用预编译 `libgtest*.dll`：
+
+```powershell
+Remove-Item build\mingw-ninja-release -Recurse -Force
+Remove-Item build\mingw-ninja-debug-performance -Recurse -Force
+cmake -S . -B build/mingw-ninja-release -G Ninja `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_C_COMPILER=gcc `
+  -DCMAKE_CXX_COMPILER=g++ `
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+  -DLQ_GOOGLETEST_PROVIDER=auto `
+  -DLQ_BUILD_PERFORMANCE_TESTS=OFF
+cmake --build build/mingw-ninja-release --parallel
+cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
+```
+
 [main] 正在配置项目: line-quadrics-qem 
 [proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\gcc.exe -DCMAKE_CXX_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\g++.exe -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DLQ_BUILD_PERFORMANCE_TESTS:STRING=OFF -DCMAKE_MAKEFILE=on --no-warn-unused-cli -SC:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem -Bc:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release -G Ninja
 [cmake] Not searching for unused variables given on the command line.

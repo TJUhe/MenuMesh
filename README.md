@@ -83,7 +83,7 @@ cmake --build build/industrial --target docs-api
 查看并验证 SDK 发布目录：
 
 ```powershell
-cmake -S . -B build/sdk-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DLQ_ENABLE_INSTALL=ON -DLQ_GOOGLETEST_PROVIDER=prebuilt -DLQ_EIGEN_PROVIDER=vendored
+cmake -S . -B build/sdk-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DLQ_ENABLE_INSTALL=ON -DLQ_GOOGLETEST_PROVIDER=auto -DLQ_EIGEN_PROVIDER=vendored
 cmake --build build/sdk-release --target sdk-consumer-test --parallel
 ```
 

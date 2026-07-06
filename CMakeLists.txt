@@ -34,9 +34,19 @@ set(LQ_EIGEN_SOURCE_DIR
 )
 
 set(LQ_GOOGLETEST_PROVIDER "auto" CACHE STRING
-  "GoogleTest provider for tests: auto, prebuilt, system, or fetch"
+  "GoogleTest provider for tests: auto, source, prebuilt, system, or fetch"
 )
-set_property(CACHE LQ_GOOGLETEST_PROVIDER PROPERTY STRINGS auto prebuilt system fetch)
+set_property(CACHE LQ_GOOGLETEST_PROVIDER PROPERTY STRINGS
+  auto source prebuilt system fetch
+)
+option(LQ_MINGW_AUTO_GOOGLETEST_FROM_SOURCE
+  "When LQ_GOOGLETEST_PROVIDER=auto under MinGW, do not use prebuilt GoogleTest DLLs; build GoogleTest for the active compiler instead."
+  ON
+)
+set(LQ_GOOGLETEST_SOURCE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/googletest/source/googletest"
+  CACHE PATH "Path to a GoogleTest source tree with CMakeLists.txt"
+)
 set(LQ_DEFAULT_GOOGLETEST_PREBUILT_DIR
   "${CMAKE_CURRENT_SOURCE_DIR}/thirdParty/googletest/prebuilt/mingw-x64-shared"
 )
@@ -328,6 +338,34 @@ function(lq_import_prebuilt_gtest bundle_root)
   set(LQ_RESOLVED_GTEST_RUNTIME_DIR "${gtest_runtime_dir}" PARENT_SCOPE)
 endfunction()
 
+function(lq_add_source_gtest source_dir)
+  if(TARGET GTest::gtest_main)
+    return()
+  endif()
+  if(NOT EXISTS "${source_dir}/CMakeLists.txt")
+    return()
+  endif()
+
+  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  set(gtest_build_samples OFF CACHE BOOL "" FORCE)
+  set(gtest_build_tests OFF CACHE BOOL "" FORCE)
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  if(NOT DEFINED GOOGLETEST_VERSION)
+    set(GOOGLETEST_VERSION 1.15.2)
+  endif()
+  add_subdirectory(
+    "${source_dir}"
+    "${CMAKE_BINARY_DIR}/_deps/lq-googletest-build"
+    EXCLUDE_FROM_ALL
+  )
+  if(TARGET gtest AND NOT TARGET GTest::gtest)
+    add_library(GTest::gtest ALIAS gtest)
+  endif()
+  if(TARGET gtest_main AND NOT TARGET GTest::gtest_main)
+    add_library(GTest::gtest_main ALIAS gtest_main)
+  endif()
+endfunction()
+
 target_compile_definitions(line_quadrics_qem
   PRIVATE LINE_QUADRICS_QEM_VERSION="${PROJECT_VERSION}"
 )
@@ -465,13 +503,32 @@ if(LQ_BUILD_EXAMPLES)
 endif()
 
 if(BUILD_TESTING AND LQ_BUILD_TESTS)
-  if(NOT LQ_GOOGLETEST_PROVIDER MATCHES "^(auto|prebuilt|system|fetch)$")
+  if(NOT LQ_GOOGLETEST_PROVIDER MATCHES "^(auto|source|prebuilt|system|fetch)$")
     message(FATAL_ERROR
-      "LQ_GOOGLETEST_PROVIDER must be one of: auto, prebuilt, system, fetch."
+      "LQ_GOOGLETEST_PROVIDER must be one of: auto, source, prebuilt, system, fetch."
     )
   endif()
 
-  if(LQ_GOOGLETEST_PROVIDER STREQUAL "auto" OR
+  set(LQ_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO OFF)
+  if(MINGW AND LQ_MINGW_AUTO_GOOGLETEST_FROM_SOURCE AND
+     LQ_GOOGLETEST_PROVIDER STREQUAL "auto")
+    set(LQ_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO ON)
+  endif()
+
+  if(LQ_GOOGLETEST_PROVIDER STREQUAL "source" OR
+     LQ_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO)
+    lq_add_source_gtest("${LQ_GOOGLETEST_SOURCE_DIR}")
+    if(NOT TARGET GTest::gtest_main AND
+       LQ_GOOGLETEST_PROVIDER STREQUAL "source")
+      message(FATAL_ERROR
+        "GoogleTest source was not found at "
+        "LQ_GOOGLETEST_SOURCE_DIR='${LQ_GOOGLETEST_SOURCE_DIR}'."
+      )
+    endif()
+  endif()
+
+  if((LQ_GOOGLETEST_PROVIDER STREQUAL "auto" AND
+      NOT LQ_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO) OR
      LQ_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
     lq_import_prebuilt_gtest("${LQ_GOOGLETEST_PREBUILT_DIR}")
     if(NOT TARGET GTest::gtest_main AND LQ_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
@@ -503,6 +560,7 @@ if(BUILD_TESTING AND LQ_BUILD_TESTS)
       URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
       ${LQ_FETCHCONTENT_TIMESTAMP_ARGS}
     )
+    set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
@@ -511,8 +569,13 @@ if(BUILD_TESTING AND LQ_BUILD_TESTS)
   if(NOT TARGET GTest::gtest_main)
     message(FATAL_ERROR
       "GoogleTest was not found. Use the prebuilt binary bundle under "
-      "thirdParty/googletest/prebuilt, install a system GTest discoverable by "
-      "find_package(GTest), or configure with -DLQ_GOOGLETEST_PROVIDER=fetch."
+      "thirdParty/googletest/prebuilt, the vendored source tree under "
+      "thirdParty/googletest/source, install a system GTest discoverable by "
+      "find_package(GTest), or configure with -DLQ_GOOGLETEST_PROVIDER=fetch. "
+      "For MinGW, the default auto provider skips prebuilt GoogleTest DLLs "
+      "and builds GoogleTest for the active compiler from vendored source; use "
+      "-DLQ_GOOGLETEST_PROVIDER=prebuilt only when that binary bundle matches "
+      "the selected MinGW runtime."
     )
   endif()
 

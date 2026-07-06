@@ -518,7 +518,15 @@ fs::path copyExternalInput(const fs::path& inputDir, const std::string& name,
   }
   fs::create_directories(inputDir);
   const fs::path destination = inputDir / (name + ".stl");
-  fs::copy_file(source, destination, fs::copy_options::overwrite_existing);
+  std::error_code ec;
+  fs::remove(destination, ec);
+  ec.clear();
+  fs::copy_file(source, destination, fs::copy_options::none, ec);
+  if (ec) {
+    throw std::runtime_error("Failed to copy external input from " +
+                             source.string() + " to " +
+                             destination.string() + ": " + ec.message());
+  }
   return destination;
 }
 

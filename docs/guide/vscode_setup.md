@@ -66,6 +66,8 @@ $env:PATH = "D:\path\to\mingw64\bin;$env:PATH"
 | `build/mingw-ninja-debug` | Ninja | MinGW `g++` | 调试、单元测试、格式检查 |
 | `build/mingw-ninja-release` | Ninja | MinGW `g++` | 发布构建、演示、Release 测试 |
 | `build/mingw-ninja-debug-performance` | Ninja | MinGW `g++` | 性能测试 |
+| `build/mingw-ninja-release-performance` | Ninja | MinGW `g++` | Release 性能测试 |
+| `build/mingw-ninja-release-sdk` | Ninja | MinGW `g++` | 本地安装和 SDK consumer 测试 |
 | `build/msvc-vs2022` | Visual Studio 17 2022 | MSVC | VS2022 调试和发布构建 |
 | `build/msvc-vs2022-performance` | Visual Studio 17 2022 | MSVC | VS2022 性能测试 |
 | `build/msvc-vs2019` | Visual Studio 16 2019 | MSVC | VS2019 调试和发布构建 |
@@ -134,17 +136,45 @@ cmake --build build/mingw-ninja-release --parallel
 - `test: mingw+ninja release`
 - `build: mingw+ninja debug performance tests`
 - `test: mingw+ninja debug performance`
+- `build: mingw+ninja release performance tests`
+- `test: mingw+ninja release performance`
+- `test: mingw+ninja release sdk consumer`
+- `test: mingw+ninja release full`
 - `build: msvc+vs2022 debug`
 - `build: msvc+vs2022 debug tests`
+- `build: msvc+vs2022 debug all`
 - `build: msvc+vs2022 release`
+- `build: msvc+vs2022 release tests`
+- `build: msvc+vs2022 release all`
 - `test: msvc+vs2022 debug`
+- `test: msvc+vs2022 release`
+- `test: msvc+vs2022 debug performance`
+- `test: msvc+vs2022 release performance`
+- `test: msvc+vs2022 full`
 - `build: msvc+vs2019 debug`
 - `build: msvc+vs2019 debug tests`
+- `build: msvc+vs2019 debug all`
 - `build: msvc+vs2019 release`
+- `build: msvc+vs2019 release tests`
+- `build: msvc+vs2019 release all`
 - `test: msvc+vs2019 debug`
+- `test: msvc+vs2019 release`
+- `test: msvc+vs2019 debug performance`
+- `test: msvc+vs2019 release performance`
+- `test: msvc+vs2019 full`
+- `build: msvc custom debug`
+- `build: msvc custom debug tests`
+- `build: msvc custom debug all`
+- `build: msvc custom release`
+- `build: msvc custom release tests`
+- `build: msvc custom release all`
+- `test: msvc custom debug`
+- `test: msvc custom release`
 - `check: format`
 - `format`
 - `build: docs-api`
+
+`test: mingw+ninja release full` 会按顺序运行 Release 非性能回归、Release 性能测试、SDK consumer 测试和 API 文档生成。MSVC 的 `full` 任务分别覆盖 Debug/Release 的非性能测试和性能测试；需要本机安装对应版本的 Visual Studio 生成器。
 
 演示和验证任务：
 

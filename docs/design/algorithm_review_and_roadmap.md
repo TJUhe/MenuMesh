@@ -35,7 +35,7 @@
 
 ## 短期路线
 
-- 保持 `build: mingw+ninja release all` 和 `test: mingw+ninja release` 稳定可跑。
+- 保持 `build: mingw+ninja release all`、`test: mingw+ninja release` 和 `test: mingw+ninja release full` 稳定可跑。
 - 扩展特征报告 CSV，继续区分 circular、near-circle、ellipse、polygonal loop。
 - 用更多工业件验证 `primitive-curves` 默认策略，避免 generic crease 过度硬锁。
 - 补充 CLI 子命令级帮助或明确保持顶层帮助模式。

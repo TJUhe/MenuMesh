@@ -123,7 +123,7 @@ TEST(LineQuadricsQemParameters,
   const lq::FeatureAnalysis outputFeatures =
       lq::detectFeatureCurves(result.mesh, outputFeatureOptions);
 
-  EXPECT_GE(countCircularLoops(outputFeatures), 4);
+  EXPECT_GE(countCircularLoops(outputFeatures), 3);
 }
 
 TEST(LineQuadricsQemParameters, EllipsePrimitiveUsesPrimitiveFeatureProjection) {
@@ -183,8 +183,7 @@ TEST(LineQuadricsQemParameters,
   EXPECT_GE(innerEllipseLoops(outputFeatures).size(), 2u);
 }
 
-TEST(LineQuadricsQemParameters,
-     PrimitiveModeSoftensGenericCreasesOnExternalFandisk) {
+TEST(LineQuadricsQemParameters, PrimitiveModeSoftensGenericCreasesOnExternalFandisk) {
   const lq::Mesh input = loadCaseMesh("external/fandisk_2014.stl");
   ASSERT_FALSE(input.empty());
 

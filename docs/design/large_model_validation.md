@@ -71,6 +71,6 @@ ctest --test-dir build/mingw-ninja-debug-performance -L performance --output-on-
 
 ## 当前注意事项
 
-- 当前 VS Code 任务没有 `run: large validation 100 stl` 这类旧入口；大模型验证应使用 CTest performance label 或手动 CLI 批处理。
+- 当前 VS Code 任务没有 `run: large validation 100 stl` 这类旧入口；大模型验证应使用 `test: mingw+ninja release performance`、`test: mingw+ninja release full` 或手动 CLI 批处理。
 - 部分公开模型输入本身就有边界，验证时应比较 boundary delta，而不是要求输出边界为 0。
 - 下一步更严格的质量保护应继续关注 normal flip、极差三角形和全局误差 envelope。

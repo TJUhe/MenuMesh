@@ -39,7 +39,8 @@
 - `run: external validation`
 - `run: feature validation`
 - `test: mingw+ninja release`
-- `test: mingw+ninja debug performance`（需要 performance 构建目录）
+- `test: mingw+ninja release performance`
+- `test: mingw+ninja release full`（顺序运行 Release 回归、性能测试、SDK consumer 测试和 API 文档生成）
 
 旧文档中提到的 `run: large validation 100 stl`、`open: large validation output` 等任务当前不在 `.vscode/tasks.json` 中，不能继续作为现有入口描述。
 

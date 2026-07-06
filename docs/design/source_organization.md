@@ -8,11 +8,12 @@
 | --- | --- | --- |
 | `include/line_quadrics_qem/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
 | `include/line_quadrics_qem/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
-| `include/line_quadrics_qem/features/` | 特征检测 API 和结果类型 | 给分析、验证和简化策略使用。 |
+| `include/line_quadrics_qem/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
+| `include/line_quadrics_qem/features/` | 旧特征检测 include 兼容层 | 新代码不要继续使用。 |
 | `include/line_quadrics_qem/algorithms/simplification/` | QEM 简化选项、报告、指标和入口 | 当前主要算法模块。 |
 | `include/line_quadrics_qem/api/` | C ABI | 不暴露 STL、Eigen 或 C++ 异常。 |
 | `src/core/` | 基础数据结构实现 | 与公共 core 头对应。 |
-| `src/features/` | 特征检测实现 | 当前只有 `FeatureDetection.cpp`。 |
+| `src/feature_detection/` | 特征检测实现 | 对应 `FeatureDetector` 算法模块。 |
 | `src/simplification/` | 简化算法实现 | 公开薄入口和拆分后的内部模块。 |
 | `src/simplification/detail/` | 私有实现头 | 只能被简化实现模块使用，不安装。 |
 | `apps/linequadrics/` | CLI | 像外部消费者一样调用库。 |
@@ -38,6 +39,12 @@ src/simplification/GeometryPredicates.cpp     局部几何谓词
 src/simplification/SpatialFaceIndex.cpp       局部自交查询的空间哈希
 ```
 
+## 当前特征检测模块拆分
+
+```text
+src/feature_detection/FeatureDetector.cpp    FeatureDetector 对象 API、便捷函数、特征图追踪和 primitive 拟合
+```
+
 ## include 规则
 
 公共代码使用完整 SDK 路径：
@@ -56,4 +63,4 @@ src/simplification/SpatialFaceIndex.cpp       局部自交查询的空间哈希
 
 ## 扩展规则
 
-模块变大时按职责拆分，而不是按公式片段随意拆文件。新的稳定数据契约进入 `include/line_quadrics_qem/<domain>/`；长期存在的实现 helper 进入所属模块的 `detail/`；跨模块工具先判断是否属于 `core`、未来 `analysis`、`repair`、`remesh` 或 `boolean`，不要复制粘贴。
+模块变大时按职责拆分，而不是按公式片段随意拆文件。新的稳定算法契约进入 `include/line_quadrics_qem/algorithms/<domain>/`；长期存在的实现 helper 进入所属模块的 `detail/`；跨模块工具先判断是否属于 `core`、未来 `analysis`、`repair`、`remesh` 或 `boolean`，不要复制粘贴。特征检测不能反向依赖 QEM；QEM、验证、修复和后续模块可以消费 `FeatureAnalysis`。

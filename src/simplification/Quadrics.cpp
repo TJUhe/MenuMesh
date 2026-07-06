@@ -2,6 +2,7 @@
 
 #include "detail/MeshEdges.h"
 #include "detail/SimplificationConstants.h"
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>

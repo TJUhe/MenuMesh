@@ -1,6 +1,6 @@
 #include "TestSupport.h"
 #include "line_quadrics_qem/core/MeshGenerators.h"
-#include "line_quadrics_qem/features/FeatureDetection.h"
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <cmath>
@@ -196,6 +196,32 @@ TEST(FeatureDetection, ClassifiesBoundaryEdgesOnOpenTriangle) {
   for (const lq::VertexFeature& vertex : features.vertices) {
     EXPECT_TRUE(vertex.isFeature);
   }
+}
+
+TEST(FeatureDetection, FeatureDetectorObjectStoresOptions) {
+  lq::FeatureOptions options = discreteOnlyOptions();
+  options.minFeatureLoopVertices = 3;
+  lq::FeatureDetector detector(options);
+  EXPECT_EQ(3, detector.options().minFeatureLoopVertices);
+
+  lq::Mesh mesh;
+  mesh.vertices = {
+      lq::Vec3(0.0, 0.0, 0.0),
+      lq::Vec3(1.0, 0.0, 0.0),
+      lq::Vec3(0.0, 1.0, 0.0),
+  };
+  mesh.faces = {{{0, 1, 2}}};
+  const lq::FeatureAnalysis first = detector.analyze(mesh);
+  EXPECT_EQ(3, first.featureEdges);
+
+  options.minFeatureLoopVertices = 100;
+  detector.setOptions(options);
+  EXPECT_EQ(100, detector.options().minFeatureLoopVertices);
+  const lq::FeatureAnalysis second = detector.analyze(mesh);
+  const lq::FeatureAnalysis direct = lq::detectFeatureCurves(mesh, options);
+  EXPECT_EQ(first.featureEdges, second.featureEdges);
+  EXPECT_EQ(direct.loops.size(), second.loops.size());
+  EXPECT_EQ(direct.featureEdges, second.featureEdges);
 }
 
 TEST(FeatureDetection, ClassifiesNonManifoldEdgesSeparately) {

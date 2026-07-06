@@ -27,8 +27,10 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 | 路径 | 角色 |
 | --- | --- |
-| `include/line_quadrics_qem/` | Public SDK API root; use `core/`, `features/`, `algorithms/`, and `api/` as the only entry layers. |
-| `src/` | Library implementation grouped by responsibility: `core/`, `features/`, `algorithms/`, and `api/`. |
+| `include/line_quadrics_qem/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
+| `include/line_quadrics_qem/algorithms/feature_detection/` | 平级特征检测模块，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
+| `include/line_quadrics_qem/features/` | 旧 include 路径兼容层，新代码不要继续使用。 |
+| `src/` | 库实现按职责分组：`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
 | `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
 | `apps/linequadrics/` | `linequadrics` CLI，作为库的应用层消费者。 |
 | `tests/` | GoogleTest/CTest 回归测试。 |
@@ -110,11 +112,17 @@ lq::QEMSimplifier simplifier(options);
 lq::Mesh simplified = simplifier.simplify(input, &report);
 ```
 
-`FeatureProtectionMode::PrimitiveCurves` is the default protected feature
-policy. It hard-protects fitted circle, near-circle, and ellipse loops while
-leaving generic polygonal/dihedral creases as soft costs plus legality filters.
-Use `AllFeatureEdges` only when intentionally reproducing the older strict
-feature-lock behavior.
+`FeatureProtectionMode::PrimitiveCurves` 是默认特征保护策略。它会硬保护拟合出的圆、近圆和椭圆 loop，普通折线/二面角 crease 则作为软成本和合法性过滤输入。只有需要复现旧版严格锁边行为时，才使用 `AllFeatureEdges`。
+
+特征检测也可以独立使用，不需要先运行 QEM：
+
+```cpp
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+
+lq::FeatureOptions featureOptions;
+lq::FeatureDetector detector(featureOptions);
+lq::FeatureAnalysis features = detector.analyze(input);
+```
 
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
 如果下游本身也是 CMake 工程，并且安装 SDK 时打开了

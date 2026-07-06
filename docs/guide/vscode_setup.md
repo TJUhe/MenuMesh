@@ -209,7 +209,7 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 推荐断点：
 
 - `src/simplification/QEMSimplifier.cpp`：候选折叠构造、折叠合法性、曲线预算拒绝、局部误差拒绝、报告计数器递增。
-- `src/features/FeatureDetection.cpp`：特征边收集、特征图遍历、圆/椭圆拟合、normal-tensor 特征评分。
+- `src/feature_detection/FeatureDetector.cpp`：特征边收集、特征图遍历、圆/椭圆拟合、normal-tensor 特征评分。
 
 ## 常用命令示例
 

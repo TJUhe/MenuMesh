@@ -113,6 +113,8 @@ endif()
 set(LQ_PUBLIC_HEADERS
   include/line_quadrics_qem/Export.h
   include/line_quadrics_qem/api/CApi.h
+  include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h
+  include/line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h
   include/line_quadrics_qem/algorithms/simplification/Metrics.h
   include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h
   include/line_quadrics_qem/core/Handles.h
@@ -131,7 +133,7 @@ set(LQ_LIBRARY_SOURCES
   src/core/MeshTopology.cpp
   src/core/PlainMesh.cpp
   src/core/Status.cpp
-  src/features/FeatureDetection.cpp
+  src/feature_detection/FeatureDetector.cpp
   src/simplification/CandidateQueue.cpp
   src/simplification/CollapseLegality.cpp
   src/simplification/DynamicTopology.cpp

@@ -4,7 +4,7 @@
 #include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/core/MeshTopology.h"
 #include "line_quadrics_qem/core/PlainMesh.h"
-#include "line_quadrics_qem/features/FeatureDetection.h"
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <array>

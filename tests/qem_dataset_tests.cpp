@@ -1,6 +1,6 @@
 #include "TestSupport.h"
 #include "line_quadrics_qem/algorithms/simplification/Metrics.h"
-#include "line_quadrics_qem/features/FeatureDetection.h"
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <chrono>

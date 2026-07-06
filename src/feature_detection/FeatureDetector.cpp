@@ -1,4 +1,4 @@
-#include "line_quadrics_qem/features/FeatureDetection.h"
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>
@@ -12,6 +12,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace lq {
 namespace {
@@ -1416,6 +1417,19 @@ void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis) {
 }
 
 } // namespace
+
+FeatureDetector::FeatureDetector(FeatureOptions options)
+    : options_(std::move(options)) {}
+
+const FeatureOptions& FeatureDetector::options() const { return options_; }
+
+void FeatureDetector::setOptions(FeatureOptions options) {
+  options_ = std::move(options);
+}
+
+FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const {
+  return detectFeatureCurves(mesh, options_);
+}
 
 std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options) {

@@ -13,7 +13,7 @@
 ## 文档维护规则
 
 - CLI 示例必须和 `apps/linequadrics/main.cpp` 的实际解析逻辑一致，并至少用 `linequadrics --help` 核对。
-- 算法说明必须对应 `src/simplification/`、`src/features/FeatureDetection.cpp` 和 `include/line_quadrics_qem/` 的当前实现。
+- 算法说明必须对应 `src/feature_detection/`、`src/simplification/` 和 `include/line_quadrics_qem/algorithms/` 的当前实现。
 - 论文笔记必须区分“论文提出的思路”和“本仓库已经实现的行为”。未实现的技术要明确写“未实现”。
 - `docs/generated/notes/` 下的 HTML/PDF 是导出资料；若 CLI、选项、测试或源码结构变化，受影响的导出说明也应重新生成或标注为历史资料。
 - 路径、命令、函数名、枚举名、CSV 字段名和论文文件名保留英文；说明文字使用中文。

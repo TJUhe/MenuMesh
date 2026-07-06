@@ -1,7 +1,7 @@
 #pragma once
 
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
 #include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/features/FeatureDetection.h"
 
 #include <algorithm>
 #include <array>

@@ -5,8 +5,8 @@
 #include "detail/FeatureConstraints.h"
 #include "detail/Quadrics.h"
 #include "detail/SpatialFaceIndex.h"
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
-#include "line_quadrics_qem/features/FeatureDetection.h"
 
 #include <memory>
 #include <unordered_set>

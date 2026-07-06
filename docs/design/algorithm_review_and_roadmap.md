@@ -1,6 +1,6 @@
 ﻿# 算法现状复核与路线图
 
-本文按当前源码复核，而不是按早期设想描述。核对对象包括 `include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h`、`src/simplification/`、`src/features/FeatureDetection.cpp`、`apps/linequadrics/main.cpp` 和当前 72 个非性能 CTest。
+本文按当前源码复核，而不是按早期设想描述。核对对象包括 `include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h`、`include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h`、`src/feature_detection/`、`src/simplification/`、`apps/linequadrics/main.cpp` 和当前 73 个非性能 CTest。
 
 ## 当前已经实现
 
@@ -9,7 +9,7 @@
 | 标准 QEM | 已实现面 plane quadric 累加、边折叠候选、placement 求解和 fallback。 |
 | line quadrics | 已实现 `--method line` 和 `lineWeight`，作为候选排序成本的附加项。 |
 | 权重模式 | `uniform`、`dihedral`、`normal-tensor`、`height`、`xband`。 |
-| 特征检测 | 边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、loop tracing。 |
+| 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、loop tracing。 |
 | primitive 拟合 | 支持圆、近圆、椭圆、折线 loop 的报告和保护策略。 |
 | 特征保护 | `none`、`circular-only`、`primitive-curves`、`all-feature-edges`。默认是 `primitive-curves`。 |
 | 合法性过滤 | 边界、拓扑、法线偏转、三角形质量、局部误差和局部自交过滤。 |
@@ -45,7 +45,7 @@
 
 - 实现独立 edge dihedral plane quadrics，和现有 feature graph 保护策略对比。
 - 增加属性传播策略，为法线、颜色、UV、source face id 做准备。
-- 建立更清晰的 `analysis` / `repair` 模块边界。
+- 继续沿 `algorithms/<domain>` 组织新增模块，建立更清晰的 `repair`、`remesh` 和 `boolean` 边界。
 - 将本地自交过滤扩展成更完整的空间查询和 envelope 检查。
 
 ## 长期路线

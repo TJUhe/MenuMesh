@@ -1,11 +1,12 @@
 #include "TestSupport.h"
-#include "line_quadrics_qem/core/MeshGenerators.h"
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+#include "line_quadrics_qem/core/MeshGenerators.h"
 
 #include <algorithm>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <limits>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -222,6 +223,41 @@ TEST(FeatureDetection, FeatureDetectorObjectStoresOptions) {
   EXPECT_EQ(first.featureEdges, second.featureEdges);
   EXPECT_EQ(direct.loops.size(), second.loops.size());
   EXPECT_EQ(direct.featureEdges, second.featureEdges);
+}
+
+TEST(FeatureDetection, FeatureDetectorCopiesAndMovesPimplOptions) {
+  lq::FeatureOptions originalOptions = discreteOnlyOptions();
+  originalOptions.featureAngleDeg = 25.0;
+  originalOptions.minFeatureLoopVertices = 5;
+  lq::FeatureDetector original(originalOptions);
+
+  lq::FeatureDetector copied(original);
+  lq::FeatureOptions changedOptions = originalOptions;
+  changedOptions.featureAngleDeg = 70.0;
+  changedOptions.minFeatureLoopVertices = 100;
+  original.setOptions(changedOptions);
+
+  EXPECT_DOUBLE_EQ(25.0, copied.options().featureAngleDeg);
+  EXPECT_EQ(5, copied.options().minFeatureLoopVertices);
+  EXPECT_DOUBLE_EQ(70.0, original.options().featureAngleDeg);
+
+  lq::FeatureDetector assigned;
+  assigned = copied;
+  changedOptions.featureAngleDeg = 35.0;
+  copied.setOptions(changedOptions);
+
+  EXPECT_DOUBLE_EQ(25.0, assigned.options().featureAngleDeg);
+  EXPECT_EQ(5, assigned.options().minFeatureLoopVertices);
+  EXPECT_DOUBLE_EQ(35.0, copied.options().featureAngleDeg);
+
+  lq::FeatureDetector moved(std::move(assigned));
+  EXPECT_DOUBLE_EQ(25.0, moved.options().featureAngleDeg);
+  EXPECT_EQ(5, moved.options().minFeatureLoopVertices);
+
+  lq::FeatureDetector moveAssigned;
+  moveAssigned = std::move(moved);
+  EXPECT_DOUBLE_EQ(25.0, moveAssigned.options().featureAngleDeg);
+  EXPECT_EQ(5, moveAssigned.options().minFeatureLoopVertices);
 }
 
 TEST(FeatureDetection, ClassifiesNonManifoldEdgesSeparately) {

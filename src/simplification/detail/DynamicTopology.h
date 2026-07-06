@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common/detail/MeshQueries.h"
 #include "detail/SimplificationTypes.h"
 #include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 
@@ -14,7 +15,7 @@ bool containsVertex(const FaceState& face, int vertex);
 
 struct DynamicTopology {
   std::vector<std::unordered_set<int>> vertexFaces;
-  std::unordered_map<std::array<int, 3>, std::unordered_set<int>, FaceKeyHash>
+  std::unordered_map<std::array<int, 3>, std::unordered_set<int>, detail::FaceKeyHash>
       facesByKey;
 
   DynamicTopology(const std::vector<FaceState>& faces, int vertexCount);

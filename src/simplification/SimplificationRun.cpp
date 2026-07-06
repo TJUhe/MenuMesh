@@ -1,9 +1,9 @@
 #include "detail/SimplificationRun.h"
 
+#include "common/detail/MeshQueries.h"
 #include "detail/CollapseLegality.h"
 #include "detail/DynamicTopology.h"
 #include "detail/FeatureConstraints.h"
-#include "detail/MeshEdges.h"
 #include "detail/Quadrics.h"
 #include "detail/ResultBuilder.h"
 #include "detail/SimplificationConstants.h"
@@ -107,8 +107,9 @@ void SimplificationRun::initializeFeatureCurveConstraints() {
 void SimplificationRun::initializeVertices() {
   const std::vector<Mat4> initialQuadrics =
       quadrics_.build(input_, featureAnalysisPtr_, report_);
-  boundaryVertices_ =
-      options_.preserveBoundary ? computeBoundaryVertices(input_) : std::vector<char>();
+  boundaryVertices_ = options_.preserveBoundary
+                          ? detail::computeBoundaryVertices(input_)
+                          : std::vector<char>();
   vertices_.assign(input_.vertices.size(), VertexState{});
   for (int i = 0; i < static_cast<int>(input_.vertices.size()); ++i) {
     vertices_[i].p = input_.vertices[i];
@@ -327,20 +328,18 @@ bool SimplificationRun::acceptFirstLegalPlacement(
       continue;
     }
 
-    const bool projected =
-        featurePolicy_.projectPlacement({edge, vertices_, featureCurves_},
-                                        collapsePosition);
-    const CollapseRejectReason rejectReason =
-        collapseRejectReason({edge,
-                              collapsePosition,
-                              {faces_, vertices_, *topology_},
-                              areaEps_,
-                              options_.minTriangleQuality,
-                              minNormalDot_,
-                              maxLocalError_,
-                              options_.preventLocalIntersections,
-                              options_.preventLocalIntersections ? &spatialIndex_
-                                                                 : nullptr});
+    const bool projected = featurePolicy_.projectPlacement(
+        {edge, vertices_, featureCurves_}, collapsePosition);
+    const CollapseRejectReason rejectReason = collapseRejectReason(
+        {edge,
+         collapsePosition,
+         {faces_, vertices_, *topology_},
+         areaEps_,
+         options_.minTriangleQuality,
+         minNormalDot_,
+         maxLocalError_,
+         options_.preventLocalIntersections,
+         options_.preventLocalIntersections ? &spatialIndex_ : nullptr});
     if (rejectReason == CollapseRejectReason::None) {
       applyCollapse(edge.keep, edge.remove, collapsePosition, mergedQ);
       if (projected) {

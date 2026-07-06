@@ -32,7 +32,8 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | `include/line_quadrics_qem/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
 | `include/line_quadrics_qem/algorithms/feature_detection/` | 平级特征检测模块，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
 | `include/line_quadrics_qem/features/` | 旧 include 路径兼容层，新代码不要继续使用。 |
-| `src/` | 库实现按职责分组：`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
+| `src/` | 库实现按职责分组：`common/`、`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
+| `src/common/detail/` | 跨算法私有工具层，例如 mesh key、边-面邻接、面法向、顶点邻接和边界顶点查询；不属于 SDK。 |
 | `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
 | `apps/linequadrics/` | `linequadrics` CLI，作为库的应用层消费者。 |
 | `tests/` | GoogleTest/CTest 回归测试。 |

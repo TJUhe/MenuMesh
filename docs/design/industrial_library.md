@@ -10,7 +10,7 @@ Tessellix 当前是一个面向增材制造三角网格处理的 C++/C SDK 原�
 - C ABI：`api/CApi.h`。
 - CLI：`linequadrics.exe`，用于批处理、验证和示例。
 - 示例：C++ SDK 和 C ABI consumer。
-- 回归测试：73 个非性能测试，另有 performance 构建路径。
+- 回归测试：74 个非性能测试，另有 performance 构建路径。
 
 ## 当前核心能力
 

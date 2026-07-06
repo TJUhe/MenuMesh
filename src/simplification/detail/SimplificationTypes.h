@@ -3,7 +3,6 @@
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
 #include "line_quadrics_qem/core/Mesh.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -124,28 +123,5 @@ struct CellCoordHash {
     return seed;
   }
 };
-
-inline std::uint64_t edgeKey(int a, int b) {
-  if (a > b) std::swap(a, b);
-  return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(a)) << 32u) |
-         static_cast<std::uint32_t>(b);
-}
-
-inline std::array<int, 3> faceKey(std::array<int, 3> ids) {
-  std::sort(ids.begin(), ids.end());
-  return ids;
-}
-
-struct FaceKeyHash {
-  std::size_t operator()(const std::array<int, 3>& ids) const {
-    return static_cast<std::size_t>(ids[0]) * 73856093u ^
-           static_cast<std::size_t>(ids[1]) * 19349663u ^
-           static_cast<std::size_t>(ids[2]) * 83492791u;
-  }
-};
-
-inline std::pair<int, int> unpackEdgeKey(std::uint64_t key) {
-  return {static_cast<int>(key >> 32u), static_cast<int>(key & 0xffffffffu)};
-}
 
 } // namespace lq

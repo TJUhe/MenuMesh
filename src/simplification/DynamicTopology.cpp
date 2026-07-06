@@ -24,7 +24,7 @@ void DynamicTopology::addFace(int faceId, const FaceState& face) {
       vertexFaces[id].insert(faceId);
     }
   }
-  facesByKey[faceKey(face.v)].insert(faceId);
+  facesByKey[detail::sortedFaceKey(face.v)].insert(faceId);
 }
 
 void DynamicTopology::removeFace(int faceId, const FaceState& face) {
@@ -33,7 +33,7 @@ void DynamicTopology::removeFace(int faceId, const FaceState& face) {
       vertexFaces[id].erase(faceId);
     }
   }
-  const auto key = faceKey(face.v);
+  const auto key = detail::sortedFaceKey(face.v);
   auto it = facesByKey.find(key);
   if (it != facesByKey.end()) {
     it->second.erase(faceId);
@@ -44,7 +44,7 @@ void DynamicTopology::removeFace(int faceId, const FaceState& face) {
 }
 
 bool DynamicTopology::hasDuplicateFace(int faceId, const FaceState& face) const {
-  const auto it = facesByKey.find(faceKey(face.v));
+  const auto it = facesByKey.find(detail::sortedFaceKey(face.v));
   if (it == facesByKey.end()) {
     return false;
   }
@@ -70,7 +70,7 @@ collectActiveEdges(const std::vector<FaceState>& faces) {
       if (a == b) {
         continue;
       }
-      const std::uint64_t key = edgeKey(a, b);
+      const std::uint64_t key = detail::meshEdgeKey(a, b);
       if (seen.insert(key).second) {
         if (a > b) std::swap(a, b);
         edges.emplace_back(a, b);

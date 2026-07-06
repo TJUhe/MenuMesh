@@ -1,6 +1,6 @@
 #include "detail/Quadrics.h"
 
-#include "detail/MeshEdges.h"
+#include "common/detail/MeshQueries.h"
 #include "detail/SimplificationConstants.h"
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
@@ -92,14 +92,9 @@ std::vector<double> computeFeatureScores(const Mesh& mesh,
     return score;
   }
 
-  std::vector<Vec3> faceNormals(mesh.faces.size(), Vec3::Zero());
-  for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
-    const Face& f = mesh.faces[fi];
-    faceNormals[fi] = triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
-                                     mesh.vertices[f.v[2]]);
-  }
+  const std::vector<Vec3> faceNormals = detail::computeFaceNormals(mesh);
 
-  const auto edgeInfo = buildEdgeInfo(mesh);
+  const detail::MeshEdgeInfoMap edgeInfo = detail::buildMeshEdgeInfo(mesh);
   const double threshold = options.featureAngleDeg * kPi / 180.0;
   const double denom = std::max(1e-12, kPi - threshold);
   for (const auto& [key, info] : edgeInfo) {
@@ -114,7 +109,7 @@ std::vector<double> computeFeatureScores(const Mesh& mesh,
       edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
     }
     if (edgeScore > 0.0) {
-      const auto [a, b] = unpackEdgeKey(key);
+      const auto [a, b] = detail::unpackMeshEdgeKey(key);
       score[a] = std::max(score[a], edgeScore);
       score[b] = std::max(score[b], edgeScore);
     }
@@ -127,19 +122,14 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight,
   if (boundaryWeight <= 0.0) {
     return;
   }
-  std::vector<Vec3> faceNormals(mesh.faces.size(), Vec3::Zero());
-  for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
-    const Face& f = mesh.faces[fi];
-    faceNormals[fi] = triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
-                                     mesh.vertices[f.v[2]]);
-  }
+  const std::vector<Vec3> faceNormals = detail::computeFaceNormals(mesh);
 
-  const auto edgeInfo = buildEdgeInfo(mesh);
+  const detail::MeshEdgeInfoMap edgeInfo = detail::buildMeshEdgeInfo(mesh);
   for (const auto& [key, info] : edgeInfo) {
     if (info.faces.size() != 1) {
       continue;
     }
-    const auto [a, b] = unpackEdgeKey(key);
+    const auto [a, b] = detail::unpackMeshEdgeKey(key);
     const Vec3 edge = mesh.vertices[b] - mesh.vertices[a];
     if (edge.norm() <= 1e-20) {
       continue;

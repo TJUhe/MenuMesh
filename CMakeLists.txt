@@ -128,6 +128,7 @@ set(LQ_PUBLIC_HEADERS
 
 set(LQ_LIBRARY_SOURCES
   src/api/CApi.cpp
+  src/common/MeshQueries.cpp
   src/core/Mesh.cpp
   src/core/MeshGenerators.cpp
   src/core/MeshTopology.cpp
@@ -139,7 +140,6 @@ set(LQ_LIBRARY_SOURCES
   src/simplification/DynamicTopology.cpp
   src/simplification/FeatureConstraints.cpp
   src/simplification/GeometryPredicates.cpp
-  src/simplification/MeshEdges.cpp
   src/simplification/Metrics.cpp
   src/simplification/QEMSimplifier.cpp
   src/simplification/Quadrics.cpp
@@ -149,13 +149,16 @@ set(LQ_LIBRARY_SOURCES
   src/simplification/SpatialFaceIndex.cpp
 )
 
-set(LQ_PRIVATE_HEADERS
+set(LQ_COMMON_PRIVATE_HEADERS
+  src/common/detail/MeshQueries.h
+)
+
+set(LQ_SIMPLIFICATION_PRIVATE_HEADERS
   src/simplification/detail/CandidateQueue.h
   src/simplification/detail/CollapseLegality.h
   src/simplification/detail/DynamicTopology.h
   src/simplification/detail/FeatureConstraints.h
   src/simplification/detail/GeometryPredicates.h
-  src/simplification/detail/MeshEdges.h
   src/simplification/detail/Quadrics.h
   src/simplification/detail/ResultBuilder.h
   src/simplification/detail/SimplificationConstants.h
@@ -163,6 +166,11 @@ set(LQ_PRIVATE_HEADERS
   src/simplification/detail/SimplificationTypes.h
   src/simplification/detail/SimplificationValidation.h
   src/simplification/detail/SpatialFaceIndex.h
+)
+
+set(LQ_PRIVATE_HEADERS
+  ${LQ_COMMON_PRIVATE_HEADERS}
+  ${LQ_SIMPLIFICATION_PRIVATE_HEADERS}
 )
 
 if(LQ_BUILD_SHARED_LIBRARY)
@@ -189,9 +197,13 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src"
   PREFIX "Source"
   FILES ${LQ_LIBRARY_SOURCES}
 )
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/common/detail"
+  PREFIX "Common Private Headers"
+  FILES ${LQ_COMMON_PRIVATE_HEADERS}
+)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/simplification/detail"
   PREFIX "Simplification Private Headers"
-  FILES ${LQ_PRIVATE_HEADERS}
+  FILES ${LQ_SIMPLIFICATION_PRIVATE_HEADERS}
 )
 
 target_compile_features(line_quadrics_qem PUBLIC cxx_std_17)
@@ -200,6 +212,7 @@ target_include_directories(line_quadrics_qem
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
   PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/simplification"
 )
 

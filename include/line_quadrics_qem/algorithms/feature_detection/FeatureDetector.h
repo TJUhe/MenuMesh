@@ -3,6 +3,7 @@
 #include "line_quadrics_qem/Export.h"
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,12 @@ namespace lq {
 class LQ_API FeatureDetector {
 public:
   explicit FeatureDetector(FeatureOptions options = {});
+  ~FeatureDetector();
+
+  FeatureDetector(const FeatureDetector& other);
+  FeatureDetector& operator=(const FeatureDetector& other);
+  FeatureDetector(FeatureDetector&& other) noexcept;
+  FeatureDetector& operator=(FeatureDetector&& other) noexcept;
 
   /// Returns the options used by subsequent analyses.
   const FeatureOptions& options() const;
@@ -27,7 +34,8 @@ public:
   FeatureAnalysis analyze(const Mesh& mesh) const;
 
 private:
-  FeatureOptions options_;
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 /// Computes local normal-tensor scores from one-ring face normals.

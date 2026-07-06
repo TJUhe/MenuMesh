@@ -1,6 +1,6 @@
 # 2026-07-06 开发计划
 
-本计划按 Tessellix 当前状态更新。Tessellix 已经有稳定的 CMake/VS Code 构建、C++/C SDK、CLI、平级特征检测模块、特征曲线保护和 73 个非性能回归测试。下一阶段目标是把“可演示的 line quadrics 简化器”推进为“可嵌入的工业网格简化内核”。
+本计划按 Tessellix 当前状态更新。Tessellix 已经有稳定的 CMake/VS Code 构建、C++/C SDK、CLI、平级特征检测模块、特征曲线保护和 74 个非性能回归测试。下一阶段目标是把“可演示的 line quadrics 简化器”推进为“可嵌入的工业网格简化内核”。
 
 ## 第一周：稳定性和文档一致性
 

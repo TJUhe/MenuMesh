@@ -988,7 +988,7 @@ Copy-Item tests\data\external\large\rocker_arm.stl output\normal_tensor\original
 <pre><code><span style="color:#6b7080">// 对每条边界边（只有一个邻接面）</span>
 <span style="color:#c792ea">for</span> (<span style="color:#c792ea">const auto&amp;</span> [key, info] : edgeInfo) {
     <span style="color:#c792ea">if</span> (info.faces.size() != <span style="color:#f78c6c">1</span>) <span style="color:#c792ea">continue</span>;  <span style="color:#6b7080">// 只处理边界边</span>
-    <span style="color:#c792ea">const auto</span> [a, b] = unpackEdgeKey(key);
+    <span style="color:#c792ea">const auto</span> [a, b] = detail::unpackMeshEdgeKey(key);
     Vec3 edge = mesh.vertices[b] - mesh.vertices[a];
     <span style="color:#6b7080">// 面内法向⊥边方向 = 边界约束方向</span>
     Vec3 n = faceNormals[info.faces.front()].cross(edge.normalized());

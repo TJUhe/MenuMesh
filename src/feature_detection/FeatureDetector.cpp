@@ -1,5 +1,7 @@
 #include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
 
+#include "common/detail/MeshQueries.h"
+
 #include <Eigen/Eigenvalues>
 #include <algorithm>
 #include <array>
@@ -7,6 +9,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <queue>
 #include <sstream>
@@ -18,10 +21,6 @@ namespace lq {
 namespace {
 
 constexpr double kPi = 3.141592653589793238462643383279502884;
-
-struct EdgeInfo {
-  std::vector<int> faces;
-};
 
 struct CandidateEdge {
   int a = -1;
@@ -91,34 +90,8 @@ enum class RecoveredCycleKind {
   Polygonal,
 };
 
-std::uint64_t edgeKey(int a, int b) {
-  if (a > b) std::swap(a, b);
-  return (static_cast<std::uint64_t>(static_cast<uint32_t>(a)) << 32u) |
-         static_cast<uint32_t>(b);
-}
-
-std::pair<int, int> unpackEdgeKey(std::uint64_t key) {
-  return {static_cast<int>(key >> 32u), static_cast<int>(key & 0xffffffffu)};
-}
-
-std::vector<Vec3> computeFaceNormals(const Mesh& mesh) {
-  std::vector<Vec3> normals(mesh.faces.size(), Vec3::Zero());
-  for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
-    const Face& f = mesh.faces[fi];
-    normals[fi] = triangleNormal(mesh.vertices[f.v[0]], mesh.vertices[f.v[1]],
-                                 mesh.vertices[f.v[2]]);
-  }
-  return normals;
-}
-
-Vec3 faceCentroid(const Mesh& mesh, const Face& face) {
-  return (mesh.vertices[face.v[0]] + mesh.vertices[face.v[1]] +
-          mesh.vertices[face.v[2]]) /
-         3.0;
-}
-
 int signedDihedralKind(const Mesh& mesh, const std::vector<Vec3>& normals,
-                       const EdgeInfo& info, int a, int b) {
+                       const detail::MeshEdgeInfo& info, int a, int b) {
   if (info.faces.size() != 2) {
     return 0;
   }
@@ -132,8 +105,8 @@ int signedDihedralKind(const Mesh& mesh, const std::vector<Vec3>& normals,
   }
   edge.normalize();
 
-  const Vec3 c0 = faceCentroid(mesh, mesh.faces[f0]);
-  const Vec3 c1 = faceCentroid(mesh, mesh.faces[f1]);
+  const Vec3 c0 = detail::faceCentroid(mesh, mesh.faces[f0]);
+  const Vec3 c1 = detail::faceCentroid(mesh, mesh.faces[f1]);
   const double side0 = edge.cross(normals[f0]).dot(c1 - c0);
   const double side1 = edge.cross(normals[f1]).dot(c0 - c1);
   if (std::abs(side0) <= 1e-12 || std::abs(side1) <= 1e-12) {
@@ -141,39 +114,6 @@ int signedDihedralKind(const Mesh& mesh, const std::vector<Vec3>& normals,
   }
   const bool normalsPointTowardEachOther = side0 > 0.0 && side1 > 0.0;
   return normalsPointTowardEachOther ? -1 : 1;
-}
-
-std::unordered_map<std::uint64_t, EdgeInfo> buildEdgeInfo(const Mesh& mesh) {
-  std::unordered_map<std::uint64_t, EdgeInfo> edges;
-  edges.reserve(mesh.faces.size() * 3);
-  for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
-    const Face& face = mesh.faces[fi];
-    for (int e = 0; e < 3; ++e) {
-      edges[edgeKey(face.v[e], face.v[(e + 1) % 3])].faces.push_back(fi);
-    }
-  }
-  return edges;
-}
-
-std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh) {
-  std::vector<std::unordered_set<int>> neighborSets(mesh.vertices.size());
-  for (const Face& face : mesh.faces) {
-    for (int i = 0; i < 3; ++i) {
-      const int a = face.v[i];
-      const int b = face.v[(i + 1) % 3];
-      if (a >= 0 && b >= 0 && a < static_cast<int>(neighborSets.size()) &&
-          b < static_cast<int>(neighborSets.size()) && a != b) {
-        neighborSets[a].insert(b);
-        neighborSets[b].insert(a);
-      }
-    }
-  }
-
-  std::vector<std::vector<int>> neighbors(mesh.vertices.size());
-  for (int i = 0; i < static_cast<int>(neighborSets.size()); ++i) {
-    neighbors[i].assign(neighborSets[i].begin(), neighborSets[i].end());
-  }
-  return neighbors;
 }
 
 NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
@@ -240,8 +180,8 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
                                                const FeatureOptions& options,
                                                FeatureAnalysis& analysis) {
   std::vector<CandidateEdge> result;
-  const std::vector<Vec3> normals = computeFaceNormals(mesh);
-  const auto edges = buildEdgeInfo(mesh);
+  const std::vector<Vec3> normals = detail::computeFaceNormals(mesh);
+  const detail::MeshEdgeInfoMap edges = detail::buildMeshEdgeInfo(mesh);
   const double threshold = options.featureAngleDeg * kPi / 180.0;
   const std::vector<NormalTensorVertex> tensor =
       options.useNormalTensorFeatures
@@ -260,7 +200,7 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
       discrete = std::acos(dot) >= threshold;
     }
     if (discrete) {
-      const auto [a, b] = unpackEdgeKey(key);
+      const auto [a, b] = detail::unpackMeshEdgeKey(key);
       discreteFeatureVertex[a] = 1;
       discreteFeatureVertex[b] = 1;
     }
@@ -268,7 +208,7 @@ std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
 
   for (const auto& [key, info] : edges) {
     CandidateEdge edge;
-    const auto [a, b] = unpackEdgeKey(key);
+    const auto [a, b] = detail::unpackMeshEdgeKey(key);
     edge.a = a;
     edge.b = b;
 
@@ -381,8 +321,7 @@ PlaneCircleFit solvePlaneCircle(const Mesh& mesh, const FeatureLoop& loop,
   }
 
   circle.valid = true;
-  circle.center =
-      frame.mean + cx * frame.majorAxis + cy * frame.minorAxis;
+  circle.center = frame.mean + cx * frame.majorAxis + cy * frame.minorAxis;
   circle.radius = std::sqrt(radiusSq);
   circle.majorRadius = majorRadius;
   circle.minorRadius = minorRadius;
@@ -411,11 +350,10 @@ void measurePrimitiveFitErrors(const Mesh& mesh, const FeatureLoop& loop,
     const Vec3 de = mesh.vertices[id] - frame.mean;
     const double ex = de.dot(frame.majorAxis);
     const double ey = de.dot(frame.minorAxis);
-    const double ellipse =
-        (std::sqrt((ex * ex) / (fit.majorRadius * fit.majorRadius) +
-                   (ey * ey) / (fit.minorRadius * fit.minorRadius)) -
-         1.0) *
-        std::sqrt(fit.majorRadius * fit.minorRadius);
+    const double ellipse = (std::sqrt((ex * ex) / (fit.majorRadius * fit.majorRadius) +
+                                      (ey * ey) / (fit.minorRadius * fit.minorRadius)) -
+                            1.0) *
+                           std::sqrt(fit.majorRadius * fit.minorRadius);
     ellipseSq += ellipse * ellipse;
     ellipseMax = std::max(ellipseMax, std::abs(ellipse));
   }
@@ -439,8 +377,7 @@ void classifyPrimitiveFit(const FeatureOptions& options, PrimitiveFit& fit) {
 
   const double ellipseScale =
       std::max(1e-12, std::sqrt(fit.majorRadius * fit.minorRadius));
-  const double ellipseRelRms =
-      (fit.rmsEllipseError + fit.rmsPlaneError) / ellipseScale;
+  const double ellipseRelRms = (fit.rmsEllipseError + fit.rmsPlaneError) / ellipseScale;
   const double ellipseRelMax =
       std::max(fit.maxEllipseError, fit.maxPlaneError) / ellipseScale;
   const bool ellipseFit =
@@ -582,31 +519,30 @@ TraceGraph buildTraceGraph(const Mesh& mesh, const FeatureOptions& options,
     trace.adjacency[edge.b].push_back(edge.a);
     trace.traceVertex[edge.a] = 1;
     trace.traceVertex[edge.b] = 1;
-    trace.edgeIsBoundary[edgeKey(edge.a, edge.b)] = edge.boundary;
-    trace.edgeSignedKind[edgeKey(edge.a, edge.b)] = edge.signedKind;
+    trace.edgeIsBoundary[detail::meshEdgeKey(edge.a, edge.b)] = edge.boundary;
+    trace.edgeSignedKind[detail::meshEdgeKey(edge.a, edge.b)] = edge.signedKind;
     trace.graphEdges.emplace_back(edge.a, edge.b);
   }
   return trace;
 }
 
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b) {
-  const auto it = trace.edgeIsBoundary.find(edgeKey(a, b));
+  const auto it = trace.edgeIsBoundary.find(detail::meshEdgeKey(a, b));
   return it != trace.edgeIsBoundary.end() && it->second;
 }
 
 int traceEdgeSign(const TraceGraph& trace, int a, int b) {
-  const auto it = trace.edgeSignedKind.find(edgeKey(a, b));
+  const auto it = trace.edgeSignedKind.find(detail::meshEdgeKey(a, b));
   return it == trace.edgeSignedKind.end() ? 0 : it->second;
 }
 
-bool traceEdgeVisited(const std::unordered_set<std::uint64_t>& visitedEdges,
-                      int a, int b) {
-  return visitedEdges.find(edgeKey(a, b)) != visitedEdges.end();
+bool traceEdgeVisited(const std::unordered_set<std::uint64_t>& visitedEdges, int a,
+                      int b) {
+  return visitedEdges.find(detail::meshEdgeKey(a, b)) != visitedEdges.end();
 }
 
-void markTraceEdge(std::unordered_set<std::uint64_t>& visitedEdges, int a,
-                   int b) {
-  visitedEdges.insert(edgeKey(a, b));
+void markTraceEdge(std::unordered_set<std::uint64_t>& visitedEdges, int a, int b) {
+  visitedEdges.insert(detail::meshEdgeKey(a, b));
 }
 
 void accumulateTraceEdgeStats(const TraceGraph& trace, int a, int b,
@@ -627,7 +563,8 @@ std::string cycleSignature(const std::vector<int>& vertices) {
   std::vector<std::uint64_t> keys;
   keys.reserve(vertices.size());
   for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
-    keys.push_back(edgeKey(vertices[i], vertices[(i + 1) % vertices.size()]));
+    keys.push_back(
+        detail::meshEdgeKey(vertices[i], vertices[(i + 1) % vertices.size()]));
   }
   std::sort(keys.begin(), keys.end());
   std::ostringstream out;
@@ -648,9 +585,8 @@ bool cycleHasUniqueVertices(const std::vector<int>& vertices) {
   return true;
 }
 
-bool cycleEdgesFollowCircle(const std::vector<int>& vertices,
-                            const PrimitiveFit& fit, const Mesh& mesh,
-                            const FeatureOptions& options) {
+bool cycleEdgesFollowCircle(const std::vector<int>& vertices, const PrimitiveFit& fit,
+                            const Mesh& mesh, const FeatureOptions& options) {
   if (!fit.valid ||
       (fit.primitive != FeaturePrimitiveType::Circle &&
        fit.primitive != FeaturePrimitiveType::NearCircle) ||
@@ -662,9 +598,8 @@ bool cycleEdgesFollowCircle(const std::vector<int>& vertices,
   const double allowed =
       std::max(3.0 * options.circleFitRelativeThreshold, 0.08) * fit.radius;
   for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
-    const Vec3 midpoint =
-        0.5 * (mesh.vertices[vertices[i]] +
-               mesh.vertices[vertices[(i + 1) % vertices.size()]]);
+    const Vec3 midpoint = 0.5 * (mesh.vertices[vertices[i]] +
+                                 mesh.vertices[vertices[(i + 1) % vertices.size()]]);
     const Vec3 delta = midpoint - fit.center;
     const double plane = std::abs(delta.dot(normal));
     const Vec3 inPlane = delta - normal * delta.dot(normal);
@@ -723,8 +658,8 @@ void assignLoopToVertices(const FeatureLoop& loop, const Mesh& mesh,
       vf.ellipseMinorRadius = loop.minorRadius;
       Vec3 major = loop.majorAxis;
       Vec3 minor = loop.minorAxis;
-      if (major.norm() > 1e-20 && minor.norm() > 1e-20 &&
-          loop.majorRadius > 1e-20 && loop.minorRadius > 1e-20) {
+      if (major.norm() > 1e-20 && minor.norm() > 1e-20 && loop.majorRadius > 1e-20 &&
+          loop.minorRadius > 1e-20) {
         major.normalize();
         minor.normalize();
         const Vec3 delta = mesh.vertices[id] - loop.center;
@@ -752,10 +687,9 @@ FeatureLoop makeLoopFromStats(std::vector<int> vertices, int loopId,
   loop.vertices = std::move(vertices);
   loop.edgeCount = stats.edgeCount;
   loop.closed = stats.closed;
-  loop.mostlyBoundary =
-      loop.edgeCount > 0 &&
-      stats.boundaryEdges >=
-          static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+  loop.mostlyBoundary = loop.edgeCount > 0 &&
+                        stats.boundaryEdges >=
+                            static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
   loop.convexEdges = stats.convexEdges;
   loop.concaveEdges = stats.concaveEdges;
   loop.unknownSignedEdges = stats.unknownSignedEdges;
@@ -781,10 +715,9 @@ void addTracedLoop(const Mesh& mesh, const FeatureOptions& options,
 }
 
 bool addRecoveredCycle(RecoveredCycleKind kind, std::vector<int> vertices,
-                       std::unordered_set<std::string>& seenCycles,
-                       const Mesh& mesh, const FeatureOptions& options,
-                       const TraceGraph& trace, FeatureAnalysis& analysis,
-                       int& loopId) {
+                       std::unordered_set<std::string>& seenCycles, const Mesh& mesh,
+                       const FeatureOptions& options, const TraceGraph& trace,
+                       FeatureAnalysis& analysis, int& loopId) {
   if (static_cast<int>(vertices.size()) < options.minFeatureLoopVertices ||
       !cycleHasUniqueVertices(vertices)) {
     return false;
@@ -934,11 +867,10 @@ std::vector<int> collectTraceVertices(const std::vector<char>& traceVertex) {
   return candidates;
 }
 
-void recoverCircularVertexClusters(
-    const Mesh& mesh, const FeatureOptions& options,
-    const std::vector<char>& traceVertex,
-    const std::vector<std::vector<int>>& adjacency, FeatureAnalysis& analysis,
-    int& loopId) {
+void recoverCircularVertexClusters(const Mesh& mesh, const FeatureOptions& options,
+                                   const std::vector<char>& traceVertex,
+                                   const std::vector<std::vector<int>>& adjacency,
+                                   FeatureAnalysis& analysis, int& loopId) {
   if (analysis.normalTensorFeatureEdges > 0) {
     return;
   }
@@ -978,8 +910,7 @@ void recoverCircularVertexClusters(
           continue;
         }
         const double allowed =
-            std::max(3.0 * options.circleFitRelativeThreshold, 0.08) *
-            circle.radius;
+            std::max(3.0 * options.circleFitRelativeThreshold, 0.08) * circle.radius;
         std::vector<int> cluster;
         for (int id : candidates) {
           const Vec3 delta = mesh.vertices[id] - circle.center;
@@ -991,8 +922,7 @@ void recoverCircularVertexClusters(
           }
         }
         if (static_cast<int>(cluster.size()) < options.minFeatureLoopVertices ||
-            angularCoverage(cluster, mesh, circle.center, circle.normal) <
-                1.5 * kPi) {
+            angularCoverage(cluster, mesh, circle.center, circle.normal) < 1.5 * kPi) {
           continue;
         }
         const std::string signature = vertexSetSignature(cluster);
@@ -1000,8 +930,8 @@ void recoverCircularVertexClusters(
           continue;
         }
 
-        cluster = sortAroundCircle(std::move(cluster), mesh, circle.center,
-                                   circle.normal);
+        cluster =
+            sortAroundCircle(std::move(cluster), mesh, circle.center, circle.normal);
         FeatureLoop loop;
         loop.id = loopId++;
         loop.vertices = std::move(cluster);
@@ -1084,8 +1014,7 @@ traceJunctionChains(const std::vector<std::vector<int>>& adjacency) {
 
 template <typename AddCircularCycle>
 void recoverCircularCyclesThroughJunctions(
-    const std::vector<std::vector<int>>& adjacency,
-    AddCircularCycle addCircularCycle) {
+    const std::vector<std::vector<int>>& adjacency, AddCircularCycle addCircularCycle) {
   const std::vector<FeatureChain> chains = traceJunctionChains(adjacency);
   std::unordered_set<std::string> seenCycles;
   for (int i = 0; i < static_cast<int>(chains.size()); ++i) {
@@ -1175,7 +1104,7 @@ void recoverSmallCycleBasis(const Mesh& mesh, const FeatureOptions& options,
           componentVisited[nb] = 1;
           parent[nb] = v;
           depth[nb] = depth[v] + 1;
-          treeEdges.insert(edgeKey(v, nb));
+          treeEdges.insert(detail::meshEdgeKey(v, nb));
           queue.push(nb);
         }
       }
@@ -1195,7 +1124,7 @@ void recoverSmallCycleBasis(const Mesh& mesh, const FeatureOptions& options,
       std::vector<int> neighbors = adjacency[v];
       std::sort(neighbors.begin(), neighbors.end());
       for (int nb : neighbors) {
-        if (v >= nb || treeEdges.find(edgeKey(v, nb)) != treeEdges.end()) {
+        if (v >= nb || treeEdges.find(detail::meshEdgeKey(v, nb)) != treeEdges.end()) {
           continue;
         }
         std::vector<int> cycle = treePathCycle(v, nb, parent, depth);
@@ -1285,9 +1214,9 @@ void recoverPrimitiveComponents(const Mesh& mesh, const FeatureOptions& options,
   }
 }
 
-std::vector<int> traceOpenChain(
-    const TraceGraph& trace, int seed, int firstNeighbor,
-    std::unordered_set<std::uint64_t>& visitedEdges, TraceLoopStats& stats) {
+std::vector<int> traceOpenChain(const TraceGraph& trace, int seed, int firstNeighbor,
+                                std::unordered_set<std::uint64_t>& visitedEdges,
+                                TraceLoopStats& stats) {
   std::vector<int> vertices;
   vertices.push_back(seed);
 
@@ -1328,9 +1257,9 @@ std::vector<int> traceOpenChain(
   return vertices;
 }
 
-std::vector<int> traceClosedLoop(
-    const TraceGraph& trace, int seed, int firstNeighbor,
-    std::unordered_set<std::uint64_t>& visitedEdges, TraceLoopStats& stats) {
+std::vector<int> traceClosedLoop(const TraceGraph& trace, int seed, int firstNeighbor,
+                                 std::unordered_set<std::uint64_t>& visitedEdges,
+                                 TraceLoopStats& stats) {
   std::vector<int> vertices;
   vertices.push_back(seed);
 
@@ -1380,8 +1309,7 @@ void traceRemainingFeatureLoops(const Mesh& mesh, const FeatureOptions& options,
         continue;
       }
       TraceLoopStats stats;
-      std::vector<int> vertices =
-          traceOpenChain(trace, seed, nb, visitedEdges, stats);
+      std::vector<int> vertices = traceOpenChain(trace, seed, nb, visitedEdges, stats);
       addTracedLoop(mesh, options, trace.adjacency, std::move(vertices), stats,
                     analysis, loopId);
     }
@@ -1393,8 +1321,8 @@ void traceRemainingFeatureLoops(const Mesh& mesh, const FeatureOptions& options,
     }
     TraceLoopStats stats;
     std::vector<int> vertices = traceClosedLoop(trace, a, b, visitedEdges, stats);
-    addTracedLoop(mesh, options, trace.adjacency, std::move(vertices), stats,
-                  analysis, loopId);
+    addTracedLoop(mesh, options, trace.adjacency, std::move(vertices), stats, analysis,
+                  loopId);
   }
 }
 
@@ -1418,17 +1346,59 @@ void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis) {
 
 } // namespace
 
-FeatureDetector::FeatureDetector(FeatureOptions options)
-    : options_(std::move(options)) {}
+struct FeatureDetector::Impl {
+  FeatureOptions options;
+};
 
-const FeatureOptions& FeatureDetector::options() const { return options_; }
+FeatureDetector::FeatureDetector(FeatureOptions options)
+    : impl_(std::make_unique<Impl>()) {
+  impl_->options = std::move(options);
+}
+
+FeatureDetector::~FeatureDetector() = default;
+
+FeatureDetector::FeatureDetector(const FeatureDetector& other)
+    : impl_(other.impl_ ? std::make_unique<Impl>(*other.impl_)
+                        : std::make_unique<Impl>()) {
+}
+
+FeatureDetector& FeatureDetector::operator=(const FeatureDetector& other) {
+  if (this != &other) {
+    impl_ =
+        other.impl_ ? std::make_unique<Impl>(*other.impl_) : std::make_unique<Impl>();
+  }
+  return *this;
+}
+
+FeatureDetector::FeatureDetector(FeatureDetector&& other) noexcept
+    : impl_(std::move(other.impl_)) {
+  if (!impl_) {
+    impl_ = std::make_unique<Impl>();
+  }
+  other.impl_ = std::make_unique<Impl>();
+}
+
+FeatureDetector& FeatureDetector::operator=(FeatureDetector&& other) noexcept {
+  if (this != &other) {
+    impl_ = std::move(other.impl_);
+    if (!impl_) {
+      impl_ = std::make_unique<Impl>();
+    }
+    other.impl_ = std::make_unique<Impl>();
+  }
+  return *this;
+}
+
+const FeatureOptions& FeatureDetector::options() const {
+  return impl_->options;
+}
 
 void FeatureDetector::setOptions(FeatureOptions options) {
-  options_ = std::move(options);
+  impl_->options = std::move(options);
 }
 
 FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const {
-  return detectFeatureCurves(mesh, options_);
+  return detectFeatureCurves(mesh, impl_->options);
 }
 
 std::vector<NormalTensorVertex>
@@ -1462,7 +1432,7 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
     }
   }
 
-  const std::vector<std::vector<int>> neighbors = buildVertexNeighbors(mesh);
+  const std::vector<std::vector<int>> neighbors = detail::buildVertexNeighbors(mesh);
   const int baseIterations = std::clamp(options.smoothingIterations, 0, 8);
   const int scaleCount = std::clamp(options.scaleCount, 1, 8);
 
@@ -1516,12 +1486,8 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   const std::vector<std::vector<int>>& adjacency = trace.adjacency;
   int loopId = 0;
 
-  auto edgeBoundary = [&](int a, int b) {
-    return traceEdgeBoundary(trace, a, b);
-  };
-  auto edgeSign = [&](int a, int b) {
-    return traceEdgeSign(trace, a, b);
-  };
+  auto edgeBoundary = [&](int a, int b) { return traceEdgeBoundary(trace, a, b); };
+  auto edgeSign = [&](int a, int b) { return traceEdgeSign(trace, a, b); };
 
   auto addCircularCycle = [&](std::vector<int> vertices,
                               std::unordered_set<std::string>& seenCycles) {
@@ -1539,11 +1505,11 @@ FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& opti
   recoverSmallCycleBasis(mesh, options, adjacency, analysis, addGraphCycle);
   traceRemainingFeatureLoops(mesh, options, trace, analysis, loopId);
 
-  recoverPrimitiveComponents(mesh, options, adjacency, edgeBoundary, edgeSign,
-                             analysis, loopId);
+  recoverPrimitiveComponents(mesh, options, adjacency, edgeBoundary, edgeSign, analysis,
+                             loopId);
 
-  recoverCircularVertexClusters(mesh, options, trace.traceVertex, adjacency,
-                                analysis, loopId);
+  recoverCircularVertexClusters(mesh, options, trace.traceVertex, adjacency, analysis,
+                                loopId);
   finalizeFeatureGraphMarkers(analysis);
 
   return analysis;

@@ -25,6 +25,7 @@ lq_copy_gtest_runtime_dependencies(line_quadrics_qem_tests)
 
 include(GoogleTest)
 gtest_discover_tests(line_quadrics_qem_tests
+  DISCOVERY_MODE PRE_TEST
   PROPERTIES
     LABELS unit
 )
@@ -71,6 +72,7 @@ if(LQ_BUILD_PERFORMANCE_TESTS)
   lq_copy_gtest_runtime_dependencies(line_quadrics_qem_performance_tests)
 
   gtest_discover_tests(line_quadrics_qem_performance_tests
+    DISCOVERY_MODE PRE_TEST
     PROPERTIES
       LABELS performance
       RUN_SERIAL TRUE

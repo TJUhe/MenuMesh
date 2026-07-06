@@ -358,6 +358,51 @@ endfunction()
 
 lq_apply_warnings(line_quadrics_qem)
 
+function(lq_copy_mingw_runtime_dependencies target)
+  if(WIN32 AND MINGW)
+    if(NOT TARGET lq_mingw_runtime_dependencies)
+      get_filename_component(LQ_MINGW_COMPILER_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+      set(LQ_MINGW_RUNTIME_FILES
+        "${LQ_MINGW_COMPILER_DIR}/libatomic-1.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libgcc_s_dw2-1.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libgcc_s_seh-1.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libgcc_s_sjlj-1.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libgomp-1.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libquadmath-0.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libssp-0.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libstdc++-6.dll"
+        "${LQ_MINGW_COMPILER_DIR}/libwinpthread-1.dll"
+      )
+      file(GLOB LQ_MINGW_GCC_RUNTIME_FILES CONFIGURE_DEPENDS
+        "${LQ_MINGW_COMPILER_DIR}/libgcc_s_*.dll"
+      )
+      list(APPEND LQ_MINGW_RUNTIME_FILES ${LQ_MINGW_GCC_RUNTIME_FILES})
+      list(REMOVE_DUPLICATES LQ_MINGW_RUNTIME_FILES)
+
+      set(LQ_MINGW_RUNTIME_COPY_COMMANDS
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:line_quadrics_qem>"
+      )
+      foreach(mingw_runtime_file IN LISTS LQ_MINGW_RUNTIME_FILES)
+        if(EXISTS "${mingw_runtime_file}")
+          list(APPEND LQ_MINGW_RUNTIME_COPY_COMMANDS
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+              "${mingw_runtime_file}"
+              "$<TARGET_FILE_DIR:line_quadrics_qem>"
+          )
+        endif()
+      endforeach()
+
+      add_custom_target(lq_mingw_runtime_dependencies
+        ${LQ_MINGW_RUNTIME_COPY_COMMANDS}
+        COMMENT "Copying MinGW runtime dependencies"
+        VERBATIM
+      )
+    endif()
+
+    add_dependencies(${target} lq_mingw_runtime_dependencies)
+  endif()
+endfunction()
+
 function(lq_copy_runtime_dependencies target)
   if(WIN32 AND LQ_BUILD_SHARED_LIBRARY)
     add_custom_command(TARGET ${target} POST_BUILD
@@ -368,6 +413,7 @@ function(lq_copy_runtime_dependencies target)
       VERBATIM
     )
   endif()
+  lq_copy_mingw_runtime_dependencies(${target})
 endfunction()
 
 function(lq_copy_gtest_runtime_dependencies target)

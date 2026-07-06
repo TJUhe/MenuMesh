@@ -34,6 +34,12 @@ private:
   bool isCurrentCandidate(const Candidate& candidate) const;
   void handleStaleCandidate();
   bool tryCollapse(int keep, int remove);
+  bool acceptFirstLegalPlacement(const CollapseEdge& edge, const Mat4& mergedQ,
+                                 const std::vector<SolveResult>& placements,
+                                 const BoundaryCollapseDecision& boundaryDecision,
+                                 bool tryFallbackPlacements,
+                                 CollapseRejectReason& firstRejectReason,
+                                 bool& sawCurveBudgetReject);
   void rejectFeatureCollapse(int keep, int remove, FeatureCollapseRejectKind kind);
   void rejectBoundaryCollapse(int keep, int remove);
   void rejectCurveBudgetCollapse(int keep, int remove);

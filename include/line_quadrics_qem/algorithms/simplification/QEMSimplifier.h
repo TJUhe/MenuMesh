@@ -49,10 +49,13 @@ enum class FeatureProtectionMode {
 /// applies explicit filters for topology, boundary behavior, normals, triangle
 /// quality, local error, self-intersection, and feature-curve policy.
 struct SimplifyOptions {
+  // Target selection.
   /// Absolute output face target. When positive, this overrides targetRatio.
   int targetFaces = -1;
   /// Output face ratio used when targetFaces is not set.
   double targetRatio = 0.25;
+
+  // QEM and line-quadric ranking costs.
   /// Adds line quadrics to reduce tangential drift in underconstrained regions.
   bool useLineQuadrics = true;
   /// Base line-quadric weight. Keep this small enough that plane quadrics and
@@ -71,6 +74,8 @@ struct SimplifyOptions {
   double boundaryWeight = 0.0;
   /// Rejects collapses that would merge or remove open-boundary structure.
   bool preserveBoundary = false;
+
+  // Feature detection, feature projection, and hard feature policies.
   /// Enables feature detection, feature quadrics, projection, and protection.
   bool preserveFeatureCurves = false;
   /// Preferred hard feature policy. Defaults to primitive curves so generic
@@ -96,6 +101,8 @@ struct SimplifyOptions {
   double normalTensorMinEdgeAlignment = 0.45;
   int normalTensorSmoothingIterations = 0;
   int normalTensorScaleCount = 1;
+
+  // Hard post-placement filters and diagnostics.
   /// Hard post-placement filters. Zero local-error budgets disable those tests.
   double minTriangleQuality = 0.0;
   double maxNormalDeviationDeg = 90.0;
@@ -111,20 +118,27 @@ struct SimplifyOptions {
 /// collapse candidate. They are intended for parameter tuning and regression
 /// tests, not as independent totals of every failed subcheck.
 struct SimplifyReport {
+  // Mesh-size summary.
   int initialVertices = 0;
   int initialFaces = 0;
   int finalVertices = 0;
   int finalFaces = 0;
+
+  // Queue and solve progress.
   int collapsedEdges = 0;
   int rejectedCollapses = 0;
   /// Number of current collapse candidates whose placement solve used fallback
   /// endpoint/midpoint candidates instead of a stable linear-system optimum.
   int solverFallbacks = 0;
   int queueRebuilds = 0;
+
+  // Feature-analysis summary captured at run start.
   int featureLoops = 0;
   int circularFeatureLoops = 0;
   int featureVertices = 0;
   int normalTensorFeatureEdges = 0;
+
+  // First-reject counters for current collapse candidates.
   int featureRejectedCollapses = 0;
   int primitiveFeatureRejectedCollapses = 0;
   int genericFeatureRejectedCollapses = 0;
@@ -136,6 +150,8 @@ struct SimplifyReport {
   int curveBudgetRejectedCollapses = 0;
   int errorRejectedCollapses = 0;
   int projectedFeaturePlacements = 0;
+
+  // Final termination and applied weight range.
   SimplifyTerminationReason terminationReason = SimplifyTerminationReason::NotStarted;
   double minAppliedLineWeight = 0.0;
   double maxAppliedLineWeight = 0.0;

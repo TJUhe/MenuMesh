@@ -10,10 +10,18 @@
 
 namespace lq {
 
+/// Mutable vertex record used only during one simplification run.
+///
+/// The fields are kept flat because the hot path reads them from several
+/// modules. Conceptually they form three groups: geometry/QEM state, feature
+/// ownership, and queue invalidation.
 struct VertexState {
+  // Geometry and QEM state.
   Vec3 p = Vec3::Zero();
   Mat4 q = Mat4::Zero();
   bool active = true;
+
+  // Feature ownership and primitive-fit data copied from FeatureAnalysis.
   bool isFeature = false;
   bool isBoundary = false;
   bool circularFeature = false;
@@ -30,19 +38,25 @@ struct VertexState {
   Vec3 ellipseMinorAxis = Vec3(0.0, 1.0, 0.0);
   double ellipseMajorRadius = 0.0;
   double ellipseMinorRadius = 0.0;
+
+  // Incremented after collapse so queued candidates can detect stale endpoints.
   int version = 0;
 };
 
+/// Mutable triangle record used by the active topology during simplification.
 struct FaceState {
   std::array<int, 3> v{};
   bool active = true;
 };
 
+/// Directed edge-collapse choice: keep one endpoint and remove the other.
 struct CollapseEdge {
   int keep = -1;
   int remove = -1;
 };
 
+/// Priority-queue entry. The comparison is reversed for std::priority_queue so
+/// the lowest-cost candidate is popped first.
 struct Candidate {
   double cost = 0.0;
   int a = -1;
@@ -53,6 +67,7 @@ struct Candidate {
   bool operator<(const Candidate& other) const { return cost > other.cost; }
 };
 
+/// Candidate collapse placement and its evaluated quadric cost.
 struct SolveResult {
   Vec3 position = Vec3::Zero();
   double cost = 0.0;

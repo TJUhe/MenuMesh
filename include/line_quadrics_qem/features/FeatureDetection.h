@@ -65,12 +65,15 @@ struct NormalTensorVertex {
 
 /// One connected feature curve or loop detected in the mesh.
 struct FeatureLoop {
+  // Topology of the recovered chain/loop.
   int id = -1;
   std::vector<int> vertices;
   int edgeCount = 0;
   bool closed = false;
   bool circular = false;
   bool mostlyBoundary = false;
+
+  // Primitive fit. Circle and near-circle use radius; ellipse uses major/minor.
   FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
   Vec3 center = Vec3::Zero();
   Vec3 normal = Vec3(0.0, 0.0, 1.0);
@@ -86,6 +89,8 @@ struct FeatureLoop {
   double maxEllipseError = 0.0;
   double rmsPlaneError = 0.0;
   double maxPlaneError = 0.0;
+
+  // Signed dihedral summary for the graph edges that make up this loop.
   int convexEdges = 0;
   int concaveEdges = 0;
   int unknownSignedEdges = 0;
@@ -93,15 +98,20 @@ struct FeatureLoop {
 
 /// Per-vertex feature classification used by feature-preserving simplification.
 struct VertexFeature {
+  // Ownership and graph role.
   bool isFeature = false;
   bool circular = false;
   bool junction = false;
   FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
   int loopId = -1;
   Vec3 tangent = Vec3::Zero();
+
+  // Circle projection data for circular and near-circular feature vertices.
   Vec3 circleCenter = Vec3::Zero();
   Vec3 circleNormal = Vec3(0.0, 0.0, 1.0);
   double circleRadius = 0.0;
+
+  // Ellipse projection data for fitted elliptical feature vertices.
   Vec3 ellipseCenter = Vec3::Zero();
   Vec3 ellipseNormal = Vec3(0.0, 0.0, 1.0);
   Vec3 ellipseMajorAxis = Vec3(1.0, 0.0, 0.0);

@@ -293,21 +293,42 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
        options_.preventLocalIntersections);
   CollapseRejectReason firstRejectReason = CollapseRejectReason::None;
   bool sawCurveBudgetReject = false;
-  bool projectedFeaturePlacement = false;
-  Vec3 collapsePosition = placements.front().position;
+  if (acceptFirstLegalPlacement(edge, mergedQ, placements, boundaryDecision,
+                                tryFallbackPlacements, firstRejectReason,
+                                sawCurveBudgetReject)) {
+    return true;
+  }
+
+  if (firstRejectReason != CollapseRejectReason::None) {
+    rejectLegalityCollapse(keep, remove, firstRejectReason);
+    return false;
+  }
+  if (sawCurveBudgetReject) {
+    rejectCurveBudgetCollapse(keep, remove);
+    return false;
+  }
+  rejectLegalityCollapse(keep, remove, CollapseRejectReason::Topology);
+  return false;
+}
+
+bool SimplificationRun::acceptFirstLegalPlacement(
+    const CollapseEdge& edge, const Mat4& mergedQ,
+    const std::vector<SolveResult>& placements,
+    const BoundaryCollapseDecision& boundaryDecision, bool tryFallbackPlacements,
+    CollapseRejectReason& firstRejectReason, bool& sawCurveBudgetReject) {
   const int placementCount =
       tryFallbackPlacements ? static_cast<int>(placements.size()) : 1;
   for (int placementIndex = 0; placementIndex < placementCount; ++placementIndex) {
-    collapsePosition = placements[placementIndex].position;
+    Vec3 collapsePosition = placements[placementIndex].position;
     projectBoundaryPlacement({edge, boundaryDecision, vertices_}, collapsePosition);
-    if (!curveBudgetAllows(keep, remove, collapsePosition)) {
+    if (!curveBudgetAllows(edge.keep, edge.remove, collapsePosition)) {
       sawCurveBudgetReject = true;
       continue;
     }
+
     const bool projected =
         featurePolicy_.projectPlacement({edge, vertices_, featureCurves_},
                                         collapsePosition);
-
     const CollapseRejectReason rejectReason =
         collapseRejectReason({edge,
                               collapsePosition,
@@ -320,9 +341,8 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
                               options_.preventLocalIntersections ? &spatialIndex_
                                                                  : nullptr});
     if (rejectReason == CollapseRejectReason::None) {
-      projectedFeaturePlacement = projected;
-      applyCollapse(keep, remove, collapsePosition, mergedQ);
-      if (projectedFeaturePlacement) {
+      applyCollapse(edge.keep, edge.remove, collapsePosition, mergedQ);
+      if (projected) {
         ++report_.projectedFeaturePlacements;
       }
       return true;
@@ -331,16 +351,6 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
       firstRejectReason = rejectReason;
     }
   }
-
-  if (firstRejectReason != CollapseRejectReason::None) {
-    rejectLegalityCollapse(keep, remove, firstRejectReason);
-    return false;
-  }
-  if (sawCurveBudgetReject) {
-    rejectCurveBudgetCollapse(keep, remove);
-    return false;
-  }
-  rejectLegalityCollapse(keep, remove, CollapseRejectReason::Topology);
   return false;
 }
 

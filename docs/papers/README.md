@@ -1,48 +1,44 @@
-# Paper Index
+﻿# 论文索引
 
-Canonical paper archive for the `line-quadrics-qem` project.
+本目录保存 `line-quadrics-qem` 项目的论文 PDF 归档。PDF 文件名保留英文，方便和引用链接对应；本索引用中文说明它们在当前项目中的作用。
 
-## Core Papers
+## 核心论文
 
-| File | Project role | Public source |
+| 文件 | 在项目中的作用 | 来源 |
 | --- | --- | --- |
-| `garland_heckbert_1997_surface_simplification_qem.pdf` | Original quadric error metric paper; explains plane quadrics and edge contraction. | https://www.cs.cmu.edu/~garland/Papers/quadrics.pdf |
-| `liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | Main paper reproduced by this project; explains line quadrics as soft control for QEM simplification. | https://www.dgp.toronto.edu/~hsuehtil/pdf/lineQuadric.pdf |
-| `wang_2008_feature_sensitive_metric.pdf` | Feature-sensitive metric paper; supports the idea that position-only QEM should be extended with normal/feature information. | https://cg.cs.tsinghua.edu.cn/papers/weijin.pdf |
-| `vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | Robust CAD triangular mesh feature-line extraction; relevant to identifying feature edges before simplification. | https://www.scitepress.org/Papers/2011/33617/33617.pdf |
-| `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | Feature-preserving simplification using vertex-cover ideas; relevant to protecting small/salient features during contraction. | https://www.grahn.cse.bth.se/Papers/cgv2008.pdf |
-| `jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | Identifies C1/C2 discontinuities in CAD surface meshes; relevant to hard/transition feature loop detection. | https://www.ams.sunysb.edu/~jiao/papers/feature_detect.pdf |
-| `tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | Normal tensor framework for surface feature lines; relevant to more robust feature-line extraction beyond simple dihedral thresholds. | https://www.cad-journal.net/files/vol_11/CAD_11%282%29_2014_172-181.pdf |
-| `lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | Edge-collapse simplification with memory-efficient local decisions; useful context for boundary/volume/shape preservation constraints. | https://faculty.cc.gatech.edu/~turk/my_papers/memless_vis98.pdf |
-| `hoppe_1996_progressive_meshes.pdf` | Progressive mesh edge-collapse framework; useful context for legality, reconstruction, and constrained simplification workflows. | https://hhoppe.com/pm.pdf |
-| `garland_heckbert_1998_color_texture_qem.pdf` | Extends QEM to preserve attributes; useful for treating geometry and auxiliary constraints as separate error terms. | https://www.cs.cmu.edu/~garland/Papers/quadric2.pdf |
-| `garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | Large-mesh adaptive simplification; useful for thinking about scalable local simplification policies. | https://mgarland.org/papers/massive.pdf |
+| `garland_heckbert_1997_surface_simplification_qem.pdf` | 原始 QEM 论文，解释 plane quadric、vertex quadric 和 edge contraction cost。 | https://www.cs.cmu.edu/~garland/Papers/quadrics.pdf |
+| `liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | 本项目复现和扩展的主参考，解释用 point-to-line quadrics 软控制 QEM 简化。 | https://www.dgp.toronto.edu/~hsuehtil/pdf/lineQuadric.pdf |
+| `wang_2008_feature_sensitive_metric.pdf` | 支持把位置 QEM 扩展到法线/特征敏感度的思路。 | https://cg.cs.tsinghua.edu.cn/papers/weijin.pdf |
+| `vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | CAD 三角网格特征线提取参考，对当前 feature graph 和 loop 检测有启发。 | https://www.scitepress.org/Papers/2011/33617/33617.pdf |
+| `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | 特征保持简化参考，用于理解小特征保护和顶点覆盖思路。 | https://www.grahn.cse.bth.se/Papers/cgv2008.pdf |
+| `jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | CAD 表面 C1/C2 不连续检测参考。 | https://www.ams.sunysb.edu/~jiao/papers/feature_detect.pdf |
+| `tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | normal tensor 特征评分参考，当前 `normal-tensor` 模式受它启发。 | https://www.cad-journal.net/files/vol_11/CAD_11%282%29_2014_172-181.pdf |
+| `lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | 局部边折叠、内存效率和约束保持参考。 | https://faculty.cc.gatech.edu/~turk/my_papers/memless_vis98.pdf |
+| `hoppe_1996_progressive_meshes.pdf` | Progressive Mesh 框架参考，用于理解 collapse workflow 和重建。 | https://hhoppe.com/pm.pdf |
+| `garland_heckbert_1998_color_texture_qem.pdf` | QEM 属性扩展参考，说明如何把附加约束并入 quadric 风格误差项。 | https://www.cs.cmu.edu/~garland/Papers/quadric2.pdf |
+| `garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | 大模型自适应简化参考。 | https://mgarland.org/papers/massive.pdf |
 
-## Recent QEM And Mesh Simplification
+## 近期 QEM 和网格简化资料
 
-| File | Year | Paper | Project role |
-| --- | ---: | --- | --- |
-| `chang_2025_two_round_optimization_qem.pdf` | 2025 | Hui-Huang Chang et al. *Two-Round Optimization Algorithm Based on Quadric Error Metrics*. IEEE Access. DOI: https://doi.org/10.1109/ACCESS.2025.3541436 | Recent QEM variant. Useful for comparing whether a second optimization/refinement pass improves quality after ordinary collapse ordering. |
-| `ha_2025_deep_learning_salient_feature_preserving_mesh_simplification.pdf` | 2025 | Lan/Zeng et al. *A Deep Learning-Based Salient Feature-Preserving Algorithm for Mesh Simplification*. Computers, Materials & Continua. DOI: https://doi.org/10.32604/cmc.2025.060260 | Learning-guided feature scoring. Useful if current dihedral/normal-tensor features fail on visually salient but geometrically weak regions. |
-| `yokota_2024_tracked_qem_temporal_consistency.pdf` | 2024 | Yokota et al. *Tracked QEM Algorithm: Adding Temporal Consistency to Dynamic Mesh Simplification Based on Mesh Registration*. MTA. DOI: https://doi.org/10.3169/mta.12.175 | Relevant if the target expands from static meshes to sequences. Introduces consistency constraints across frames instead of simplifying each mesh independently. |
-| `maruani_2024_ponq_neural_qem_representation.pdf` | 2024 | Maruani et al. *PoNQ: a Neural QEM-based Mesh Representation*. CVPR. Source: https://openaccess.thecvf.com/content/CVPR2024/html/Maruani_PoNQ_a_Neural_QEM-based_Mesh_Representation_CVPR_2024_paper.html | Not a decimator, but treats QEM-like local quadrics as a neural shape representation. Useful for thinking about learned/local anisotropic quadrics. |
-| `li_2025_qemesh_qem_based_mesh_generation.pdf` | 2025 | Li et al. *QEMesh: Employing A Quadric Error Metrics-Based Representation for 3D Mesh Generation*. arXiv. Source: https://arxiv.org/abs/2504.05720 | Also not a classical simplifier. Useful as evidence that QEM-style representations remain valuable in neural mesh generation. |
-| `rose_2025_mesh_simplification_edge_collapse_guide.pdf` | 2025 | Rose et al. *A Comprehensive Guide to Mesh Simplification using Edge Collapse*. arXiv. Source: https://arxiv.org/abs/2512.19959 | Practical edge-collapse survey/guide. Good for implementation checklists: priority queues, placement, legality, boundaries, and error filters. |
+| 文件 | 年份 | 项目用途 |
+| --- | ---: | --- |
+| `chang_2025_two_round_optimization_qem.pdf` | 2025 | 近期 QEM 变体，可用于比较二轮优化/后处理是否改善质量。 |
+| `ha_2025_deep_learning_salient_feature_preserving_mesh_simplification.pdf` | 2025 | 学习式显著特征保护参考；当前项目未实现学习模型。 |
+| `yokota_2024_tracked_qem_temporal_consistency.pdf` | 2024 | 动态序列一致性参考；当前项目只处理静态网格。 |
+| `maruani_2024_ponq_neural_qem_representation.pdf` | 2024 | 神经 QEM 表示参考，不是当前 decimator 的实现基础。 |
+| `li_2025_qemesh_qem_based_mesh_generation.pdf` | 2025 | QEM 风格表示在生成任务中的参考，当前项目未实现生成模型。 |
+| `rose_2025_mesh_simplification_edge_collapse_guide.pdf` | 2025 | 边折叠工程清单参考：队列、placement、合法性、边界和误差过滤。 |
 
-## External References
+## 在线工程参考
 
-| Reference | Reason | Link |
-| --- | --- | --- |
-| CGAL Surface Mesh Simplification documentation | Online documentation, not a paper PDF. It is still important for constrained edges and constrained placement. | https://doc.cgal.org/latest/Surface_mesh_simplification/index.html |
-| OpenMesh Decimation Framework documentation | Online documentation, not a paper PDF. It shows the engineering pattern of cost modules plus legality modules. | https://www.graphics.rwth-aachen.de/media/openmesh_static/Documentations/OpenMesh-6.2-Documentation/a00004.html |
-| libigl `qslim` implementation | Open-source reference for QEM-style edge-collapse simplification in a compact geometry-processing library. | https://github.com/libigl/libigl |
-| MeshLab / VCGLib simplification filters | Open-source reference for production-oriented mesh decimation filters and mesh-quality safeguards. | https://github.com/cnr-isti-vclab/meshlab |
-| CGAL constrained edge-map examples | Open-source/reference implementation pattern for keeping selected edges from being collapsed. | https://doc.cgal.org/latest/Surface_mesh_simplification/index.html |
-| Yamakawa and Shimada, Polygon Crawling Feature-Edge Extraction | Feature-edge extraction reference. | https://doi.org/10.1007/s00366-009-0165-y |
-| A Novel Boundary Extraction Algorithm on Triangular Meshes of STL Model | STL boundary extraction reference. | https://doi.org/10.4028/www.scientific.net/AMR.472-475.2549 |
+| 参考 | 用途 |
+| --- | --- |
+| CGAL Surface Mesh Simplification | constrained edges、placement 和 stop predicate 的工程参考。 |
+| OpenMesh Decimation Framework | cost module + legality module 的架构参考。 |
+| libigl `qslim` | 紧凑 QEM 实现参考。 |
+| MeshLab / VCGLib | 生产型 decimation filter 和 mesh-quality safeguard 参考。 |
+| Yamakawa and Shimada Polygon Crawling | 特征边提取参考。 |
 
-## Watchlist
+## 与当前实现的关系
 
-| Year | Paper | Source | Status |
-| ---: | --- | --- | --- |
-| 2026 | *A Structure-Aware Triangular Mesh Simplification Based on Graph Neural Network (GNN)-Guided Quadric Error Metrics (QEM)* | DOI: https://doi.org/10.3390/math14101610 | Candidate reference for GNN-guided QEM. |
+当前实现已经落地：QEM、line quadrics、二面角和 normal-tensor 特征证据、圆/近圆/椭圆 loop 拟合、特征曲线保护、边界/拓扑/质量/局部误差/自交过滤。当前没有落地：论文中的完整 edge dihedral plane quadrics、学习式特征评分、时间一致性简化、神经 QEM 表示和通用 CAD/B-Rep 特征恢复。

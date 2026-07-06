@@ -1,33 +1,32 @@
-﻿# Documentation Layout
+﻿# 文档目录
 
-Documentation root for the project.
+这里是 `line-quadrics-qem` 的项目文档根目录。文档必须跟随当前程序状态更新，不能描述已经移除的任务、旧 CLI 参数或尚未实现的能力。
 
-## Documentation Policy
+## 当前代码事实
 
-Docs must follow the program, not the other way around.
+- 构建系统是 CMake，主路径为 MinGW + Ninja，VS Code 任务保存在 `.vscode/tasks.json`。
+- 核心库目标是 `line_quadrics_qem`，CLI 目标是 `linequadrics`。
+- 公共 C++ SDK 位于 `include/line_quadrics_qem/`，C ABI 位于 `include/line_quadrics_qem/api/CApi.h`。
+- 当前已实现能力包括 STL/OBJ 读写、内置网格生成、QEM/line-quadrics 简化、特征检测、特征曲线保护、质量/拓扑/局部误差过滤、CLI 批处理、C API 和回归测试。
+- 当前没有实现通用布尔运算、offset/thickening、完整 B-Rep 特征识别或通用去噪器；这些只能作为路线图描述。
 
-- CLI examples must match `apps/linequadrics/main.cpp` and should be checked
-  with the built `linequadrics --help` plus at least one real run when a command
-  changes.
-- Algorithm explanations must describe the current implementation in
-  `src/simplification/QEMSimplifier.cpp`, `src/features/FeatureDetection.cpp`,
-  the private helpers in `src/simplification/detail/`, and the public
-  options in `include/line_quadrics_qem/`.
-- Paper notes should separate source ideas from implemented behavior. If a
-  paper suggests a technique that is not implemented, say so explicitly.
-- Generated HTML notes under `generated/notes/` are still reference artifacts,
-  but the claims inside them should stay consistent with the current CLI,
-  tests, and source layout.
+## 文档维护规则
 
-| Path | Purpose |
+- CLI 示例必须和 `apps/linequadrics/main.cpp` 的实际解析逻辑一致，并至少用 `linequadrics --help` 核对。
+- 算法说明必须对应 `src/simplification/`、`src/features/FeatureDetection.cpp` 和 `include/line_quadrics_qem/` 的当前实现。
+- 论文笔记必须区分“论文提出的思路”和“本仓库已经实现的行为”。未实现的技术要明确写“未实现”。
+- `docs/generated/notes/` 下的 HTML/PDF 是导出资料；若 CLI、选项、测试或源码结构变化，受影响的导出说明也应重新生成或标注为历史资料。
+- 路径、命令、函数名、枚举名、CSV 字段名和论文文件名保留英文；说明文字使用中文。
+
+## 目录说明
+
+| 路径 | 作用 |
 | --- | --- |
-| `design/` | Architecture notes, algorithm design, validation plans, and roadmaps. |
-| `design/development_plan_2026_07_06.md` | Three-week development plan, third-party borrowing strategy, matrix-level QEM explanation, risks, and stakeholder reply draft. |
-| `design/source_organization.md` | Public/private source layout policy and module growth rules. |
-| `guide/` | User-facing and developer-facing usage guides. |
-| `papers/` | Canonical paper PDF archive and paper index. |
-| `generated/notes/` | Exported HTML/PDF/ZIP notes and browsable reports. |
-| `Doxyfile.in` | Doxygen configuration template for generated API reference. |
+| `design/` | 架构、算法设计、验证记录、路线图。 |
+| `guide/` | 使用者和开发者操作指南。 |
+| `papers/` | 论文 PDF 归档和论文索引。 |
+| `generated/notes/` | 导出的 HTML/PDF/ZIP 笔记和报告，属于参考资料。 |
+| `Doxyfile.in` | Doxygen API 文档生成模板。 |
+| `error` | 最近一次外部构建错误的中文诊断记录。 |
 
-Long-lived design decisions belong in `design/`, operational how-to material in
-`guide/`, and paper PDFs in `papers/`.
+长期设计决策放在 `design/`，操作步骤放在 `guide/`，论文 PDF 放在 `papers/`，测试生成物放在 `tests/output/` 或构建目录，不提交到文档目录。

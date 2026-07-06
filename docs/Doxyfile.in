@@ -1,6 +1,6 @@
 PROJECT_NAME           = "Line Quadrics QEM"
 PROJECT_NUMBER         = @PROJECT_VERSION@
-PROJECT_BRIEF          = "Line-quadrics guided QEM mesh simplification library"
+PROJECT_BRIEF          = "基于 line quadrics 的 QEM 网格简化库"
 OUTPUT_DIRECTORY       = @LQ_DOXYGEN_OUTPUT_DIR@
 INPUT                  = @LQ_DOXYGEN_INPUT@
 RECURSIVE              = YES

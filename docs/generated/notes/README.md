@@ -1,18 +1,21 @@
-# Generated Notes
+﻿# 生成笔记说明
 
-Exported, browser-readable notes and bundled artifacts.
+`docs/generated/notes/` 保存导出的 HTML/PDF/ZIP 笔记和报告。它们是参考产物，不是当前 C++ 库的源代码布局说明。
 
-These notes are generated/exported artifacts, but they are still expected to
-track the current program. When the CLI, `SimplifyOptions`, feature detection,
-or validation outputs change, update the affected HTML notes in the same change.
+## 当前维护规则
 
-- `*.html`: browsable algorithm notes, code-reading guides, and experiment
-  reports. `qem-library-comparison.html` records the comparison between
-  QEM-related open-source libraries and the current SDK-style implementation.
-- `*.pdf`: exported reading copies.
-- `*.zip`: bundled note archives.
-- `eye-care.css`: shared stylesheet for the exported HTML notes.
+- 如果 CLI、`SimplifyOptions`、特征检测、测试数据或验证输出发生变化，相关 HTML/PDF 应重新生成或在索引中标注为历史资料。
+- 本目录中的 `*.html` 可用于浏览算法解释、代码阅读笔记和实验报告。
+- `*.pdf` 是阅读版导出文件。
+- `eye-care.css` 是导出 HTML 共用样式。
 
-These files are reference artifacts rather than the primary source layout of the
-C++ library. Design decisions live in `docs/design/`, user-facing guides live in
-`docs/guide/`, and paper PDFs live in `docs/papers/`.
+当前最权威的可维护文档仍然是：
+
+| 路径 | 说明 |
+| --- | --- |
+| `docs/design/` | 架构、算法设计和验证记录。 |
+| `docs/guide/` | 使用和集成指南。 |
+| `docs/papers/` | 论文归档与索引。 |
+| `README.md` | 项目入口说明。 |
+
+如果发现 HTML 中的任务名、命令或结论与当前 `.vscode/tasks.json`、`apps/linequadrics/main.cpp` 或测试结果不一致，应以当前源码为准更新。

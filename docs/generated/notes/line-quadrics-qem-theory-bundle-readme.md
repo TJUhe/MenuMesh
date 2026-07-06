@@ -1,54 +1,27 @@
-# Line Quadrics QEM Theory Bundle
+﻿# Line Quadrics QEM 理论包说明
 
-This bundle accompanies `line-quadrics-qem-theory-explained.pdf`.
+本目录中的理论包用于配合 `line-quadrics-qem-theory-explained.pdf` 阅读。文件名保留英文，正文说明使用中文。
 
-## Main Note
+## 主笔记
 
-- `line-quadrics-qem-theory-explained.pdf`  
-  Rendered theory note explaining QEM, Line Quadrics, rank/conditioning, boundary and feature-curve quadrics, and the current program's energy interpretation.
+- `line-quadrics-qem-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及当前程序如何把这些项解释为候选折叠的能量。
 
-## Included Papers
+## 随包论文
 
-- `garland_heckbert_1997_surface_simplification_qem.pdf`  
-  Original QEM paper. Main source for plane quadrics, vertex quadrics, and edge contraction cost.
+| 文件 | 作用 |
+| --- | --- |
+| `garland_heckbert_1997_surface_simplification_qem.pdf` | 原始 QEM 参考。 |
+| `liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | line quadrics 主参考。 |
+| `garland_heckbert_1998_color_texture_qem.pdf` | 属性 QEM 扩展参考。 |
+| `garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | 大模型自适应简化参考。 |
+| `hoppe_1996_progressive_meshes.pdf` | progressive mesh 和 edge collapse 框架参考。 |
+| `lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | 局部 placement 与保持约束参考。 |
+| `wang_2008_feature_sensitive_metric.pdf` | 特征敏感误差度量参考。 |
+| `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | 特征保持简化参考。 |
+| `jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | CAD 不连续检测参考。 |
+| `vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | CAD 三角网格特征线提取参考。 |
+| `tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | normal tensor 特征检测参考。 |
 
-- `liu_rahimzadeh_zordan_2025_line_quadrics.pdf`  
-  Main Line Quadrics paper. Direct source for controlling QEM simplification with point-to-line quadrics.
+## 未随包但常被提到的参考
 
-- `garland_heckbert_1998_color_texture_qem.pdf`  
-  QEM extension to attributes. Useful for understanding how additional constraints can be folded into quadric-style error terms.
-
-- `garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf`  
-  Large-mesh adaptive QEM simplification context.
-
-- `hoppe_1996_progressive_meshes.pdf`  
-  Classic progressive mesh framework. Relevant for edge-collapse workflow, reconstruction, and discontinuity preservation.
-
-- `lindstrom_turk_1998_fast_memory_efficient_simplification.pdf`  
-  Edge-collapse simplification with practical memory-efficient placement and preservation constraints.
-
-- `wang_2008_feature_sensitive_metric.pdf`  
-  Feature-sensitive simplification metric. Supports extending position-only QEM with feature/normal information.
-
-- `hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf`  
-  Feature-preserving simplification via vertex-cover ideas.
-
-- `jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf`  
-  CAD surface mesh discontinuity detection, relevant to C1/C2 and feature-loop recognition.
-
-- `vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf`  
-  Robust CAD triangular mesh feature-line extraction.
-
-- `tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf`  
-  Normal tensor framework for surface feature lines, relevant to normal-tensor feature detection in the current program.
-
-## References Mentioned But Not Bundled As PDFs
-
-- CGAL Surface Mesh Simplification documentation.
-- OpenMesh Decimation Framework documentation.
-- libigl `qslim`.
-- MeshLab / VCGLib simplification filters.
-- Yip et al. 2024 triangular-mesh hole detection.
-- CHBS-Net 2023 and Zhang et al. 2024 point-cloud circular-hole detection.
-
-Those are referenced as online documentation or were not present as local PDFs in this repository at bundle creation time.
+CGAL、OpenMesh、libigl、MeshLab/VCGLib、Yamakawa/Shimada 等在线文档或论文用于工程对照。当前实现不逐字复刻这些库，而是借鉴它们的 cost/legality 分离、约束边和局部过滤思路。

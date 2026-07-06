@@ -1,194 +1,52 @@
-# Curve Feature Constraints Experiment
+﻿# 特征曲线实验记录
 
-This branch adds a feature-preserving experiment on top of the original QEM +
-line-quadrics reproduction. The goal is not triangle quality. The goal is to
-make circular CAD features measurable and harder to destroy during edge
-collapse.
+本文记录当前可复现实验入口。目标是验证特征曲线保护是否在目标面数、三角质量和圆/椭圆 loop 保持之间取得平衡。
 
-## Why this branch exists
+## 推荐 fixture
 
-A useful mental model is:
+| 输入 | 关注点 |
+| --- | --- |
+| `tests/data/feature_fixtures/coaxial_hole_plate.obj` | 多个圆孔 loop 和同轴关系。 |
+| `tests/data/feature_fixtures/tilted_coaxial_hole_plate.obj` | 倾斜圆孔轴线。 |
+| `tests/data/feature_fixtures/elliptical_hole_plate.obj` | 椭圆和 near-circle 分类。 |
+| `tests/data/feature_fixtures/boss_pocket_plate.obj` | boss/pocket 硬边和平面结构。 |
+| `tests/data/external/fandisk_2014.stl` | 大量硬边和 generic crease。 |
 
-- Standard QEM penalizes distance to original face planes. It mainly prevents
-  leaving the local tangent plane, but it can still allow drift inside that
-  plane.
-- Line quadrics add distance to the vertex normal line. That helps regularize
-  tangential drift on broad surface regions.
-- A circular hole, boss shoulder, flange rim, or pulley groove is different:
-  the valid free direction is the feature curve tangent. The bad directions are
-  radial drift and out-of-plane drift.
-
-So this branch adds a curve-feature version:
-
-```text
-Q_total =
-    Q_plane
-  + w_line  * Q_normal_line
-  + w_curve * Q_feature_tangent_line
-```
-
-For circular loops it also constrains placement:
-
-```text
-solve QEM placement
-if the collapsed edge belongs to the same circular feature loop:
-    project the new vertex back to the fitted circle
-```
-
-And it adds hard legality rules:
-
-- Do not collapse a feature vertex into a non-feature vertex.
-- Do not collapse across two different feature loops.
-- Do not collapse feature junctions.
-- Stop collapsing a feature loop below `--min-feature-loop-vertices`.
-
-## Literature anchors
-
-The local `mesh-feature-literature` corpus suggests that CAD/STL feature
-preservation usually needs more than one scalar QEM cost:
-
-- Garland and Heckbert QEM: plane quadrics are the base error model.
-- Liu, Rahimzadeh, and Zordan line quadrics: normal-line quadrics regularize
-  tangential drift, but they do not detect CAD feature loops by themselves.
-- Source IDs 010, 063, and 067 in the local corpus: CAD/STL feature extraction
-  often starts from boundary and dihedral edges, then traces coherent loops.
-- Source IDs 037, 021, 024, and 048: feature-preserving simplification commonly
-  combines modified QEM costs with constraints, protected vertices/edges, or
-  feature-aware placement.
-
-This implementation follows that engineering pattern: feature edge detection +
-loop/circle fitting + QEM cost terms + collapse legality + projected placement.
-
-## New commands
-
-Detect feature loops:
+## 特征报告
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-report tests\data\external\openfoam_flange.stl `
+.\build\mingw-ninja-release\bin\linequadrics.exe feature-report `
+  tests/data/feature_fixtures/coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
-  --min-feature-loop-vertices 8 `
-  --csv tests\output\feature_curve_validation\external_flange_features.csv
+  --ellipse-fit-threshold 0.05 `
+  --csv output/vscode_demo/features.csv
 ```
 
-Simplify with circular feature protection:
+## 简化实验
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify tests\data\external\openfoam_flange.stl `
-  tests\output\feature_curve_validation\external_flange_curve.stl `
-  --method line `
-  --ratio 0.20 `
-  --line-weight 1e-3 `
-  --weight-mode dihedral `
-  --feature-boost 0.08 `
-  --feature-angle-deg 25 `
-  --preserve-feature-curves `
-  --feature-curve-weight 0.08 `
-  --circle-fit-threshold 0.04 `
-  --min-feature-loop-vertices 16
+.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+  tests/data/feature_fixtures/coaxial_hole_plate.obj `
+  output/vscode_demo/coaxial_feature_curves.stl `
+  --method line --ratio 0.25 --line-weight 1e-3 `
+  --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 `
+  --preserve-feature-curves --feature-protection-mode primitive-curves `
+  --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 `
+  --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 `
+  --min-circular-feature-loop-vertices 12 `
+  --samples 512 --metrics-csv output/vscode_demo/coaxial_feature_curves_metrics.csv
 ```
 
-Compare circular features after simplification:
+## 判断标准
 
-```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare tests\data\external\openfoam_flange.stl `
-  tests\output\feature_curve_validation\external_flange_curve.stl `
-  --feature-angle-deg 25 `
-  --circle-fit-threshold 0.04 `
-  --csv tests\output\feature_curve_validation\external_flange_curve_feature_compare.csv
-```
+- `termination_reason` 优先希望为 `reached-target`。
+- `feature_loops`、`circular_feature_loops` 不应异常消失。
+- `projected_feature_placements` 应说明投影策略确实参与。
+- `curve_budget_rejected_collapses` 过高说明曲线预算太紧。
+- `generic_feature_rejected_collapses` 过高通常说明不应使用 `all-feature-edges`。
+- STL 视觉检查应重点看孔边是否变成明显多边形、椭圆是否被拉圆、薄边是否翻折。
 
-Run all validation cases:
+## 当前结论
 
-```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
-```
-
-Run downloaded external benchmark models:
-
-```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
-```
-
-## Validation cases
-
-The validation command now uses finished external STL fixtures only:
-
-- `external_spindle.stl`: Thingi10K / Thingiverse spool spindle fixture.
-- `external_ring_track.stl`: NASA antenna azimuth track fixture.
-- `external_pulley.stl`: Thingi10K / Thingiverse mini pulley fixture.
-- `external_flange.stl`: OpenFOAM tutorial flange fixture.
-
-The command copies these sources into `tests/output/generated_inputs/` before
-running the line/curve pair. This keeps validation aligned with the SDK goal:
-the algorithm is measured on imported industrial-style meshes rather than on
-procedural cases generated by this project.
-
-## Current observed results
-
-Using `--ratio 0.20`, `--feature-angle-deg 25`, and
-`--circle-fit-threshold 0.04`:
-
-| Case | Input circular loops | Line QEM matched/missing | Curve constrained matched/missing | Main observation |
-| --- | ---: | ---: | ---: | --- |
-| external spindle | 10 | 5 / 5 | 0 / 10 | Strong curve protection hits the rejection limit and keeps too much local structure for redetection to recover clean circles. |
-| external ring track | 11 | 4 / 7 | 1 / 10 | The NASA ring track has many connected/fragmented loops; current single-component tracing is too coarse. |
-| external pulley | 6 | 6 / 0 | 0 / 6 | Plain line QEM redetects the pulley rings at this ratio; current curve settings over-protect and terminate early. |
-| external flange | 13 | 12 / 1 | 2 / 11 | The OpenFOAM flange is less extreme, but strong curve protection still loses most redetected loops. |
-
-The most important CSV columns are:
-
-- `radial_rms`, `radial_max`: radius drift from the original fitted circle.
-- `plane_rms`, `plane_max`: out-of-feature-plane drift.
-- `center_error`, `radius_error`, `normal_angle_deg`: analytic-circle drift.
-- `status`: `matched`, `weak_match`, or `missing`.
-
-## Known shortcomings
-
-The detector currently treats each connected feature-edge component as one
-loop. That is good for clean rings, but not enough for dense CAD graphs where
-several circular loops are connected by extra boundary or dihedral edges. The
-external spindle, ring track, pulley, and flange fixtures show this clearly.
-
-External models showed that the old strong feature policy was too aggressive
-for fragmented industrial STL graphs. The current default is
-`--feature-protection-mode primitive-curves`: circle, near-circle, and ellipse
-loops are hard-protected, while generic polygonal/dihedral creases are soft
-cost and legality-filter inputs. Use `--protect-all-feature-edges` only when
-intentionally testing non-circular hard-edge preservation.
-
-The detector reports `circle`, `near-circle`, `ellipse`, and
-`polygonal-loop` primitive labels. Circle, near-circle, and ellipse primitives
-are hard-protected by the default `primitive-curves` policy; polygonal loops
-remain soft by default.
-
-The C ABI exposes `LqFeatureProtectionMode` on `LqSimplifyOptions`; existing
-callers can keep using `protect_all_feature_edges` as the strict legacy alias.
-
-The next upgrade should be multi-loop tracing inside one connected component:
-
-1. Build the feature graph from boundary and dihedral edges.
-2. Split high-degree components into simple cycles instead of accepting the
-   whole connected component as one loop.
-3. Fit circles to each simple cycle.
-4. Keep a mapping from protected cycles to original feature labels during
-   simplification, so validation does not depend only on redetection after
-   collapse.
-
-This is the main remaining gap if the target is production-grade circular-hole
-preservation on arbitrary industrial STL files.
-
-## Algorithm roadmap after external-model probing
-
-Additional validation on `nasa_cubesat_middle`, `nasa_mars2020_wheel`,
-`thingi10k_differential_gear`, `fandisk_2014`, and `rocker_arm_large` shows
-that the first fix had to be policy separation, not another single global
-threshold. Stage 1 is now implemented and removes generic hard locks from the
-default feature mode.
-
-The implemented direction and remaining work are documented in
-[`feature_protection_roadmap.md`](feature_protection_roadmap.md): borrow the
-policy split used by CGAL/OpenMesh-style decimators, keep QEM/line quadrics as
-candidate costs, make primitive curves the default hard-protected class, move
-generic polygonal creases to soft costs, and keep multi-loop ownership plus
-envelope/Hausdorff filters as the next stage.
+默认 `primitive-curves` 比旧式 `all-feature-edges` 更适合当前库：它保留圆/椭圆等工业 primitive，同时避免把普通硬边全部锁死导致过早 `rejection-limit`。对 Fandisk 这类 generic crease 很多的模型，应优先依赖软成本和质量过滤，而不是全部硬保护。

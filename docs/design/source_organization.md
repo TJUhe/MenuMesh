@@ -1,107 +1,59 @@
-﻿# Source Organization
+﻿# 源码组织说明
 
-This repository uses a small geometry-kernel layout: public SDK headers are
-separated from implementation files, while private helper headers stay beside
-their implementation module under `detail/`.
+本仓库采用小型几何内核布局：公共 SDK 头文件和实现文件分离，私有 helper 头文件留在实现模块旁边的 `detail/` 目录中。
 
-The intent is to keep the code easy to browse today, but still leave a path
-toward a larger OpenCascade-style geometry kernel later.
+## 当前目录契约
 
-## Reference Model
-
-OpenCascade OCCT is the main structural reference: public headers,
-implementation code, tests, samples, tools, administrative files, and
-documentation are clearly separated. The current project should stay compact at
-its present size while preserving that boundary discipline.
-
-## Directory Contract
-
-| Path | Role | Rule |
+| 路径 | 角色 | 规则 |
 | --- | --- | --- |
-| `include/line_quadrics_qem/` | Installed SDK root | Keep only global headers and domain directories here. |
-| `include/line_quadrics_qem/core/` | Mesh exchange, handles, status, topology cache | Safe for external applications to include. |
-| `include/line_quadrics_qem/features/` | Feature detection API and public feature data | Safe for external analysis and algorithm users. |
-| `include/line_quadrics_qem/algorithms/` | Public algorithm modules | New algorithms should live below this level. |
-| `include/line_quadrics_qem/algorithms/simplification/` | QEM simplification options, reports, metrics, entry points | Current simplification module; safe for external decimation users. |
-| `include/line_quadrics_qem/api/` | Binary-stable C ABI | Should not expose STL, Eigen, or C++ exceptions. |
-| `src/<domain>/*.cpp` | Library implementation entry points | One `.cpp` should correspond to a visible module responsibility. |
-| `src/<domain>/detail/*.h` | Private implementation helpers | May be included only by sources in that implementation module; never installed. |
-| `apps/` | CLI and app-layer orchestration | Consumes the library like an external user. |
-| `examples/` | Minimal external-consumer examples | Should include only public headers. |
-| `tests/` | Regression and validation tests | Prefer public API; use internals only for narrowly justified white-box tests. |
-| `docs/` | Design, guide, paper, and generated notes | Must describe the current code, not a desired future layout. |
+| `include/line_quadrics_qem/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
+| `include/line_quadrics_qem/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
+| `include/line_quadrics_qem/features/` | 特征检测 API 和结果类型 | 给分析、验证和简化策略使用。 |
+| `include/line_quadrics_qem/algorithms/simplification/` | QEM 简化选项、报告、指标和入口 | 当前主要算法模块。 |
+| `include/line_quadrics_qem/api/` | C ABI | 不暴露 STL、Eigen 或 C++ 异常。 |
+| `src/core/` | 基础数据结构实现 | 与公共 core 头对应。 |
+| `src/features/` | 特征检测实现 | 当前只有 `FeatureDetection.cpp`。 |
+| `src/simplification/` | 简化算法实现 | 公开薄入口和拆分后的内部模块。 |
+| `src/simplification/detail/` | 私有实现头 | 只能被简化实现模块使用，不安装。 |
+| `apps/linequadrics/` | CLI | 像外部消费者一样调用库。 |
+| `examples/` | SDK 使用示例 | 只 include 公共头。 |
+| `tests/` | 回归和验证测试 | 优先走公共 API，少量白盒测试可用内部细节。 |
+| `docs/` | 设计、指南、论文、生成笔记 | 必须描述当前代码，不写成愿景幻灯片。 |
 
-## Current Simplification Module
-
-The simplification implementation is now split like this:
+## 当前简化模块拆分
 
 ```text
-include/line_quadrics_qem/algorithms/simplification/
-  QEMSimplifier.h       public options, reports, and simplification entry points
-  Metrics.h             public quality metrics
-
-src/simplification/
-  QEMSimplifier.cpp            thin public API implementation
-  SimplificationRun.cpp        per-run orchestration and collapse loop
-  Quadrics.cpp                 QEM/line-quadric construction and placement solves
-  FeatureConstraints.cpp       feature-curve collapse policy and projections
-  CandidateQueue.cpp           collapse priority queue
-  ResultBuilder.cpp            active-state to compact mesh conversion
-  MeshEdges.cpp                local edge incidence utilities
-  SimplificationValidation.cpp option and input validation
-  Metrics.cpp                  metrics implementation
-  CollapseLegality.cpp         legality checks that need local geometry/topology
-  DynamicTopology.cpp          incremental incident-face topology
-  GeometryPredicates.cpp
-  SpatialFaceIndex.cpp         spatial hash for local intersection queries
-
-src/simplification/detail/
-  SimplificationRun.h          private run object
-  SimplificationTypes.h        per-run vertex/face/candidate state
-  Quadrics.h                   private quadric API
-  FeatureConstraints.h         private feature policy API
-  CandidateQueue.h             private queue API
-  ResultBuilder.h              private result compaction API
-  MeshEdges.h                  private edge incidence API
-  SimplificationValidation.h   private validation API
-  CollapseLegality.h           private legality API
-  DynamicTopology.h            private incremental topology API
-  GeometryPredicates.h         private local predicate API
-  SpatialFaceIndex.h           private spatial-index API
+src/simplification/QEMSimplifier.cpp          公共对象 API 和 simplifyMesh 包装
+src/simplification/SimplificationRun.cpp      单次运行编排和 collapse loop
+src/simplification/Quadrics.cpp               面 quadric、line quadric、placement 求解
+src/simplification/FeatureConstraints.cpp     特征曲线策略、预算和投影
+src/simplification/CandidateQueue.cpp         折叠候选优先队列
+src/simplification/ResultBuilder.cpp          活跃状态压缩回 Mesh
+src/simplification/MeshEdges.cpp              局部边邻接工具
+src/simplification/SimplificationValidation.cpp 选项和输入校验
+src/simplification/Metrics.cpp                质量、距离和统计指标
+src/simplification/CollapseLegality.cpp       拓扑、边界、质量、法线、自交过滤
+src/simplification/DynamicTopology.cpp        运行时增量邻接
+src/simplification/GeometryPredicates.cpp     局部几何谓词
+src/simplification/SpatialFaceIndex.cpp       局部自交查询的空间哈希
 ```
 
-`QEMSimplifier.h` remains the consumer contract. The `detail` headers are
-allowed to change whenever the implementation changes, because they are not
-installed and are not part of the SDK.
+## include 规则
 
-## Include Policy
-
-Use explicit include paths that show ownership:
+公共代码使用完整 SDK 路径：
 
 ```cpp
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h" // public
-#include "detail/DynamicTopology.h"                                    // private
+#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
 ```
 
-Do not include `detail/...` from public headers, examples, apps, or external
-tests. If a concept is needed outside the library, first decide whether it is a
-stable API. If yes, promote a small public type to `include/`; if not, keep it
-private and expose behavior through options, reports, or a public algorithm
-function.
+实现内部可使用当前模块私有头：
 
-## Growth Rule
+```cpp
+#include "detail/DynamicTopology.h"
+```
 
-When a module grows, split by responsibility rather than by formula fragments:
+不要从公共头、示例、CLI 或外部工程 include `src/.../detail/...`。如果外部确实需要某个概念，先判断它是否稳定；稳定则提升为公共类型，不稳定则通过 options、reports 或函数结果暴露行为。
 
-- Public data contracts go to `include/line_quadrics_qem/<domain>/` or
-  `include/line_quadrics_qem/algorithms/<algorithm>/`.
-- Long-lived implementation helpers go to the owning module's `detail/`
-  directory.
-- Heavy algorithms get one or more `src/<domain>/*.cpp` files with matching
-  private headers.
-- Cross-domain utilities should first be justified in `core/` or a future
-  `analysis/`, `repair/`, `remesh/`, or `boolean/` domain, not copied between
-  modules.
+## 扩展规则
 
-This preserves an OCCT-like habit: a header's location should answer whether it
-is public API, private implementation, or application/test code.
+模块变大时按职责拆分，而不是按公式片段随意拆文件。新的稳定数据契约进入 `include/line_quadrics_qem/<domain>/`；长期存在的实现 helper 进入所属模块的 `detail/`；跨模块工具先判断是否属于 `core`、未来 `analysis`、`repair`、`remesh` 或 `boolean`，不要复制粘贴。

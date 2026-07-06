@@ -328,7 +328,7 @@ $$Q_i=Q_i^{plane}+Q_i^{normalLine}+Q_i^{boundary}+Q_i^{featureCurve}$$
 
 <h3>8.3 VS Code 演示任务</h3>
 
-<p><code>.vscode/tasks.json</code> 现在只保留 <code>mingw+ninja</code> 和 <code>msvc+ninja</code> 两条链路。Ninja 构建任务使用 <code>--parallel</code> 不指定数字，让 CMake/Ninja 使用可用核心。现场演示优先运行：</p>
+<p><code>.vscode/tasks.json</code> 当前以 <code>mingw+ninja</code> 为主链路，并保留 <code>msvc+vs2022</code>、<code>msvc+vs2019</code> 和自定义 Visual Studio 生成器任务。Ninja 构建任务使用 <code>--parallel</code> 不指定数字，让 CMake/Ninja 使用可用核心。现场演示优先运行：</p>
 
 <ul>
 <li><code>demo: feature report selected mesh</code>：生成输入特征报告。</li>

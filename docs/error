@@ -1,25 +1,51 @@
+﻿# 外部机器 MinGW Ninja Release 构建错误诊断
 
-[33/33] Linking CXX executable bin\line_quadrics_qem_tests.exe
+## 原始现象
 
-FAILED: bin/line_quadrics_qem_tests.exe tests/line_quadrics_qem_tests[1]_tests.cmake
-cmd.exe /C "cd . && D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\g++.exe -O3 -DNDEBUG  tests/CMakeFiles/line_quadrics_qem_tests.dir/src/TestSupport.cpp.obj tests/CMakeFiles/line_quadrics_qem_tests.dir/c_api_tests.cpp.obj tests/CMakeFiles/line_quadrics_qem_tests.dir/feature_detection_tests.cpp.obj tests/CMakeFiles/line_quadrics_qem_tests.dir/qem_parameter_tests.cpp.obj tests/CMakeFiles/line_quadrics_qem_tests.dir/simplifier_tests.cpp.obj -o bin\line_quadrics_qem_tests.exe -Wl,--out-implib,lib\libline_quadrics_qem_tests.dll.a -Wl,--major-image-version,0,--minor-image-version,0  lib/libline_quadrics_qem.dll.a  ../../thirdParty/googletest/prebuilt/mingw-x64-shared/lib/libgtest_main.dll.a  ../../thirdParty/googletest/prebuilt/mingw-x64-shared/lib/libgtest.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 && cmd.exe /C "cd /D C:\Users\zhanghe2\Desktop\suanfa\line-quadrics-qem\build\mingw-ninja-release\tests
-&& "D:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/libline_quadrics_qem.dll C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin && cd /D C:\Users\zhanghe2\Desktop\suanfa\line-quadrics-qem\build\mingw-ninja-release\tests && "D:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/thirdParty/googletest/prebuilt/mingw-x64-shared/bin/libgtest.dll C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin && cd /D C:\Users\zhanghe2\Desktop\suanfa\line-quadrics-qem\build\mingw-ninja-release\tests && "D:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/thirdParty/googletest/prebuilt/mingw-x64-shared/bin/libgtest_main.dll C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin && cd /D C:\Users\zhanghe2\Desktop\suanfa\line-quadrics-qem\build\mingw-ninja-release\tests && "D:\Program Files\CMake\bin\cmake.exe" -D TEST_TARGET=line_quadrics_qem_tests -D TEST_EXECUTABLE=C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe -D TEST_EXECUTOR= -D TEST_WORKING_DIR=C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests -D TEST_EXTRA_ARGS= -D TEST_PROPERTIES=LABELS;unit -D TEST_PREFIX= -D TEST_SUFFIX= -D NO_PRETTY_TYPES=FALSE -D NO_PRETTY_VALUES=FALSE -D TEST_LIST=line_quadrics_qem_tests_TESTS -D CTEST_FILE=C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_tests.cmake -D TEST_DISCOVERY_TIMEOUT=5 -D TEST_XML_OUTPUT_DIR= -P "D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake"""
-CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
+另一台 Windows 机器运行 VS Code 任务中的 `build: mingw+ninja release all` 时，编译和链接基本完成，但在生成 `bin/line_quadrics_qem_tests.exe` 后失败：
+
+```text
+CMake Error at .../GoogleTestAddTests.cmake:77 (message):
   Error running test executable.
+  Path: build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe
+  Result: Exit code 0xc0000139
+```
 
-    Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-    Result: Exit code 0xc0000139
+`0xc0000139` 表示测试可执行文件启动时动态库符号解析失败，常见原因是 Windows 从 `PATH` 中加载到了错误版本的 MinGW 运行时 DLL，或测试 exe 所在目录缺少当前编译器对应的 `libstdc++-6.dll`、`libgcc_s_*.dll`、`libwinpthread-1.dll`。
 
+## 当前修复
 
+已在 `b81a45d` 中修复并推送：
 
-    Output:
+- CMake 会根据 `CMAKE_CXX_COMPILER` 所在目录收集 MinGW 运行时 DLL，并通过全局目标 `lq_mingw_runtime_dependencies` 复制到构建目录 `bin`。
+- GoogleTest 的 `gtest_discover_tests` 改为 `DISCOVERY_MODE PRE_TEST`，避免 Release 全量构建阶段因为测试发现提前启动 exe 而失败。
+- `docs/guide/vscode_setup.md` 已补充中文排查步骤。
 
+## 当前验证命令
 
-Call Stack (most recent call first):
-  D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:173 (gtest_discover_tests_impl)
+```powershell
+cmake -S . -B build/mingw-ninja-release -G Ninja `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_C_COMPILER=gcc `
+  -DCMAKE_CXX_COMPILER=g++ `
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+  -DLQ_BUILD_PERFORMANCE_TESTS=OFF
+cmake --build build/mingw-ninja-release --parallel
+ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
+```
 
+本机验证结果：Release 全量构建通过，非性能测试 72/72 通过。
 
-ninja: build stopped: subcommand failed.
+## 如果另一台机器仍失败
 
- *  �ն˽��̡�D:\Program Files\CMake\bin\cmake.exe '--build', 'build/mingw-ninja-release', '--parallel'������ֹ���˳�����: 1�� 
- *  �ն˽����������ã���������رա�
+先检查工具链是否混用：
+
+```powershell
+where g++
+where gcc
+where cmake
+where ninja
+Get-ChildItem build\mingw-ninja-release\bin\*.dll
+```
+
+如果 `where g++` 和实际希望使用的 MinGW 不一致，先修正 `PATH`，删除或重新配置 `build/mingw-ninja-release`，再重新构建。

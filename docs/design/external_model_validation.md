@@ -1,93 +1,56 @@
-# External Model Validation
+﻿# 外部模型验证说明
 
-This document records an extra validation pass using public benchmark models.
-The model files are not committed to the repository. Place them under
-`tests/data/external/common_3d_test_models/` when needed.
+本文说明当前外部模型验证的范围、命令和结论。验证目标是确认算法在公开模型和工业风格 STL/OBJ 上不会引入明显拓扑退化，并能输出可比较的 CSV 指标。
 
-## Source
+## 数据位置
 
-The current external set is from Alec Jacobson's
-`common-3d-test-models` repository:
+| 路径 | 内容 |
+| --- | --- |
+| `tests/data/external/common_3d_test_models/` | beetle、cow、fandisk、rocker_arm、suzanne 等 OBJ。 |
+| `tests/data/external/*.stl` | Fandisk、Casting、NASA、OpenFOAM 等外部 STL。 |
+| `tests/data/external/large/` | 10 个较大公开二进制 STL。 |
+| `tests/data/external/thingi10k/` | 97 个 Thingi10K 子集 STL。 |
 
-<https://github.com/alecjacobson/common-3d-test-models>
+## 当前 CLI
 
-The repository README describes it as a collection of common 3D test models and
-lists the original source for each model when known. Because original licenses
-vary by model, this project commits only validation commands and generated
-measurements, not the downloaded OBJ files themselves.
-
-## Added OBJ support
-
-The command line tools now load both `.stl` and `.obj` through `loadMesh(...)`.
-The OBJ loader intentionally stays minimal:
-
-- supports `v` and `f` records;
-- supports face tokens like `f v`, `f v/t`, `f v//n`, and `f v/t/n`;
-- triangulates polygonal faces by fan triangulation;
-- ignores materials, normals, texture coordinates, groups, and smoothing tags.
-
-## How to run
+普通外部验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-external `
+  --input-dir tests/data/external/common_3d_test_models `
+  --ratio 0.25 `
+  --samples 800 `
+  --output-dir tests/output/external_model_validation
 ```
 
-The validation command looks for these models:
+特征验证：
 
-| Model | Role in validation |
-| --- | --- |
-| `fandisk.obj` | CAD-ish hard non-circular features. |
-| `rocker-arm.obj` | Mechanical scan with noisy/fragmented hard-edge evidence. |
-| `beetle.obj` | Mixed smooth/sharp model; exposes small false circular loops. |
-| `cow.obj` | Organic model; tests false feature over-protection. |
-| `suzanne.obj` | Low-poly hard-edged model without true CAD circular loops. |
-
-Outputs are written to `tests/output/external_model_validation/`. Start with
-`external_summary.csv`; it records input/output face counts, circular-loop
-matches/misses, and rejected collapses for each model.
-
-The current default protected run uses:
-
-```text
---preserve-feature-curves
---feature-protection-mode primitive-curves
+```powershell
+.\build\mingw-ninja-release\bin\linequadrics.exe validate-features `
+  --ratio 0.20 `
+  --samples 1000 `
+  --output-dir tests/output/feature_curve_validation
 ```
 
-## Observed results
+## VS Code 任务
 
-| Model | Input circular loops | Main issue found | Current behavior after fix |
-| --- | ---: | --- | --- |
-| Fandisk | 0 | Hard feature graph is one large non-circular component. | No circular hard lock; simplification reaches target. |
-| Rocker arm | 0 | Many fragmented dihedral components, no clean circular loop at current threshold. | No circular hard lock; simplification reaches target. |
-| Beetle | 1 | An 8-vertex small loop is fitted as circular, likely a false positive for CAD use. | Curve mode preserves that loop; suggests raising min circular vertices for industrial mode. |
-| Cow | 0 | Earlier version over-locked many non-circular dihedral components. | Fixed by hard-protecting circular loops only by default. |
-| Suzanne | 0 | Low-poly hard edges are not circular CAD features. | No circular hard lock; simplification reaches target. |
+当前可用任务是：
 
-The key change prompted by these tests is:
+- `run: external validation`
+- `run: feature validation`
+- `test: mingw+ninja release`
+- `test: mingw+ninja debug performance`（需要 performance 构建目录）
 
-```text
---preserve-feature-curves
-  hard-protects circle, near-circle, and ellipse feature loops by default
+旧文档中提到的 `run: large validation 100 stl`、`open: large validation output` 等任务当前不在 `.vscode/tasks.json` 中，不能继续作为现有入口描述。
 
---protect-all-feature-edges
-  opt-in mode for also hard-locking non-circular feature edges
-```
+## 需要关注的指标
 
-This matters because CAD/STL circular-hole preservation and generic hard-edge
-preservation are not the same problem. The first wants radius/plane constraints;
-the second needs better feature-graph tracing and usually should not be enabled
-on organic or noisy scanned meshes by default.
+- `final_faces` 是否接近目标。
+- `termination_reason` 是否为 `reached-target`，或是否有合理拒绝原因。
+- `boundary_edges` 和 `non_manifold_edges` 是否异常增加。
+- `mean_triangle_quality`、`min_triangle_quality` 和 `edge_length_cv` 是否退化。
+- 特征保护场景下 `feature_loops`、`circular_feature_loops`、`projected_feature_placements` 是否符合预期。
 
-## Remaining problems
+## 当前结论
 
-1. **False circular loops on tiny cycles.** `beetle.obj` shows that an 8-vertex
-   loop can fit a circle numerically but still not be a semantic CAD hole. For
-   industrial validation, use a higher `--min-feature-loop-vertices`, for
-   example 12 or 16.
-2. **Fragmented feature graphs.** `rocker-arm.obj` has many short feature
-   components. A production detector should merge/split graph paths using
-   continuity, scale, and analytic primitive evidence.
-3. **No non-circular curve tracing yet.** Fandisk-style sharp curves are
-   detected as feature evidence, but this branch mainly protects circular loops.
-   Non-circular creases need polyline/spline cycle tracing instead of circle
-   projection.
+当前外部验证适合作为回归和演示，不等价于工业认证。若要进入更严格使用场景，需要补充误差 envelope、属性传播、全局自交检查、更多真实 CAD STL 和宿主应用集成测试。

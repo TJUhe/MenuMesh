@@ -1,117 +1,32 @@
-# Feature Protection Roadmap
+﻿# 特征保护路线图
 
-This note records the current conclusion after validating the simplifier on
-external meshes and checking related literature/open-source designs. Stage 1
-of the roadmap is now implemented in the SDK API and CLI.
+当前特征保护已经能处理边界、二面角硬边、normal-tensor 弱特征、圆/近圆/椭圆 loop 和 primitive-based 硬保护。下一步重点不是“锁住更多边”，而是更准确地区分哪些特征必须硬保护，哪些只需要软成本。
 
-## Problem Found Before Stage 1
+## 当前能力
 
-The old `--preserve-feature-curves` mode was too hard for fragmented
-industrial STL feature graphs because every detected feature loop could become
-a hard collapse constraint.
+- `detectFeatureCurves()` 输出 `FeatureAnalysis`，包含 feature graph、loop、vertex ownership 和边来源计数。
+- `FeaturePrimitiveType` 支持 `Circle`、`NearCircle`、`Ellipse`、`PolygonalLoop`。
+- `SimplifyOptions::featureProtectionMode` 支持四种硬保护策略。
+- `SimplifyReport` 区分 primitive/generic feature rejections、curve budget rejections 和 projected placements。
 
-New validation outputs under `tests/output/new_model_validation/` show:
+## 近期改进
 
-| Model | Line result | Curve result | Main issue |
-| --- | --- | --- | --- |
-| `nasa_cubesat_middle` | reached target at 5772 faces | stopped at 17674 faces | Too many feature vertices are hard-protected. |
-| `nasa_mars2020_wheel` | reached target at 9066 faces | stopped at 11038 faces | Loop vertex budget and hard feature ownership over-constrain collapse. |
-| `thingi10k_differential_gear` | reached target at 1236 faces | stopped at 2670 faces | Dense gear features cause high error and rejection-limit termination. |
-| `fandisk_2014` | reached target | reached target but rejected generic feature collapses | Non-circular feature loops are still hard-protected. |
-| `rocker_arm_large` | reached target | reached target but rejected generic feature collapses | `preserve-feature-curves` is broader than its name implies. |
+1. 让 feature report CSV 更容易比较多次运行。
+2. 对每个 loop 输出更清晰的 primitive 类型、半径、轴比、平面误差和径向误差。
+3. 为 `primitive-curves` 增加更多真实工业件测试。
+4. 保持 generic crease 默认软保护，除非用户显式选择 strict。
 
-The topology counters stayed clean in this probe: no unexpected boundary or
-non-manifold edges were introduced. The main failure is therefore policy
-over-constraint, not basic mesh validity.
+## 中期改进
 
-## External Designs To Borrow From
+- 实现 edge dihedral plane quadrics，并和现有 feature curve quadric 对比。
+- 增加属性或 source region 信息，让用户可从外部标注必须保护的边/环。
+- 引入更严格的误差 envelope，而不是只看局部 drift。
+- 为 open boundary、多孔相邻、共享顶点 loop 增加更细的 ownership 策略。
 
-The distilled literature and open-source survey point to a common pattern:
-QEM should rank candidates, while independent policies decide placement,
-envelope/tolerance, topology, quality, and feature behavior.
+## 暂不承诺
 
-- **CGAL Surface Mesh Simplification**: policy-based cost, placement, filters,
-  and constrained placement. The key lesson is not to encode every rule inside
-  one collapse predicate.
-- **OpenMesh Decimater**: one continuous priority module plus binary legality
-  modules such as normal deviation, Hausdorff, aspect ratio, and topology. The
-  key lesson is to separate scoring from vetoes.
-- **MeshLab/VCG decimation**: quadric collapse with topology, boundary, quality,
-  planar, and weighting knobs. The key lesson is to prefer soft penalties for
-  many feature classes instead of hard-locking every detected edge.
-- **Line quadrics and recent QEM work**: line/feature quadrics are useful
-  ranking terms, but they do not replace explicit topology, quality, and
-  tolerance filters.
+- 从任意 STL 自动恢复完整 CAD feature tree。
+- 保证输出可直接用于制造公差检查。
+- 对高噪声扫描输入自动去噪并恢复平滑曲面。
 
-This matches the current repository direction from the QEM literature corpus:
-use standard QEM and line quadrics as the candidate-cost backbone, then add
-explicit collapse filters and policy separation before heavier machinery such
-as learned saliency. The main failure mode to keep visible is over-protection:
-hard feature locking can preserve edge vertices while preventing target face
-counts or producing poor local valence. Stage 1 therefore treats primitive
-curves as hard constraints and generic creases as soft ranking/guard inputs.
-
-## Implemented Stage 1
-
-1. Added `FeatureProtectionMode`:
-   - `none`
-   - `circular-only`
-   - `primitive-curves`
-   - `all-feature-edges`
-2. Made `primitive-curves` the default hard policy when
-   `preserveFeatureCurves` is enabled. It hard-protects only `circle`,
-   `near-circle`, and `ellipse` primitives.
-3. Moved generic polygonal/dihedral feature loops out of the default hard
-   collapse veto. They still affect ranking through feature curve quadrics and
-   line-quadric feature weighting, then pass through the existing topology,
-   normal-deviation, triangle-quality, local-error, and optional intersection
-   filters.
-4. Preserved the old strict behavior as `all-feature-edges` and through the
-   legacy `protectAllFeatureEdges` / `--protect-all-feature-edges` alias.
-5. Added primitive/generic rejection counters so validation can show where
-   hard constraints are still active.
-6. Kept `solver_fallbacks` as an execution diagnostic for current collapse
-   candidates only. Queue pre-sorting no longer increments the counter, so the
-   value reflects accepted/rejected candidate processing rather than internal
-   lazy-queue churn.
-
-## Stage 1 Validation
-
-Outputs are under `tests/output/feature_policy_validation/`.
-
-| Model | `all-feature-edges` | `primitive-curves` | Effect |
-| --- | --- | --- | --- |
-| `nasa_mars2020_wheel` | 10974 faces, `rejection-limit`, 468702 feature rejections, 466681 generic rejections | 9066 faces, `reached-target`, 31 feature rejections, 0 generic rejections | Fragmented wheel creases no longer hard-lock the queue. |
-| `thingi10k_37880_functional_differential_gear_system` | 2662 faces, `rejection-limit`, 68993 feature rejections, 68184 generic rejections | 1236 faces, `reached-target`, 0 feature rejections | Dense gear features become soft ranking cues instead of a stop condition. |
-| `fandisk_2014` | 3236 faces, `reached-target`, 513 generic rejections | 3236 faces, `reached-target`, 0 generic rejections | Non-circular hard edges influence cost/guards without feature hard locks. |
-
-The normal, topology, triangle-quality, local-error, and optional intersection
-guards remain independent legality filters. `validate-features` also passes on
-the four default external fixtures with 0 generic feature rejections in curve
-mode; remaining feature rejections are primitive-circle/ellipse protection.
-
-## Remaining Direction
-
-1. Add a stricter envelope/Hausdorff placement filter for production tolerance
-   control.
-2. Add multi-loop ownership for dense CAD/STL graphs: split high-degree feature
-   components into simple cycles, fit primitives per cycle, and preserve
-   ownership through simplification.
-3. Continue turning fallback recovery into bounded policies. The circular
-   vertex-cluster repair path now has a 32768 triplet-scan ceiling; future
-   graph recovery should expose similar budgets and diagnostics instead of
-   relying on exhaustive enumeration.
-4. Keep validation honest: continue reporting `rejection-limit`, primitive vs
-   generic rejected collapse counts, projected placements, target-face miss, and
-   feature-compare recall.
-
-## Expected Impact
-
-The goal is to keep the current SDK-style deterministic simplifier while
-reducing over-protection on imported industrial models:
-
-- Mars wheel-like models should reach target faces without losing all circular
-  features.
-- Gear-like models should stop producing large curve-mode distance errors.
-- Fandisk/rocker-arm hard edges should influence cost and quality filters
-  without being treated as protected circular curves.
+当前路线是先把三角网格层的特征保护做稳，再考虑更高层 CAD 语义。

@@ -1,293 +1,2077 @@
-﻿# 外部机器 MinGW Ninja Release 构建错误诊断
-
-## 原始现象
-
-另一台 Windows 机器运行 VS Code 任务中的 `build: mingw+ninja release all` 时，编译和链接基本完成，但在生成 `bin/line_quadrics_qem_tests.exe` 后失败：
-
-```text
-CMake Error at .../GoogleTestAddTests.cmake:77 (message):
-  Error running test executable.
-  Path: build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe
-  Result: Exit code 0xc0000139
-```
-
-`0xc0000139` 表示测试可执行文件启动时动态库符号解析失败，常见原因是 Windows 从 `PATH` 中加载到了错误版本的 MinGW 运行时 DLL，或测试 exe 所在目录缺少当前编译器对应的 `libstdc++-6.dll`、`libgcc_s_*.dll`、`libwinpthread-1.dll`。
-
-## 旧修复
-
-已在 `b81a45d` 中修复并推送：
-
-- CMake 会根据 `CMAKE_CXX_COMPILER` 所在目录收集 MinGW 运行时 DLL，并通过全局目标 `lq_mingw_runtime_dependencies` 复制到构建目录 `bin`。
-- GoogleTest 的 `gtest_discover_tests` 改为 `DISCOVERY_MODE PRE_TEST`，避免 Release 全量构建阶段因为测试发现提前启动 exe 而失败。
-- `docs/guide/vscode_setup.md` 已补充中文排查步骤。
-
-后续外部机器日志证明这个修复仍不完整：在 CMake 3.18 下，即使只运行 CLI 过滤测试或 `performance-tests` 目标，CTest 读取 `CTestTestfile.cmake` 时仍会 include `gtest_discover_tests` 生成的脚本，并尝试启动普通单元测试 exe。只要该 exe 的 MinGW/GoogleTest DLL 存在符号解析问题，就会反复输出 `0xc0000139`，污染与当前过滤项无关的测试。
-
-## 当前修复
-
-项目已经整体按 CMake 3.18 兼容方式调整：
-
-- 不再使用 `gtest_discover_tests`，改为 `gtest_add_tests` 从源码静态注册 GoogleTest 用例。CTest 枚举测试时不再启动任何测试 exe。
-- 自定义目标 `unit-tests`、`performance-tests`、`sdk-consumer-test` 不再使用较新 CTest 的 `--test-dir`，统一改为 `cmake -E chdir <builddir> ctest ...`。
-- `sdk-consumer-test` 不再使用 `cmake -E rm -rf`，改为 CMake 3.18 可用的 `cmake -E remove_directory`。
-- VS Code `tasks.json` 里的所有测试任务也统一用 `cmake -E chdir <builddir> ctest ...`。
-- CMake Tools 默认工作区设置固定普通 Release 构建树，并显式设置 `LQ_BUILD_PERFORMANCE_TESTS=OFF`；性能测试继续使用专门的 VS Code performance 构建任务。
-
-## 当前验证命令
-
-```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
-  -DLQ_BUILD_PERFORMANCE_TESTS=OFF
-cmake --build build/mingw-ninja-release --parallel
-cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
-```
-
-本机验证结果：
-
-- `git pull --ff-only`：远端已是最新。
-- `.vscode/tasks.json`、`.vscode/launch.json`、`.vscode/settings.json`：JSON 解析通过；69 个 task、8 个 launch 配置、15 个输入项的引用链完整。
-- `tasks.json`：未发现 `.ps1`、`.bat`、`.cmd`、`.py`、`.sh` 或仓库脚本入口；测试任务均直接调用 `cmake`。
-- `cmake --build build/mingw-ninja-release --parallel`：Release 全量构建通过。
-- `cmake -E chdir build/mingw-ninja-release ctest -N`：枚举 72 个非性能测试，构建树中未生成旧的 `GoogleTestAddTests` / `gtest_discover_tests` include 文件。
-- `cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure`：非性能测试 72/72 通过。
-- `cmake --build build/mingw-ninja-release-performance --target performance-tests --parallel`：性能测试 4/4 通过。
-- `cmake --build build/mingw-ninja-release-sdk --target sdk-consumer-test --parallel`：SDK consumer 构建和 2 个示例测试通过。
-- `cmake --build build/mingw-ninja-release --target docs-api --parallel`：Doxygen API 文档生成通过。
-
-## 如果另一台机器仍失败
-
-先检查工具链是否混用：
-
-```powershell
-where g++
-where gcc
-where cmake
-where ninja
-Get-ChildItem build\mingw-ninja-release\bin\*.dll
-```
-
-如果 `where g++` 和实际希望使用的 MinGW 不一致，先修正 `PATH`，删除或重新配置 `build/mingw-ninja-release`，再重新构建。
-
-
-[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release 
+﻿[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release 
 [main] 正在配置项目: line-quadrics-qem 
-[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\gcc.exe -DCMAKE_CXX_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\g++.exe -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_MAKEFILE=on --no-warn-unused-cli -SC:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem -Bc:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release -G Ninja
+[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\gcc.exe -DCMAKE_CXX_COMPILER:FILEPATH=D:\code\qem\line-quadrics-qem-main\third_party\packages\mingw64\bin\g++.exe -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DLQ_BUILD_PERFORMANCE_TESTS:STRING=OFF -DCMAKE_MAKEFILE=on --no-warn-unused-cli -SC:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem -Bc:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release -G Ninja
 [cmake] Not searching for unused variables given on the command line.
 [cmake] -- Configuring done
 [cmake] -- Generating done
 [cmake] -- Build files have been written to: C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
 [build] 正在启动生成
-[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target performance-tests --
-[build] [1/2   0% :: 0.008] Re-checking globbed directories...
-[build] [1/4  25% :: 1.145] Copying MinGW runtime dependencies
-[build] [2/4  50% :: 12.977] Building CXX object tests/CMakeFiles/line_quadrics_qem_performance_tests.dir/qem_dataset_tests.cpp.obj
-[build] [3/4  75% :: 13.777] Linking CXX executable bin\line_quadrics_qem_performance_tests.exe
-[build] [4/4 100% :: 14.025] Running large mesh performance tests
-[build] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests
-[build] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
-[build]   Error running test executable.
-[build] 
-[build]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-[build]     Result: Exit code 0xc0000139
-[build] 
-[build]   
-[build] 
-[build]     Output:
-[build]       
-[build] 
-[build] Call Stack (most recent call first):
-[build]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
-[build]   CTestTestfile.cmake:7 (include)
-[build] 
-[build] 
-[build] No tests were found!!!
-[driver] 生成完毕: 00:00:14.308
-[build] 生成已完成，退出代码为 0
-[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release linequadrics_c_api_basic, line_quadrics_qem_performance_tests
-[build] 正在启动生成
-[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target linequadrics_c_api_basic line_quadrics_qem_performance_tests --
+[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release --config Release --target linequadrics_c_api_basic --
 [build] [1/2   0% :: 0.005] Re-checking globbed directories...
-[build] ninja: error: unknown target 'line_quadrics_qem_performance_tests'
-[proc] 命令“"D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target linequadrics_c_api_basic line_quadrics_qem_performance_tests --”已退出，代码为 1
-[driver] 生成完毕: 00:00:00.467
-[build] 生成已完成，退出代码为 1
-
-[main] 正在生成文件夹: c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release 
-[build] 正在启动生成
-[proc] 执行命令: "D:\Program Files\CMake\bin\cmake.EXE" --build c:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-Release --config Release --target linequadrics_c_api_basic --
-[build] [1/2   0% :: 0.006] Re-checking globbed directories...
-[build] [1/1 100% :: 1.011] Copying MinGW runtime dependencies
-[driver] 生成完毕: 00:00:01.330
+[build] [1/1 100% :: 1.258] Copying MinGW runtime dependencies
+[driver] 生成完毕: 00:00:01.533
 [build] 生成已完成，退出代码为 0
 [proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_help$
 [ctest]    Site: WIN7-HLW034
 [ctest]    Build name: Win32-ninja
 [ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
-[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
-[ctest]   Error running test executable.
-[ctest] 
-[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-[ctest]     Result: Exit code 0xc0000139
-[ctest] 
-[ctest]   
-[ctest] 
-[ctest]     Output:
-[ctest]       
-[ctest] 
-[ctest] Call Stack (most recent call first):
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
-[ctest]   CTestTestfile.cmake:16 (subdirs)
-[ctest] 
 [ctest]     Start 1: linequadrics_cli_help
-[ctest] 
-[ctest] 1/1 Test #1: linequadrics_cli_help ............   Passed    0.08 sec
+[ctest] 1/1 Test #1: linequadrics_cli_help ............   Passed    0.19 sec
 [ctest] 
 [ctest] 100% tests passed, 0 tests failed out of 1
 [ctest] 
-[ctest] Total Test time (real) =   0.16 sec
+[ctest] Total Test time (real) =   0.21 sec
 [ctest] CTest 已完成，返回代码 0
 [proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_rejects_unknown_option$
 [ctest]    Site: WIN7-HLW034
 [ctest]    Build name: Win32-ninja
 [ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
-[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
-[ctest]   Error running test executable.
-[ctest] 
-[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-[ctest]     Result: Exit code 0xc0000139
-[ctest] 
-[ctest]   
-[ctest] 
-[ctest]     Output:
-[ctest]       
-[ctest] 
-[ctest] Call Stack (most recent call first):
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
-[ctest]   CTestTestfile.cmake:16 (subdirs)
-[ctest] 
-[ctest] 
 [ctest]     Start 2: linequadrics_cli_rejects_unknown_option
 [ctest] 1/1 Test #2: linequadrics_cli_rejects_unknown_option ...   Passed    0.10 sec
 [ctest] 
 [ctest] 100% tests passed, 0 tests failed out of 1
 [ctest] 
-[ctest] Total Test time (real) =   0.19 sec
+[ctest] Total Test time (real) =   0.13 sec
 [ctest] CTest 已完成，返回代码 0
 [proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_rejects_missing_option_value$
 [ctest]    Site: WIN7-HLW034
 [ctest]    Build name: Win32-ninja
 [ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
-[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
-[ctest]   Error running test executable.
-[ctest] 
-[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-[ctest]     Result: Exit code 0xc0000139
-[ctest] 
-[ctest]   
-[ctest] 
-[ctest]     Output:
-[ctest]       
-[ctest] 
-[ctest] Call Stack (most recent call first):
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
-[ctest]   CTestTestfile.cmake:16 (subdirs)
-[ctest] 
-[ctest] 
 [ctest]     Start 3: linequadrics_cli_rejects_missing_option_value
-[ctest] 1/1 Test #3: linequadrics_cli_rejects_missing_option_value ...   Passed    0.09 sec
+[ctest] 1/1 Test #3: linequadrics_cli_rejects_missing_option_value ...   Passed    0.30 sec
 [ctest] 
 [ctest] 100% tests passed, 0 tests failed out of 1
 [ctest] 
-[ctest] Total Test time (real) =   0.16 sec
+[ctest] Total Test time (real) =   0.32 sec
 [ctest] CTest 已完成，返回代码 0
 [proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_cli_rejects_malformed_number$
 [ctest]    Site: WIN7-HLW034
 [ctest]    Build name: Win32-ninja
 [ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
-[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
-[ctest]   Error running test executable.
-[ctest] 
-[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-[ctest]     Result: Exit code 0xc0000139
-[ctest] 
-[ctest]   
-[ctest] 
-[ctest]     Output:
-[ctest]       
-[ctest] 
-[ctest] Call Stack (most recent call first):
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
-[ctest]   CTestTestfile.cmake:16 (subdirs)
-[ctest] 
-[ctest] 
 [ctest]     Start 4: linequadrics_cli_rejects_malformed_number
-[ctest] 1/1 Test #4: linequadrics_cli_rejects_malformed_number ...   Passed    0.12 sec
+[ctest] 1/1 Test #4: linequadrics_cli_rejects_malformed_number ...   Passed    0.25 sec
 [ctest] 
 [ctest] 100% tests passed, 0 tests failed out of 1
 [ctest] 
-[ctest] Total Test time (real) =   0.23 sec
+[ctest] Total Test time (real) =   0.27 sec
 [ctest] CTest 已完成，返回代码 0
 [proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_example_basic_simplify$
 [ctest]    Site: WIN7-HLW034
 [ctest]    Build name: Win32-ninja
 [ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
-[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
-[ctest]   Error running test executable.
-[ctest] 
-[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-[ctest]     Result: Exit code 0xc0000139
-[ctest] 
-[ctest]   
-[ctest] 
-[ctest]     Output:
-[ctest]       
-[ctest] 
 [ctest]     Start 5: linequadrics_example_basic_simplify
-[ctest] Call Stack (most recent call first):
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
-[ctest]   CTestTestfile.cmake:16 (subdirs)
-[ctest] 
-[ctest] 
-[ctest] 1/1 Test #5: linequadrics_example_basic_simplify ...   Passed    0.13 sec
+[ctest] 1/1 Test #5: linequadrics_example_basic_simplify ...   Passed    0.24 sec
 [ctest] 
 [ctest] 100% tests passed, 0 tests failed out of 1
 [ctest] 
-[ctest] Total Test time (real) =   0.22 sec
+[ctest] Total Test time (real) =   0.27 sec
 [ctest] CTest 已完成，返回代码 0
 [proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^linequadrics_example_c_api_basic$
 [ctest]    Site: WIN7-HLW034
 [ctest]    Build name: Win32-ninja
 [ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
-[ctest] CMake Error at D:/Program Files/CMake/share/cmake-3.18/Modules/GoogleTestAddTests.cmake:77 (message):
-[ctest]   Error running test executable.
-[ctest] 
-[ctest]     Path: 'C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/bin/line_quadrics_qem_tests.exe'
-[ctest]     Result: Exit code 0xc0000139
-[ctest] 
-[ctest]   
-[ctest] 
-[ctest]     Output:
-[ctest]       
-[ctest] 
-[ctest] Call Stack (most recent call first):
 [ctest]     Start 6: linequadrics_example_c_api_basic
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/line_quadrics_qem_tests[1]_include.cmake:4 (gtest_discover_tests_impl)
-[ctest]   C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release/tests/CTestTestfile.cmake:7 (include)
-[ctest]   CTestTestfile.cmake:16 (subdirs)
-[ctest] 
-[ctest] 
-[ctest] 1/1 Test #6: linequadrics_example_c_api_basic ...   Passed    0.10 sec
+[ctest] 1/1 Test #6: linequadrics_example_c_api_basic ...   Passed    0.08 sec
 [ctest] 
 [ctest] 100% tests passed, 0 tests failed out of 1
 [ctest] 
-[ctest] Total Test time (real) =   0.24 sec
+[ctest] Total Test time (real) =   0.10 sec
 [ctest] CTest 已完成，返回代码 0
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.SimplifiesRealStlThroughOpaqueHandles$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 7: CApiTest.SimplifiesRealStlThroughOpaqueHandles
+[ctest] 1/1 Test #7: CApiTest.SimplifiesRealStlThroughOpaqueHandles ...Exit code 0xc0000139
+[ctest] ***Exception:   0.05 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.05 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	  7 - CApiTest.SimplifiesRealStlThroughOpaqueHandles (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.SimplifiesRealStlThroughOpaqueHandles$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.CopiesMeshDataOnlyIntoCallerOwnedBuffers$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 8: CApiTest.CopiesMeshDataOnlyIntoCallerOwnedBuffers
+[ctest] 1/1 Test #8: CApiTest.CopiesMeshDataOnlyIntoCallerOwnedBuffers ...Exit code 0xc0000139
+[ctest] ***Exception:   0.04 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.04 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.05 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	  8 - CApiTest.CopiesMeshDataOnlyIntoCallerOwnedBuffers (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.CopiesMeshDataOnlyIntoCallerOwnedBuffers$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 9: CApiTest.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh
+[ctest] 1/1 Test #9: CApiTest.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	  9 - CApiTest.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.RejectsInvalidFaceIndicesWithoutReplacingMesh$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 10: CApiTest.RejectsInvalidFaceIndicesWithoutReplacingMesh
+[ctest] 1/1 Test #10: CApiTest.RejectsInvalidFaceIndicesWithoutReplacingMesh ...Exit code 0xc0000139
+[ctest] ***Exception:   0.05 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.05 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 10 - CApiTest.RejectsInvalidFaceIndicesWithoutReplacingMesh (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.RejectsInvalidFaceIndicesWithoutReplacingMesh$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.MapsInvalidSimplifyOptionsToInvalidArgumentStatus$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 11: CApiTest.MapsInvalidSimplifyOptionsToInvalidArgumentStatus
+[ctest] 1/1 Test #11: CApiTest.MapsInvalidSimplifyOptionsToInvalidArgumentStatus ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 11 - CApiTest.MapsInvalidSimplifyOptionsToInvalidArgumentStatus (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.MapsInvalidSimplifyOptionsToInvalidArgumentStatus$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.RejectsUninitializedSimplifyOptionsAbiStruct$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 12: CApiTest.RejectsUninitializedSimplifyOptionsAbiStruct
+[ctest] 1/1 Test #12: CApiTest.RejectsUninitializedSimplifyOptionsAbiStruct ...Exit code 0xc0000139
+[ctest] ***Exception:   0.12 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.12 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.14 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 12 - CApiTest.RejectsUninitializedSimplifyOptionsAbiStruct (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.RejectsUninitializedSimplifyOptionsAbiStruct$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.ExposesNormalTensorOptionsAndDiagnostics$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 13: CApiTest.ExposesNormalTensorOptionsAndDiagnostics
+[ctest] 1/1 Test #13: CApiTest.ExposesNormalTensorOptionsAndDiagnostics ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 13 - CApiTest.ExposesNormalTensorOptionsAndDiagnostics (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.ExposesNormalTensorOptionsAndDiagnostics$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.ExposesLegalityOptionsAndDetailedRejectDiagnostics$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 14: CApiTest.ExposesLegalityOptionsAndDetailedRejectDiagnostics
+[ctest] 1/1 Test #14: CApiTest.ExposesLegalityOptionsAndDetailedRejectDiagnostics ...Exit code 0xc0000139
+[ctest] ***Exception:   0.04 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.04 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 14 - CApiTest.ExposesLegalityOptionsAndDetailedRejectDiagnostics (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.ExposesLegalityOptionsAndDetailedRejectDiagnostics$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.ExposesFeatureCurveProtectionDiagnostics$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 15: CApiTest.ExposesFeatureCurveProtectionDiagnostics
+[ctest] 1/1 Test #15: CApiTest.ExposesFeatureCurveProtectionDiagnostics ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 15 - CApiTest.ExposesFeatureCurveProtectionDiagnostics (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.ExposesFeatureCurveProtectionDiagnostics$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.InitializesPrimitiveFitOptions$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 16: CApiTest.InitializesPrimitiveFitOptions
+[ctest] 1/1 Test #16: CApiTest.InitializesPrimitiveFitOptions ...Exit code 0xc0000139
+[ctest] ***Exception:   0.05 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.05 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 16 - CApiTest.InitializesPrimitiveFitOptions (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^CApiTest\.InitializesPrimitiveFitOptions$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.ClassifiesBoundaryEdgesOnOpenTriangle$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 17: FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle
+[ctest] 1/1 Test #17: FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle ...Exit code 0xc0000139
+[ctest] ***Exception:   0.09 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.09 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 17 - FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.ClassifiesBoundaryEdgesOnOpenTriangle$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.ClassifiesNonManifoldEdgesSeparately$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 18: FeatureDetection.ClassifiesNonManifoldEdgesSeparately
+[ctest] 1/1 Test #18: FeatureDetection.ClassifiesNonManifoldEdgesSeparately ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 18 - FeatureDetection.ClassifiesNonManifoldEdgesSeparately (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.ClassifiesNonManifoldEdgesSeparately$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.DihedralThresholdControlsCreaseEdges$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 19: FeatureDetection.DihedralThresholdControlsCreaseEdges
+[ctest] 1/1 Test #19: FeatureDetection.DihedralThresholdControlsCreaseEdges ...Exit code 0xc0000139
+[ctest] ***Exception:   0.05 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.05 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 19 - FeatureDetection.DihedralThresholdControlsCreaseEdges (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.DihedralThresholdControlsCreaseEdges$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.DetectsCircularCylinderBoundaryLoops$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 20: FeatureDetection.DetectsCircularCylinderBoundaryLoops
+[ctest] 1/1 Test #20: FeatureDetection.DetectsCircularCylinderBoundaryLoops ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 20 - FeatureDetection.DetectsCircularCylinderBoundaryLoops (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.DetectsCircularCylinderBoundaryLoops$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.RecoversCircularLoopFromBranchedFeatureGraph$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 21: FeatureDetection.RecoversCircularLoopFromBranchedFeatureGraph
+[ctest] 1/1 Test #21: FeatureDetection.RecoversCircularLoopFromBranchedFeatureGraph ...Exit code 0xc0000139
+[ctest] ***Exception:   0.32 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.32 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.35 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 21 - FeatureDetection.RecoversCircularLoopFromBranchedFeatureGraph (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.RecoversCircularLoopFromBranchedFeatureGraph$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.RecoversPolygonalCycleThroughMultipleJunctions$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 22: FeatureDetection.RecoversPolygonalCycleThroughMultipleJunctions
+[ctest] 1/1 Test #22: FeatureDetection.RecoversPolygonalCycleThroughMultipleJunctions ...Exit code 0xc0000139
+[ctest] ***Exception:   0.08 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.08 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.09 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 22 - FeatureDetection.RecoversPolygonalCycleThroughMultipleJunctions (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.RecoversPolygonalCycleThroughMultipleJunctions$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 23: FeatureDetection.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces
+[ctest] 1/1 Test #23: FeatureDetection.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces ...Exit code 0xc0000139
+[ctest] ***Exception:   0.15 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.15 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.16 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 23 - FeatureDetection.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureDetectsTiltedCoaxialHoleAxis$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 24: FeatureDetection.FixtureDetectsTiltedCoaxialHoleAxis
+[ctest] 1/1 Test #24: FeatureDetection.FixtureDetectsTiltedCoaxialHoleAxis ...Exit code 0xc0000139
+[ctest] ***Exception:   0.08 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.08 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 24 - FeatureDetection.FixtureDetectsTiltedCoaxialHoleAxis (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureDetectsTiltedCoaxialHoleAxis$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureExposesEccentricHoleNonCoaxiality$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 25: FeatureDetection.FixtureExposesEccentricHoleNonCoaxiality
+[ctest] 1/1 Test #25: FeatureDetection.FixtureExposesEccentricHoleNonCoaxiality ...Exit code 0xc0000139
+[ctest] ***Exception:   0.09 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.09 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 25 - FeatureDetection.FixtureExposesEccentricHoleNonCoaxiality (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureExposesEccentricHoleNonCoaxiality$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureClassifiesEllipseAndNearCircleLoops$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 26: FeatureDetection.FixtureClassifiesEllipseAndNearCircleLoops
+[ctest] 1/1 Test #26: FeatureDetection.FixtureClassifiesEllipseAndNearCircleLoops ...Exit code 0xc0000139
+[ctest] ***Exception:   0.09 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.09 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.11 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 26 - FeatureDetection.FixtureClassifiesEllipseAndNearCircleLoops (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureClassifiesEllipseAndNearCircleLoops$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureDetectsBossPocketPlanesAndHardEdges$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 27: FeatureDetection.FixtureDetectsBossPocketPlanesAndHardEdges
+[ctest] 1/1 Test #27: FeatureDetection.FixtureDetectsBossPocketPlanesAndHardEdges ...Exit code 0xc0000139
+[ctest] ***Exception:   0.31 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.31 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.38 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 27 - FeatureDetection.FixtureDetectsBossPocketPlanesAndHardEdges (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.FixtureDetectsBossPocketPlanesAndHardEdges$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.SplitsBranchedFeatureGraphAndMarksJunctions$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 28: FeatureDetection.SplitsBranchedFeatureGraphAndMarksJunctions
+[ctest] 1/1 Test #28: FeatureDetection.SplitsBranchedFeatureGraphAndMarksJunctions ...Exit code 0xc0000139
+[ctest] ***Exception:   0.20 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.20 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.24 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 28 - FeatureDetection.SplitsBranchedFeatureGraphAndMarksJunctions (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^FeatureDetection\.SplitsBranchedFeatureGraphAndMarksJunctions$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.TargetFacesOverridesRatioOnRealStlFixtures$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 29: LineQuadricsQemParameters.TargetFacesOverridesRatioOnRealStlFixtures
+[ctest] 1/1 Test #29: LineQuadricsQemParameters.TargetFacesOverridesRatioOnRealStlFixtures ...Exit code 0xc0000139
+[ctest] ***Exception:   0.14 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.14 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.16 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 29 - LineQuadricsQemParameters.TargetFacesOverridesRatioOnRealStlFixtures (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.TargetFacesOverridesRatioOnRealStlFixtures$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 30: LineQuadricsQemParameters.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures
+[ctest] 1/1 Test #30: LineQuadricsQemParameters.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures ...Exit code 0xc0000139
+[ctest] ***Exception:   0.07 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.07 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 30 - LineQuadricsQemParameters.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.FeatureProtectionChangesCircularHoleDiagnostics$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 31: LineQuadricsQemParameters.FeatureProtectionChangesCircularHoleDiagnostics
+[ctest] 1/1 Test #31: LineQuadricsQemParameters.FeatureProtectionChangesCircularHoleDiagnostics ...Exit code 0xc0000139
+[ctest] ***Exception:   0.05 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.05 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 31 - LineQuadricsQemParameters.FeatureProtectionChangesCircularHoleDiagnostics (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.FeatureProtectionChangesCircularHoleDiagnostics$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.EllipsePrimitiveUsesPrimitiveFeatureProjection$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 32: LineQuadricsQemParameters.EllipsePrimitiveUsesPrimitiveFeatureProjection
+[ctest] 1/1 Test #32: LineQuadricsQemParameters.EllipsePrimitiveUsesPrimitiveFeatureProjection ...Exit code 0xc0000139
+[ctest] ***Exception:   0.08 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.08 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.11 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 32 - LineQuadricsQemParameters.EllipsePrimitiveUsesPrimitiveFeatureProjection (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.EllipsePrimitiveUsesPrimitiveFeatureProjection$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.PrimitiveModeSoftensGenericCreasesOnExternalFandisk$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 33: LineQuadricsQemParameters.PrimitiveModeSoftensGenericCreasesOnExternalFandisk
+[ctest] 1/1 Test #33: LineQuadricsQemParameters.PrimitiveModeSoftensGenericCreasesOnExternalFandisk ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 33 - LineQuadricsQemParameters.PrimitiveModeSoftensGenericCreasesOnExternalFandisk (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.PrimitiveModeSoftensGenericCreasesOnExternalFandisk$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.StrictQualityModeImprovesWorstThingi10kFixture$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 34: LineQuadricsQemParameters.StrictQualityModeImprovesWorstThingi10kFixture
+[ctest] 1/1 Test #34: LineQuadricsQemParameters.StrictQualityModeImprovesWorstThingi10kFixture ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 34 - LineQuadricsQemParameters.StrictQualityModeImprovesWorstThingi10kFixture (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.StrictQualityModeImprovesWorstThingi10kFixture$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.IndustrialGateChecksFeatureDriftDistanceAndTopology$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 35: LineQuadricsQemParameters.IndustrialGateChecksFeatureDriftDistanceAndTopology
+[ctest] 1/1 Test #35: LineQuadricsQemParameters.IndustrialGateChecksFeatureDriftDistanceAndTopology ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 35 - LineQuadricsQemParameters.IndustrialGateChecksFeatureDriftDistanceAndTopology (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQemParameters\.IndustrialGateChecksFeatureDriftDistanceAndTopology$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.BuiltInGeneratorsCoverDemoAndIndustrialModels$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 36: LineQuadricsQem.BuiltInGeneratorsCoverDemoAndIndustrialModels
+[ctest] 1/1 Test #36: LineQuadricsQem.BuiltInGeneratorsCoverDemoAndIndustrialModels ...Exit code 0xc0000139
+[ctest] ***Exception:   0.15 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.15 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.17 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 36 - LineQuadricsQem.BuiltInGeneratorsCoverDemoAndIndustrialModels (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.BuiltInGeneratorsCoverDemoAndIndustrialModels$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalFinishedFlangeFixtureLoadsWithFeatures$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 37: LineQuadricsQem.ExternalFinishedFlangeFixtureLoadsWithFeatures
+[ctest] 1/1 Test #37: LineQuadricsQem.ExternalFinishedFlangeFixtureLoadsWithFeatures ...Exit code 0xc0000139
+[ctest] ***Exception:   0.07 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.07 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.09 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 37 - LineQuadricsQem.ExternalFinishedFlangeFixtureLoadsWithFeatures (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalFinishedFlangeFixtureLoadsWithFeatures$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.WeightModesRoundTripAndRejectUnknownValues$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 38: LineQuadricsQem.WeightModesRoundTripAndRejectUnknownValues
+[ctest] 1/1 Test #38: LineQuadricsQem.WeightModesRoundTripAndRejectUnknownValues ...Exit code 0xc0000139
+[ctest] ***Exception:   0.08 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.08 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 38 - LineQuadricsQem.WeightModesRoundTripAndRejectUnknownValues (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.WeightModesRoundTripAndRejectUnknownValues$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.NormalTensorScoresSeparatePlaneFromRidge$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 39: LineQuadricsQem.NormalTensorScoresSeparatePlaneFromRidge
+[ctest] 1/1 Test #39: LineQuadricsQem.NormalTensorScoresSeparatePlaneFromRidge ...Exit code 0xc0000139
+[ctest] ***Exception:   0.09 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.09 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.11 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 39 - LineQuadricsQem.NormalTensorScoresSeparatePlaneFromRidge (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.NormalTensorScoresSeparatePlaneFromRidge$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 40: LineQuadricsQem.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict
+[ctest] 1/1 Test #40: LineQuadricsQem.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 40 - LineQuadricsQem.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.NormalTensorWeightModeAppliesSpatiallyVaryingWeights$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 41: LineQuadricsQem.NormalTensorWeightModeAppliesSpatiallyVaryingWeights
+[ctest] 1/1 Test #41: LineQuadricsQem.NormalTensorWeightModeAppliesSpatiallyVaryingWeights ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 41 - LineQuadricsQem.NormalTensorWeightModeAppliesSpatiallyVaryingWeights (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.NormalTensorWeightModeAppliesSpatiallyVaryingWeights$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictTriangleQualityRejectsPoorCollapsePlacements$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 42: LineQuadricsQem.StrictTriangleQualityRejectsPoorCollapsePlacements
+[ctest] 1/1 Test #42: LineQuadricsQem.StrictTriangleQualityRejectsPoorCollapsePlacements ...Exit code 0xc0000139
+[ctest] ***Exception:   0.13 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.13 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.15 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 42 - LineQuadricsQem.StrictTriangleQualityRejectsPoorCollapsePlacements (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictTriangleQualityRejectsPoorCollapsePlacements$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.TriesEndpointPlacementWhenBestPlacementFailsLegality$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 43: LineQuadricsQem.TriesEndpointPlacementWhenBestPlacementFailsLegality
+[ctest] 1/1 Test #43: LineQuadricsQem.TriesEndpointPlacementWhenBestPlacementFailsLegality ...Exit code 0xc0000139
+[ctest] ***Exception:   0.04 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.04 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.06 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 43 - LineQuadricsQem.TriesEndpointPlacementWhenBestPlacementFailsLegality (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.TriesEndpointPlacementWhenBestPlacementFailsLegality$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictNormalDeviationRejectsFoldoverRisk$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 44: LineQuadricsQem.StrictNormalDeviationRejectsFoldoverRisk
+[ctest] 1/1 Test #44: LineQuadricsQem.StrictNormalDeviationRejectsFoldoverRisk ...Exit code 0xc0000139
+[ctest] ***Exception:   0.05 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.05 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.20 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 44 - LineQuadricsQem.StrictNormalDeviationRejectsFoldoverRisk (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictNormalDeviationRejectsFoldoverRisk$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictLocalErrorRejectsLargeVertexDrift$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 45: LineQuadricsQem.StrictLocalErrorRejectsLargeVertexDrift
+[ctest] 1/1 Test #45: LineQuadricsQem.StrictLocalErrorRejectsLargeVertexDrift ...Exit code 0xc0000139
+[ctest] ***Exception:   0.07 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.07 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.09 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 45 - LineQuadricsQem.StrictLocalErrorRejectsLargeVertexDrift (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictLocalErrorRejectsLargeVertexDrift$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 46: LineQuadricsQem.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved
+[ctest] 1/1 Test #46: LineQuadricsQem.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved ...Exit code 0xc0000139
+[ctest] ***Exception:   0.17 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.17 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.19 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 46 - LineQuadricsQem.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 47: LineQuadricsQem.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse
+[ctest] 1/1 Test #47: LineQuadricsQem.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse ...Exit code 0xc0000139
+[ctest] ***Exception:   0.23 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.23 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.25 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 47 - LineQuadricsQem.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardRejectsIntersectingCollapse$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 48: LineQuadricsQem.LocalIntersectionGuardRejectsIntersectingCollapse
+[ctest] 1/1 Test #48: LineQuadricsQem.LocalIntersectionGuardRejectsIntersectingCollapse ...Exit code 0xc0000139
+[ctest] ***Exception:   0.26 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.26 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.28 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 48 - LineQuadricsQem.LocalIntersectionGuardRejectsIntersectingCollapse (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardRejectsIntersectingCollapse$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardFindsIndexedDistantCandidates$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 49: LineQuadricsQem.LocalIntersectionGuardFindsIndexedDistantCandidates
+[ctest] 1/1 Test #49: LineQuadricsQem.LocalIntersectionGuardFindsIndexedDistantCandidates ...Exit code 0xc0000139
+[ctest] ***Exception:   0.16 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.16 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.18 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 49 - LineQuadricsQem.LocalIntersectionGuardFindsIndexedDistantCandidates (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardFindsIndexedDistantCandidates$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 50: LineQuadricsQem.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap
+[ctest] 1/1 Test #50: LineQuadricsQem.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap ...Exit code 0xc0000139
+[ctest] ***Exception:   0.07 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.07 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 50 - LineQuadricsQem.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 51: LineQuadricsQem.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles
+[ctest] 1/1 Test #51: LineQuadricsQem.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles ...Exit code 0xc0000139
+[ctest] ***Exception:   0.09 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.09 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.11 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 51 - LineQuadricsQem.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardAllowsSharedCoplanarEdges$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 52: LineQuadricsQem.LocalIntersectionGuardAllowsSharedCoplanarEdges
+[ctest] 1/1 Test #52: LineQuadricsQem.LocalIntersectionGuardAllowsSharedCoplanarEdges ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 52 - LineQuadricsQem.LocalIntersectionGuardAllowsSharedCoplanarEdges (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.LocalIntersectionGuardAllowsSharedCoplanarEdges$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictPolygonalFeatureProtectionRejectsChordPlacement$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 53: LineQuadricsQem.StrictPolygonalFeatureProtectionRejectsChordPlacement
+[ctest] 1/1 Test #53: LineQuadricsQem.StrictPolygonalFeatureProtectionRejectsChordPlacement ...Exit code 0xc0000139
+[ctest] ***Exception:   0.07 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.07 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.09 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 53 - LineQuadricsQem.StrictPolygonalFeatureProtectionRejectsChordPlacement (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.StrictPolygonalFeatureProtectionRejectsChordPlacement$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 54: LineQuadricsQem.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault
+[ctest] 1/1 Test #54: LineQuadricsQem.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.07 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 54 - LineQuadricsQem.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.PlainMeshRoundTripsWithoutEigenInExchangeType$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 55: LineQuadricsQem.PlainMeshRoundTripsWithoutEigenInExchangeType
+[ctest] 1/1 Test #55: LineQuadricsQem.PlainMeshRoundTripsWithoutEigenInExchangeType ...Exit code 0xc0000139
+[ctest] ***Exception:   0.14 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.14 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.17 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 55 - LineQuadricsQem.PlainMeshRoundTripsWithoutEigenInExchangeType (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.PlainMeshRoundTripsWithoutEigenInExchangeType$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.QEMSimplifierObjectStoresOptionsAndLatestReport$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 56: LineQuadricsQem.QEMSimplifierObjectStoresOptionsAndLatestReport
+[ctest] 1/1 Test #56: LineQuadricsQem.QEMSimplifierObjectStoresOptionsAndLatestReport ...Exit code 0xc0000139
+[ctest] ***Exception:   0.07 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.07 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 56 - LineQuadricsQem.QEMSimplifierObjectStoresOptionsAndLatestReport (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.QEMSimplifierObjectStoresOptionsAndLatestReport$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.QEMSimplifierCopiesPimplStateIndependently$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 57: LineQuadricsQem.QEMSimplifierCopiesPimplStateIndependently
+[ctest] 1/1 Test #57: LineQuadricsQem.QEMSimplifierCopiesPimplStateIndependently ...Exit code 0xc0000139
+[ctest] ***Exception:   0.08 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.08 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 57 - LineQuadricsQem.QEMSimplifierCopiesPimplStateIndependently (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.QEMSimplifierCopiesPimplStateIndependently$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ReportsFeatureLoopsOnCylinderCreases$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 58: LineQuadricsQem.ReportsFeatureLoopsOnCylinderCreases
+[ctest] 1/1 Test #58: LineQuadricsQem.ReportsFeatureLoopsOnCylinderCreases ...Exit code 0xc0000139
+[ctest] ***Exception:   0.17 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.17 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.18 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 58 - LineQuadricsQem.ReportsFeatureLoopsOnCylinderCreases (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ReportsFeatureLoopsOnCylinderCreases$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeasuresCircularFeatureLoopAgainstDetectedCircle$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 59: LineQuadricsQem.MeasuresCircularFeatureLoopAgainstDetectedCircle
+[ctest] 1/1 Test #59: LineQuadricsQem.MeasuresCircularFeatureLoopAgainstDetectedCircle ...Exit code 0xc0000139
+[ctest] ***Exception:   0.06 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.06 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.10 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 59 - LineQuadricsQem.MeasuresCircularFeatureLoopAgainstDetectedCircle (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeasuresCircularFeatureLoopAgainstDetectedCircle$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalNasaIndustrialMeshesExposeRichFeatureTopology$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 60: LineQuadricsQem.ExternalNasaIndustrialMeshesExposeRichFeatureTopology
+[ctest] 1/1 Test #60: LineQuadricsQem.ExternalNasaIndustrialMeshesExposeRichFeatureTopology ...Exit code 0xc0000139
+[ctest] ***Exception:   0.10 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.10 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.13 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 60 - LineQuadricsQem.ExternalNasaIndustrialMeshesExposeRichFeatureTopology (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalNasaIndustrialMeshesExposeRichFeatureTopology$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalDownloadedMeshesCompareIndustrialSimplificationModes$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 61: LineQuadricsQem.ExternalDownloadedMeshesCompareIndustrialSimplificationModes
+[ctest] 1/1 Test #61: LineQuadricsQem.ExternalDownloadedMeshesCompareIndustrialSimplificationModes ...Exit code 0xc0000139
+[ctest] ***Exception:   0.21 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.21 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.25 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 61 - LineQuadricsQem.ExternalDownloadedMeshesCompareIndustrialSimplificationModes (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalDownloadedMeshesCompareIndustrialSimplificationModes$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 62: LineQuadricsQem.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify
+[ctest] 1/1 Test #62: LineQuadricsQem.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify ...Exit code 0xc0000139
+[ctest] ***Exception:   0.26 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.26 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.28 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 62 - LineQuadricsQem.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ComputesMeshStatsForGeneratedCube$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 63: LineQuadricsQem.ComputesMeshStatsForGeneratedCube
+[ctest] 1/1 Test #63: LineQuadricsQem.ComputesMeshStatsForGeneratedCube ...Exit code 0xc0000139
+[ctest] ***Exception:   0.15 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.15 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.17 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 63 - LineQuadricsQem.ComputesMeshStatsForGeneratedCube (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ComputesMeshStatsForGeneratedCube$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshTopologyCachesBoundaryAndNonManifoldEdges$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 64: LineQuadricsQem.MeshTopologyCachesBoundaryAndNonManifoldEdges
+[ctest] 1/1 Test #64: LineQuadricsQem.MeshTopologyCachesBoundaryAndNonManifoldEdges ...Exit code 0xc0000139
+[ctest] ***Exception:   0.12 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.12 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.14 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 64 - LineQuadricsQem.MeshTopologyCachesBoundaryAndNonManifoldEdges (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshTopologyCachesBoundaryAndNonManifoldEdges$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshTopologyCopiesAndMovesPimplCache$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 65: LineQuadricsQem.MeshTopologyCopiesAndMovesPimplCache
+[ctest] 1/1 Test #65: LineQuadricsQem.MeshTopologyCopiesAndMovesPimplCache ...Exit code 0xc0000139
+[ctest] ***Exception:   0.09 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.09 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.14 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 65 - LineQuadricsQem.MeshTopologyCopiesAndMovesPimplCache (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshTopologyCopiesAndMovesPimplCache$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshTopologyRejectsInvalidFaces$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 66: LineQuadricsQem.MeshTopologyRejectsInvalidFaces
+[ctest] 1/1 Test #66: LineQuadricsQem.MeshTopologyRejectsInvalidFaces ...Exit code 0xc0000139
+[ctest] ***Exception:   0.12 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.12 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.14 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 66 - LineQuadricsQem.MeshTopologyRejectsInvalidFaces (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshTopologyRejectsInvalidFaces$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshUtilitiesRejectMalformedInputWithoutThrowing$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 67: LineQuadricsQem.MeshUtilitiesRejectMalformedInputWithoutThrowing
+[ctest] 1/1 Test #67: LineQuadricsQem.MeshUtilitiesRejectMalformedInputWithoutThrowing ...Exit code 0xc0000139
+[ctest] ***Exception:   0.10 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.10 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.13 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 67 - LineQuadricsQem.MeshUtilitiesRejectMalformedInputWithoutThrowing (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshUtilitiesRejectMalformedInputWithoutThrowing$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.SimplifierRejectsInvalidOptionsAndMeshes$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 68: LineQuadricsQem.SimplifierRejectsInvalidOptionsAndMeshes
+[ctest] 1/1 Test #68: LineQuadricsQem.SimplifierRejectsInvalidOptionsAndMeshes ...Exit code 0xc0000139
+[ctest] ***Exception:   0.10 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.10 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.13 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 68 - LineQuadricsQem.SimplifierRejectsInvalidOptionsAndMeshes (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.SimplifierRejectsInvalidOptionsAndMeshes$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 69: LineQuadricsQem.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify
+[ctest] 1/1 Test #69: LineQuadricsQem.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify ...Exit code 0xc0000139
+[ctest] ***Exception:   0.14 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.14 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.15 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 69 - LineQuadricsQem.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+[proc] 执行命令: "D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalBinaryStlLoadKeepsGeometryUsable$
+[ctest]    Site: WIN7-HLW034
+[ctest]    Build name: Win32-ninja
+[ctest] Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+[ctest]     Start 70: LineQuadricsQem.ExternalBinaryStlLoadKeepsGeometryUsable
+[ctest] 1/1 Test #70: LineQuadricsQem.ExternalBinaryStlLoadKeepsGeometryUsable ...Exit code 0xc0000139
+[ctest] ***Exception:   0.05 sec
+[ctest] 
+[ctest] 
+[ctest] 0% tests passed, 1 tests failed out of 1
+[ctest] 
+[ctest] Label Time Summary:
+[ctest] unit    =   0.05 sec*proc (1 test)
+[ctest] 
+[ctest] Total Test time (real) =   0.08 sec
+[ctest] 
+[ctest] The following tests FAILED:
+[ctest] 	 70 - LineQuadricsQem.ExternalBinaryStlLoadKeepsGeometryUsable (Exit code 0xc0000139
+[ctest] )
+[ctest] Errors while running CTest
+[proc] 命令“"D:\Program Files\CMake\bin\ctest.exe" -j4 -C Release -T test --output-on-failure -R ^LineQuadricsQem\.ExternalBinaryStlLoadKeepsGeometryUsable$”已退出，代码为 8
+[ctest] CTest 已完成，返回代码 8
+
+ *  正在执行任务: D:\Program Files\CMake\bin\cmake.exe -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF 
+
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+ *  终端将被任务重用，按任意键关闭。 
+
+ *  正在执行任务: D:\Program Files\CMake\bin\cmake.exe -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_BUILD_PERFORMANCE_TESTS=OFF 
+
+[32/32] Linking CXX exe..._quadrics_qem_tests.exe
+
+ *  终端将被任务重用，按任意键关闭。 
+
+ 
+Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+      Start  1: linequadrics_cli_help
+ 1/70 Test  #1: linequadrics_cli_help ............................................................   Passed    0.25 sec
+      Start  2: linequadrics_cli_rejects_unknown_option
+ 2/70 Test  #2: linequadrics_cli_rejects_unknown_option ..........................................   Passed    0.12 sec
+      Start  3: linequadrics_cli_rejects_missing_option_value
+ 3/70 Test  #3: linequadrics_cli_rejects_missing_option_value ....................................   Passed    0.18 sec
+      Start  4: linequadrics_cli_rejects_malformed_number
+ 4/70 Test  #4: linequadrics_cli_rejects_malformed_number ........................................   Passed    0.10 sec
+      Start  5: linequadrics_example_basic_simplify
+ 5/70 Test  #5: linequadrics_example_basic_simplify ..............................................   Passed    0.14 sec
+      Start  6: linequadrics_example_c_api_basic
+ 6/70 Test  #6: linequadrics_example_c_api_basic
+.................................................   Passed    0.10 sec
+      Start  7: CApiTest.SimplifiesRealStlThroughOpaqueHandles
+ 7/70 Test  #7: CApiTest.SimplifiesRealStlThroughOpaqueHandles ...................................Exit code 0xc0000139
+***Exception:   0.07 sec
+
+      Start  8: CApiTest.CopiesMeshDataOnlyIntoCallerOwnedBuffers
+ 8/70 Test  #8: CApiTest.CopiesMeshDataOnlyIntoCallerOwnedBuffers ................................Exit code 0xc0000139
+***Exception:   0.15 sec
+
+      Start  9: CApiTest.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh
+ 9/70 Test  #9: CApiTest.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh ...................Exit code 0xc0000139
+***Exception:   0.17 sec
+
+      Start 10: CApiTest.RejectsInvalidFaceIndicesWithoutReplacingMesh
+10/70 Test #10: CApiTest.RejectsInvalidFaceIndicesWithoutReplacingMesh ...........................Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 11: CApiTest.MapsInvalidSimplifyOptionsToInvalidArgumentStatus
+11/70 Test #11: CApiTest.MapsInvalidSimplifyOptionsToInvalidArgumentStatus .......................
+Exit code 0xc0000139
+***Exception:   0.29 sec
+
+      Start 12: CApiTest.RejectsUninitializedSimplifyOptionsAbiStruct
+12/70 Test #12: CApiTest.RejectsUninitializedSimplifyOptionsAbiStruct ............................Exit code 0xc0000139
+***Exception:   0.17 sec
+
+      Start 13: CApiTest.ExposesNormalTensorOptionsAndDiagnostics
+13/70 Test #13: CApiTest.ExposesNormalTensorOptionsAndDiagnostics ................................Exit code 0xc0000139
+***Exception:   0.21 sec
+
+      Start 14: CApiTest.ExposesLegalityOptionsAndDetailedRejectDiagnostics
+14/70 Test #14: CApiTest.ExposesLegalityOptionsAndDetailedRejectDiagnostics ......................Exit code 0xc0000139
+***Exception:   0.08 sec
+
+      Start 15: CApiTest.ExposesFeatureCurveProtectionDiagnostics
+15/70 Test #15: CApiTest.ExposesFeatureCurveProtectionDiagnostics ................................Exit code 0xc0000139
+***Exception:   0.22 sec
+
+      Start 16: CApiTest.InitializesPrimitiveFitOptions
+16/70 Test #16: CApiTest.InitializesPrimitiveFitOptions ..........................................Exit code 0xc0000139
+***Exception:   0.08 sec
+
+      Start 17: FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle
+17/70 Test #17: FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle ...........................
+Exit code 0xc0000139
+***Exception:   0.15 sec
+
+      Start 18: FeatureDetection.ClassifiesNonManifoldEdgesSeparately
+18/70 Test #18: FeatureDetection.ClassifiesNonManifoldEdgesSeparately ............................Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 19: FeatureDetection.DihedralThresholdControlsCreaseEdges
+19/70 Test #19: FeatureDetection.DihedralThresholdControlsCreaseEdges ............................Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 20: FeatureDetection.DetectsCircularCylinderBoundaryLoops
+20/70 Test #20: FeatureDetection.DetectsCircularCylinderBoundaryLoops ............................Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 21: FeatureDetection.RecoversCircularLoopFromBranchedFeatureGraph
+21/70 Test #21: FeatureDetection.RecoversCircularLoopFromBranchedFeatureGraph ....................Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 22: FeatureDetection.RecoversPolygonalCycleThroughMultipleJunctions
+22/70 Test #22: FeatureDetection.RecoversPolygonalCycleThroughMultipleJunctions ..................Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 23: FeatureDetection.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces
+23/70 Test #23: FeatureDetection.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces ....................Exit code 0xc0000139
+***Exception:   0.24 sec
+
+      Start 24: FeatureDetection.FixtureDetectsTiltedCoaxialHoleAxis
+24/70 Test #24: FeatureDetection.FixtureDetectsTiltedCoaxialHoleAxis .............................Exit code 0xc0000139
+***Exception:   0.12 sec
+
+      Start 25: FeatureDetection.FixtureExposesEccentricHoleNonCoaxiality
+25/70 Test #25: FeatureDetection.FixtureExposesEccentricHoleNonCoaxiality ........................Exit code 0xc0000139
+***Exception:   0.16 sec
+
+      Start 26: FeatureDetection.FixtureClassifiesEllipseAndNearCircleLoops
+26/70 Test #26: FeatureDetection.FixtureClassifiesEllipseAndNearCircleLoops ......................Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 27: FeatureDetection.FixtureDetectsBossPocketPlanesAndHardEdges
+27/70 Test #27: FeatureDetection.FixtureDetectsBossPocketPlanesAndHardEdges ......................Exit code 0xc0000139
+***Exception:   0.12 sec
+
+      Start 28: FeatureDetection.SplitsBranchedFeatureGraphAndMarksJunctions
+28/70 Test #28: FeatureDetection.SplitsBranchedFeatureGraphAndMarksJunctions .....................Exit code 0xc0000139
+***Exception:   0.16 sec
+
+      Start 29: LineQuadricsQemParameters.TargetFacesOverridesRatioOnRealStlFixtures
+29/70 Test #29: LineQuadricsQemParameters.TargetFacesOverridesRatioOnRealStlFixtures .............Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 30: LineQuadricsQemParameters.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures
+30/70 Test #30: LineQuadricsQemParameters.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures ...Exit code 0xc0000139
+***Exception:   0.19 sec
+
+      Start 31: LineQuadricsQemParameters.FeatureProtectionChangesCircularHoleDiagnostics
+31/70 Test #31: LineQuadricsQemParameters.FeatureProtectionChangesCircularHoleDiagnostics ........Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 32: LineQuadricsQemParameters.EllipsePrimitiveUsesPrimitiveFeatureProjection
+32/70 Test #32: LineQuadricsQemParameters.EllipsePrimitiveUsesPrimitiveFeatureProjection .........Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 33: LineQuadricsQemParameters.PrimitiveModeSoftensGenericCreasesOnExternalFandisk
+33/70 Test #33: LineQuadricsQemParameters.PrimitiveModeSoftensGenericCreasesOnExternalFandisk ....Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 34: LineQuadricsQemParameters.StrictQualityModeImprovesWorstThingi10kFixture
+34/70 Test #34: LineQuadricsQemParameters.StrictQualityModeImprovesWorstThingi10kFixture .........Exit code 0xc0000139
+***Exception:   0.13 sec
+
+      Start 35: LineQuadricsQemParameters.IndustrialGateChecksFeatureDriftDistanceAndTopology
+35/70 Test #35: LineQuadricsQemParameters.IndustrialGateChecksFeatureDriftDistanceAndTopology ....Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 36: LineQuadricsQem.BuiltInGeneratorsCoverDemoAndIndustrialModels
+36/70 Test #36: LineQuadricsQem.BuiltInGeneratorsCoverDemoAndIndustrialModels ....................Exit code 0xc0000139
+***Exception:   0.28 sec
+
+      Start 37: LineQuadricsQem.ExternalFinishedFlangeFixtureLoadsWithFeatures
+37/70 Test #37: LineQuadricsQem.ExternalFinishedFlangeFixtureLoadsWithFeatures ...................Exit code 0xc0000139
+***Exception:   0.03 sec
+
+      Start 38: LineQuadricsQem.WeightModesRoundTripAndRejectUnknownValues
+38/70 Test #38: LineQuadricsQem.WeightModesRoundTripAndRejectUnknownValues .......................Exit code 0xc0000139
+***Exception:   0.05 sec
+
+      Start 39: LineQuadricsQem.NormalTensorScoresSeparatePlaneFromRidge
+39/70 Test #39: LineQuadricsQem.NormalTensorScoresSeparatePlaneFromRidge .........................
+Exit code 0xc0000139
+***Exception:   0.19 sec
+
+      Start 40: LineQuadricsQem.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict
+40/70 Test #40: LineQuadricsQem.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict ........Exit code 0xc0000139
+***Exception:   0.48 sec
+
+      Start 41: LineQuadricsQem.NormalTensorWeightModeAppliesSpatiallyVaryingWeights
+41/70 Test #41: LineQuadricsQem.NormalTensorWeightModeAppliesSpatiallyVaryingWeights .............Exit code 0xc0000139
+***Exception:   0.03 sec
+
+      Start 42: LineQuadricsQem.StrictTriangleQualityRejectsPoorCollapsePlacements
+42/70 Test #42: LineQuadricsQem.StrictTriangleQualityRejectsPoorCollapsePlacements ...............Exit code 0xc0000139
+***Exception:   0.11 sec
+
+      Start 43: LineQuadricsQem.TriesEndpointPlacementWhenBestPlacementFailsLegality
+43/70 Test #43: LineQuadricsQem.TriesEndpointPlacementWhenBestPlacementFailsLegality .............Exit code 0xc0000139
+***Exception:   0.16 sec
+
+      Start 44: LineQuadricsQem.StrictNormalDeviationRejectsFoldoverRisk
+44/70 Test #44: LineQuadricsQem.StrictNormalDeviationRejectsFoldoverRisk .........................Exit code 0xc0000139
+***Exception:   0.15 sec
+
+      Start 45: LineQuadricsQem.StrictLocalErrorRejectsLargeVertexDrift
+45/70 Test #45: LineQuadricsQem.StrictLocalErrorRejectsLargeVertexDrift ..........................Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 46: LineQuadricsQem.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved
+46/70 Test #46: LineQuadricsQem.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved ...............Exit code 0xc0000139
+***Exception:   0.13 sec
+
+      Start 47: LineQuadricsQem.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse
+47/70 Test #47: LineQuadricsQem.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse ..............Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 48: LineQuadricsQem.LocalIntersectionGuardRejectsIntersectingCollapse
+48/70 Test #48: LineQuadricsQem.LocalIntersectionGuardRejectsIntersectingCollapse ................Exit code 0xc0000139
+***Exception:   0.15 sec
+
+      Start 49: LineQuadricsQem.LocalIntersectionGuardFindsIndexedDistantCandidates
+49/70 Test #49: LineQuadricsQem.LocalIntersectionGuardFindsIndexedDistantCandidates ..............Exit code 0xc0000139
+***Exception:   0.26 sec
+
+      Start 50: LineQuadricsQem.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap
+50/70 Test #50: LineQuadricsQem.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap ....Exit code 0xc0000139
+***Exception:   0.12 sec
+
+      Start 51: LineQuadricsQem.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles
+51/70 Test #51: LineQuadricsQem.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles ...........Exit code 0xc0000139
+***Exception:   0.15 sec
+
+      Start 52: LineQuadricsQem.LocalIntersectionGuardAllowsSharedCoplanarEdges
+52/70 Test #52: LineQuadricsQem.LocalIntersectionGuardAllowsSharedCoplanarEdges ..................Exit code 0xc0000139
+***Exception:   0.17 sec
+
+      Start 53: LineQuadricsQem.StrictPolygonalFeatureProtectionRejectsChordPlacement
+53/70 Test #53: LineQuadricsQem.StrictPolygonalFeatureProtectionRejectsChordPlacement ............Exit code 0xc0000139
+***Exception:   0.17 sec
+
+      Start 54: LineQuadricsQem.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault
+54/70 Test #54: LineQuadricsQem.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault .................Exit code 0xc0000139
+***Exception:   0.15 sec
+
+      Start 55: LineQuadricsQem.PlainMeshRoundTripsWithoutEigenInExchangeType
+55/70 Test #55: LineQuadricsQem.PlainMeshRoundTripsWithoutEigenInExchangeType ....................
+Exit code 0xc0000139
+***Exception:   0.09 sec
+
+      Start 56: LineQuadricsQem.QEMSimplifierObjectStoresOptionsAndLatestReport
+56/70 Test #56: LineQuadricsQem.QEMSimplifierObjectStoresOptionsAndLatestReport ..................Exit code 0xc0000139
+***Exception:   0.13 sec
+
+      Start 57: LineQuadricsQem.QEMSimplifierCopiesPimplStateIndependently
+57/70 Test #57: LineQuadricsQem.QEMSimplifierCopiesPimplStateIndependently .......................Exit code 0xc0000139
+***Exception:   0.17 sec
+
+      Start 58: LineQuadricsQem.ReportsFeatureLoopsOnCylinderCreases
+58/70 Test #58: LineQuadricsQem.ReportsFeatureLoopsOnCylinderCreases .............................Exit code 0xc0000139
+***Exception:   0.09 sec
+
+      Start 59: LineQuadricsQem.MeasuresCircularFeatureLoopAgainstDetectedCircle
+59/70 Test #59: LineQuadricsQem.MeasuresCircularFeatureLoopAgainstDetectedCircle .................Exit code 0xc0000139
+***Exception:   0.20 sec
+
+      Start 60: LineQuadricsQem.ExternalNasaIndustrialMeshesExposeRichFeatureTopology
+60/70 Test #60: LineQuadricsQem.ExternalNasaIndustrialMeshesExposeRichFeatureTopology ............Exit code 0xc0000139
+***Exception:   0.12 sec
+
+      Start 61: LineQuadricsQem.ExternalDownloadedMeshesCompareIndustrialSimplificationModes
+61/70 Test #61: LineQuadricsQem.ExternalDownloadedMeshesCompareIndustrialSimplificationModes .....Exit code 0xc0000139
+***Exception:   0.17 sec
+
+      Start 62: LineQuadricsQem.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify
+62/70 Test #62: LineQuadricsQem.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify .......Exit code 0xc0000139
+***Exception:   0.19 sec
+
+      Start 63: LineQuadricsQem.ComputesMeshStatsForGeneratedCube
+63/70 Test #63: LineQuadricsQem.ComputesMeshStatsForGeneratedCube ................................Exit code 0xc0000139
+***Exception:   0.18 sec
+
+      Start 64: LineQuadricsQem.MeshTopologyCachesBoundaryAndNonManifoldEdges
+64/70 Test #64: LineQuadricsQem.MeshTopologyCachesBoundaryAndNonManifoldEdges ....................
+Exit code 0xc0000139
+***Exception:   0.20 sec
+
+      Start 65: LineQuadricsQem.MeshTopologyCopiesAndMovesPimplCache
+65/70 Test #65: LineQuadricsQem.MeshTopologyCopiesAndMovesPimplCache .............................Exit code 0xc0000139
+***Exception:   0.16 sec
+
+      Start 66: LineQuadricsQem.MeshTopologyRejectsInvalidFaces
+66/70 Test #66: LineQuadricsQem.MeshTopologyRejectsInvalidFaces ..................................Exit code 0xc0000139
+***Exception:   0.13 sec
+
+      Start 67: LineQuadricsQem.MeshUtilitiesRejectMalformedInputWithoutThrowing
+67/70 Test #67: LineQuadricsQem.MeshUtilitiesRejectMalformedInputWithoutThrowing .................Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 68: LineQuadricsQem.SimplifierRejectsInvalidOptionsAndMeshes
+68/70 Test #68: LineQuadricsQem.SimplifierRejectsInvalidOptionsAndMeshes .........................Exit code 0xc0000139
+***Exception:   0.14 sec
+
+      Start 69: LineQuadricsQem.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify
+69/70 Test #69: LineQuadricsQem.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify .........Exit code 0xc0000139
+***Exception:   0.10 sec
+
+      Start 70: LineQuadricsQem.ExternalBinaryStlLoadKeepsGeometryUsable
+70/70 Test #70: LineQuadricsQem.ExternalBinaryStlLoadKeepsGeometryUsable .........................Exit code 0xc0000139
+***Exception:   0.04 sec
+
+
+9% tests passed, 64 tests failed out of 70
+
+Label Time Summary:
+unit    =  10.01 sec*proc (64 tests)
+
+Total Test time (real) =  12.86 sec
+
+The following tests FAILED:
+          7 - CApiTest.SimplifiesRealStlThroughOpaqueHandles (Exit code 0xc0000139
+)
+          8 - CApiTest.CopiesMeshDataOnlyIntoCallerOwnedBuffers (Exit code 0xc0000139
+)
+          9 - CApiTest.RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh (Exit code 0xc0000139
+
+)
+         10 - CApiTest.RejectsInvalidFaceIndicesWithoutReplacingMesh (Exit code 0xc0000139
+)
+         11 - CApiTest.MapsInvalidSimplifyOptionsToInvalidArgumentStatus (Exit code 0xc0000139
+)
+         12 - CApiTest.RejectsUninitializedSimplifyOptionsAbiStruct (Exit code 0xc0000139
+)
+         13 - CApiTest.ExposesNormalTensorOptionsAndDiagnostics (Exit code 0xc0000139
+)
+         14 - CApiTest.ExposesLegalityOptionsAndDetailedRejectDiagnostics (Exit code 0xc0000139
+)
+         15 - CApiTest.ExposesFeatureCurveProtectionDiagnostics (Exit code 0xc0000139
+)
+         16 - CApiTest.InitializesPrimitiveFitOptions (Exit code 0xc0000139
+)
+         17 - FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle (Exit code 0xc0000139
+)
+         18 - FeatureDetection.ClassifiesNonManifoldEdgesSeparately (Exit code 0xc0000139
+)
+         19 - FeatureDetection.DihedralThresholdControlsCreaseEdges (Exit code 0xc0000139
+)
+         20 - FeatureDetection.DetectsCircularCylinderBoundaryLoops (Exit code 0xc0000139
+)
+         21 - FeatureDetection.RecoversCircularLoopFromBranchedFeatureGraph (Exit code 0xc0000139
+)
+         22 - FeatureDetection.RecoversPolygonalCycleThroughMultipleJunctions (Exit code 0xc0000139
+)
+         23 - FeatureDetection.FixtureDetectsCoaxialHoleLoopsAndPlanarFaces (Exit code 0xc0000139
+)
+         24 - FeatureDetection.FixtureDetectsTiltedCoaxialHoleAxis (Exit code 0xc0000139
+)
+         25 - FeatureDetection.FixtureExposesEccentricHoleNonCoaxiality (Exit code 0xc0000139
+)
+         26 - FeatureDetection.FixtureClassifiesEllipseAndNearCircleLoops (Exit code 0xc0000139
+)
+         27 - FeatureDetection.FixtureDetectsBossPocketPlanesAndHardEdges (Exit code 0xc0000139
+)
+         28 - FeatureDetection.SplitsBranchedFeatureGraphAndMarksJunctions (Exit code 0xc0000139
+)
+         29 - LineQuadricsQemParameters.TargetFacesOverridesRatioOnRealStlFixtures (Exit code 0xc0000139
+)
+         30 - LineQuadricsQemParameters.LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures (Exit code 0xc0000139
+)
+         31 - LineQuadricsQemParameters.FeatureProtectionChangesCircularHoleDiagnostics (Exit code 0xc0000139
+)
+         32 - LineQuadricsQemParameters.EllipsePrimitiveUsesPrimitiveFeatureProjection (Exit code
+0xc0000139
+)
+         33 - LineQuadricsQemParameters.PrimitiveModeSoftensGenericCreasesOnExternalFandisk (Exit
+code 0xc0000139
+)
+         34 - LineQuadricsQemParameters.StrictQualityModeImprovesWorstThingi10kFixture (Exit code
+0xc0000139
+)
+         35 - LineQuadricsQemParameters.IndustrialGateChecksFeatureDriftDistanceAndTopology (Exit
+code 0xc0000139
+)
+         36 - LineQuadricsQem.BuiltInGeneratorsCoverDemoAndIndustrialModels (Exit code 0xc0000139
+)
+         37 - LineQuadricsQem.ExternalFinishedFlangeFixtureLoadsWithFeatures (Exit code 0xc0000139
+
+)
+         38 - LineQuadricsQem.WeightModesRoundTripAndRejectUnknownValues (Exit code 0xc0000139
+)
+         39 - LineQuadricsQem.NormalTensorScoresSeparatePlaneFromRidge (Exit code 0xc0000139
+)
+         40 - LineQuadricsQem.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict (Exit code 0xc0000139
+)
+         41 - LineQuadricsQem.NormalTensorWeightModeAppliesSpatiallyVaryingWeights (Exit code 0xc0000139
+)
+         42 - LineQuadricsQem.StrictTriangleQualityRejectsPoorCollapsePlacements (Exit code 0xc0000139
+)
+         43 - LineQuadricsQem.TriesEndpointPlacementWhenBestPlacementFailsLegality (Exit code 0xc0000139
+)
+         44 - LineQuadricsQem.StrictNormalDeviationRejectsFoldoverRisk (Exit code 0xc0000139
+)
+         45 - LineQuadricsQem.StrictLocalErrorRejectsLargeVertexDrift (Exit code 0xc0000139
+)
+         46 - LineQuadricsQem.SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved (Exit code 0xc0000139
+)
+         47 - LineQuadricsQem.KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse (Exit code 0xc0000139
+)
+         48 - LineQuadricsQem.LocalIntersectionGuardRejectsIntersectingCollapse (Exit code 0xc0000139
+)
+         49 - LineQuadricsQem.LocalIntersectionGuardFindsIndexedDistantCandidates (Exit code 0xc0000139
+)
+         50 - LineQuadricsQem.LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap (Exit
+code 0xc0000139
+)
+         51 - LineQuadricsQem.LocalIntersectionGuardAllowsCoplanarSeparatedTriangles (Exit code 0xc0000139
+)
+         52 - LineQuadricsQem.LocalIntersectionGuardAllowsSharedCoplanarEdges (Exit code 0xc0000139
+)
+         53 - LineQuadricsQem.StrictPolygonalFeatureProtectionRejectsChordPlacement (Exit code 0xc0000139
+)
+         54 - LineQuadricsQem.PrimitiveModeKeepsPolygonalFeaturesSoftByDefault (Exit code 0xc0000139
+)
+         55 - LineQuadricsQem.PlainMeshRoundTripsWithoutEigenInExchangeType (Exit code 0xc0000139
+)
+         56 - LineQuadricsQem.QEMSimplifierObjectStoresOptionsAndLatestReport (Exit code 0xc0000139
+)
+         57 - LineQuadricsQem.QEMSimplifierCopiesPimplStateIndependently (Exit code 0xc0000139
+)
+         58 - LineQuadricsQem.ReportsFeatureLoopsOnCylinderCreases (Exit code 0xc0000139
+)
+         59 - LineQuadricsQem.MeasuresCircularFeatureLoopAgainstDetectedCircle (Exit code 0xc0000139
+)
+         60 - LineQuadricsQem.ExternalNasaIndustrialMeshesExposeRichFeatureTopology (Exit code 0xc0000139
+)
+         61 - LineQuadricsQem.ExternalDownloadedMeshesCompareIndustrialSimplificationModes (Exit code 0xc0000139
+)
+         62 - LineQuadricsQem.Public2014CastingModelKeepsClosedTopologyAfterLineSimplify (Exit code 0xc0000139
+)
+         63 - LineQuadricsQem.ComputesMeshStatsForGeneratedCube (Exit code 0xc0000139
+)
+         64 - LineQuadricsQem.MeshTopologyCachesBoundaryAndNonManifoldEdges (Exit code 0xc0000139
+)
+         65 - LineQuadricsQem.MeshTopologyCopiesAndMovesPimplCache (Exit code 0xc0000139
+)
+         66 - LineQuadricsQem.MeshTopologyRejectsInvalidFaces (Exit code 0xc0000139
+)
+         67 - LineQuadricsQem.MeshUtilitiesRejectMalformedInputWithoutThrowing (Exit code 0xc0000139
+)
+         68 - LineQuadricsQem.SimplifierRejectsInvalidOptionsAndMeshes (Exit code 0xc0000139
+)
+         69 - LineQuadricsQem.MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify (Exit code
+0xc0000139
+)
+         70 - LineQuadricsQem.ExternalBinaryStlLoadKeepsGeometryUsable (Exit code 0xc0000139
+)
+Errors while running CTest
+
+ *  终端进程“D:\Program Files\CMake\bin\cmake.exe '-E', 'chdir', 'build/mingw-ninja-release', 'ctest', '-LE', 'performance', '--output-on-failure'”已终止，退出代码: 8。 
+ *  终端将被任务重用，按任意键关闭。 
+
+ 
+-- The C compiler identification is GNU 10.5.0
+-- The CXX compiler identification is GNU 10.5.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: D:/code/qem/line-quadrics-qem-main/third_party/packages/mingw64/bin/gcc.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: D:/code/qem/line-quadrics-qem-main/third_party/packages/mingw64/bin/g++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+ *  终端将被任务重用，按任意键关闭。 
+
+ 
+[34/34] Linking CXX executable bin\line_quadrics_qem_tests.exe
+
+ *  终端将被任务重用，按任意键关闭。 
+
+ 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-release
+ *  终端将被任务重用，按任意键关闭。 
+
+ 
+[1/1] Copying MinGW runtime dependencies
+
+ *  终端将被任务重用，按任意键关闭。 
+
+ 
+error: filesystem error: cannot copy file: File exists [tests/data/external/thingi10k/thingi10k_79361_zheng3_tinkeriffic_40mm_spool_spindle.stl] [tests/output/generated_inputs\external_spindle.stl]
+
+Line Quadrics QEM reproduction
+
+Commands:
+  linequadrics generate --type clustered-plane --n 50 --out input.stl
+  linequadrics simplify input.stl output.stl [options]
+  linequadrics compare original.stl simplified.stl [--samples 3000]
+  linequadrics feature-report input.stl [--csv report.csv]
+  linequadrics feature-compare original.stl simplified.stl [--csv report.csv]
+  linequadrics sweep input.stl out_dir [options]
+
+  linequadrics ratio-sweep input.stl out_dir [options]
+
+  linequadrics face-sweep input.stl out_dir [options]
+
+  linequadrics demo [--quick] [--samples N]
+
+  linequadrics summarize-metrics [output_root] [summary.csv]
+
+  linequadrics validate-features [--ratio R] [--samples N] [--input-dir dir] [--output-dir dir]
+
+  linequadrics validate-external [--input-dir dir] [--ratio R] [--output-dir dir]
+
+Simplify options:
+  --method standard|line          Standard QEM or line-quadric QEM
+  --ratio 0.25                    Target face ratio
+  --target-faces N                Overrides --ratio
+  --line-weight W                 Paper default is around 1e-3
+  --weight-mode uniform|dihedral|normal-tensor|height|xband
+  --feature-boost W               Added line weight for feature modes
+  --feature-angle-deg A           Dihedral threshold for feature mode
+  --adaptive-scale                Add small line
+quadrics then scale Q
+  --boundary-weight W             Optional boundary plane quadrics
+  --preserve-boundary             Preserve open boundary topology
+  --preserve-feature-curves       Protect detected crease/boundary loops
+  --feature-protection-mode none|circular-only|primitive-curves|all-feature-edges
+                                  Hard policy for detected features; default primitive-curves
+  --protect-all-feature-edges     Compatibility alias for all-feature-edges
+  --feature-curve-weight W        Tangent-line quadric weight for loops
+  --max-feature-curve-deviation-ratio R  Reject polygonal feature collapses whose raw placement drifts beyond R*bbox_diag
+  --circle-fit-threshold R        Relative fit threshold for circular loops
+  --ellipse-fit-threshold R       Relative fit threshold for ellipse reports
+  --near-circle-axis-ratio-tolerance R  Axis-ratio tolerance for near-circles
+  --min-feature-loop-vertices N   Stop collapsing a loop below N vertices
+  --min-circular-feature-loop-vertices N  Stop circular loops below N
+  --normal-tensor-threshold S     Feature score threshold for tensor edges
+  --normal-tensor-edge-alignment A Minimum edge/tangent alignment
+  --normal-tensor-smoothing N     Optional tensor smoothing iterations
+  --normal-tensor-scales N        Number of tensor smoothing scales
+  --no-normal-tensor-features     Disable tensor
+candidates in feature detection
+  --min-triangle-quality Q        Reject collapses below quality Q in [0,1]
+  --max-normal-deviation-deg A    Reject local face normal changes above A
+  --max-local-error D             Reject local collapse drift above D
+  --max-local-error-ratio R       Reject local drift above R*bbox diagonal
+  --prevent-local-intersections   Reject local triangle intersections
+  --industrial-safe               Enable conservative boundary/quality guards
+  --metrics-csv path              Write one-row CSV metrics
+  --samples N                     Distance sample count
+  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1
+  --faces list                    For face-sweep, e.g. 1000,900,800
+  --spindle-input path            External spindle/shaft STL for validate-features
+  --ring-input path               External ring/track STL for validate-features
+  --pulley-input path             External pulley STL for validate-features
+  --flange-input path             External finished flange STL for demo/validate-features
+
+Generator types:
+  plane, clustered-plane, hole-plane, ridge, noisy-plane,
+  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,
+  stepped-shaft, pipe-coupling, pulley
+
+ *  终端进程“C:\Users\zhanghe2\Desktop\suanfa\line-quadrics-qem\build\mingw-ninja-release\bin\linequadrics.exe 'validate-features', '--ratio', '0.20', '--n', '96', '--samples', '1000', '--output-dir', 'tests/output/feature_curve_validation'”已终止，退出代码: 1。 
+ *  终端将被任务重用，按任意键关闭。
+ 
+Test project C:/Users/zhanghe2/Desktop/suanfa/line-quadrics-qem/build/mingw-ninja-debug-performance
+    Start 71: LineQuadricsQemDataset.AllQemTestStlInputsSimplifyAtSmokeBudget
+1/4 Test #71: LineQuadricsQemDataset.AllQemTestStlInputsSimplifyAtSmokeBudget ............Exit code 0xc0000139
+***Exception:   0.18 sec
+
+    Start 72: LineQuadricsQemDataset.CircularHoleCasesHaveAuditableFeaturePreservation
+2/4 Test #72: LineQuadricsQemDataset.CircularHoleCasesHaveAuditableFeaturePreservation ...Exit code 0xc0000139
+***Exception:   0.14 sec
+
+    Start 73: LineQuadricsQemDataset.ClosedTopologyCasesStayClosedAfterLineSimplify
+3/4 Test #73: LineQuadricsQemDataset.ClosedTopologyCasesStayClosedAfterLineSimplify ......Exit code 0xc0000139
+***Exception:   0.10 sec
+
+    Start 74: LineQuadricsQemDataset.NonCircularHardFeatureCasesExerciseProtection
+4/4 Test #74: LineQuadricsQemDataset.NonCircularHardFeatureCasesExerciseProtection .......Exit code 0xc0000139
+***Exception:   0.14 sec
+
+
+0% tests passed, 4 tests failed out of 4
+
+Label Time Summary:
+performance    =   0.57 sec*proc (4 tests)
+
+Total Test time (real) =   0.64 sec
+
+The following tests FAILED:
+         71 - LineQuadricsQemDataset.AllQemTestStlInputsSimplifyAtSmokeBudget (Exit code 0xc0000139
+)
+         72 - LineQuadricsQemDataset.CircularHoleCasesHaveAuditableFeaturePreservation (Exit code
+0xc0000139
+)
+         73 - LineQuadricsQemDataset.ClosedTopologyCasesStayClosedAfterLineSimplify (Exit code 0xc0000139
+)
+         74 - LineQuadricsQemDataset.NonCircularHardFeatureCasesExerciseProtection (Exit code 0xc0000139
+)
+Errors while running CTest
+
+ *  终端进程“D:\Program Files\CMake\bin\cmake.exe '-E', 'chdir', 'build/mingw-ninja-debug-performance', 'ctest', '-L', 'performance', '--output-on-failure'”已终止，退出代码: 8。 
+ *  终端将被任务重用，按任意键关闭。

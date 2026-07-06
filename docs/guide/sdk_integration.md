@@ -1,6 +1,6 @@
-﻿# SDK 集成指南
+# Tessellix SDK 集成指南
 
-本库当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；C ABI 适合插件、宿主程序、跨语言绑定或 ABI 边界更严格的场景。
+Tessellix 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；C ABI 适合插件、宿主程序、跨语言绑定或 ABI 边界更严格的场景。当前二进制、include 路径和 namespace 仍保留 `line_quadrics_qem` / `lq` 兼容标识。
 
 ## 构建 SDK
 
@@ -49,6 +49,16 @@ lq::Mesh output = lq::simplifyMesh(input, options, &report);
 
 需要复用配置时使用 `lq::QEMSimplifier` 对象。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
 
+独立特征检测入口：
+
+```cpp
+#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+
+lq::FeatureOptions featureOptions;
+lq::FeatureDetector detector(featureOptions);
+lq::FeatureAnalysis features = detector.analyze(input);
+```
+
 ## C ABI 最小流程
 
 1. `lq_context_create()` 创建上下文。
@@ -87,7 +97,7 @@ cmake --build build/mingw-ninja-release --target sdk-consumer-test --parallel
 
 ## 集成边界
 
-- 公共头只从 `include/line_quadrics_qem/` 引入。
+- 公共头只从 `include/line_quadrics_qem/` 引入；新代码优先使用 `algorithms/feature_detection` 和 `algorithms/simplification`。
 - 不要依赖 `src/simplification/detail/`，这些是私有实现。
-- 当前 SDK 不承诺通用布尔、offset、修复或去噪能力。
+- 当前 Tessellix SDK 不承诺通用布尔、offset、修复或去噪能力。
 - STL/OBJ 文件读写主要服务当前 CLI 和测试；生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。

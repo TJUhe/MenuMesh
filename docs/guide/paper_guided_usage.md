@@ -1,6 +1,6 @@
-﻿# 论文视角下的当前用法
+# 论文视角下的当前用法
 
-这份说明把 QEM 与 line quadrics 论文中的概念映射到当前 `linequadrics.exe`、STL 输出和 CSV 指标。当前验证入口是 CLI、CTest、CSV 和外部 STL/CAD 查看器，不再依赖浏览器预览任务。
+这份说明把 QEM 与 line quadrics 论文中的概念映射到 Tessellix 当前 `linequadrics.exe`、STL 输出和 CSV 指标。当前验证入口是 CLI、CTest、CSV 和外部 STL/CAD 查看器，不再依赖浏览器预览任务。
 
 ## 先建立标准 QEM 对照
 
@@ -89,4 +89,4 @@ feature_loops / circular_feature_loops 在特征保护场景下仍可识别
 projected_feature_placements、curve_budget_rejected_collapses 与参数预期一致
 ```
 
-line quadrics 和 normal tensor 都不是去噪器。扫描噪声应先做稳健法线估计、去噪或重建，再进入本库的简化流程。
+line quadrics 和 normal tensor 都不是去噪器。扫描噪声应先做稳健法线估计、去噪或重建，再进入 Tessellix 当前简化流程。

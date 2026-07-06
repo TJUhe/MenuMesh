@@ -58,6 +58,9 @@ tr:nth-child(even) td{background:#f9fafb}
 <link rel="stylesheet" href="eye-care.css">
 </head>
 <body>
+<div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
+  <strong>Tessellix 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>Tessellix</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+</div>
 
 <div class="header">
 <h1>当前网格简化程序原理、依据与工程改进说明</h1>
@@ -111,7 +114,7 @@ tr:nth-child(even) td{background:#f9fafb}
 <tr><td><a class="cite" href="#ref-gh97">[GH97]</a></td><td>Garland &amp; Heckbert 1997 QEM</td><td>用平面距离平方累积成顶点 quadric</td><td>经典 edge-collapse 简化代价，局部、快速、可累加</td></tr>
 <tr><td><a class="cite" href="#ref-lrz25">[LRZ25]</a></td><td>Liu, Rahimzadeh &amp; Zordan 2025 Line Quadrics</td><td>在平面 quadric 外加入点到法向线的距离项</td><td>给平坦区域加入切向约束，减少普通 QEM 的漂移和病态求解</td></tr>
 <tr><td><a class="cite" href="#ref-th14">[TH14]</a></td><td>Tsuchie &amp; Higashi 2014 Normal Tensor</td><td>把特征看成曲面上的连续线结构，尤其关注工业模型上的 fillet/character lines</td><td>提醒我们不能只靠 dihedral angle，特征应该被追踪成 loop 或 curve graph</td></tr>
-<tr><td><a class="cite" href="#ref-cgal">[CGAL]</a><a class="cite" href="#ref-openmesh">[OpenMesh]</a></td><td>CGAL Surface Mesh Simplification / OpenMesh Decimation</td><td>cost 和 legality 分离，拓扑合法性优先于代价最小</td><td>最低代价边也可能制造非流形，工业库不能接受这种输出</td></tr>
+<tr><td><a class="cite" href="#ref-cgal">[CGAL]</a><a class="cite" href="#ref-openmesh">[OpenMesh]</a></td><td>CGAL Surface Mesh Simplification / OpenMesh Decimation</td><td>cost 和 legality 分离，拓扑合法性优先于代价最小</td><td>最低代价边也可能制造非流形，工业几何内核不能接受这种输出</td></tr>
 <tr><td><a class="cite" href="#ref-large">[LV]</a></td><td>本地大模型验证</td><td>Fandisk、Casting、10 个 1w+ 公共模型批量测试</td><td>用真实模型验证“不会新增 boundary/non-manifold”而不是只看合成网格</td></tr>
 </table>
 
@@ -543,7 +546,7 @@ facesByKey[sorted(a,b,c)] = 具有同一顶点集合的活动 face id 集合</co
 <table>
 <tr><th>文件</th><th>责任</th></tr>
 <tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>QEM、line quadrics、优先队列、合法性、增量邻接、collapse 主循环</td></tr>
-<tr><td><code>src/features/FeatureDetection.cpp</code></td><td>边界/dihedral/non-manifold/normal-tensor 特征边检测，FeatureGraph、feature loop、圆/椭圆 loop 拟合</td></tr>
+<tr><td><code>src/feature_detection/FeatureDetector.cpp</code></td><td>边界/dihedral/non-manifold/normal-tensor 特征边检测，FeatureGraph、feature loop、圆/椭圆 loop 拟合</td></tr>
 <tr><td><code>src/core/MeshTopology.cpp</code></td><td>公共只读拓扑缓存，用于 metrics 和后续算法模块</td></tr>
 <tr><td><code>src/simplification/Metrics.cpp</code></td><td>边界边、非流形边、面积、三角形质量、采样距离等评估指标</td></tr>
 </table>
@@ -813,7 +816,7 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 <tr id="ref-th14"><td><a class="cite" href="#ref-th14">[TH14]</a></td><td><code>docs/papers/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</code></td><td>工业模型 surface-feature lines、normal tensor、折痕角 $\varphi$ 与灵敏度 $\varepsilon$ 的背景。</td></tr>
 <tr id="ref-qem-line-notes"><td><a class="cite" href="#ref-qem-line-notes">[QLQ]</a></td><td><code>docs/generated/notes/qem-line-quadrics-notes.html</code></td><td>仓库内 QEM 和 line quadrics 推导笔记，用于对齐实现细节。</td></tr>
 <tr id="ref-normal-notes"><td><a class="cite" href="#ref-normal-notes">[NQEM]</a></td><td><code>docs/generated/notes/normal-tensor-qem-notes.html</code></td><td>本文数学符号、$A_n$、$A_i^{\text{QEM}}$、$\sigma_1,\sigma_2,\sigma_3$、$T_n=E_3$ 的统一来源。</td></tr>
-<tr id="ref-arch"><td><a class="cite" href="#ref-arch">[ARCH]</a></td><td><code>docs/design/architecture.md</code></td><td>当前库向 mesh kernel 演进时的工程分层、公共拓扑结构和后续模块规划。</td></tr>
+<tr id="ref-arch"><td><a class="cite" href="#ref-arch">[ARCH]</a></td><td><code>docs/design/architecture.md</code></td><td>Tessellix 向 mesh kernel 演进时的工程分层、公共拓扑结构和后续模块规划。</td></tr>
 <tr id="ref-large"><td><a class="cite" href="#ref-large">[LV]</a></td><td><code>docs/design/large_model_validation.md</code></td><td>Fandisk、Casting、10 个 1w+ 大模型验证命令、拓扑 delta 和性能结果。</td></tr>
 <tr id="ref-lit-simplification"><td><a class="cite" href="#ref-lit-simplification">[MLIT-SIM]</a></td><td><code>mesh-feature-literature</code> 本地文献综述；source-index 中 simplification 家族如 005、037、048、050、061、072</td><td>feature-preserving simplification 应作为约束优化处理，且要同时验证拓扑、质量、特征保留和误差。</td></tr>
 </table>
@@ -885,15 +888,15 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 </div>
 
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
-  <h2 style="margin-top:0">Feature Protection Roadmap</h2>
-  <p>Stage 1 is implemented. <code>--preserve-feature-curves</code> now uses <code>--feature-protection-mode primitive-curves</code> by default: circle, near-circle, and ellipse loops stay hard-protected, while generic polygonal and dihedral creases are soft cost/guard inputs instead of automatic hard locks.</p>
-  <p>The strict legacy behavior remains available as <code>--feature-protection-mode all-feature-edges</code> or <code>--protect-all-feature-edges</code>. The SDK also exposes <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code> with <code>none</code>, <code>circular-only</code>, <code>primitive-curves</code>, and <code>all-feature-edges</code>.</p>
+  <h2 style="margin-top:0">特征保护路线图</h2>
+  <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
+  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
-    <li>Mars wheel: <code>all-feature-edges</code> stopped at 10974 faces with 468702 feature rejections; <code>primitive-curves</code> reached 9066 faces with 31 feature rejections and 0 generic rejections.</li>
-    <li>Differential gear: <code>all-feature-edges</code> stopped at 2662 faces with 68993 feature rejections; <code>primitive-curves</code> reached 1236 faces with 0 feature rejections.</li>
-    <li>Fandisk: both modes reached target, but generic feature rejections dropped from 513 to 0.</li>
+    <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
+    <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>
+    <li>Fandisk：两种模式都达到目标，但 generic feature rejection 从 513 降到 0。</li>
   </ul>
-  <p>Source design note: <code>docs/design/feature_protection_roadmap.md</code>.</p>
+  <p>设计说明：<code>docs/design/feature_protection_roadmap.md</code>。</p>
 </section>
 </body>
 </html>

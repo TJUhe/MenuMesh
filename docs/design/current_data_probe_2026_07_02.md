@@ -27,7 +27,7 @@ stepped-shaft, pipe-coupling, pulley
 | `near_circular_hole_plate.obj` | near-circle 容差验证。 |
 | `boss_pocket_plate.obj` | boss/pocket 平面和硬边验证。 |
 
-这些 fixture 是当前 `FeatureDetection.*` 和 `LineQuadricsQemParameters.*` 测试的重要输入。
+这些 fixture 是当前 `FeatureDetection.*`、`LineQuadricsQemParameters.*` 和独立 `FeatureDetector` 对象 API 测试的重要输入。
 
 ## 外部模型
 

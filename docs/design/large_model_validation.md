@@ -1,6 +1,6 @@
-﻿# 大模型验证记录
+# 大模型验证记录
 
-本文按当前仓库数据和任务更新。大模型验证的目的，是在 10k 面以上的公开 STL 上捕捉新增孔洞、非流形边、严重质量退化和性能回归。
+本文按 Tessellix 当前仓库数据和任务更新。大模型验证的目的，是在 10k 面以上的公开 STL 上捕捉新增孔洞、非流形边、严重质量退化和性能回归。
 
 ## 数据来源
 
@@ -71,6 +71,6 @@ cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output
 
 ## 当前注意事项
 
-- 当前 VS Code 任务没有 `run: large validation 100 stl` 这类旧入口；大模型验证应使用 `test: mingw+ninja release performance`、`test: mingw+ninja release full` 或手动 CLI 批处理。
+- Tessellix 当前 VS Code 任务没有 `run: large validation 100 stl` 这类旧入口；大模型验证应使用 `test: mingw+ninja release performance`、`test: mingw+ninja release full` 或手动 CLI 批处理。
 - 部分公开模型输入本身就有边界，验证时应比较 boundary delta，而不是要求输出边界为 0。
 - 下一步更严格的质量保护应继续关注 normal flip、极差三角形和全局误差 envelope。

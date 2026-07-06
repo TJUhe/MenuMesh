@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Line Quadrics QEM 库 — 从零构建到验证的执行方案</title>
+<title>Tessellix 历史执行方案 — 从零构建到验证</title>
 <script>
 MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
 </script>
@@ -72,9 +72,12 @@ tr:nth-child(even) td{background:#f9fafb}
 </style>
 </head>
 <body>
+<div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
+  <strong>Tessellix 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>Tessellix</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+</div>
 
 <div class="header">
-<h1>Line Quadrics QEM 库 — 执行方案</h1>
+<h1>Tessellix 历史执行方案</h1>
 <div class="subtitle">从环境搭建 → 原理精读 → 代码对照 → 实验验证 → 10k+ 批量测试的完整路径</div>
 <div class="meta">
 <span class="tag">环境搭建</span><span class="tag">公式推导</span><span class="tag">矩阵分析</span><span class="tag">特征识别</span><span class="tag">实验验证</span><span class="tag">批量测试</span>
@@ -732,7 +735,7 @@ $$\tilde{A} = A + w \cdot a \cdot (I_3 - \hat{n}\hat{n}^\top) = \begin{bmatrix} 
 <h2 id="phase3"><span class="num">3</span>阶段三：特征识别 — NormalTensor 与四层保护</h2>
 <p class="dim">本阶段目标：掌握 NormalTensor 法线张量的 $3\times3$ 矩阵构造、特征值分解与三种 saliency；理解边界 Quadric、曲线 Quadric、径向 Quadric+投影的四层体系；理解特征折叠策略和 6 种合法性检查。</p>
 
-<p>这是本库相比原始论文的核心工程贡献。代码中实现了完整的<strong>四层特征保护体系</strong>，从特征检测到折叠控制到合法性检查，形成闭环。</p>
+<p>这是 Tessellix 相比原始论文的核心工程贡献。代码中实现了完整的<strong>四层特征保护体系</strong>，从特征检测到折叠控制到合法性检查，形成闭环。</p>
 
 <h3 id="s4-1">4.1 第一层：Dihedral / NormalTensor 权重 <span class="cite"><a href="https://www.cad-journal.net/files/vol_11/CAD_11%282%29_2014_172-181.pdf">[Tsuchie & Higashi 2014]</a></span></h3>
 
@@ -2008,7 +2011,7 @@ ctest -T coverage --output-on-failure</code></pre>
 
 <h3>论文</h3>
 <table>
-<tr><th>论文</th><th>核心贡献</th><th>与本库的关系</th></tr>
+<tr><th>论文</th><th>核心贡献</th><th>与 Tessellix 当前实现的关系</th></tr>
 <tr><td>Garland & Heckbert 1997<br><span class="dim">Surface Simplification Using QEM</span></td><td>平面 quadric 误差度量</td><td>标准 QEM 基础（§2.1-2.2）</td></tr>
 <tr><td>Liu, Rahimzadeh, Zordan 2025<br><span class="dim">Controlling QEM with Line Quadrics</span></td><td>法向直线 quadric 正则化</td><td>Line Quadric 基础（§2.4-2.5）</td></tr>
 <tr><td>Tsuchie & Higashi 2014<br><span class="dim">Normal Tensor Surface Feature Lines</span></td><td>法线张量特征线提取</td><td>NormalTensor 权重模式（§4.1）</td></tr>
@@ -2026,10 +2029,10 @@ ctest -T coverage --output-on-failure</code></pre>
 <tr><td><a href="https://www.graphics.rwth-aachen.de/software/openmesh/">OpenMesh</a></td><td>半边数据结构参考</td><td>BSD-3</td></tr>
 </table>
 
-<h3>本项目</h3>
+<h3>Tessellix 当前实现</h3>
 <table>
 <tr><th>项目</th><th>说明</th></tr>
-<tr><td><strong>line-quadrics-qem</strong></td><td>Line Quadrics QEM 库，基于 SGP 2025 论文的工程实现与扩展</td></tr>
+<tr><td><strong>Tessellix</strong></td><td>面向增材制造的多边形网格几何内核，当前源码级兼容标识保留 line_quadrics_qem</td></tr>
 <tr><td>模块结构</td><td><code>include/line_quadrics_qem/</code> 分 core / features / simplification / api</td></tr>
 <tr><td>测试套件</td><td>GoogleTest，覆盖 quadric 构造、求解、特征检测、折叠合法性</td></tr>
 <tr><td>C API</td><td><code>qem_c_api.h</code> 导出 C 接口，支持外部绑定</td></tr>
@@ -2059,19 +2062,19 @@ ctest -T coverage --output-on-failure</code></pre>
 </div>
 
 <div class="footer">
-QEM 算法深度解析 · Line Quadrics QEM 库（2026-07-03 版） · 基于 SGP 2025 + Tsuchie-Higashi 2014
+QEM 算法深度解析 · Tessellix 历史资料（2026-07-03 版） · 基于 SGP 2025 + Tsuchie-Higashi 2014
 </div>
 
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
-  <h2 style="margin-top:0">Feature Protection Roadmap</h2>
-  <p>Stage 1 is implemented. <code>--preserve-feature-curves</code> now uses <code>--feature-protection-mode primitive-curves</code> by default: circle, near-circle, and ellipse loops stay hard-protected, while generic polygonal and dihedral creases are soft cost/guard inputs instead of automatic hard locks.</p>
-  <p>The strict legacy behavior remains available as <code>--feature-protection-mode all-feature-edges</code> or <code>--protect-all-feature-edges</code>. The SDK also exposes <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code> with <code>none</code>, <code>circular-only</code>, <code>primitive-curves</code>, and <code>all-feature-edges</code>.</p>
+  <h2 style="margin-top:0">特征保护路线图</h2>
+  <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
+  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
-    <li>Mars wheel: <code>all-feature-edges</code> stopped at 10974 faces with 468702 feature rejections; <code>primitive-curves</code> reached 9066 faces with 31 feature rejections and 0 generic rejections.</li>
-    <li>Differential gear: <code>all-feature-edges</code> stopped at 2662 faces with 68993 feature rejections; <code>primitive-curves</code> reached 1236 faces with 0 feature rejections.</li>
-    <li>Fandisk: both modes reached target, but generic feature rejections dropped from 513 to 0.</li>
+    <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
+    <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>
+    <li>Fandisk：两种模式都达到目标，但 generic feature rejection 从 513 降到 0。</li>
   </ul>
-  <p>Source design note: <code>docs/design/feature_protection_roadmap.md</code>.</p>
+  <p>设计说明：<code>docs/design/feature_protection_roadmap.md</code>。</p>
 </section>
 </body>
 </html>

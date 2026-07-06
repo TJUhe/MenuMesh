@@ -1,8 +1,10 @@
-﻿# Line Quadrics QEM
+﻿# Tessellix
 
-这是一个面向工业库形态整理的 C++17 网格简化内核。核心目标是复现并扩展
+Tessellix 是一个面向增材制造的 C++17 多边形网格几何内核。当前重点是复现并扩展
 `Controlling Quadric Error Simplification with Line Quadrics` 的 QEM + line
 quadrics 思路，并提供可构建、可测试、可度量、可由外部程序调用的库接口。
+
+当前产品名是 Tessellix；源码级兼容标识仍保留 `line_quadrics_qem` 库目标、`linequadrics` CLI、`lq` namespace 和 `include/line_quadrics_qem/` 头文件路径。
 
 当前仓库刻意不再把网页预览作为主入口。结果检查走更稳定的工业验证路径：
 
@@ -12,16 +14,16 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 ## 说明网页
 
-这些 HTML 是论文说明和当前程序结果的可浏览笔记，可以直接用浏览器打开：
+这些 HTML 是论文说明和 Tessellix 当前程序结果的可浏览历史笔记，可以直接用浏览器打开：
 
 - [QEM 与 Line Quadrics 说明](docs/generated/notes/qem-line-quadrics-notes.html)
 - [Line Quadrics 数学原理展开](docs/generated/notes/line-quadrics-qem-theory-explained.html)
-- [当前程序原理说明](docs/generated/notes/line-quadrics-qem-program-principles.html)
-- [代码阅读手册](docs/generated/notes/line-quadrics-qem-code-manual.html)
+- [Tessellix 程序原理说明](docs/generated/notes/line-quadrics-qem-program-principles.html)
+- [Tessellix 代码阅读手册](docs/generated/notes/line-quadrics-qem-code-manual.html)
 - [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
-- [QEM 相关开源库与当前库对比](docs/generated/notes/qem-library-comparison.html)
+- [QEM 相关开源库与 Tessellix 当前实现对比](docs/generated/notes/qem-library-comparison.html)
 
-## 工业内核边界
+## Tessellix 工业内核边界
 
 核心交付物：
 
@@ -73,7 +75,7 @@ cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMA
 cmake --build build/msvc-ninja-release --target linequadrics --parallel
 ```
 
-完整工业库构建、测试、文档目标：
+完整 Tessellix 构建、测试、文档目标：
 
 ```powershell
 cmake -S . -B build/industrial -DCMAKE_BUILD_TYPE=Release
@@ -142,13 +144,13 @@ line_quadrics_qem_copy_runtime_dependencies(my_app)
 ```powershell
 cmake -S . -B build/vs-release -G "Visual Studio 17 2022" -A x64 -DLQ_ENABLE_INSTALL=ON
 cmake --build build/vs-release --config Release --parallel
-cmake --install build/vs-release --config Release --prefix C:\opt\line-quadrics-qem
+cmake --install build/vs-release --config Release --prefix C:\opt\tessellix
 ```
 
 安装后的关键目录：
 
 ```text
-C:\opt\line-quadrics-qem
+C:\opt\tessellix
   bin\line_quadrics_qem.dll
   include\line_quadrics_qem\...
   lib\line_quadrics_qem.lib
@@ -172,7 +174,7 @@ line_quadrics_qem_copy_runtime_dependencies(my_app)
 配置你的工程时指定安装包位置：
 
 ```powershell
-cmake -S . -B build -Dline_quadrics_qem_DIR=C:\opt\line-quadrics-qem\lib\cmake\line_quadrics_qem
+cmake -S . -B build -Dline_quadrics_qem_DIR=C:\opt\tessellix\lib\cmake\line_quadrics_qem
 ```
 
 ### 推荐：传统 `.vcxproj` 工程
@@ -186,7 +188,7 @@ View -> Other Windows -> Property Manager
 右键项目配置，选择 `Add Existing Property Sheet...`，添加：
 
 ```text
-C:\opt\line-quadrics-qem\share\line_quadrics_qem\msvc\line_quadrics_qem.props
+C:\opt\tessellix\share\line_quadrics_qem\msvc\line_quadrics_qem.props
 ```
 
 这个 `.props` 会自动配置：
@@ -323,7 +325,7 @@ STL 目检重点：
 
 ## 已知边界
 
-- 当前实现是教学/研究级 QEM 内核向工业库形态收拢，不是完整 CAD/B-Rep 内核。
+- Tessellix 当前实现是教学/研究级 QEM 内核向工业几何内核形态收拢，不是完整 CAD/B-Rep 内核。
 - STL/OBJ 输入没有 B-Rep 语义；圆孔、硬边和弱特征只能从三角网格推断。
 - line quadrics 改善平面区域的切向漂移和采样均匀性，但不是去噪器。
 - 曲线特征保护仍依赖当前 feature graph 检测质量；复杂 CAD 图需要更强的多环追踪。

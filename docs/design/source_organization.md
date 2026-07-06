@@ -1,6 +1,6 @@
-﻿# 源码组织说明
+# 源码组织说明
 
-本仓库采用小型几何内核布局：公共 SDK 头文件和实现文件分离，私有 helper 头文件留在实现模块旁边的 `detail/` 目录中。
+Tessellix 当前采用小型几何内核布局：公共 SDK 头文件和实现文件分离，私有 helper 头文件留在实现模块旁边的 `detail/` 目录中。
 
 ## 当前目录契约
 
@@ -9,7 +9,7 @@
 | `include/line_quadrics_qem/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
 | `include/line_quadrics_qem/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
 | `include/line_quadrics_qem/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
-| `include/line_quadrics_qem/features/` | 旧特征检测 include 兼容层 | 新代码不要继续使用。 |
+| `include/line_quadrics_qem/features/` | 旧特征检测 include 兼容层 | 当前保留给旧调用方，新代码不要继续使用。 |
 | `include/line_quadrics_qem/algorithms/simplification/` | QEM 简化选项、报告、指标和入口 | 当前主要算法模块。 |
 | `include/line_quadrics_qem/api/` | C ABI | 不暴露 STL、Eigen 或 C++ 异常。 |
 | `src/core/` | 基础数据结构实现 | 与公共 core 头对应。 |

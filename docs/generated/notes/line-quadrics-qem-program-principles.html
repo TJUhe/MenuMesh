@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>当前 Line Quadrics QEM 程序原理与数学推导</title>
+<title>Tessellix 程序原理与数学推导（历史导出）</title>
 <script>
 MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
 </script>
@@ -57,9 +57,12 @@ tr:nth-child(even) td{background:#f9fafb}
 <link rel="stylesheet" href="eye-care.css">
 </head>
 <body>
+<div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
+  <strong>Tessellix 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>Tessellix</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+</div>
 
 <div class="header">
-<h1>当前 Line Quadrics QEM 程序原理与数学推导</h1>
+<h1>Tessellix 程序原理与数学推导（历史导出）</h1>
 <div class="subtitle">面向本仓库当前 C++ 实现：从 Mesh 数据结构、QEM 二次型、Line Quadrics、特征曲线约束到动态库 API</div>
 <div class="meta">
 <span class="tag">当前程序</span><span class="tag">QEM</span><span class="tag">Line Quadrics</span><span class="tag">数学推导</span><span class="tag">实现映射</span>
@@ -738,7 +741,7 @@ $$F_{target}=
 <tbody>
 <tr><td><code>include/line_quadrics_qem/Mesh.h</code></td><td><code>Mesh</code>、STL/OBJ 读写、基础几何函数。</td></tr>
 <tr><td><code>include/line_quadrics_qem/QEMSimplifier.h</code></td><td><code>SimplifyOptions</code>、<code>SimplifyReport</code>、<code>simplifyMesh</code>。</td></tr>
-<tr><td><code>include/line_quadrics_qem/FeatureDetection.h</code></td><td>特征边、特征 loop、圆特征检测。</td></tr>
+<tr><td><code>include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h</code></td><td>特征边、特征 loop、圆特征检测。</td></tr>
 <tr><td><code>include/line_quadrics_qem/Metrics.h</code></td><td>网格质量和距离指标。</td></tr>
 <tr><td><code>include/line_quadrics_qem/MeshGenerators.h</code></td><td>示例和测试用几何生成器。</td></tr>
 </tbody>
@@ -816,18 +819,18 @@ $$
 
 </div>
 
-<div class="footer">Generated for the current line-quadrics-qem C++ implementation.</div>
+<div class="footer">为 Tessellix 当前 C++ 实现导出的历史资料。</div>
 
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
-  <h2 style="margin-top:0">Feature Protection Roadmap</h2>
-  <p>Stage 1 is implemented. <code>--preserve-feature-curves</code> now uses <code>--feature-protection-mode primitive-curves</code> by default: circle, near-circle, and ellipse loops stay hard-protected, while generic polygonal and dihedral creases are soft cost/guard inputs instead of automatic hard locks.</p>
-  <p>The strict legacy behavior remains available as <code>--feature-protection-mode all-feature-edges</code> or <code>--protect-all-feature-edges</code>. The SDK also exposes <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code> with <code>none</code>, <code>circular-only</code>, <code>primitive-curves</code>, and <code>all-feature-edges</code>.</p>
+  <h2 style="margin-top:0">特征保护路线图</h2>
+  <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
+  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
-    <li>Mars wheel: <code>all-feature-edges</code> stopped at 10974 faces with 468702 feature rejections; <code>primitive-curves</code> reached 9066 faces with 31 feature rejections and 0 generic rejections.</li>
-    <li>Differential gear: <code>all-feature-edges</code> stopped at 2662 faces with 68993 feature rejections; <code>primitive-curves</code> reached 1236 faces with 0 feature rejections.</li>
-    <li>Fandisk: both modes reached target, but generic feature rejections dropped from 513 to 0.</li>
+    <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
+    <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>
+    <li>Fandisk：两种模式都达到目标，但 generic feature rejection 从 513 降到 0。</li>
   </ul>
-  <p>Source design note: <code>docs/design/feature_protection_roadmap.md</code>.</p>
+  <p>设计说明：<code>docs/design/feature_protection_roadmap.md</code>。</p>
 </section>
 </body>
 </html>

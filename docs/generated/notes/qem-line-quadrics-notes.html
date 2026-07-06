@@ -58,6 +58,9 @@ tr:nth-child(even) td{background:#f9fafb}
 <link rel="stylesheet" href="eye-care.css">
 </head>
 <body>
+<div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
+  <strong>Tessellix 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>Tessellix</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+</div>
 
 <div class="header">
 <h1>QEM 与 Line Quadrics 完整推导笔记</h1>
@@ -727,15 +730,15 @@ QEM &amp; Line Quadrics 推导笔记 · 基于 SGP 2025 论文 · 2026-06-29
 </div>
 
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
-  <h2 style="margin-top:0">Feature Protection Roadmap</h2>
-  <p>Stage 1 is implemented. <code>--preserve-feature-curves</code> now uses <code>--feature-protection-mode primitive-curves</code> by default: circle, near-circle, and ellipse loops stay hard-protected, while generic polygonal and dihedral creases are soft cost/guard inputs instead of automatic hard locks.</p>
-  <p>The strict legacy behavior remains available as <code>--feature-protection-mode all-feature-edges</code> or <code>--protect-all-feature-edges</code>. The SDK also exposes <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code> with <code>none</code>, <code>circular-only</code>, <code>primitive-curves</code>, and <code>all-feature-edges</code>.</p>
+  <h2 style="margin-top:0">特征保护路线图</h2>
+  <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
+  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
-    <li>Mars wheel: <code>all-feature-edges</code> stopped at 10974 faces with 468702 feature rejections; <code>primitive-curves</code> reached 9066 faces with 31 feature rejections and 0 generic rejections.</li>
-    <li>Differential gear: <code>all-feature-edges</code> stopped at 2662 faces with 68993 feature rejections; <code>primitive-curves</code> reached 1236 faces with 0 feature rejections.</li>
-    <li>Fandisk: both modes reached target, but generic feature rejections dropped from 513 to 0.</li>
+    <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
+    <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>
+    <li>Fandisk：两种模式都达到目标，但 generic feature rejection 从 513 降到 0。</li>
   </ul>
-  <p>Source design note: <code>docs/design/feature_protection_roadmap.md</code>.</p>
+  <p>设计说明：<code>docs/design/feature_protection_roadmap.md</code>。</p>
 </section>
 </body>
 </html>

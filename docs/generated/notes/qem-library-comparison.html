@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QEM 相关开源库与当前库的差异、借鉴和取舍</title>
+<title>QEM 相关开源库与 Tessellix 当前实现的差异、借鉴和取舍</title>
 <style>
 :root {
   --bg: #f7f8f3;
@@ -151,10 +151,13 @@ li { margin: 4px 0; }
 <link rel="stylesheet" href="eye-care.css">
 </head>
 <body>
+<div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
+  <strong>Tessellix 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>Tessellix</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+</div>
 <div class="header">
-  <h1>QEM 相关开源库与当前库的差异、借鉴和取舍</h1>
+  <h1>QEM 相关开源库与 Tessellix 当前实现的差异、借鉴和取舍</h1>
   <div class="subtitle">
-    面向当前 <code>line-quadrics-qem</code> 工业化网格简化内核：说明我们和 CGAL、OpenMesh、libigl、MeshLab/VCGLib 等开源库有什么不同，从它们身上学到了什么，哪些地方还不如它们，以及为什么当前库要这样设计。
+    面向 Tessellix 当前工业化网格简化内核（当前源码级兼容标识为 <code>line_quadrics_qem</code>）：说明我们和 CGAL、OpenMesh、libigl、MeshLab/VCGLib 等开源库有什么不同，从它们身上学到了什么，哪些地方还不如它们，以及为什么 Tessellix 当前实现要这样设计。
   </div>
   <div class="meta">
     <span class="tag">QEM</span>
@@ -169,10 +172,10 @@ li { margin: 4px 0; }
   <div class="toc">
     <div class="toc-title">目录</div>
     <ol>
-      <li><a href="#position">当前库的定位</a></li>
+      <li><a href="#position">Tessellix 当前实现的定位</a></li>
       <li><a href="#matrix">开源库对比总表</a></li>
       <li><a href="#lessons">我们学习到了什么</a></li>
-      <li><a href="#limits">当前库还有哪些不足</a></li>
+      <li><a href="#limits">Tessellix 当前实现还有哪些不足</a></li>
       <li><a href="#why">为什么不直接照搬成熟库</a></li>
       <li><a href="#next">后续改进方向</a></li>
       <li><a href="#refs">资料和代码依据</a></li>
@@ -180,9 +183,9 @@ li { margin: 4px 0; }
   </div>
 
   <section id="position">
-    <h2>1. 当前库的定位</h2>
+    <h2>1. Tessellix 当前实现的定位</h2>
     <p>
-      当前库不是一个通用几何处理框架，也不是单文件 QEM demo。它的目标是把经典 QEM、2025 line quadrics 思路、CAD/STL 特征识别、坍缩合法性检查、SDK/C ABI 和命令行验证收拢到一个可构建、可测试、可集成的 C++17 动态库里。
+      Tessellix 当前实现不是一个通用几何处理框架，也不是单文件 QEM demo。它的目标是把经典 QEM、2025 line quadrics 思路、CAD/STL 特征识别、坍缩合法性检查、SDK/C ABI 和命令行验证收拢到一个可构建、可测试、可集成的 C++17 动态库里。
     </p>
     <p>
       这意味着它的评判标准和开源库略有不同：我们不是追求覆盖所有网格算法，而是优先把“工业件三角网格能否在简化后保持孔、硬边、圆/椭圆 loop、边界和拓扑合法性”这件事做成可审计流程。
@@ -190,7 +193,7 @@ li { margin: 4px 0; }
     <div class="callout">
       <div class="callout-title">一句话概括</div>
       <p>
-        CGAL/OpenMesh 更像成熟的可组合框架，libigl 更像清晰的研究与教学工具，MeshLab/VCGLib 更像实用滤波器集合；当前库更像一个正在成形的专用工业 mesh kernel，重点是 QEM + line quadrics + 特征约束 + SDK 交付。
+        CGAL/OpenMesh 更像成熟的可组合框架，libigl 更像清晰的研究与教学工具，MeshLab/VCGLib 更像实用滤波器集合；Tessellix 当前实现更像一个正在成形的专用工业 mesh kernel，重点是 QEM + line quadrics + 特征约束 + SDK 交付。
       </p>
     </div>
   </section>
@@ -203,21 +206,21 @@ li { margin: 4px 0; }
         <th>擅长什么</th>
         <th>我们学到了什么</th>
         <th>对当前目标的不足</th>
-        <th>当前库的对应做法</th>
+        <th>Tessellix 当前实现的对应做法</th>
       </tr>
       <tr>
         <td><a href="https://doc.cgal.org/latest/Surface_mesh_simplification/index.html">CGAL Surface Mesh Simplification</a></td>
         <td>策略化 surface mesh simplification，围绕 edge collapse 组织 cost、placement、stop predicate、filter 和 constrained edges。</td>
         <td>把“代价排序”和“能不能坍缩”拆开；用策略对象表达 placement/filter；把受约束边作为一等输入。</td>
-        <td>模板和概念体系较重；通用 SMS 不直接表达 line quadrics、圆/椭圆特征投影、当前 C ABI 报告字段和本项目 CLI 指标。</td>
+        <td>模板和概念体系较重；通用 SMS 不直接表达 line quadrics、圆/椭圆特征投影、当前 C ABI 报告字段和Tessellix CLI 指标。</td>
         <td><code>SimplificationRun</code> 中把 quadric cost、feature policy、boundary policy、legality guard、report counters 分层；但保持一个轻量 SDK API。</td>
       </tr>
       <tr>
         <td><a href="https://www.graphics.rwth-aachen.de/media/openmesh_static/Documentations/OpenMesh-6.2-Documentation/a00004.html">OpenMesh Decimation Framework</a></td>
         <td>基于半边网格的 decimater，支持连续 cost module 和二值 legality module 组合。</td>
         <td>一个队列优先级模块不应该吞掉所有逻辑；normal、aspect ratio、Hausdorff、topology 等检查应作为独立 veto。</td>
-        <td>需要引入 OpenMesh 数据结构和模块体系；默认不提供本项目需要的 CAD primitive loop 保护、line-quadric 权重和 SDK 安装边界。</td>
-        <td>当前库暂用简单 <code>Mesh</code> exchange format + 私有 <code>DynamicTopology</code>，避免公共 API 直接绑定半边框架。</td>
+        <td>需要引入 OpenMesh 数据结构和模块体系；默认不提供Tessellix 需要的 CAD primitive loop 保护、line-quadric 权重和 SDK 安装边界。</td>
+        <td>Tessellix 当前暂用简单 <code>Mesh</code> exchange format + 私有 <code>DynamicTopology</code>，避免公共 API 直接绑定半边框架。</td>
       </tr>
       <tr>
         <td><a href="https://libigl.github.io/libigl-python-bindings/igl_docs/#qslim">libigl qslim / decimate</a></td>
@@ -238,7 +241,7 @@ li { margin: 4px 0; }
         <td>代码短、速度快、容易嵌入，用于快速减面或游戏/可视化资产处理。</td>
         <td>性能和依赖控制很重要；QEM 内核不应为了架构漂亮而牺牲可部署性。</td>
         <td>通常缺少完整特征图、工业合法性检查、误差 envelope、详细报告和 SDK 集成策略。</td>
-        <td>当前库保持 Eigen + 自有小型拓扑缓存，优先把严格检查做成局部/增量查询，避免每次坍缩全局扫描。</td>
+        <td>Tessellix 当前保持 Eigen + 自有小型拓扑缓存，优先把严格检查做成局部/增量查询，避免每次坍缩全局扫描。</td>
       </tr>
     </table>
   </section>
@@ -249,25 +252,25 @@ li { margin: 4px 0; }
       <div class="grid-card">
         <h3>3.1 QEM 是排序骨架，不是全部规则</h3>
         <p>
-          成熟库都没有把最小 quadric cost 当作唯一真理。CGAL/OpenMesh 的共同启发是：cost 负责“先试谁”，filter/module 负责“能不能做”。当前库因此把 <code>solvePlacementCandidates()</code> 的候选位置送入 feature、boundary、topology、normal、quality、intersection 和 local-error 检查。
+          成熟库都没有把最小 quadric cost 当作唯一真理。CGAL/OpenMesh 的共同启发是：cost 负责“先试谁”，filter/module 负责“能不能做”。Tessellix 因此把 <code>solvePlacementCandidates()</code> 的候选位置送入 feature、boundary、topology、normal、quality、intersection 和 local-error 检查。
         </p>
       </div>
       <div class="grid-card">
         <h3>3.2 合法性要比目标面数更硬</h3>
         <p>
-          如果为了达到 ratio 牺牲 link condition、边界、法向翻转或自交，结果在工业件上不可用。当前库宁愿报告 <code>rejection-limit</code> 或 <code>no-candidates</code>，也不在 guard 失败时强行坍缩。
+          如果为了达到 ratio 牺牲 link condition、边界、法向翻转或自交，结果在工业件上不可用。Tessellix 宁愿报告 <code>rejection-limit</code> 或 <code>no-candidates</code>，也不在 guard 失败时强行坍缩。
         </p>
       </div>
       <div class="grid-card">
         <h3>3.3 用户需要可解释的参数和计数</h3>
         <p>
-          MeshLab 类工具的实用价值之一，是把边界、法向、质量、planar quadric 等开关暴露给用户。当前库对应地提供 <code>lineWeight</code>、<code>featureProtectionMode</code>、<code>maxLocalErrorRatio</code>、<code>minTriangleQuality</code> 等参数，并在 report 中解释拒绝原因。
+          MeshLab 类工具的实用价值之一，是把边界、法向、质量、planar quadric 等开关暴露给用户。Tessellix 对应地提供 <code>lineWeight</code>、<code>featureProtectionMode</code>、<code>maxLocalErrorRatio</code>、<code>minTriangleQuality</code> 等参数，并在 report 中解释拒绝原因。
         </p>
       </div>
       <div class="grid-card">
         <h3>3.4 数据结构要服务于验证闭环</h3>
         <p>
-          OpenMesh 的半边结构很完整，但当前库的公共 API 先保留简单 <code>Mesh</code>，把可变拓扑、空间索引和候选队列放在私有实现里。这样下游 SDK 调用稳定，同时内部还能逐步替换成更强的 editable topology。
+          OpenMesh 的半边结构很完整，但Tessellix 当前公共 API 先保留简单 <code>Mesh</code>，把可变拓扑、空间索引和候选队列放在私有实现里。这样下游 SDK 调用稳定，同时内部还能逐步替换成更强的 editable topology。
         </p>
       </div>
     </div>
@@ -307,18 +310,18 @@ li { margin: 4px 0; }
   </section>
 
   <section id="limits">
-    <h2>4. 当前库还有哪些不足</h2>
+    <h2>4. Tessellix 当前实现还有哪些不足</h2>
     <table>
       <tr>
         <th>维度</th>
         <th>成熟开源库的优势</th>
-        <th>当前库的不足</th>
+        <th>Tessellix 当前实现的不足</th>
         <th>风险</th>
       </tr>
       <tr>
         <td>通用性</td>
         <td>CGAL/OpenMesh 覆盖更多 mesh 类型、属性、拓扑操作和生态工具。</td>
-        <td>当前库只聚焦简化、特征检测、指标和 SDK 集成，还不是完整 polygon mesh kernel。</td>
+        <td>Tessellix 当前只聚焦简化、特征检测、指标和 SDK 集成，还不是完整 polygon mesh kernel。</td>
         <td>遇到修复、重网格、布尔、属性传播时仍需外部工具或后续模块。</td>
       </tr>
       <tr>
@@ -348,15 +351,15 @@ li { margin: 4px 0; }
     </table>
 
     <div class="callout warn">
-      <div class="callout-title">不要误读当前库</div>
+      <div class="callout-title">不要误读 Tessellix 当前实现</div>
       <p>
-        当前库已经超过“普通 QEM demo”，但仍不是 CGAL/OpenMesh 级别的通用几何平台。它更像一个专用能力逐步做深的工业内核：在本项目关心的 QEM、line quadrics、特征保护和 SDK 验证上更聚焦，在通用网格生态和鲁棒内核上仍要继续补课。
+        Tessellix 当前已经超过“普通 QEM demo”，但仍不是 CGAL/OpenMesh 级别的通用几何平台。它更像一个专用能力逐步做深的工业内核：在 Tessellix 关心的 QEM、line quadrics、特征保护和 SDK 验证上更聚焦，在通用网格生态和鲁棒内核上仍要继续补课。
       </p>
     </div>
   </section>
 
   <section id="why">
-    <h2>5. 为什么当前库要这样做</h2>
+    <h2>5. 为什么 Tessellix 当前实现要这样做</h2>
     <h3>5.1 为什么要加入 line quadrics</h3>
     <p>
       标准 QEM 对局部平面区域的法向误差敏感，但对切向漂移约束弱。line quadrics 给每个顶点的法向线加入点到线距离项，相当于给平面切向也补上可控惩罚。这样做不是为了替代 QEM，而是为了让普通 QEM 在平坦区域的病态求解和采样漂移更可控。
@@ -364,7 +367,7 @@ li { margin: 4px 0; }
 
     <h3>5.2 为什么要做 feature graph 和 primitive 保护</h3>
     <p>
-      CAD/STL 输入没有 B-Rep 语义，孔、凸台、法兰边、椭圆环和硬边只能从三角网格推断。只把 feature 作为顶点 bool 会丢掉“这是一条闭合 loop”以及“这条 loop 拟合成圆/椭圆”的信息。当前库因此把 <code>FeatureLoop</code>、<code>FeaturePrimitiveType</code> 和顶点的 loop ownership 写入检测结果，再在简化时投影和限制坍缩。
+      CAD/STL 输入没有 B-Rep 语义，孔、凸台、法兰边、椭圆环和硬边只能从三角网格推断。只把 feature 作为顶点 bool 会丢掉“这是一条闭合 loop”以及“这条 loop 拟合成圆/椭圆”的信息。Tessellix 因此把 <code>FeatureLoop</code>、<code>FeaturePrimitiveType</code> 和顶点的 loop ownership 写入检测结果，再在简化时投影和限制坍缩。
     </p>
 
     <h3>5.3 为什么默认不是保护所有特征边</h3>
@@ -374,7 +377,7 @@ li { margin: 4px 0; }
 
     <h3>5.4 为什么要自己保留 SDK 边界</h3>
     <p>
-      直接把 CGAL/OpenMesh 的数据结构暴露给下游，会让 ABI、编译器、模板依赖和部署复杂度进入客户工程。当前库对外保留 <code>Mesh</code>、<code>SimplifyOptions</code>、<code>SimplifyReport</code> 和 C ABI，内部再逐步增强拓扑与几何检查。这让工程集成比算法框架更窄，也更容易在 Visual Studio/C API 场景下落地。
+      直接把 CGAL/OpenMesh 的数据结构暴露给下游，会让 ABI、编译器、模板依赖和部署复杂度进入客户工程。Tessellix 当前对外保留 <code>Mesh</code>、<code>SimplifyOptions</code>、<code>SimplifyReport</code> 和 C ABI，内部再逐步增强拓扑与几何检查。这让工程集成比算法框架更窄，也更容易在 Visual Studio/C API 场景下落地。
     </p>
   </section>
 
@@ -427,7 +430,7 @@ li { margin: 4px 0; }
           <code>src/simplification/FeatureConstraints.cpp</code><br>
           <code>src/simplification/CollapseLegality.cpp</code>
         </td>
-        <td>用于确认当前库真实实现了哪些 options、report counters、feature policy 和 legality guard。</td>
+        <td>用于确认 Tessellix 当前真实实现了哪些 options、report counters、feature policy 和 legality guard。</td>
       </tr>
       <tr>
         <td>本地设计文档</td>
@@ -437,7 +440,7 @@ li { margin: 4px 0; }
           <code>docs/design/industrial_library.md</code><br>
           <code>docs/design/architecture.md</code>
         </td>
-        <td>用于说明当前库为什么从研究原型向工业 SDK 收拢，以及哪些不足已被列入路线图。</td>
+        <td>用于说明 Tessellix 为什么从研究原型向工业 SDK 收拢，以及哪些不足已被列入路线图。</td>
       </tr>
     </table>
   </section>

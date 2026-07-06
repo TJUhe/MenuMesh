@@ -22,6 +22,7 @@ Docs must follow the program, not the other way around.
 | Path | Purpose |
 | --- | --- |
 | `design/` | Architecture notes, algorithm design, validation plans, and roadmaps. |
+| `design/development_plan_2026_07_06.md` | Three-week development plan, third-party borrowing strategy, matrix-level QEM explanation, risks, and stakeholder reply draft. |
 | `design/source_organization.md` | Public/private source layout policy and module growth rules. |
 | `guide/` | User-facing and developer-facing usage guides. |
 | `papers/` | Canonical paper PDF archive and paper index. |

@@ -73,7 +73,7 @@ tr:nth-child(even) td{background:#f9fafb}
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
 </div>
 
 <div class="header">
@@ -173,7 +173,7 @@ tr:nth-child(even) td{background:#f9fafb}
 
 <p>ManuMesh 在 Line Quadric 论文基础上进行了大量工程扩展，从单文件原型重构为模块化 C++ 库：</p>
 
-<div class="diagram">include/line_quadrics_qem/
+<div class="diagram">include/manumesh/
 ├── core/           # 核心数学：quadric 构造、求解、矩阵运算
 │   ├── Quadric.hpp        # 4×4 quadric 矩阵表示与运算
 │   ├── PlaneQuadric.hpp   # 平面 quadric Q = ππᵀ
@@ -255,14 +255,14 @@ New-Item -ItemType Directory -Force output\plane_quadric
 Copy-Item tests\data\external\fandisk_2014.stl output\plane_quadric\original.stl
 
 # 标准 QEM（不使用线 quadric）：A 矩阵在平面区域秩=1，奇异
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\plane_quadric\standard_r015.stl `
   --method standard --ratio 0.15 --samples 500 `
   --metrics-csv output\plane_quadric\standard_metrics.csv
 
 # Line QEM（使用线 quadric）：A 矩阵在平面区域秩=3，满秩可解
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\plane_quadric\line_r015.stl `
   --method line --ratio 0.15 --line-weight 1e-3 --samples 500 `
@@ -482,7 +482,7 @@ New-Item -ItemType Directory -Force output\line_quadric_sweep
 Copy-Item tests\data\external\fandisk_2014.stl output\line_quadric_sweep\original.stl
 
 # 权重 sweep：w 从 0(标准QEM) 到 1e-1(强正则化)
-.\build\mingw-ninja-release\bin\linequadrics.exe sweep `
+.\build\mingw-ninja-release\bin\manumesh.exe sweep `
   tests\data\external\fandisk_2014.stl `
   output\line_quadric_sweep `
   --ratio 0.15 --weights "0,1e-5,1e-4,1e-3,1e-2,1e-1" --samples 500</code></pre>
@@ -545,14 +545,14 @@ New-Item -ItemType Directory -Force output\augmented_quadric
 Copy-Item tests\data\external\large\rocker_arm.stl output\augmented_quadric\original.stl
 
 # uniform 权重：所有顶点 w_i = 1e-3，A_aug 各处均匀增强切向约束
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\augmented_quadric\uniform_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 --weight-mode uniform --samples 300 `
   --metrics-csv output\augmented_quadric\uniform_metrics.csv
 
 # dihedral 权重：折痕顶点 w_i = 1e-3 + 0.08×score，A_aug 在特征处约束更强
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\augmented_quadric\dihedral_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 30 --samples 300 `
@@ -911,14 +911,14 @@ New-Item -ItemType Directory -Force output\normal_tensor
 Copy-Item tests\data\external\large\rocker_arm.stl output\normal_tensor\original.stl
 
 # 1. 特征检测报告：看 NT 和 Dihedral 各检出多少特征边
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-report `
+.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
   tests\data\external\large\rocker_arm.stl `
   --feature-angle-deg 25 --circle-fit-threshold 0.04 `
   --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 `
   --csv output\normal_tensor\features.csv
 
 # 2. NormalTensor 模式简化到 25%
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\normal_tensor\nt_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
@@ -926,7 +926,7 @@ Copy-Item tests\data\external\large\rocker_arm.stl output\normal_tensor\original
   --metrics-csv output\normal_tensor\nt_metrics.csv
 
 # 3. Dihedral 模式简化到 25%（对照组）
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\normal_tensor\dih_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
@@ -934,10 +934,10 @@ Copy-Item tests\data\external\large\rocker_arm.stl output\normal_tensor\original
   --metrics-csv output\normal_tensor\dih_metrics.csv
 
 # 4. 特征对比：看折痕是否被保护
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare `
+.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
   tests\data\external\large\rocker_arm.stl output\normal_tensor\nt_r025.stl `
   --csv output\normal_tensor\nt_compare.csv
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare `
+.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
   tests\data\external\large\rocker_arm.stl output\normal_tensor\dih_r025.stl `
   --csv output\normal_tensor\dih_compare.csv</code></pre>
 
@@ -1021,14 +1021,14 @@ New-Item -ItemType Directory -Force output\boundary_quadric
 Copy-Item tests\data\external\nasa_mars2020_wheel.stl output\boundary_quadric\original.stl
 
 # 无边界保护：boundary_edges 可能因折叠漂移而变化
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\nasa_mars2020_wheel.stl `
   output\boundary_quadric\no_bdry_r020.stl `
   --method line --ratio 0.20 --line-weight 1e-3 --samples 300 `
   --metrics-csv output\boundary_quadric\no_bdry_metrics.csv
 
 # 有边界保护：boundary-weight=5，对边界边加 Q_bdry = 5·|e|·π⊥π⊥ᵀ
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\nasa_mars2020_wheel.stl `
   output\boundary_quadric\with_bdry_r020.stl `
   --method line --ratio 0.20 --line-weight 1e-3 --boundary-weight 5 --samples 300 `
@@ -1127,7 +1127,7 @@ New-Item -ItemType Directory -Force output\curve_radial
 Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_radial\original.obj
 
 # 无曲线保护（仅线 quadric + dihedral）：椭圆孔可能变形
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\feature_fixtures\elliptical_hole_plate.obj `
   output\curve_radial\line_r050.stl `
   --method line --ratio 0.50 --line-weight 1e-3 `
@@ -1135,7 +1135,7 @@ Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_rad
   --metrics-csv output\curve_radial\line_metrics.csv
 
 # 有曲线保护（+ 切线 quadric + 椭圆投影）：椭圆孔被锁定
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\feature_fixtures\elliptical_hole_plate.obj `
   output\curve_radial\curve_r050.stl `
   --method line --ratio 0.50 --line-weight 1e-3 `
@@ -1146,10 +1146,10 @@ Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_rad
   --metrics-csv output\curve_radial\curve_metrics.csv
 
 # 特征对比：看椭圆孔的径向误差
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare `
+.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
   tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_radial\line_r050.stl `
   --csv output\curve_radial\line_compare.csv
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-compare `
+.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
   tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_radial\curve_r050.stl `
   --csv output\curve_radial\curve_compare.csv</code></pre>
 
@@ -1230,14 +1230,14 @@ New-Item -ItemType Directory -Force output\legality_check
 Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\original.stl
 
 # 无保护：折叠不受限制，可能产生 non_manifold 边和法向翻转
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\nasa_cubesat_middle.stl `
   output\legality_check\unsafe_r015.stl `
   --method line --ratio 0.15 --line-weight 1e-3 --samples 300 `
   --metrics-csv output\legality_check\unsafe_metrics.csv
 
 # industrial-safe：启用保守边界/质量/误差 guard
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\nasa_cubesat_middle.stl `
   output\legality_check\safe_r015.stl `
   --method line --ratio 0.15 --line-weight 1e-3 --industrial-safe --samples 300 `
@@ -1245,7 +1245,7 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
 
 <p><strong>参数说明</strong>：</p>
 <ul>
-<li><code>--industrial-safe</code>：按当前 <code>apps/linequadrics/main.cpp</code> 设置 <code>--preserve-boundary</code>，并把 <code>minTriangleQuality</code> 至少提高到 <code>1e-4</code>、<code>maxNormalDeviationDeg</code> 至多收紧到 <code>75</code>、<code>maxLocalErrorRatio</code> 至少提高到 <code>0.02</code>，同时开启 <code>--prevent-local-intersections</code>。它不会自动开启 <code>--preserve-feature-curves</code>。</li>
+<li><code>--industrial-safe</code>：按当前 <code>apps/manumesh/main.cpp</code> 设置 <code>--preserve-boundary</code>，并把 <code>minTriangleQuality</code> 至少提高到 <code>1e-4</code>、<code>maxNormalDeviationDeg</code> 至多收紧到 <code>75</code>、<code>maxLocalErrorRatio</code> 至少提高到 <code>0.02</code>，同时开启 <code>--prevent-local-intersections</code>。它不会自动开启 <code>--preserve-feature-curves</code>。</li>
 <li>这些保护的矩阵/数学含义：
 <ul>
 <li>preserve-boundary：对边界边加 $A_{\text{bdry}}$（秩1约束）</li>
@@ -1739,7 +1739,6 @@ private:
 <tr><td><code>--boundary-weight</code></td><td>1.0</td><td>边界 Quadric 权重 w_b，控制边界边保护强度</td><td>1–10</td><td>A_bdry += w·|e|·m̂m̂ᵀ，边界方向加秩1约束</td><td><code>--boundary-weight 5</code></td></tr>
 <tr><td><code>--preserve-boundary</code></td><td>false</td><td>完全锁定边界顶点位置（不允许任何移动）</td><td>需要严格边界保真时</td><td>不影响 Q 矩阵，直接禁止边界顶点参与折叠</td><td><code>--preserve-boundary</code></td></tr>
 <tr><td><code>--preserve-feature-curves</code></td><td>false</td><td>启用特征曲线检测与保护（第三+四层）</td><td>CAD 模型推荐启用</td><td>启用曲线 Q_curve = w·a·(I₃-t̂t̂ᵀ)，秩2约束</td><td><code>--preserve-feature-curves</code></td></tr>
-<tr><td><code>--protect-all-feature-edges</code></td><td>false</td><td>将所有检测到的特征边标记为不可折叠</td><td>极端特征保护</td><td>不影响 Q 矩阵，标记特征边为不可折叠</td><td><code>--protect-all-feature-edges</code></td></tr>
 <tr><td><code>--feature-curve-weight</code></td><td>1e-3</td><td>曲线 Quadric 权重，控制特征曲线方向约束强度</td><td>0.01–0.1</td><td>A_curve = w·a·(I₃-t̂t̂ᵀ)，曲线切向加秩2约束，零空间=切线方向</td><td><code>--feature-curve-weight 0.08</code></td></tr>
 <tr><td><code>--max-feature-curve-deviation-ratio</code></td><td>0.02</td><td>曲线误差预算：新顶点偏离曲线 / 曲线尺寸 ≤ 此值</td><td>0.02–0.10</td><td>不影响 Q 矩阵，折叠后检查位置漂移是否超阈值</td><td><code>--max-feature-curve-deviation-ratio 0.05</code></td></tr>
 <tr><td><code>--circle-fit-threshold</code></td><td>0.05</td><td>圆拟合残差容忍度（归一化），越小越严格</td><td>0.02–0.08</td><td>不影响 Q 矩阵，控制圆拟合残差判定（间接影响 Q_curve 是否构造）</td><td><code>--circle-fit-threshold 0.04</code></td></tr>
@@ -1783,7 +1782,7 @@ cmake -B build\mingw-ninja-release -G "Ninja" ^
 cmake --build build\mingw-ninja-release --parallel
 
 # 验证可执行文件
-.\build\mingw-ninja-release\bin\linequadrics.exe --version</code></pre>
+.\build\mingw-ninja-release\bin\manumesh.exe --version</code></pre>
 
 <h3>8.2 获取测试模型</h3>
 
@@ -1821,7 +1820,7 @@ Copy-Item tests\data\external\large\stanford_bunny.stl output\large_test\bunny_2
 
 <h4>50% ratio（中度简化）</h4>
 <pre><code># 50% ratio — 保留一半面数
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\stanford_bunny.stl `
   output\large_test\bunny_50\bunny_r050.stl `
   --method line --ratio 0.5 --line-weight 1e-3 `
@@ -1830,7 +1829,7 @@ Copy-Item tests\data\external\large\stanford_bunny.stl output\large_test\bunny_2
 
 <h4>25% ratio（深度简化）</h4>
 <pre><code># 25% ratio — 保留四分之一面数
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\stanford_bunny.stl `
   output\large_test\bunny_25\bunny_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
@@ -1862,7 +1861,7 @@ foreach ($m in $models) {
     $dir50 = "output\large_test\${m}_50"
     New-Item -ItemType Directory -Force $dir50 | Out-Null
     Copy-Item $src "$dir50\original.stl"
-    .\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+    .\build\mingw-ninja-release\bin\manumesh.exe simplify `
       $src "$dir50\${m}_r050.stl" `
       --method line --ratio 0.5 --line-weight 1e-3 `
       --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --samples 200 `
@@ -1872,7 +1871,7 @@ foreach ($m in $models) {
     $dir25 = "output\large_test\${m}_25"
     New-Item -ItemType Directory -Force $dir25 | Out-Null
     Copy-Item $src "$dir25\original.stl"
-    .\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+    .\build\mingw-ninja-release\bin\manumesh.exe simplify `
       $src "$dir25\${m}_r025.stl" `
       --method line --ratio 0.25 --line-weight 1e-3 `
       --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --samples 200 `
@@ -2021,8 +2020,8 @@ ctest -T coverage --output-on-failure</code></pre>
 <h3>ManuMesh 当前实现</h3>
 <table>
 <tr><th>项目</th><th>说明</th></tr>
-<tr><td><strong>ManuMesh</strong></td><td>面向增材制造的多边形网格几何内核，当前源码级兼容标识保留 line_quadrics_qem</td></tr>
-<tr><td>模块结构</td><td><code>include/line_quadrics_qem/</code> 分 core / features / simplification / api</td></tr>
+<tr><td><strong>ManuMesh</strong></td><td>面向增材制造的多边形网格几何内核，当前 CMake 目标和 include 根路径仍沿用 manumesh</td></tr>
+<tr><td>模块结构</td><td><code>include/manumesh/</code> 分 core / features / simplification / api</td></tr>
 <tr><td>测试套件</td><td>GoogleTest，覆盖 quadric 构造、求解、特征检测、折叠合法性</td></tr>
 <tr><td>C API</td><td><code>qem_c_api.h</code> 导出 C 接口，支持外部绑定</td></tr>
 <tr><td>测试模型</td><td>hole_plane（圆孔平面）、CAD 零件、立方体、球面等</td></tr>
@@ -2031,7 +2030,7 @@ ctest -T coverage --output-on-failure</code></pre>
 <div class="callout success">
 <div class="callout-title">关键代码变化总结（相比上一版）</div>
 <ol class="step-list">
-<li><strong>模块化重构</strong>：单文件 → <code>include/line_quadrics_qem/</code> 分 core/features/simplification/api</li>
+<li><strong>模块化重构</strong>：单文件 → <code>include/manumesh/</code> 分 core/features/simplification/api</li>
 <li><strong>NormalTensor 特征检测</strong>：Tsuchie-Higashi 2014 法线张量方法</li>
 <li><strong>椭圆拟合与投影</strong>：<code>fitEllipse()</code> + <code>projectToEllipse()</code></li>
 <li><strong>多边形环投影</strong>：线段最近点投影</li>
@@ -2057,7 +2056,7 @@ QEM 算法深度解析 · ManuMesh 历史资料（2026-07-03 版） · 基于 SG
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
   <h2 style="margin-top:0">特征保护路线图</h2>
   <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
-  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
+  <p>严格保护模式可通过 <code>--feature-protection-mode all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>ManuMeshFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
     <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
     <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>

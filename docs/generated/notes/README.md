@@ -1,6 +1,6 @@
 # ManuMesh 生成笔记说明
 
-`docs/generated/notes/` 保存 ManuMesh 的 HTML/PDF/ZIP 导出笔记和报告。它们是历史参考产物，不是当前 C++ 库的源代码布局说明；当前产品名为 ManuMesh，源码级兼容标识仍保留 `line_quadrics_qem`、`linequadrics` 和 `lq`。
+`docs/generated/notes/` 保存 ManuMesh 的 HTML/PDF/ZIP 导出笔记和报告。它们是历史参考产物，不是当前 C++ 库的源代码布局说明；当前产品名为 ManuMesh，当前 C++ 命名空间为 `manumesh`；CMake 目标、include 路径和 CLI 名称仍沿用 `manumesh`、`manumesh`。
 
 ## 当前维护规则
 
@@ -18,4 +18,4 @@
 | `docs/papers/` | 论文归档与索引。 |
 | `README.md` | 项目入口说明。 |
 
-如果发现 HTML 中的任务名、命令、源码路径或结论与当前 `.vscode/tasks.json`、`apps/linequadrics/main.cpp`、`include/line_quadrics_qem/algorithms/` 或测试结果不一致，应以当前源码为准更新。
+如果发现 HTML 中的任务名、命令、源码路径或结论与当前 `.vscode/tasks.json`、`apps/manumesh/main.cpp`、`include/manumesh/algorithms/` 或测试结果不一致，应以当前源码为准更新。

@@ -2,14 +2,14 @@
 
 #include "common/detail/MeshQueries.h"
 #include "detail/SimplificationConstants.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 double evaluateQuadric(const Mat4& q, const Vec3& p) {
   Eigen::Vector4d h;
@@ -83,9 +83,10 @@ std::vector<double> computeFeatureScores(const Mesh& mesh,
   }
 
   if (mode == WeightMode::NormalTensor) {
-    const std::vector<NormalTensorVertex> tensor = computeNormalTensorFeatures(
-        mesh, NormalTensorOptions{options.normalTensorSmoothingIterations,
-                                  options.normalTensorScaleCount});
+    const std::vector<feature::NormalTensorVertex> tensor =
+        feature::computeNormalTensorFeatures(
+            mesh, feature::NormalTensorOptions{options.normalTensorSmoothingIterations,
+                                               options.normalTensorScaleCount});
     for (int i = 0; i < static_cast<int>(tensor.size()); ++i) {
       score[i] = tensor[i].featureScore;
     }
@@ -146,7 +147,7 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight,
 }
 
 void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
-                            const FeatureAnalysis* featureAnalysis,
+                            const feature::FeatureAnalysis* featureAnalysis,
                             std::vector<Mat4>& quadrics, double& minLineWeight,
                             double& maxLineWeight) {
   quadrics.assign(mesh.vertices.size(), Mat4::Zero());
@@ -234,7 +235,7 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
       if (i >= static_cast<int>(featureAnalysis->vertices.size())) {
         continue;
       }
-      const VertexFeature& vf = featureAnalysis->vertices[i];
+      const feature::VertexFeature& vf = featureAnalysis->vertices[i];
       if (!vf.isFeature || vf.tangent.norm() <= 1e-20) {
         continue;
       }
@@ -309,13 +310,14 @@ InitialQuadricBuilder::InitialQuadricBuilder(const SimplifyOptions& options)
     : options_(options) {
 }
 
-std::vector<Mat4> InitialQuadricBuilder::build(const Mesh& mesh,
-                                               const FeatureAnalysis* featureAnalysis,
-                                               SimplifyReport& report) const {
+std::vector<Mat4>
+InitialQuadricBuilder::build(const Mesh& mesh,
+                             const feature::FeatureAnalysis* featureAnalysis,
+                             SimplifyReport& report) const {
   std::vector<Mat4> quadrics;
   computeInitialQuadrics(mesh, options_, featureAnalysis, quadrics,
                          report.minAppliedLineWeight, report.maxAppliedLineWeight);
   return quadrics;
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

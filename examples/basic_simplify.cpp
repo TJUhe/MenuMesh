@@ -1,28 +1,28 @@
-#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
-#include "line_quadrics_qem/core/MeshGenerators.h"
+#include "manumesh/algorithms/simplification/Metrics.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/core/MeshGenerators.h"
 
 #include <iostream>
 #include <stdexcept>
 
 int main() {
-  lq::Mesh input = lq::generateCylinderGrid(48, 12, 1.0, 2.0);
+  manumesh::Mesh input = manumesh::generateCylinderGrid(48, 12, 1.0, 2.0);
 
-  lq::simplification::SimplifyOptions options;
+  manumesh::simplification::SimplifyOptions options;
   options.targetRatio = 0.35;
   options.useLineQuadrics = true;
   options.lineWeight = 1e-3;
   options.boundaryWeight = 1.0;
 
-  lq::simplification::SimplifyReport report;
-  lq::simplification::QEMSimplifier simplifier(options);
-  lq::Mesh simplified = simplifier.simplify(input, &report);
+  manumesh::simplification::SimplifyReport report;
+  manumesh::simplification::QEMSimplifier simplifier(options);
+  manumesh::Mesh simplified = simplifier.simplify(input, &report);
   if (simplified.empty()) {
     throw std::runtime_error("simplifier returned an empty mesh");
   }
 
-  const lq::simplification::MeshStats stats =
-      lq::simplification::computeMeshStats(simplified);
+  const manumesh::simplification::MeshStats stats =
+      manumesh::simplification::computeMeshStats(simplified);
   std::cout << "input_faces=" << input.faces.size()
             << " simplified_faces=" << stats.faces
             << " collapsed_edges=" << report.collapsedEdges << "\n";

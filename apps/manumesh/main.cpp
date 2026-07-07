@@ -1,8 +1,8 @@
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
-#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
-#include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/core/MeshGenerators.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/simplification/Metrics.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/core/Mesh.h"
+#include "manumesh/core/MeshGenerators.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -84,7 +84,6 @@ const std::unordered_set<std::string>& switchFlags() {
       "--preserve-boundary",
       "--prevent-local-intersections",
       "--preserve-feature-curves",
-      "--protect-all-feature-edges",
       "--industrial-safe",
       "--no-normal-tensor-features",
       "--quick",
@@ -237,8 +236,8 @@ std::string sanitizeRatio(double value) {
   return text;
 }
 
-lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
-  lq::SimplifyOptions options;
+manumesh::simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
+  manumesh::simplification::SimplifyOptions options;
   options.targetRatio = getDoubleArg(args, "--ratio", options.targetRatio);
   options.targetFaces = getIntArg(args, "--target-faces", options.targetFaces);
   options.lineWeight = getDoubleArg(args, "--line-weight", options.lineWeight);
@@ -286,9 +285,9 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   options.preserveBoundary = hasFlag(args, "--preserve-boundary");
   options.preventLocalIntersections = hasFlag(args, "--prevent-local-intersections");
   options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
-  options.featureProtectionMode = lq::parseFeatureProtectionMode(getArg(
-      args, "--feature-protection-mode", lq::toString(options.featureProtectionMode)));
-  options.protectAllFeatureEdges = hasFlag(args, "--protect-all-feature-edges");
+  options.featureProtectionMode = manumesh::simplification::parseFeatureProtectionMode(
+      getArg(args, "--feature-protection-mode",
+             manumesh::simplification::toString(options.featureProtectionMode)));
   options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
   if (hasFlag(args, "--industrial-safe")) {
     options.preserveBoundary = true;
@@ -299,7 +298,7 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   }
 
   const std::string mode = getArg(args, "--weight-mode", "uniform");
-  options.weightMode = lq::parseWeightMode(mode);
+  options.weightMode = manumesh::simplification::parseWeightMode(mode);
 
   const std::string method = getArg(args, "--method", "line");
   if (method == "standard" || method == "qem") {
@@ -313,8 +312,8 @@ lq::SimplifyOptions parseSimplifyOptions(const Args& args) {
   return options;
 }
 
-lq::FeatureOptions parseFeatureOptions(const Args& args) {
-  lq::FeatureOptions options;
+manumesh::feature::FeatureOptions parseFeatureOptions(const Args& args) {
+  manumesh::feature::FeatureOptions options;
   options.featureAngleDeg =
       getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
   options.circleFitRelativeThreshold =
@@ -339,20 +338,20 @@ void printUsage() {
   std::cout
       << "ManuMesh mesh simplification CLI\n\n"
       << "Commands:\n"
-      << "  linequadrics generate --type clustered-plane --n 50 --out input.stl\n"
-      << "  linequadrics simplify input.stl output.stl [options]\n"
-      << "  linequadrics compare original.stl simplified.stl [--samples 3000]\n"
-      << "  linequadrics feature-report input.stl [--csv report.csv]\n"
-      << "  linequadrics feature-compare original.stl simplified.stl [--csv "
+      << "  manumesh generate --type clustered-plane --n 50 --out input.stl\n"
+      << "  manumesh simplify input.stl output.stl [options]\n"
+      << "  manumesh compare original.stl simplified.stl [--samples 3000]\n"
+      << "  manumesh feature-report input.stl [--csv report.csv]\n"
+      << "  manumesh feature-compare original.stl simplified.stl [--csv "
          "report.csv]\n"
-      << "  linequadrics sweep input.stl out_dir [options]\n\n"
-      << "  linequadrics ratio-sweep input.stl out_dir [options]\n\n"
-      << "  linequadrics face-sweep input.stl out_dir [options]\n\n"
-      << "  linequadrics demo [--quick] [--samples N]\n\n"
-      << "  linequadrics summarize-metrics [output_root] [summary.csv]\n\n"
-      << "  linequadrics validate-features [--ratio R] [--samples N] "
+      << "  manumesh sweep input.stl out_dir [options]\n\n"
+      << "  manumesh ratio-sweep input.stl out_dir [options]\n\n"
+      << "  manumesh face-sweep input.stl out_dir [options]\n\n"
+      << "  manumesh demo [--quick] [--samples N]\n\n"
+      << "  manumesh summarize-metrics [output_root] [summary.csv]\n\n"
+      << "  manumesh validate-features [--ratio R] [--samples N] "
          "[--input-dir dir] [--output-dir dir]\n\n"
-      << "  linequadrics validate-external [--input-dir dir] [--ratio R] "
+      << "  manumesh validate-external [--input-dir dir] [--ratio R] "
          "[--output-dir dir]\n\n"
       << "Simplify options:\n"
       << "  --method standard|line          Standard QEM or line-quadric QEM\n"
@@ -370,8 +369,6 @@ void printUsage() {
          "all-feature-edges\n"
       << "                                  Hard policy for detected features; "
          "default primitive-curves\n"
-      << "  --protect-all-feature-edges     Compatibility alias for "
-         "all-feature-edges\n"
       << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
       << "  --max-feature-curve-deviation-ratio R  Reject polygonal feature "
          "collapses whose raw placement drifts beyond R*bbox_diag\n"
@@ -413,7 +410,8 @@ void printUsage() {
             << "  stepped-shaft, pipe-coupling, pulley\n";
 }
 
-void printStats(const std::string& label, const lq::MeshStats& stats) {
+void printStats(const std::string& label,
+                const manumesh::simplification::MeshStats& stats) {
   std::cout << label << ": vertices=" << stats.vertices << " faces=" << stats.faces
             << " mean_quality=" << stats.meanTriangleQuality
             << " min_quality=" << stats.minTriangleQuality
@@ -650,16 +648,16 @@ int commandGenerate(const Args& args) {
     throw std::invalid_argument("generate requires --out path.");
   }
 
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   std::string error;
-  if (!lq::generateMeshByName(type, n, mesh, &error)) {
+  if (!manumesh::generateMeshByName(type, n, mesh, &error)) {
     throw std::runtime_error(error);
   }
-  if (!lq::saveAsciiStl(outPath, mesh, type, &error)) {
+  if (!manumesh::saveAsciiStl(outPath, mesh, type, &error)) {
     throw std::runtime_error(error);
   }
 
-  printStats(type, lq::computeMeshStats(mesh));
+  printStats(type, manumesh::simplification::computeMeshStats(mesh));
   std::cout << "Wrote " << outPath << "\n";
   return 0;
 }
@@ -671,17 +669,20 @@ int commandCompare(const Args& args) {
   }
   const int samples = getIntArg(args, "--samples", 3000);
 
-  lq::Mesh original;
-  lq::Mesh simplified;
+  manumesh::Mesh original;
+  manumesh::Mesh simplified;
   std::string error;
-  if (!lq::loadMesh(positional[0], original, &error)) throw std::runtime_error(error);
-  if (!lq::loadMesh(positional[1], simplified, &error)) {
+  if (!manumesh::loadMesh(positional[0], original, &error))
+    throw std::runtime_error(error);
+  if (!manumesh::loadMesh(positional[1], simplified, &error)) {
     throw std::runtime_error(error);
   }
 
-  const lq::MeshStats stats = lq::computeMeshStats(simplified);
-  const lq::DistanceStats distance =
-      lq::compareMeshesBySampledDistance(original, simplified, samples);
+  const manumesh::simplification::MeshStats stats =
+      manumesh::simplification::computeMeshStats(simplified);
+  const manumesh::simplification::DistanceStats distance =
+      manumesh::simplification::compareMeshesBySampledDistance(original, simplified,
+                                                               samples);
   printStats("simplified", stats);
   std::cout << "distance mean original->simplified="
             << distance.meanOriginalToSimplified
@@ -692,9 +693,9 @@ int commandCompare(const Args& args) {
   return 0;
 }
 
-int countCircularLoops(const lq::FeatureAnalysis& analysis) {
+int countCircularLoops(const manumesh::feature::FeatureAnalysis& analysis) {
   int count = 0;
-  for (const lq::FeatureLoop& loop : analysis.loops) {
+  for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
     if (loop.circular) {
       ++count;
     }
@@ -702,10 +703,10 @@ int countCircularLoops(const lq::FeatureAnalysis& analysis) {
   return count;
 }
 
-int countPrimitiveLoops(const lq::FeatureAnalysis& analysis,
-                        lq::FeaturePrimitiveType primitive) {
+int countPrimitiveLoops(const manumesh::feature::FeatureAnalysis& analysis,
+                        manumesh::feature::FeaturePrimitiveType primitive) {
   int count = 0;
-  for (const lq::FeatureLoop& loop : analysis.loops) {
+  for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
     if (loop.primitive == primitive) {
       ++count;
     }
@@ -719,23 +720,24 @@ int commandFeatureReport(const Args& args) {
     throw std::invalid_argument("feature-report requires input.stl.");
   }
 
-  lq::Mesh input;
+  manumesh::Mesh input;
   std::string error;
-  if (!lq::loadMesh(positional[0], input, &error)) {
+  if (!manumesh::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
-  const lq::FeatureOptions options = parseFeatureOptions(args);
-  const lq::FeatureAnalysis analysis = lq::detectFeatureCurves(input, options);
+  const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
+  const manumesh::feature::FeatureAnalysis analysis =
+      manumesh::feature::detectFeatureCurves(input, options);
   const int circularLoops = countCircularLoops(analysis);
   const int circleLoops =
-      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::Circle);
-  const int nearCircleLoops =
-      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::NearCircle);
+      countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::Circle);
+  const int nearCircleLoops = countPrimitiveLoops(
+      analysis, manumesh::feature::FeaturePrimitiveType::NearCircle);
   const int ellipseLoops =
-      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::Ellipse);
-  const int polygonalLoops =
-      countPrimitiveLoops(analysis, lq::FeaturePrimitiveType::PolygonalLoop);
+      countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::Ellipse);
+  const int polygonalLoops = countPrimitiveLoops(
+      analysis, manumesh::feature::FeaturePrimitiveType::PolygonalLoop);
   std::cout << "feature_edges=" << analysis.featureEdges
             << " boundary_edges=" << analysis.boundaryFeatureEdges
             << " dihedral_edges=" << analysis.dihedralFeatureEdges
@@ -750,9 +752,9 @@ int commandFeatureReport(const Args& args) {
             << " near_circle_loops=" << nearCircleLoops
             << " ellipse_loops=" << ellipseLoops
             << " polygonal_loops=" << polygonalLoops << "\n";
-  std::cout << lq::featureReportHeaderCsv() << "\n";
-  for (const lq::FeatureLoop& loop : analysis.loops) {
-    std::cout << lq::featureLoopRowCsv(loop) << "\n";
+  std::cout << manumesh::feature::featureReportHeaderCsv() << "\n";
+  for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
+    std::cout << manumesh::feature::featureLoopRowCsv(loop) << "\n";
   }
 
   const std::string csvPath = getArg(args, "--csv");
@@ -774,9 +776,9 @@ int commandFeatureReport(const Args& args) {
         << analysis.maxNormalTensorFeatureScore << "," << analysis.loops.size() << ","
         << circularLoops << "," << circleLoops << "," << nearCircleLoops << ","
         << ellipseLoops << "," << polygonalLoops << "\n\n";
-    csv << lq::featureReportHeaderCsv() << "\n";
-    for (const lq::FeatureLoop& loop : analysis.loops) {
-      csv << lq::featureLoopRowCsv(loop) << "\n";
+    csv << manumesh::feature::featureReportHeaderCsv() << "\n";
+    for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
+      csv << manumesh::feature::featureLoopRowCsv(loop) << "\n";
     }
   }
   return 0;
@@ -789,21 +791,21 @@ int commandFeatureCompare(const Args& args) {
         "feature-compare requires original.stl simplified.stl.");
   }
 
-  lq::Mesh original;
-  lq::Mesh simplified;
+  manumesh::Mesh original;
+  manumesh::Mesh simplified;
   std::string error;
-  if (!lq::loadMesh(positional[0], original, &error)) {
+  if (!manumesh::loadMesh(positional[0], original, &error)) {
     throw std::runtime_error(error);
   }
-  if (!lq::loadMesh(positional[1], simplified, &error)) {
+  if (!manumesh::loadMesh(positional[1], simplified, &error)) {
     throw std::runtime_error(error);
   }
 
-  const lq::FeatureOptions options = parseFeatureOptions(args);
-  const lq::FeatureAnalysis originalFeatures =
-      lq::detectFeatureCurves(original, options);
-  const lq::FeatureAnalysis simplifiedFeatures =
-      lq::detectFeatureCurves(simplified, options);
+  const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
+  const manumesh::feature::FeatureAnalysis originalFeatures =
+      manumesh::feature::detectFeatureCurves(original, options);
+  const manumesh::feature::FeatureAnalysis simplifiedFeatures =
+      manumesh::feature::detectFeatureCurves(simplified, options);
 
   std::vector<int> originalCircular;
   std::vector<int> simplifiedCircular;
@@ -825,7 +827,7 @@ int commandFeatureCompare(const Args& args) {
   int matched = 0;
   int missing = 0;
   for (int originalId : originalCircular) {
-    const lq::FeatureLoop& origLoop = originalFeatures.loops[originalId];
+    const manumesh::feature::FeatureLoop& origLoop = originalFeatures.loops[originalId];
     int bestLoopId = -1;
     double bestScore = std::numeric_limits<double>::infinity();
     double bestCenterError = 0.0;
@@ -836,7 +838,8 @@ int commandFeatureCompare(const Args& args) {
       if (usedSimplified[simplifiedId]) {
         continue;
       }
-      const lq::FeatureLoop& simpLoop = simplifiedFeatures.loops[simplifiedId];
+      const manumesh::feature::FeatureLoop& simpLoop =
+          simplifiedFeatures.loops[simplifiedId];
       const double centerError = (origLoop.center - simpLoop.center).norm();
       const double radiusError = std::abs(origLoop.radius - simpLoop.radius);
       const double normalDot = std::clamp(
@@ -856,18 +859,19 @@ int commandFeatureCompare(const Args& args) {
     }
 
     std::string status = "missing";
-    lq::DirectionalCurveError directional;
+    manumesh::feature::DirectionalCurveError directional;
     int simplifiedVertexCount = 0;
     double simplifiedRadius = 0.0;
     bool plausibleMatch = false;
     if (bestLoopId >= 0) {
-      const lq::FeatureLoop& simpLoop = simplifiedFeatures.loops[bestLoopId];
+      const manumesh::feature::FeatureLoop& simpLoop =
+          simplifiedFeatures.loops[bestLoopId];
       const double radiusRel = bestRadiusError / std::max(1e-12, origLoop.radius);
       plausibleMatch = bestCenterError <= 0.08 * diag && radiusRel <= 0.20 &&
                        bestNormalAngleDeg <= 30.0;
       if (plausibleMatch) {
         usedSimplified[bestLoopId] = 1;
-        directional = lq::measureLoopAgainstCircle(
+        directional = manumesh::feature::measureLoopAgainstCircle(
             simplified, simpLoop, origLoop.center, origLoop.normal, origLoop.radius);
         simplifiedVertexCount = static_cast<int>(simpLoop.vertices.size());
         simplifiedRadius = simpLoop.radius;
@@ -929,25 +933,27 @@ int commandSimplify(const Args& args) {
 
   const int samples = getIntArg(args, "--samples", 3000);
   const std::string metricsCsv = getArg(args, "--metrics-csv");
-  lq::SimplifyOptions options = parseSimplifyOptions(args);
+  manumesh::simplification::SimplifyOptions options = parseSimplifyOptions(args);
 
-  lq::Mesh input;
+  manumesh::Mesh input;
   std::string error;
-  if (!lq::loadMesh(positional[0], input, &error)) {
+  if (!manumesh::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
-  lq::SimplifyReport report;
-  lq::QEMSimplifier simplifier(options);
-  lq::Mesh output = simplifier.simplify(input, &report);
-  if (!lq::saveAsciiStl(positional[1], output, "linequadrics", &error)) {
+  manumesh::simplification::SimplifyReport report;
+  manumesh::simplification::QEMSimplifier simplifier(options);
+  manumesh::Mesh output = simplifier.simplify(input, &report);
+  if (!manumesh::saveAsciiStl(positional[1], output, "manumesh", &error)) {
     throw std::runtime_error(error);
   }
 
-  const lq::MeshStats inStats = lq::computeMeshStats(input);
-  const lq::MeshStats outStats = lq::computeMeshStats(output);
-  const lq::DistanceStats distance =
-      lq::compareMeshesBySampledDistance(input, output, samples);
+  const manumesh::simplification::MeshStats inStats =
+      manumesh::simplification::computeMeshStats(input);
+  const manumesh::simplification::MeshStats outStats =
+      manumesh::simplification::computeMeshStats(output);
+  const manumesh::simplification::DistanceStats distance =
+      manumesh::simplification::compareMeshesBySampledDistance(input, output, samples);
 
   printStats("input", inStats);
   printStats("output", outStats);
@@ -962,8 +968,8 @@ int commandSimplify(const Args& args) {
             << report.selfIntersectionRejectedCollapses
             << " curve_budget_rejected=" << report.curveBudgetRejectedCollapses
             << " error_rejected=" << report.errorRejectedCollapses
-            << " solver_fallbacks=" << report.solverFallbacks
-            << " termination=" << lq::toString(report.terminationReason)
+            << " solver_fallbacks=" << report.solverFallbacks << " termination="
+            << manumesh::simplification::toString(report.terminationReason)
             << " line_weight_range=[" << report.minAppliedLineWeight << ", "
             << report.maxAppliedLineWeight << "]\n";
   if (options.preserveFeatureCurves) {
@@ -971,9 +977,7 @@ int commandSimplify(const Args& args) {
               << " circular_feature_loops=" << report.circularFeatureLoops
               << " feature_vertices=" << report.featureVertices
               << " feature_protection_mode="
-              << lq::toString(options.protectAllFeatureEdges
-                                  ? lq::FeatureProtectionMode::AllFeatureEdges
-                                  : options.featureProtectionMode)
+              << manumesh::simplification::toString(options.featureProtectionMode)
               << " normal_tensor_feature_edges=" << report.normalTensorFeatureEdges
               << " feature_rejected=" << report.featureRejectedCollapses
               << " primitive_feature_rejected="
@@ -993,7 +997,7 @@ int commandSimplify(const Args& args) {
       fs::create_directories(metricsPath.parent_path());
     }
     std::ofstream csv(metricsCsv);
-    csv << lq::statsHeaderCsv()
+    csv << manumesh::simplification::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "feature_loops,circular_feature_loops,feature_vertices,"
            "normal_tensor_feature_edges,feature_protection_mode,"
@@ -1005,25 +1009,22 @@ int commandSimplify(const Args& args) {
            "curve_budget_rejected_collapses,error_rejected_collapses,"
            "projected_feature_placements,termination_reason,"
            "min_line_weight,max_line_weight\n";
-    csv << lq::statsRowCsv("output", outStats, &distance) << ","
+    csv << manumesh::simplification::statsRowCsv("output", outStats, &distance) << ","
         << report.collapsedEdges << "," << report.rejectedCollapses << ","
         << report.solverFallbacks << "," << report.featureLoops << ","
         << report.circularFeatureLoops << "," << report.featureVertices << ","
         << report.normalTensorFeatureEdges << ","
-        << lq::toString(options.protectAllFeatureEdges
-                            ? lq::FeatureProtectionMode::AllFeatureEdges
-                            : options.featureProtectionMode)
-        << "," << report.featureRejectedCollapses << ","
-        << report.boundaryRejectedCollapses << ","
-        << report.primitiveFeatureRejectedCollapses << ","
+        << manumesh::simplification::toString(options.featureProtectionMode) << ","
+        << report.featureRejectedCollapses << "," << report.boundaryRejectedCollapses
+        << "," << report.primitiveFeatureRejectedCollapses << ","
         << report.genericFeatureRejectedCollapses << ","
         << report.topologyRejectedCollapses << "," << report.normalFlipRejectedCollapses
         << "," << report.qualityRejectedCollapses << ","
         << report.selfIntersectionRejectedCollapses << ","
         << report.curveBudgetRejectedCollapses << "," << report.errorRejectedCollapses
         << "," << report.projectedFeaturePlacements << ","
-        << lq::toString(report.terminationReason) << "," << report.minAppliedLineWeight
-        << "," << report.maxAppliedLineWeight << "\n";
+        << manumesh::simplification::toString(report.terminationReason) << ","
+        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
   }
 
   std::cout << "Wrote " << positional[1] << "\n";
@@ -1036,9 +1037,9 @@ int commandSweep(const Args& args) {
     throw std::invalid_argument("sweep requires input.stl out_dir.");
   }
 
-  lq::Mesh input;
+  manumesh::Mesh input;
   std::string error;
-  if (!lq::loadMesh(positional[0], input, &error)) {
+  if (!manumesh::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -1047,39 +1048,45 @@ int commandSweep(const Args& args) {
   const int samples = getIntArg(args, "--samples", 3000);
   const std::vector<double> weights =
       parseWeights(getArg(args, "--weights", "0,1e-5,1e-4,1e-3,1e-2,1e-1"));
-  lq::SimplifyOptions base = parseSimplifyOptions(args);
+  manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
   std::ofstream csv(outDir / "metrics.csv");
-  csv << "method,line_weight,weight_mode," << lq::statsHeaderCsv()
+  csv << "method,line_weight,weight_mode," << manumesh::simplification::statsHeaderCsv()
       << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
          "min_line_weight,max_line_weight\n";
 
   for (double weight : weights) {
-    lq::SimplifyOptions options = base;
+    manumesh::simplification::SimplifyOptions options = base;
     options.lineWeight = weight;
     options.useLineQuadrics =
-        weight > 0.0 || options.weightMode != lq::WeightMode::Uniform;
-    if (weight <= 0.0 && options.weightMode == lq::WeightMode::Uniform) {
+        weight > 0.0 ||
+        options.weightMode != manumesh::simplification::WeightMode::Uniform;
+    if (weight <= 0.0 &&
+        options.weightMode == manumesh::simplification::WeightMode::Uniform) {
       options.useLineQuadrics = false;
     }
 
-    lq::SimplifyReport report;
-    lq::QEMSimplifier simplifier(options);
-    lq::Mesh output = simplifier.simplify(input, &report);
+    manumesh::simplification::SimplifyReport report;
+    manumesh::simplification::QEMSimplifier simplifier(options);
+    manumesh::Mesh output = simplifier.simplify(input, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
     const std::string label = method + "_w_" + sanitizeWeight(weight);
     const fs::path outStl = outDir / (label + ".stl");
-    if (!lq::saveAsciiStl(outStl.string(), output, label, &error)) {
+    if (!manumesh::saveAsciiStl(outStl.string(), output, label, &error)) {
       throw std::runtime_error(error);
     }
 
-    const lq::MeshStats stats = lq::computeMeshStats(output);
-    const lq::DistanceStats distance =
-        lq::compareMeshesBySampledDistance(input, output, samples);
-    csv << method << "," << weight << "," << lq::toString(options.weightMode) << ","
-        << lq::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges
-        << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
-        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
+    const manumesh::simplification::MeshStats stats =
+        manumesh::simplification::computeMeshStats(output);
+    const manumesh::simplification::DistanceStats distance =
+        manumesh::simplification::compareMeshesBySampledDistance(input, output,
+                                                                 samples);
+    csv << method << "," << weight << ","
+        << manumesh::simplification::toString(options.weightMode) << ","
+        << manumesh::simplification::statsRowCsv(label, stats, &distance) << ","
+        << report.collapsedEdges << "," << report.rejectedCollapses << ","
+        << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
+        << report.maxAppliedLineWeight << "\n";
     printStats(label, stats);
   }
 
@@ -1093,9 +1100,9 @@ int commandRatioSweep(const Args& args) {
     throw std::invalid_argument("ratio-sweep requires input.stl out_dir.");
   }
 
-  lq::Mesh input;
+  manumesh::Mesh input;
   std::string error;
-  if (!lq::loadMesh(positional[0], input, &error)) {
+  if (!manumesh::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -1104,10 +1111,11 @@ int commandRatioSweep(const Args& args) {
   const int samples = getIntArg(args, "--samples", 3000);
   const std::vector<double> ratios =
       parseWeights(getArg(args, "--ratios", "0.8,0.5,0.25,0.1,0.05"));
-  lq::SimplifyOptions base = parseSimplifyOptions(args);
+  manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
   std::ofstream csv(outDir / "metrics.csv");
-  csv << "method,line_weight,weight_mode,ratio," << lq::statsHeaderCsv()
+  csv << "method,line_weight,weight_mode,ratio,"
+      << manumesh::simplification::statsHeaderCsv()
       << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
          "min_line_weight,max_line_weight\n";
 
@@ -1116,29 +1124,32 @@ int commandRatioSweep(const Args& args) {
       std::cerr << "skip invalid ratio " << ratio << "\n";
       continue;
     }
-    lq::SimplifyOptions options = base;
+    manumesh::simplification::SimplifyOptions options = base;
     options.targetFaces = -1;
     options.targetRatio = ratio;
 
-    lq::SimplifyReport report;
-    lq::QEMSimplifier simplifier(options);
-    lq::Mesh output = simplifier.simplify(input, &report);
+    manumesh::simplification::SimplifyReport report;
+    manumesh::simplification::QEMSimplifier simplifier(options);
+    manumesh::Mesh output = simplifier.simplify(input, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
     const std::string label = method + "_r_" + sanitizeRatio(ratio) + "_w_" +
                               sanitizeWeight(options.lineWeight);
     const fs::path outStl = outDir / (label + ".stl");
-    if (!lq::saveAsciiStl(outStl.string(), output, label, &error)) {
+    if (!manumesh::saveAsciiStl(outStl.string(), output, label, &error)) {
       throw std::runtime_error(error);
     }
 
-    const lq::MeshStats stats = lq::computeMeshStats(output);
-    const lq::DistanceStats distance =
-        lq::compareMeshesBySampledDistance(input, output, samples);
+    const manumesh::simplification::MeshStats stats =
+        manumesh::simplification::computeMeshStats(output);
+    const manumesh::simplification::DistanceStats distance =
+        manumesh::simplification::compareMeshesBySampledDistance(input, output,
+                                                                 samples);
     csv << method << "," << options.lineWeight << ","
-        << lq::toString(options.weightMode) << "," << ratio << ","
-        << lq::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges
-        << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
-        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
+        << manumesh::simplification::toString(options.weightMode) << "," << ratio << ","
+        << manumesh::simplification::statsRowCsv(label, stats, &distance) << ","
+        << report.collapsedEdges << "," << report.rejectedCollapses << ","
+        << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
+        << report.maxAppliedLineWeight << "\n";
     printStats(label, stats);
   }
 
@@ -1152,9 +1163,9 @@ int commandFaceSweep(const Args& args) {
     throw std::invalid_argument("face-sweep requires input.stl out_dir.");
   }
 
-  lq::Mesh input;
+  manumesh::Mesh input;
   std::string error;
-  if (!lq::loadMesh(positional[0], input, &error)) {
+  if (!manumesh::loadMesh(positional[0], input, &error)) {
     throw std::runtime_error(error);
   }
 
@@ -1163,10 +1174,11 @@ int commandFaceSweep(const Args& args) {
   const int samples = getIntArg(args, "--samples", 3000);
   const std::vector<int> faceCounts = parseFaceCounts(
       getArg(args, "--faces", "1000,900,800,700,600,500,400,300,200,100"));
-  lq::SimplifyOptions base = parseSimplifyOptions(args);
+  manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
   std::ofstream csv(outDir / "metrics.csv");
-  csv << "method,line_weight,weight_mode,target_faces," << lq::statsHeaderCsv()
+  csv << "method,line_weight,weight_mode,target_faces,"
+      << manumesh::simplification::statsHeaderCsv()
       << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
          "min_line_weight,max_line_weight\n";
 
@@ -1175,28 +1187,31 @@ int commandFaceSweep(const Args& args) {
       std::cerr << "skip invalid target face count " << targetFaces << "\n";
       continue;
     }
-    lq::SimplifyOptions options = base;
+    manumesh::simplification::SimplifyOptions options = base;
     options.targetFaces = targetFaces;
 
-    lq::SimplifyReport report;
-    lq::QEMSimplifier simplifier(options);
-    lq::Mesh output = simplifier.simplify(input, &report);
+    manumesh::simplification::SimplifyReport report;
+    manumesh::simplification::QEMSimplifier simplifier(options);
+    manumesh::Mesh output = simplifier.simplify(input, &report);
     const std::string method = options.useLineQuadrics ? "line" : "standard";
     const std::string label = method + "_f_" + std::to_string(targetFaces) + "_w_" +
                               sanitizeWeight(options.lineWeight);
     const fs::path outStl = outDir / (label + ".stl");
-    if (!lq::saveAsciiStl(outStl.string(), output, label, &error)) {
+    if (!manumesh::saveAsciiStl(outStl.string(), output, label, &error)) {
       throw std::runtime_error(error);
     }
 
-    const lq::MeshStats stats = lq::computeMeshStats(output);
-    const lq::DistanceStats distance =
-        lq::compareMeshesBySampledDistance(input, output, samples);
+    const manumesh::simplification::MeshStats stats =
+        manumesh::simplification::computeMeshStats(output);
+    const manumesh::simplification::DistanceStats distance =
+        manumesh::simplification::compareMeshesBySampledDistance(input, output,
+                                                                 samples);
     csv << method << "," << options.lineWeight << ","
-        << lq::toString(options.weightMode) << "," << targetFaces << ","
-        << lq::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges
-        << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
-        << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
+        << manumesh::simplification::toString(options.weightMode) << "," << targetFaces
+        << "," << manumesh::simplification::statsRowCsv(label, stats, &distance) << ","
+        << report.collapsedEdges << "," << report.rejectedCollapses << ","
+        << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
+        << report.maxAppliedLineWeight << "\n";
     printStats(label, stats);
   }
 
@@ -1514,9 +1529,9 @@ int commandValidateExternal(const Args& args) {
                        "--min-feature-loop-vertices", "8", "--csv",
                        pathString(curveCompare)});
 
-    lq::Mesh mesh;
+    manumesh::Mesh mesh;
     std::string error;
-    if (!lq::loadMesh(input.string(), mesh, &error)) {
+    if (!manumesh::loadMesh(input.string(), mesh, &error)) {
       throw std::runtime_error(error);
     }
     const auto lineMetricRow = readFirstCsvRow(lineMetrics);

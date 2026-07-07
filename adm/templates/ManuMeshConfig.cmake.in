@@ -1,0 +1,36 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+set(MANUMESH_EIGEN_INCLUDE_DIR
+  "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/manumesh/thirdParty/eigen/include"
+)
+if(NOT TARGET Eigen3::Eigen)
+  if(EXISTS "${MANUMESH_EIGEN_INCLUDE_DIR}/Eigen/Core")
+    add_library(Eigen3::Eigen INTERFACE IMPORTED)
+    set_target_properties(Eigen3::Eigen PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${MANUMESH_EIGEN_INCLUDE_DIR}"
+    )
+  else()
+    find_dependency(Eigen3 3.3 NO_MODULE)
+  endif()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/ManuMeshTargets.cmake")
+
+set(MANUMESH_SHARED @MANUMESH_BUILD_SHARED_LIBRARY@)
+set(MANUMESH_MSVC_PROPS
+  "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/manumesh/msvc/ManuMesh.props"
+)
+
+function(manumesh_copy_runtime_dependencies target)
+  if(WIN32 AND MANUMESH_SHARED AND TARGET ManuMesh::manumesh)
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "$<TARGET_FILE:ManuMesh::manumesh>"
+        "$<TARGET_FILE_DIR:${target}>"
+      COMMENT "Copying manumesh runtime library next to ${target}"
+      VERBATIM
+    )
+  endif()
+endfunction()

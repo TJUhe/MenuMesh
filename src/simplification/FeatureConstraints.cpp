@@ -4,22 +4,19 @@
 #include <cmath>
 #include <limits>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 namespace {
 
 FeatureProtectionMode effectiveFeatureProtectionMode(const SimplifyOptions& options) {
   if (!options.preserveFeatureCurves) {
     return FeatureProtectionMode::None;
   }
-  if (options.protectAllFeatureEdges) {
-    return FeatureProtectionMode::AllFeatureEdges;
-  }
   return options.featureProtectionMode;
 }
 
-bool isCircularPrimitive(FeaturePrimitiveType primitive) {
-  return primitive == FeaturePrimitiveType::Circle ||
-         primitive == FeaturePrimitiveType::NearCircle;
+bool isCircularPrimitive(feature::FeaturePrimitiveType primitive) {
+  return primitive == feature::FeaturePrimitiveType::Circle ||
+         primitive == feature::FeaturePrimitiveType::NearCircle;
 }
 
 bool isPrimitiveProtected(const VertexState& vertex, FeatureProtectionMode mode) {
@@ -33,7 +30,7 @@ bool isPrimitiveProtected(const VertexState& vertex, FeatureProtectionMode mode)
     return vertex.circularFeature || isCircularPrimitive(vertex.featurePrimitive);
   case FeatureProtectionMode::PrimitiveCurves:
     return vertex.circularFeature || isCircularPrimitive(vertex.featurePrimitive) ||
-           vertex.featurePrimitive == FeaturePrimitiveType::Ellipse;
+           vertex.featurePrimitive == feature::FeaturePrimitiveType::Ellipse;
   case FeatureProtectionMode::AllFeatureEdges:
     return vertex.isFeature;
   }
@@ -93,8 +90,9 @@ FeatureCollapseRejectKind featureCollapseRejectKind(const FeatureCollapseInput& 
                                         : options.minFeatureLoopVertices;
   if (activeLoopCounts[a.featureLoopId] <= minActiveLoopVertices) {
     const bool hasCurveErrorBudget = options.maxFeatureCurveDeviationRatio > 0.0;
-    const bool ellipseFeature = a.featurePrimitive == FeaturePrimitiveType::Ellipse ||
-                                b.featurePrimitive == FeaturePrimitiveType::Ellipse;
+    const bool ellipseFeature =
+        a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ||
+        b.featurePrimitive == feature::FeaturePrimitiveType::Ellipse;
     const int absoluteMinLoopVertices =
         (a.circularFeature || b.circularFeature || ellipseFeature) ? 4 : 3;
     if (!hasCurveErrorBudget ||
@@ -132,19 +130,20 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input,
     return true;
   }
   if (mode == FeatureProtectionMode::PrimitiveCurves &&
-      a.featurePrimitive == FeaturePrimitiveType::Ellipse) {
+      a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse) {
     position = projectToEllipse(position, a);
     return true;
   }
   if (mode == FeatureProtectionMode::PrimitiveCurves &&
-      b.featurePrimitive == FeaturePrimitiveType::Ellipse) {
+      b.featurePrimitive == feature::FeaturePrimitiveType::Ellipse) {
     position = projectToEllipse(position, b);
     return true;
   }
   if (mode == FeatureProtectionMode::AllFeatureEdges && a.featureLoopId >= 0 &&
       a.featureLoopId < static_cast<int>(curves.size()) &&
       curves[a.featureLoopId].valid &&
-      curves[a.featureLoopId].primitive == FeaturePrimitiveType::PolygonalLoop) {
+      curves[a.featureLoopId].primitive ==
+          feature::FeaturePrimitiveType::PolygonalLoop) {
     const FeatureCurveConstraint& curve = curves[a.featureLoopId];
     double bestDist2 = std::numeric_limits<double>::infinity();
     Vec3 best = position;
@@ -259,7 +258,7 @@ void refreshCircularTangent(VertexState& vertex) {
 }
 
 void refreshEllipseTangent(VertexState& vertex) {
-  if (vertex.featurePrimitive != FeaturePrimitiveType::Ellipse) {
+  if (vertex.featurePrimitive != feature::FeaturePrimitiveType::Ellipse) {
     return;
   }
   Vec3 major = vertex.ellipseMajorAxis;
@@ -332,4 +331,4 @@ bool FeatureConstraintPolicy::projectPlacement(const FeatureProjectionInput& inp
   return projectFeaturePlacement(input, options_, position);
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

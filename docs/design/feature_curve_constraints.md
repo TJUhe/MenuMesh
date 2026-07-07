@@ -30,9 +30,9 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 | `none` | 不启用硬特征保护，只保留软成本。 |
 | `circular-only` | 只硬保护圆和近圆 loop。 |
 | `primitive-curves` | 默认模式，硬保护圆、近圆和椭圆，generic crease 保持较软。 |
-| `all-feature-edges` | 旧式严格模式，所有检测到的特征边都硬保护。 |
+| `all-feature-edges` | 严格模式，所有检测到的特征边都硬保护。 |
 
-`--protect-all-feature-edges` 只是 `all-feature-edges` 的兼容别名。
+
 
 ## 适用场景
 

@@ -1,6 +1,6 @@
-#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
+#include "manumesh/algorithms/simplification/Metrics.h"
 
-#include "line_quadrics_qem/core/MeshTopology.h"
+#include "manumesh/core/MeshTopology.h"
 
 #include <algorithm>
 #include <array>
@@ -11,7 +11,7 @@
 #include <sstream>
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 namespace {
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
@@ -385,4 +385,4 @@ std::string statsRowCsv(const std::string& label, const MeshStats& stats,
   return out.str();
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

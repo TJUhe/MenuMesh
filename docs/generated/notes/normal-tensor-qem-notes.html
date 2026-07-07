@@ -59,7 +59,7 @@ tr:nth-child(even) td{background:#f9fafb}
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
 </div>
 
 <div class="header">
@@ -1430,8 +1430,8 @@ Phase 3: 增强 QEM 简化
 <div class="callout success">
 <div class="callout-title">当前仓库的落地版本</div>
 <p>当前实现已经接入轻量 normal tensor 路线:<code>computeNormalTensorFeatures()</code> 计算 one-ring 法向张量、特征值显著性和 crease 切向;<code>detectFeatureCurves()</code> 用 tensor 边补充 dihedral 阈值捕捉不到的软特征;<code>--weight-mode normal-tensor</code> 用 tensor <code>featureScore</code> 调整 line quadric 权重。为了不破坏已有圆孔 hard loop,tensor 候选边不会跨接已经有 boundary/dihedral/non-manifold 证据的离散特征顶点。</p>
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\mingw-ninja-release\bin\manumesh.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
 </div>
 
 <!-- ===== 9 ===== -->
@@ -1561,7 +1561,7 @@ Normal Tensor 特征线提取与 QEM 增强推导笔记 · 基于 CAD&amp;A 2014
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
   <h2 style="margin-top:0">特征保护路线图</h2>
   <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
-  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
+  <p>严格保护模式可通过 <code>--feature-protection-mode all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>ManuMeshFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
     <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
     <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>

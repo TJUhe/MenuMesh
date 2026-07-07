@@ -2,11 +2,11 @@
 
 #include "detail/DynamicTopology.h"
 #include "detail/SpatialFaceIndex.h"
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/core/Mesh.h"
 
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 struct MeshStateView {
   const std::vector<FaceState>& faces;
@@ -28,4 +28,4 @@ struct CollapseLegalityInput {
 
 CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input);
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

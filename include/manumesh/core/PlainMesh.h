@@ -1,11 +1,11 @@
 #pragma once
 
-#include "line_quadrics_qem/Export.h"
+#include "manumesh/Export.h"
 
 #include <array>
 #include <vector>
 
-namespace lq {
+namespace manumesh {
 
 struct Mesh;
 
@@ -31,8 +31,8 @@ struct PlainMesh {
 };
 
 /// Converts a plain SDK mesh into the internal Eigen-backed mesh type.
-LQ_API Mesh toMesh(const PlainMesh& plain);
+MANUMESH_API Mesh toMesh(const PlainMesh& plain);
 /// Converts the internal Eigen-backed mesh type into a plain SDK mesh.
-LQ_API PlainMesh toPlainMesh(const Mesh& mesh);
+MANUMESH_API PlainMesh toPlainMesh(const Mesh& mesh);
 
-} // namespace lq
+} // namespace manumesh

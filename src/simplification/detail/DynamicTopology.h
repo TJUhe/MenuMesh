@@ -2,14 +2,14 @@
 
 #include "common/detail/MeshQueries.h"
 #include "detail/SimplificationTypes.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 bool containsVertex(const FaceState& face, int vertex);
 
@@ -58,4 +58,4 @@ bool collapseWouldPreserveLinkCondition(int keep, int remove,
                                         const std::vector<VertexState>& vertices,
                                         const DynamicTopology& topology);
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

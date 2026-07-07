@@ -1,11 +1,11 @@
 #pragma once
 
-#include "line_quadrics_qem/Export.h"
+#include "manumesh/Export.h"
 
 #include <string>
 #include <utility>
 
-namespace lq {
+namespace manumesh {
 
 /// Stable status codes used by public APIs that should not throw exceptions.
 enum class StatusCode {
@@ -20,16 +20,16 @@ enum class StatusCode {
 /// Lightweight status object for operation results and validation diagnostics.
 class Status {
 public:
-  LQ_API Status();
-  LQ_API Status(StatusCode code, std::string message);
+  MANUMESH_API Status();
+  MANUMESH_API Status(StatusCode code, std::string message);
 
-  LQ_API static Status success();
-  LQ_API static Status invalidArgument(std::string message);
-  LQ_API static Status topologyError(std::string message);
+  MANUMESH_API static Status success();
+  MANUMESH_API static Status invalidArgument(std::string message);
+  MANUMESH_API static Status topologyError(std::string message);
 
-  LQ_API bool ok() const;
-  LQ_API StatusCode code() const;
-  LQ_API const std::string& message() const;
+  MANUMESH_API bool ok() const;
+  MANUMESH_API StatusCode code() const;
+  MANUMESH_API const std::string& message() const;
 
 private:
   StatusCode code_ = StatusCode::Ok;
@@ -55,4 +55,4 @@ private:
   bool hasValue_ = false;
 };
 
-} // namespace lq
+} // namespace manumesh

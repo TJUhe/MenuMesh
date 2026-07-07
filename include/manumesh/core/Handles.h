@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace lq {
+namespace manumesh {
 
 /// Typed compact handle used by topology and future attribute storage.
 template <typename Tag> struct Handle {
@@ -29,4 +29,4 @@ using FaceId = Handle<FaceTag>;
 using EdgeId = Handle<EdgeTag>;
 using HalfedgeId = Handle<HalfedgeTag>;
 
-} // namespace lq
+} // namespace manumesh

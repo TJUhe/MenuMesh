@@ -6,7 +6,7 @@
 #include "detail/FeatureConstraints.h"
 #include "detail/Quadrics.h"
 #include "detail/ResultBuilder.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@
 #include <memory>
 #include <utility>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 SimplificationRun::SimplificationRun(const Mesh& input, const SimplifyOptions& options)
     : input_(input), options_(options),
@@ -48,23 +48,23 @@ void SimplificationRun::initializeReport() {
 }
 
 void SimplificationRun::analyzeFeatures() {
-  featureAnalysis_ = FeatureAnalysis{};
+  featureAnalysis_ = feature::FeatureAnalysis{};
   featureAnalysisPtr_ = nullptr;
   if (!policies_.features.enabled) {
     return;
   }
 
-  const FeatureOptions featureOptions = policies_.features.toFeatureOptions();
-  featureAnalysis_ = detectFeatureCurves(input_, featureOptions);
+  const feature::FeatureOptions featureOptions = policies_.features.toFeatureOptions();
+  featureAnalysis_ = feature::detectFeatureCurves(input_, featureOptions);
   featureAnalysisPtr_ = &featureAnalysis_;
   report_.featureLoops = static_cast<int>(featureAnalysis_.loops.size());
   report_.normalTensorFeatureEdges = featureAnalysis_.normalTensorFeatureEdges;
-  for (const FeatureLoop& loop : featureAnalysis_.loops) {
+  for (const feature::FeatureLoop& loop : featureAnalysis_.loops) {
     if (loop.circular) {
       ++report_.circularFeatureLoops;
     }
   }
-  for (const VertexFeature& vertex : featureAnalysis_.vertices) {
+  for (const feature::VertexFeature& vertex : featureAnalysis_.vertices) {
     if (vertex.isFeature) {
       ++report_.featureVertices;
     }
@@ -75,7 +75,7 @@ void SimplificationRun::analyzeFeatures() {
 void SimplificationRun::initializeFeatureCurveConstraints() {
   featureCurves_.clear();
   featureCurves_.resize(featureAnalysis_.loops.size());
-  for (const FeatureLoop& loop : featureAnalysis_.loops) {
+  for (const feature::FeatureLoop& loop : featureAnalysis_.loops) {
     if (loop.id < 0 || loop.id >= static_cast<int>(featureCurves_.size())) {
       continue;
     }
@@ -127,7 +127,7 @@ void SimplificationRun::initializeVertexFeature(int vertexId) {
       vertexId >= static_cast<int>(featureAnalysisPtr_->vertices.size())) {
     return;
   }
-  const VertexFeature& vf = featureAnalysisPtr_->vertices[vertexId];
+  const feature::VertexFeature& vf = featureAnalysisPtr_->vertices[vertexId];
   VertexState& vertex = vertices_[vertexId];
   vertex.isFeature = vf.isFeature;
   vertex.circularFeature = vf.circular;
@@ -399,13 +399,13 @@ bool SimplificationRun::curveBudgetAllows(int keep, int remove,
     const Vec3 projected = projectToCircle(position, a.circularFeature ? a : b);
     return (position - projected).squaredNorm() <= maxDistance * maxDistance;
   }
-  if (a.featurePrimitive == FeaturePrimitiveType::Ellipse ||
-      b.featurePrimitive == FeaturePrimitiveType::Ellipse) {
+  if (a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ||
+      b.featurePrimitive == feature::FeaturePrimitiveType::Ellipse) {
     const Vec3 projected = projectToEllipse(
-        position, a.featurePrimitive == FeaturePrimitiveType::Ellipse ? a : b);
+        position, a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ? a : b);
     return (position - projected).squaredNorm() <= maxDistance * maxDistance;
   }
-  if (curve.primitive != FeaturePrimitiveType::PolygonalLoop) {
+  if (curve.primitive != feature::FeaturePrimitiveType::PolygonalLoop) {
     return true;
   }
   const int segmentCount =
@@ -541,4 +541,4 @@ void SimplificationRun::rewriteIncidentFaces(int keep, int remove) {
   }
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

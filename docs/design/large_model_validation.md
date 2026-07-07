@@ -22,7 +22,7 @@ cmake -S . -B build/mingw-ninja-release -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
-  -DLQ_BUILD_PERFORMANCE_TESTS=OFF
+  -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF
 cmake --build build/mingw-ninja-release --parallel
 cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
 ```
@@ -34,8 +34,8 @@ cmake -S . -B build/mingw-ninja-debug-performance -G Ninja `
   -DCMAKE_BUILD_TYPE=Debug `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
-  -DLQ_BUILD_PERFORMANCE_TESTS=ON
-cmake --build build/mingw-ninja-debug-performance --target line_quadrics_qem_performance_tests --parallel
+  -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON
+cmake --build build/mingw-ninja-debug-performance --target manumesh_performance_tests --parallel
 cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output-on-failure
 ```
 
@@ -44,7 +44,7 @@ cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output
 90% 保守简化：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_090.stl `
   --method line --ratio 0.9 `
@@ -56,7 +56,7 @@ cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output
 50% 更深简化：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_050.stl `
   --method line --ratio 0.5 `

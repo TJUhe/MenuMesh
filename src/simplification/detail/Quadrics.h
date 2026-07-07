@@ -1,12 +1,12 @@
 #pragma once
 
 #include "detail/SimplificationTypes.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 double evaluateQuadric(const Mat4& q, const Vec3& p);
 Mat4 planeQuadric(const Vec3& normal, const Vec3& point);
@@ -14,7 +14,7 @@ Mat4 pointQuadric(const Vec3& point);
 Mat4 lineQuadric(const Vec3& point, const Vec3& normal);
 
 void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
-                            const FeatureAnalysis* featureAnalysis,
+                            const feature::FeatureAnalysis* featureAnalysis,
                             std::vector<Mat4>& quadrics, double& minLineWeight,
                             double& maxLineWeight);
 
@@ -26,11 +26,12 @@ class InitialQuadricBuilder {
 public:
   explicit InitialQuadricBuilder(const SimplifyOptions& options);
 
-  std::vector<Mat4> build(const Mesh& mesh, const FeatureAnalysis* featureAnalysis,
+  std::vector<Mat4> build(const Mesh& mesh,
+                          const feature::FeatureAnalysis* featureAnalysis,
                           SimplifyReport& report) const;
 
 private:
   const SimplifyOptions& options_;
 };
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

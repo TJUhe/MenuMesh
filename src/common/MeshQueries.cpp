@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <unordered_set>
 
-namespace lq::detail {
+namespace manumesh::detail {
 
 std::uint64_t meshEdgeKey(int a, int b) {
   if (a > b) std::swap(a, b);
@@ -92,4 +92,4 @@ std::vector<char> computeBoundaryVertices(const Mesh& mesh) {
   return boundary;
 }
 
-} // namespace lq::detail
+} // namespace manumesh::detail

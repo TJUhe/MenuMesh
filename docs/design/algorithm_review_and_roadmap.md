@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h`、`include/line_quadrics_qem/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/linequadrics/main.cpp` 和当前 76 个非性能 CTest。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/manumesh/algorithms/feature_detection/FeatureDetector.h`、`include/manumesh/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/main.cpp` 和当前 76 个非性能 CTest。
 
 ## 当前已经实现
 
@@ -13,7 +13,7 @@
 | primitive 拟合 | 支持圆、近圆、椭圆、折线 loop 的报告和保护策略。 |
 | 特征保护 | `none`、`circular-only`、`primitive-curves`、`all-feature-edges`。默认是 `primitive-curves`。 |
 | 合法性过滤 | 边界、拓扑、法线偏转、三角形质量、局部误差和局部自交过滤。 |
-| 诊断报告 | `SimplifyReport` / `LqSimplifyReport` 输出终止原因、拒绝计数、特征计数和权重范围。 |
+| 诊断报告 | `SimplifyReport` / `ManuMeshSimplifyReport` 输出终止原因、拒绝计数、特征计数和权重范围。 |
 | CLI | `generate`、`simplify`、`compare`、`feature-report`、`feature-compare`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`summarize-metrics`、`validate-features`、`validate-external`。 |
 | SDK | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口和 C ABI 均可用，示例位于 `examples/`。 |
 

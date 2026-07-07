@@ -1,10 +1,10 @@
 #pragma once
 
-#include "line_quadrics_qem/Export.h"
+#include "manumesh/Export.h"
 
 #include <string>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 /// Built-in strategies for spatially varying line-quadric weights.
 enum class WeightMode {
@@ -35,7 +35,7 @@ enum class FeatureProtectionMode {
   CircularOnly,
   /// Hard-protect fitted primitive loops: circles, near-circles, and ellipses.
   PrimitiveCurves,
-  /// Legacy strict mode: hard-protect every detected feature edge.
+  /// Strict mode: hard-protect every detected feature edge.
   AllFeatureEdges,
 };
 
@@ -79,8 +79,6 @@ struct SimplifyOptions {
   /// Preferred hard feature policy. Defaults to primitive curves so generic
   /// creases stay soft unless the caller explicitly requests strict locking.
   FeatureProtectionMode featureProtectionMode = FeatureProtectionMode::PrimitiveCurves;
-  /// Compatibility alias for the old strict behavior; maps to AllFeatureEdges.
-  bool protectAllFeatureEdges = false;
   /// Soft feature-curve quadric weight applied to detected loops.
   double featureCurveWeight = 0.05;
   /// Rejects raw collapse placements that drift too far from a feature curve
@@ -156,27 +154,14 @@ struct SimplifyReport {
 };
 
 /// Parses a command/user string into a weight mode.
-LQ_API WeightMode parseWeightMode(const std::string& value);
+MANUMESH_API WeightMode parseWeightMode(const std::string& value);
 /// Converts a weight mode to its stable lowercase string representation.
-LQ_API std::string toString(WeightMode mode);
+MANUMESH_API std::string toString(WeightMode mode);
 /// Converts a termination reason to its stable lowercase string representation.
-LQ_API std::string toString(SimplifyTerminationReason reason);
+MANUMESH_API std::string toString(SimplifyTerminationReason reason);
 /// Parses a feature-protection mode from a stable lowercase string.
-LQ_API FeatureProtectionMode parseFeatureProtectionMode(const std::string& value);
+MANUMESH_API FeatureProtectionMode parseFeatureProtectionMode(const std::string& value);
 /// Converts a feature-protection mode to its stable lowercase string representation.
-LQ_API std::string toString(FeatureProtectionMode mode);
+MANUMESH_API std::string toString(FeatureProtectionMode mode);
 
-} // namespace lq::simplification
-
-namespace lq {
-
-using simplification::FeatureProtectionMode;
-using simplification::parseFeatureProtectionMode;
-using simplification::parseWeightMode;
-using simplification::SimplifyOptions;
-using simplification::SimplifyReport;
-using simplification::SimplifyTerminationReason;
-using simplification::toString;
-using simplification::WeightMode;
-
-} // namespace lq
+} // namespace manumesh::simplification

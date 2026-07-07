@@ -1,10 +1,10 @@
 #pragma once
 
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/core/Mesh.h"
 
 #include <vector>
 
-namespace lq::feature {
+namespace manumesh::feature {
 
 /// Fitted primitive type for one detected feature loop.
 enum class FeaturePrimitiveType {
@@ -174,20 +174,4 @@ struct DirectionalCurveError {
   double planeMax = 0.0;
 };
 
-} // namespace lq::feature
-
-namespace lq {
-
-using feature::DirectionalCurveError;
-using feature::FeatureAnalysis;
-using feature::FeatureGraph;
-using feature::FeatureGraphEdge;
-using feature::FeatureGraphVertex;
-using feature::FeatureLoop;
-using feature::FeatureOptions;
-using feature::FeaturePrimitiveType;
-using feature::NormalTensorOptions;
-using feature::NormalTensorVertex;
-using feature::VertexFeature;
-
-} // namespace lq
+} // namespace manumesh::feature

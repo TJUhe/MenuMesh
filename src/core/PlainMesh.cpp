@@ -1,8 +1,8 @@
-#include "line_quadrics_qem/core/PlainMesh.h"
+#include "manumesh/core/PlainMesh.h"
 
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/core/Mesh.h"
 
-namespace lq {
+namespace manumesh {
 
 Mesh toMesh(const PlainMesh& plain) {
   Mesh mesh;
@@ -30,4 +30,4 @@ PlainMesh toPlainMesh(const Mesh& mesh) {
   return plain;
 }
 
-} // namespace lq
+} // namespace manumesh

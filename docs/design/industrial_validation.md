@@ -1,12 +1,12 @@
 # ManuMesh 工业化验证现状
 
-本文记录 ManuMesh 在工业风格模型上的验证边界。结论基于当前源码和测试，而不是产品化承诺。当前命令和二进制仍使用 `linequadrics.exe` 兼容名称。
+本文记录 ManuMesh 在工业风格模型上的验证边界。结论基于当前源码和测试，而不是产品化承诺。当前命令和二进制仍使用 `manumesh.exe` 兼容名称。
 
 ## 当前验证入口
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
+.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000
+.\build\mingw-ninja-release\bin\manumesh.exe validate-external --ratio 0.25 --samples 800
 cmake -E chdir build\mingw-ninja-release ctest -LE performance --output-on-failure
 ```
 

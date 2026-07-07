@@ -4,7 +4,7 @@ ManuMesh 是一个面向增材制造的 C++17 多边形网格几何内核。当�
 `Controlling Quadric Error Simplification with Line Quadrics` 的 QEM + line
 quadrics 思路，并提供可构建、可测试、可度量、可由外部程序调用的库接口。
 
-当前产品名是 ManuMesh；源码级兼容标识仍保留 `line_quadrics_qem` 库目标、`linequadrics` CLI、`lq` 根命名空间和 `include/line_quadrics_qem/` 头文件路径。新代码推荐把功能入口写成 `lq::simplification::...` 和 `lq::feature::...`，根命名空间下的同名符号保留为源码兼容 alias。
+当前产品名是 ManuMesh；C++ API 命名空间已统一为 `manumesh`。核心网格类型位于根命名空间，功能入口按模块写成 `manumesh::simplification::...` 和 `manumesh::feature::...`，不再提供旧根命名空间别名。当前 CMake 目标、CLI 名称和 include 根路径仍沿用 `manumesh` / `manumesh`；C ABI 名称仍为 `ManuMesh*` / `manumesh_*`。
 
 当前仓库刻意不再把网页预览作为主入口。结果检查走更稳定的工业验证路径：
 
@@ -29,15 +29,14 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 | 路径 | 角色 |
 | --- | --- |
-| `include/line_quadrics_qem/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
-| `include/line_quadrics_qem/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `lq::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
-| `include/line_quadrics_qem/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
-| `include/line_quadrics_qem/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
-| `include/line_quadrics_qem/features/` | 旧 include 路径兼容层，新代码不要继续使用。 |
+| `include/manumesh/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
+| `include/manumesh/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `manumesh::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
+| `include/manumesh/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
+| `include/manumesh/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
 | `src/` | 库实现按职责分组：`common/`、`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
 | `src/common/detail/` | 跨算法私有工具层，例如 mesh key、边-面邻接、面法向、顶点邻接和边界顶点查询；不属于 SDK。 |
 | `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
-| `apps/linequadrics/` | `linequadrics` CLI，作为库的应用层消费者。 |
+| `apps/manumesh/` | `manumesh` CLI，作为库的应用层消费者。 |
 | `tests/` | GoogleTest/CTest 回归测试，按 `support/`、`unit/`、`performance/` 和 `data/` 分类。 |
 | `thirdParty/eigen/` | Eigen 头文件包；Eigen 是 header-only，不存在需要链接的动态库。 |
 | `thirdParty/googletest/` | GoogleTest 预编译包，默认用于本仓库测试，不作为 SDK 运行时依赖。 |
@@ -67,7 +66,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 ```powershell
 cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/mingw-ninja-release --target linequadrics --parallel
+cmake --build build/mingw-ninja-release --target manumesh --parallel
 ```
 
 MSVC + Ninja 可作为备用链路，需要从 VS Developer Command Prompt 或已经带有
@@ -75,7 +74,7 @@ MSVC + Ninja 可作为备用链路，需要从 VS Developer Command Prompt 或�
 
 ```powershell
 cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/msvc-ninja-release --target linequadrics --parallel
+cmake --build build/msvc-ninja-release --target manumesh --parallel
 ```
 
 完整 ManuMesh 构建、测试、文档目标：
@@ -90,7 +89,7 @@ cmake --build build/industrial --target docs-api
 查看并验证 SDK 发布目录：
 
 ```powershell
-cmake -S . -B build/sdk-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DLQ_ENABLE_INSTALL=ON -DLQ_GOOGLETEST_PROVIDER=auto -DLQ_EIGEN_PROVIDER=vendored
+cmake -S . -B build/sdk-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DMANUMESH_ENABLE_INSTALL=ON -DMANUMESH_GOOGLETEST_PROVIDER=auto -DMANUMESH_EIGEN_PROVIDER=vendored
 cmake --build build/sdk-release --target sdk-consumer-test --parallel
 ```
 
@@ -102,20 +101,20 @@ cmake --build build/sdk-release --target sdk-consumer-test --parallel
 最小外部调用入口：
 
 ```cpp
-#include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/core/Mesh.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
-lq::simplification::SimplifyOptions options;
+manumesh::simplification::SimplifyOptions options;
 options.targetRatio = 0.2;
 options.useLineQuadrics = true;
 options.lineWeight = 1e-3;
 options.preserveFeatureCurves = true;
 options.featureProtectionMode =
-    lq::simplification::FeatureProtectionMode::PrimitiveCurves;
+    manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
 
-lq::simplification::SimplifyReport report;
-lq::simplification::QEMSimplifier simplifier(options);
-lq::Mesh simplified = simplifier.simplify(input, &report);
+manumesh::simplification::SimplifyReport report;
+manumesh::simplification::QEMSimplifier simplifier(options);
+manumesh::Mesh simplified = simplifier.simplify(input, &report);
 ```
 
 `FeatureProtectionMode::PrimitiveCurves` 是默认特征保护策略。它会硬保护拟合出的圆、近圆和椭圆 loop，普通折线/二面角 crease 则作为软成本和合法性过滤输入。只有需要复现旧版严格锁边行为时，才使用 `AllFeatureEdges`。
@@ -123,21 +122,21 @@ lq::Mesh simplified = simplifier.simplify(input, &report);
 特征检测也可以独立使用，不需要先运行 QEM：
 
 ```cpp
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
-lq::feature::FeatureOptions featureOptions;
-lq::feature::FeatureDetector detector(featureOptions);
-lq::feature::FeatureAnalysis features = detector.analyze(input);
+manumesh::feature::FeatureOptions featureOptions;
+manumesh::feature::FeatureDetector detector(featureOptions);
+manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
 
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
 如果下游本身也是 CMake 工程，并且安装 SDK 时打开了
-`-DLQ_INSTALL_CMAKE_CONFIG=ON`，也可以选择使用可选的 CMake config：
+`-DMANUMESH_INSTALL_CMAKE_CONFIG=ON`，也可以选择使用可选的 CMake config：
 
 ```cmake
-find_package(line_quadrics_qem CONFIG REQUIRED)
-target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
-line_quadrics_qem_copy_runtime_dependencies(my_app)
+find_package(ManuMesh CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE ManuMesh::manumesh)
+manumesh_copy_runtime_dependencies(my_app)
 ```
 
 该 config 会优先使用 SDK 自带的 vendored Eigen include；如果 SDK 内没有安装
@@ -146,13 +145,13 @@ vendored Eigen，则通过 `find_dependency(Eigen3 3.3 NO_MODULE)` 寻找系统 
 如果宿主程序不想在自己的 C++ 交换边界暴露 Eigen，可以使用 `PlainMesh` 入口：
 
 ```cpp
-#include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
+#include "manumesh/algorithms/simplification/PlainSimplifier.h"
 
-lq::PlainMesh plainInput;
-lq::simplification::SimplifyOptions options;
-lq::simplification::SimplifyReport report;
-lq::PlainMesh plainOutput =
-    lq::simplification::simplifyPlainMesh(plainInput, options, &report);
+manumesh::PlainMesh plainInput;
+manumesh::simplification::SimplifyOptions options;
+manumesh::simplification::SimplifyReport report;
+manumesh::PlainMesh plainOutput =
+    manumesh::simplification::simplifyPlainMesh(plainInput, options, &report);
 ```
 
 ## Visual Studio 使用
@@ -161,7 +160,7 @@ lq::PlainMesh plainOutput =
 工程引用安装产物。下游不需要依赖本仓库源码，也不需要使用 `find_package`。
 
 ```powershell
-cmake -S . -B build/vs-release -G "Visual Studio 17 2022" -A x64 -DLQ_ENABLE_INSTALL=ON
+cmake -S . -B build/vs-release -G "Visual Studio 17 2022" -A x64 -DMANUMESH_ENABLE_INSTALL=ON
 cmake --build build/vs-release --config Release --parallel
 cmake --install build/vs-release --config Release --prefix C:\opt\manumesh
 ```
@@ -170,30 +169,30 @@ cmake --install build/vs-release --config Release --prefix C:\opt\manumesh
 
 ```text
 C:\opt\manumesh
-  bin\line_quadrics_qem.dll
-  include\line_quadrics_qem\...
-  lib\line_quadrics_qem.lib
-  share\line_quadrics_qem\thirdParty\eigen\include\Eigen\...
-  share\line_quadrics_qem\msvc\line_quadrics_qem.props
+  bin\manumesh.dll
+  include\manumesh\...
+  lib\manumesh.lib
+  share\manumesh\thirdParty\eigen\include\Eigen\...
+  share\manumesh\msvc\ManuMesh.props
 ```
 
 ### 可选：Visual Studio CMake 工程
 
 只有下游工程本身采用 CMake，并且安装 SDK 时显式打开
-`-DLQ_INSTALL_CMAKE_CONFIG=ON`，才需要这一段。在你的 `CMakeLists.txt` 中使用：
+`-DMANUMESH_INSTALL_CMAKE_CONFIG=ON`，才需要这一段。在你的 `CMakeLists.txt` 中使用：
 
 ```cmake
-find_package(line_quadrics_qem CONFIG REQUIRED)
+find_package(ManuMesh CONFIG REQUIRED)
 
 add_executable(my_app main.cpp)
-target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
-line_quadrics_qem_copy_runtime_dependencies(my_app)
+target_link_libraries(my_app PRIVATE ManuMesh::manumesh)
+manumesh_copy_runtime_dependencies(my_app)
 ```
 
 配置你的工程时指定安装包位置：
 
 ```powershell
-cmake -S . -B build -Dline_quadrics_qem_DIR=C:\opt\manumesh\lib\cmake\line_quadrics_qem
+cmake -S . -B build -DManuMesh_DIR=C:\opt\manumesh\lib\cmake\manumesh
 ```
 
 ### 推荐：传统 `.vcxproj` 工程
@@ -207,43 +206,43 @@ View -> Other Windows -> Property Manager
 右键项目配置，选择 `Add Existing Property Sheet...`，添加：
 
 ```text
-C:\opt\manumesh\share\line_quadrics_qem\msvc\line_quadrics_qem.props
+C:\opt\manumesh\share\manumesh\msvc\ManuMesh.props
 ```
 
 这个 `.props` 会自动配置：
 
 - `include\` 头文件目录；
-- `lib\line_quadrics_qem.lib` 链接库；
-- 构建后把 `bin\line_quadrics_qem.dll` 复制到你的程序输出目录。
+- `lib\manumesh.lib` 链接库；
+- 构建后把 `bin\manumesh.dll` 复制到你的程序输出目录。
 
-如果使用 C++ API，例如 `line_quadrics_qem/core/Mesh.h`，属性表默认会引用
+如果使用 C++ API，例如 `manumesh/core/Mesh.h`，属性表默认会引用
 SDK 自带的 Eigen 头文件目录。需要统一公司内部 Eigen 版本时，可以覆盖
-`LQEigenIncludeDir`。如果只使用 `line_quadrics_qem/api/CApi.h` 这套 C ABI，
+`LQEigenIncludeDir`。如果只使用 `manumesh/api/CApi.h` 这套 C ABI，
 调用方不需要包含 Eigen 头。
 如果希望使用 C++ 但避免在宿主交换类型中暴露 Eigen，可包含
-`line_quadrics_qem/algorithms/simplification/PlainSimplifier.h` 并传入
-`lq::PlainMesh`。
+`manumesh/algorithms/simplification/PlainSimplifier.h` 并传入
+`manumesh::PlainMesh`。
 
 最小 C++ 调用：
 
 ```cpp
-#include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/core/Mesh.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 int main() {
-  lq::Mesh input;
+  manumesh::Mesh input;
   std::string error;
-  if (!lq::loadMesh("input.stl", input, &error)) {
+  if (!manumesh::loadMesh("input.stl", input, &error)) {
     return 1;
   }
 
-  lq::simplification::SimplifyOptions options;
+  manumesh::simplification::SimplifyOptions options;
   options.targetRatio = 0.25;
   options.useLineQuadrics = true;
 
-  lq::simplification::SimplifyReport report;
-  lq::simplification::QEMSimplifier simplifier(options);
-  lq::Mesh output = simplifier.simplify(input, &report);
+  manumesh::simplification::SimplifyReport report;
+  manumesh::simplification::QEMSimplifier simplifier(options);
+  manumesh::Mesh output = simplifier.simplify(input, &report);
   return output.empty() ? 1 : 0;
 }
 ```
@@ -251,7 +250,7 @@ int main() {
 最小 C ABI 调用入口：
 
 ```c
-#include "line_quadrics_qem/api/CApi.h"
+#include "manumesh/api/CApi.h"
 ```
 
 ## 验证闭环
@@ -271,16 +270,16 @@ cmake -E chdir build/industrial ctest -L performance --output-on-failure
 快速生成 STL/CSV：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe demo --quick --samples 500
+.\build\mingw-ninja-release\bin\manumesh.exe demo --quick --samples 500
 ```
 
 工业特征验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000
+.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000
 ```
 
-C ABI 的公开结构体仍必须先调用对应 `*_init`。同一 `LQ_ABI_VERSION`
+C ABI 的公开结构体仍必须先调用对应 `*_init`。同一 `MANUMESH_ABI_VERSION`
 内，库会接受较旧的尾部较短 `struct_size`，缺失字段使用库默认值；未初始化
 或 ABI 版本不匹配的结构体仍会被拒绝。
 
@@ -292,7 +291,7 @@ OpenFOAM flange。可用 `--spindle-input`、`--ring-input`、`--pulley-input`�
 外部 OBJ 基准验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-external --ratio 0.25 --samples 800
+.\build\mingw-ninja-release\bin\manumesh.exe validate-external --ratio 0.25 --samples 800
 ```
 
 每项能力、性能指标、输出文件和验收口径见

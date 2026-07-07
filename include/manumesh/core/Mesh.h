@@ -1,6 +1,6 @@
 #pragma once
 
-#include "line_quadrics_qem/Export.h"
+#include "manumesh/Export.h"
 
 #include <Eigen/Dense>
 #include <array>
@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-namespace lq {
+namespace manumesh {
 
 /// Double precision 3D vector used throughout the public geometry API.
 using Vec3 = Eigen::Vector3d;
@@ -26,39 +26,42 @@ struct Mesh {
   std::vector<Face> faces;
 
   /// Returns true when either vertex or face storage is empty.
-  LQ_API bool empty() const;
+  MANUMESH_API bool empty() const;
   /// Axis-aligned bounding-box minimum corner.
-  LQ_API Vec3 bboxMin() const;
+  MANUMESH_API Vec3 bboxMin() const;
   /// Axis-aligned bounding-box maximum corner.
-  LQ_API Vec3 bboxMax() const;
+  MANUMESH_API Vec3 bboxMax() const;
   /// Length of the axis-aligned bounding-box diagonal.
-  LQ_API double bboxDiag() const;
+  MANUMESH_API double bboxDiag() const;
   /// Compacts vertex storage and rewrites face indices after deletions.
-  LQ_API void removeUnusedVertices();
+  MANUMESH_API void removeUnusedVertices();
 };
 
 /// Loads an STL file, automatically handling ASCII and binary encodings.
-LQ_API bool loadStl(const std::string& path, Mesh& mesh, std::string* error = nullptr,
-                    double mergeRelativeEpsilon = 1e-9);
+MANUMESH_API bool loadStl(const std::string& path, Mesh& mesh,
+                          std::string* error = nullptr,
+                          double mergeRelativeEpsilon = 1e-9);
 /// Loads a simple OBJ triangle mesh.
-LQ_API bool loadObj(const std::string& path, Mesh& mesh, std::string* error = nullptr);
+MANUMESH_API bool loadObj(const std::string& path, Mesh& mesh,
+                          std::string* error = nullptr);
 /// Loads a mesh by file extension. Supported formats are STL and OBJ.
-LQ_API bool loadMesh(const std::string& path, Mesh& mesh, std::string* error = nullptr,
-                     double mergeRelativeEpsilon = 1e-9);
+MANUMESH_API bool loadMesh(const std::string& path, Mesh& mesh,
+                           std::string* error = nullptr,
+                           double mergeRelativeEpsilon = 1e-9);
 /// Returns false and writes an error when any face index is out of range.
-LQ_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
+MANUMESH_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
 /// Returns false when indices are invalid or vertex coordinates are not finite.
-LQ_API bool validateMeshGeometry(const Mesh& mesh, std::string* error = nullptr);
+MANUMESH_API bool validateMeshGeometry(const Mesh& mesh, std::string* error = nullptr);
 /// Writes the mesh as an ASCII STL file.
-LQ_API bool saveAsciiStl(const std::string& path, const Mesh& mesh,
-                         const std::string& solidName = "mesh",
-                         std::string* error = nullptr);
+MANUMESH_API bool saveAsciiStl(const std::string& path, const Mesh& mesh,
+                               const std::string& solidName = "mesh",
+                               std::string* error = nullptr);
 
 /// Returns the area of one triangle.
-LQ_API double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c);
+MANUMESH_API double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c);
 /// Returns a unit triangle normal, or zero for degenerate triangles.
-LQ_API Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c);
+MANUMESH_API Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c);
 /// Returns each undirected mesh edge once as sorted vertex index pairs.
-LQ_API std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh);
+MANUMESH_API std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh);
 
-} // namespace lq
+} // namespace manumesh

@@ -1,11 +1,11 @@
 #include "TestSupport.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
-#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
-#include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
-#include "line_quadrics_qem/core/MeshGenerators.h"
-#include "line_quadrics_qem/core/MeshTopology.h"
-#include "line_quadrics_qem/core/PlainMesh.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/simplification/Metrics.h"
+#include "manumesh/algorithms/simplification/PlainSimplifier.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/core/MeshGenerators.h"
+#include "manumesh/core/MeshTopology.h"
+#include "manumesh/core/PlainMesh.h"
 
 #include <algorithm>
 #include <array>
@@ -20,21 +20,22 @@
 
 namespace {
 
-using lq::test::countCircularLoops;
-using lq::test::loadExternalMesh;
-using lq::test::loadExternalStl;
-using lq::test::SimplifiedMesh;
-using lq::test::simplifyWithReport;
+using manumesh::test::countCircularLoops;
+using manumesh::test::loadExternalMesh;
+using manumesh::test::loadExternalStl;
+using manumesh::test::SimplifiedMesh;
+using manumesh::test::simplifyWithReport;
 
-namespace simplification = lq::simplification;
+namespace simplification = manumesh::simplification;
 
-int countBoundaryVertices(const lq::Mesh& mesh) {
-  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+int countBoundaryVertices(const manumesh::Mesh& mesh) {
+  const manumesh::Result<manumesh::MeshTopology> topologyResult =
+      manumesh::MeshTopology::build(mesh);
   if (!topologyResult.ok()) {
     return -1;
   }
   std::vector<char> boundary(mesh.vertices.size(), 0);
-  for (const lq::TopologyEdge& edge : topologyResult.value().edges()) {
+  for (const manumesh::TopologyEdge& edge : topologyResult.value().edges()) {
     if (!edge.boundary()) {
       continue;
     }
@@ -44,14 +45,15 @@ int countBoundaryVertices(const lq::Mesh& mesh) {
   return static_cast<int>(std::count(boundary.begin(), boundary.end(), 1));
 }
 
-int countBoundaryComponents(const lq::Mesh& mesh) {
-  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+int countBoundaryComponents(const manumesh::Mesh& mesh) {
+  const manumesh::Result<manumesh::MeshTopology> topologyResult =
+      manumesh::MeshTopology::build(mesh);
   if (!topologyResult.ok()) {
     return -1;
   }
 
   std::vector<std::vector<int>> adjacency(mesh.vertices.size());
-  for (const lq::TopologyEdge& edge : topologyResult.value().edges()) {
+  for (const manumesh::TopologyEdge& edge : topologyResult.value().edges()) {
     if (!edge.boundary()) {
       continue;
     }
@@ -82,111 +84,115 @@ int countBoundaryComponents(const lq::Mesh& mesh) {
   return components;
 }
 
-lq::FeatureOptions circularFeatureOptions() {
-  return lq::test::circularFeatureOptions(0.04);
+manumesh::feature::FeatureOptions circularFeatureOptions() {
+  return manumesh::test::circularFeatureOptions(0.04);
 }
 
-lq::SimplifyOptions standardQemOptions(double ratio) {
-  return lq::test::standardOptions(ratio);
+manumesh::simplification::SimplifyOptions standardQemOptions(double ratio) {
+  return manumesh::test::standardOptions(ratio);
 }
 
-lq::SimplifyOptions paperLineQuadricsOptions(double ratio) {
-  return lq::test::lineOptions(ratio);
+manumesh::simplification::SimplifyOptions paperLineQuadricsOptions(double ratio) {
+  return manumesh::test::lineOptions(ratio);
 }
 
-lq::SimplifyOptions protectedIndustrialFeatureOptions(double ratio) {
-  return lq::test::protectedOptions(ratio);
+manumesh::simplification::SimplifyOptions
+protectedIndustrialFeatureOptions(double ratio) {
+  return manumesh::test::protectedOptions(ratio);
 }
 
-void expectBudgetedSimplification(const SimplifiedMesh& result, const lq::Mesh& input,
-                                  double ratio) {
-  lq::test::expectBudget(result, input, ratio);
+void expectBudgetedSimplification(const SimplifiedMesh& result,
+                                  const manumesh::Mesh& input, double ratio) {
+  manumesh::test::expectBudget(result, input, ratio);
 }
 
-lq::Mesh makeLocalIntersectionGuardMesh() {
-  lq::Mesh mesh;
+manumesh::Mesh makeLocalIntersectionGuardMesh() {
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),   lq::Vec3(0.1, 0.0, 0.0),    lq::Vec3(0.1, 1.0, 0.0),
-      lq::Vec3(0.2, -1.0, 0.0),  lq::Vec3(0.12, -0.3, -1.0), lq::Vec3(0.12, 0.3, 1.0),
-      lq::Vec3(0.12, 0.9, -1.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),    manumesh::Vec3(0.1, 0.0, 0.0),
+      manumesh::Vec3(0.1, 1.0, 0.0),    manumesh::Vec3(0.2, -1.0, 0.0),
+      manumesh::Vec3(0.12, -0.3, -1.0), manumesh::Vec3(0.12, 0.3, 1.0),
+      manumesh::Vec3(0.12, 0.9, -1.0),
   };
   mesh.faces = {
-      lq::Face{{0, 1, 2}},
-      lq::Face{{0, 3, 1}},
-      lq::Face{{1, 2, 3}},
-      lq::Face{{4, 5, 6}},
+      manumesh::Face{{0, 1, 2}},
+      manumesh::Face{{0, 3, 1}},
+      manumesh::Face{{1, 2, 3}},
+      manumesh::Face{{4, 5, 6}},
   };
   return mesh;
 }
 
-lq::Mesh makeSpatialIntersectionGuardMeshWithFarFaces() {
-  lq::Mesh mesh = makeLocalIntersectionGuardMesh();
+manumesh::Mesh makeSpatialIntersectionGuardMeshWithFarFaces() {
+  manumesh::Mesh mesh = makeLocalIntersectionGuardMesh();
   for (int i = 0; i < 96; ++i) {
     const int base = static_cast<int>(mesh.vertices.size());
     const double x = 100.0 + 3.0 * static_cast<double>(i);
-    mesh.vertices.push_back(lq::Vec3(x, 100.0, 0.0));
-    mesh.vertices.push_back(lq::Vec3(x + 1.4, 100.0, 0.0));
-    mesh.vertices.push_back(lq::Vec3(x, 101.2, 0.0));
-    mesh.faces.push_back(lq::Face{{base, base + 1, base + 2}});
+    mesh.vertices.push_back(manumesh::Vec3(x, 100.0, 0.0));
+    mesh.vertices.push_back(manumesh::Vec3(x + 1.4, 100.0, 0.0));
+    mesh.vertices.push_back(manumesh::Vec3(x, 101.2, 0.0));
+    mesh.faces.push_back(manumesh::Face{{base, base + 1, base + 2}});
   }
   return mesh;
 }
 
-lq::Mesh makeCoplanarOverlapGuardMesh() {
-  lq::Mesh mesh;
+manumesh::Mesh makeCoplanarOverlapGuardMesh() {
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0), lq::Vec3(2.0, 0.0, 0.0), lq::Vec3(0.0, -0.2, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0), lq::Vec3(0.0, 1.0, 0.0), lq::Vec3(0.2, 0.2, 0.0),
-      lq::Vec3(0.7, 0.2, 0.0), lq::Vec3(0.2, 0.7, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),  manumesh::Vec3(2.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, -0.2, 0.0), manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),  manumesh::Vec3(0.2, 0.2, 0.0),
+      manumesh::Vec3(0.7, 0.2, 0.0),  manumesh::Vec3(0.2, 0.7, 0.0),
   };
   mesh.faces = {
-      lq::Face{{0, 1, 2}},
-      lq::Face{{1, 3, 4}},
-      lq::Face{{5, 6, 7}},
+      manumesh::Face{{0, 1, 2}},
+      manumesh::Face{{1, 3, 4}},
+      manumesh::Face{{5, 6, 7}},
   };
   return mesh;
 }
 
-lq::Mesh makeCoplanarSeparatedGuardMesh() {
-  lq::Mesh mesh = makeCoplanarOverlapGuardMesh();
-  mesh.vertices[5] = lq::Vec3(2.2, 2.2, 0.0);
-  mesh.vertices[6] = lq::Vec3(2.7, 2.2, 0.0);
-  mesh.vertices[7] = lq::Vec3(2.2, 2.7, 0.0);
+manumesh::Mesh makeCoplanarSeparatedGuardMesh() {
+  manumesh::Mesh mesh = makeCoplanarOverlapGuardMesh();
+  mesh.vertices[5] = manumesh::Vec3(2.2, 2.2, 0.0);
+  mesh.vertices[6] = manumesh::Vec3(2.7, 2.2, 0.0);
+  mesh.vertices[7] = manumesh::Vec3(2.2, 2.7, 0.0);
   return mesh;
 }
 
-lq::Mesh makePolygonalFeatureChordMesh() {
-  lq::Mesh mesh;
+manumesh::Mesh makePolygonalFeatureChordMesh() {
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0), lq::Vec3(3.0, 0.0, 0.0),  lq::Vec3(2.5, 1.0, 0.0),
-      lq::Vec3(1.2, 2.2, 0.0), lq::Vec3(-0.4, 1.3, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),  manumesh::Vec3(3.0, 0.0, 0.0),
+      manumesh::Vec3(2.5, 1.0, 0.0),  manumesh::Vec3(1.2, 2.2, 0.0),
+      manumesh::Vec3(-0.4, 1.3, 0.0),
   };
   mesh.faces = {
-      lq::Face{{0, 1, 3}},
-      lq::Face{{1, 2, 3}},
-      lq::Face{{0, 3, 4}},
+      manumesh::Face{{0, 1, 3}},
+      manumesh::Face{{1, 2, 3}},
+      manumesh::Face{{0, 3, 4}},
   };
   return mesh;
 }
 
-lq::Mesh makePlacementFallbackMesh() {
-  lq::Mesh mesh;
+manumesh::Mesh makePlacementFallbackMesh() {
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0),
-      lq::Vec3(0.0, 0.9, 0.0),
-      lq::Vec3(1.0, 0.1, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 0.9, 0.0),
+      manumesh::Vec3(1.0, 0.1, 0.0),
   };
   mesh.faces = {
-      lq::Face{{0, 1, 2}},
-      lq::Face{{1, 3, 2}},
+      manumesh::Face{{0, 1, 2}},
+      manumesh::Face{{1, 3, 2}},
   };
   return mesh;
 }
 
 } // namespace
 
-TEST(LineQuadricsQem, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
+TEST(ManuMesh, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
   const std::vector<std::string> names = {
       "plane",         "clustered-plane", "hole-plane", "ridge",
       "noisy-plane",   "sine-terrain",    "terrace",    "bump",
@@ -195,13 +201,14 @@ TEST(LineQuadricsQem, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
   };
 
   for (const std::string& name : names) {
-    lq::Mesh mesh;
+    manumesh::Mesh mesh;
     std::string error;
-    EXPECT_TRUE(lq::generateMeshByName(name, 24, mesh, &error))
+    EXPECT_TRUE(manumesh::generateMeshByName(name, 24, mesh, &error))
         << name << ": " << error;
     EXPECT_FALSE(mesh.empty()) << name;
 
-    const lq::MeshStats stats = lq::computeMeshStats(mesh);
+    const manumesh::simplification::MeshStats stats =
+        manumesh::simplification::computeMeshStats(mesh);
     EXPECT_EQ(stats.vertices, static_cast<int>(mesh.vertices.size())) << name;
     EXPECT_EQ(stats.faces, static_cast<int>(mesh.faces.size())) << name;
     EXPECT_GT(stats.edges, 0) << name;
@@ -209,80 +216,96 @@ TEST(LineQuadricsQem, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
     EXPECT_GE(stats.meanTriangleQuality, 0.0) << name;
   }
 
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   std::string error;
-  EXPECT_FALSE(lq::generateMeshByName("not-a-generator", 16, mesh, &error));
+  EXPECT_FALSE(manumesh::generateMeshByName("not-a-generator", 16, mesh, &error));
   EXPECT_FALSE(error.empty());
 
   error.clear();
-  EXPECT_FALSE(lq::generateMeshByName("flange", 24, mesh, &error));
+  EXPECT_FALSE(manumesh::generateMeshByName("flange", 24, mesh, &error));
   EXPECT_FALSE(error.empty());
 }
 
-TEST(LineQuadricsQem, ExternalFinishedFlangeFixtureLoadsWithFeatures) {
-  const lq::Mesh mesh = loadExternalStl("openfoam_flange.stl");
+TEST(ManuMesh, ExternalFinishedFlangeFixtureLoadsWithFeatures) {
+  const manumesh::Mesh mesh = loadExternalStl("openfoam_flange.stl");
   ASSERT_FALSE(mesh.empty());
   EXPECT_GT(mesh.faces.size(), 1000u);
 
-  lq::FeatureOptions options = lq::test::circularFeatureOptions(0.08);
+  manumesh::feature::FeatureOptions options =
+      manumesh::test::circularFeatureOptions(0.08);
   options.featureAngleDeg = 25.0;
-  const lq::FeatureAnalysis analysis = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis analysis =
+      manumesh::feature::detectFeatureCurves(mesh, options);
   EXPECT_GT(analysis.featureEdges, 0);
   EXPECT_GT(analysis.graph.edges.size(), 0u);
   EXPECT_GT(analysis.loops.size(), 0u);
 }
 
-TEST(LineQuadricsQem, WeightModesRoundTripAndRejectUnknownValues) {
-  EXPECT_EQ(lq::WeightMode::Uniform, lq::parseWeightMode("uniform"));
-  EXPECT_EQ(lq::WeightMode::Dihedral, lq::parseWeightMode("dihedral"));
-  EXPECT_EQ(lq::WeightMode::NormalTensor, lq::parseWeightMode("normal-tensor"));
-  EXPECT_EQ(lq::WeightMode::Height, lq::parseWeightMode("height"));
-  EXPECT_EQ(lq::WeightMode::XBand, lq::parseWeightMode("xband"));
+TEST(ManuMesh, WeightModesRoundTripAndRejectUnknownValues) {
+  EXPECT_EQ(manumesh::simplification::WeightMode::Uniform,
+            manumesh::simplification::parseWeightMode("uniform"));
+  EXPECT_EQ(manumesh::simplification::WeightMode::Dihedral,
+            manumesh::simplification::parseWeightMode("dihedral"));
+  EXPECT_EQ(manumesh::simplification::WeightMode::NormalTensor,
+            manumesh::simplification::parseWeightMode("normal-tensor"));
+  EXPECT_EQ(manumesh::simplification::WeightMode::Height,
+            manumesh::simplification::parseWeightMode("height"));
+  EXPECT_EQ(manumesh::simplification::WeightMode::XBand,
+            manumesh::simplification::parseWeightMode("xband"));
 
-  EXPECT_EQ("uniform", lq::toString(lq::WeightMode::Uniform));
-  EXPECT_EQ("dihedral", lq::toString(lq::WeightMode::Dihedral));
-  EXPECT_EQ("normal-tensor", lq::toString(lq::WeightMode::NormalTensor));
-  EXPECT_EQ("height", lq::toString(lq::WeightMode::Height));
-  EXPECT_EQ("xband", lq::toString(lq::WeightMode::XBand));
+  EXPECT_EQ("uniform", manumesh::simplification::toString(
+                           manumesh::simplification::WeightMode::Uniform));
+  EXPECT_EQ("dihedral", manumesh::simplification::toString(
+                            manumesh::simplification::WeightMode::Dihedral));
+  EXPECT_EQ("normal-tensor", manumesh::simplification::toString(
+                                 manumesh::simplification::WeightMode::NormalTensor));
+  EXPECT_EQ("height", manumesh::simplification::toString(
+                          manumesh::simplification::WeightMode::Height));
+  EXPECT_EQ("xband", manumesh::simplification::toString(
+                         manumesh::simplification::WeightMode::XBand));
 
-  EXPECT_THROW(lq::parseWeightMode("paper"), std::invalid_argument);
+  EXPECT_THROW(manumesh::simplification::parseWeightMode("paper"),
+               std::invalid_argument);
 }
 
-TEST(LineQuadricsQem, SimplificationNamespaceApiAndLegacyAliasesMatch) {
-  static_assert(std::is_same_v<lq::SimplifyOptions, simplification::SimplifyOptions>);
-  static_assert(std::is_same_v<lq::SimplifyReport, simplification::SimplifyReport>);
-  static_assert(std::is_same_v<lq::QEMSimplifier, simplification::QEMSimplifier>);
+TEST(ManuMesh, SimplificationNamespaceApiIsProjectScoped) {
+  static_assert(std::is_same_v<manumesh::simplification::SimplifyOptions,
+                               simplification::SimplifyOptions>);
+  static_assert(std::is_same_v<manumesh::simplification::SimplifyReport,
+                               simplification::SimplifyReport>);
+  static_assert(std::is_same_v<manumesh::simplification::QEMSimplifier,
+                               simplification::QEMSimplifier>);
 
-  const lq::Mesh input = lq::generatePlaneGrid(4, 1.0, false);
+  const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
   simplification::SimplifyOptions options = standardQemOptions(0.5);
   options.targetFaces = 8;
 
   simplification::SimplifyReport report;
-  const lq::Mesh output = simplification::simplifyMesh(input, options, &report);
+  const manumesh::Mesh output = simplification::simplifyMesh(input, options, &report);
   EXPECT_LE(output.faces.size(), static_cast<std::size_t>(options.targetFaces));
   EXPECT_EQ(output.faces.size(), static_cast<std::size_t>(report.finalFaces));
   EXPECT_EQ("uniform", simplification::toString(simplification::WeightMode::Uniform));
 
-  const lq::PlainMesh plainOutput =
-      simplification::simplifyPlainMesh(lq::toPlainMesh(input), options, nullptr);
+  const manumesh::PlainMesh plainOutput =
+      simplification::simplifyPlainMesh(manumesh::toPlainMesh(input), options, nullptr);
   EXPECT_EQ(output.faces.size(), plainOutput.faces.size());
 }
 
-TEST(LineQuadricsQem, NormalTensorScoresSeparatePlaneFromRidge) {
-  const lq::Mesh plane = lq::generatePlaneGrid(24, 2.0, false);
-  const lq::Mesh ridge = lq::generateRidgeGrid(24, 2.0, 0.5);
+TEST(ManuMesh, NormalTensorScoresSeparatePlaneFromRidge) {
+  const manumesh::Mesh plane = manumesh::generatePlaneGrid(24, 2.0, false);
+  const manumesh::Mesh ridge = manumesh::generateRidgeGrid(24, 2.0, 0.5);
 
-  const std::vector<lq::NormalTensorVertex> planeTensor =
-      lq::computeNormalTensorFeatures(plane);
-  const std::vector<lq::NormalTensorVertex> ridgeTensor =
-      lq::computeNormalTensorFeatures(ridge);
+  const std::vector<manumesh::feature::NormalTensorVertex> planeTensor =
+      manumesh::feature::computeNormalTensorFeatures(plane);
+  const std::vector<manumesh::feature::NormalTensorVertex> ridgeTensor =
+      manumesh::feature::computeNormalTensorFeatures(ridge);
 
   double planeMax = 0.0;
   double ridgeMax = 0.0;
-  for (const lq::NormalTensorVertex& vertex : planeTensor) {
+  for (const manumesh::feature::NormalTensorVertex& vertex : planeTensor) {
     planeMax = std::max(planeMax, vertex.featureScore);
   }
-  for (const lq::NormalTensorVertex& vertex : ridgeTensor) {
+  for (const manumesh::feature::NormalTensorVertex& vertex : ridgeTensor) {
     ridgeMax = std::max(ridgeMax, vertex.featureScore);
   }
 
@@ -290,24 +313,25 @@ TEST(LineQuadricsQem, NormalTensorScoresSeparatePlaneFromRidge) {
   EXPECT_GT(ridgeMax, 0.08);
 }
 
-TEST(LineQuadricsQem, NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict) {
-  const lq::Mesh input = lq::generateRidgeGrid(32, 2.0, 0.6);
-  lq::FeatureOptions options;
+TEST(ManuMesh, NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict) {
+  const manumesh::Mesh input = manumesh::generateRidgeGrid(32, 2.0, 0.6);
+  manumesh::feature::FeatureOptions options;
   options.featureAngleDeg = 179.0;
   options.normalTensorFeatureThreshold = 0.06;
   options.normalTensorMinEdgeAlignment = 0.2;
 
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(input, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(input, options);
 
   EXPECT_EQ(0, features.dihedralFeatureEdges);
   EXPECT_GT(features.normalTensorFeatureEdges, 0);
   EXPECT_GT(features.maxNormalTensorFeatureScore, 0.06);
 }
 
-TEST(LineQuadricsQem, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
-  const lq::Mesh input = lq::generateRidgeGrid(32, 2.0, 0.6);
-  lq::SimplifyOptions options = paperLineQuadricsOptions(0.70);
-  options.weightMode = lq::WeightMode::NormalTensor;
+TEST(ManuMesh, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
+  const manumesh::Mesh input = manumesh::generateRidgeGrid(32, 2.0, 0.6);
+  manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.70);
+  options.weightMode = manumesh::simplification::WeightMode::NormalTensor;
   options.normalTensorSmoothingIterations = 1;
 
   const SimplifiedMesh result = simplifyWithReport(input, options);
@@ -316,10 +340,10 @@ TEST(LineQuadricsQem, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
   EXPECT_GT(result.report.maxAppliedLineWeight, result.report.minAppliedLineWeight);
 }
 
-TEST(LineQuadricsQem, StrictTriangleQualityRejectsPoorCollapsePlacements) {
-  const lq::Mesh input = lq::generatePlaneGrid(4, 1.0, false);
+TEST(ManuMesh, StrictTriangleQualityRejectsPoorCollapsePlacements) {
+  const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
 
-  lq::SimplifyOptions options = standardQemOptions(0.25);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
   options.minTriangleQuality = 0.95;
   options.maxNormalDeviationDeg = 180.0;
   const SimplifiedMesh result = simplifyWithReport(input, options);
@@ -337,25 +361,25 @@ TEST(LineQuadricsQem, StrictTriangleQualityRejectsPoorCollapsePlacements) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, TriesEndpointPlacementWhenBestPlacementFailsLegality) {
-  const lq::Mesh input = makePlacementFallbackMesh();
+TEST(ManuMesh, TriesEndpointPlacementWhenBestPlacementFailsLegality) {
+  const manumesh::Mesh input = makePlacementFallbackMesh();
 
-  lq::SimplifyOptions options = standardQemOptions(0.5);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.5);
   options.targetFaces = 1;
   options.minTriangleQuality = 0.35;
   options.maxNormalDeviationDeg = 180.0;
   const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget,
+  EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget,
             result.report.terminationReason);
   EXPECT_EQ(1, result.report.finalFaces);
   EXPECT_EQ(0, result.report.rejectedCollapses);
 }
 
-TEST(LineQuadricsQem, StrictNormalDeviationRejectsFoldoverRisk) {
-  const lq::Mesh input = lq::generateCubeGrid(3, 1.0);
+TEST(ManuMesh, StrictNormalDeviationRejectsFoldoverRisk) {
+  const manumesh::Mesh input = manumesh::generateCubeGrid(3, 1.0);
 
-  lq::SimplifyOptions options = standardQemOptions(0.25);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
   options.minTriangleQuality = 0.0;
   options.maxNormalDeviationDeg = 0.0;
   const SimplifiedMesh result = simplifyWithReport(input, options);
@@ -373,10 +397,10 @@ TEST(LineQuadricsQem, StrictNormalDeviationRejectsFoldoverRisk) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, StrictLocalErrorRejectsLargeVertexDrift) {
-  const lq::Mesh input = lq::generatePlaneGrid(3, 2.0, false);
+TEST(ManuMesh, StrictLocalErrorRejectsLargeVertexDrift) {
+  const manumesh::Mesh input = manumesh::generatePlaneGrid(3, 2.0, false);
 
-  lq::SimplifyOptions options = standardQemOptions(0.25);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
   options.maxNormalDeviationDeg = 180.0;
   options.maxLocalErrorRatio = 1e-12;
   const SimplifiedMesh result = simplifyWithReport(input, options);
@@ -394,16 +418,18 @@ TEST(LineQuadricsQem, StrictLocalErrorRejectsLargeVertexDrift) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved) {
-  const lq::Mesh input = lq::generatePlaneGrid(8, 2.0, false);
-  const lq::MeshStats inputStats = lq::computeMeshStats(input);
+TEST(ManuMesh, SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved) {
+  const manumesh::Mesh input = manumesh::generatePlaneGrid(8, 2.0, false);
+  const manumesh::simplification::MeshStats inputStats =
+      manumesh::simplification::computeMeshStats(input);
   ASSERT_GT(inputStats.boundaryEdges, 0);
   ASSERT_EQ(1, countBoundaryComponents(input));
 
-  lq::SimplifyOptions options = standardQemOptions(0.08);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.08);
   options.preserveBoundary = true;
   const SimplifiedMesh result = simplifyWithReport(input, options);
-  const lq::MeshStats outputStats = lq::computeMeshStats(result.mesh);
+  const manumesh::simplification::MeshStats outputStats =
+      manumesh::simplification::computeMeshStats(result.mesh);
 
   EXPECT_FALSE(result.mesh.empty());
   EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
@@ -414,16 +440,18 @@ TEST(LineQuadricsQem, SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved) {
   EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
 }
 
-TEST(LineQuadricsQem, KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse) {
-  const lq::Mesh input = lq::generateHolePlaneGrid(16, 2.0, 0.35);
-  const lq::MeshStats inputStats = lq::computeMeshStats(input);
+TEST(ManuMesh, KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse) {
+  const manumesh::Mesh input = manumesh::generateHolePlaneGrid(16, 2.0, 0.35);
+  const manumesh::simplification::MeshStats inputStats =
+      manumesh::simplification::computeMeshStats(input);
   ASSERT_GT(inputStats.boundaryEdges, 0);
   ASSERT_GE(countBoundaryComponents(input), 2);
 
-  lq::SimplifyOptions options = standardQemOptions(0.15);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.15);
   options.preserveBoundary = true;
   const SimplifiedMesh result = simplifyWithReport(input, options);
-  const lq::MeshStats outputStats = lq::computeMeshStats(result.mesh);
+  const manumesh::simplification::MeshStats outputStats =
+      manumesh::simplification::computeMeshStats(result.mesh);
 
   EXPECT_FALSE(result.mesh.empty());
   EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
@@ -433,10 +461,10 @@ TEST(LineQuadricsQem, KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse) {
   EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
 }
 
-TEST(LineQuadricsQem, LocalIntersectionGuardRejectsIntersectingCollapse) {
-  const lq::Mesh input = makeLocalIntersectionGuardMesh();
+TEST(ManuMesh, LocalIntersectionGuardRejectsIntersectingCollapse) {
+  const manumesh::Mesh input = makeLocalIntersectionGuardMesh();
 
-  lq::SimplifyOptions options = standardQemOptions(0.25);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
   options.targetFaces = 1;
   options.preventLocalIntersections = true;
   options.maxNormalDeviationDeg = 180.0;
@@ -456,10 +484,10 @@ TEST(LineQuadricsQem, LocalIntersectionGuardRejectsIntersectingCollapse) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, LocalIntersectionGuardFindsIndexedDistantCandidates) {
-  const lq::Mesh input = makeSpatialIntersectionGuardMeshWithFarFaces();
+TEST(ManuMesh, LocalIntersectionGuardFindsIndexedDistantCandidates) {
+  const manumesh::Mesh input = makeSpatialIntersectionGuardMeshWithFarFaces();
 
-  lq::SimplifyOptions options = standardQemOptions(0.98);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.98);
   options.targetFaces = static_cast<int>(input.faces.size()) - 1;
   options.preventLocalIntersections = true;
   options.maxNormalDeviationDeg = 180.0;
@@ -479,10 +507,10 @@ TEST(LineQuadricsQem, LocalIntersectionGuardFindsIndexedDistantCandidates) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap) {
-  const lq::Mesh input = makeCoplanarOverlapGuardMesh();
+TEST(ManuMesh, LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap) {
+  const manumesh::Mesh input = makeCoplanarOverlapGuardMesh();
 
-  lq::SimplifyOptions options = standardQemOptions(0.25);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
   options.targetFaces = 1;
   options.preventLocalIntersections = true;
   options.maxNormalDeviationDeg = 180.0;
@@ -490,16 +518,16 @@ TEST(LineQuadricsQem, LocalIntersectionGuardUsesFallbackPlacementForCoplanarOver
   const SimplifiedMesh result = simplifyWithReport(input, options);
 
   EXPECT_FALSE(result.mesh.empty());
-  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget,
+  EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget,
             result.report.terminationReason);
   EXPECT_EQ(1, result.report.finalFaces);
   EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, LocalIntersectionGuardAllowsCoplanarSeparatedTriangles) {
-  const lq::Mesh input = makeCoplanarSeparatedGuardMesh();
+TEST(ManuMesh, LocalIntersectionGuardAllowsCoplanarSeparatedTriangles) {
+  const manumesh::Mesh input = makeCoplanarSeparatedGuardMesh();
 
-  lq::SimplifyOptions options = standardQemOptions(0.25);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
   options.targetFaces = 1;
   options.preventLocalIntersections = true;
   options.maxNormalDeviationDeg = 180.0;
@@ -510,10 +538,10 @@ TEST(LineQuadricsQem, LocalIntersectionGuardAllowsCoplanarSeparatedTriangles) {
   EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, LocalIntersectionGuardAllowsSharedCoplanarEdges) {
-  const lq::Mesh input = lq::generatePlaneGrid(3, 1.0, false);
+TEST(ManuMesh, LocalIntersectionGuardAllowsSharedCoplanarEdges) {
+  const manumesh::Mesh input = manumesh::generatePlaneGrid(3, 1.0, false);
 
-  lq::SimplifyOptions options = standardQemOptions(0.55);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.55);
   options.preventLocalIntersections = true;
   options.maxNormalDeviationDeg = 180.0;
   const SimplifiedMesh result = simplifyWithReport(input, options);
@@ -523,14 +551,14 @@ TEST(LineQuadricsQem, LocalIntersectionGuardAllowsSharedCoplanarEdges) {
   EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
-  const lq::Mesh input = makePolygonalFeatureChordMesh();
+TEST(ManuMesh, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
+  const manumesh::Mesh input = makePolygonalFeatureChordMesh();
 
-  lq::SimplifyOptions options = standardQemOptions(0.25);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
   options.targetFaces = 1;
   options.preserveFeatureCurves = true;
-  options.featureProtectionMode = lq::FeatureProtectionMode::AllFeatureEdges;
-  options.protectAllFeatureEdges = false;
+  options.featureProtectionMode =
+      manumesh::simplification::FeatureProtectionMode::AllFeatureEdges;
   options.useNormalTensorFeatures = false;
   options.featureAngleDeg = 179.0;
   options.circleFitRelativeThreshold = 0.0;
@@ -545,7 +573,7 @@ TEST(LineQuadricsQem, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
   EXPECT_GT(result.report.featureLoops, 0);
   EXPECT_GT(result.report.featureRejectedCollapses, 0);
   EXPECT_GT(result.report.genericFeatureRejectedCollapses, 0);
-  EXPECT_EQ(lq::SimplifyTerminationReason::RejectionLimit,
+  EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::RejectionLimit,
             result.report.terminationReason);
   EXPECT_EQ(result.report.rejectedCollapses,
             result.report.topologyRejectedCollapses +
@@ -558,13 +586,13 @@ TEST(LineQuadricsQem, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
                 result.report.featureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, PrimitiveModeKeepsPolygonalFeaturesSoftByDefault) {
-  const lq::Mesh input = lq::generateCubeGrid(4, 1.0);
+TEST(ManuMesh, PrimitiveModeKeepsPolygonalFeaturesSoftByDefault) {
+  const manumesh::Mesh input = manumesh::generateCubeGrid(4, 1.0);
 
-  lq::SimplifyOptions options = standardQemOptions(0.35);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.35);
   options.preserveFeatureCurves = true;
-  options.protectAllFeatureEdges = false;
-  options.featureProtectionMode = lq::FeatureProtectionMode::PrimitiveCurves;
+  options.featureProtectionMode =
+      manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
   options.useNormalTensorFeatures = false;
   options.featureAngleDeg = 25.0;
   options.minFeatureLoopVertices = 4;
@@ -577,8 +605,8 @@ TEST(LineQuadricsQem, PrimitiveModeKeepsPolygonalFeaturesSoftByDefault) {
   EXPECT_EQ(0, result.report.genericFeatureRejectedCollapses);
 }
 
-TEST(LineQuadricsQem, PlainMeshRoundTripsWithoutEigenInExchangeType) {
-  lq::PlainMesh plain;
+TEST(ManuMesh, PlainMeshRoundTripsWithoutEigenInExchangeType) {
+  manumesh::PlainMesh plain;
   plain.vertices = {
       {0.0, 0.0, 0.0},
       {1.0, 0.0, 0.0},
@@ -586,72 +614,75 @@ TEST(LineQuadricsQem, PlainMeshRoundTripsWithoutEigenInExchangeType) {
   };
   plain.faces = {{{{0, 1, 2}}}};
 
-  const lq::Mesh mesh = lq::toMesh(plain);
+  const manumesh::Mesh mesh = manumesh::toMesh(plain);
   ASSERT_EQ(3u, mesh.vertices.size());
   ASSERT_EQ(1u, mesh.faces.size());
 
-  const lq::PlainMesh roundTrip = lq::toPlainMesh(mesh);
+  const manumesh::PlainMesh roundTrip = manumesh::toPlainMesh(mesh);
   EXPECT_EQ(plain.vertices.size(), roundTrip.vertices.size());
   EXPECT_EQ(plain.faces.size(), roundTrip.faces.size());
   EXPECT_DOUBLE_EQ(1.0, roundTrip.vertices[1].x);
   EXPECT_EQ(2, roundTrip.faces[0].v[2]);
 }
 
-TEST(LineQuadricsQem, SimplifiesPlainMeshThroughEigenFreeEntryPoint) {
-  const lq::PlainMesh input = lq::toPlainMesh(lq::generatePlaneGrid(8, 1.0, false));
+TEST(ManuMesh, SimplifiesPlainMeshThroughEigenFreeEntryPoint) {
+  const manumesh::PlainMesh input =
+      manumesh::toPlainMesh(manumesh::generatePlaneGrid(8, 1.0, false));
 
-  lq::SimplifyOptions options = standardQemOptions(0.50);
+  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.50);
   options.maxNormalDeviationDeg = 180.0;
 
-  lq::SimplifyReport report;
-  const lq::PlainMesh output = lq::simplifyPlainMesh(input, options, &report);
+  manumesh::simplification::SimplifyReport report;
+  const manumesh::PlainMesh output =
+      manumesh::simplification::simplifyPlainMesh(input, options, &report);
 
   EXPECT_FALSE(output.faces.empty());
   EXPECT_EQ(report.initialFaces, static_cast<int>(input.faces.size()));
   EXPECT_EQ(report.finalFaces, static_cast<int>(output.faces.size()));
   EXPECT_LT(report.finalFaces, report.initialFaces);
-  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget, report.terminationReason);
+  EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget,
+            report.terminationReason);
 }
 
-TEST(LineQuadricsQem, QEMSimplifierObjectStoresOptionsAndLatestReport) {
-  const lq::Mesh input = lq::generateCylinderGrid(24, 6, 1.0, 2.0);
+TEST(ManuMesh, QEMSimplifierObjectStoresOptionsAndLatestReport) {
+  const manumesh::Mesh input = manumesh::generateCylinderGrid(24, 6, 1.0, 2.0);
 
-  lq::SimplifyOptions options = paperLineQuadricsOptions(0.50);
-  lq::QEMSimplifier simplifier(options);
+  manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.50);
+  manumesh::simplification::QEMSimplifier simplifier(options);
 
-  lq::SimplifyReport copiedReport;
-  const lq::Mesh output = simplifier.simplify(input, &copiedReport);
+  manumesh::simplification::SimplifyReport copiedReport;
+  const manumesh::Mesh output = simplifier.simplify(input, &copiedReport);
 
   EXPECT_FALSE(output.empty());
   EXPECT_EQ(options.targetRatio, simplifier.options().targetRatio);
   EXPECT_EQ(copiedReport.finalFaces, simplifier.report().finalFaces);
   EXPECT_EQ(copiedReport.collapsedEdges, simplifier.report().collapsedEdges);
   EXPECT_LT(simplifier.report().finalFaces, simplifier.report().initialFaces);
-  EXPECT_EQ(lq::SimplifyTerminationReason::ReachedTarget,
+  EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget,
             simplifier.report().terminationReason);
 }
 
-TEST(LineQuadricsQem, QEMSimplifierCopiesPimplStateIndependently) {
-  lq::SimplifyOptions options = paperLineQuadricsOptions(0.60);
-  lq::QEMSimplifier original(options);
+TEST(ManuMesh, QEMSimplifierCopiesPimplStateIndependently) {
+  manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.60);
+  manumesh::simplification::QEMSimplifier original(options);
 
-  const lq::Mesh input = lq::generatePlaneGrid(8, 1.0, false);
-  const lq::Mesh output = original.simplify(input);
+  const manumesh::Mesh input = manumesh::generatePlaneGrid(8, 1.0, false);
+  const manumesh::Mesh output = original.simplify(input);
   ASSERT_FALSE(output.empty());
 
-  lq::QEMSimplifier copied = original;
+  manumesh::simplification::QEMSimplifier copied = original;
   EXPECT_EQ(original.options().targetRatio, copied.options().targetRatio);
   EXPECT_EQ(original.report().finalFaces, copied.report().finalFaces);
 
-  lq::QEMSimplifier moved = std::move(copied);
+  manumesh::simplification::QEMSimplifier moved = std::move(copied);
   EXPECT_EQ(original.report().finalFaces, moved.report().finalFaces);
 
-  lq::SimplifyOptions movedFromOptions;
+  manumesh::simplification::SimplifyOptions movedFromOptions;
   movedFromOptions.targetRatio = 0.75;
   copied.setOptions(movedFromOptions);
   EXPECT_DOUBLE_EQ(0.75, copied.options().targetRatio);
 
-  lq::SimplifyOptions copiedOptions = copied.options();
+  manumesh::simplification::SimplifyOptions copiedOptions = copied.options();
   copiedOptions.targetRatio = 0.25;
   copied.setOptions(copiedOptions);
 
@@ -659,31 +690,33 @@ TEST(LineQuadricsQem, QEMSimplifierCopiesPimplStateIndependently) {
   EXPECT_DOUBLE_EQ(0.25, copied.options().targetRatio);
 }
 
-TEST(LineQuadricsQem, ReportsFeatureLoopsOnCylinderCreases) {
-  const lq::Mesh input = lq::generateCylinderGrid(32, 4, 1.0, 2.0);
-  lq::FeatureOptions options;
+TEST(ManuMesh, ReportsFeatureLoopsOnCylinderCreases) {
+  const manumesh::Mesh input = manumesh::generateCylinderGrid(32, 4, 1.0, 2.0);
+  manumesh::feature::FeatureOptions options;
   options.featureAngleDeg = 30.0;
 
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(input, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(input, options);
 
   EXPECT_GT(features.featureEdges, 0);
   EXPECT_GT(features.dihedralFeatureEdges, 0);
   EXPECT_FALSE(features.loops.empty());
 }
 
-TEST(LineQuadricsQem, MeasuresCircularFeatureLoopAgainstDetectedCircle) {
-  const lq::Mesh input = lq::generateCylinderGrid(32, 4, 1.0, 2.0);
-  const lq::FeatureAnalysis features =
-      lq::detectFeatureCurves(input, circularFeatureOptions());
+TEST(ManuMesh, MeasuresCircularFeatureLoopAgainstDetectedCircle) {
+  const manumesh::Mesh input = manumesh::generateCylinderGrid(32, 4, 1.0, 2.0);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(input, circularFeatureOptions());
   ASSERT_GT(countCircularLoops(features), 0);
 
-  const auto loopIt =
-      std::find_if(features.loops.begin(), features.loops.end(),
-                   [](const lq::FeatureLoop& loop) { return loop.circular; });
+  const auto loopIt = std::find_if(
+      features.loops.begin(), features.loops.end(),
+      [](const manumesh::feature::FeatureLoop& loop) { return loop.circular; });
   ASSERT_NE(loopIt, features.loops.end());
 
-  const lq::DirectionalCurveError error = lq::measureLoopAgainstCircle(
-      input, *loopIt, loopIt->center, loopIt->normal, loopIt->radius);
+  const manumesh::feature::DirectionalCurveError error =
+      manumesh::feature::measureLoopAgainstCircle(input, *loopIt, loopIt->center,
+                                                  loopIt->normal, loopIt->radius);
 
   EXPECT_EQ(error.samples, static_cast<int>(loopIt->vertices.size()));
   EXPECT_NEAR(error.radialRms, loopIt->rmsRadialError, 1e-10);
@@ -692,7 +725,7 @@ TEST(LineQuadricsQem, MeasuresCircularFeatureLoopAgainstDetectedCircle) {
   EXPECT_LT(error.planeMax, 1e-10);
 }
 
-TEST(LineQuadricsQem, ExternalNasaIndustrialMeshesExposeRichFeatureTopology) {
+TEST(ManuMesh, ExternalNasaIndustrialMeshesExposeRichFeatureTopology) {
   struct Case {
     std::string fileName;
     int minFaces = 0;
@@ -708,26 +741,28 @@ TEST(LineQuadricsQem, ExternalNasaIndustrialMeshesExposeRichFeatureTopology) {
 
   for (const Case& testCase : cases) {
     SCOPED_TRACE(testCase.fileName);
-    const lq::Mesh mesh = loadExternalStl(testCase.fileName);
+    const manumesh::Mesh mesh = loadExternalStl(testCase.fileName);
     ASSERT_FALSE(mesh.empty());
 
-    const lq::MeshStats stats = lq::computeMeshStats(mesh);
+    const manumesh::simplification::MeshStats stats =
+        manumesh::simplification::computeMeshStats(mesh);
     EXPECT_GE(stats.faces, testCase.minFaces);
     EXPECT_GT(stats.edges, 0);
     EXPECT_GT(stats.area, 0.0);
     EXPECT_EQ(stats.nonManifoldEdges, 0);
 
-    lq::FeatureOptions featureOptions = circularFeatureOptions();
+    manumesh::feature::FeatureOptions featureOptions = circularFeatureOptions();
     featureOptions.featureAngleDeg = 30.0;
     featureOptions.circleFitRelativeThreshold = 0.05;
-    const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, featureOptions);
+    const manumesh::feature::FeatureAnalysis features =
+        manumesh::feature::detectFeatureCurves(mesh, featureOptions);
     EXPECT_GE(features.featureEdges, testCase.minFeatureEdges);
     EXPECT_GE(countCircularLoops(features), testCase.minCircularLoops);
     EXPECT_GT(features.dihedralFeatureEdges, 0);
   }
 }
 
-TEST(LineQuadricsQem, ExternalDownloadedMeshesCompareIndustrialSimplificationModes) {
+TEST(ManuMesh, ExternalDownloadedMeshesCompareIndustrialSimplificationModes) {
   struct Case {
     std::string fileName;
     bool expectsCircularProjection = false;
@@ -742,7 +777,7 @@ TEST(LineQuadricsQem, ExternalDownloadedMeshesCompareIndustrialSimplificationMod
   constexpr double ratio = 0.45;
   for (const Case& testCase : cases) {
     SCOPED_TRACE(testCase.fileName);
-    const lq::Mesh input = loadExternalStl(testCase.fileName);
+    const manumesh::Mesh input = loadExternalStl(testCase.fileName);
     ASSERT_FALSE(input.empty());
 
     const SimplifiedMesh standard =
@@ -774,19 +809,21 @@ TEST(LineQuadricsQem, ExternalDownloadedMeshesCompareIndustrialSimplificationMod
   }
 }
 
-TEST(LineQuadricsQem, Public2014CastingModelKeepsClosedTopologyAfterLineSimplify) {
-  const lq::Mesh input = loadExternalMesh("casting_aimshape_2014.stl");
+TEST(ManuMesh, Public2014CastingModelKeepsClosedTopologyAfterLineSimplify) {
+  const manumesh::Mesh input = loadExternalMesh("casting_aimshape_2014.stl");
   ASSERT_FALSE(input.empty());
 
-  const lq::MeshStats inputStats = lq::computeMeshStats(input);
+  const manumesh::simplification::MeshStats inputStats =
+      manumesh::simplification::computeMeshStats(input);
   ASSERT_EQ(inputStats.boundaryEdges, 0);
   ASSERT_EQ(inputStats.nonManifoldEdges, 0);
 
-  lq::SimplifyOptions options = paperLineQuadricsOptions(0.25);
-  lq::SimplifyReport report;
-  lq::QEMSimplifier simplifier(options);
-  const lq::Mesh output = simplifier.simplify(input, &report);
-  const lq::MeshStats outputStats = lq::computeMeshStats(output);
+  manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.25);
+  manumesh::simplification::SimplifyReport report;
+  manumesh::simplification::QEMSimplifier simplifier(options);
+  const manumesh::Mesh output = simplifier.simplify(input, &report);
+  const manumesh::simplification::MeshStats outputStats =
+      manumesh::simplification::computeMeshStats(output);
 
   EXPECT_FALSE(output.empty());
   EXPECT_LE(report.finalFaces,
@@ -795,9 +832,10 @@ TEST(LineQuadricsQem, Public2014CastingModelKeepsClosedTopologyAfterLineSimplify
   EXPECT_EQ(outputStats.nonManifoldEdges, 0);
 }
 
-TEST(LineQuadricsQem, ComputesMeshStatsForGeneratedCube) {
-  const lq::Mesh input = lq::generateCubeGrid(4, 1.0);
-  const lq::MeshStats stats = lq::computeMeshStats(input);
+TEST(ManuMesh, ComputesMeshStatsForGeneratedCube) {
+  const manumesh::Mesh input = manumesh::generateCubeGrid(4, 1.0);
+  const manumesh::simplification::MeshStats stats =
+      manumesh::simplification::computeMeshStats(input);
 
   EXPECT_EQ(stats.vertices, static_cast<int>(input.vertices.size()));
   EXPECT_EQ(stats.faces, static_cast<int>(input.faces.size()));
@@ -806,11 +844,12 @@ TEST(LineQuadricsQem, ComputesMeshStatsForGeneratedCube) {
   EXPECT_GT(stats.meanTriangleQuality, 0.0);
 }
 
-TEST(LineQuadricsQem, MeshTopologyCachesBoundaryAndNonManifoldEdges) {
-  lq::Mesh mesh;
+TEST(ManuMesh, MeshTopologyCachesBoundaryAndNonManifoldEdges) {
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0), lq::Vec3(1.0, 0.0, 0.0),  lq::Vec3(0.0, 1.0, 0.0),
-      lq::Vec3(0.0, 0.0, 1.0), lq::Vec3(0.0, 0.0, -1.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),  manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),  manumesh::Vec3(0.0, 0.0, 1.0),
+      manumesh::Vec3(0.0, 0.0, -1.0),
   };
   mesh.faces = {
       {{0, 1, 2}},
@@ -818,9 +857,10 @@ TEST(LineQuadricsQem, MeshTopologyCachesBoundaryAndNonManifoldEdges) {
       {{0, 1, 4}},
   };
 
-  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+  const manumesh::Result<manumesh::MeshTopology> topologyResult =
+      manumesh::MeshTopology::build(mesh);
   ASSERT_TRUE(topologyResult.ok()) << topologyResult.status().message();
-  const lq::MeshTopology& topology = topologyResult.value();
+  const manumesh::MeshTopology& topology = topologyResult.value();
 
   EXPECT_EQ(topology.vertexCount(), 5);
   EXPECT_EQ(topology.faceCount(), 3);
@@ -828,44 +868,47 @@ TEST(LineQuadricsQem, MeshTopologyCachesBoundaryAndNonManifoldEdges) {
   EXPECT_EQ(topology.boundaryEdgeCount(), 6);
   EXPECT_EQ(topology.nonManifoldEdgeCount(), 1);
 
-  const lq::MeshStats stats = lq::computeMeshStats(mesh);
+  const manumesh::simplification::MeshStats stats =
+      manumesh::simplification::computeMeshStats(mesh);
   EXPECT_EQ(stats.edges, topology.edgeCount());
   EXPECT_EQ(stats.boundaryEdges, topology.boundaryEdgeCount());
   EXPECT_EQ(stats.nonManifoldEdges, topology.nonManifoldEdgeCount());
 }
 
-TEST(LineQuadricsQem, MeshTopologyCopiesAndMovesPimplCache) {
-  const lq::Mesh mesh = lq::generatePlaneGrid(4, 1.0, false);
-  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+TEST(ManuMesh, MeshTopologyCopiesAndMovesPimplCache) {
+  const manumesh::Mesh mesh = manumesh::generatePlaneGrid(4, 1.0, false);
+  const manumesh::Result<manumesh::MeshTopology> topologyResult =
+      manumesh::MeshTopology::build(mesh);
   ASSERT_TRUE(topologyResult.ok()) << topologyResult.status().message();
 
-  lq::MeshTopology copied = topologyResult.value();
+  manumesh::MeshTopology copied = topologyResult.value();
   EXPECT_EQ(topologyResult.value().vertexCount(), copied.vertexCount());
   EXPECT_EQ(topologyResult.value().edgeCount(), copied.edgeCount());
   EXPECT_EQ(topologyResult.value().boundaryEdgeCount(), copied.boundaryEdgeCount());
 
-  lq::MeshTopology moved = std::move(copied);
+  manumesh::MeshTopology moved = std::move(copied);
   EXPECT_EQ(static_cast<int>(mesh.vertices.size()), moved.vertexCount());
   EXPECT_GT(moved.edgeCount(), 0);
   EXPECT_GT(moved.boundaryEdgeCount(), 0);
   EXPECT_EQ(0, copied.vertexCount());
 }
 
-TEST(LineQuadricsQem, MeshTopologyRejectsInvalidFaces) {
-  lq::Mesh mesh;
+TEST(ManuMesh, MeshTopologyRejectsInvalidFaces) {
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0),
-      lq::Vec3(0.0, 1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
   };
   mesh.faces = {{{0, 1, 5}}};
 
-  const lq::Result<lq::MeshTopology> topologyResult = lq::MeshTopology::build(mesh);
+  const manumesh::Result<manumesh::MeshTopology> topologyResult =
+      manumesh::MeshTopology::build(mesh);
   EXPECT_FALSE(topologyResult.ok());
-  EXPECT_EQ(topologyResult.status().code(), lq::StatusCode::InvalidArgument);
+  EXPECT_EQ(topologyResult.status().code(), manumesh::StatusCode::InvalidArgument);
 }
 
-TEST(LineQuadricsQem, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
+TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
   const std::filesystem::path objPath =
       std::filesystem::temp_directory_path() / "line_quadrics_bad_face.obj";
   {
@@ -876,62 +919,66 @@ TEST(LineQuadricsQem, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
     out << "f nope 2 3\n";
   }
 
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   std::string error;
-  EXPECT_FALSE(lq::loadObj(objPath.string(), mesh, &error));
+  EXPECT_FALSE(manumesh::loadObj(objPath.string(), mesh, &error));
   EXPECT_FALSE(error.empty());
   std::filesystem::remove(objPath);
 
-  lq::Mesh invalid;
-  invalid.vertices = {lq::Vec3(0.0, 0.0, 0.0)};
+  manumesh::Mesh invalid;
+  invalid.vertices = {manumesh::Vec3(0.0, 0.0, 0.0)};
   invalid.faces = {{{0, 1, 2}}};
   error.clear();
   const std::filesystem::path stlPath =
       std::filesystem::temp_directory_path() / "line_quadrics_invalid.stl";
-  EXPECT_FALSE(lq::saveAsciiStl(stlPath.string(), invalid, "invalid", &error));
+  EXPECT_FALSE(manumesh::saveAsciiStl(stlPath.string(), invalid, "invalid", &error));
   EXPECT_FALSE(error.empty());
 
-  lq::Mesh nonFinite;
+  manumesh::Mesh nonFinite;
   nonFinite.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(std::numeric_limits<double>::infinity(), 0.0, 0.0),
-      lq::Vec3(0.0, 1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(std::numeric_limits<double>::infinity(), 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
   };
   nonFinite.faces = {{{0, 1, 2}}};
   error.clear();
-  EXPECT_FALSE(lq::validateMeshGeometry(nonFinite, &error));
+  EXPECT_FALSE(manumesh::validateMeshGeometry(nonFinite, &error));
   EXPECT_FALSE(error.empty());
 }
 
-TEST(LineQuadricsQem, SimplifierRejectsInvalidOptionsAndMeshes) {
-  const lq::Mesh input = lq::generatePlaneGrid(4, 1.0, false);
+TEST(ManuMesh, SimplifierRejectsInvalidOptionsAndMeshes) {
+  const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
 
-  lq::SimplifyOptions options;
+  manumesh::simplification::SimplifyOptions options;
   options.targetRatio = 0.0;
-  EXPECT_THROW(lq::simplifyMesh(input, options), std::invalid_argument);
+  EXPECT_THROW(manumesh::simplification::simplifyMesh(input, options),
+               std::invalid_argument);
 
-  lq::Mesh invalid;
+  manumesh::Mesh invalid;
   invalid.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0),
-      lq::Vec3(0.0, 1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
   };
   invalid.faces = {{{0, 1, 5}}};
-  EXPECT_THROW(lq::simplifyMesh(invalid, lq::SimplifyOptions{}), std::invalid_argument);
+  EXPECT_THROW(manumesh::simplification::simplifyMesh(
+                   invalid, manumesh::simplification::SimplifyOptions{}),
+               std::invalid_argument);
 
-  lq::Mesh nonFinite = input;
+  manumesh::Mesh nonFinite = input;
   nonFinite.vertices[0].x() = std::numeric_limits<double>::quiet_NaN();
-  EXPECT_THROW(lq::simplifyMesh(nonFinite, lq::SimplifyOptions{}),
+  EXPECT_THROW(manumesh::simplification::simplifyMesh(
+                   nonFinite, manumesh::simplification::SimplifyOptions{}),
                std::invalid_argument);
 }
 
-TEST(LineQuadricsQem, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) {
-  const lq::Mesh input =
+TEST(ManuMesh, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) {
+  const manumesh::Mesh input =
       loadExternalStl("thingi10k/thingi10k_108336_projekt_muse_z_system.stl");
   ASSERT_FALSE(input.empty());
 
-  const lq::DistanceStats identical =
-      lq::compareMeshesBySampledDistance(input, input, 32);
+  const manumesh::simplification::DistanceStats identical =
+      manumesh::simplification::compareMeshesBySampledDistance(input, input, 32);
   EXPECT_NEAR(identical.meanOriginalToSimplified, 0.0, 1e-12);
   EXPECT_NEAR(identical.maxOriginalToSimplified, 0.0, 1e-12);
   EXPECT_NEAR(identical.meanSimplifiedToOriginal, 0.0, 1e-12);
@@ -939,20 +986,22 @@ TEST(LineQuadricsQem, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) 
 
   const SimplifiedMesh simplified =
       simplifyWithReport(input, paperLineQuadricsOptions(0.35));
-  const lq::DistanceStats distance =
-      lq::compareMeshesBySampledDistance(input, simplified.mesh, 32);
+  const manumesh::simplification::DistanceStats distance =
+      manumesh::simplification::compareMeshesBySampledDistance(input, simplified.mesh,
+                                                               32);
   EXPECT_GE(distance.meanOriginalToSimplified, 0.0);
   EXPECT_GE(distance.maxOriginalToSimplified, distance.meanOriginalToSimplified);
   EXPECT_GE(distance.meanSimplifiedToOriginal, 0.0);
   EXPECT_GE(distance.maxSimplifiedToOriginal, distance.meanSimplifiedToOriginal);
 }
 
-TEST(LineQuadricsQem, ExternalBinaryStlLoadKeepsGeometryUsable) {
-  const lq::Mesh loaded =
+TEST(ManuMesh, ExternalBinaryStlLoadKeepsGeometryUsable) {
+  const manumesh::Mesh loaded =
       loadExternalStl("thingi10k/thingi10k_108336_projekt_muse_z_system.stl");
   ASSERT_FALSE(loaded.empty());
 
-  const lq::MeshStats stats = lq::computeMeshStats(loaded);
+  const manumesh::simplification::MeshStats stats =
+      manumesh::simplification::computeMeshStats(loaded);
   EXPECT_EQ(stats.faces, static_cast<int>(loaded.faces.size()));
   EXPECT_GT(stats.vertices, 0);
   EXPECT_GT(stats.edges, 0);

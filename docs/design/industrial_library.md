@@ -1,14 +1,14 @@
 # ManuMesh 工业网格库定位
 
-ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型，已经具备向工业多边形网格几何内核演进的骨架，但还不是完整工业 CAD/mesh kernel。当前代码级兼容标识仍保留 `line_quadrics_qem` 库目标和 `linequadrics.exe` CLI。
+ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型，已经具备向工业多边形网格几何内核演进的骨架，但还不是完整工业 CAD/mesh kernel。当前代码级兼容标识仍保留 `manumesh` 库目标和 `manumesh.exe` CLI。
 
 ## 当前可作为库交付的内容
 
 - CMake 构建和安装目标。
-- `line_quadrics_qem` 共享库或静态库，作为 ManuMesh 当前 ABI 兼容交付物。
-- C++ 公共头：`core`、`algorithms/feature_detection`、`algorithms/simplification`；`features` 只作为旧 include 兼容层。
+- `manumesh` 共享库或静态库，作为 ManuMesh 当前 ABI 兼容交付物。
+- C++ 公共头：`core`、`algorithms/feature_detection`、`algorithms/simplification`。
 - C ABI：`api/CApi.h`。
-- CLI：`linequadrics.exe`，用于批处理、验证和示例。
+- CLI：`manumesh.exe`，用于批处理、验证和示例。
 - 示例：C++ SDK 和 C ABI consumer。
 - 回归测试：76 个非性能测试，另有 performance 构建路径。
 

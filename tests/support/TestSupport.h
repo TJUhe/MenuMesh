@@ -1,15 +1,15 @@
 #pragma once
 
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/core/Mesh.h"
 
 #include <cstddef>
 #include <filesystem>
 #include <string>
 #include <vector>
 
-namespace lq::test {
+namespace manumesh::test {
 
 struct CaseLine {
   std::filesystem::path relativePath;
@@ -18,7 +18,7 @@ struct CaseLine {
 
 struct SimplifiedMesh {
   Mesh mesh;
-  SimplifyReport report;
+  simplification::SimplifyReport report;
 };
 
 std::filesystem::path dataRoot();
@@ -30,17 +30,19 @@ Mesh loadFixtureMesh(const std::filesystem::path& relativePath);
 Mesh loadExternalMesh(const std::filesystem::path& relativePath);
 Mesh loadExternalStl(const std::filesystem::path& relativePath);
 
-FeatureOptions circularFeatureOptions(double circleFitRelativeThreshold = 0.05);
-int countCircularLoops(const FeatureAnalysis& analysis);
-double maxCircularRelativeError(const FeatureAnalysis& analysis);
+simplification::SimplifyOptions standardOptions(double ratio);
+simplification::SimplifyOptions lineOptions(double ratio);
+simplification::SimplifyOptions protectedOptions(double ratio);
 
-SimplifyOptions standardOptions(double ratio);
-SimplifyOptions lineOptions(double ratio);
-SimplifyOptions protectedOptions(double ratio);
+feature::FeatureOptions
+circularFeatureOptions(double circleFitRelativeThreshold = 0.05);
+int countCircularLoops(const feature::FeatureAnalysis& analysis);
+double maxCircularRelativeError(const feature::FeatureAnalysis& analysis);
 
-SimplifiedMesh simplifyWithReport(const Mesh& input, const SimplifyOptions& options);
-void expectReportCountersConsistent(const SimplifyReport& report);
+SimplifiedMesh simplifyWithReport(const Mesh& input,
+                                  const simplification::SimplifyOptions& options);
+void expectReportCountersConsistent(const simplification::SimplifyReport& report);
 void expectBudget(const SimplifiedMesh& result, const Mesh& input, double ratio);
 int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue);
 
-} // namespace lq::test
+} // namespace manumesh::test

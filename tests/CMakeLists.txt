@@ -1,4 +1,4 @@
-set(LQ_UNIT_TEST_SOURCES
+set(MANUMESH_UNIT_TEST_SOURCES
   support/TestSupport.cpp
   unit/api/c_api_tests.cpp
   unit/feature_detection/feature_detection_tests.cpp
@@ -6,84 +6,84 @@ set(LQ_UNIT_TEST_SOURCES
   unit/simplification/simplifier_tests.cpp
 )
 
-add_executable(line_quadrics_qem_tests ${LQ_UNIT_TEST_SOURCES})
-target_include_directories(line_quadrics_qem_tests
+add_executable(manumesh_tests ${MANUMESH_UNIT_TEST_SOURCES})
+target_include_directories(manumesh_tests
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/support"
 )
-target_link_libraries(line_quadrics_qem_tests
+target_link_libraries(manumesh_tests
   PRIVATE
-    line_quadrics_qem::line_quadrics_qem
+    ManuMesh::manumesh
     GTest::gtest_main
 )
-target_compile_definitions(line_quadrics_qem_tests
+target_compile_definitions(manumesh_tests
   PRIVATE
-    LQ_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
-    LQ_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
+    MANUMESH_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+    MANUMESH_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
 )
-lq_apply_warnings(line_quadrics_qem_tests)
-lq_copy_runtime_dependencies(line_quadrics_qem_tests)
-lq_copy_gtest_runtime_dependencies(line_quadrics_qem_tests)
+manumesh_apply_warnings(manumesh_tests)
+manumesh_copy_runtime_dependencies(manumesh_tests)
+manumesh_copy_gtest_runtime_dependencies(manumesh_tests)
 
 include(GoogleTest)
-gtest_add_tests(TARGET line_quadrics_qem_tests
-  SOURCES ${LQ_UNIT_TEST_SOURCES}
-  TEST_LIST LQ_UNIT_TESTS
+gtest_add_tests(TARGET manumesh_tests
+  SOURCES ${MANUMESH_UNIT_TEST_SOURCES}
+  TEST_LIST MANUMESH_UNIT_TESTS
 )
-if(LQ_UNIT_TESTS)
-  set_tests_properties(${LQ_UNIT_TESTS} PROPERTIES LABELS unit)
+if(MANUMESH_UNIT_TESTS)
+  set_tests_properties(${MANUMESH_UNIT_TESTS} PROPERTIES LABELS unit)
 endif()
 
-set(LQ_UNIT_TEST_DEPENDS line_quadrics_qem_tests)
+set(MANUMESH_UNIT_TEST_DEPENDS manumesh_tests)
 foreach(optional_target IN ITEMS
-    linequadrics
-    linequadrics_basic_simplify
-    linequadrics_c_api_basic
+    manumesh
+    manumesh_basic_simplify
+    manumesh_c_api_basic
 )
   if(TARGET ${optional_target})
-    list(APPEND LQ_UNIT_TEST_DEPENDS ${optional_target})
+    list(APPEND MANUMESH_UNIT_TEST_DEPENDS ${optional_target})
   endif()
 endforeach()
 
 add_custom_target(unit-tests
   COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"
     "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -LE performance --output-on-failure
-  DEPENDS ${LQ_UNIT_TEST_DEPENDS}
+  DEPENDS ${MANUMESH_UNIT_TEST_DEPENDS}
   COMMENT "Running non-performance regression tests"
   VERBATIM
 )
 
-if(LQ_BUILD_PERFORMANCE_TESTS)
-  set(LQ_PERFORMANCE_TEST_SOURCES
+if(MANUMESH_BUILD_PERFORMANCE_TESTS)
+  set(MANUMESH_PERFORMANCE_TEST_SOURCES
     support/TestSupport.cpp
     performance/qem_dataset_tests.cpp
   )
 
-  add_executable(line_quadrics_qem_performance_tests ${LQ_PERFORMANCE_TEST_SOURCES})
-  target_include_directories(line_quadrics_qem_performance_tests
+  add_executable(manumesh_performance_tests ${MANUMESH_PERFORMANCE_TEST_SOURCES})
+  target_include_directories(manumesh_performance_tests
     PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/support"
   )
-  target_link_libraries(line_quadrics_qem_performance_tests
+  target_link_libraries(manumesh_performance_tests
     PRIVATE
-      line_quadrics_qem::line_quadrics_qem
+      ManuMesh::manumesh
       GTest::gtest_main
   )
-  target_compile_definitions(line_quadrics_qem_performance_tests
+  target_compile_definitions(manumesh_performance_tests
     PRIVATE
-      LQ_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
-      LQ_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
+      MANUMESH_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+      MANUMESH_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
   )
-  lq_apply_warnings(line_quadrics_qem_performance_tests)
-  lq_copy_runtime_dependencies(line_quadrics_qem_performance_tests)
-  lq_copy_gtest_runtime_dependencies(line_quadrics_qem_performance_tests)
+  manumesh_apply_warnings(manumesh_performance_tests)
+  manumesh_copy_runtime_dependencies(manumesh_performance_tests)
+  manumesh_copy_gtest_runtime_dependencies(manumesh_performance_tests)
 
-  gtest_add_tests(TARGET line_quadrics_qem_performance_tests
-    SOURCES ${LQ_PERFORMANCE_TEST_SOURCES}
-    TEST_LIST LQ_PERFORMANCE_TESTS
+  gtest_add_tests(TARGET manumesh_performance_tests
+    SOURCES ${MANUMESH_PERFORMANCE_TEST_SOURCES}
+    TEST_LIST MANUMESH_PERFORMANCE_TESTS
   )
-  if(LQ_PERFORMANCE_TESTS)
-    set_tests_properties(${LQ_PERFORMANCE_TESTS}
+  if(MANUMESH_PERFORMANCE_TESTS)
+    set_tests_properties(${MANUMESH_PERFORMANCE_TESTS}
       PROPERTIES
         LABELS performance
         RUN_SERIAL TRUE
@@ -93,7 +93,7 @@ if(LQ_BUILD_PERFORMANCE_TESTS)
   add_custom_target(performance-tests
     COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"
       "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -L performance --output-on-failure
-    DEPENDS line_quadrics_qem_performance_tests
+    DEPENDS manumesh_performance_tests
     COMMENT "Running large mesh performance tests"
     VERBATIM
   )

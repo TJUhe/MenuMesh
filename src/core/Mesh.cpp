@@ -1,4 +1,4 @@
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/core/Mesh.h"
 
 #include <algorithm>
 #include <array>
@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace lq {
+namespace manumesh {
 namespace {
 
 struct QuantizedKey {
@@ -549,4 +549,4 @@ std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh) {
   return edges;
 }
 
-} // namespace lq
+} // namespace manumesh

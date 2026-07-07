@@ -1,13 +1,13 @@
 #pragma once
 
 #include "detail/SimplificationTypes.h"
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/core/Mesh.h"
 
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 class SpatialFaceIndex {
 public:
@@ -34,4 +34,4 @@ private:
   std::vector<std::vector<CellCoord>> faceCells_;
 };
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

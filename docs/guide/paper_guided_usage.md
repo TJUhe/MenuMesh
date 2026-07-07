@@ -1,31 +1,31 @@
 # 论文视角下的当前用法
 
-这份说明把 QEM 与 line quadrics 论文中的概念映射到 ManuMesh 当前 `linequadrics.exe`、STL 输出和 CSV 指标。当前验证入口是 CLI、CTest、CSV 和外部 STL/CAD 查看器，不再依赖浏览器预览任务。
+这份说明把 QEM 与 line quadrics 论文中的概念映射到 ManuMesh 当前 `manumesh.exe`、STL 输出和 CSV 指标。当前验证入口是 CLI、CTest、CSV 和外部 STL/CAD 查看器，不再依赖浏览器预览任务。
 
 ## 先建立标准 QEM 对照
 
 单模型标准 QEM：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_standard.stl --method standard --ratio 0.25
+.\build\mingw-ninja-release\bin\manumesh.exe simplify input.stl output_standard.stl --method standard --ratio 0.25
 ```
 
 line quadrics 对照：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_line.stl --method line --ratio 0.25 --line-weight 1e-3 --metrics-csv metrics.csv
+.\build\mingw-ninja-release\bin\manumesh.exe simplify input.stl output_line.stl --method line --ratio 0.25 --line-weight 1e-3 --metrics-csv metrics.csv
 ```
 
 如果要比较不同简化率：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe ratio-sweep input.stl output_ratio_dir --method line --line-weight 1e-3 --ratios "0.8,0.5,0.25,0.1" --samples 512
+.\build\mingw-ninja-release\bin\manumesh.exe ratio-sweep input.stl output_ratio_dir --method line --line-weight 1e-3 --ratios "0.8,0.5,0.25,0.1" --samples 512
 ```
 
 如果要比较绝对目标面数：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe face-sweep input.stl output_face_dir --method line --line-weight 1e-3 --faces "2000,1000,500" --samples 512
+.\build\mingw-ninja-release\bin\manumesh.exe face-sweep input.stl output_face_dir --method line --line-weight 1e-3 --faces "2000,1000,500" --samples 512
 ```
 
 ## line quadrics 在当前程序中的含义
@@ -49,7 +49,7 @@ line quadrics 对照：
 曲线特征保护的推荐起点：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify input.stl output_curve.stl `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify input.stl output_curve.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
   --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 `
   --preserve-feature-curves --feature-protection-mode primitive-curves `
@@ -59,7 +59,7 @@ line quadrics 对照：
   --samples 512 --metrics-csv metrics.csv
 ```
 
-默认 `primitive-curves` 只硬保护圆、近圆和椭圆等拟合 primitive；普通折线和 generic creases 主要由软成本影响。需要旧式严格锁边时使用 `--feature-protection-mode all-feature-edges` 或兼容别名 `--protect-all-feature-edges`。
+默认 `primitive-curves` 只硬保护圆、近圆和椭圆等拟合 primitive；普通折线和 generic creases 主要由软成本影响。需要严格锁边时使用 `--feature-protection-mode all-feature-edges`。
 
 ## 边界和工业安全过滤
 

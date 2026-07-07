@@ -16,7 +16,7 @@
 普通外部验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-external `
+.\build\mingw-ninja-release\bin\manumesh.exe validate-external `
   --input-dir tests/data/external/common_3d_test_models `
   --ratio 0.25 `
   --samples 800 `
@@ -26,7 +26,7 @@
 特征验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe validate-features `
+.\build\mingw-ninja-release\bin\manumesh.exe validate-features `
   --ratio 0.20 `
   --samples 1000 `
   --output-dir tests/output/feature_curve_validation

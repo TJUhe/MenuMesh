@@ -1,4 +1,4 @@
-#include "line_quadrics_qem/core/MeshGenerators.h"
+#include "manumesh/core/MeshGenerators.h"
 
 #include <algorithm>
 #include <cmath>
@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace lq {
+namespace manumesh {
 namespace {
 
 struct GridCell {
@@ -477,4 +477,4 @@ bool generateMeshByName(const std::string& type, int n, Mesh& mesh,
   return true;
 }
 
-} // namespace lq
+} // namespace manumesh

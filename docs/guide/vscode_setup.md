@@ -82,8 +82,8 @@ cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
-  -DLQ_GOOGLETEST_PROVIDER=auto `
-  -DLQ_BUILD_PERFORMANCE_TESTS=OFF
+  -DMANUMESH_GOOGLETEST_PROVIDER=auto `
+  -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF
 ```
 
 构建全部目标：
@@ -104,7 +104,7 @@ cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 
 Release 全量构建会生成测试程序。当前 CMake 配置使用 `gtest_add_tests` 从源码静态注册 GoogleTest 用例，不再使用需要启动测试 exe 的 `gtest_discover_tests`。这样 CTest 运行单个 CLI 或示例测试时，不会因为另一个 GoogleTest exe 的运行时 DLL 问题而提前报错。
 
-仓库的 CMake 仍会把当前 `CMAKE_CXX_COMPILER` 所在目录中的 MinGW 运行时 DLL 复制到构建目录的 `bin` 下。MinGW 的 GoogleTest 默认不再使用仓库里的预编译 `libgtest.dll`、`libgtest_main.dll`；`LQ_GOOGLETEST_PROVIDER=auto` 会跳过这些 DLL，并为当前 MinGW 编译器构建 GoogleTest。这样可以避免外部机器 gcc 版本较旧时，测试 exe 启动阶段因为 GoogleTest DLL 依赖了另一套 MinGW 运行时符号而报 `0xc0000139`。
+仓库的 CMake 仍会把当前 `CMAKE_CXX_COMPILER` 所在目录中的 MinGW 运行时 DLL 复制到构建目录的 `bin` 下。MinGW 的 GoogleTest 默认不再使用仓库里的预编译 `libgtest.dll`、`libgtest_main.dll`；`MANUMESH_GOOGLETEST_PROVIDER=auto` 会跳过这些 DLL，并为当前 MinGW 编译器构建 GoogleTest。这样可以避免外部机器 gcc 版本较旧时，测试 exe 启动阶段因为 GoogleTest DLL 依赖了另一套 MinGW 运行时符号而报 `0xc0000139`。
 
 如果另一台机器仍然出现 `0xc0000139`，优先检查：
 
@@ -125,8 +125,8 @@ cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
-  -DLQ_GOOGLETEST_PROVIDER=auto `
-  -DLQ_BUILD_PERFORMANCE_TESTS=OFF
+  -DMANUMESH_GOOGLETEST_PROVIDER=auto `
+  -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF
 cmake --build $buildDir --parallel
 ```
 
@@ -224,7 +224,7 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 生成特征报告：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
 & $exe feature-report `
   tests\data\feature_fixtures\coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
@@ -236,7 +236,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequa
 带特征曲线保护的简化：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
 & $exe simplify `
   tests\data\feature_fixtures\coaxial_hole_plate.obj `
   output\vscode_demo\feature_curves.stl `
@@ -259,7 +259,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequa
 比例扫描：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
 & $exe ratio-sweep `
   tests\data\external\fandisk_2014.stl `
   output\vscode_demo\ratio_sweep `
@@ -275,7 +275,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequa
 外部验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/linequadrics.exe"
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-features --ratio 0.20 --samples 1000
 & $exe validate-external --ratio 0.25 --samples 800
 ```

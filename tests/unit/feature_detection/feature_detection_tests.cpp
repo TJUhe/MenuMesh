@@ -1,6 +1,6 @@
 #include "TestSupport.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
-#include "line_quadrics_qem/core/MeshGenerators.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/core/MeshGenerators.h"
 
 #include <algorithm>
 #include <cmath>
@@ -13,45 +13,47 @@
 namespace {
 
 struct PlaneCluster {
-  lq::Vec3 normal = lq::Vec3::Zero();
+  manumesh::Vec3 normal = manumesh::Vec3::Zero();
   double offset = 0.0;
   double area = 0.0;
 };
 
-using lq::test::countCircularLoops;
-using lq::test::loadFixtureMesh;
+using manumesh::test::countCircularLoops;
+using manumesh::test::loadFixtureMesh;
 
-namespace feature = lq::feature;
+namespace feature = manumesh::feature;
 
-int countClosedLoops(const lq::FeatureAnalysis& analysis) {
-  return static_cast<int>(
-      std::count_if(analysis.loops.begin(), analysis.loops.end(),
-                    [](const lq::FeatureLoop& loop) { return loop.closed; }));
-}
-
-int countLoopsOfType(const lq::FeatureAnalysis& analysis,
-                     lq::FeaturePrimitiveType primitive) {
+int countClosedLoops(const manumesh::feature::FeatureAnalysis& analysis) {
   return static_cast<int>(std::count_if(
       analysis.loops.begin(), analysis.loops.end(),
-      [&](const lq::FeatureLoop& loop) { return loop.primitive == primitive; }));
+      [](const manumesh::feature::FeatureLoop& loop) { return loop.closed; }));
 }
 
-lq::FeatureOptions discreteOnlyOptions() {
-  lq::FeatureOptions options;
+int countLoopsOfType(const manumesh::feature::FeatureAnalysis& analysis,
+                     manumesh::feature::FeaturePrimitiveType primitive) {
+  return static_cast<int>(
+      std::count_if(analysis.loops.begin(), analysis.loops.end(),
+                    [&](const manumesh::feature::FeatureLoop& loop) {
+                      return loop.primitive == primitive;
+                    }));
+}
+
+manumesh::feature::FeatureOptions discreteOnlyOptions() {
+  manumesh::feature::FeatureOptions options;
   options.useNormalTensorFeatures = false;
   return options;
 }
 
-std::vector<PlaneCluster> clusterCoplanarFaces(const lq::Mesh& mesh,
+std::vector<PlaneCluster> clusterCoplanarFaces(const manumesh::Mesh& mesh,
                                                double normalTolerance,
                                                double offsetTolerance) {
   std::vector<PlaneCluster> clusters;
-  for (const lq::Face& face : mesh.faces) {
-    const lq::Vec3& a = mesh.vertices[face.v[0]];
-    const lq::Vec3& b = mesh.vertices[face.v[1]];
-    const lq::Vec3& c = mesh.vertices[face.v[2]];
-    lq::Vec3 normal = lq::triangleNormal(a, b, c);
-    const double area = lq::triangleArea(a, b, c);
+  for (const manumesh::Face& face : mesh.faces) {
+    const manumesh::Vec3& a = mesh.vertices[face.v[0]];
+    const manumesh::Vec3& b = mesh.vertices[face.v[1]];
+    const manumesh::Vec3& c = mesh.vertices[face.v[2]];
+    manumesh::Vec3 normal = manumesh::triangleNormal(a, b, c);
+    const double area = manumesh::triangleArea(a, b, c);
     if (area <= 1e-12 || normal.norm() <= 1e-12) {
       continue;
     }
@@ -80,11 +82,11 @@ std::vector<PlaneCluster> clusterCoplanarFaces(const lq::Mesh& mesh,
   return clusters;
 }
 
-std::vector<lq::FeatureLoop>
-circularLoopsNearRadius(const lq::FeatureAnalysis& analysis, double radius,
-                        double tolerance) {
-  std::vector<lq::FeatureLoop> result;
-  for (const lq::FeatureLoop& loop : analysis.loops) {
+std::vector<manumesh::feature::FeatureLoop>
+circularLoopsNearRadius(const manumesh::feature::FeatureAnalysis& analysis,
+                        double radius, double tolerance) {
+  std::vector<manumesh::feature::FeatureLoop> result;
+  for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
     if (loop.circular && std::abs(loop.radius - radius) <= tolerance) {
       result.push_back(loop);
     }
@@ -92,65 +94,68 @@ circularLoopsNearRadius(const lq::FeatureAnalysis& analysis, double radius,
   return result;
 }
 
-double radialCenterOffsetBetweenLoops(const lq::FeatureLoop& a,
-                                      const lq::FeatureLoop& b) {
-  lq::Vec3 axis = a.normal;
+double radialCenterOffsetBetweenLoops(const manumesh::feature::FeatureLoop& a,
+                                      const manumesh::feature::FeatureLoop& b) {
+  manumesh::Vec3 axis = a.normal;
   if (axis.norm() <= 1e-20) {
     return std::numeric_limits<double>::infinity();
   }
   axis.normalize();
-  const lq::Vec3 centerDelta = b.center - a.center;
+  const manumesh::Vec3 centerDelta = b.center - a.center;
   return (centerDelta - axis * centerDelta.dot(axis)).norm();
 }
 
-double parallelError(const lq::Vec3& a, const lq::Vec3& b) {
+double parallelError(const manumesh::Vec3& a, const manumesh::Vec3& b) {
   if (a.norm() <= 1e-20 || b.norm() <= 1e-20) {
     return std::numeric_limits<double>::infinity();
   }
   return 1.0 - std::abs(a.normalized().dot(b.normalized()));
 }
 
-bool hasPlaneCluster(const std::vector<PlaneCluster>& planes, const lq::Vec3& normal,
-                     double offset, double minArea) {
-  lq::Vec3 n = normal.normalized();
+bool hasPlaneCluster(const std::vector<PlaneCluster>& planes,
+                     const manumesh::Vec3& normal, double offset, double minArea) {
+  manumesh::Vec3 n = normal.normalized();
   return std::any_of(planes.begin(), planes.end(), [&](const PlaneCluster& plane) {
     return plane.normal.dot(n) > 1.0 - 1e-12 &&
            std::abs(plane.offset - offset) < 1e-10 && plane.area > minArea;
   });
 }
 
-lq::Mesh makeBranchedCircularBoundaryMesh() {
+manumesh::Mesh makeBranchedCircularBoundaryMesh() {
   constexpr int kSegments = 16;
   constexpr double kPi = 3.141592653589793238462643383279502884;
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   for (int i = 0; i < kSegments; ++i) {
     const double angle =
         2.0 * kPi * static_cast<double>(i) / static_cast<double>(kSegments);
-    mesh.vertices.push_back(lq::Vec3(std::cos(angle), std::sin(angle), 0.0));
+    mesh.vertices.push_back(manumesh::Vec3(std::cos(angle), std::sin(angle), 0.0));
   }
   const int center = static_cast<int>(mesh.vertices.size());
-  mesh.vertices.push_back(lq::Vec3(0.0, 0.0, 0.0));
+  mesh.vertices.push_back(manumesh::Vec3(0.0, 0.0, 0.0));
   for (int i = 0; i < kSegments; ++i) {
     mesh.faces.push_back({{center, i, (i + 1) % kSegments}});
   }
 
   const int a = static_cast<int>(mesh.vertices.size());
-  mesh.vertices.push_back(lq::Vec3(2.2, 0.6, 0.0));
+  mesh.vertices.push_back(manumesh::Vec3(2.2, 0.6, 0.0));
   const int b = static_cast<int>(mesh.vertices.size());
-  mesh.vertices.push_back(lq::Vec3(1.8, 1.4, 0.0));
+  mesh.vertices.push_back(manumesh::Vec3(1.8, 1.4, 0.0));
   mesh.faces.push_back({{0, a, b}});
   mesh.faces.push_back({{0, b, 4}});
   return mesh;
 }
 
-lq::Mesh makeMultiJunctionPolygonalBoundaryMesh() {
-  lq::Mesh mesh;
+manumesh::Mesh makeMultiJunctionPolygonalBoundaryMesh() {
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),   lq::Vec3(2.0, 0.0, 0.0),   lq::Vec3(3.0, 0.5, 0.0),
-      lq::Vec3(3.0, 1.7, 0.0),   lq::Vec3(2.0, 2.2, 0.0),   lq::Vec3(0.5, 2.0, 0.0),
-      lq::Vec3(-0.2, 1.2, 0.0),  lq::Vec3(-0.1, 0.4, 0.0),  lq::Vec3(1.2, 1.0, 0.0),
-      lq::Vec3(-0.8, -0.3, 0.0), lq::Vec3(-0.3, -0.8, 0.0), lq::Vec3(3.6, 0.2, 0.0),
-      lq::Vec3(3.8, 0.9, 0.0),   lq::Vec3(0.0, 2.7, 0.0),   lq::Vec3(0.8, 2.8, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),   manumesh::Vec3(2.0, 0.0, 0.0),
+      manumesh::Vec3(3.0, 0.5, 0.0),   manumesh::Vec3(3.0, 1.7, 0.0),
+      manumesh::Vec3(2.0, 2.2, 0.0),   manumesh::Vec3(0.5, 2.0, 0.0),
+      manumesh::Vec3(-0.2, 1.2, 0.0),  manumesh::Vec3(-0.1, 0.4, 0.0),
+      manumesh::Vec3(1.2, 1.0, 0.0),   manumesh::Vec3(-0.8, -0.3, 0.0),
+      manumesh::Vec3(-0.3, -0.8, 0.0), manumesh::Vec3(3.6, 0.2, 0.0),
+      manumesh::Vec3(3.8, 0.9, 0.0),   manumesh::Vec3(0.0, 2.7, 0.0),
+      manumesh::Vec3(0.8, 2.8, 0.0),
   };
   constexpr int center = 8;
   for (int i = 0; i < 8; ++i) {
@@ -162,12 +167,12 @@ lq::Mesh makeMultiJunctionPolygonalBoundaryMesh() {
   return mesh;
 }
 
-bool hasClosedLoopWithVertices(const lq::FeatureAnalysis& features,
+bool hasClosedLoopWithVertices(const manumesh::feature::FeatureAnalysis& features,
                                const std::vector<int>& expectedVertices) {
   std::vector<int> expected = expectedVertices;
   std::sort(expected.begin(), expected.end());
   return std::any_of(features.loops.begin(), features.loops.end(),
-                     [&](const lq::FeatureLoop& loop) {
+                     [&](const manumesh::feature::FeatureLoop& loop) {
                        if (!loop.closed || loop.vertices.size() != expected.size()) {
                          return false;
                        }
@@ -179,17 +184,19 @@ bool hasClosedLoopWithVertices(const lq::FeatureAnalysis& features,
 
 } // namespace
 
-TEST(FeatureDetection, FeatureNamespaceApiAndLegacyAliasesMatch) {
-  static_assert(std::is_same_v<lq::FeatureAnalysis, feature::FeatureAnalysis>);
-  static_assert(std::is_same_v<lq::FeatureDetector, feature::FeatureDetector>);
+TEST(FeatureDetection, FeatureNamespaceApiIsProjectScoped) {
   static_assert(
-      std::is_same_v<lq::FeaturePrimitiveType, feature::FeaturePrimitiveType>);
+      std::is_same_v<manumesh::feature::FeatureAnalysis, feature::FeatureAnalysis>);
+  static_assert(
+      std::is_same_v<manumesh::feature::FeatureDetector, feature::FeatureDetector>);
+  static_assert(std::is_same_v<manumesh::feature::FeaturePrimitiveType,
+                               feature::FeaturePrimitiveType>);
 
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0),
-      lq::Vec3(0.0, 1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
   };
   mesh.faces = {{{0, 1, 2}}};
 
@@ -199,24 +206,25 @@ TEST(FeatureDetection, FeatureNamespaceApiAndLegacyAliasesMatch) {
 
   const feature::FeatureAnalysis direct = feature::detectFeatureCurves(mesh, options);
   const feature::FeatureAnalysis objectResult = detector.analyze(mesh);
-  const lq::FeatureAnalysis legacy = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis projectScoped =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
   EXPECT_EQ(direct.featureEdges, objectResult.featureEdges);
-  EXPECT_EQ(direct.loops.size(), legacy.loops.size());
+  EXPECT_EQ(direct.loops.size(), projectScoped.loops.size());
   EXPECT_EQ("circle", feature::toString(feature::FeaturePrimitiveType::Circle));
 }
 
 TEST(FeatureDetection, ClassifiesBoundaryEdgesOnOpenTriangle) {
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0),
-      lq::Vec3(0.0, 1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
   };
   mesh.faces = {{{0, 1, 2}}};
 
-  const lq::FeatureAnalysis features =
-      lq::detectFeatureCurves(mesh, discreteOnlyOptions());
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, discreteOnlyOptions());
 
   EXPECT_EQ(3, features.featureEdges);
   EXPECT_EQ(3, features.boundaryFeatureEdges);
@@ -224,45 +232,46 @@ TEST(FeatureDetection, ClassifiesBoundaryEdgesOnOpenTriangle) {
   EXPECT_EQ(0, features.nonManifoldFeatureEdges);
   EXPECT_EQ(1, countClosedLoops(features));
   ASSERT_EQ(mesh.vertices.size(), features.vertices.size());
-  for (const lq::VertexFeature& vertex : features.vertices) {
+  for (const manumesh::feature::VertexFeature& vertex : features.vertices) {
     EXPECT_TRUE(vertex.isFeature);
   }
 }
 
 TEST(FeatureDetection, FeatureDetectorObjectStoresOptions) {
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.minFeatureLoopVertices = 3;
-  lq::FeatureDetector detector(options);
+  manumesh::feature::FeatureDetector detector(options);
   EXPECT_EQ(3, detector.options().minFeatureLoopVertices);
 
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0),
-      lq::Vec3(0.0, 1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
   };
   mesh.faces = {{{0, 1, 2}}};
-  const lq::FeatureAnalysis first = detector.analyze(mesh);
+  const manumesh::feature::FeatureAnalysis first = detector.analyze(mesh);
   EXPECT_EQ(3, first.featureEdges);
 
   options.minFeatureLoopVertices = 100;
   detector.setOptions(options);
   EXPECT_EQ(100, detector.options().minFeatureLoopVertices);
-  const lq::FeatureAnalysis second = detector.analyze(mesh);
-  const lq::FeatureAnalysis direct = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis second = detector.analyze(mesh);
+  const manumesh::feature::FeatureAnalysis direct =
+      manumesh::feature::detectFeatureCurves(mesh, options);
   EXPECT_EQ(first.featureEdges, second.featureEdges);
   EXPECT_EQ(direct.loops.size(), second.loops.size());
   EXPECT_EQ(direct.featureEdges, second.featureEdges);
 }
 
 TEST(FeatureDetection, FeatureDetectorCopiesAndMovesPimplOptions) {
-  lq::FeatureOptions originalOptions = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions originalOptions = discreteOnlyOptions();
   originalOptions.featureAngleDeg = 25.0;
   originalOptions.minFeatureLoopVertices = 5;
-  lq::FeatureDetector original(originalOptions);
+  manumesh::feature::FeatureDetector original(originalOptions);
 
-  lq::FeatureDetector copied(original);
-  lq::FeatureOptions changedOptions = originalOptions;
+  manumesh::feature::FeatureDetector copied(original);
+  manumesh::feature::FeatureOptions changedOptions = originalOptions;
   changedOptions.featureAngleDeg = 70.0;
   changedOptions.minFeatureLoopVertices = 100;
   original.setOptions(changedOptions);
@@ -271,7 +280,7 @@ TEST(FeatureDetection, FeatureDetectorCopiesAndMovesPimplOptions) {
   EXPECT_EQ(5, copied.options().minFeatureLoopVertices);
   EXPECT_DOUBLE_EQ(70.0, original.options().featureAngleDeg);
 
-  lq::FeatureDetector assigned;
+  manumesh::feature::FeatureDetector assigned;
   assigned = copied;
   changedOptions.featureAngleDeg = 35.0;
   copied.setOptions(changedOptions);
@@ -280,21 +289,22 @@ TEST(FeatureDetection, FeatureDetectorCopiesAndMovesPimplOptions) {
   EXPECT_EQ(5, assigned.options().minFeatureLoopVertices);
   EXPECT_DOUBLE_EQ(35.0, copied.options().featureAngleDeg);
 
-  lq::FeatureDetector moved(std::move(assigned));
+  manumesh::feature::FeatureDetector moved(std::move(assigned));
   EXPECT_DOUBLE_EQ(25.0, moved.options().featureAngleDeg);
   EXPECT_EQ(5, moved.options().minFeatureLoopVertices);
 
-  lq::FeatureDetector moveAssigned;
+  manumesh::feature::FeatureDetector moveAssigned;
   moveAssigned = std::move(moved);
   EXPECT_DOUBLE_EQ(25.0, moveAssigned.options().featureAngleDeg);
   EXPECT_EQ(5, moveAssigned.options().minFeatureLoopVertices);
 }
 
 TEST(FeatureDetection, ClassifiesNonManifoldEdgesSeparately) {
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0), lq::Vec3(1.0, 0.0, 0.0),  lq::Vec3(0.0, 1.0, 0.0),
-      lq::Vec3(0.0, 0.0, 1.0), lq::Vec3(0.0, 0.0, -1.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),  manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),  manumesh::Vec3(0.0, 0.0, 1.0),
+      manumesh::Vec3(0.0, 0.0, -1.0),
   };
   mesh.faces = {
       {{0, 1, 2}},
@@ -302,8 +312,8 @@ TEST(FeatureDetection, ClassifiesNonManifoldEdgesSeparately) {
       {{0, 1, 4}},
   };
 
-  const lq::FeatureAnalysis features =
-      lq::detectFeatureCurves(mesh, discreteOnlyOptions());
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, discreteOnlyOptions());
 
   EXPECT_EQ(1, features.nonManifoldFeatureEdges);
   EXPECT_GT(features.boundaryFeatureEdges, 0);
@@ -313,26 +323,27 @@ TEST(FeatureDetection, ClassifiesNonManifoldEdgesSeparately) {
 }
 
 TEST(FeatureDetection, DihedralThresholdControlsCreaseEdges) {
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),
-      lq::Vec3(1.0, 0.0, 0.0),
-      lq::Vec3(0.0, 1.0, 0.0),
-      lq::Vec3(0.0, 0.0, 1.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 1.0),
   };
   mesh.faces = {
       {{0, 1, 2}},
       {{1, 0, 3}},
   };
 
-  lq::FeatureOptions strict = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions strict = discreteOnlyOptions();
   strict.featureAngleDeg = 120.0;
-  const lq::FeatureAnalysis strictFeatures = lq::detectFeatureCurves(mesh, strict);
+  const manumesh::feature::FeatureAnalysis strictFeatures =
+      manumesh::feature::detectFeatureCurves(mesh, strict);
 
-  lq::FeatureOptions permissive = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions permissive = discreteOnlyOptions();
   permissive.featureAngleDeg = 30.0;
-  const lq::FeatureAnalysis permissiveFeatures =
-      lq::detectFeatureCurves(mesh, permissive);
+  const manumesh::feature::FeatureAnalysis permissiveFeatures =
+      manumesh::feature::detectFeatureCurves(mesh, permissive);
 
   EXPECT_EQ(0, strictFeatures.dihedralFeatureEdges);
   EXPECT_EQ(1, permissiveFeatures.dihedralFeatureEdges);
@@ -340,18 +351,19 @@ TEST(FeatureDetection, DihedralThresholdControlsCreaseEdges) {
 }
 
 TEST(FeatureDetection, DetectsCircularCylinderBoundaryLoops) {
-  const lq::Mesh mesh = lq::generateCylinderGrid(32, 4, 1.0, 2.0);
+  const manumesh::Mesh mesh = manumesh::generateCylinderGrid(32, 4, 1.0, 2.0);
 
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.featureAngleDeg = 25.0;
   options.circleFitRelativeThreshold = 0.04;
   options.minFeatureLoopVertices = 8;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
   EXPECT_GE(countCircularLoops(features), 2);
-  const auto loopIt =
-      std::find_if(features.loops.begin(), features.loops.end(),
-                   [](const lq::FeatureLoop& loop) { return loop.circular; });
+  const auto loopIt = std::find_if(
+      features.loops.begin(), features.loops.end(),
+      [](const manumesh::feature::FeatureLoop& loop) { return loop.circular; });
   ASSERT_NE(loopIt, features.loops.end());
   EXPECT_NEAR(loopIt->radius, 1.0, 1e-10);
   EXPECT_LT(loopIt->rmsRadialError, 1e-10);
@@ -359,14 +371,15 @@ TEST(FeatureDetection, DetectsCircularCylinderBoundaryLoops) {
 }
 
 TEST(FeatureDetection, RecoversCircularLoopFromBranchedFeatureGraph) {
-  const lq::Mesh mesh = makeBranchedCircularBoundaryMesh();
+  const manumesh::Mesh mesh = makeBranchedCircularBoundaryMesh();
 
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.circleFitRelativeThreshold = 0.03;
   options.minFeatureLoopVertices = 12;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
-  const std::vector<lq::FeatureLoop> unitLoops =
+  const std::vector<manumesh::feature::FeatureLoop> unitLoops =
       circularLoopsNearRadius(features, 1.0, 1e-8);
   ASSERT_EQ(1u, unitLoops.size());
   EXPECT_EQ(16, static_cast<int>(unitLoops.front().vertices.size()));
@@ -377,13 +390,14 @@ TEST(FeatureDetection, RecoversCircularLoopFromBranchedFeatureGraph) {
 }
 
 TEST(FeatureDetection, RecoversPolygonalCycleThroughMultipleJunctions) {
-  const lq::Mesh mesh = makeMultiJunctionPolygonalBoundaryMesh();
+  const manumesh::Mesh mesh = makeMultiJunctionPolygonalBoundaryMesh();
 
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.minFeatureLoopVertices = 8;
   options.circleFitRelativeThreshold = 0.005;
   options.ellipseFitRelativeThreshold = 0.005;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
   EXPECT_TRUE(hasClosedLoopWithVertices(features, {0, 1, 2, 3, 4, 5, 6, 7}));
   EXPECT_TRUE(features.vertices[0].junction);
@@ -392,20 +406,22 @@ TEST(FeatureDetection, RecoversPolygonalCycleThroughMultipleJunctions) {
 }
 
 TEST(FeatureDetection, FixtureDetectsCoaxialHoleLoopsAndPlanarFaces) {
-  const lq::Mesh mesh = loadFixtureMesh("feature_fixtures/coaxial_hole_plate.obj");
+  const manumesh::Mesh mesh =
+      loadFixtureMesh("feature_fixtures/coaxial_hole_plate.obj");
   ASSERT_FALSE(mesh.empty());
 
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.featureAngleDeg = 25.0;
   options.circleFitRelativeThreshold = 0.03;
   options.minFeatureLoopVertices = 16;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
-  const std::vector<lq::FeatureLoop> innerHoleLoops =
+  const std::vector<manumesh::feature::FeatureLoop> innerHoleLoops =
       circularLoopsNearRadius(features, 0.6, 1e-6);
 
   ASSERT_EQ(2u, innerHoleLoops.size());
-  for (const lq::FeatureLoop& loop : innerHoleLoops) {
+  for (const manumesh::feature::FeatureLoop& loop : innerHoleLoops) {
     EXPECT_EQ(24, static_cast<int>(loop.vertices.size()));
     EXPECT_NEAR(loop.center.x(), 0.0, 1e-10);
     EXPECT_NEAR(loop.center.y(), 0.0, 1e-10);
@@ -415,8 +431,8 @@ TEST(FeatureDetection, FixtureDetectsCoaxialHoleLoopsAndPlanarFaces) {
     EXPECT_LT(loop.rmsPlaneError, 1e-10);
   }
 
-  const lq::Vec3 axisA = innerHoleLoops[0].normal.normalized();
-  const lq::Vec3 axisB = innerHoleLoops[1].normal.normalized();
+  const manumesh::Vec3 axisA = innerHoleLoops[0].normal.normalized();
+  const manumesh::Vec3 axisB = innerHoleLoops[1].normal.normalized();
   const double coaxialAngleError = 1.0 - std::abs(axisA.dot(axisB));
   const double radialCenterOffset =
       radialCenterOffsetBetweenLoops(innerHoleLoops[0], innerHoleLoops[1]);
@@ -436,22 +452,23 @@ TEST(FeatureDetection, FixtureDetectsCoaxialHoleLoopsAndPlanarFaces) {
 }
 
 TEST(FeatureDetection, FixtureDetectsTiltedCoaxialHoleAxis) {
-  const lq::Mesh mesh =
+  const manumesh::Mesh mesh =
       loadFixtureMesh("feature_fixtures/tilted_coaxial_hole_plate.obj");
   ASSERT_FALSE(mesh.empty());
 
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.featureAngleDeg = 25.0;
   options.circleFitRelativeThreshold = 0.03;
   options.minFeatureLoopVertices = 16;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
-  const std::vector<lq::FeatureLoop> holeLoops =
+  const std::vector<manumesh::feature::FeatureLoop> holeLoops =
       circularLoopsNearRadius(features, 0.5, 1e-6);
   ASSERT_EQ(2u, holeLoops.size());
 
-  const lq::Vec3 expectedAxis(0.35, 0.2, 1.0);
-  const lq::Vec3 centerDelta = holeLoops[1].center - holeLoops[0].center;
+  const manumesh::Vec3 expectedAxis(0.35, 0.2, 1.0);
+  const manumesh::Vec3 centerDelta = holeLoops[1].center - holeLoops[0].center;
   EXPECT_LT(parallelError(centerDelta, expectedAxis), 1e-12);
   EXPECT_LT(parallelError(holeLoops[0].normal, expectedAxis), 1e-12);
   EXPECT_LT(parallelError(holeLoops[1].normal, expectedAxis), 1e-12);
@@ -459,16 +476,18 @@ TEST(FeatureDetection, FixtureDetectsTiltedCoaxialHoleAxis) {
 }
 
 TEST(FeatureDetection, FixtureExposesEccentricHoleNonCoaxiality) {
-  const lq::Mesh mesh = loadFixtureMesh("feature_fixtures/eccentric_hole_plate.obj");
+  const manumesh::Mesh mesh =
+      loadFixtureMesh("feature_fixtures/eccentric_hole_plate.obj");
   ASSERT_FALSE(mesh.empty());
 
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.featureAngleDeg = 25.0;
   options.circleFitRelativeThreshold = 0.03;
   options.minFeatureLoopVertices = 16;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
-  const std::vector<lq::FeatureLoop> holeLoops =
+  const std::vector<manumesh::feature::FeatureLoop> holeLoops =
       circularLoopsNearRadius(features, 0.55, 1e-6);
   ASSERT_EQ(2u, holeLoops.size());
   EXPECT_NEAR(holeLoops[0].radius, 0.55, 1e-10);
@@ -477,86 +496,91 @@ TEST(FeatureDetection, FixtureExposesEccentricHoleNonCoaxiality) {
 }
 
 TEST(FeatureDetection, FixtureClassifiesEllipseAndNearCircleLoops) {
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.featureAngleDeg = 25.0;
   options.circleFitRelativeThreshold = 0.03;
   options.ellipseFitRelativeThreshold = 0.03;
   options.nearCircleAxisRatioTolerance = 0.08;
   options.minFeatureLoopVertices = 16;
 
-  const lq::Mesh ellipseMesh =
+  const manumesh::Mesh ellipseMesh =
       loadFixtureMesh("feature_fixtures/elliptical_hole_plate.obj");
   ASSERT_FALSE(ellipseMesh.empty());
-  const lq::FeatureAnalysis ellipseFeatures =
-      lq::detectFeatureCurves(ellipseMesh, options);
-  EXPECT_GE(countLoopsOfType(ellipseFeatures, lq::FeaturePrimitiveType::Ellipse), 2);
-  const auto ellipseIt =
-      std::find_if(ellipseFeatures.loops.begin(), ellipseFeatures.loops.end(),
-                   [](const lq::FeatureLoop& loop) {
-                     return loop.primitive == lq::FeaturePrimitiveType::Ellipse &&
-                            loop.majorRadius < 1.0;
-                   });
+  const manumesh::feature::FeatureAnalysis ellipseFeatures =
+      manumesh::feature::detectFeatureCurves(ellipseMesh, options);
+  EXPECT_GE(countLoopsOfType(ellipseFeatures,
+                             manumesh::feature::FeaturePrimitiveType::Ellipse),
+            2);
+  const auto ellipseIt = std::find_if(
+      ellipseFeatures.loops.begin(), ellipseFeatures.loops.end(),
+      [](const manumesh::feature::FeatureLoop& loop) {
+        return loop.primitive == manumesh::feature::FeaturePrimitiveType::Ellipse &&
+               loop.majorRadius < 1.0;
+      });
   ASSERT_NE(ellipseIt, ellipseFeatures.loops.end());
   EXPECT_NEAR(ellipseIt->majorRadius, 0.8, 1e-10);
   EXPECT_NEAR(ellipseIt->minorRadius, 0.45, 1e-10);
   EXPECT_LT(ellipseIt->axisRatio, 0.65);
   EXPECT_LT(ellipseIt->rmsEllipseError, 1e-10);
   ASSERT_FALSE(ellipseIt->vertices.empty());
-  const lq::VertexFeature& ellipseVertex =
+  const manumesh::feature::VertexFeature& ellipseVertex =
       ellipseFeatures.vertices[ellipseIt->vertices.front()];
-  EXPECT_EQ(lq::FeaturePrimitiveType::Ellipse, ellipseVertex.primitive);
+  EXPECT_EQ(manumesh::feature::FeaturePrimitiveType::Ellipse, ellipseVertex.primitive);
   EXPECT_NEAR(ellipseVertex.ellipseMajorRadius, 0.8, 1e-10);
   EXPECT_NEAR(ellipseVertex.ellipseMinorRadius, 0.45, 1e-10);
   EXPECT_GT(ellipseVertex.tangent.norm(), 0.9);
 
-  const lq::Mesh nearCircleMesh =
+  const manumesh::Mesh nearCircleMesh =
       loadFixtureMesh("feature_fixtures/near_circular_hole_plate.obj");
   ASSERT_FALSE(nearCircleMesh.empty());
-  const lq::FeatureAnalysis nearCircleFeatures =
-      lq::detectFeatureCurves(nearCircleMesh, options);
-  const int innerNearCircleLoops = static_cast<int>(
-      std::count_if(nearCircleFeatures.loops.begin(), nearCircleFeatures.loops.end(),
-                    [](const lq::FeatureLoop& loop) {
-                      return loop.primitive == lq::FeaturePrimitiveType::NearCircle &&
-                             loop.majorRadius < 1.0;
-                    }));
+  const manumesh::feature::FeatureAnalysis nearCircleFeatures =
+      manumesh::feature::detectFeatureCurves(nearCircleMesh, options);
+  const int innerNearCircleLoops = static_cast<int>(std::count_if(
+      nearCircleFeatures.loops.begin(), nearCircleFeatures.loops.end(),
+      [](const manumesh::feature::FeatureLoop& loop) {
+        return loop.primitive == manumesh::feature::FeaturePrimitiveType::NearCircle &&
+               loop.majorRadius < 1.0;
+      }));
   EXPECT_GE(innerNearCircleLoops, 2);
 }
 
 TEST(FeatureDetection, FixtureDetectsBossPocketPlanesAndHardEdges) {
-  const lq::Mesh mesh = loadFixtureMesh("feature_fixtures/boss_pocket_plate.obj");
+  const manumesh::Mesh mesh = loadFixtureMesh("feature_fixtures/boss_pocket_plate.obj");
   ASSERT_FALSE(mesh.empty());
 
-  lq::FeatureOptions options = discreteOnlyOptions();
+  manumesh::feature::FeatureOptions options = discreteOnlyOptions();
   options.featureAngleDeg = 25.0;
   options.minFeatureLoopVertices = 4;
-  const lq::FeatureAnalysis features = lq::detectFeatureCurves(mesh, options);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, options);
 
   EXPECT_EQ(0, features.boundaryFeatureEdges);
   EXPECT_GE(features.dihedralFeatureEdges, 20);
   EXPECT_GT(features.convexFeatureEdges, 0);
   EXPECT_GT(features.concaveFeatureEdges, 0);
   EXPECT_GT(features.loops.size(), 0u);
-  EXPECT_TRUE(
-      std::any_of(features.loops.begin(), features.loops.end(),
-                  [](const lq::FeatureLoop& loop) { return loop.convexEdges > 0; }));
-  EXPECT_TRUE(
-      std::any_of(features.loops.begin(), features.loops.end(),
-                  [](const lq::FeatureLoop& loop) { return loop.concaveEdges > 0; }));
+  EXPECT_TRUE(std::any_of(
+      features.loops.begin(), features.loops.end(),
+      [](const manumesh::feature::FeatureLoop& loop) { return loop.convexEdges > 0; }));
+  EXPECT_TRUE(std::any_of(features.loops.begin(), features.loops.end(),
+                          [](const manumesh::feature::FeatureLoop& loop) {
+                            return loop.concaveEdges > 0;
+                          }));
 
   const std::vector<PlaneCluster> planes =
       clusterCoplanarFaces(mesh, 1.0 - 1e-12, 1e-10);
-  EXPECT_TRUE(hasPlaneCluster(planes, lq::Vec3(0.0, 0.0, 1.0), 0.7, 0.35));
-  EXPECT_TRUE(hasPlaneCluster(planes, lq::Vec3(0.0, 0.0, 1.0), -0.25, 0.35));
-  EXPECT_TRUE(hasPlaneCluster(planes, lq::Vec3(0.0, 0.0, 1.0), 0.2, 2.0));
+  EXPECT_TRUE(hasPlaneCluster(planes, manumesh::Vec3(0.0, 0.0, 1.0), 0.7, 0.35));
+  EXPECT_TRUE(hasPlaneCluster(planes, manumesh::Vec3(0.0, 0.0, 1.0), -0.25, 0.35));
+  EXPECT_TRUE(hasPlaneCluster(planes, manumesh::Vec3(0.0, 0.0, 1.0), 0.2, 2.0));
 }
 
 TEST(FeatureDetection, SplitsBranchedFeatureGraphAndMarksJunctions) {
-  lq::Mesh mesh;
+  manumesh::Mesh mesh;
   mesh.vertices = {
-      lq::Vec3(0.0, 0.0, 0.0),  lq::Vec3(1.0, 0.0, 0.0),  lq::Vec3(0.5, 1.0, 0.0),
-      lq::Vec3(-1.0, 0.0, 0.0), lq::Vec3(-0.5, 1.0, 0.0), lq::Vec3(0.0, -1.0, 0.0),
-      lq::Vec3(1.0, -1.0, 0.0),
+      manumesh::Vec3(0.0, 0.0, 0.0),  manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.5, 1.0, 0.0),  manumesh::Vec3(-1.0, 0.0, 0.0),
+      manumesh::Vec3(-0.5, 1.0, 0.0), manumesh::Vec3(0.0, -1.0, 0.0),
+      manumesh::Vec3(1.0, -1.0, 0.0),
   };
   mesh.faces = {
       {{0, 1, 2}},
@@ -564,8 +588,8 @@ TEST(FeatureDetection, SplitsBranchedFeatureGraphAndMarksJunctions) {
       {{0, 5, 6}},
   };
 
-  const lq::FeatureAnalysis features =
-      lq::detectFeatureCurves(mesh, discreteOnlyOptions());
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(mesh, discreteOnlyOptions());
 
   EXPECT_GT(features.loops.size(), 1u);
   EXPECT_EQ(features.featureEdges, static_cast<int>(features.graph.edges.size()));

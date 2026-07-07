@@ -16,8 +16,8 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_GOOGLETEST_PROVIDER=auto",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
       ],
       "presentation": {
         "echo": true,
@@ -42,8 +42,8 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_GOOGLETEST_PROVIDER=auto",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
       ],
       "presentation": {
         "echo": true,
@@ -68,8 +68,8 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_GOOGLETEST_PROVIDER=auto",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
+        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
       ],
       "presentation": {
         "echo": true,
@@ -94,8 +94,8 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_GOOGLETEST_PROVIDER=auto",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
+        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
       ],
       "presentation": {
         "echo": true,
@@ -120,10 +120,10 @@
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_GOOGLETEST_PROVIDER=auto",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF",
-        "-DLQ_ENABLE_INSTALL=ON",
-        "-DLQ_INSTALL_CMAKE_CONFIG=ON"
+        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF",
+        "-DMANUMESH_ENABLE_INSTALL=ON",
+        "-DMANUMESH_INSTALL_CMAKE_CONFIG=ON"
       ],
       "presentation": {
         "echo": true,
@@ -147,7 +147,7 @@
         "-A",
         "x64",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
       ],
       "presentation": {
         "echo": true,
@@ -171,7 +171,7 @@
         "-A",
         "x64",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
       ],
       "presentation": {
         "echo": true,
@@ -195,7 +195,7 @@
         "-A",
         "x64",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=OFF"
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
       ],
       "presentation": {
         "echo": true,
@@ -219,7 +219,7 @@
         "-A",
         "x64",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=ON"
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
       ],
       "presentation": {
         "echo": true,
@@ -243,7 +243,7 @@
         "-A",
         "${input:msvcArch}",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DLQ_BUILD_PERFORMANCE_TESTS=${input:msvcPerformanceTests}"
+        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=${input:msvcPerformanceTests}"
       ],
       "presentation": {
         "echo": true,
@@ -261,7 +261,7 @@
         "--build",
         "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "group": "build",
@@ -276,7 +276,7 @@
         "--build",
         "build/${workspaceFolderBasename}/mingw-ninja-debug",
         "--target",
-        "line_quadrics_qem_tests",
+        "manumesh_tests",
         "--parallel"
       ],
       "problemMatcher": ["$gcc"],
@@ -298,7 +298,7 @@
         "--build",
         "build/${workspaceFolderBasename}/mingw-ninja-release",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "problemMatcher": ["$gcc"],
@@ -320,7 +320,7 @@
         "--build",
         "build/${workspaceFolderBasename}/mingw-ninja-debug-performance",
         "--target",
-        "line_quadrics_qem_performance_tests",
+        "manumesh_performance_tests",
         "--parallel"
       ],
       "problemMatcher": ["$gcc"],
@@ -334,7 +334,7 @@
         "--build",
         "build/${workspaceFolderBasename}/mingw-ninja-release-performance",
         "--target",
-        "line_quadrics_qem_performance_tests",
+        "manumesh_performance_tests",
         "--parallel"
       ],
       "problemMatcher": ["$gcc"],
@@ -364,7 +364,7 @@
         "--config",
         "Debug",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -380,7 +380,7 @@
         "--config",
         "Debug",
         "--target",
-        "line_quadrics_qem_tests",
+        "manumesh_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -410,7 +410,7 @@
         "--config",
         "Release",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -440,7 +440,7 @@
         "--config",
         "Release",
         "--target",
-        "line_quadrics_qem_tests",
+        "manumesh_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -456,7 +456,7 @@
         "--config",
         "Debug",
         "--target",
-        "line_quadrics_qem_performance_tests",
+        "manumesh_performance_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -472,7 +472,7 @@
         "--config",
         "Release",
         "--target",
-        "line_quadrics_qem_performance_tests",
+        "manumesh_performance_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -488,7 +488,7 @@
         "--config",
         "Debug",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -504,7 +504,7 @@
         "--config",
         "Debug",
         "--target",
-        "line_quadrics_qem_tests",
+        "manumesh_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -534,7 +534,7 @@
         "--config",
         "Release",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -564,7 +564,7 @@
         "--config",
         "Release",
         "--target",
-        "line_quadrics_qem_tests",
+        "manumesh_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -580,7 +580,7 @@
         "--config",
         "Debug",
         "--target",
-        "line_quadrics_qem_performance_tests",
+        "manumesh_performance_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -596,7 +596,7 @@
         "--config",
         "Release",
         "--target",
-        "line_quadrics_qem_performance_tests",
+        "manumesh_performance_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -612,7 +612,7 @@
         "--config",
         "Debug",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -628,7 +628,7 @@
         "--config",
         "Release",
         "--target",
-        "linequadrics",
+        "manumesh",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -644,7 +644,7 @@
         "--config",
         "Release",
         "--target",
-        "line_quadrics_qem_tests",
+        "manumesh_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -660,7 +660,7 @@
         "--config",
         "Debug",
         "--target",
-        "line_quadrics_qem_tests",
+        "manumesh_tests",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
@@ -985,7 +985,7 @@
     {
       "label": "demo: simplify standard selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/manumesh.exe",
       "args": [
         "simplify",
         "${input:demoMesh}",
@@ -1009,7 +1009,7 @@
     {
       "label": "demo: simplify feature curves selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/manumesh.exe",
       "args": [
         "simplify",
         "${input:demoMesh}",
@@ -1052,7 +1052,7 @@
     {
       "label": "demo: simplify normal tensor selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/manumesh.exe",
       "args": [
         "simplify",
         "${input:demoMesh}",
@@ -1090,7 +1090,7 @@
     {
       "label": "demo: feature report selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/manumesh.exe",
       "args": [
         "feature-report",
         "${input:demoMesh}",
@@ -1117,7 +1117,7 @@
     {
       "label": "demo: ratio sweep selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/manumesh.exe",
       "args": [
         "ratio-sweep",
         "${input:demoMesh}",
@@ -1147,7 +1147,7 @@
     {
       "label": "run: feature validation",
       "type": "process",
-      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/manumesh.exe",
       "args": [
         "validate-features",
         "--ratio",
@@ -1163,7 +1163,7 @@
     {
       "label": "run: external validation",
       "type": "process",
-      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/linequadrics.exe",
+      "command": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/bin/manumesh.exe",
       "args": [
         "validate-external",
         "--input-dir",

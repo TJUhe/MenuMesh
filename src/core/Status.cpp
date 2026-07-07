@@ -1,8 +1,8 @@
-#include "line_quadrics_qem/core/Status.h"
+#include "manumesh/core/Status.h"
 
 #include <utility>
 
-namespace lq {
+namespace manumesh {
 
 Status::Status() = default;
 
@@ -34,4 +34,4 @@ const std::string& Status::message() const {
   return message_;
 }
 
-} // namespace lq
+} // namespace manumesh

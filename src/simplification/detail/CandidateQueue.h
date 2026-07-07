@@ -1,12 +1,12 @@
 #pragma once
 
 #include "detail/SimplificationTypes.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <queue>
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 class CandidateQueue {
 public:
@@ -19,4 +19,4 @@ private:
   std::priority_queue<Candidate> queue_;
 };
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

@@ -1,12 +1,12 @@
 #include "detail/SimplificationValidation.h"
 
-#include "line_quadrics_qem/core/MeshTopology.h"
+#include "manumesh/core/MeshTopology.h"
 
 #include <cmath>
 #include <stdexcept>
 #include <string>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 namespace {
 
 void requireFiniteNonNegative(double value, const char* name) {
@@ -92,4 +92,4 @@ void validateSimplifierInput(const Mesh& input) {
   }
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

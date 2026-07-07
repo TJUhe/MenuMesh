@@ -7,7 +7,7 @@
 #include <sstream>
 #include <utility>
 
-namespace lq::test {
+namespace manumesh::test {
 namespace {
 
 std::vector<std::string> splitWords(const std::string& line) {
@@ -52,16 +52,16 @@ std::vector<std::filesystem::path> expandPattern(const std::string& pattern) {
 } // namespace
 
 std::filesystem::path dataRoot() {
-#ifdef LQ_TEST_DATA_DIR
-  return std::filesystem::path(LQ_TEST_DATA_DIR);
+#ifdef MANUMESH_TEST_DATA_DIR
+  return std::filesystem::path(MANUMESH_TEST_DATA_DIR);
 #else
   return std::filesystem::path(__FILE__).parent_path().parent_path() / "data";
 #endif
 }
 
 std::filesystem::path externalDataRoot() {
-#ifdef LQ_TEST_EXTERNAL_DATA_DIR
-  return std::filesystem::path(LQ_TEST_EXTERNAL_DATA_DIR);
+#ifdef MANUMESH_TEST_EXTERNAL_DATA_DIR
+  return std::filesystem::path(MANUMESH_TEST_EXTERNAL_DATA_DIR);
 #else
   return dataRoot() / "external";
 #endif
@@ -135,23 +135,23 @@ Mesh loadExternalStl(const std::filesystem::path& relativePath) {
   return mesh;
 }
 
-FeatureOptions circularFeatureOptions(double circleFitRelativeThreshold) {
-  FeatureOptions options;
+feature::FeatureOptions circularFeatureOptions(double circleFitRelativeThreshold) {
+  feature::FeatureOptions options;
   options.featureAngleDeg = 25.0;
   options.circleFitRelativeThreshold = circleFitRelativeThreshold;
   options.minFeatureLoopVertices = 8;
   return options;
 }
 
-int countCircularLoops(const FeatureAnalysis& analysis) {
+int countCircularLoops(const feature::FeatureAnalysis& analysis) {
   return static_cast<int>(
       std::count_if(analysis.loops.begin(), analysis.loops.end(),
-                    [](const FeatureLoop& loop) { return loop.circular; }));
+                    [](const feature::FeatureLoop& loop) { return loop.circular; }));
 }
 
-double maxCircularRelativeError(const FeatureAnalysis& analysis) {
+double maxCircularRelativeError(const feature::FeatureAnalysis& analysis) {
   double maxError = 0.0;
-  for (const FeatureLoop& loop : analysis.loops) {
+  for (const feature::FeatureLoop& loop : analysis.loops) {
     if (!loop.circular || loop.radius <= 1e-12) {
       continue;
     }
@@ -162,44 +162,46 @@ double maxCircularRelativeError(const FeatureAnalysis& analysis) {
   return maxError;
 }
 
-SimplifyOptions standardOptions(double ratio) {
-  SimplifyOptions options;
+simplification::SimplifyOptions standardOptions(double ratio) {
+  simplification::SimplifyOptions options;
   options.targetRatio = ratio;
   options.useLineQuadrics = false;
   options.lineWeight = 0.0;
   return options;
 }
 
-SimplifyOptions lineOptions(double ratio) {
-  SimplifyOptions options;
+simplification::SimplifyOptions lineOptions(double ratio) {
+  simplification::SimplifyOptions options;
   options.targetRatio = ratio;
   options.useLineQuadrics = true;
   options.lineWeight = 1e-3;
-  options.weightMode = WeightMode::Dihedral;
+  options.weightMode = simplification::WeightMode::Dihedral;
   options.featureBoost = 0.08;
   options.featureAngleDeg = 25.0;
   return options;
 }
 
-SimplifyOptions protectedOptions(double ratio) {
-  SimplifyOptions options = lineOptions(ratio);
+simplification::SimplifyOptions protectedOptions(double ratio) {
+  simplification::SimplifyOptions options = lineOptions(ratio);
   options.preserveFeatureCurves = true;
-  options.protectAllFeatureEdges = true;
+  options.featureProtectionMode =
+      simplification::FeatureProtectionMode::AllFeatureEdges;
   options.featureCurveWeight = 0.08;
   options.circleFitRelativeThreshold = 0.05;
   options.minFeatureLoopVertices = 8;
   return options;
 }
 
-SimplifiedMesh simplifyWithReport(const Mesh& input, const SimplifyOptions& options) {
+SimplifiedMesh simplifyWithReport(const Mesh& input,
+                                  const simplification::SimplifyOptions& options) {
   SimplifiedMesh result;
-  QEMSimplifier simplifier(options);
+  simplification::QEMSimplifier simplifier(options);
   result.mesh = simplifier.simplify(input, &result.report);
   expectReportCountersConsistent(result.report);
   return result;
 }
 
-void expectReportCountersConsistent(const SimplifyReport& report) {
+void expectReportCountersConsistent(const simplification::SimplifyReport& report) {
   const int rejectionTotal =
       report.featureRejectedCollapses + report.boundaryRejectedCollapses +
       report.topologyRejectedCollapses + report.normalFlipRejectedCollapses +
@@ -232,4 +234,4 @@ int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue) 
   return std::stoi(testCase.fields[field]);
 }
 
-} // namespace lq::test
+} // namespace manumesh::test

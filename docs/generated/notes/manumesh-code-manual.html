@@ -50,7 +50,7 @@ tr:nth-child(even) td{background:#f9fafb}
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
 </div>
 
 <div class="header">
@@ -88,8 +88,8 @@ tr:nth-child(even) td{background:#f9fafb}
 <p>从工程角度看，它现在有两层使用方式：</p>
 
 <ul>
-<li><strong>动态库</strong>：目标名 <code>line_quadrics_qem</code>，外部 CMake 工程可以通过 <code>find_package(line_quadrics_qem CONFIG REQUIRED)</code> 使用。</li>
-<li><strong>CLI 程序</strong>：目标名 <code>linequadrics</code>，用于生成 demo 网格、简化 STL/OBJ、输出 metrics、做 sweep 实验和特征报告。</li>
+<li><strong>动态库</strong>：目标名 <code>manumesh</code>，外部 CMake 工程可以通过 <code>find_package(ManuMesh CONFIG REQUIRED)</code> 使用。</li>
+<li><strong>CLI 程序</strong>：目标名 <code>manumesh</code>，用于生成 demo 网格、简化 STL/OBJ、输出 metrics、做 sweep 实验和特征报告。</li>
 </ul>
 
 <div class="callout">
@@ -139,10 +139,10 @@ tr:nth-child(even) td{background:#f9fafb}
 <table>
 <thead><tr><th>目标</th><th>作用</th></tr></thead>
 <tbody>
-<tr><td><code>line_quadrics_qem</code></td><td>核心动态库，默认生成 DLL/SO/dylib。</td></tr>
-<tr><td><code>linequadrics</code></td><td>命令行工具，链接核心库。</td></tr>
-<tr><td><code>linequadrics_basic_simplify</code></td><td>外部调用风格的最小示例程序。</td></tr>
-<tr><td><code>line_quadrics_qem_tests</code></td><td>GoogleTest 测试程序。</td></tr>
+<tr><td><code>manumesh</code></td><td>核心动态库，默认生成 DLL/SO/dylib。</td></tr>
+<tr><td><code>manumesh</code></td><td>命令行工具，链接核心库。</td></tr>
+<tr><td><code>manumesh_basic_simplify</code></td><td>外部调用风格的最小示例程序。</td></tr>
+<tr><td><code>manumesh_tests</code></td><td>GoogleTest 测试程序。</td></tr>
 <tr><td><code>format</code> / <code>check-format</code></td><td>clang-format 格式化和检查。</td></tr>
 <tr><td><code>docs-api</code></td><td>Doxygen API 文档生成。</td></tr>
 </tbody>
@@ -154,14 +154,14 @@ cmake -E chdir build/industrial ctest -C Release --output-on-failure</code></pre
 
 <div class="callout success">
 <div class="callout-title">Windows DLL 拷贝处理</div>
-<p>库包提供了 <code>line_quadrics_qem_copy_runtime_dependencies(target)</code>。外部 CMake 程序链接库后调用这一行，Windows 下会自动把 <code>line_quadrics_qem.dll</code> 拷到目标 exe 旁边；静态库或非 Windows 平台则不做事。</p>
+<p>库包提供了 <code>manumesh_copy_runtime_dependencies(target)</code>。外部 CMake 程序链接库后调用这一行，Windows 下会自动把 <code>manumesh.dll</code> 拷到目标 exe 旁边；静态库或非 Windows 平台则不做事。</p>
 </div>
 
 <h2 id="s4"><span class="num">4</span>公共 API 与数据结构</h2>
 
 <h3>4.1 Mesh</h3>
 
-<pre><code>namespace lq {
+<pre><code>namespace manumesh {
 using Vec3 = Eigen::Vector3d;
 using Mat4 = Eigen::Matrix4d;
 
@@ -208,7 +208,7 @@ struct Mesh {
 <tr><td><code>src/feature_detection/FeatureDetector.cpp</code></td><td>特征边/环检测</td><td>边界边、二面角边、非流形边、特征 loop、圆拟合、切线。</td></tr>
 <tr><td><code>src/simplification/Metrics.cpp</code></td><td>质量指标</td><td>面积、边数、边界边、非流形边、三角形质量、采样距离。</td></tr>
 <tr><td><code>src/core/MeshGenerators.cpp</code></td><td>测试与 demo 几何</td><td>平面、孔洞、ridge、圆柱、torus、flange、stepped shaft 等。</td></tr>
-<tr><td><code>apps/linequadrics/main.cpp</code></td><td>CLI 编排</td><td>参数解析、generate/simplify/compare/sweep/demo 等命令。</td></tr>
+<tr><td><code>apps/manumesh/main.cpp</code></td><td>CLI 编排</td><td>参数解析、generate/simplify/compare/sweep/demo 等命令。</td></tr>
 </tbody>
 </table>
 
@@ -344,32 +344,32 @@ $$Q_i=Q_i^{plane}+Q_i^{normalLine}+Q_i^{boundary}+Q_i^{featureCurve}$$
 
 <h3>9.1 CMake 调用</h3>
 
-<pre><code>find_package(line_quadrics_qem CONFIG REQUIRED)
+<pre><code>find_package(ManuMesh CONFIG REQUIRED)
 
 add_executable(my_app main.cpp)
-target_link_libraries(my_app PRIVATE line_quadrics_qem::line_quadrics_qem)
-line_quadrics_qem_copy_runtime_dependencies(my_app)</code></pre>
+target_link_libraries(my_app PRIVATE ManuMesh::manumesh)
+manumesh_copy_runtime_dependencies(my_app)</code></pre>
 
 <h3>9.2 C++ 调用</h3>
 
-<pre><code>#include "line_quadrics_qem/core/Mesh.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+<pre><code>#include "manumesh/core/Mesh.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 int main() {
-  lq::Mesh input;
+  manumesh::Mesh input;
   std::string error;
-  if (!lq::loadMesh("input.stl", input, &error)) {
+  if (!manumesh::loadMesh("input.stl", input, &error)) {
     return 1;
   }
 
-  lq::simplification::SimplifyOptions options;
+  manumesh::simplification::SimplifyOptions options;
   options.targetRatio = 0.2;
   options.lineWeight = 1e-3;
 
-  lq::simplification::SimplifyReport report;
-  lq::Mesh output =
-      lq::simplification::simplifyMesh(input, options, &report);
-  lq::saveAsciiStl("output.stl", output);
+  manumesh::simplification::SimplifyReport report;
+  manumesh::Mesh output =
+      manumesh::simplification::simplifyMesh(input, options, &report);
+  manumesh::saveAsciiStl("output.stl", output);
 }</code></pre>
 
 <h2 id="s10"><span class="num">10</span>有没有更好的论文方法</h2>
@@ -452,7 +452,7 @@ int main() {
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
   <h2 style="margin-top:0">特征保护路线图</h2>
   <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
-  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
+  <p>严格保护模式可通过 <code>--feature-protection-mode all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>ManuMeshFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
     <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
     <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>

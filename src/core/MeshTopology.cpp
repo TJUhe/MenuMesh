@@ -1,11 +1,11 @@
-#include "line_quadrics_qem/core/MeshTopology.h"
+#include "manumesh/core/MeshTopology.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
 
-namespace lq {
+namespace manumesh {
 namespace {
 
 struct EdgeBuildRecord {
@@ -173,4 +173,4 @@ const VertexTopology& MeshTopology::vertex(VertexId id) const {
   return impl_->vertices[id.id];
 }
 
-} // namespace lq
+} // namespace manumesh

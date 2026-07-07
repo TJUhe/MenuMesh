@@ -15,7 +15,7 @@
 ## 特征报告
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-report `
+.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
   tests/data/feature_fixtures/coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -26,7 +26,7 @@
 ## 简化实验
 
 ```powershell
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests/data/feature_fixtures/coaxial_hole_plate.obj `
   output/vscode_demo/coaxial_feature_curves.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `

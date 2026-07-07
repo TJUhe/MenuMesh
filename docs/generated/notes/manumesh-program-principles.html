@@ -58,7 +58,7 @@ tr:nth-child(even) td{background:#f9fafb}
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
 </div>
 
 <div class="header">
@@ -104,7 +104,7 @@ tr:nth-child(even) td{background:#f9fafb}
 <p>标准 QEM 部分来自 Michael Garland 和 Paul S. Heckbert 的 <em>Surface Simplification Using Quadric Error Metrics</em>（SIGGRAPH 1997）。Line Quadrics 部分来自 Hsueh-Ti Derek Liu、Mehdi Rahimzadeh、Victor Zordan 的 <em>Controlling Quadric Error Simplification with Line Quadrics</em>（SGP 2025）。本仓库对应 PDF 位于 <code>docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</code> 和 <code>docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code>。</p>
 </div>
 
-<p>当前程序把输入三角网格简化到指定面数或比例。核心库入口是 <code>lq::simplification::simplifyMesh</code>，输入为 <code>lq::Mesh</code> 与 <code>lq::simplification::SimplifyOptions</code>，输出为新的 <code>lq::Mesh</code>，同时可填充 <code>lq::simplification::SimplifyReport</code>。根 <code>lq</code> 下的同名符号只作为旧源码兼容 alias 保留。</p>
+<p>当前程序把输入三角网格简化到指定面数或比例。核心库入口是 <code>manumesh::simplification::simplifyMesh</code>，输入为 <code>manumesh::Mesh</code> 与 <code>manumesh::simplification::SimplifyOptions</code>，输出为新的 <code>manumesh::Mesh</code>，同时可填充 <code>manumesh::simplification::SimplifyReport</code>。核心网格类型位于根 <code>manumesh</code> 命名空间，功能模块不再回灌根命名空间别名。</p>
 
 <div class="diagram">输入 STL/OBJ 或生成器 Mesh
         │
@@ -739,11 +739,11 @@ $$F_{target}=
 <table>
 <thead><tr><th>公共头</th><th>主要内容</th></tr></thead>
 <tbody>
-<tr><td><code>include/line_quadrics_qem/core/Mesh.h</code></td><td><code>Mesh</code>、STL/OBJ 读写、基础几何函数。</td></tr>
-<tr><td><code>include/line_quadrics_qem/algorithms/simplification/QEMSimplifier.h</code></td><td><code>lq::simplification</code> 中的 <code>SimplifyOptions</code>、<code>SimplifyReport</code>、<code>simplifyMesh</code>。</td></tr>
-<tr><td><code>include/line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h</code></td><td><code>lq::feature</code> 中的特征边、特征 loop、圆特征检测。</td></tr>
-<tr><td><code>include/line_quadrics_qem/algorithms/simplification/Metrics.h</code></td><td>网格质量和距离指标。</td></tr>
-<tr><td><code>include/line_quadrics_qem/core/MeshGenerators.h</code></td><td>示例和测试用几何生成器。</td></tr>
+<tr><td><code>include/manumesh/core/Mesh.h</code></td><td><code>Mesh</code>、STL/OBJ 读写、基础几何函数。</td></tr>
+<tr><td><code>include/manumesh/algorithms/simplification/QEMSimplifier.h</code></td><td><code>manumesh::simplification</code> 中的 <code>SimplifyOptions</code>、<code>SimplifyReport</code>、<code>simplifyMesh</code>。</td></tr>
+<tr><td><code>include/manumesh/algorithms/feature_detection/FeatureDetector.h</code></td><td><code>manumesh::feature</code> 中的特征边、特征 loop、圆特征检测。</td></tr>
+<tr><td><code>include/manumesh/algorithms/simplification/Metrics.h</code></td><td>网格质量和距离指标。</td></tr>
+<tr><td><code>include/manumesh/core/MeshGenerators.h</code></td><td>示例和测试用几何生成器。</td></tr>
 </tbody>
 </table>
 
@@ -824,7 +824,7 @@ $$
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
   <h2 style="margin-top:0">特征保护路线图</h2>
   <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
-  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
+  <p>严格保护模式可通过 <code>--feature-protection-mode all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>ManuMeshFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
     <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
     <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>

@@ -1,14 +1,14 @@
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include "detail/SimplificationRun.h"
 #include "detail/SimplificationValidation.h"
-#include "line_quadrics_qem/algorithms/simplification/PlainSimplifier.h"
+#include "manumesh/algorithms/simplification/PlainSimplifier.h"
 
 #include <memory>
 #include <stdexcept>
 #include <utility>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 struct QEMSimplifier::Impl {
   SimplifyOptions options;
@@ -167,4 +167,4 @@ PlainMesh simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& optio
   return toPlainMesh(simplifyMesh(toMesh(input), options, outReport));
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

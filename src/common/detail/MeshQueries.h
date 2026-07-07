@@ -1,6 +1,6 @@
 #pragma once
 
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/core/Mesh.h"
 
 #include <array>
 #include <cstdint>
@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-namespace lq::detail {
+namespace manumesh::detail {
 
 /// Adjacent face list for one undirected mesh edge.
 struct MeshEdgeInfo {
@@ -45,4 +45,4 @@ std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh);
 /// Marks vertices incident to boundary edges.
 std::vector<char> computeBoundaryVertices(const Mesh& mesh);
 
-} // namespace lq::detail
+} // namespace manumesh::detail

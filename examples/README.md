@@ -11,7 +11,7 @@ Small examples for using the library.
 
 `basic_simplify.cpp` and `c_api_basic.c` are source-tree smoke tests linked to
 the in-tree target. `sdk_consumer/` is the stronger integration check: install
-the SDK first, then configure that project with `-DLQ_SDK_ROOT=<install-prefix>`
+the SDK first, then configure that project with `-DMANUMESH_SDK_ROOT=<install-prefix>`
 so it sees only the released `include/`, `lib/`, `bin/`, and `share/` layout.
 
 Demo outputs belong under `output/`. Validation inputs belong under

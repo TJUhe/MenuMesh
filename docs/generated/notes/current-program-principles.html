@@ -59,7 +59,7 @@ tr:nth-child(even) td{background:#f9fafb}
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；源码级兼容标识仍保留 <code>line_quadrics_qem</code>、<code>linequadrics</code> 和 <code>lq</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
 </div>
 
 <div class="header">
@@ -324,9 +324,9 @@ S_{Co}=\sigma_3.$$
 
 <p>可以用下面两条命令直接看到增强是否生效：第一条把二面角阈值设到 179°，使普通 dihedral 基本失效；如果输出里 <code>dihedral_edges=0</code> 且 <code>normal_tensor_edges</code> 大于 0，就说明 normal tensor 候选边正在补特征。第二条看 <code>line_weight_range</code>，若最大值大于最小值，说明 normal tensor 权重已经参与 QEM 简化。</p>
 
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe generate --type ridge --n 32 --out output\normal_tensor_demo\ridge.stl
-.\build\mingw-ninja-release\bin\linequadrics.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
-.\build\mingw-ninja-release\bin\linequadrics.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe generate --type ridge --n 32 --out output\normal_tensor_demo\ridge.stl
+.\build\mingw-ninja-release\bin\manumesh.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\mingw-ninja-release\bin\manumesh.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
 
 <h3>5.1 例子：60° 折痕为什么会被判成 crease</h3>
 
@@ -596,12 +596,12 @@ facesByKey[sorted(a,b,c)] = 具有同一顶点集合的活动 face id 集合</co
 
 <p>建议用 Release 跑大模型，否则 Debug 下会明显慢很多。</p>
 
-<pre><code>cmake --build build\mingw-ninja-release --target linequadrics --parallel</code></pre>
+<pre><code>cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre>
 
 <p>如果还没有配置过该构建目录，可先运行：</p>
 
 <pre><code>cmake -S . -B build\mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
-cmake --build build\mingw-ninja-release --target linequadrics --parallel</code></pre>
+cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre>
 
 <h3>10.2 案例一：Fandisk，验证硬边特征保留</h3>
 
@@ -609,7 +609,7 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
 
 <h4>查看原始特征</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe feature-report `
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
   tests\data\external\fandisk_2014.stl `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -628,7 +628,7 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
 
 <h4>普通 QEM 25% 简化</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\tsuchie2014\fandisk_standard_025.stl `
   --method standard --ratio 0.25 `
@@ -637,7 +637,7 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
 
 <h4>Line + hard feature 25% 简化</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\tsuchie2014\fandisk_line_feature_025.stl `
   --method line --ratio 0.25 `
@@ -646,7 +646,6 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
   --feature-boost 0.08 `
   --feature-angle-deg 25 `
   --preserve-feature-curves `
-  --protect-all-feature-edges `
   --feature-curve-weight 0.08 `
   --min-feature-loop-vertices 32 `
   --samples 800 `
@@ -670,7 +669,7 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
 
 <h4>原始特征报告</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe feature-report `
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
   tests\data\external\casting_aimshape_2014.stl `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -689,7 +688,7 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
 
 <h4>Line quadrics 25% 简化，验证 link condition</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\casting_aimshape_2014.stl `
   output\tsuchie2014\casting_line_plain_025.stl `
   --method line --ratio 0.25 `
@@ -717,7 +716,7 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
 
 <h4>Hard feature 模式的观察</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
   tests\data\external\casting_aimshape_2014.stl `
   output\tsuchie2014\casting_line_feature_025.stl `
   --method line --ratio 0.25 `
@@ -726,7 +725,6 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
   --feature-boost 0.08 `
   --feature-angle-deg 25 `
   --preserve-feature-curves `
-  --protect-all-feature-edges `
   --feature-curve-weight 0.08 `
   --min-feature-loop-vertices 32 `
   --samples 800 `
@@ -739,7 +737,7 @@ cmake --build build\mingw-ninja-release --target linequadrics --parallel</code><
 <p>Armadillo 来自公共大模型验证集，约 99976 个三角面 <a class="cite" href="#ref-common3d">[C3D]</a><a class="cite" href="#ref-large">[LV]</a>。它适合测试大模型性能。</p>
 
 <pre><code>Measure-Command {
-  .\build\mingw-ninja-release\bin\linequadrics.exe simplify `
+  .\build\mingw-ninja-release\bin\manumesh.exe simplify `
     tests\data\external\large\armadillo.stl `
     tests\output\large_validation\armadillo_line_050_incremental.stl `
     --method line --ratio 0.5 `
@@ -890,7 +888,7 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 <section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
   <h2 style="margin-top:0">特征保护路线图</h2>
   <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
-  <p>严格旧行为仍可通过 <code>--feature-protection-mode all-feature-edges</code> 或 <code>--protect-all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>LqFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
+  <p>严格保护模式可通过 <code>--feature-protection-mode all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>ManuMeshFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
   <ul>
     <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
     <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>

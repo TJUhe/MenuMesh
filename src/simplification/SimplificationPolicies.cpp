@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
   if (targetFaces > 0) {
@@ -14,8 +14,8 @@ int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
   return std::max(4, static_cast<int>(std::llround(inputFaceCount * targetRatio)));
 }
 
-FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
-  FeatureOptions options;
+feature::FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
+  feature::FeatureOptions options;
   options.featureAngleDeg = featureAngleDeg;
   options.circleFitRelativeThreshold = circleFitRelativeThreshold;
   options.ellipseFitRelativeThreshold = ellipseFitRelativeThreshold;
@@ -66,4 +66,4 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
   return policies;
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

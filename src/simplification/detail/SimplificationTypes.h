@@ -1,13 +1,13 @@
 #pragma once
 
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "manumesh/core/Mesh.h"
 
 #include <array>
 #include <cstdint>
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 /// Mutable vertex record used only during one simplification run.
 ///
@@ -20,12 +20,13 @@ struct VertexState {
   Mat4 q = Mat4::Zero();
   bool active = true;
 
-  // Feature ownership and primitive-fit data copied from FeatureAnalysis.
+  // Feature ownership and primitive-fit data copied from feature::FeatureAnalysis.
   bool isFeature = false;
   bool isBoundary = false;
   bool circularFeature = false;
   bool featureJunction = false;
-  FeaturePrimitiveType featurePrimitive = FeaturePrimitiveType::Unknown;
+  feature::FeaturePrimitiveType featurePrimitive =
+      feature::FeaturePrimitiveType::Unknown;
   int featureLoopId = -1;
   Vec3 curveTangent = Vec3::Zero();
   Vec3 circleCenter = Vec3::Zero();
@@ -96,7 +97,7 @@ struct BoundaryCollapseDecision {
 struct FeatureCurveConstraint {
   bool valid = false;
   bool closed = false;
-  FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
+  feature::FeaturePrimitiveType primitive = feature::FeaturePrimitiveType::Unknown;
   std::vector<Vec3> samples;
 };
 
@@ -124,4 +125,4 @@ struct CellCoordHash {
   }
 };
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

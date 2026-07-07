@@ -14,7 +14,7 @@
   CMake 3.18 不支持的 `cmake -E rm -rf`。
 - 固定 CMake Tools 默认 MinGW Release 构建目录，并默认关闭性能测试；
   性能测试继续通过独立的 performance 构建目录和 VS Code 任务运行。
-- MinGW 下 `LQ_GOOGLETEST_PROVIDER=auto` 不再优先使用预编译
+- MinGW 下 `MANUMESH_GOOGLETEST_PROVIDER=auto` 不再优先使用预编译
   GoogleTest DLL，改为跳过该 DLL 包并为当前编译器构建 GoogleTest，
   避免 gcc 运行时和预编译 `libgtest*.dll` ABI 不匹配导致测试 exe
   启动时报 `0xc0000139`。
@@ -26,16 +26,16 @@
 - `git pull --ff-only`
 - `.vscode/tasks.json`、`.vscode/launch.json`、`.vscode/settings.json`
   JSON 解析通过，69 个 task、8 个 launch 配置和 6 个输入项的引用链完整。
-- `cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_GOOGLETEST_PROVIDER=auto -DLQ_BUILD_PERFORMANCE_TESTS=OFF`
+- `cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMANUMESH_GOOGLETEST_PROVIDER=auto -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF`
 - `cmake --build build/mingw-ninja-release --parallel`
 - `cmake -E chdir build/mingw-ninja-release ctest -N`
 - `cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure`
-- `cmake -S . -B build/mingw-ninja-release-performance -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_GOOGLETEST_PROVIDER=auto -DLQ_BUILD_PERFORMANCE_TESTS=ON`
+- `cmake -S . -B build/mingw-ninja-release-performance -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMANUMESH_GOOGLETEST_PROVIDER=auto -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON`
 - `cmake --build build/mingw-ninja-release-performance --target performance-tests --parallel`
-- `cmake -S . -B build/mingw-ninja-release-sdk -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_GOOGLETEST_PROVIDER=auto -DLQ_BUILD_PERFORMANCE_TESTS=OFF -DLQ_ENABLE_INSTALL=ON -DLQ_INSTALL_CMAKE_CONFIG=ON`
+- `cmake -S . -B build/mingw-ninja-release-sdk -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMANUMESH_GOOGLETEST_PROVIDER=auto -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF -DMANUMESH_ENABLE_INSTALL=ON -DMANUMESH_INSTALL_CMAKE_CONFIG=ON`
 - `cmake --build build/mingw-ninja-release-sdk --target sdk-consumer-test --parallel`
 - `cmake --build build/mingw-ninja-release --target docs-api --parallel`
-- `.\build\mingw-ninja-release\bin\linequadrics.exe validate-features --ratio 0.20 --samples 64 --output-dir tests/output/feature_curve_validation`
+- `.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 64 --output-dir tests/output/feature_curve_validation`
 
 ## 2026-07-05
 
@@ -45,8 +45,7 @@
   `none`、`circular-only`、`primitive-curves` 和 `all-feature-edges`。
   默认 `primitive-curves` 只硬保护圆、近圆和椭圆原语；普通多边形折线和二面角锐边继续作为软性的 line-quadric 代价，并由拓扑、法向、质量和局部误差过滤器约束。
 - CLI 增加 `--feature-protection-mode`，C ABI 增加
-  `LqFeatureProtectionMode`。旧的 `--protect-all-feature-edges` /
-  `protect_all_feature_edges` 仍作为严格 `all-feature-edges` 行为的兼容别名。
+  严格保护所有特征边请使用正式的 `feature_protection_mode = all-feature-edges`。
 - C++ 和 C 报告中增加原语/普通特征拒绝计数，便于验证新策略是否减少普通特征的硬锁定。
 - 测试辅助代码增加共享的简化报告计数不变量，每个 `simplifyWithReport`
   fixture 都会检查拒绝总数以及原语/普通特征拒绝子计数。
@@ -60,7 +59,7 @@
 - 将特征检测中的圆形顶点簇 fallback 限制为 32768 次确定性的三点圆扫描，避免破碎 CAD/STL 特征图耗时失控，同时保留已有图环和原语拟合路径。
 - 扩展特征检测 API 与算法注释，说明 CAD/STL 图路径、张量弱特征路径和有界圆形修复 fallback 的适用范围与失败模式。
 - 扩展简化 SDK 和 C ABI 注释，在 API 边界说明目标选择、line-quadric 排序代价、特征检测阈值、硬合法性过滤器、特征保护策略和拒绝计数。
-- 重做特征曲线折叠策略：默认保护模式下，多边形/普通锐边顶点不再自动拒绝；严格旧行为仍可通过 `all-feature-edges` 使用。
+- 重做特征曲线折叠策略：默认保护模式下，多边形/普通锐边顶点不再自动拒绝；严格保护模式仍可通过 `all-feature-edges` 使用。
 - `validate-features` 默认改用完成态外部 STL fixture：Thingi10K spindle、NASA antenna azimuth track、Thingi10K mini pulley 和 OpenFOAM flange。旧的程序生成轴/联轴器/滑轮验证路径不再作为默认工业特征测试。
 - 更新特征验证文档和生成 HTML 结果，报告新的原语/普通策略拆分，以及 `primitive-curves` 在破碎工业 STL 特征图上减少普通硬锁定的前后探测结果。
 - 刷新文档，使用户命令、生成 HTML 说明和算法解释跟随当前 C++ 实现，而不是旧实验路径。
@@ -74,11 +73,11 @@
 ### 已验证
 
 - 删除 `build/` 后，使用
-  `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLQ_ENABLE_INSTALL=ON -DLQ_GOOGLETEST_PROVIDER=prebuilt -DLQ_EIGEN_PROVIDER=vendored`
+  `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMANUMESH_ENABLE_INSTALL=ON -DMANUMESH_GOOGLETEST_PROVIDER=prebuilt -DMANUMESH_EIGEN_PROVIDER=vendored`
   配置。
 - `cmake --build build --parallel`
 - `cmake -E chdir build ctest -C Release --output-on-failure`
-- `.\build\bin\linequadrics.exe validate-features --ratio 0.20 --samples 1000 --input-dir tests\output\generated_inputs --output-dir tests\output\feature_curve_validation`
+- `.\build\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000 --input-dir tests\output\generated_inputs --output-dir tests\output\feature_curve_validation`
 - `tests/output/feature_policy_validation/` 下的策略验证：
   `primitive-curves` 在 `nasa_mars2020_wheel` 上以 9066 个面达到目标，特征拒绝 31 次、普通特征拒绝 0 次；`all-feature-edges` 停在 10974 个面，特征拒绝 468702 次。
   在 `thingi10k_37880_functional_differential_gear_system` 上，
@@ -89,15 +88,15 @@
   `fandisk_2014`、`thingi10k_37880_functional_differential_gear_system` 和
   `large/rocker_arm.stl` 做外部探测；输出位于
   `tests/output/new_model_validation/`，用于暴露当前特征策略过度保护风险。
-- `cmake -S . -B build/doccheck -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DLQ_BUILD_DOCS=OFF`
+- `cmake -S . -B build/doccheck -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DMANUMESH_BUILD_DOCS=OFF`
 - `cmake --build build/doccheck --parallel`
 - `cmake -E chdir build/doccheck ctest --output-on-failure`
-- `.\build\doccheck\bin\linequadrics.exe --help`
-- `.\build\doccheck\bin\linequadrics.exe feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv output\doccheck\features.csv`
-- `.\build\doccheck\bin\linequadrics.exe simplify tests\data\feature_fixtures\coaxial_hole_plate.obj output\doccheck\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv output\doccheck\metrics.csv`
-- `.\build\doccheck\bin\linequadrics.exe validate-features --ratio 0.20 --samples 64 --output-dir output\doccheck\feature_validation`
-- `.\build\doccheck\bin\linequadrics.exe validate-external --ratio 0.25 --samples 64 --output-dir output\doccheck\external_validation`
-- `.\build\doccheck\bin\linequadrics.exe demo --quick --samples 64 --output-dir output\doccheck\demo --input-dir output\doccheck\demo_input`
+- `.\build\doccheck\bin\manumesh.exe --help`
+- `.\build\doccheck\bin\manumesh.exe feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv output\doccheck\features.csv`
+- `.\build\doccheck\bin\manumesh.exe simplify tests\data\feature_fixtures\coaxial_hole_plate.obj output\doccheck\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv output\doccheck\metrics.csv`
+- `.\build\doccheck\bin\manumesh.exe validate-features --ratio 0.20 --samples 64 --output-dir output\doccheck\feature_validation`
+- `.\build\doccheck\bin\manumesh.exe validate-external --ratio 0.25 --samples 64 --output-dir output\doccheck\external_validation`
+- `.\build\doccheck\bin\manumesh.exe demo --quick --samples 64 --output-dir output\doccheck\demo --input-dir output\doccheck\demo_input`
 
 ## 2026-07-03
 
@@ -121,9 +120,9 @@
 ### 已验证
 
 - `cmake -E chdir build\mingw-ninja-debug ctest --output-on-failure`
-- `cmake --build build\mingw-ninja-release --target linequadrics --parallel`
-- `linequadrics feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv examples\output\vscode_demo\coaxial_hole_plate\feature_report\features.csv`
-- `linequadrics simplify tests\data\feature_fixtures\coaxial_hole_plate.obj examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\metrics.csv`
+- `cmake --build build\mingw-ninja-release --target manumesh --parallel`
+- `manumesh feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --csv examples\output\vscode_demo\coaxial_hole_plate\feature_report\features.csv`
+- `manumesh simplify tests\data\feature_fixtures\coaxial_hole_plate.obj examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\simplified.stl --method line --ratio 0.50 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --preserve-feature-curves --feature-curve-weight 0.08 --max-feature-curve-deviation-ratio 0.05 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --min-circular-feature-loop-vertices 12 --samples 128 --metrics-csv examples\output\vscode_demo\coaxial_hole_plate\feature-curves_r0_50\metrics.csv`
 
 ## 2026-07-01
 
@@ -141,7 +140,7 @@
 
 - 调整 CMake 和 VS Code 工作流以适配 CMake 3.18.6 环境：移除 preset 命令，改用显式构建目录和生成器。
 - 围绕 C++ 几何内核工作流重构仓库文档：CLI 生成的 STL/CSV 输出、CTest/API smoke 检查和外部 STL/CAD 查看器，替代此前以浏览器预览优先的路径。
-- 更新 VS Code launch/tasks 和用户命令示例，以匹配库构建生成的 `bin/linequadrics.exe` 运行时布局。
+- 更新 VS Code launch/tasks 和用户命令示例，以匹配库构建生成的 `bin/manumesh.exe` 运行时布局。
 - 扩展工业库说明，补充源码布局边界、验证期望，以及将生成输出视为检查产物而不是源码依赖的指导。
 - 刷新 flange、pipe coupling、pulley 和 stepped-shaft 场景的特征曲线验证 STL/CSV 输出。
 - 网格 metric 中的边、边界和非流形计算改经 `MeshTopology`，不再在 `Metrics.cpp` 中重复构建临时 edge map。
@@ -157,12 +156,12 @@
 
 ### 新增
 
-- 增加跨平台 `line_quadrics_qem` 共享库目标，公共头位于
-  `include/line_quadrics_qem`。
+- 增加跨平台 `manumesh` 共享库目标，公共头位于
+  `include/manumesh`。
 - 增加 Windows DLL export/import 处理，并为共享库构建设置默认符号可见性。
 - 增加 install/export 规则，使外部 CMake 工程可以使用
-  `find_package(line_quadrics_qem CONFIG REQUIRED)`。
-- 增加 `line_quadrics_qem_copy_runtime_dependencies(target)`，供外部 Windows CMake consumer 将运行时 DLL 复制到可执行文件旁。
+  `find_package(ManuMesh CONFIG REQUIRED)`。
+- 增加 `manumesh_copy_runtime_dependencies(target)`，供外部 Windows CMake consumer 将运行时 DLL 复制到可执行文件旁。
 - 增加库消费示例程序 `examples/basic_simplify.cpp`。
 - 增加 GoogleTest 覆盖和 CTest discovery，用于简化、特征检测和网格指标。
 - 增加 clang-format 配置以及 `format`、`check-format` 目标。

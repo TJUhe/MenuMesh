@@ -1,12 +1,12 @@
 #pragma once
 
-#include "line_quadrics_qem/Export.h"
-#include "line_quadrics_qem/algorithms/simplification/SimplificationTypes.h"
-#include "line_quadrics_qem/core/Mesh.h"
+#include "manumesh/Export.h"
+#include "manumesh/algorithms/simplification/SimplificationTypes.h"
+#include "manumesh/core/Mesh.h"
 
 #include <memory>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -14,7 +14,7 @@ namespace lq::simplification {
 #endif
 
 /// Stateful object API for configuring and running mesh simplification.
-class LQ_API QEMSimplifier {
+class MANUMESH_API QEMSimplifier {
 public:
   QEMSimplifier();
   explicit QEMSimplifier(SimplifyOptions options);
@@ -48,14 +48,7 @@ private:
 
 /// Simplifies a mesh with standard QEM or line-quadrics-augmented QEM.
 /// Prefer QEMSimplifier for new code that needs an object-oriented API.
-LQ_API Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
-                         SimplifyReport* report = nullptr);
+MANUMESH_API Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
+                               SimplifyReport* report = nullptr);
 
-} // namespace lq::simplification
-
-namespace lq {
-
-using simplification::QEMSimplifier;
-using simplification::simplifyMesh;
-
-} // namespace lq
+} // namespace manumesh::simplification

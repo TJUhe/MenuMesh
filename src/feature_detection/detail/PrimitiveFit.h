@@ -1,10 +1,10 @@
 #pragma once
 
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
+#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
 
 #include <vector>
 
-namespace lq::feature::primitive_fit_detail {
+namespace manumesh::feature::primitive_fit_detail {
 
 struct PrimitiveFit {
   bool valid = false;
@@ -35,4 +35,4 @@ DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
                                                const Vec3& center, const Vec3& normalIn,
                                                double radius);
 
-} // namespace lq::feature::primitive_fit_detail
+} // namespace manumesh::feature::primitive_fit_detail

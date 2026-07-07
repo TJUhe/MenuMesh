@@ -1,11 +1,11 @@
 #pragma once
 
 #include "detail/SimplificationTypes.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 Vec3 projectToCircle(const Vec3& p, const VertexState& feature);
 Vec3 projectToEllipse(const Vec3& p, const VertexState& feature);
@@ -45,4 +45,4 @@ private:
   const SimplifyOptions& options_;
 };
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

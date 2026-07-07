@@ -8,8 +8,8 @@
     "CMAKE_C_COMPILER": "gcc",
     "CMAKE_CXX_COMPILER": "g++",
     "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-    "LQ_GOOGLETEST_PROVIDER": "auto",
-    "LQ_BUILD_PERFORMANCE_TESTS": "OFF"
+    "MANUMESH_GOOGLETEST_PROVIDER": "auto",
+    "MANUMESH_BUILD_PERFORMANCE_TESTS": "OFF"
   },
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
   "C_Cpp.default.compileCommands": "${workspaceFolder}/build/${workspaceFolderBasename}/mingw-ninja-release/compile_commands.json",
@@ -19,7 +19,7 @@
   "C_Cpp.default.includePath": [
     "${workspaceFolder}/include",
     "${workspaceFolder}/src",
-    "${workspaceFolder}/apps/linequadrics",
+    "${workspaceFolder}/apps/manumesh",
     "${workspaceFolder}/thirdParty/eigen/include",
     "${workspaceFolder}/thirdParty/googletest/prebuilt/mingw-x64-shared/include"
   ],

@@ -1,4 +1,4 @@
-﻿# 当前数据探针记录
+# 当前数据探针记录
 
 本文记录当前仓库中用于验证算法的主要数据来源和它们在测试中的角色。内容已按当前目录复核。
 
@@ -27,7 +27,7 @@ stepped-shaft, pipe-coupling, pulley
 | `near_circular_hole_plate.obj` | near-circle 容差验证。 |
 | `boss_pocket_plate.obj` | boss/pocket 平面和硬边验证。 |
 
-这些 fixture 是当前 `FeatureDetection.*`、`LineQuadricsQemParameters.*` 和独立 `FeatureDetector` 对象 API 测试的重要输入。
+这些 fixture 是当前 `FeatureDetection.*`、`ManuMeshParameters.*` 和独立 `FeatureDetector` 对象 API 测试的重要输入。
 
 ## 外部模型
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
-#include "line_quadrics_qem/algorithms/simplification/SimplificationTypes.h"
+#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "manumesh/algorithms/simplification/SimplificationTypes.h"
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 struct TargetPolicy {
   int targetFaces = -1;
@@ -25,7 +25,7 @@ struct FeatureDetectionPolicy {
   int normalTensorSmoothingIterations = 0;
   int normalTensorScaleCount = 1;
 
-  FeatureOptions toFeatureOptions() const;
+  feature::FeatureOptions toFeatureOptions() const;
 };
 
 struct LegalityPolicy {
@@ -48,4 +48,4 @@ struct SimplificationPolicies {
   static SimplificationPolicies fromOptions(const SimplifyOptions& options);
 };
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

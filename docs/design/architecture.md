@@ -5,7 +5,7 @@ ManuMesh 是面向增材制造的 C++ 多边形网格几何内核。当前稳定
 ## 分层
 
 ```text
-include/line_quadrics_qem/      安装级公共 SDK 头文件
+include/manumesh/      安装级公共 SDK 头文件
   core/                         Mesh、PlainMesh、MeshTopology、Status、typed handles
   algorithms/feature_detection/ 特征检测模块入口、选项和结果类型
   algorithms/simplification/    QEM/line quadrics 简化入口、选项、报告和指标
@@ -17,7 +17,7 @@ src/feature_detection/          特征检测实现，只依赖 core 和私有 co
 src/feature_detection/detail/   特征检测专属 primitive fitting 等私有 helper
 src/simplification/             简化实现，可消费 FeatureAnalysis
 src/simplification/detail/      简化专属私有状态、policy 分组和策略
-apps/linequadrics/              CLI，按外部用户方式调用 SDK
+apps/manumesh/              CLI，按外部用户方式调用 SDK
 examples/                       C/C++ SDK 使用示例
 tests/                          GoogleTest 和 CTest 回归验证
 docs/                           当前设计、指南、论文索引和历史生成资料
@@ -31,7 +31,7 @@ docs/                           当前设计、指南、论文索引和历史生
 - `QEMSimplifier`：隐藏单次简化运行状态、队列、动态拓扑和策略对象。
 - `FeatureDetector`：隐藏检测器内部配置和后续可能加入的缓存、策略或统计字段。
 
-`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。真实功能命名空间按模块拆开：特征检测位于 `lq::feature`，QEM/line-quadrics 简化位于 `lq::simplification`；`lq::FeatureAnalysis`、`lq::SimplifyOptions` 等根命名空间符号只是源码兼容 alias。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
+`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；真实功能命名空间按模块拆开：特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。功能模块类型不再回灌到根命名空间。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
 
 ## 公共私有层
 
@@ -66,8 +66,8 @@ QEM/line quadrics 只负责候选折叠排序和局部几何优化，工业级�
 简化主入口：
 
 ```cpp
-namespace lq::simplification {
-Mesh simplifyMesh(const lq::Mesh& input,
+namespace manumesh::simplification {
+Mesh simplifyMesh(const manumesh::Mesh& input,
                   const SimplifyOptions& options,
                   SimplifyReport* report = nullptr);
 }
@@ -76,22 +76,22 @@ Mesh simplifyMesh(const lq::Mesh& input,
 需要复用配置时使用对象入口：
 
 ```cpp
-lq::simplification::QEMSimplifier simplifier(options);
-lq::Mesh output = simplifier.simplify(input, &report);
+manumesh::simplification::QEMSimplifier simplifier(options);
+manumesh::Mesh output = simplifier.simplify(input, &report);
 ```
 
 不希望在 C++ 交换类型里暴露 Eigen 时使用：
 
 ```cpp
-lq::PlainMesh output =
-    lq::simplification::simplifyPlainMesh(inputPlain, options, &report);
+manumesh::PlainMesh output =
+    manumesh::simplification::simplifyPlainMesh(inputPlain, options, &report);
 ```
 
 特征检测提供平级对象入口：
 
 ```cpp
-lq::feature::FeatureDetector detector(featureOptions);
-lq::feature::FeatureAnalysis features = detector.analyze(mesh);
+manumesh::feature::FeatureDetector detector(featureOptions);
+manumesh::feature::FeatureAnalysis features = detector.analyze(mesh);
 ```
 
-C API 使用 `LqContext`、`LqMeshHandle`、`LqSimplifyOptions`、`LqSimplifyReport` 和 `LqMeshStats`。所有公开 C 结构体调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移。同一 `LQ_ABI_VERSION` 内，输入结构体允许尾部较短的旧 `struct_size`，库只读取存在的字段，新增尾部字段使用默认值；未初始化或 ABI 版本不匹配仍会被拒绝。
+C API 使用 `ManuMeshContext`、`ManuMeshMeshHandle`、`ManuMeshSimplifyOptions`、`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats`。所有公开 C 结构体调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移。同一 `MANUMESH_ABI_VERSION` 内，输入结构体允许尾部较短的旧 `struct_size`，库只读取存在的字段，新增尾部字段使用默认值；未初始化或 ABI 版本不匹配仍会被拒绝。

@@ -6,14 +6,14 @@
 #include "detail/Quadrics.h"
 #include "detail/SimplificationPolicies.h"
 #include "detail/SpatialFaceIndex.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureTypes.h"
-#include "line_quadrics_qem/algorithms/simplification/QEMSimplifier.h"
+#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <memory>
 #include <unordered_set>
 #include <vector>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 class SimplificationRun {
 public:
@@ -55,8 +55,8 @@ private:
   const SimplifyOptions& options_;
   SimplificationPolicies policies_;
   SimplifyReport report_;
-  FeatureAnalysis featureAnalysis_;
-  const FeatureAnalysis* featureAnalysisPtr_ = nullptr;
+  feature::FeatureAnalysis featureAnalysis_;
+  const feature::FeatureAnalysis* featureAnalysisPtr_ = nullptr;
   std::vector<char> boundaryVertices_;
   std::vector<VertexState> vertices_;
   std::vector<FaceState> faces_;
@@ -77,4 +77,4 @@ private:
   int stalePops_ = 0;
 };
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

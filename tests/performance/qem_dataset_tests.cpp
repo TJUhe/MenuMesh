@@ -1,6 +1,6 @@
 #include "TestSupport.h"
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
-#include "line_quadrics_qem/algorithms/simplification/Metrics.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/simplification/Metrics.h"
 
 #include <algorithm>
 #include <chrono>
@@ -11,18 +11,18 @@
 
 namespace {
 
-using lq::test::caseFieldInt;
-using lq::test::CaseLine;
-using lq::test::circularFeatureOptions;
-using lq::test::countCircularLoops;
-using lq::test::expectBudget;
-using lq::test::lineOptions;
-using lq::test::loadCaseMesh;
-using lq::test::maxCircularRelativeError;
-using lq::test::protectedOptions;
-using lq::test::readCaseLines;
-using lq::test::SimplifiedMesh;
-using lq::test::simplifyWithReport;
+using manumesh::test::caseFieldInt;
+using manumesh::test::CaseLine;
+using manumesh::test::circularFeatureOptions;
+using manumesh::test::countCircularLoops;
+using manumesh::test::expectBudget;
+using manumesh::test::lineOptions;
+using manumesh::test::loadCaseMesh;
+using manumesh::test::maxCircularRelativeError;
+using manumesh::test::protectedOptions;
+using manumesh::test::readCaseLines;
+using manumesh::test::SimplifiedMesh;
+using manumesh::test::simplifyWithReport;
 
 double elapsedMs(std::chrono::steady_clock::time_point start,
                  std::chrono::steady_clock::time_point end) {
@@ -31,7 +31,7 @@ double elapsedMs(std::chrono::steady_clock::time_point start,
 
 } // namespace
 
-TEST(LineQuadricsQemDataset, AllQemTestStlInputsSimplifyAtSmokeBudget) {
+TEST(ManuMeshDataset, AllQemTestStlInputsSimplifyAtSmokeBudget) {
   const std::vector<CaseLine> cases = readCaseLines("all_stl/cases.txt");
   ASSERT_GE(cases.size(), 100u);
 
@@ -42,18 +42,20 @@ TEST(LineQuadricsQemDataset, AllQemTestStlInputsSimplifyAtSmokeBudget) {
     SCOPED_TRACE(testCase.relativePath.generic_string());
 
     const auto loadStart = std::chrono::steady_clock::now();
-    const lq::Mesh input = loadCaseMesh(testCase.relativePath);
+    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
     const auto loadEnd = std::chrono::steady_clock::now();
     ASSERT_FALSE(input.empty());
 
-    const lq::SimplifyOptions options = lineOptions(0.90);
+    const manumesh::simplification::SimplifyOptions options = lineOptions(0.90);
     const auto simplifyStart = std::chrono::steady_clock::now();
     const SimplifiedMesh result = simplifyWithReport(input, options);
     const auto simplifyEnd = std::chrono::steady_clock::now();
 
     expectBudget(result, input, 0.90);
-    const lq::MeshStats inputStats = lq::computeMeshStats(input);
-    const lq::MeshStats outputStats = lq::computeMeshStats(result.mesh);
+    const manumesh::simplification::MeshStats inputStats =
+        manumesh::simplification::computeMeshStats(input);
+    const manumesh::simplification::MeshStats outputStats =
+        manumesh::simplification::computeMeshStats(result.mesh);
     EXPECT_LE(outputStats.nonManifoldEdges, inputStats.nonManifoldEdges)
         << "simplification should not add non-manifold edges";
 
@@ -64,16 +66,16 @@ TEST(LineQuadricsQemDataset, AllQemTestStlInputsSimplifyAtSmokeBudget) {
   }
 }
 
-TEST(LineQuadricsQemDataset, CircularHoleCasesHaveAuditableFeaturePreservation) {
+TEST(ManuMeshDataset, CircularHoleCasesHaveAuditableFeaturePreservation) {
   for (const CaseLine& testCase : readCaseLines("circular_holes/cases.txt")) {
     SCOPED_TRACE(testCase.relativePath.generic_string());
-    const lq::Mesh input = loadCaseMesh(testCase.relativePath);
+    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
     ASSERT_FALSE(input.empty());
 
     const int minCircularLoops = caseFieldInt(testCase, 0, 1);
     const int minFeatureEdges = caseFieldInt(testCase, 1, 1);
-    const lq::FeatureAnalysis originalFeatures =
-        lq::detectFeatureCurves(input, circularFeatureOptions());
+    const manumesh::feature::FeatureAnalysis originalFeatures =
+        manumesh::feature::detectFeatureCurves(input, circularFeatureOptions());
     ASSERT_GE(originalFeatures.featureEdges, minFeatureEdges);
     ASSERT_GE(countCircularLoops(originalFeatures), minCircularLoops);
 
@@ -93,10 +95,11 @@ TEST(LineQuadricsQemDataset, CircularHoleCasesHaveAuditableFeaturePreservation) 
     EXPECT_GT(protectedResult.report.circularFeatureLoops, 0);
     EXPECT_GT(protectedResult.report.projectedFeaturePlacements, 0);
 
-    const lq::FeatureAnalysis lineFeatures =
-        lq::detectFeatureCurves(line.mesh, circularFeatureOptions());
-    const lq::FeatureAnalysis protectedFeatures =
-        lq::detectFeatureCurves(protectedResult.mesh, circularFeatureOptions());
+    const manumesh::feature::FeatureAnalysis lineFeatures =
+        manumesh::feature::detectFeatureCurves(line.mesh, circularFeatureOptions());
+    const manumesh::feature::FeatureAnalysis protectedFeatures =
+        manumesh::feature::detectFeatureCurves(protectedResult.mesh,
+                                               circularFeatureOptions());
     const int protectedCircularLoops = countCircularLoops(protectedFeatures);
     EXPECT_GT(countCircularLoops(lineFeatures), 0);
     EXPECT_GE(protectedCircularLoops, 1);
@@ -104,33 +107,35 @@ TEST(LineQuadricsQemDataset, CircularHoleCasesHaveAuditableFeaturePreservation) 
   }
 }
 
-TEST(LineQuadricsQemDataset, ClosedTopologyCasesStayClosedAfterLineSimplify) {
+TEST(ManuMeshDataset, ClosedTopologyCasesStayClosedAfterLineSimplify) {
   for (const CaseLine& testCase : readCaseLines("closed_topology/cases.txt")) {
     SCOPED_TRACE(testCase.relativePath.generic_string());
-    const lq::Mesh input = loadCaseMesh(testCase.relativePath);
+    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
     ASSERT_FALSE(input.empty());
 
-    const lq::MeshStats inputStats = lq::computeMeshStats(input);
+    const manumesh::simplification::MeshStats inputStats =
+        manumesh::simplification::computeMeshStats(input);
     ASSERT_EQ(inputStats.boundaryEdges, 0);
     ASSERT_EQ(inputStats.nonManifoldEdges, 0);
 
     const SimplifiedMesh result = simplifyWithReport(input, lineOptions(0.80));
     expectBudget(result, input, 0.80);
 
-    const lq::MeshStats outputStats = lq::computeMeshStats(result.mesh);
+    const manumesh::simplification::MeshStats outputStats =
+        manumesh::simplification::computeMeshStats(result.mesh);
     EXPECT_EQ(outputStats.boundaryEdges, 0);
     EXPECT_EQ(outputStats.nonManifoldEdges, 0);
   }
 }
 
-TEST(LineQuadricsQemDataset, NonCircularHardFeatureCasesExerciseProtection) {
+TEST(ManuMeshDataset, NonCircularHardFeatureCasesExerciseProtection) {
   for (const CaseLine& testCase : readCaseLines("non_circular_features/cases.txt")) {
     SCOPED_TRACE(testCase.relativePath.generic_string());
-    const lq::Mesh input = loadCaseMesh(testCase.relativePath);
+    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
     ASSERT_FALSE(input.empty());
 
-    const lq::FeatureAnalysis originalFeatures =
-        lq::detectFeatureCurves(input, circularFeatureOptions());
+    const manumesh::feature::FeatureAnalysis originalFeatures =
+        manumesh::feature::detectFeatureCurves(input, circularFeatureOptions());
     ASSERT_GT(originalFeatures.featureEdges, 0);
 
     const SimplifiedMesh protectedResult =

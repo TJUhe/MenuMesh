@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace lq::simplification {
+namespace manumesh::simplification {
 
 bool containsVertex(const FaceState& face, int vertex) {
   return face.v[0] == vertex || face.v[1] == vertex || face.v[2] == vertex;
@@ -239,4 +239,4 @@ bool collapseWouldPreserveLinkCondition(int keep, int remove,
   return true;
 }
 
-} // namespace lq::simplification
+} // namespace manumesh::simplification

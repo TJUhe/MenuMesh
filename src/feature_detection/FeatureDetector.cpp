@@ -1,4 +1,4 @@
-#include "line_quadrics_qem/algorithms/feature_detection/FeatureDetector.h"
+#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"
 #include "detail/PrimitiveFit.h"
@@ -17,7 +17,7 @@
 #include <unordered_set>
 #include <utility>
 
-namespace lq::feature {
+namespace manumesh::feature {
 namespace {
 
 constexpr double kPi = 3.141592653589793238462643383279502884;
@@ -1208,4 +1208,4 @@ std::string toString(FeaturePrimitiveType primitive) {
   return "unknown";
 }
 
-} // namespace lq::feature
+} // namespace manumesh::feature

@@ -1,32 +1,36 @@
 # ManuMesh SDK 集成指南
 
-ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；C ABI 适合插件、宿主程序、跨语言绑定或 ABI 边界更严格的场景。C++ API 命名空间已统一为 `manumesh`：核心网格类型位于根命名空间，功能入口使用 `manumesh::simplification` 和 `manumesh::feature` 两个功能命名空间，不再提供旧根命名空间别名。当前二进制、include 路径和 C ABI 名称仍沿用现有 SDK 约定。
+ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；C ABI 适合插件、宿主程序、跨语言绑定或 ABI 边界更严格的场景。C++ API 命名空间已统一为 `manumesh`：核心网格类型位于根命名空间，功能入口使用 `manumesh::simplification` 和 `manumesh::feature` 两个功能命名空间，不再提供旧根命名空间别名。当前二进制、include 路径和 C ABI 名称沿用 ManuMesh SDK 约定。
+
+算法和报告字段的理解见 [`../design/algorithm_essence.md`](../design/algorithm_essence.md)。SDK 集成时尤其要注意：QEM/line quadrics 是候选排序，`SimplifyReport` 的拒绝计数来自硬过滤器，不是普通日志噪声。
 
 ## 构建 SDK
 
 MinGW + Ninja 的 Release 构建：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja `
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
   -DMANUMESH_GOOGLETEST_PROVIDER=auto `
   -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF
-cmake --build build/mingw-ninja-release --parallel
+cmake --build $buildDir --parallel
 ```
 
 如果要生成本地安装布局：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja `
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DMANUMESH_GOOGLETEST_PROVIDER=auto `
   -DMANUMESH_ENABLE_INSTALL=ON
-cmake --build build/mingw-ninja-release --target sdk-install-local --parallel
+cmake --build $buildDir --target sdk-install-local --parallel
 ```
 
 默认本地 SDK 前缀在构建目录的 `sdk/` 下，可通过 `MANUMESH_LOCAL_SDK_PREFIX` 修改。
@@ -120,7 +124,8 @@ Windows + MinGW 使用共享库时，应用目录需要：
 启用安装目标后可运行：
 
 ```powershell
-cmake --build build/mingw-ninja-release --target sdk-consumer-test --parallel
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake --build $buildDir --target sdk-consumer-test --parallel
 ```
 
 ## 集成边界

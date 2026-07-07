@@ -2,6 +2,8 @@
 
 本文说明 ManuMesh 当前外部模型验证的范围、命令和结论。验证目标是确认算法在公开模型和工业风格 STL/OBJ 上不会引入明显拓扑退化，并能输出可比较的 CSV 指标。
 
+外部验证不是追求某个单一误差数字，而是把 [`algorithm_essence.md`](algorithm_essence.md) 中的几类失效模式落到真实数据上：平面区排序退化、特征 loop 漂移、边界改变、非流形风险、三角形质量退化和局部误差/自交过滤冲突。
+
 ## 数据位置
 
 | 路径 | 内容 |
@@ -16,7 +18,8 @@
 普通外部验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe validate-external `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe validate-external `
   --input-dir tests/data/external/common_3d_test_models `
   --ratio 0.25 `
   --samples 800 `
@@ -26,7 +29,8 @@
 特征验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe validate-features `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe validate-features `
   --ratio 0.20 `
   --samples 1000 `
   --output-dir tests/output/feature_curve_validation
@@ -51,6 +55,7 @@
 - `boundary_edges` 和 `non_manifold_edges` 是否异常增加。
 - `mean_triangle_quality`、`min_triangle_quality` 和 `edge_length_cv` 是否退化。
 - 特征保护场景下 `feature_loops`、`circular_feature_loops`、`projected_feature_placements` 是否符合预期。
+- `solver_fallbacks` 和 `min_line_weight` / `max_line_weight` 是否提示 QEM 欠约束或 line weight 过强。
 
 ## 当前结论
 

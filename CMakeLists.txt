@@ -641,9 +641,26 @@ endif()
 if(MANUMESH_BUILD_DOCS)
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)
-    set(MANUMESH_DOXYGEN_INPUT
-      "${CMAKE_CURRENT_SOURCE_DIR}/README.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/architecture.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_library.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/sdk_integration.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/large_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/vscode_setup.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/paper_guided_usage.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_constraints.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_experiment.md ${CMAKE_CURRENT_SOURCE_DIR}/docs/design/external_model_validation.md ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp ${CMAKE_CURRENT_SOURCE_DIR}/examples/c_api_basic.c"
+    set(MANUMESH_DOXYGEN_INPUT_FILES
+      "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/algorithm_essence.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/architecture.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_library.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/sdk_integration.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_validation.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/large_model_validation.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/vscode_setup.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/paper_guided_usage.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_constraints.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_experiment.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/external_model_validation.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/include"
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+      "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/main.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/c_api_basic.c"
     )
+    string(JOIN " " MANUMESH_DOXYGEN_INPUT ${MANUMESH_DOXYGEN_INPUT_FILES})
     set(MANUMESH_DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/api")
     configure_file(
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in"

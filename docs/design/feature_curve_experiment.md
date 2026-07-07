@@ -2,6 +2,8 @@
 
 本文记录当前可复现实验入口。目标是验证特征曲线保护是否在目标面数、三角质量和圆/椭圆 loop 保持之间取得平衡。
 
+特征曲线保护的算法背景见 [`algorithm_essence.md`](algorithm_essence.md) 和 [`feature_curve_constraints.md`](feature_curve_constraints.md)。实验应同时观察软成本、投影、曲线预算和硬拒绝，而不是只看输出面数。
+
 ## 推荐 fixture
 
 | 输入 | 关注点 |
@@ -15,7 +17,8 @@
 ## 特征报告
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe feature-report `
   tests/data/feature_fixtures/coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -26,7 +29,8 @@
 ## 简化实验
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe simplify `
   tests/data/feature_fixtures/coaxial_hole_plate.obj `
   output/vscode_demo/coaxial_feature_curves.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
@@ -46,6 +50,8 @@
 - `curve_budget_rejected_collapses` 过高说明曲线预算太紧。
 - `generic_feature_rejected_collapses` 过高通常说明不应使用 `all-feature-edges`。
 - STL 视觉检查应重点看孔边是否变成明显多边形、椭圆是否被拉圆、薄边是否翻折。
+
+这些字段对应不同算法层：`feature_loops` 来自 feature graph，`projected_feature_placements` 来自 placement 投影，`curve_budget_rejected_collapses` 来自投影前预算，`generic_feature_rejected_collapses` 来自硬保护策略。若某项异常，优先回到对应层调参。
 
 ## 当前结论
 

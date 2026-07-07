@@ -4,7 +4,10 @@ ManuMesh 是一个面向增材制造的 C++17 多边形网格几何内核。当�
 `Controlling Quadric Error Simplification with Line Quadrics` 的 QEM + line
 quadrics 思路，并提供可构建、可测试、可度量、可由外部程序调用的库接口。
 
-当前产品名是 ManuMesh；C++ API 命名空间已统一为 `manumesh`。核心网格类型位于根命名空间，功能入口按模块写成 `manumesh::simplification::...` 和 `manumesh::feature::...`，不再提供旧根命名空间别名。当前 CMake 目标、CLI 名称和 include 根路径仍沿用 `manumesh` / `manumesh`；C ABI 名称仍为 `ManuMesh*` / `manumesh_*`。
+从算法本质看，当前 ManuMesh 是“QEM/line-quadrics 候选排序 + 三角网格特征图 + 硬合法性过滤”的受约束边坍缩管线。更完整的数学直觉、每一步做法的由来和论文对应关系见
+[`docs/design/algorithm_essence.md`](docs/design/algorithm_essence.md)。
+
+当前产品名是 ManuMesh；C++ API 命名空间已统一为 `manumesh`。核心网格类型位于根命名空间，功能入口按模块写成 `manumesh::simplification::...` 和 `manumesh::feature::...`。当前 CMake 目标、CLI 名称和 include 根路径使用 `manumesh`；C ABI 名称为 `ManuMesh*` / `manumesh_*`。
 
 当前仓库刻意不再把网页预览作为主入口。结果检查走更稳定的工业验证路径：
 
@@ -20,6 +23,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 - [Line Quadrics 数学原理展开](docs/generated/notes/manumesh-theory-explained.html)
 - [ManuMesh 程序原理说明](docs/generated/notes/manumesh-program-principles.html)
 - [ManuMesh 代码阅读手册](docs/generated/notes/manumesh-code-manual.html)
+- [算法本质、数学直觉与实现契约](docs/design/algorithm_essence.md)
 - [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
 - [QEM 相关开源库与 ManuMesh 当前实现对比](docs/generated/notes/qem-library-comparison.html)
 
@@ -65,8 +69,9 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 推荐 MinGW + Ninja。`--parallel` 不指定数字时，CMake 会让 Ninja 按可用核心数并行：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build/mingw-ninja-release --target manumesh --parallel
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -S . -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build $buildDir --target manumesh --parallel
 ```
 
 MSVC + Ninja 可作为备用链路，需要从 VS Developer Command Prompt 或已经带有
@@ -117,7 +122,7 @@ manumesh::simplification::QEMSimplifier simplifier(options);
 manumesh::Mesh simplified = simplifier.simplify(input, &report);
 ```
 
-`FeatureProtectionMode::PrimitiveCurves` 是默认特征保护策略。它会硬保护拟合出的圆、近圆和椭圆 loop，普通折线/二面角 crease 则作为软成本和合法性过滤输入。只有需要复现旧版严格锁边行为时，才使用 `AllFeatureEdges`。
+`FeatureProtectionMode::PrimitiveCurves` 是默认特征保护策略。它会硬保护拟合出的圆、近圆和椭圆 loop，普通折线/二面角 crease 则作为软成本和合法性过滤输入。只有明确需要把所有检测到的特征边都作为硬约束时，才使用 `AllFeatureEdges`。
 
 特征检测也可以独立使用，不需要先运行 QEM：
 
@@ -217,7 +222,7 @@ C:\opt\manumesh\share\manumesh\msvc\ManuMesh.props
 
 如果使用 C++ API，例如 `manumesh/core/Mesh.h`，属性表默认会引用
 SDK 自带的 Eigen 头文件目录。需要统一公司内部 Eigen 版本时，可以覆盖
-`LQEigenIncludeDir`。如果只使用 `manumesh/api/CApi.h` 这套 C ABI，
+`ManuMeshEigenIncludeDir`。如果只使用 `manumesh/api/CApi.h` 这套 C ABI，
 调用方不需要包含 Eigen 头。
 如果希望使用 C++ 但避免在宿主交换类型中暴露 Eigen，可包含
 `manumesh/algorithms/simplification/PlainSimplifier.h` 并传入
@@ -258,25 +263,29 @@ int main() {
 基础回归：
 
 ```powershell
-cmake -E chdir build/industrial ctest -LE performance --output-on-failure
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
 
 大模型性能测试：
 
 ```powershell
-cmake -E chdir build/industrial ctest -L performance --output-on-failure
+$perfBuildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release-performance"
+cmake -E chdir $perfBuildDir ctest -L performance --output-on-failure
 ```
 
 快速生成 STL/CSV：
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe demo --quick --samples 500
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe demo --quick --samples 500
 ```
 
 工业特征验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe validate-features --ratio 0.20 --samples 1000
 ```
 
 C ABI 的公开结构体仍必须先调用对应 `*_init`。同一 `MANUMESH_ABI_VERSION`
@@ -291,7 +300,8 @@ OpenFOAM flange。可用 `--spindle-input`、`--ring-input`、`--pulley-input`�
 外部 OBJ 基准验证：
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe validate-external --ratio 0.25 --samples 800
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe validate-external --ratio 0.25 --samples 800
 ```
 
 每项能力、性能指标、输出文件和验收口径见

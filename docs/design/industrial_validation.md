@@ -1,13 +1,17 @@
 # ManuMesh 工业化验证现状
 
-本文记录 ManuMesh 在工业风格模型上的验证边界。结论基于当前源码和测试，而不是产品化承诺。当前命令和二进制仍使用 `manumesh.exe` 兼容名称。
+本文记录 ManuMesh 在工业风格模型上的验证边界。结论基于当前源码和测试，而不是产品化承诺。当前 CLI 名称为 `manumesh.exe`。
+
+这些验证指标应按 [`algorithm_essence.md`](algorithm_essence.md) 的分层理解：QEM/line quadrics 解释候选排序，feature graph 解释特征支撑，拒绝计数解释硬过滤器和目标面数之间的冲突。
 
 ## 当前验证入口
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000
-.\build\mingw-ninja-release\bin\manumesh.exe validate-external --ratio 0.25 --samples 800
-cmake -E chdir build\mingw-ninja-release ctest -LE performance --output-on-failure
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$exe = "$buildDir/bin/manumesh.exe"
+& $exe validate-features --ratio 0.20 --samples 1000
+& $exe validate-external --ratio 0.25 --samples 800
+cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
 
 VS Code 中对应常用任务：
@@ -29,6 +33,8 @@ VS Code 中对应常用任务：
 | 字段 | 解读 |
 | --- | --- |
 | `termination_reason` | 是否达到目标，或因候选耗尽/拒绝上限停止。 |
+| `solver_fallbacks` | placement 求解退化到端点/中点候选的次数，常提示局部 QEM 矩阵欠约束或病态。 |
+| `min_line_weight` / `max_line_weight` | CLI metrics CSV 中的实际 line quadric 权重范围；C ABI 报告字段名为 `min_applied_line_weight` / `max_applied_line_weight`。 |
 | `feature_rejected_collapses` | 特征策略拒绝总数。 |
 | `primitive_feature_rejected_collapses` | primitive loop 保护拒绝。 |
 | `generic_feature_rejected_collapses` | generic feature 拒绝，过高可能说明过度锁边。 |

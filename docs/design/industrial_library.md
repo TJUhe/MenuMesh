@@ -1,6 +1,8 @@
 # ManuMesh 工业网格库定位
 
-ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型，已经具备向工业多边形网格几何内核演进的骨架，但还不是完整工业 CAD/mesh kernel。当前代码级兼容标识仍保留 `manumesh` 库目标和 `manumesh.exe` CLI。
+ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型，已经具备向工业多边形网格几何内核演进的骨架，但还不是完整工业 CAD/mesh kernel。当前库目标为 `manumesh`，CLI 为 `manumesh.exe`。
+
+当前算法定位见 [`algorithm_essence.md`](algorithm_essence.md)：ManuMesh 的核心不是单一 QEM 公式，而是候选排序、三角网格特征图和硬合法性过滤共同组成的 decimation 模块。
 
 ## 当前可作为库交付的内容
 
@@ -10,7 +12,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 - C ABI：`api/CApi.h`。
 - CLI：`manumesh.exe`，用于批处理、验证和示例。
 - 示例：C++ SDK 和 C ABI consumer。
-- 回归测试：76 个非性能测试，另有 performance 构建路径。
+- 回归测试：78 个非性能测试，另有 performance 构建路径。
 
 ## 当前核心能力
 
@@ -20,7 +22,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 | 拓扑分析 | boundary、non-manifold、edge/face/vertex 统计。 |
 | 特征检测 | boundary、dihedral、normal-tensor、loop、circle/ellipse fitting。 |
 | 简化 | standard QEM、line quadrics、ratio/face target、sweep。 |
-| 保护 | boundary、feature curves、triangle quality、normal deviation、local error、local intersections。 |
+| 保护 | boundary、feature curves、topology link condition、triangle quality、normal deviation、local error、local intersections。 |
 | 集成 | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口、C ABI、SDK 安装、示例工程。 |
 
 ## 与完整工业几何内核的差距

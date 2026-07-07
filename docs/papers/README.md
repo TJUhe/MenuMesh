@@ -2,6 +2,8 @@
 
 本目录保存 ManuMesh 的论文 PDF 归档。PDF 按算法或研究方向分文件夹，文件名保留英文，方便和引用链接对应；本索引用中文说明它们在当前实现和后续路线中的作用。
 
+如果要理解当前程序为什么这样设计，请先读 [`../design/algorithm_essence.md`](../design/algorithm_essence.md)，再按本文的算法问题选择论文。
+
 ## 目录分组
 
 | 目录 | 算法方向 | 用途 |
@@ -79,3 +81,16 @@
 ## 与当前实现的关系
 
 ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-tensor 特征证据、圆/近圆/椭圆 loop 拟合、特征曲线保护、边界/拓扑/质量/局部误差/自交过滤。当前没有落地：论文中的完整 edge dihedral plane quadrics、学习式特征评分、时间一致性简化、神经 QEM 表示和通用 CAD/B-Rep 特征恢复。
+
+## 按问题阅读
+
+| 想理解的问题 | 推荐阅读 | 读完应回到的代码 |
+| --- | --- | --- |
+| 为什么标准 QEM 在平面区域会排序退化？ | `qem/garland_heckbert_1997_surface_simplification_qem.pdf`，再读 `line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf`。 | `src/simplification/Quadrics.cpp` |
+| line quadrics 为什么是正则项而不是替代 QEM？ | Line Quadrics 2025，配合 `docs/generated/notes/qem-line-quadrics-notes.html`。 | `lineQuadric()`、`computeInitialQuadrics()` |
+| 为什么不能只调大特征权重？ | Wang 2008、Hussain 2008、CWF 2024、Rose 2025。 | `FeatureConstraints.cpp`、`CollapseLegality.cpp` |
+| CAD/STL 特征边为什么优先用二面角和边界？ | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008。 | `FeatureDetector.cpp::collectFeatureEdges()` |
+| normal tensor 的特征值怎么解释？ | Tsuchie-Higashi 2014，以及 normal voting/tensor 相关论文。 | `NormalTensor.cpp` |
+| 圆/椭圆 loop 为什么要拟合 primitive？ | CAD feature line 与工程对象 segmentation 论文，配合当前 feature fixture。 | `PrimitiveFit.cpp` |
+| 为什么需要 topology/quality/error/self-intersection filters？ | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025、自交检测相关论文。 | `CollapseLegality.cpp`、`GeometryPredicates.cpp` |
+| 下一步如果做全局误差 envelope 应看什么？ | Rose 2025、Garland/Shaffer 2002、CWF 2024、相关 Hausdorff/error-filter 文献。 | 未来 `validation` 或 `simplification/detail` 中独立 envelope filter |

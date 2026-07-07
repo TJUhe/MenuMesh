@@ -2,6 +2,8 @@
 
 ManuMesh 是面向增材制造的 C++ 多边形网格几何内核。当前稳定能力集中在 QEM/line quadrics 简化和 CAD/STL 风格特征检测，代码组织目标是让后续 `repair`、`boolean`、`offset`、`remesh` 等模块能并列加入，而不是继续堆到 QEM 实现里。
 
+算法层面的共同语境见 [`algorithm_essence.md`](algorithm_essence.md)。本文只描述架构边界：哪些概念可以公开，哪些必须留在私有实现里，哪些模块可以依赖彼此。
+
 ## 分层
 
 ```text
@@ -49,6 +51,21 @@ docs/                           当前设计、指南、论文索引和历史生
 特征检测是与简化平级的算法模块。它只依赖 core 和私有 common，不依赖 QEM。简化模块可以消费 `FeatureAnalysis`，用于 feature quadrics、placement 投影、曲线预算和硬保护策略。
 
 QEM/line quadrics 只负责候选折叠排序和局部几何优化，工业级安全性由显式过滤器补足：拓扑 link condition、边界策略、法线偏转、三角形质量、局部误差和自交检查。特征图应先成为独立结果，再由简化、验证、修复或未来重网格模块消费。
+
+这个边界来自当前算法本质：标准 QEM 在平坦区域存在切向零空间，line quadrics 补的是候选排序和 placement 正则；特征图补的是制造语义支撑；硬过滤器补的是拓扑和几何安全。把这三件事合在一个类里会让新增模块无法复用 feature graph，也会让后续 envelope、repair、remesh 等能力只能绕着 QEM 转。
+
+当前依赖方向应保持：
+
+```text
+core
+  -> feature_detection
+  -> simplification
+
+core + common/detail 可被 feature_detection 和 simplification 使用；
+simplification 可以消费 feature::FeatureAnalysis；
+feature_detection 不能反向 include simplification；
+未来 repair/remesh/validation 可以消费 feature::FeatureAnalysis。
+```
 
 ## 数据策略
 

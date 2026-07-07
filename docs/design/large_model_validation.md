@@ -2,6 +2,8 @@
 
 本文按 ManuMesh 当前仓库数据和任务更新。大模型验证的目的，是在 10k 面以上的公开 STL 上捕捉新增孔洞、非流形边、严重质量退化和性能回归。
 
+大模型验证主要覆盖 [`algorithm_essence.md`](algorithm_essence.md) 中的工程层问题：候选队列是否会被 stale candidate 拖慢，动态拓扑是否能稳定更新，局部自交空间索引是否有效，硬过滤器是否让目标面数无法达到。
+
 ## 数据来源
 
 | 路径 | 内容 |
@@ -18,25 +20,27 @@
 非性能回归：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja `
+$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF
-cmake --build build/mingw-ninja-release --parallel
-cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure
+cmake --build $buildDir --parallel
+cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
 
 性能测试需要单独配置：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-debug-performance -G Ninja `
+$perfBuildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-debug-performance"
+cmake -S . -B $perfBuildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Debug `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
   -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON
-cmake --build build/mingw-ninja-debug-performance --target manumesh_performance_tests --parallel
-cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output-on-failure
+cmake --build $perfBuildDir --target manumesh_performance_tests --parallel
+cmake -E chdir $perfBuildDir ctest -L performance --output-on-failure
 ```
 
 ## 手动抽样命令
@@ -44,7 +48,8 @@ cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output
 90% 保守简化：
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_090.stl `
   --method line --ratio 0.9 `
@@ -56,7 +61,8 @@ cmake -E chdir build/mingw-ninja-debug-performance ctest -L performance --output
 50% 更深简化：
 
 ```powershell
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+& $exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_050.stl `
   --method line --ratio 0.5 `

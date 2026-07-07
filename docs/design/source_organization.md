@@ -2,6 +2,8 @@
 
 ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分离，跨算法复用工具放在私有 common 层，算法专属 helper 放在各自模块的 `detail/` 目录中。
 
+算法为什么要按这些边界拆分，见 [`algorithm_essence.md`](algorithm_essence.md)。本文件只规定源码目录、include 和扩展规则。
+
 ## 目录契约
 
 | 路径 | 角色 | 规则 |
@@ -88,3 +90,5 @@ src/feature_detection/detail/PrimitiveFit.h   primitive fitting 私有数据结�
 模块变大时按职责拆分，而不是按公式片段随意拆文件。新的稳定算法契约进入 `include/manumesh/algorithms/<domain>/`；长期存在但不稳定的实现 helper 进入所属模块的 `detail/`；跨模块工具先放在 `src/common/detail/`，等它的语义足够稳定再决定是否提升到公共 `core`。
 
 公共对象优先使用 pimpl 隐藏实现存储。只有调用方必须直接读写、且语义稳定的数据交换结构才进入公共头，例如 options、reports 和 analysis results。
+
+新增算法文档应同时说明四件事：要解决的几何现象、核心数学量、当前代码入口和论文出处。缺少其中任意一项时，不应把它写成已稳定能力。

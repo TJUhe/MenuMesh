@@ -1,7 +1,6 @@
 #include "detail/SimplificationRun.h"
 
 #include "common/detail/MeshQueries.h"
-#include "detail/CollapseLegality.h"
 #include "detail/DynamicTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/Quadrics.h"
@@ -259,200 +258,72 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
     ++report_.solverFallbacks;
   }
 
-  const FeatureCollapseRejectKind featureRejectKind =
-      featurePolicy_.collapseRejectKind({edge, vertices_, activeLoopCounts_});
-  if (featureRejectKind != FeatureCollapseRejectKind::None) {
-    rejectFeatureCollapse(keep, remove, featureRejectKind);
-    return false;
-  }
-
-  const BoundaryCollapseDecision boundaryDecision =
-      boundaryCollapseDecision({edge, faces_, vertices_, *topology_, options_});
-  if (!boundaryDecision.allowed) {
-    rejectBoundaryCollapse(keep, remove);
-    return false;
-  }
-
-  const bool featureCurveCollapse =
-      featurePolicy_.isHardProtectedCollapse(edge, vertices_);
-  const bool tryFallbackPlacements =
-      !featureCurveCollapse &&
-      (policies_.legality.minTriangleQuality > 0.0 || maxLocalError_ > 0.0 ||
-       policies_.legality.preventLocalIntersections);
-  CollapseRejectReason firstRejectReason = CollapseRejectReason::None;
-  bool sawCurveBudgetReject = false;
-  if (acceptFirstLegalPlacement(edge, mergedQ, placements, boundaryDecision,
-                                tryFallbackPlacements, firstRejectReason,
-                                sawCurveBudgetReject)) {
+  const CollapseAttemptResult result = evaluateCollapseAttempt(
+      {edge, mergedQ, placements, options_, policies_, vertices_, faces_, *topology_,
+       activeLoopCounts_, featureCurves_, featurePolicy_,
+       policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
+       input_.bboxDiag(), areaEps_, minNormalDot_, maxLocalError_});
+  if (result.accepted()) {
+    applyCollapse(edge.keep, edge.remove, result.acceptedPosition, mergedQ);
+    if (result.projected) {
+      ++report_.projectedFeaturePlacements;
+    }
     return true;
   }
 
-  if (firstRejectReason != CollapseRejectReason::None) {
-    rejectLegalityCollapse(keep, remove, firstRejectReason);
-    return false;
-  }
-  if (sawCurveBudgetReject) {
-    rejectCurveBudgetCollapse(keep, remove);
-    return false;
-  }
-  rejectLegalityCollapse(keep, remove, CollapseRejectReason::Topology);
+  recordRejectedCollapse(result);
   return false;
 }
 
-bool SimplificationRun::acceptFirstLegalPlacement(
-    const CollapseEdge& edge, const Mat4& mergedQ,
-    const std::vector<SolveResult>& placements,
-    const BoundaryCollapseDecision& boundaryDecision, bool tryFallbackPlacements,
-    CollapseRejectReason& firstRejectReason, bool& sawCurveBudgetReject) {
-  const int placementCount =
-      tryFallbackPlacements ? static_cast<int>(placements.size()) : 1;
-  for (int placementIndex = 0; placementIndex < placementCount; ++placementIndex) {
-    Vec3 collapsePosition = placements[placementIndex].position;
-    projectBoundaryPlacement({edge, boundaryDecision, vertices_}, collapsePosition);
-    if (!curveBudgetAllows(edge.keep, edge.remove, collapsePosition)) {
-      sawCurveBudgetReject = true;
-      continue;
-    }
-
-    const bool projected = featurePolicy_.projectPlacement(
-        {edge, vertices_, featureCurves_}, collapsePosition);
-    const CollapseRejectReason rejectReason = collapseRejectReason(
-        {edge,
-         collapsePosition,
-         {faces_, vertices_, *topology_},
-         areaEps_,
-         policies_.legality.minTriangleQuality,
-         minNormalDot_,
-         maxLocalError_,
-         policies_.legality.preventLocalIntersections,
-         policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr});
-    if (rejectReason == CollapseRejectReason::None) {
-      applyCollapse(edge.keep, edge.remove, collapsePosition, mergedQ);
-      if (projected) {
-        ++report_.projectedFeaturePlacements;
-      }
-      return true;
-    }
-    if (firstRejectReason == CollapseRejectReason::None) {
-      firstRejectReason = rejectReason;
-    }
-  }
-  return false;
-}
-
-void SimplificationRun::rejectFeatureCollapse(int keep, int remove,
-                                              FeatureCollapseRejectKind kind) {
-  (void)keep;
-  (void)remove;
+void SimplificationRun::recordRejectedCollapse(const CollapseAttemptResult& result) {
   ++report_.rejectedCollapses;
-  ++report_.featureRejectedCollapses;
-  if (kind == FeatureCollapseRejectKind::Primitive) {
-    ++report_.primitiveFeatureRejectedCollapses;
-  } else if (kind == FeatureCollapseRejectKind::Generic) {
-    ++report_.genericFeatureRejectedCollapses;
-  }
-  if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ && options_.verbose) {
-    std::cerr << "stopped: feature constraints leave no valid collapses\n";
-  }
-}
 
-void SimplificationRun::rejectBoundaryCollapse(int keep, int remove) {
-  (void)keep;
-  (void)remove;
-  ++report_.rejectedCollapses;
-  ++report_.boundaryRejectedCollapses;
-  if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ && options_.verbose) {
-    std::cerr << "stopped: boundary constraints leave no valid collapses\n";
-  }
-}
-
-void SimplificationRun::rejectCurveBudgetCollapse(int keep, int remove) {
-  (void)keep;
-  (void)remove;
-  ++report_.rejectedCollapses;
-  ++report_.curveBudgetRejectedCollapses;
-  if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ && options_.verbose) {
-    std::cerr << "stopped: feature curve budgets leave no valid collapses\n";
-  }
-}
-
-bool SimplificationRun::curveBudgetAllows(int keep, int remove,
-                                          const Vec3& position) const {
-  if (!options_.preserveFeatureCurves ||
-      options_.maxFeatureCurveDeviationRatio <= 0.0) {
-    return true;
-  }
-  const VertexState& a = vertices_[keep];
-  const VertexState& b = vertices_[remove];
-  if (!a.isFeature || !b.isFeature || a.featureLoopId < 0 ||
-      a.featureLoopId != b.featureLoopId ||
-      a.featureLoopId >= static_cast<int>(featureCurves_.size())) {
-    return true;
-  }
-  const FeatureCurveConstraint& curve = featureCurves_[a.featureLoopId];
-  if (!curve.valid) {
-    return true;
-  }
-  const double maxDistance =
-      options_.maxFeatureCurveDeviationRatio * std::max(1e-12, input_.bboxDiag());
-  if (a.circularFeature || b.circularFeature) {
-    const Vec3 projected = projectToCircle(position, a.circularFeature ? a : b);
-    return (position - projected).squaredNorm() <= maxDistance * maxDistance;
-  }
-  if (a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ||
-      b.featurePrimitive == feature::FeaturePrimitiveType::Ellipse) {
-    const Vec3 projected = projectToEllipse(
-        position, a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ? a : b);
-    return (position - projected).squaredNorm() <= maxDistance * maxDistance;
-  }
-  if (curve.primitive != feature::FeaturePrimitiveType::PolygonalLoop) {
-    return true;
-  }
-  const int segmentCount =
-      curve.closed ? static_cast<int>(curve.samples.size())
-                   : std::max(0, static_cast<int>(curve.samples.size()) - 1);
-  double bestDist2 = std::numeric_limits<double>::infinity();
-  for (int i = 0; i < segmentCount; ++i) {
-    const Vec3& p0 = curve.samples[i];
-    const Vec3& p1 = curve.samples[(i + 1) % curve.samples.size()];
-    const Vec3 edge = p1 - p0;
-    const double len2 = edge.squaredNorm();
-    Vec3 closest = p0;
-    if (len2 > 1e-30) {
-      const double t = std::clamp((position - p0).dot(edge) / len2, 0.0, 1.0);
-      closest = p0 + t * edge;
+  const char* message = "constraints leave no valid collapses";
+  switch (result.status) {
+  case CollapseAttemptStatus::Accepted:
+    break;
+  case CollapseAttemptStatus::FeatureRejected:
+    ++report_.featureRejectedCollapses;
+    if (result.featureRejectKind == FeatureCollapseRejectKind::Primitive) {
+      ++report_.primitiveFeatureRejectedCollapses;
+    } else if (result.featureRejectKind == FeatureCollapseRejectKind::Generic) {
+      ++report_.genericFeatureRejectedCollapses;
     }
-    bestDist2 = std::min(bestDist2, (position - closest).squaredNorm());
-  }
-  return std::isfinite(bestDist2) && bestDist2 <= maxDistance * maxDistance;
-}
-
-void SimplificationRun::rejectLegalityCollapse(int keep, int remove,
-                                               CollapseRejectReason reason) {
-  (void)keep;
-  (void)remove;
-  ++report_.rejectedCollapses;
-  switch (reason) {
-  case CollapseRejectReason::Topology:
-    ++report_.topologyRejectedCollapses;
+    message = "feature constraints leave no valid collapses";
     break;
-  case CollapseRejectReason::NormalFlip:
-    ++report_.normalFlipRejectedCollapses;
+  case CollapseAttemptStatus::BoundaryRejected:
+    ++report_.boundaryRejectedCollapses;
+    message = "boundary constraints leave no valid collapses";
     break;
-  case CollapseRejectReason::TriangleQuality:
-    ++report_.qualityRejectedCollapses;
+  case CollapseAttemptStatus::CurveBudgetRejected:
+    ++report_.curveBudgetRejectedCollapses;
+    message = "feature curve budgets leave no valid collapses";
     break;
-  case CollapseRejectReason::SelfIntersection:
-    ++report_.selfIntersectionRejectedCollapses;
-    break;
-  case CollapseRejectReason::LocalError:
-    ++report_.errorRejectedCollapses;
-    break;
-  case CollapseRejectReason::None:
+  case CollapseAttemptStatus::LegalityRejected:
+    switch (result.legalityReason) {
+    case CollapseRejectReason::Topology:
+      ++report_.topologyRejectedCollapses;
+      break;
+    case CollapseRejectReason::NormalFlip:
+      ++report_.normalFlipRejectedCollapses;
+      break;
+    case CollapseRejectReason::TriangleQuality:
+      ++report_.qualityRejectedCollapses;
+      break;
+    case CollapseRejectReason::SelfIntersection:
+      ++report_.selfIntersectionRejectedCollapses;
+      break;
+    case CollapseRejectReason::LocalError:
+      ++report_.errorRejectedCollapses;
+      break;
+    case CollapseRejectReason::None:
+      break;
+    }
+    message = "legality checks leave no valid collapses";
     break;
   }
   if (++attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_ && options_.verbose) {
-    std::cerr << "stopped: legality checks leave no valid collapses\n";
+    std::cerr << "stopped: " << message << "\n";
   }
 }
 

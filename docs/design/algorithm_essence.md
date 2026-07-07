@@ -24,9 +24,9 @@ ManuMesh 当前核心管线可以读成：
 | 特征识别 | `src/feature_detection/FeatureDetector.cpp`、`FeatureEvidence.cpp`、`FeatureGraph.cpp`、`FeatureLoopRecovery.cpp`、`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`、`FeatureLoopBuilder.cpp`、`FeatureCircularRecovery.cpp`、`NormalTensor.cpp`、`PrimitiveFit.cpp` |
 | quadric 构造与 placement | `src/simplification/Quadrics.cpp` |
 | 策略转换 | `src/simplification/SimplificationPolicies.cpp` |
-| collapse 主循环 | `src/simplification/SimplificationRun.cpp` |
+| collapse 主循环 | `src/simplification/SimplificationRun.cpp`、`CollapseAttempt.cpp` |
 | 特征约束、曲线投影 | `src/simplification/FeatureConstraints.cpp` |
-| 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseLegality.cpp`、`GeometryPredicates.cpp`、`SpatialFaceIndex.cpp` |
+| 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseLegality.cpp`、`GeometryPredicates.cpp`、`SpatialFaceIndex.cpp` |
 | 结果压缩与报告 | `src/simplification/ResultBuilder.cpp`、`include/manumesh/algorithms/simplification/SimplificationTypes.h` |
 
 从算法关系看，当前实现遵循的是“排序成本 + 语义支撑 + 硬过滤器”的工程结构。QEM 和 line quadrics 负责给候选排序；`FeatureAnalysis` 给出制造特征的三角网格支撑；硬过滤器负责阻止局部拓扑和几何灾难。三者不能互相替代。
@@ -209,6 +209,8 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | local intersection | `self_intersection_rejected_collapses` | 新局部三角形是否和远处活动三角形相交。 |
 
 这也解释了为什么 `SimplifyReport` 的拒绝计数很重要。它不是“失败日志”，而是参数反馈：如果 `generic_feature_rejected_collapses` 很高，说明可能锁边过度；如果 `quality_rejected_collapses` 很高，说明目标比例、质量阈值或输入三角形状态冲突；如果 `error_rejected_collapses` 很高，说明局部误差预算比目标面数更强。
+
+当前实现中，`CollapseAttempt.cpp` 是这些硬过滤器的组合点：它先询问 feature policy 和 boundary policy，再对候选 placement 执行曲线预算、投影和 legality checks，最后返回统一的接受/拒绝结果。`SimplificationRun.cpp` 只根据结果应用 collapse 或记录报告计数。
 
 算法出处：
 

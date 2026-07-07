@@ -1,6 +1,7 @@
 #pragma once
 
 #include "detail/CandidateQueue.h"
+#include "detail/CollapseAttempt.h"
 #include "detail/DynamicTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/Quadrics.h"
@@ -35,17 +36,7 @@ private:
   bool isCurrentCandidate(const Candidate& candidate) const;
   void handleStaleCandidate();
   bool tryCollapse(int keep, int remove);
-  bool acceptFirstLegalPlacement(const CollapseEdge& edge, const Mat4& mergedQ,
-                                 const std::vector<SolveResult>& placements,
-                                 const BoundaryCollapseDecision& boundaryDecision,
-                                 bool tryFallbackPlacements,
-                                 CollapseRejectReason& firstRejectReason,
-                                 bool& sawCurveBudgetReject);
-  void rejectFeatureCollapse(int keep, int remove, FeatureCollapseRejectKind kind);
-  void rejectBoundaryCollapse(int keep, int remove);
-  void rejectCurveBudgetCollapse(int keep, int remove);
-  bool curveBudgetAllows(int keep, int remove, const Vec3& position) const;
-  void rejectLegalityCollapse(int keep, int remove, CollapseRejectReason reason);
+  void recordRejectedCollapse(const CollapseAttemptResult& result);
   void bumpVersions(int keep, int remove);
   void applyCollapse(int keep, int remove, const Vec3& position, const Mat4& mergedQ);
   std::unordered_set<int> collectAffectedFacesForCollapse(int keep, int remove) const;

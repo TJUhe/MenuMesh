@@ -4,6 +4,13 @@
 
 ### 变更
 
+- 将 CLI 入口从单一 `main.cpp` 拆成薄入口、`CliArguments.cpp`、
+  `ManuMeshCli.cpp` 和 `ManuMeshCommands.cpp`，命令派发改为 command
+  registry；新增命令时注册 handler，而不是继续扩张 main 的 if 链。
+- 将简化阶段的候选坍缩评估抽出为 `CollapseAttempt.cpp`：
+  `SimplificationRun.cpp` 保留运行循环、队列和状态应用，feature/boundary/
+  curve-budget/legality 的接受拒绝流程由独立 evaluator 汇总结果，方便后续加入
+  新过滤器或 placement 策略。
 - 将特征检测内部从单一 `FeatureDetector.cpp` 拆成 pipeline 编排、edge
   evidence、feature graph、cycle/trace/primitive recovery、loop builder、
   circular fallback、normal tensor 和 primitive fit 等私有实现单元，保留公开
@@ -16,10 +23,13 @@
   `FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、
   `FeaturePrimitiveRecovery.cpp` 或专属 recovery 文件，而不是继续扩张
   `FeatureDetector.cpp`。
+- 更新架构和源码组织说明，明确 CLI 命令、collapse attempt、feature
+  detection 各自的扩展落点。
 
 ### 已验证
 
 - `cmake --build build\mingw-ninja-release --target manumesh_tests`
+- `cmake --build build\mingw-ninja-release --target manumesh`
 - `ctest --test-dir build\mingw-ninja-release --output-on-failure`（80/80 passed）
 
 ## 2026-07-06

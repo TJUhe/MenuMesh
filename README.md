@@ -41,7 +41,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | `src/` | 库实现按职责分组：`common/`、`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
 | `src/common/detail/` | 跨算法私有工具层，例如 mesh key、边-面邻接、面法向、顶点邻接和边界顶点查询；不属于 SDK。 |
 | `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
-| `apps/manumesh/` | `manumesh` CLI，作为库的应用层消费者。 |
+| `apps/manumesh/` | `manumesh` CLI，薄 `main.cpp` 加 command registry，作为库的应用层消费者。 |
 | `tests/` | GoogleTest/CTest 回归测试，按 `support/`、`unit/`、`performance/` 和 `data/` 分类。 |
 | `thirdParty/eigen/` | Eigen 头文件包；Eigen 是 header-only，不存在需要链接的动态库。 |
 | `thirdParty/googletest/` | GoogleTest 预编译包，默认用于本仓库测试，不作为 SDK 运行时依赖。 |

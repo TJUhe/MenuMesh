@@ -650,6 +650,7 @@ if(MANUMESH_BUILD_DOCS)
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_validation.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/large_model_validation.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/vscode_setup.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/vscode_mingw_ninja_parameter_debugging.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/paper_guided_usage.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_constraints.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/feature_curve_experiment.md"

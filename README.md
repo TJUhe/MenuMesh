@@ -24,6 +24,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 - [ManuMesh 程序原理说明](docs/generated/notes/manumesh-program-principles.html)
 - [ManuMesh 代码阅读手册](docs/generated/notes/manumesh-code-manual.html)
 - [算法本质、数学直觉与实现契约](docs/design/algorithm_essence.md)
+- [VS Code + MinGW + Ninja 参数调试教程](docs/guide/vscode_mingw_ninja_parameter_debugging.md)
 - [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
 - [QEM 相关开源库与 ManuMesh 当前实现对比](docs/generated/notes/qem-library-comparison.html)
 
@@ -313,8 +314,9 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 `Terminal > Run Task...`：
 
 - `demo: feature report selected mesh`：查看输入网格的 feature edge、loop、circle/ellipse 识别。
-- `demo: simplify selected mesh (mingw+ninja release)`：从下拉框选择 mesh、preset、ratio、sample count。
-- `demo: algorithm comparison selected mesh`：同一 mesh/ratio 下比较 `standard-qem`、`line-qem`、`dihedral-line`、`feature-curves`、`normal-tensor`。
+- `demo: simplify standard selected mesh`：用普通 QEM 简化下拉框选择的 mesh。
+- `demo: simplify feature curves selected mesh`：用 line quadrics、dihedral 权重和特征曲线保护简化选定 mesh。
+- `demo: simplify normal tensor selected mesh`：用 normal-tensor 权重调试弱特征补充。
 - `demo: ratio sweep selected mesh`：固定算法预设，生成多档 ratio 的 STL 和 `metrics.csv`。
 - `open: vscode demo output`：打开 `output/vscode_demo`。
 

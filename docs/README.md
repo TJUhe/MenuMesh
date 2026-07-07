@@ -35,5 +35,6 @@
 1. [`design/algorithm_essence.md`](design/algorithm_essence.md)：先理解当前程序的本质分层，尤其是候选排序、特征图和硬过滤器的关系。
 2. [`design/architecture.md`](design/architecture.md)：再看公共 SDK、私有 `detail`、模块依赖和 ABI 边界。
 3. [`design/source_organization.md`](design/source_organization.md)：需要改代码时看目录契约和 include 规则。
-4. [`guide/paper_guided_usage.md`](guide/paper_guided_usage.md)：需要跑 CLI 或调参数时看论文概念到命令的映射。
-5. [`design/industrial_validation.md`](design/industrial_validation.md)：需要解释输出质量、拒绝计数和验证边界时看这里。
+4. [`guide/vscode_mingw_ninja_parameter_debugging.md`](guide/vscode_mingw_ninja_parameter_debugging.md)：需要在 VS Code + MinGW + Ninja 下逐项校验构建、调试和 CLI 参数时看这里。
+5. [`guide/paper_guided_usage.md`](guide/paper_guided_usage.md)：需要跑 CLI 或调参数时看论文概念到命令的映射。
+6. [`design/industrial_validation.md`](design/industrial_validation.md)：需要解释输出质量、拒绝计数和验证边界时看这里。

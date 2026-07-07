@@ -4,6 +4,8 @@ ManuMesh 以 VS Code 任务、显式 CMake 命令和 CMake Tools 为主要工作
 
 当前仓库按 C++ 几何内核维护。浏览器预览任务已经移除，生成的 STL 文件请用外部 STL/CAD 查看器打开，CSV 文件作为可度量的验证记录。
 
+如果目标是逐项验证 VS Code、MinGW、Ninja、GDB 和 CLI 参数到底改变了什么，请看 [`vscode_mingw_ninja_parameter_debugging.md`](vscode_mingw_ninja_parameter_debugging.md)。本文继续作为工具链安装、任务入口和常用命令说明。
+
 ## 推荐扩展
 
 安装 `.vscode/extensions.json` 中列出的扩展：

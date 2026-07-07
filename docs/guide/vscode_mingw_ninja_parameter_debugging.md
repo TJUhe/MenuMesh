@@ -149,7 +149,9 @@ cmake -S . -B $buildDir -G Ninja `
 | `apps/manumesh/main.cpp::parseFeatureOptions` | `feature-report` 参数如何进入 `FeatureOptions`。 |
 | `src/simplification/SimplificationValidation.cpp` | 参数范围是否合法，例如角度、比例、质量阈值。 |
 | `src/simplification/SimplificationPolicies.cpp::makePolicies` | 公开 options 如何拆成 target、features、legality policy。 |
-| `src/feature_detection/FeatureDetector.cpp` | boundary、dihedral、normal-tensor edge 如何进入 feature graph。 |
+| `src/feature_detection/FeatureDetector.cpp` | FeatureDetector 公开入口和 feature detection pipeline 编排。 |
+| `src/feature_detection/FeatureEvidence.cpp` | boundary、dihedral、non-manifold、normal-tensor edge 如何进入 feature graph。 |
+| `src/feature_detection/FeatureGraph.cpp`、`FeatureLoopRecovery.cpp`、`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp` | feature graph、trace graph、loop 恢复调度、cycle/trace/component 恢复和 junction 处理。 |
 | `src/feature_detection/PrimitiveFit.cpp` | 圆、近圆、椭圆、折线 loop 的拟合判定。 |
 | `src/feature_detection/NormalTensor.cpp` | normal tensor 多尺度和 smoothing 后的 feature score。 |
 | `src/simplification/Quadrics.cpp` | plane quadrics、line quadrics、weight mode 和 feature boost 的实际权重。 |
@@ -222,7 +224,7 @@ ManuMesh 当前简化管线可以看成四层：
 | `--method line` | `useLineQuadrics=true` | 在 QEM 基础上加入 line quadrics，改善平面或弱约束区域沿切向漂移。 | `Quadrics.cpp` | 与 standard 对比 `edge_length_cv`、距离误差和 STL 目检。 |
 | `--line-weight W` | `SimplifyOptions::lineWeight` | line quadrics 基础权重。过小接近 standard，过大可能压过平面 QEM。 | `Quadrics.cpp` | `min_line_weight`、`max_line_weight` 改变。 |
 | `--weight-mode uniform` | `WeightMode::Uniform` | 所有顶点/区域使用相同 line weight。 | `Quadrics.cpp::featureScoreForVertex` | `min_line_weight` 与 `max_line_weight` 接近。 |
-| `--weight-mode dihedral` | `WeightMode::Dihedral` | 用二面角特征分数提高硬边附近权重。适合干净 CAD/STL crease。 | `Quadrics.cpp`、`FeatureDetector.cpp` | `max_line_weight` 高于 `min_line_weight`，硬边更稳定。 |
+| `--weight-mode dihedral` | `WeightMode::Dihedral` | 用二面角特征分数提高硬边附近权重。适合干净 CAD/STL crease。 | `Quadrics.cpp`、`FeatureEvidence.cpp` | `max_line_weight` 高于 `min_line_weight`，硬边更稳定。 |
 | `--weight-mode normal-tensor` | `WeightMode::NormalTensor` | 用 normal tensor 弱特征分数提高权重。适合二面角不明显的弱特征。 | `NormalTensor.cpp`、`Quadrics.cpp` | `normal_tensor_feature_edges` 或 tensor score 变化。 |
 | `--weight-mode height` | `WeightMode::Height` | 按高度归一化分布权重，主要用于调试空间变化权重。 | `Quadrics.cpp` | 高度方向不同区域权重不同。 |
 | `--weight-mode xband` | `WeightMode::XBand` | 按 x 方向带状区域分配权重，主要用于调试空间变化权重。 | `Quadrics.cpp` | x 区域权重变化。 |
@@ -239,17 +241,17 @@ ManuMesh 当前简化管线可以看成四层：
 
 | 参数 | 进入字段 | 数学/工程意义 | 断点 | 输出观察 |
 | --- | --- | --- | --- | --- |
-| `--feature-angle-deg A` | `featureAngleDeg` | 二面角阈值。相邻三角面法向夹角超过阈值时更容易被认为是 crease。 | `FeatureDetector.cpp` | `dihedral_edges`、`convex_edges`、`concave_edges`。 |
+| `--feature-angle-deg A` | `featureAngleDeg` | 二面角阈值。相邻三角面法向夹角超过阈值时更容易被认为是 crease。 | `FeatureEvidence.cpp` | `dihedral_edges`、`convex_edges`、`concave_edges`。 |
 | `--circle-fit-threshold R` | `circleFitRelativeThreshold` | 圆 loop 的相对拟合误差阈值。越小越严格。 | `PrimitiveFit.cpp` | `circle_loops`、`near_circle_loops`、`rmsRadialError`。 |
 | `--ellipse-fit-threshold R` | `ellipseFitRelativeThreshold` | 椭圆 loop 的相对拟合误差阈值。 | `PrimitiveFit.cpp` | `ellipse_loops`、`rmsEllipseError`。 |
 | `--near-circle-axis-ratio-tolerance R` | `nearCircleAxisRatioTolerance` | 椭圆长短轴比接近 1 时可归为 near-circle 的容差。 | `PrimitiveFit.cpp` | `near_circle_loops` 与 `ellipse_loops` 的分配。 |
-| `--min-feature-loop-vertices N` | `minFeatureLoopVertices` | 普通 feature loop 至少需要的顶点数，避免短碎片被当作稳定曲线。 | `FeatureDetector.cpp` | `loops` 数量和 polygonal loop 数。 |
+| `--min-feature-loop-vertices N` | `minFeatureLoopVertices` | 普通 feature loop 至少需要的顶点数，避免短碎片被当作稳定曲线。 | `FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`、`PrimitiveFit.cpp` | `loops` 数量和 polygonal loop 数。 |
 | `--min-circular-feature-loop-vertices N` | `minCircularFeatureLoopVertices` | 简化中圆/近圆 loop 的最低保留顶点预算。 | `FeatureConstraints.cpp` | 过小会圆形变粗糙，过大增加 `feature_rejected_collapses`。 |
-| `--normal-tensor-threshold S` | `normalTensorFeatureThreshold` | normal tensor feature score 阈值。越低越容易接受弱特征，也越可能引入噪声。 | `FeatureDetector.cpp::normalTensorEdgeCandidate` | `normal_tensor_edges`、`max_normal_tensor_score`。 |
-| `--normal-tensor-edge-alignment A` | `normalTensorMinEdgeAlignment` | 边方向与 tensor crease tangent 的最小对齐要求，范围 `[0,1]`。 | `FeatureDetector.cpp` | alignment 变严格时 `normal_tensor_edges` 减少。 |
+| `--normal-tensor-threshold S` | `normalTensorFeatureThreshold` | normal tensor feature score 阈值。越低越容易接受弱特征，也越可能引入噪声。 | `FeatureEvidence.cpp::normalTensorEdgeCandidate` | `normal_tensor_edges`、`max_normal_tensor_score`。 |
+| `--normal-tensor-edge-alignment A` | `normalTensorMinEdgeAlignment` | 边方向与 tensor crease tangent 的最小对齐要求，范围 `[0,1]`。 | `FeatureEvidence.cpp` | alignment 变严格时 `normal_tensor_edges` 减少。 |
 | `--normal-tensor-smoothing N` | `normalTensorSmoothingIterations` | tensor 评分前的法向平滑迭代数。 | `NormalTensor.cpp` | 噪声敏感性下降，但弱小特征可能被抹平。 |
 | `--normal-tensor-scales N` | `normalTensorScaleCount` | tensor 多尺度数量。 | `NormalTensor.cpp` | 多尺度能提高稳定性，但耗时增加。 |
-| `--no-normal-tensor-features` | `useNormalTensorFeatures=false` | 关闭 tensor 弱特征候选，只保留 boundary/dihedral/non-manifold 证据。 | `FeatureDetector.cpp` | `normal_tensor_edges=0`。 |
+| `--no-normal-tensor-features` | `useNormalTensorFeatures=false` | 关闭 tensor 弱特征候选，只保留 boundary/dihedral/non-manifold 证据。 | `FeatureEvidence.cpp` | `normal_tensor_edges=0`。 |
 
 调试建议：在 `boss_pocket_plate.obj` 上设置 `--feature-angle-deg 179 --weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2`，可把二面角通道基本关掉，专门观察 tensor 弱特征。
 
@@ -390,7 +392,7 @@ preventLocalIntersections = true
 观察：
 
 - `parseFeatureOptions` 中 `options.featureAngleDeg` 是否改变。
-- `FeatureDetector.cpp` 中 dihedral candidate 数量是否改变。
+- `FeatureEvidence.cpp` 中 dihedral candidate 数量是否改变。
 - 输出里的 `dihedral_edges` 是否随阈值增大而减少。
 
 这验证的是“特征图输入改变”，还没有进入 QEM。
@@ -440,7 +442,7 @@ preventLocalIntersections = true
 
 观察：
 
-- `FeatureDetector.cpp` 是否识别圆 loop。
+- `FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`、`FeatureCircularRecovery.cpp` 是否恢复圆 loop。
 - `FeatureConstraints.cpp` 是否根据 primitive loop 拒绝坍缩。
 - `SimplificationRun.cpp` 中 `projectedFeaturePlacements` 是否增加。
 - 输出里的 `primitive_feature_rejected`、`curve_budget_rejected` 是否变化。

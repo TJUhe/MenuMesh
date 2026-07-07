@@ -1,5 +1,27 @@
 # 更新日志
 
+## 2026-07-07
+
+### 变更
+
+- 将特征检测内部从单一 `FeatureDetector.cpp` 拆成 pipeline 编排、edge
+  evidence、feature graph、cycle/trace/primitive recovery、loop builder、
+  circular fallback、normal tensor 和 primitive fit 等私有实现单元，保留公开
+  `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis` API 不变。
+- 增加 feature detection 组合证据计数回归，确保 boundary、dihedral、
+  non-manifold 和 normal-tensor evidence 后续扩展时仍保持来源计数、
+  graph edge 数和关闭 tensor 后的诊断语义一致。
+- 更新设计文档、调试指南、论文索引和测试说明中的 feature detection
+  源码落点，使新增特征识别优先落到 `FeatureEvidence.cpp`、
+  `FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、
+  `FeaturePrimitiveRecovery.cpp` 或专属 recovery 文件，而不是继续扩张
+  `FeatureDetector.cpp`。
+
+### 已验证
+
+- `cmake --build build\mingw-ninja-release --target manumesh_tests`
+- `ctest --test-dir build\mingw-ninja-release --output-on-failure`（80/80 passed）
+
 ## 2026-07-06
 
 ### 变更

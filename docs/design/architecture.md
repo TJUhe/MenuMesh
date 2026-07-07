@@ -16,7 +16,7 @@ include/manumesh/      安装级公共 SDK 头文件
 src/common/detail/              跨算法私有工具，不安装
 src/core/                       公共 core 类型的实现
 src/feature_detection/          特征检测实现，只依赖 core 和私有 common
-src/feature_detection/detail/   特征检测专属 primitive fitting 等私有 helper
+src/feature_detection/detail/   特征检测私有类型、策略接口和 helper
 src/simplification/             简化实现，可消费 FeatureAnalysis
 src/simplification/detail/      简化专属私有状态、policy 分组和策略
 apps/manumesh/              CLI，按外部用户方式调用 SDK
@@ -33,7 +33,9 @@ docs/                           当前设计、指南、论文索引和历史生
 - `QEMSimplifier`：隐藏单次简化运行状态、队列、动态拓扑和策略对象。
 - `FeatureDetector`：隐藏检测器内部配置和后续可能加入的缓存、策略或统计字段。
 
-`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；真实功能命名空间按模块拆开：特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。功能模块类型不再回灌到根命名空间。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
+`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；真实功能命名空间按模块拆开：特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。功能模块类型不再回灌到根命名空间。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构、edge evidence strategy 和 loop recovery helper，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
+
+特征检测内部按 pipeline 组织：`FeatureDetector.cpp` 只负责 public facade 和阶段编排；`FeatureEvidence.cpp` 负责 boundary、dihedral、non-manifold、normal-tensor 等证据来源；`FeatureGraph.cpp` 负责显式 graph 和 trace graph；`FeatureLoopRecovery.cpp` 只负责恢复阶段调度；`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp` 和 `FeaturePrimitiveRecovery.cpp` 分别承载 cycle、trace chain 和 primitive component 恢复；`FeatureLoopBuilder.cpp` 负责把 loop 写回 `FeatureAnalysis::vertices`；`FeatureCircularRecovery.cpp` 保留有界圆形 fallback。新增识别能力应优先加入对应私有阶段，而不是继续扩张 `FeatureDetector.cpp`。
 
 ## 公共私有层
 

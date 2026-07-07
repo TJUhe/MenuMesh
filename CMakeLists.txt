@@ -135,7 +135,15 @@ set(MANUMESH_LIBRARY_SOURCES
   src/core/MeshTopology.cpp
   src/core/PlainMesh.cpp
   src/core/Status.cpp
+  src/feature_detection/FeatureCircularRecovery.cpp
+  src/feature_detection/FeatureCycleRecovery.cpp
   src/feature_detection/FeatureDetector.cpp
+  src/feature_detection/FeatureEvidence.cpp
+  src/feature_detection/FeatureGraph.cpp
+  src/feature_detection/FeatureLoopBuilder.cpp
+  src/feature_detection/FeatureLoopRecovery.cpp
+  src/feature_detection/FeaturePrimitiveRecovery.cpp
+  src/feature_detection/FeatureTraceRecovery.cpp
   src/feature_detection/NormalTensor.cpp
   src/feature_detection/PrimitiveFit.cpp
   src/simplification/CandidateQueue.cpp
@@ -158,6 +166,15 @@ set(MANUMESH_COMMON_PRIVATE_HEADERS
 )
 
 set(MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS
+  src/feature_detection/detail/FeatureCircularRecovery.h
+  src/feature_detection/detail/FeatureCycleRecovery.h
+  src/feature_detection/detail/FeatureDetectionTypes.h
+  src/feature_detection/detail/FeatureEvidence.h
+  src/feature_detection/detail/FeatureGraph.h
+  src/feature_detection/detail/FeatureLoopBuilder.h
+  src/feature_detection/detail/FeatureLoopRecovery.h
+  src/feature_detection/detail/FeaturePrimitiveRecovery.h
+  src/feature_detection/detail/FeatureTraceRecovery.h
   src/feature_detection/detail/PrimitiveFit.h
 )
 

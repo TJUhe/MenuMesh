@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/manumesh/algorithms/feature_detection/FeatureDetector.h`、`include/manumesh/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/main.cpp` 和当前 78 个非性能 CTest。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/manumesh/algorithms/feature_detection/FeatureDetector.h`、`include/manumesh/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/main.cpp` 和当前 80 个 CTest。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。
 
 ## 当前理解框架
 

@@ -20,7 +20,7 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `src/feature_detection/detail/` | 特征检测私有 helper | primitive fitting 等不稳定实现细节。 |
 | `src/simplification/` | 简化算法实现 | 公开薄入口和拆分后的内部模块。 |
 | `src/simplification/detail/` | 简化专属私有头 | 只能被简化实现模块使用，不安装。 |
-| `apps/manumesh/` | CLI | 像外部消费者一样调用库。 |
+| `apps/manumesh/` | CLI | 薄入口加 command registry，像外部消费者一样调用库。 |
 | `examples/` | SDK 使用示例 | 只 include 公共头。 |
 | `tests/` | 回归和验证测试 | `support/` 放公共测试辅助，`unit/` 按功能分单元测试，`performance/` 放大模型/数据集测试，`data/` 放 fixture。 |
 | `docs/` | 设计、指南、论文、生成笔记 | 必须描述当前代码，不写成愿景幻灯片。 |
@@ -40,6 +40,7 @@ src/common/detail/MeshQueries.h            无向边 key、面 key、边-面邻�
 src/simplification/QEMSimplifier.cpp          公共对象 API、pimpl 和 simplifyMesh 包装
 src/simplification/SimplificationRun.cpp      单次运行编排和 collapse loop
 src/simplification/SimplificationPolicies.cpp 公开扁平 options 到内部 target/features/legality policy 的转换
+src/simplification/CollapseAttempt.cpp        单个候选坍缩的 feature/boundary/budget/legality 评估
 src/simplification/Quadrics.cpp               面 quadric、line quadric、placement 求解
 src/simplification/FeatureConstraints.cpp     特征曲线策略、预算和投影
 src/simplification/CandidateQueue.cpp         折叠候选优先队列
@@ -52,16 +53,40 @@ src/simplification/GeometryPredicates.cpp     局部几何谓词
 src/simplification/SpatialFaceIndex.cpp       局部自交查询的空间哈希
 ```
 
+新增简化能力时先判断类型：排序/placement 成本进入 `Quadrics.cpp`，公开 options 到内部策略的转换进入 `SimplificationPolicies.cpp`，单个候选是否接受进入 `CollapseAttempt.cpp` 或它调用的 policy/filter，状态应用和队列推进才留在 `SimplificationRun.cpp`。
+
+## 当前 CLI 拆分
+
+```text
+apps/manumesh/main.cpp        只保留进程入口，调用 manumesh::cli::run()
+apps/manumesh/CliArguments.cpp 通用 flag/value 解析和位置参数提取
+apps/manumesh/ManuMeshCli.cpp  帮助输出和 run() 派发
+apps/manumesh/ManuMeshCommands.cpp 命令 handler、command registry、CSV 输出和批处理辅助
+apps/manumesh/CliArguments.h   CLI 参数结构和解析 helper 声明
+apps/manumesh/CliCommands.h    command handler 类型和 registry 声明
+apps/manumesh/ManuMeshCli.h   CLI run() 声明
+```
+
+新增命令时先在 `ManuMeshCommands.cpp` 新增 `int commandXxx(const Args&)` handler，再注册到 `commandRegistry()`；新增通用参数才改 `CliArguments.cpp`。不要在 `main.cpp` 加分支，也不要让 CLI 直接 include `src/.../detail/...`。
+
 ## 当前特征检测模块拆分
 
 ```text
-src/feature_detection/FeatureDetector.cpp     FeatureDetector pimpl、特征边收集、feature graph 和 loop/cycle 恢复主流程
-src/feature_detection/NormalTensor.cpp        normal-tensor 特征评分公开函数实现
-src/feature_detection/PrimitiveFit.cpp        circle/near-circle/ellipse primitive 拟合和误差度量
-src/feature_detection/detail/PrimitiveFit.h   primitive fitting 私有数据结构和 helper 声明
+src/feature_detection/FeatureDetector.cpp          FeatureDetector pimpl、公开入口、pipeline stage 编排和 CSV 小工具
+src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor 边证据策略
+src/feature_detection/FeatureGraph.cpp             FeatureGraph 初始化、trace graph 构建和 junction/shared 标记
+src/feature_detection/FeatureLoopRecovery.cpp      cycle/trace/primitive/circular recovery 编排
+src/feature_detection/FeatureCycleRecovery.cpp     junction cycle 和小 cycle basis 恢复
+src/feature_detection/FeatureTraceRecovery.cpp     feature graph 上的 open chain / closed loop 追踪
+src/feature_detection/FeaturePrimitiveRecovery.cpp primitive component 兜底恢复
+src/feature_detection/FeatureLoopBuilder.cpp       loop 构造、vertex ownership、切向和 primitive 数据写回
+src/feature_detection/FeatureCircularRecovery.cpp  有界圆形顶点簇 fallback 恢复
+src/feature_detection/NormalTensor.cpp             normal-tensor 特征评分公开函数实现
+src/feature_detection/PrimitiveFit.cpp             circle/near-circle/ellipse primitive 拟合和误差度量
+src/feature_detection/detail/*.h                   feature 检测私有类型、策略接口和 helper 声明
 ```
 
-特征检测已经是与 QEM 简化平级的模块。它不能反向依赖 `src/simplification/`；简化、验证、修复或未来重网格模块可以消费 `FeatureAnalysis`。公共 C++ API 的真实命名空间按功能拆分：`manumesh::feature` 承载检测器、特征选项和分析结果，`manumesh::simplification` 承载 QEM/line-quadrics 简化器、简化选项、报告和指标；根 `manumesh` 只承载 core 类型和基础工具，不再导出功能模块别名。
+特征检测已经是与 QEM 简化平级的模块。它不能反向依赖 `src/simplification/`；简化、验证、修复或未来重网格模块可以消费 `FeatureAnalysis`。新增特征识别时优先判断它是新的边证据来源、图/loop 恢复阶段，还是 primitive 解释器：边证据进入 `FeatureEvidence.cpp`，junction/cycle 进入 `FeatureCycleRecovery.cpp`，trace chain 进入 `FeatureTraceRecovery.cpp`，component 兜底进入 `FeaturePrimitiveRecovery.cpp` 或专属 recovery 文件，primitive 拟合进入 `PrimitiveFit.cpp`。公共 C++ API 的真实命名空间按功能拆分：`manumesh::feature` 承载检测器、特征选项和分析结果，`manumesh::simplification` 承载 QEM/line-quadrics 简化器、简化选项、报告和指标；根 `manumesh` 只承载 core 类型和基础工具，不再导出功能模块别名。
 
 ## include 规则
 

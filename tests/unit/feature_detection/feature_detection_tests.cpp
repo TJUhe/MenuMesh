@@ -169,6 +169,19 @@ Mesh makeMultiJunctionPolygonalBoundaryMesh() {
   return mesh;
 }
 
+Mesh makeMixedDiscreteEvidenceMesh() {
+  Mesh mesh;
+  mesh.vertices = {
+      Vec3(0.0, 0.0, 0.0), Vec3(1.0, 0.0, 0.0),  Vec3(0.0, 1.0, 0.0),
+      Vec3(0.0, 0.0, 1.0), Vec3(0.0, 0.0, -1.0), Vec3(3.0, 0.0, 0.0),
+      Vec3(4.0, 0.0, 0.0), Vec3(3.0, 1.0, 0.0),  Vec3(3.0, 0.0, 1.0),
+  };
+  mesh.faces = {
+      {{0, 1, 2}}, {{1, 0, 3}}, {{0, 1, 4}}, {{5, 6, 7}}, {{6, 5, 8}},
+  };
+  return mesh;
+}
+
 bool hasClosedLoopWithVertices(const FeatureAnalysis& features,
                                const std::vector<int>& expectedVertices) {
   std::vector<int> expected = expectedVertices;
@@ -345,6 +358,23 @@ TEST(FeatureDetection, DihedralThresholdControlsCreaseEdges) {
   EXPECT_EQ(0, strictFeatures.dihedralFeatureEdges);
   EXPECT_EQ(1, permissiveFeatures.dihedralFeatureEdges);
   EXPECT_GT(permissiveFeatures.featureEdges, strictFeatures.featureEdges);
+}
+
+TEST(FeatureDetection, ComposesDiscreteEvidenceSourceCounters) {
+  const Mesh mesh = makeMixedDiscreteEvidenceMesh();
+
+  FeatureOptions options = discreteOnlyOptions();
+  options.featureAngleDeg = 30.0;
+  const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+
+  EXPECT_EQ(0, features.normalTensorFeatureEdges);
+  EXPECT_EQ(1, features.nonManifoldFeatureEdges);
+  EXPECT_EQ(1, features.dihedralFeatureEdges);
+  EXPECT_GT(features.boundaryFeatureEdges, 0);
+  EXPECT_EQ(features.featureEdges, static_cast<int>(features.graph.edges.size()));
+  EXPECT_EQ(features.featureEdges,
+            features.boundaryFeatureEdges + features.dihedralFeatureEdges +
+                features.normalTensorFeatureEdges + features.nonManifoldFeatureEdges);
 }
 
 TEST(FeatureDetection, DetectsCircularCylinderBoundaryLoops) {

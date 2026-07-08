@@ -4,7 +4,7 @@
 | --- | --- |
 | `support/` | GoogleTest 公共辅助代码，例如 fixture 读取、简化报告断言和测试工具函数。 |
 | `unit/api/` | C ABI 单元测试。 |
-| `unit/feature_detection/` | 特征检测、feature graph、normal tensor 和 primitive loop 单元测试。 |
+| `unit/feature_detection/` | 特征检测、edge evidence 计数、feature graph、normal tensor 和 primitive loop 单元测试。 |
 | `unit/simplification/` | QEM/line quadrics、参数、合法性过滤、特征保护和 core mesh 行为单元测试。 |
 | `performance/` | 大模型、外部数据集和性能/压力测试源码。默认构建关闭，由 `MANUMESH_BUILD_PERFORMANCE_TESTS=ON` 启用。 |
 | `data/` | 纳入版本管理的 fixture、外部回归网格和数据集 case 列表。 |

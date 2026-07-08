@@ -135,10 +135,19 @@ set(MANUMESH_LIBRARY_SOURCES
   src/core/MeshTopology.cpp
   src/core/PlainMesh.cpp
   src/core/Status.cpp
+  src/feature_detection/FeatureCircularRecovery.cpp
+  src/feature_detection/FeatureCycleRecovery.cpp
   src/feature_detection/FeatureDetector.cpp
+  src/feature_detection/FeatureEvidence.cpp
+  src/feature_detection/FeatureGraph.cpp
+  src/feature_detection/FeatureLoopBuilder.cpp
+  src/feature_detection/FeatureLoopRecovery.cpp
+  src/feature_detection/FeaturePrimitiveRecovery.cpp
+  src/feature_detection/FeatureTraceRecovery.cpp
   src/feature_detection/NormalTensor.cpp
   src/feature_detection/PrimitiveFit.cpp
   src/simplification/CandidateQueue.cpp
+  src/simplification/CollapseAttempt.cpp
   src/simplification/CollapseLegality.cpp
   src/simplification/DynamicTopology.cpp
   src/simplification/FeatureConstraints.cpp
@@ -158,11 +167,21 @@ set(MANUMESH_COMMON_PRIVATE_HEADERS
 )
 
 set(MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS
+  src/feature_detection/detail/FeatureCircularRecovery.h
+  src/feature_detection/detail/FeatureCycleRecovery.h
+  src/feature_detection/detail/FeatureDetectionTypes.h
+  src/feature_detection/detail/FeatureEvidence.h
+  src/feature_detection/detail/FeatureGraph.h
+  src/feature_detection/detail/FeatureLoopBuilder.h
+  src/feature_detection/detail/FeatureLoopRecovery.h
+  src/feature_detection/detail/FeaturePrimitiveRecovery.h
+  src/feature_detection/detail/FeatureTraceRecovery.h
   src/feature_detection/detail/PrimitiveFit.h
 )
 
 set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
   src/simplification/detail/CandidateQueue.h
+  src/simplification/detail/CollapseAttempt.h
   src/simplification/detail/CollapseLegality.h
   src/simplification/detail/DynamicTopology.h
   src/simplification/detail/FeatureConstraints.h
@@ -494,7 +513,15 @@ function(manumesh_copy_gtest_runtime_dependencies target)
 endfunction()
 
 if(MANUMESH_BUILD_CLI)
-  add_executable(manumesh apps/manumesh/main.cpp)
+  add_executable(manumesh
+    apps/manumesh/CliArguments.cpp
+    apps/manumesh/CliArguments.h
+    apps/manumesh/CliCommands.h
+    apps/manumesh/ManuMeshCommands.cpp
+    apps/manumesh/main.cpp
+    apps/manumesh/ManuMeshCli.cpp
+    apps/manumesh/ManuMeshCli.h
+  )
   target_link_libraries(manumesh PRIVATE ManuMesh::manumesh)
   manumesh_apply_warnings(manumesh)
   manumesh_copy_runtime_dependencies(manumesh)
@@ -657,6 +684,12 @@ if(MANUMESH_BUILD_DOCS)
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/external_model_validation.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/include"
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
+      "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/CliArguments.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/CliCommands.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/CliArguments.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/ManuMeshCommands.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/ManuMeshCli.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/ManuMeshCli.cpp"
       "${CMAKE_CURRENT_SOURCE_DIR}/apps/manumesh/main.cpp"
       "${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_simplify.cpp"
       "${CMAKE_CURRENT_SOURCE_DIR}/examples/c_api_basic.c"

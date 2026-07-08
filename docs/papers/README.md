@@ -89,7 +89,7 @@ ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-te
 | 为什么标准 QEM 在平面区域会排序退化？ | `qem/garland_heckbert_1997_surface_simplification_qem.pdf`，再读 `line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf`。 | `src/simplification/Quadrics.cpp` |
 | line quadrics 为什么是正则项而不是替代 QEM？ | Line Quadrics 2025，配合 `docs/generated/notes/qem-line-quadrics-notes.html`。 | `lineQuadric()`、`computeInitialQuadrics()` |
 | 为什么不能只调大特征权重？ | Wang 2008、Hussain 2008、CWF 2024、Rose 2025。 | `FeatureConstraints.cpp`、`CollapseLegality.cpp` |
-| CAD/STL 特征边为什么优先用二面角和边界？ | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008。 | `FeatureDetector.cpp::collectFeatureEdges()` |
+| CAD/STL 特征边为什么优先用二面角和边界？ | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008。 | `FeatureEvidence.cpp::collectFeatureEdges()` |
 | normal tensor 的特征值怎么解释？ | Tsuchie-Higashi 2014，以及 normal voting/tensor 相关论文。 | `NormalTensor.cpp` |
 | 圆/椭圆 loop 为什么要拟合 primitive？ | CAD feature line 与工程对象 segmentation 论文，配合当前 feature fixture。 | `PrimitiveFit.cpp` |
 | 为什么需要 topology/quality/error/self-intersection filters？ | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025、自交检测相关论文。 | `CollapseLegality.cpp`、`GeometryPredicates.cpp` |

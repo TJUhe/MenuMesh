@@ -1,0 +1,91 @@
+#include "detail/FeaturePrimitiveRecovery.h"
+
+#include "detail/FeatureGraph.h"
+#include "detail/FeatureLoopBuilder.h"
+#include "detail/PrimitiveFit.h"
+
+#include <queue>
+
+namespace manumesh::feature::detector_detail {
+
+using primitive_fit_detail::applyPrimitiveFit;
+using primitive_fit_detail::fitPrimitive;
+
+void recoverPrimitiveComponents(const Mesh& mesh, const FeatureOptions& options,
+                                const TraceGraph& trace, FeatureAnalysis& analysis,
+                                int& loopId) {
+  const std::vector<std::vector<int>>& adjacency = trace.adjacency;
+  std::vector<char> componentVisited(mesh.vertices.size(), 0);
+  for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
+    if (componentVisited[seed] || adjacency[seed].empty()) {
+      continue;
+    }
+
+    std::vector<int> component;
+    std::queue<int> queue;
+    queue.push(seed);
+    componentVisited[seed] = 1;
+    while (!queue.empty()) {
+      const int v = queue.front();
+      queue.pop();
+      component.push_back(v);
+      for (int nb : adjacency[v]) {
+        if (!componentVisited[nb]) {
+          componentVisited[nb] = 1;
+          queue.push(nb);
+        }
+      }
+    }
+
+    bool alreadyHasCircular = false;
+    int edgeCount2x = 0;
+    int boundaryEdges = 0;
+    int convexEdges = 0;
+    int concaveEdges = 0;
+    int unknownSignedEdges = 0;
+    for (int v : component) {
+      alreadyHasCircular = alreadyHasCircular || analysis.vertices[v].circular;
+      edgeCount2x += static_cast<int>(adjacency[v].size());
+      for (int nb : adjacency[v]) {
+        if (v < nb && traceEdgeBoundary(trace, v, nb)) {
+          ++boundaryEdges;
+        }
+        if (v < nb) {
+          const int sign = traceEdgeSign(trace, v, nb);
+          if (sign > 0) ++convexEdges;
+          if (sign < 0) ++concaveEdges;
+          if (sign == 0 && !traceEdgeBoundary(trace, v, nb)) ++unknownSignedEdges;
+        }
+      }
+    }
+    const int edgeCount = edgeCount2x / 2;
+    if (alreadyHasCircular ||
+        static_cast<int>(component.size()) < options.minFeatureLoopVertices ||
+        edgeCount < static_cast<int>(component.size()) ||
+        edgeCount > static_cast<int>(component.size()) * 3) {
+      continue;
+    }
+
+    FeatureLoop loop;
+    loop.id = loopId++;
+    loop.vertices = std::move(component);
+    loop.edgeCount = edgeCount;
+    loop.closed = true;
+    loop.mostlyBoundary =
+        loop.edgeCount > 0 &&
+        boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
+    loop.convexEdges = convexEdges;
+    loop.concaveEdges = concaveEdges;
+    loop.unknownSignedEdges = unknownSignedEdges;
+    applyPrimitiveFit(fitPrimitive(mesh, loop, options), loop);
+    if (loop.primitive != FeaturePrimitiveType::Circle &&
+        loop.primitive != FeaturePrimitiveType::NearCircle &&
+        loop.primitive != FeaturePrimitiveType::Ellipse) {
+      continue;
+    }
+    assignLoopToVertices(loop, mesh, adjacency, analysis);
+    analysis.loops.push_back(std::move(loop));
+  }
+}
+
+} // namespace manumesh::feature::detector_detail

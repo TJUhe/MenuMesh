@@ -1,6 +1,6 @@
 #pragma once
 
-#include "manumesh/Export.h"
+#include "Export.h"
 
 #include <array>
 #include <vector>

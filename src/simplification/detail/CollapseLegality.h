@@ -1,8 +1,8 @@
 #pragma once
 
+#include "core/Mesh.h"
 #include "detail/DynamicTopology.h"
 #include "detail/SpatialFaceIndex.h"
-#include "manumesh/core/Mesh.h"
 
 #include <vector>
 

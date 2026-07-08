@@ -1,4 +1,4 @@
-#include "manumesh/core/Mesh.h"
+#include "core/Mesh.h"
 
 #include <algorithm>
 #include <array>

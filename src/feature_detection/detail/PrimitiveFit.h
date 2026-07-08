@@ -1,6 +1,6 @@
 #pragma once
 
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
 
 #include <vector>
 

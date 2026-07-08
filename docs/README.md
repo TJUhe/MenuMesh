@@ -6,14 +6,14 @@
 
 - 构建系统是 CMake，主路径为 MinGW + Ninja，VS Code 任务保存在 `.vscode/tasks.json`。
 - 产品名是 ManuMesh；C++ API 命名空间已统一为 `manumesh`。核心网格类型位于根命名空间，功能入口使用 `manumesh::feature` 与 `manumesh::simplification`。当前 CMake 目标、CLI 名称和 include 根路径使用 `manumesh`；C ABI 名称为 `ManuMesh*` / `manumesh_*`。
-- 公共 C++ SDK 位于 `include/manumesh/`，C ABI 位于 `include/manumesh/api/CApi.h`。
+- 公共 C++ SDK 位于 `include/`，C ABI 位于 `include/api/CApi.h`。
 - 当前已实现能力包括 STL/OBJ 读写、内置网格生成、QEM/line-quadrics 简化、平级特征检测、特征曲线保护、边界/拓扑/法线/质量/局部误差/自交过滤、CLI 批处理、C API 和回归测试。
 - 当前没有实现通用布尔运算、offset/thickening、完整 B-Rep 特征识别或通用去噪器；这些只能作为 ManuMesh 路线图描述。
 
 ## 文档维护规则
 
 - CLI 示例必须和 `apps/manumesh/CliArguments.cpp`、`ManuMeshCli.cpp`、`ManuMeshCommands.cpp` 的实际逻辑一致，并至少用 `manumesh --help` 核对。
-- 算法说明必须对应 `src/common/`、`src/feature_detection/`、`src/simplification/` 和 `include/manumesh/algorithms/` 的当前实现。
+- 算法说明必须对应 `src/common/`、`src/feature_detection/`、`src/simplification/` 和 `include/algorithms/` 的当前实现。
 - 论文笔记必须区分“论文提出的思路”和“本仓库已经实现的行为”。未实现的技术要明确写“未实现”。
 - `docs/generated/notes/` 下的 HTML/PDF 是历史导出资料；若 CLI、选项、测试、源码结构或产品命名变化，受影响的导出说明应重新生成或标注为历史资料。
 - 路径、命令、函数名、枚举名、CSV 字段名和论文文件名保留英文；说明文字使用中文。

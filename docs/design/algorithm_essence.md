@@ -27,7 +27,7 @@ ManuMesh 当前核心管线可以读成：
 | collapse 主循环 | `src/simplification/SimplificationRun.cpp`、`CollapseAttempt.cpp` |
 | 特征约束、曲线投影 | `src/simplification/FeatureConstraints.cpp` |
 | 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseLegality.cpp`、`GeometryPredicates.cpp`、`SpatialFaceIndex.cpp` |
-| 结果压缩与报告 | `src/simplification/ResultBuilder.cpp`、`include/manumesh/algorithms/simplification/SimplificationTypes.h` |
+| 结果压缩与报告 | `src/simplification/ResultBuilder.cpp`、`include/algorithms/simplification/SimplificationTypes.h` |
 
 从算法关系看，当前实现遵循的是“排序成本 + 语义支撑 + 硬过滤器”的工程结构。QEM 和 line quadrics 负责给候选排序；`FeatureAnalysis` 给出制造特征的三角网格支撑；硬过滤器负责阻止局部拓扑和几何灾难。三者不能互相替代。
 
@@ -279,4 +279,4 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 - 讲 line quadrics 时不要说它能去噪；它当前解决的是平坦区切向欠约束和候选排序退化。
 - 讲 normal tensor 时不要写成万能特征恢复；它是弱特征证据和空间变权来源，受邻域、尺度和噪声影响。
 - 讲工业安全时必须绑定具体过滤器、测试数据和报告字段。
-- 新增能力应进入 `include/manumesh/algorithms/<domain>/` 下的平级模块，而不是反向塞进 simplification。
+- 新增能力应进入 `include/algorithms/<domain>/` 下的平级模块，而不是反向塞进 simplification。

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
-#include "manumesh/core/Mesh.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
+#include "core/Mesh.h"
 
 #include <vector>
 

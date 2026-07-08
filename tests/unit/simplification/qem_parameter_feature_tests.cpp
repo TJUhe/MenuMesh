@@ -1,12 +1,11 @@
+#include "QemParameterTestSupport.h"
 #include "TestSupport.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
-#include "manumesh/algorithms/simplification/Metrics.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/simplification/Metrics.h"
 
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <vector>
-
-namespace {
 
 using manumesh::test::CaseLine;
 using manumesh::test::circularFeatureOptions;
@@ -20,62 +19,7 @@ using manumesh::test::readCaseLines;
 using manumesh::test::SimplifiedMesh;
 using manumesh::test::simplifyWithReport;
 using manumesh::test::standardOptions;
-
-std::vector<manumesh::feature::FeatureLoop>
-innerEllipseLoops(const manumesh::feature::FeatureAnalysis& analysis) {
-  std::vector<manumesh::feature::FeatureLoop> loops;
-  for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
-    if (loop.primitive == manumesh::feature::FeaturePrimitiveType::Ellipse &&
-        loop.majorRadius < 1.0 && loop.minorRadius > 0.0) {
-      loops.push_back(loop);
-    }
-  }
-  return loops;
-}
-
-} // namespace
-
-TEST(ManuMeshParameters, TargetFacesOverridesRatioOnRealStlFixtures) {
-  for (const CaseLine& testCase : readCaseLines("parameter_sensitivity/cases.txt")) {
-    SCOPED_TRACE(testCase.relativePath.generic_string());
-    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
-    ASSERT_FALSE(input.empty());
-
-    manumesh::simplification::SimplifyOptions options = lineOptions(0.98);
-    options.targetFaces = std::max(4, static_cast<int>(input.faces.size() * 0.82));
-
-    const SimplifiedMesh result = simplifyWithReport(input, options);
-    EXPECT_FALSE(result.mesh.empty());
-    EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
-    EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
-    EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-    EXPECT_LE(result.report.finalFaces, options.targetFaces + 2);
-  }
-}
-
-TEST(ManuMeshParameters, LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures) {
-  bool sawSpatiallyVaryingLineWeight = false;
-  for (const CaseLine& testCase : readCaseLines("parameter_sensitivity/cases.txt")) {
-    SCOPED_TRACE(testCase.relativePath.generic_string());
-    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
-    ASSERT_FALSE(input.empty());
-
-    const SimplifiedMesh standard = simplifyWithReport(input, standardOptions(0.85));
-    const SimplifiedMesh line = simplifyWithReport(input, lineOptions(0.85));
-
-    expectBudget(standard, input, 0.85);
-    expectBudget(line, input, 0.85);
-    EXPECT_EQ(0.0, standard.report.minAppliedLineWeight);
-    EXPECT_EQ(0.0, standard.report.maxAppliedLineWeight);
-    EXPECT_GE(line.report.minAppliedLineWeight, 1e-3);
-    EXPECT_GE(line.report.maxAppliedLineWeight, line.report.minAppliedLineWeight);
-    sawSpatiallyVaryingLineWeight =
-        sawSpatiallyVaryingLineWeight ||
-        line.report.maxAppliedLineWeight > line.report.minAppliedLineWeight;
-  }
-  EXPECT_TRUE(sawSpatiallyVaryingLineWeight);
-}
-
+using manumesh::test::qem_parameters::innerEllipseLoops;
 TEST(ManuMeshParameters, FeatureProtectionChangesCircularHoleDiagnostics) {
   const std::vector<CaseLine> cases = readCaseLines("circular_holes/cases.txt");
   ASSERT_FALSE(cases.empty());
@@ -211,74 +155,4 @@ TEST(ManuMeshParameters, PrimitiveModeSoftensGenericCreasesOnExternalFandisk) {
   EXPECT_GT(strictResult.report.genericFeatureRejectedCollapses, 0);
   EXPECT_LT(primitiveResult.report.featureRejectedCollapses,
             strictResult.report.featureRejectedCollapses);
-}
-
-TEST(ManuMeshParameters, StrictQualityModeImprovesWorstThingi10kFixture) {
-  const manumesh::Mesh input = loadCaseMesh(
-      "external/thingi10k/thingi10k_104188_iphone_tank_case_gen_4_and_4s.stl");
-  ASSERT_FALSE(input.empty());
-
-  manumesh::simplification::SimplifyOptions defaultOptions = lineOptions(0.50);
-  const SimplifiedMesh defaultResult = simplifyWithReport(input, defaultOptions);
-
-  manumesh::simplification::SimplifyOptions strictOptions = lineOptions(0.50);
-  strictOptions.preserveBoundary = true;
-  strictOptions.minTriangleQuality = 1e-4;
-  strictOptions.maxNormalDeviationDeg = 75.0;
-  const SimplifiedMesh strictResult = simplifyWithReport(input, strictOptions);
-
-  expectBudget(defaultResult, input, 0.50);
-  expectBudget(strictResult, input, 0.50);
-  EXPECT_GT(strictResult.report.qualityRejectedCollapses, 0);
-
-  const manumesh::simplification::MeshStats defaultStats =
-      manumesh::simplification::computeMeshStats(defaultResult.mesh);
-  const manumesh::simplification::MeshStats strictStats =
-      manumesh::simplification::computeMeshStats(strictResult.mesh);
-  EXPECT_GT(strictStats.minTriangleQuality, defaultStats.minTriangleQuality);
-}
-
-TEST(ManuMeshParameters, IndustrialGateChecksFeatureDriftDistanceAndTopology) {
-  const manumesh::Mesh input = loadCaseMesh("feature_fixtures/coaxial_hole_plate.obj");
-  ASSERT_FALSE(input.empty());
-
-  const manumesh::feature::FeatureAnalysis originalFeatures =
-      manumesh::feature::detectFeatureCurves(input, circularFeatureOptions());
-  ASSERT_GE(countCircularLoops(originalFeatures), 4);
-
-  manumesh::simplification::SimplifyOptions options = protectedOptions(0.80);
-  options.preserveBoundary = true;
-  options.preventLocalIntersections = true;
-  options.maxLocalErrorRatio = 0.05;
-  options.maxFeatureCurveDeviationRatio = 0.10;
-  options.minTriangleQuality = 1e-6;
-  options.maxNormalDeviationDeg = 85.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
-
-  expectBudget(result, input, 0.80);
-  EXPECT_EQ(result.report.rejectedCollapses,
-            result.report.featureRejectedCollapses +
-                result.report.boundaryRejectedCollapses +
-                result.report.topologyRejectedCollapses +
-                result.report.normalFlipRejectedCollapses +
-                result.report.qualityRejectedCollapses +
-                result.report.selfIntersectionRejectedCollapses +
-                result.report.curveBudgetRejectedCollapses +
-                result.report.errorRejectedCollapses);
-
-  const manumesh::feature::FeatureAnalysis outputFeatures =
-      manumesh::feature::detectFeatureCurves(result.mesh, circularFeatureOptions());
-  EXPECT_GE(countCircularLoops(outputFeatures), 2);
-  EXPECT_LT(maxCircularRelativeError(outputFeatures), 0.10);
-
-  const manumesh::simplification::MeshStats inputStats =
-      manumesh::simplification::computeMeshStats(input);
-  const manumesh::simplification::MeshStats outputStats =
-      manumesh::simplification::computeMeshStats(result.mesh);
-  EXPECT_LE(outputStats.nonManifoldEdges, inputStats.nonManifoldEdges);
-  EXPECT_GE(outputStats.minTriangleQuality, 0.0);
-
-  const manumesh::simplification::DistanceStats distance =
-      manumesh::simplification::compareMeshesBySampledDistance(input, result.mesh, 512);
-  EXPECT_LT(distance.maxOriginalToSimplified, 0.20 * input.bboxDiag());
 }

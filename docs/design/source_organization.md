@@ -8,11 +8,11 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 
 | 路径 | 角色 | 规则 |
 | --- | --- | --- |
-| `include/manumesh/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
-| `include/manumesh/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
-| `include/manumesh/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
-| `include/manumesh/algorithms/simplification/` | QEM 简化选项、报告、指标、Eigen-backed 入口和 PlainMesh 入口 | 当前主要 decimation 模块；`SimplificationTypes.h` 不依赖 Eigen。 |
-| `include/manumesh/api/` | C ABI | 不暴露 STL、Eigen 或 C++ 异常。 |
+| `include/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
+| `include/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
+| `include/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
+| `include/algorithms/simplification/` | QEM 简化选项、报告、指标、Eigen-backed 入口和 PlainMesh 入口 | 当前主要 decimation 模块；`SimplificationTypes.h` 不依赖 Eigen。 |
+| `include/api/` | C ABI | 不暴露 STL、Eigen 或 C++ 异常。 |
 | `src/common/` | 跨算法私有实现工具 | 只能被库内部使用，不安装。 |
 | `src/common/detail/` | 私有公共头 | 放多个算法共享但尚不稳定的 mesh 查询、key、hash 等工具。 |
 | `src/core/` | 基础数据结构实现 | 与公共 core 头对应。 |
@@ -32,7 +32,7 @@ src/common/MeshQueries.cpp                 跨算法 mesh 查询实现
 src/common/detail/MeshQueries.h            无向边 key、面 key、边-面邻接、面法向、顶点邻接、边界顶点
 ```
 
-这层不是 SDK 合约。外部代码不得 include `src/common/detail/...`；如果某个概念已经足够稳定，应提升到 `include/manumesh/core/` 或新的公共算法模块。
+这层不是 SDK 合约。外部代码不得 include `src/common/detail/...`；如果某个概念已经足够稳定，应提升到 `include/core/` 或新的公共算法模块。
 
 ## 当前简化模块拆分
 
@@ -93,7 +93,7 @@ src/feature_detection/detail/*.h                   feature 检测私有类型、
 公共代码使用完整 SDK 路径：
 
 ```cpp
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 ```
 
 库内部跨模块私有工具使用 `src` 私有 include 根：
@@ -112,7 +112,7 @@ src/feature_detection/detail/*.h                   feature 检测私有类型、
 
 ## 扩展规则
 
-模块变大时按职责拆分，而不是按公式片段随意拆文件。新的稳定算法契约进入 `include/manumesh/algorithms/<domain>/`；长期存在但不稳定的实现 helper 进入所属模块的 `detail/`；跨模块工具先放在 `src/common/detail/`，等它的语义足够稳定再决定是否提升到公共 `core`。
+模块变大时按职责拆分，而不是按公式片段随意拆文件。新的稳定算法契约进入 `include/algorithms/<domain>/`；长期存在但不稳定的实现 helper 进入所属模块的 `detail/`；跨模块工具先放在 `src/common/detail/`，等它的语义足够稳定再决定是否提升到公共 `core`。
 
 公共对象优先使用 pimpl 隐藏实现存储。只有调用方必须直接读写、且语义稳定的数据交换结构才进入公共头，例如 options、reports 和 analysis results。
 

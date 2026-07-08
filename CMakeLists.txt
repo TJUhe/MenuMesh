@@ -111,20 +111,20 @@ if(NOT TARGET Eigen3::Eigen AND
 endif()
 
 set(MANUMESH_PUBLIC_HEADERS
-  include/manumesh/Export.h
-  include/manumesh/api/CApi.h
-  include/manumesh/algorithms/feature_detection/FeatureDetector.h
-  include/manumesh/algorithms/feature_detection/FeatureTypes.h
-  include/manumesh/algorithms/simplification/Metrics.h
-  include/manumesh/algorithms/simplification/PlainSimplifier.h
-  include/manumesh/algorithms/simplification/QEMSimplifier.h
-  include/manumesh/algorithms/simplification/SimplificationTypes.h
-  include/manumesh/core/Handles.h
-  include/manumesh/core/Mesh.h
-  include/manumesh/core/MeshGenerators.h
-  include/manumesh/core/MeshTopology.h
-  include/manumesh/core/PlainMesh.h
-  include/manumesh/core/Status.h
+  include/Export.h
+  include/api/CApi.h
+  include/algorithms/feature_detection/FeatureDetector.h
+  include/algorithms/feature_detection/FeatureTypes.h
+  include/algorithms/simplification/Metrics.h
+  include/algorithms/simplification/PlainSimplifier.h
+  include/algorithms/simplification/QEMSimplifier.h
+  include/algorithms/simplification/SimplificationTypes.h
+  include/core/Handles.h
+  include/core/Mesh.h
+  include/core/MeshGenerators.h
+  include/core/MeshTopology.h
+  include/core/PlainMesh.h
+  include/core/Status.h
 )
 
 set(MANUMESH_LIBRARY_SOURCES

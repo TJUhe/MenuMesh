@@ -1,7 +1,7 @@
 #pragma once
 
+#include "algorithms/simplification/QEMSimplifier.h"
 #include "detail/SimplificationTypes.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <vector>
 

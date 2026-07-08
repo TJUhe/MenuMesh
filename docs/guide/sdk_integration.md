@@ -40,8 +40,8 @@ cmake --build $buildDir --target sdk-install-local --parallel
 Eigen-backed 便利入口适合同编译器、同 C++ ABI 的消费工程：
 
 ```cpp
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
-#include "manumesh/core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
+#include "core/Mesh.h"
 
 manumesh::simplification::SimplifyOptions options;
 options.targetRatio = 0.25;
@@ -58,7 +58,7 @@ manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &
 如果宿主程序不希望自己的 C++ 交换类型暴露 Eigen，使用 `PlainMesh` 入口：
 
 ```cpp
-#include "manumesh/algorithms/simplification/PlainSimplifier.h"
+#include "algorithms/simplification/PlainSimplifier.h"
 
 manumesh::PlainMesh input;
 manumesh::simplification::SimplifyOptions options;
@@ -72,7 +72,7 @@ manumesh::PlainMesh output =
 独立特征检测入口：
 
 ```cpp
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 
 manumesh::feature::FeatureOptions featureOptions;
 manumesh::feature::FeatureDetector detector(featureOptions);
@@ -130,7 +130,7 @@ cmake --build $buildDir --target sdk-consumer-test --parallel
 
 ## 集成边界
 
-- 公共头只从 `include/manumesh/` 引入；新代码优先使用 `algorithms/feature_detection` 和 `algorithms/simplification`。
+- 公共头只从 `include/` 引入；新代码优先使用 `algorithms/feature_detection` 和 `algorithms/simplification`。
 - 不要依赖 `src/simplification/detail/`，这些是私有实现。
 - 不要依赖 `src/feature_detection/detail/`，primitive fitting、trace/cycle 恢复等 helper 仍是私有实现。
 - 当前 ManuMesh SDK 不承诺通用布尔、offset、修复或去噪能力。

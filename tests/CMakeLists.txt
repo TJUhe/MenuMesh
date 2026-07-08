@@ -1,14 +1,23 @@
 set(MANUMESH_UNIT_TEST_SOURCES
   support/TestSupport.cpp
-  unit/api/c_api_tests.cpp
+  unit/api/c_api_diagnostics_tests.cpp
+  unit/api/c_api_mesh_tests.cpp
+  unit/api/c_api_simplify_abi_tests.cpp
   unit/feature_detection/FeatureDetectionTestSupport.cpp
   unit/feature_detection/feature_detection_api_tests.cpp
   unit/feature_detection/feature_detection_discrete_tests.cpp
   unit/feature_detection/feature_detection_external_tests.cpp
   unit/feature_detection/feature_detection_fixture_tests.cpp
   unit/feature_detection/feature_detection_loop_tests.cpp
-  unit/simplification/qem_parameter_tests.cpp
-  unit/simplification/simplifier_tests.cpp
+  unit/simplification/qem_parameter_budget_tests.cpp
+  unit/simplification/qem_parameter_feature_tests.cpp
+  unit/simplification/qem_parameter_industrial_tests.cpp
+  unit/simplification/simplification_api_tests.cpp
+  unit/simplification/simplification_core_tests.cpp
+  unit/simplification/simplification_external_tests.cpp
+  unit/simplification/simplification_feature_protection_tests.cpp
+  unit/simplification/simplification_legality_tests.cpp
+  unit/simplification/simplification_normal_tensor_tests.cpp
 )
 
 add_executable(manumesh_tests ${MANUMESH_UNIT_TEST_SOURCES})

@@ -1,8 +1,8 @@
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 
+#include "algorithms/simplification/PlainSimplifier.h"
 #include "detail/SimplificationRun.h"
 #include "detail/SimplificationValidation.h"
-#include "manumesh/algorithms/simplification/PlainSimplifier.h"
 
 #include <memory>
 #include <stdexcept>

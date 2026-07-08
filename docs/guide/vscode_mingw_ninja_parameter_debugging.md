@@ -10,8 +10,8 @@
 - `apps/manumesh/CliArguments.cpp`：CLI flag/value 解析和位置参数提取。
 - `apps/manumesh/ManuMeshCli.cpp`：帮助输出和 `run()` 派发。
 - `apps/manumesh/ManuMeshCommands.cpp`：命令 handler、command registry、CSV 输出和批处理辅助。
-- `include/manumesh/algorithms/simplification/SimplificationTypes.h`：`SimplifyOptions` 和 `SimplifyReport`。
-- `include/manumesh/algorithms/feature_detection/FeatureTypes.h`：`FeatureOptions` 和 `FeatureAnalysis`。
+- `include/algorithms/simplification/SimplificationTypes.h`：`SimplifyOptions` 和 `SimplifyReport`。
+- `include/algorithms/feature_detection/FeatureTypes.h`：`FeatureOptions` 和 `FeatureAnalysis`。
 - `src/simplification/` 与 `src/feature_detection/`：参数真正改变算法行为的位置。
 
 ## 调试前检查

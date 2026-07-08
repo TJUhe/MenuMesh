@@ -1,6 +1,6 @@
 #include "detail/SimplificationValidation.h"
 
-#include "manumesh/core/MeshTopology.h"
+#include "core/MeshTopology.h"
 
 #include <cmath>
 #include <stdexcept>

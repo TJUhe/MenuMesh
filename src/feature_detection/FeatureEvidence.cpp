@@ -1,7 +1,7 @@
 #include "detail/FeatureEvidence.h"
 
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <array>

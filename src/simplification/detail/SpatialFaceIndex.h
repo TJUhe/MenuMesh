@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core/Mesh.h"
 #include "detail/SimplificationTypes.h"
-#include "manumesh/core/Mesh.h"
 
 #include <unordered_map>
 #include <unordered_set>

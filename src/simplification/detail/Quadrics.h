@@ -1,8 +1,8 @@
 #pragma once
 
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 #include "detail/SimplificationTypes.h"
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <vector>
 

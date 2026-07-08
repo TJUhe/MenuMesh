@@ -1,5 +1,5 @@
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>

@@ -1,11 +1,11 @@
 #include "detail/SimplificationRun.h"
 
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
 #include "detail/DynamicTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/Quadrics.h"
 #include "detail/ResultBuilder.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <cmath>

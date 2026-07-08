@@ -1,6 +1,6 @@
-#include "manumesh/algorithms/simplification/Metrics.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
-#include "manumesh/core/MeshGenerators.h"
+#include "algorithms/simplification/Metrics.h"
+#include "algorithms/simplification/QEMSimplifier.h"
+#include "core/MeshGenerators.h"
 
 #include <iostream>
 #include <stdexcept>

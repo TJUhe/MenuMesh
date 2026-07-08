@@ -1,7 +1,7 @@
 #pragma once
 
-#include "manumesh/Export.h"
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "Export.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
 
 #include <memory>
 #include <string>

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "manumesh/Export.h"
-#include "manumesh/algorithms/simplification/SimplificationTypes.h"
-#include "manumesh/core/Mesh.h"
+#include "Export.h"
+#include "algorithms/simplification/SimplificationTypes.h"
+#include "core/Mesh.h"
 
 #include <memory>
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "manumesh/Export.h"
-#include "manumesh/core/Handles.h"
-#include "manumesh/core/Mesh.h"
-#include "manumesh/core/Status.h"
+#include "Export.h"
+#include "core/Handles.h"
+#include "core/Mesh.h"
+#include "core/Status.h"
 
 #include <array>
 #include <cstdint>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "FeatureDetectionTypes.h"
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
 
 namespace manumesh::feature::detector_detail {
 

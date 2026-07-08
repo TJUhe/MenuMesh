@@ -1,7 +1,7 @@
 #pragma once
 
+#include "algorithms/feature_detection/FeatureTypes.h"
 #include "common/detail/MathConstants.h"
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
 
 #include <cstdint>
 #include <unordered_map>

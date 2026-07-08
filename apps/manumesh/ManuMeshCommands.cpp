@@ -1,10 +1,10 @@
 #include "CliArguments.h"
 #include "CliCommands.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
-#include "manumesh/algorithms/simplification/Metrics.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
-#include "manumesh/core/Mesh.h"
-#include "manumesh/core/MeshGenerators.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/simplification/Metrics.h"
+#include "algorithms/simplification/QEMSimplifier.h"
+#include "core/Mesh.h"
+#include "core/MeshGenerators.h"
 
 #include <algorithm>
 #include <filesystem>

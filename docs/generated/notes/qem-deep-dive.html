@@ -173,7 +173,7 @@ tr:nth-child(even) td{background:#f9fafb}
 
 <p>ManuMesh 在 Line Quadric 论文基础上进行了大量工程扩展，从单文件原型重构为模块化 C++ 库：</p>
 
-<div class="diagram">include/manumesh/
+<div class="diagram">include/
 ├── core/           # 核心数学：quadric 构造、求解、矩阵运算
 │   ├── Quadric.hpp        # 4×4 quadric 矩阵表示与运算
 │   ├── PlaneQuadric.hpp   # 平面 quadric Q = ππᵀ
@@ -2021,7 +2021,7 @@ ctest -T coverage --output-on-failure</code></pre>
 <table>
 <tr><th>项目</th><th>说明</th></tr>
 <tr><td><strong>ManuMesh</strong></td><td>面向增材制造的多边形网格几何内核，当前 CMake 目标和 include 根路径仍沿用 manumesh</td></tr>
-<tr><td>模块结构</td><td><code>include/manumesh/</code> 分 core / features / simplification / api</td></tr>
+<tr><td>模块结构</td><td><code>include/</code> 分 core / features / simplification / api</td></tr>
 <tr><td>测试套件</td><td>GoogleTest，覆盖 quadric 构造、求解、特征检测、折叠合法性</td></tr>
 <tr><td>C API</td><td><code>qem_c_api.h</code> 导出 C 接口，支持外部绑定</td></tr>
 <tr><td>测试模型</td><td>hole_plane（圆孔平面）、CAD 零件、立方体、球面等</td></tr>
@@ -2030,7 +2030,7 @@ ctest -T coverage --output-on-failure</code></pre>
 <div class="callout success">
 <div class="callout-title">关键代码变化总结（相比上一版）</div>
 <ol class="step-list">
-<li><strong>模块化重构</strong>：单文件 → <code>include/manumesh/</code> 分 core/features/simplification/api</li>
+<li><strong>模块化重构</strong>：单文件 → <code>include/</code> 分 core/features/simplification/api</li>
 <li><strong>NormalTensor 特征检测</strong>：Tsuchie-Higashi 2014 法线张量方法</li>
 <li><strong>椭圆拟合与投影</strong>：<code>fitEllipse()</code> + <code>projectToEllipse()</code></li>
 <li><strong>多边形环投影</strong>：线段最近点投影</li>

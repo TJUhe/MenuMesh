@@ -1,6 +1,6 @@
 #include "FeatureDetectionTestSupport.h"
 #include "TestSupport.h"
-#include "manumesh/core/MeshGenerators.h"
+#include "core/MeshGenerators.h"
 
 #include <algorithm>
 #include <gtest/gtest.h>

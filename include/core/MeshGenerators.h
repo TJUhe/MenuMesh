@@ -1,7 +1,7 @@
 #pragma once
 
-#include "manumesh/Export.h"
-#include "manumesh/core/Mesh.h"
+#include "Export.h"
+#include "core/Mesh.h"
 
 #include <string>
 

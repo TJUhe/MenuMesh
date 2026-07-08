@@ -1,7 +1,7 @@
 #pragma once
 
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
-#include "manumesh/algorithms/simplification/SimplificationTypes.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/simplification/SimplificationTypes.h"
 
 namespace manumesh::simplification {
 

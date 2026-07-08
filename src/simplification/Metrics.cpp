@@ -1,6 +1,6 @@
-#include "manumesh/algorithms/simplification/Metrics.h"
+#include "algorithms/simplification/Metrics.h"
 
-#include "manumesh/core/MeshTopology.h"
+#include "core/MeshTopology.h"
 
 #include <algorithm>
 #include <array>

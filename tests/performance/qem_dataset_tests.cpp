@@ -1,6 +1,6 @@
 #include "TestSupport.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
-#include "manumesh/algorithms/simplification/Metrics.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/simplification/Metrics.h"
 
 #include <algorithm>
 #include <chrono>

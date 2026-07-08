@@ -1,7 +1,7 @@
 #pragma once
 
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
-#include "manumesh/core/Mesh.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "core/Mesh.h"
 
 #include <array>
 #include <cstdint>

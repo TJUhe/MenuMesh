@@ -1,6 +1,6 @@
 #pragma once
 
-#include "manumesh/Export.h"
+#include "Export.h"
 
 #include <Eigen/Dense>
 #include <array>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "manumesh/core/Mesh.h"
+#include "core/Mesh.h"
 
 #include <array>
 #include <cstdint>

@@ -34,10 +34,10 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 | 路径 | 角色 |
 | --- | --- |
-| `include/manumesh/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
-| `include/manumesh/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `manumesh::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
-| `include/manumesh/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
-| `include/manumesh/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
+| `include/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
+| `include/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `manumesh::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
+| `include/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
+| `include/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
 | `src/` | 库实现按职责分组：`common/`、`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
 | `src/common/detail/` | 跨算法私有工具层，例如 mesh key、边-面邻接、面法向、顶点邻接和边界顶点查询；不属于 SDK。 |
 | `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
@@ -107,8 +107,8 @@ cmake --build build/sdk-release --target sdk-consumer-test --parallel
 最小外部调用入口：
 
 ```cpp
-#include "manumesh/core/Mesh.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 
 manumesh::simplification::SimplifyOptions options;
 options.targetRatio = 0.2;
@@ -128,7 +128,7 @@ manumesh::Mesh simplified = simplifier.simplify(input, &report);
 特征检测也可以独立使用，不需要先运行 QEM：
 
 ```cpp
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 
 manumesh::feature::FeatureOptions featureOptions;
 manumesh::feature::FeatureDetector detector(featureOptions);
@@ -151,7 +151,7 @@ vendored Eigen，则通过 `find_dependency(Eigen3 3.3 NO_MODULE)` 寻找系统 
 如果宿主程序不想在自己的 C++ 交换边界暴露 Eigen，可以使用 `PlainMesh` 入口：
 
 ```cpp
-#include "manumesh/algorithms/simplification/PlainSimplifier.h"
+#include "algorithms/simplification/PlainSimplifier.h"
 
 manumesh::PlainMesh plainInput;
 manumesh::simplification::SimplifyOptions options;
@@ -221,19 +221,19 @@ C:\opt\manumesh\share\manumesh\msvc\ManuMesh.props
 - `lib\manumesh.lib` 链接库；
 - 构建后把 `bin\manumesh.dll` 复制到你的程序输出目录。
 
-如果使用 C++ API，例如 `manumesh/core/Mesh.h`，属性表默认会引用
+如果使用 C++ API，例如 `core/Mesh.h`，属性表默认会引用
 SDK 自带的 Eigen 头文件目录。需要统一公司内部 Eigen 版本时，可以覆盖
-`ManuMeshEigenIncludeDir`。如果只使用 `manumesh/api/CApi.h` 这套 C ABI，
+`ManuMeshEigenIncludeDir`。如果只使用 `api/CApi.h` 这套 C ABI，
 调用方不需要包含 Eigen 头。
 如果希望使用 C++ 但避免在宿主交换类型中暴露 Eigen，可包含
-`manumesh/algorithms/simplification/PlainSimplifier.h` 并传入
+`algorithms/simplification/PlainSimplifier.h` 并传入
 `manumesh::PlainMesh`。
 
 最小 C++ 调用：
 
 ```cpp
-#include "manumesh/core/Mesh.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 
 int main() {
   manumesh::Mesh input;
@@ -256,7 +256,7 @@ int main() {
 最小 C ABI 调用入口：
 
 ```c
-#include "manumesh/api/CApi.h"
+#include "api/CApi.h"
 ```
 
 ## 验证闭环

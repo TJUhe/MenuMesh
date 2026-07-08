@@ -7,7 +7,7 @@ ManuMesh 是面向增材制造的 C++ 多边形网格几何内核。当前稳定
 ## 分层
 
 ```text
-include/manumesh/      安装级公共 SDK 头文件
+include/      安装级公共 SDK 头文件
   core/                         Mesh、PlainMesh、MeshTopology、Status、typed handles
   algorithms/feature_detection/ 特征检测模块入口、选项和结果类型
   algorithms/simplification/    QEM/line quadrics 简化入口、选项、报告和指标

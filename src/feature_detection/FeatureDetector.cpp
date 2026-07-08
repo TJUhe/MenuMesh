@@ -1,4 +1,4 @@
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "detail/FeatureDetectionTypes.h"
 #include "detail/FeatureEvidence.h"

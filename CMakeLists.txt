@@ -672,6 +672,8 @@ if(MANUMESH_BUILD_DOCS)
       "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/algorithm_essence.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/architecture.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/common_foundation.md"
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/adding_new_algorithm.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_library.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/sdk_integration.md"
       "${CMAKE_CURRENT_SOURCE_DIR}/docs/design/industrial_validation.md"

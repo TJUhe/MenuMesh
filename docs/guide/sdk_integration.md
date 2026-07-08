@@ -9,7 +9,7 @@ ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同�
 MinGW + Ninja 的 Release 构建：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
@@ -23,7 +23,7 @@ cmake --build $buildDir --parallel
 如果要生成本地安装布局：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
@@ -124,7 +124,7 @@ Windows + MinGW 使用共享库时，应用目录需要：
 启用安装目标后可运行：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake --build $buildDir --target sdk-consumer-test --parallel
 ```
 

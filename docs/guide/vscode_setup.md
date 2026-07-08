@@ -34,8 +34,8 @@ code --install-extension adm\vscode-extensions\vscodevim.vim-1.24.3.vsix
 
 ```text
 编译器：PATH 中的 gcc/g++
-构建目录：build/${workspaceFolderBasename}/mingw-ninja-release
-编译数据库：build/${workspaceFolderBasename}/mingw-ninja-release/compile_commands.json
+构建目录：build/mingw-ninja-release
+编译数据库：build/mingw-ninja-release/compile_commands.json
 ```
 
 仓库设置刻意避免写死机器相关的 MinGW 绝对路径。配置前请确保目标 MinGW 的 `bin` 目录在 `PATH` 中：
@@ -65,20 +65,20 @@ ManuMesh 当前支持 CMake 3.18.6 及以上版本，不依赖 `CMakePresets.jso
 
 | 构建目录 | 生成器 | 编译器 | 用途 |
 | --- | --- | --- | --- |
-| `build/${workspaceFolderBasename}/mingw-ninja-debug` | Ninja | MinGW `g++` | 调试、单元测试、格式检查 |
-| `build/${workspaceFolderBasename}/mingw-ninja-release` | Ninja | MinGW `g++` | 发布构建、演示、Release 测试 |
-| `build/${workspaceFolderBasename}/mingw-ninja-debug-performance` | Ninja | MinGW `g++` | 性能测试 |
-| `build/${workspaceFolderBasename}/mingw-ninja-release-performance` | Ninja | MinGW `g++` | Release 性能测试 |
-| `build/${workspaceFolderBasename}/mingw-ninja-release-sdk` | Ninja | MinGW `g++` | 本地安装和 SDK consumer 测试 |
-| `build/${workspaceFolderBasename}/msvc-vs2022` | Visual Studio 17 2022 | MSVC | VS2022 调试和发布构建 |
-| `build/${workspaceFolderBasename}/msvc-vs2022-performance` | Visual Studio 17 2022 | MSVC | VS2022 性能测试 |
-| `build/${workspaceFolderBasename}/msvc-vs2019` | Visual Studio 16 2019 | MSVC | VS2019 调试和发布构建 |
-| `build/${workspaceFolderBasename}/msvc-vs2019-performance` | Visual Studio 16 2019 | MSVC | VS2019 性能测试 |
+| `build/mingw-ninja-debug` | Ninja | MinGW `g++` | 调试、单元测试、格式检查 |
+| `build/mingw-ninja-release` | Ninja | MinGW `g++` | 发布构建、演示、Release 测试 |
+| `build/mingw-ninja-debug-performance` | Ninja | MinGW `g++` | 性能测试 |
+| `build/mingw-ninja-release-performance` | Ninja | MinGW `g++` | Release 性能测试 |
+| `build/mingw-ninja-release-sdk` | Ninja | MinGW `g++` | 本地安装和 SDK consumer 测试 |
+| `build/msvc-vs2022` | Visual Studio 17 2022 | MSVC | VS2022 调试和发布构建 |
+| `build/msvc-vs2022-performance` | Visual Studio 17 2022 | MSVC | VS2022 性能测试 |
+| `build/msvc-vs2019` | Visual Studio 16 2019 | MSVC | VS2019 调试和发布构建 |
+| `build/msvc-vs2019-performance` | Visual Studio 16 2019 | MSVC | VS2019 性能测试 |
 
 MinGW + Ninja 的 Release 配置命令：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
@@ -91,14 +91,14 @@ cmake -S . -B $buildDir -G Ninja `
 构建全部目标：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake --build $buildDir --parallel
 ```
 
 运行非性能测试：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
 
@@ -114,14 +114,14 @@ Release 全量构建会生成测试程序。当前 CMake 配置使用 `gtest_add
 where g++
 where cmake
 where ninja
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 Get-ChildItem "$buildDir\bin\*.dll"
 ```
 
 然后删除对应构建目录或重新运行 configure，再构建：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
@@ -230,7 +230,7 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 生成特征报告：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe feature-report `
   tests\data\feature_fixtures\coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
@@ -242,7 +242,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 带特征曲线保护的简化：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe simplify `
   tests\data\feature_fixtures\coaxial_hole_plate.obj `
   output\vscode_demo\feature_curves.stl `
@@ -265,7 +265,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 比例扫描：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe ratio-sweep `
   tests\data\external\fandisk_2014.stl `
   output\vscode_demo\ratio_sweep `
@@ -281,7 +281,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 外部验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-features --ratio 0.20 --samples 1000
 & $exe validate-external --ratio 0.25 --samples 800
 ```

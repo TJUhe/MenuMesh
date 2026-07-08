@@ -5,7 +5,7 @@
 建议先在 PowerShell 中定义当前 VS Code task 一致的输出目录：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 $exe = "$buildDir/bin/manumesh.exe"
 ```
 

@@ -31,13 +31,13 @@ where gdb
 构建目录使用：
 
 ```text
-build/${workspaceFolderBasename}/mingw-ninja-debug
-build/${workspaceFolderBasename}/mingw-ninja-release
-build/${workspaceFolderBasename}/mingw-ninja-debug-performance
-build/${workspaceFolderBasename}/mingw-ninja-release-performance
+build/mingw-ninja-debug
+build/mingw-ninja-release
+build/mingw-ninja-debug-performance
+build/mingw-ninja-release-performance
 ```
 
-`${workspaceFolderBasename}` 会随当前文件夹名变化。例如仓库文件夹叫 `ManuMesh` 时，Debug 目录就是 `build/ManuMesh/mingw-ninja-debug`。这能避免项目改名后仍复用旧目录里的 `CMakeCache.txt`。
+VS Code 任务固定使用 `build/<config>` 这一层目录，不再把项目文件夹名插入到 `build/` 和配置名之间。这样目录更短，和手工命令保持一致；如果这些目录曾经由旧仓库路径生成过，第一次切换时需要删除对应子目录后重新 configure。
 
 如果遇到：
 
@@ -49,7 +49,7 @@ The source ... does not match the source ... used to generate cache
 先检查缓存记录的源目录：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-debug"
+$buildDir = "build/mingw-ninja-debug"
 Get-Content "$buildDir\CMakeCache.txt" | Select-String "CMAKE_HOME_DIRECTORY|CMAKE_CACHEFILE_DIR"
 ```
 
@@ -86,7 +86,7 @@ cmake -S . -B $buildDir -G Ninja `
 如果要调性能测试：
 
 1. 选择 `(MinGW Ninja) Debug Performance Tests Filter`。
-2. 该配置使用 `build/${workspaceFolderBasename}/mingw-ninja-debug-performance`。
+2. 该配置使用 `build/mingw-ninja-debug-performance`。
 3. 它会先运行 `build: mingw+ninja debug performance tests`，也就是 configure 时带 `-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON`。
 
 ## tasks.json 参数
@@ -98,7 +98,7 @@ cmake -S . -B $buildDir -G Ninja `
 | `type: process` | 所有 task | VS Code 直接启动一个进程，不经过 shell 脚本包装。 | 任务输出里应直接显示 `cmake`、`ctest` 或 `manumesh.exe`。 |
 | `command: cmake` | configure/build/test/docs task | 统一用 CMake 驱动生成、构建、CTest 和文档目标。 | 任务开始行应是 `cmake ...`。 |
 | `-S .` | configure task | 源码目录是当前工作区根目录。 | CMakeCache 中 `CMAKE_HOME_DIRECTORY` 应指向当前仓库。 |
-| `-B build/${workspaceFolderBasename}/...` | configure task | 构建目录随项目文件夹名变化，避免旧仓库名缓存混用。 | 看实际生成目录是否带当前文件夹名。 |
+| `-B build/...` | configure task | 构建目录固定在仓库根目录的 `build/<config>` 下，例如 `build/mingw-ninja-release`。 | CMake 输出应写到固定子目录，且 CMakeCache 的源目录指向当前仓库。 |
 | `-G Ninja` | MinGW configure task | 使用 Ninja 单配置生成器。 | `CMAKE_GENERATOR:INTERNAL=Ninja`。 |
 | `-DCMAKE_BUILD_TYPE=Debug` | Debug configure task | 生成带调试信息、优化较低的构建。 | GDB 能进入源码，变量较容易观察。 |
 | `-DCMAKE_BUILD_TYPE=Release` | Release configure task | 生成优化构建，用于演示、指标和发布验证。 | STL/CSV 性能更接近实际使用。 |
@@ -129,7 +129,7 @@ cmake -S . -B $buildDir -G Ninja `
 | --- | --- | --- | --- |
 | `type` | `cppdbg` | 使用 Microsoft C/C++ 扩展的 GDB/MI 调试器。 | 调试控制台显示 GDB/MI 启动信息。 |
 | `request` | `launch` | 启动新进程，而不是附加到已有进程。 | 每次 F5 都会新启动 `manumesh.exe`。 |
-| `program` | `build/${workspaceFolderBasename}/mingw-ninja-debug/bin/manumesh.exe` | 被调试的 Debug CLI。 | 文件存在且时间戳随 Debug 构建更新。 |
+| `program` | `build/mingw-ninja-debug/bin/manumesh.exe` | 被调试的 Debug CLI。 | 文件存在且时间戳随 Debug 构建更新。 |
 | `args` | CLI 参数数组 | 传给 `manumesh.exe` 的真实命令行。 | 在 `apps/manumesh/ManuMeshCli.cpp::run` 观察 `argv`。 |
 | `cwd` | `${workspaceFolder}` | 程序运行目录是仓库根目录。 | 相对路径如 `tests/data/...` 能解析。 |
 | `stopAtEntry` | `false` | 不在进程入口自动暂停。 | 需要自己打断点。 |
@@ -460,7 +460,7 @@ preventLocalIntersections = true
 确认调试配置使用 Debug exe：
 
 ```text
-build/${workspaceFolderBasename}/mingw-ninja-debug/bin/manumesh.exe
+build/mingw-ninja-debug/bin/manumesh.exe
 ```
 
 确认 `preLaunchTask` 是 `build: mingw+ninja debug`，并且 `where gdb` 能找到当前 MinGW 的 GDB。

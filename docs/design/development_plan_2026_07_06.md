@@ -34,7 +34,7 @@
 
 ## 风险控制
 
-- 每次算法改动至少跑 `cmake -E chdir build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release ctest -LE performance --output-on-failure`。
+- 每次算法改动至少跑 `cmake -E chdir build/mingw-ninja-release ctest -LE performance --output-on-failure`。
 - 涉及 performance fixture 时单独启用 `MANUMESH_BUILD_PERFORMANCE_TESTS=ON`。
 - 不在公共头中暴露 `src/.../detail/...` 类型。
 - C ABI 结构体增加字段时只向后追加；同一 ABI 版本内保持旧 `struct_size` 可用，缺失尾部字段使用默认值。

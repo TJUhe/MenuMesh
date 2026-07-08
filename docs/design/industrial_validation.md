@@ -7,7 +7,7 @@
 ## 当前验证入口
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 $exe = "$buildDir/bin/manumesh.exe"
 & $exe validate-features --ratio 0.20 --samples 1000
 & $exe validate-external --ratio 0.25 --samples 800

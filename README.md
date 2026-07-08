@@ -72,7 +72,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 推荐 MinGW + Ninja。`--parallel` 不指定数字时，CMake 会让 Ninja 按可用核心数并行：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build $buildDir --target manumesh --parallel
 ```
@@ -266,28 +266,28 @@ int main() {
 基础回归：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
 
 大模型性能测试：
 
 ```powershell
-$perfBuildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release-performance"
+$perfBuildDir = "build/mingw-ninja-release-performance"
 cmake -E chdir $perfBuildDir ctest -L performance --output-on-failure
 ```
 
 快速生成 STL/CSV：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe demo --quick --samples 500
 ```
 
 工业特征验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-features --ratio 0.20 --samples 1000
 ```
 
@@ -303,7 +303,7 @@ OpenFOAM flange。可用 `--spindle-input`、`--ring-input`、`--pulley-input`�
 外部 OBJ 基准验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-external --ratio 0.25 --samples 800
 ```
 

@@ -18,7 +18,7 @@
 普通外部验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-external `
   --input-dir tests/data/external/common_3d_test_models `
   --ratio 0.25 `
@@ -29,7 +29,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 特征验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-features `
   --ratio 0.20 `
   --samples 1000 `

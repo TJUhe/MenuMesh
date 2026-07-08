@@ -20,7 +20,7 @@
 非性能回归：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
@@ -33,7 +33,7 @@ cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 性能测试需要单独配置：
 
 ```powershell
-$perfBuildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-debug-performance"
+$perfBuildDir = "build/mingw-ninja-debug-performance"
 cmake -S . -B $perfBuildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Debug `
   -DCMAKE_C_COMPILER=gcc `
@@ -48,7 +48,7 @@ cmake -E chdir $perfBuildDir ctest -L performance --output-on-failure
 90% 保守简化：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_090.stl `
@@ -61,7 +61,7 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 50% 更深简化：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_050.stl `

@@ -1,11 +1,13 @@
 #include "detail/SimplificationPolicies.h"
 
-#include "detail/SimplificationConstants.h"
+#include "common/detail/MathConstants.h"
 
 #include <algorithm>
 #include <cmath>
 
 namespace manumesh::simplification {
+
+using manumesh::detail::kPi;
 
 int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
   if (targetFaces > 0) {

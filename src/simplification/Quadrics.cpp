@@ -1,7 +1,7 @@
 #include "detail/Quadrics.h"
 
+#include "common/detail/MathConstants.h"
 #include "common/detail/MeshQueries.h"
-#include "detail/SimplificationConstants.h"
 #include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <Eigen/Eigenvalues>
@@ -10,6 +10,8 @@
 #include <limits>
 
 namespace manumesh::simplification {
+
+using manumesh::detail::kPi;
 
 double evaluateQuadric(const Mat4& q, const Vec3& p) {
   Eigen::Vector4d h;

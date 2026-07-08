@@ -1,7 +1,12 @@
 set(MANUMESH_UNIT_TEST_SOURCES
   support/TestSupport.cpp
   unit/api/c_api_tests.cpp
-  unit/feature_detection/feature_detection_tests.cpp
+  unit/feature_detection/FeatureDetectionTestSupport.cpp
+  unit/feature_detection/feature_detection_api_tests.cpp
+  unit/feature_detection/feature_detection_discrete_tests.cpp
+  unit/feature_detection/feature_detection_external_tests.cpp
+  unit/feature_detection/feature_detection_fixture_tests.cpp
+  unit/feature_detection/feature_detection_loop_tests.cpp
   unit/simplification/qem_parameter_tests.cpp
   unit/simplification/simplifier_tests.cpp
 )

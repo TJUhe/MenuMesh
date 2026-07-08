@@ -163,6 +163,7 @@ set(MANUMESH_LIBRARY_SOURCES
 )
 
 set(MANUMESH_COMMON_PRIVATE_HEADERS
+  src/common/detail/MathConstants.h
   src/common/detail/MeshQueries.h
 )
 
@@ -188,7 +189,6 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
   src/simplification/detail/GeometryPredicates.h
   src/simplification/detail/Quadrics.h
   src/simplification/detail/ResultBuilder.h
-  src/simplification/detail/SimplificationConstants.h
   src/simplification/detail/SimplificationPolicies.h
   src/simplification/detail/SimplificationRun.h
   src/simplification/detail/SimplificationTypes.h

@@ -137,6 +137,8 @@ manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
 
+`FeatureAnalysis` 现在同时包含 raw evidence、cleanup 后的 feature graph、loop/primitive、以及 `FeatureComponent` 级 confidence。常用诊断包括 `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`weakFeatureComponents`、`meanFeatureComponentConfidence` 和 loop CSV 中的 `component_confidence` / `primitive_residual`。
+
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
 如果下游本身也是 CMake 工程，并且安装 SDK 时打开了
 `-DMANUMESH_INSTALL_CMAKE_CONFIG=ON`，也可以选择使用可选的 CMake config：
@@ -307,6 +309,15 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-external --ratio 0.25 --samples 800
 ```
 
+带 ground-truth edge labels 的特征识别 benchmark：
+
+```powershell
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+& $exe feature-benchmark input.stl labels.csv --csv output/feature_benchmark.csv
+```
+
+`labels.csv` 可用每行 `a,b` 表示一条 vertex-index ground-truth feature edge；可选 `junction,id` 行用于 junction correctness。
+
 每项能力、性能指标、输出文件和验收口径见
 [`docs/design/industrial_validation.md`](docs/design/industrial_validation.md)。
 
@@ -316,6 +327,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 `Terminal > Run Task...`：
 
 - `demo: feature report selected mesh`：查看输入网格的 feature edge、loop、circle/ellipse 识别。
+- `demo: feature benchmark selected mesh`：读取 edge label CSV，输出 precision/recall、junction、closure 和 confidence 指标。
 - `demo: simplify standard selected mesh`：用普通 QEM 简化下拉框选择的 mesh。
 - `demo: simplify feature curves selected mesh`：用 line quadrics、dihedral 权重和特征曲线保护简化选定 mesh。
 - `demo: simplify normal tensor selected mesh`：用局部尺度 + 多尺度 persistence 的 normal-tensor 权重调试弱特征补充。
@@ -340,6 +352,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 | `--max-feature-curve-deviation-ratio 0.02/0.05` | `coaxial_hole_plate.obj` | 曲线预算如何限制圆 loop 漂移。 |
 | `--max-local-error-ratio 0.01/0.02` | `casting_aimshape_2014.stl` | 局部几何误差 guard 如何增加 `error_rejected_collapses`。 |
 | `--weight-mode normal-tensor` | `boss_pocket_plate.obj` | normal tensor 对弱特征的补充，以及 `normal_tensor_scored_vertices`、persistent score、局部尺度对噪声/采样的敏感性。 |
+| `--feature-graph-gap-ratio` / `--feature-graph-max-weak-spur-edges` | `boss_pocket_plate.obj`、外部 CAD/STL | graph cleanup 对短断裂、弱 spur、component confidence 的影响。 |
 
 ## 主要指标
 
@@ -353,6 +366,9 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 | `mean_orig_to_simp`、`max_orig_to_simp` | 采样距离误差，越低表示几何偏差越小。 |
 | `non_manifold_edges` | 非流形风险提示。 |
 | `radial_rms`、`plane_rms` | 圆形特征半径漂移和平面漂移。 |
+| `feature_components`、`weak_feature_components` | cleanup 后的 feature component 总数和弱证据 component 数。 |
+| `graph_cleanup_bridged_gaps`、`graph_cleanup_removed_spurs` | feature graph cleanup 对输入 trace graph 做了多少修复/清理。 |
+| `mean_feature_component_confidence`、`min_feature_component_confidence` | component-level 特征支持置信度，用于判断弱特征是否足够稳定。 |
 | `feature_rejected_collapses` | 特征约束实际拦截了多少坍缩。 |
 | `solver_fallbacks` | 当前候选 placement 求解退化到端点/中点候选集的次数，不含队列入队预排序。 |
 

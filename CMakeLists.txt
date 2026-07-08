@@ -140,6 +140,7 @@ set(MANUMESH_LIBRARY_SOURCES
   src/feature_detection/FeatureDetector.cpp
   src/feature_detection/FeatureEvidence.cpp
   src/feature_detection/FeatureGraph.cpp
+  src/feature_detection/FeatureGraphCleanup.cpp
   src/feature_detection/FeatureLoopBuilder.cpp
   src/feature_detection/FeatureLoopRecovery.cpp
   src/feature_detection/FeaturePrimitiveRecovery.cpp
@@ -173,6 +174,7 @@ set(MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS
   src/feature_detection/detail/FeatureDetectionTypes.h
   src/feature_detection/detail/FeatureEvidence.h
   src/feature_detection/detail/FeatureGraph.h
+  src/feature_detection/detail/FeatureGraphCleanup.h
   src/feature_detection/detail/FeatureLoopBuilder.h
   src/feature_detection/detail/FeatureLoopRecovery.h
   src/feature_detection/detail/FeaturePrimitiveRecovery.h

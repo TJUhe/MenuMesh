@@ -1,14 +1,18 @@
 #include "algorithms/feature_detection/FeatureDetector.h"
 
+#include "common/detail/MeshQueries.h"
 #include "detail/FeatureDetectionTypes.h"
 #include "detail/FeatureEvidence.h"
 #include "detail/FeatureGraph.h"
+#include "detail/FeatureGraphCleanup.h"
 #include "detail/FeatureLoopRecovery.h"
 #include "detail/PrimitiveFit.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <memory>
 #include <sstream>
+#include <unordered_set>
 #include <utility>
 
 namespace manumesh::feature {
@@ -50,12 +54,28 @@ public:
   }
 };
 
+class FeatureGraphCleanupStage {
+public:
+  void run(FeatureDetectionContext& context) const {
+    detector_detail::cleanupTraceGraph(context.mesh, context.options, context.trace,
+                                       context.analysis());
+  }
+};
+
 class LoopRecoveryStage {
 public:
   void run(FeatureDetectionContext& context) const {
     detector_detail::recoverFeatureLoops(context.mesh, context.options, context.trace,
                                          context.analysis(),
                                          context.builder.nextLoopId());
+  }
+};
+
+class FeatureComponentSummaryStage {
+public:
+  void run(FeatureDetectionContext& context) const {
+    detector_detail::summarizeFeatureComponents(context.mesh, context.options,
+                                                context.trace, context.analysis());
   }
 };
 
@@ -76,7 +96,9 @@ public:
 
     edgeEvidence_.run(context);
     featureGraph_.run(context);
+    cleanup_.run(context);
     loopRecovery_.run(context);
+    componentSummary_.run(context);
     finalize_.run(context);
     return context.builder.build();
   }
@@ -84,7 +106,9 @@ public:
 private:
   EdgeEvidenceStage edgeEvidence_;
   FeatureGraphStage featureGraph_;
+  FeatureGraphCleanupStage cleanup_;
   LoopRecoveryStage loopRecovery_;
+  FeatureComponentSummaryStage componentSummary_;
   FeatureGraphFinalizeStage finalize_;
 };
 
@@ -158,7 +182,8 @@ DirectionalCurveError measureLoopAgainstCircle(const Mesh& mesh,
 }
 
 std::string featureReportHeaderCsv() {
-  return "loop_id,vertices,edges,closed,primitive,circular,mostly_boundary,cx,cy,cz,"
+  return "loop_id,component_id,component_confidence,weak_feature,primitive_residual,"
+         "vertices,edges,closed,primitive,circular,mostly_boundary,cx,cy,cz,"
          "nx,ny,nz,major_axis_x,major_axis_y,major_axis_z,minor_axis_x,"
          "minor_axis_y,minor_axis_z,radius,major_radius,minor_radius,axis_ratio,"
          "rms_radial,max_radial,rms_ellipse,max_ellipse,rms_plane,max_plane,"
@@ -168,7 +193,9 @@ std::string featureReportHeaderCsv() {
 std::string featureLoopRowCsv(const FeatureLoop& loop) {
   std::ostringstream out;
   out << std::setprecision(12);
-  out << loop.id << "," << loop.vertices.size() << "," << loop.edgeCount << ","
+  out << loop.id << "," << loop.componentId << "," << loop.componentConfidence << ","
+      << (loop.weakFeature ? 1 : 0) << "," << loop.primitiveResidual << ","
+      << loop.vertices.size() << "," << loop.edgeCount << ","
       << (loop.closed ? 1 : 0) << "," << toString(loop.primitive) << ","
       << (loop.circular ? 1 : 0) << "," << (loop.mostlyBoundary ? 1 : 0) << ","
       << loop.center.x() << "," << loop.center.y() << "," << loop.center.z() << ","
@@ -198,6 +225,103 @@ std::string toString(FeaturePrimitiveType primitive) {
     return "polygonal-loop";
   }
   return "unknown";
+}
+
+FeatureEdgeBenchmark benchmarkFeatureEdges(
+    const FeatureAnalysis& analysis,
+    const std::vector<std::pair<int, int>>& groundTruthEdges,
+    const std::vector<int>& groundTruthJunctionVertices) {
+  FeatureEdgeBenchmark result;
+  std::unordered_set<std::uint64_t> truthEdges;
+  truthEdges.reserve(groundTruthEdges.size());
+  for (const auto& [a, b] : groundTruthEdges) {
+    if (a >= 0 && b >= 0 && a != b) {
+      truthEdges.insert(manumesh::detail::meshEdgeKey(a, b));
+    }
+  }
+
+  std::unordered_set<std::uint64_t> detectedEdges;
+  detectedEdges.reserve(analysis.graph.edges.size());
+  for (const FeatureGraphEdge& edge : analysis.graph.edges) {
+    if (edge.removedByCleanup || edge.a < 0 || edge.b < 0 || edge.a == edge.b) {
+      continue;
+    }
+    detectedEdges.insert(manumesh::detail::meshEdgeKey(edge.a, edge.b));
+  }
+
+  result.groundTruthEdges = static_cast<int>(truthEdges.size());
+  result.detectedEdges = static_cast<int>(detectedEdges.size());
+  for (std::uint64_t edge : detectedEdges) {
+    if (truthEdges.find(edge) != truthEdges.end()) {
+      ++result.truePositiveEdges;
+    } else {
+      ++result.falsePositiveEdges;
+    }
+  }
+  for (std::uint64_t edge : truthEdges) {
+    if (detectedEdges.find(edge) == detectedEdges.end()) {
+      ++result.falseNegativeEdges;
+    }
+  }
+
+  auto ratio = [](int numerator, int denominator) {
+    return denominator > 0 ? static_cast<double>(numerator) /
+                                static_cast<double>(denominator)
+                          : 0.0;
+  };
+  auto f1 = [](double precision, double recall) {
+    return precision + recall > 0.0 ? 2.0 * precision * recall /
+                                          (precision + recall)
+                                    : 0.0;
+  };
+  result.edgePrecision =
+      ratio(result.truePositiveEdges,
+            result.truePositiveEdges + result.falsePositiveEdges);
+  result.edgeRecall =
+      ratio(result.truePositiveEdges,
+            result.truePositiveEdges + result.falseNegativeEdges);
+  result.edgeF1 = f1(result.edgePrecision, result.edgeRecall);
+
+  std::unordered_set<int> truthJunctions;
+  truthJunctions.reserve(groundTruthJunctionVertices.size());
+  for (int id : groundTruthJunctionVertices) {
+    if (id >= 0) {
+      truthJunctions.insert(id);
+    }
+  }
+  std::unordered_set<int> detectedJunctions(analysis.graph.junctionVertices.begin(),
+                                            analysis.graph.junctionVertices.end());
+  result.groundTruthJunctions = static_cast<int>(truthJunctions.size());
+  result.detectedJunctions = static_cast<int>(detectedJunctions.size());
+  for (int id : detectedJunctions) {
+    if (truthJunctions.find(id) != truthJunctions.end()) {
+      ++result.truePositiveJunctions;
+    } else {
+      ++result.falsePositiveJunctions;
+    }
+  }
+  for (int id : truthJunctions) {
+    if (detectedJunctions.find(id) == detectedJunctions.end()) {
+      ++result.falseNegativeJunctions;
+    }
+  }
+  result.junctionPrecision =
+      ratio(result.truePositiveJunctions,
+            result.truePositiveJunctions + result.falsePositiveJunctions);
+  result.junctionRecall =
+      ratio(result.truePositiveJunctions,
+            result.truePositiveJunctions + result.falseNegativeJunctions);
+  result.junctionF1 = f1(result.junctionPrecision, result.junctionRecall);
+
+  if (!analysis.components.empty()) {
+    double closureSum = 0.0;
+    for (const FeatureComponent& component : analysis.components) {
+      closureSum += component.closureRate;
+    }
+    result.loopClosureRate = closureSum / static_cast<double>(analysis.components.size());
+  }
+  result.meanComponentConfidence = analysis.meanFeatureComponentConfidence;
+  return result;
 }
 
 } // namespace manumesh::feature

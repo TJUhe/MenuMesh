@@ -4,6 +4,18 @@
 
 ### 新增
 
+- 增加 feature graph cleanup：在 loop recovery 前按局部边长归一化做短 gap bridge、近 junction bridge 和 tensor-only 弱 spur 删除；新增 `cleanupFeatureGraph`、`featureGraphGapLengthRatio`、`featureGraphMaxWeakSpurEdges`、`featureComponentMinConfidence` 选项及 CLI/C ABI 尾部字段。
+- 增加 component-level confidence：`FeatureAnalysis::components` 统计强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual 和 confidence；loop 与 vertex 记录 `componentId`、`confidence`、`weakFeature`。
+- 增加 `feature-benchmark` CLI 和 `benchmarkFeatureEdges()`，支持用 vertex-index ground-truth edge labels 评估 precision/recall/F1、junction correctness、loop closure rate 和 component confidence。
+- `SimplifyReport` / C ABI report / metrics CSV 增加 `feature_components`、`weak_feature_components`、`high_confidence_feature_components`、`graph_cleanup_*`、`mean_feature_component_confidence` 和 `min_feature_component_confidence`。
+
+### 变更
+
+- feature-curve soft quadric 权重按 component confidence 温和缩放，使强 CAD loop 保持接近原权重，弱证据 component 在 QEM 中先作为较软 support 使用。
+- `feature-report` loop CSV 增加 `component_id`、`component_confidence`、`weak_feature` 和 `primitive_residual`，便于定位弱特征、破碎 loop 和 primitive fit 风险。
+
+### 新增
+
 - 增加 `docs/delivery/manumesh_kernel_developer_guide.html`，作为商用内核交付级开发者手册入口，覆盖定位、架构、模块边界、API/C ABI、构建、验证、扩展约束和交付清单。
 - 将 2026-07-09 前的阶段性设计、指南和生成笔记归档到 `docs/archive/prototype-docs-2026-07-09/`，保留研发历史材料，同时避免和正式交付文档混用。
 - 扩充 `docs/papers/feature_detection/`、`docs/papers/segmentation/` 和 `docs/papers/weak_features/`，补入特征线、normal voting/tensor、ridge/valley、线框提取、工程对象分割和弱特征整合论文。

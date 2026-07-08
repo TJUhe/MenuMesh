@@ -59,12 +59,23 @@ void SimplificationRun::analyzeFeatures() {
   report_.featureLoops = static_cast<int>(featureAnalysis_.loops.size());
   report_.tracedFeatureEdges = featureAnalysis_.tracedFeatureEdges;
   report_.untracedFeatureEdges = featureAnalysis_.untracedFeatureEdges;
+  report_.featureComponents = static_cast<int>(featureAnalysis_.components.size());
+  report_.weakFeatureComponents = featureAnalysis_.weakFeatureComponents;
+  report_.highConfidenceFeatureComponents =
+      featureAnalysis_.highConfidenceFeatureComponents;
+  report_.graphCleanupBridgedGaps = featureAnalysis_.graphCleanupBridgedGaps;
+  report_.graphCleanupRemovedSpurs = featureAnalysis_.graphCleanupRemovedSpurs;
+  report_.graphCleanupMergedJunctions = featureAnalysis_.graphCleanupMergedJunctions;
   report_.normalTensorFeatureEdges = featureAnalysis_.normalTensorFeatureEdges;
   report_.normalTensorScoredVertices = featureAnalysis_.normalTensorScoredVertices;
   report_.maxNormalTensorPersistentScore =
       featureAnalysis_.maxNormalTensorPersistentScore;
   report_.meanNormalTensorLocalScale = featureAnalysis_.meanNormalTensorLocalScale;
   report_.meanNormalTensorPersistence = featureAnalysis_.meanNormalTensorPersistence;
+  report_.meanFeatureComponentConfidence =
+      featureAnalysis_.meanFeatureComponentConfidence;
+  report_.minFeatureComponentConfidence =
+      featureAnalysis_.minFeatureComponentConfidence;
   for (const feature::FeatureLoop& loop : featureAnalysis_.loops) {
     if (loop.circular) {
       ++report_.circularFeatureLoops;
@@ -138,8 +149,11 @@ void SimplificationRun::initializeVertexFeature(int vertexId) {
   vertex.isFeature = vf.isFeature;
   vertex.circularFeature = vf.circular;
   vertex.featureJunction = vf.junction;
+  vertex.weakFeature = vf.weakFeature;
   vertex.featurePrimitive = vf.primitive;
   vertex.featureLoopId = vf.loopId;
+  vertex.featureComponentId = vf.componentId;
+  vertex.featureConfidence = vf.confidence;
   vertex.curveTangent = vf.tangent;
   vertex.circleCenter = vf.circleCenter;
   vertex.circleNormal = vf.circleNormal;

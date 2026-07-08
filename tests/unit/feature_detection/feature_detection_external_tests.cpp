@@ -33,9 +33,13 @@ TEST(FeatureDetection, LargeExternalThingi10kMeshProducesNontrivialFeatureGraph)
   const int featureVertices = static_cast<int>(
       std::count_if(features.vertices.begin(), features.vertices.end(),
                     [](const VertexFeature& vertex) { return vertex.isFeature; }));
+  const int cleanupBridgeEdges = static_cast<int>(std::count_if(
+      features.graph.edges.begin(), features.graph.edges.end(),
+      [](const feature::FeatureGraphEdge& edge) { return edge.cleanupBridge; }));
 
   EXPECT_EQ(mesh.vertices.size(), features.vertices.size());
-  EXPECT_EQ(features.featureEdges, static_cast<int>(features.graph.edges.size()));
+  EXPECT_EQ(features.featureEdges + cleanupBridgeEdges,
+            static_cast<int>(features.graph.edges.size()));
   EXPECT_GT(featureVertices, 100);
   EXPECT_GT(features.featureEdges, 100);
   EXPECT_GT(features.loops.size(), 5u);

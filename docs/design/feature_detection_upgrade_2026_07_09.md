@@ -21,7 +21,17 @@
 - `ManuMesh.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict`：在二面角通道基本关闭时，验证多尺度 tensor 仍能补弱 ridge。
 - `ManuMesh.NormalTensorWeightModeAppliesSpatiallyVaryingWeights`：保护 QEM normal-tensor weight mode 使用 persistent score 后仍产生空间变化权重。
 - `CApiTest.ExposesNormalTensorOptionsAndDiagnostics`：保护 C ABI 能读写最小 persistent scales 和新增 tensor 诊断。
+- `FeatureDetection.BenchmarksDetectedEdgesAgainstGroundTruthLabels`：保护 vertex-index edge-label benchmark 的 precision/recall/F1 计算。
+- `ManuMesh.FeatureProtectionReportsComponentConfidenceDiagnostics`：保护 feature component confidence 进入 `SimplifyReport`。
 - 既有浅二面角 trace、untraced 诊断和 component-level circular fallback 回归测试继续保留。
+
+## 继续完成的算法改进
+
+- Feature graph cleanup 已接入：`cleanupFeatureGraph` 默认开启，在 loop recovery 前删除短 tensor-only spur，并按局部平均边长桥接短 endpoint gap 和近 junction gap。CLI 参数为 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 和 `--no-feature-graph-cleanup`。
+- Component-level confidence 已接入：`FeatureComponent` 汇总强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual 和 confidence；loop/vertex 记录 component id、confidence 和 weak-feature 标记。
+- QEM 联动已接入：feature-curve soft quadric 使用 `0.35 + 0.65 * confidence` 做温和缩放，强 CAD loop 接近原权重，弱证据 component 先作为软 support 消费。
+- 定量 benchmark 已接入第一版：`feature-benchmark input.stl labels.csv` 和 `benchmarkFeatureEdges()` 支持 edge precision/recall/F1、junction correctness、loop closure rate 和 mean component confidence。
+- 新诊断已贯通 `FeatureAnalysis`、`SimplifyReport`、C ABI、CLI stdout、feature-report CSV、simplify metrics CSV、gtest 和 VS Code demo/debug 配置。
 
 ## 文献对应
 
@@ -36,9 +46,8 @@
 
 ## 仍待推进
 
-1. Component-level confidence：为每个 trace connected component 计算强/弱证据比例、闭合率、junction 数、primitive residual 和 tensor persistence 均值，用于 fallback 排序和 QEM 策略。
-2. Graph cleanup 与 gap closure：在 primitive 拟合前做短 gap 桥接、spurious spur 删除和 junction 合并，提高圆孔、椭圆孔和浅折线 loop 的闭合率。
-3. 弱特征 consolidation：参考 CWF/M026，在 decimation 前把弱特征合并成可保护 support，再决定软成本、硬保护或 post-relocation。
-4. 定量 benchmark：增加带 ground-truth edge labels 的 precision/recall、loop closure rate、junction correctness、弱特征保留率，以及简化前后 feature drift / Hausdorff envelope。
-5. QEM 二阶段优化：在 benchmark 稳定后评估 two-round relocation/refinement，优先约束 protected support 的漂移和局部三角形质量。
-6. Learned saliency / neural QEM：只在 deterministic baseline 对弱、浅、非均匀采样特征失效时作为对比项接入，且不得替代拓扑、法向、局部误差和 feature drift 硬过滤。
+1. 弱特征 consolidation：参考 CWF/M026，把多个低置信弱 component 合并成更稳定的 feature support，再决定软成本、硬保护或 post-relocation。
+2. Benchmark 第二版：加入弱特征保留率、简化前后 feature drift / Hausdorff envelope，并把 `feature-benchmark` 的 label 格式扩展到 loop/junction/weak feature group。
+3. QEM 二阶段优化：在 benchmark 稳定后评估 two-round relocation/refinement，优先约束 protected support 的漂移和局部三角形质量。
+4. Edge dihedral plane quadrics 与 line weight 调度：比较 component confidence、dihedral plane quadrics、line quadrics 在浅特征/平面漂移上的收益。
+5. Learned saliency / neural QEM：只在 deterministic baseline 对弱、浅、非均匀采样特征失效时作为对比项接入，且不得替代拓扑、法向、局部误差和 feature drift 硬过滤。

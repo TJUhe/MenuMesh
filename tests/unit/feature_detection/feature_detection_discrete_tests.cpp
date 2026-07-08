@@ -1,6 +1,7 @@
 #include "FeatureDetectionTestSupport.h"
 
 #include <algorithm>
+#include <utility>
 #include <gtest/gtest.h>
 
 namespace {
@@ -39,6 +40,38 @@ TEST(FeatureDetection, ClassifiesBoundaryEdgesOnOpenTriangle) {
   for (const VertexFeature& vertex : features.vertices) {
     EXPECT_TRUE(vertex.isFeature);
   }
+  ASSERT_EQ(1u, features.components.size());
+  EXPECT_GT(features.components.front().confidence, 0.70);
+  EXPECT_EQ(1, features.highConfidenceFeatureComponents);
+  EXPECT_GT(features.meanFeatureComponentConfidence, 0.70);
+  ASSERT_FALSE(features.loops.empty());
+  EXPECT_EQ(0, features.loops.front().componentId);
+  EXPECT_GT(features.loops.front().componentConfidence, 0.70);
+}
+
+TEST(FeatureDetection, BenchmarksDetectedEdgesAgainstGroundTruthLabels) {
+  Mesh mesh;
+  mesh.vertices = {
+      Vec3(0.0, 0.0, 0.0),
+      Vec3(1.0, 0.0, 0.0),
+      Vec3(0.0, 1.0, 0.0),
+  };
+  mesh.faces = {{{0, 1, 2}}};
+
+  const FeatureAnalysis features =
+      feature::detectFeatureCurves(mesh, discreteOnlyOptions());
+  const feature::FeatureEdgeBenchmark benchmark =
+      feature::benchmarkFeatureEdges(features, {{0, 1}, {1, 2}});
+
+  EXPECT_EQ(2, benchmark.groundTruthEdges);
+  EXPECT_EQ(3, benchmark.detectedEdges);
+  EXPECT_EQ(2, benchmark.truePositiveEdges);
+  EXPECT_EQ(1, benchmark.falsePositiveEdges);
+  EXPECT_EQ(0, benchmark.falseNegativeEdges);
+  EXPECT_NEAR(2.0 / 3.0, benchmark.edgePrecision, 1e-12);
+  EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
+  EXPECT_GT(benchmark.loopClosureRate, 0.9);
+  EXPECT_GT(benchmark.meanComponentConfidence, 0.70);
 }
 
 TEST(FeatureDetection, ClassifiesNonManifoldEdgesSeparately) {

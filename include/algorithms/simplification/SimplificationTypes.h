@@ -101,6 +101,11 @@ struct SimplifyOptions {
   int normalTensorSmoothingIterations = 0;
   int normalTensorScaleCount = 1;
   int normalTensorMinPersistentScales = 1;
+  /// Cleans weak feature graph fragments before loop recovery.
+  bool cleanupFeatureGraph = true;
+  double featureGraphGapLengthRatio = 1.25;
+  int featureGraphMaxWeakSpurEdges = 2;
+  double featureComponentMinConfidence = 0.35;
 
   // Hard post-placement filters and diagnostics.
   /// Hard post-placement filters. Zero local-error budgets disable those tests.
@@ -140,9 +145,17 @@ struct SimplifyReport {
   int untracedFeatureEdges = 0;
   int normalTensorFeatureEdges = 0;
   int normalTensorScoredVertices = 0;
+  int featureComponents = 0;
+  int weakFeatureComponents = 0;
+  int highConfidenceFeatureComponents = 0;
+  int graphCleanupBridgedGaps = 0;
+  int graphCleanupRemovedSpurs = 0;
+  int graphCleanupMergedJunctions = 0;
   double maxNormalTensorPersistentScore = 0.0;
   double meanNormalTensorLocalScale = 0.0;
   double meanNormalTensorPersistence = 0.0;
+  double meanFeatureComponentConfidence = 0.0;
+  double minFeatureComponentConfidence = 0.0;
 
   // First-reject counters for current collapse candidates.
   int featureRejectedCollapses = 0;

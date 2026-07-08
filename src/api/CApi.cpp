@@ -180,6 +180,17 @@ void fillReport(const manumesh::simplification::SimplifyReport& source,
       source.maxNormalTensorPersistentScore;
   target.mean_normal_tensor_local_scale = source.meanNormalTensorLocalScale;
   target.mean_normal_tensor_persistence = source.meanNormalTensorPersistence;
+  target.feature_components = source.featureComponents;
+  target.weak_feature_components = source.weakFeatureComponents;
+  target.high_confidence_feature_components =
+      source.highConfidenceFeatureComponents;
+  target.graph_cleanup_bridged_gaps = source.graphCleanupBridgedGaps;
+  target.graph_cleanup_removed_spurs = source.graphCleanupRemovedSpurs;
+  target.graph_cleanup_merged_junctions = source.graphCleanupMergedJunctions;
+  target.mean_feature_component_confidence =
+      source.meanFeatureComponentConfidence;
+  target.min_feature_component_confidence =
+      source.minFeatureComponentConfidence;
 }
 
 void fillStats(const manumesh::simplification::MeshStats& source,
@@ -480,6 +491,10 @@ void manumesh_simplify_options_init(ManuMeshSimplifyOptions* options) {
   options->verbose = 0;
   options->feature_protection_mode = MANUMESH_FEATURE_PROTECTION_PRIMITIVE_CURVES;
   options->normal_tensor_min_persistent_scales = 1;
+  options->cleanup_feature_graph = 1;
+  options->feature_graph_gap_length_ratio = 1.25;
+  options->feature_graph_max_weak_spur_edges = 2;
+  options->feature_component_min_confidence = 0.35;
 }
 
 void manumesh_simplify_report_init(ManuMeshSimplifyReport* report) {
@@ -613,6 +628,25 @@ ManuMeshStatus manumesh_simplify_mesh(ManuMeshContext* context,
               *options, normal_tensor_min_persistent_scales)) {
         cppOptions.normalTensorMinPersistentScales =
             options->normal_tensor_min_persistent_scales;
+      }
+      if (MANUMESH_SIMPLIFY_FIELD_PRESENT(*options, cleanup_feature_graph)) {
+        cppOptions.cleanupFeatureGraph =
+            boolFromInt(options->cleanup_feature_graph);
+      }
+      if (MANUMESH_SIMPLIFY_FIELD_PRESENT(
+              *options, feature_graph_gap_length_ratio)) {
+        cppOptions.featureGraphGapLengthRatio =
+            options->feature_graph_gap_length_ratio;
+      }
+      if (MANUMESH_SIMPLIFY_FIELD_PRESENT(
+              *options, feature_graph_max_weak_spur_edges)) {
+        cppOptions.featureGraphMaxWeakSpurEdges =
+            options->feature_graph_max_weak_spur_edges;
+      }
+      if (MANUMESH_SIMPLIFY_FIELD_PRESENT(
+              *options, feature_component_min_confidence)) {
+        cppOptions.featureComponentMinConfidence =
+            options->feature_component_min_confidence;
       }
       if (MANUMESH_SIMPLIFY_FIELD_PRESENT(*options, min_triangle_quality)) {
         cppOptions.minTriangleQuality = options->min_triangle_quality;

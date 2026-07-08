@@ -20,12 +20,13 @@ ManuMesh 的简化器应按四层阅读：
 | 标准 QEM | 已实现面 plane quadric 面积加权累加、边折叠候选、placement 求解和 fallback。 |
 | line quadrics | 已实现 `--method line` 和 `lineWeight`，作为候选排序成本的切向正则项。 |
 | 权重模式 | `uniform`、`dihedral`、`normal-tensor`、`height`、`xband`。 |
-| 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、loop tracing，并用 `loopTraceAngleDeg` 区分 evidence 阈值和 loop ownership 阈值；normal tensor 已接入局部尺度归一化、多尺度 persistence 和 persistent score。 |
+| 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、cleanup、loop tracing，并用 `loopTraceAngleDeg` 区分 evidence 阈值和 loop ownership 阈值；normal tensor 已接入局部尺度归一化、多尺度 persistence 和 persistent score。 |
+| feature component | 已实现 component-level confidence，统计强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual，并把 confidence 写入 loop/vertex/QEM soft feature quadric。 |
 | primitive 拟合 | 支持圆、近圆、椭圆、折线 loop 的报告和保护策略。 |
 | 特征保护 | `none`、`circular-only`、`primitive-curves`、`all-feature-edges`。默认是 `primitive-curves`。 |
 | 合法性过滤 | 边界、拓扑、法线偏转、三角形质量、局部误差和局部自交过滤。 |
-| 诊断报告 | `FeatureAnalysis`、`SimplifyReport` / `ManuMeshSimplifyReport` 输出终止原因、拒绝计数、特征计数、`tracedFeatureEdges` / `untracedFeatureEdges`、normal-tensor scored vertices、local scale / persistence 和权重范围。 |
-| CLI | `generate`、`simplify`、`compare`、`feature-report`、`feature-compare`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`summarize-metrics`、`validate-features`、`validate-external`。 |
+| 诊断报告 | `FeatureAnalysis`、`SimplifyReport` / `ManuMeshSimplifyReport` 输出终止原因、拒绝计数、特征计数、`tracedFeatureEdges` / `untracedFeatureEdges`、graph cleanup 计数、component confidence、normal-tensor scored vertices、local scale / persistence 和权重范围。 |
+| CLI | `generate`、`simplify`、`compare`、`feature-report`、`feature-benchmark`、`feature-compare`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`summarize-metrics`、`validate-features`、`validate-external`。 |
 | SDK | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口和 C ABI 均可用，示例位于 `examples/`。 |
 
 ## 当前没有实现
@@ -50,14 +51,14 @@ ManuMesh 的简化器应按四层阅读：
 - 保持 `build: mingw+ninja release all`、`test: mingw+ninja release` 和 `test: mingw+ninja release full` 稳定可跑。
 - 扩展特征报告 CSV，继续区分 circular、near-circle、ellipse、polygonal loop，并持续跟踪 traced/untraced feature edges。
 - 用更多工业件验证 `primitive-curves` 默认策略，避免 generic crease 过度硬锁。
-- 增加带 ground-truth feature labels 的 precision/recall、loop closure、junction correctness、弱特征保留率和 feature drift benchmark。
+- 扩展 `feature-benchmark` label schema，加入 weak feature group、loop id、简化前后 feature drift / Hausdorff envelope。
 - 补充 CLI 子命令级帮助或明确保持顶层帮助模式。
 - 对 C API 增加更多端到端示例和 ABI 兼容测试。
 
 ## 中期路线
 
 - 实现独立 edge dihedral plane quadrics，和现有 feature graph 保护策略对比。
-- 将 normal tensor 接受准则继续升级为 component-level confidence，并把 confidence 传入 fallback 排序、feature protection policy 和 benchmark 报告。
+- 将弱特征 support consolidation 做到 component 之间，参考 CWF/M026，把多个低置信弱 component 合并成更稳定的保护支撑。
 - 增加全局或近似 envelope/Hausdorff 过滤，把“局部安全”推进到更接近制造误差约束。
 - 探索二轮优化：第一轮 decimation 达到拓扑和面数目标，第二轮局部 relocation/refinement 降低漂移和改善三角形质量。
 - 增加属性传播策略，为法线、颜色、UV、source face id 做准备。

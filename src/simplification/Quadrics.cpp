@@ -304,7 +304,8 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
       }
       const double areaScale = std::max(vertexArea[i], fallbackArea);
       const Mat4 qCurve = lineQuadric(mesh.vertices[i], vf.tangent);
-      quadrics[i] += options.featureCurveWeight * areaScale * qCurve;
+      const double confidenceScale = 0.35 + 0.65 * std::clamp(vf.confidence, 0.0, 1.0);
+      quadrics[i] += options.featureCurveWeight * confidenceScale * areaScale * qCurve;
     }
   }
 

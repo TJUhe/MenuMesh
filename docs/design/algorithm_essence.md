@@ -185,7 +185,8 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | 层 | 代表选项 | 类型 | 作用 |
 | --- | --- | --- | --- |
 | 特征邻域加权 | `weightMode`、`featureBoost` | 软 | 让特征附近候选成本更高。 |
-| 曲线 quadric | `featureCurveWeight` | 软 | 让特征点靠近曲线局部模型。 |
+| component confidence | `FeatureComponent`、`meanFeatureComponentConfidence` | 软诊断 | 把强/弱证据、闭合率、junction、primitive residual 和 tensor persistence 汇总成 support 可信度。 |
+| 曲线 quadric | `featureCurveWeight` | 软 | 让特征点靠近曲线局部模型，并按 component confidence 温和缩放。 |
 | placement 投影和预算 | `maxFeatureCurveDeviationRatio` | 半硬 | 先限制原始 placement 偏离，再投影到圆/椭圆/折线。 |
 | hard protection | `featureProtectionMode` | 硬 | 拒绝会破坏受保护 loop ownership、junction 或最低顶点数的 collapse。 |
 

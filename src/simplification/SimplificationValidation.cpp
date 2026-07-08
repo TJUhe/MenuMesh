@@ -74,6 +74,18 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
     throw std::invalid_argument(
         "normalTensorMinPersistentScales must be positive.");
   }
+  requireFiniteNonNegative(options.featureGraphGapLengthRatio,
+                           "featureGraphGapLengthRatio");
+  if (options.featureGraphMaxWeakSpurEdges < 0) {
+    throw std::invalid_argument(
+        "featureGraphMaxWeakSpurEdges must be non-negative.");
+  }
+  if (!std::isfinite(options.featureComponentMinConfidence) ||
+      options.featureComponentMinConfidence < 0.0 ||
+      options.featureComponentMinConfidence > 1.0) {
+    throw std::invalid_argument(
+        "featureComponentMinConfidence must be finite and in [0, 1].");
+  }
   requireFiniteNonNegative(options.minTriangleQuality, "minTriangleQuality");
   if (options.minTriangleQuality > 1.0) {
     throw std::invalid_argument("minTriangleQuality must be in [0, 1].");

@@ -258,6 +258,10 @@ ManuMesh 当前简化管线可以看成四层：
 | `--normal-tensor-scales N` | `normalTensorScaleCount` | tensor 多尺度数量。 | `NormalTensor.cpp` | 多尺度能提高稳定性，但耗时增加。 |
 | `--normal-tensor-min-persistent-scales N` | `normalTensorMinPersistentScales` | tensor 弱特征边至少需要 N 个尺度支持。默认 1，调试弱特征时建议从 2 开始。 | `FeatureEvidence.cpp`、`Quadrics.cpp` | `normal_tensor_edges`、`max_normal_tensor_persistent_score`、`mean_normal_tensor_persistence`。 |
 | `--no-normal-tensor-features` | `useNormalTensorFeatures=false` | 关闭 tensor 弱特征候选，只保留 boundary/dihedral/non-manifold 证据。 | `FeatureEvidence.cpp` | `normal_tensor_edges=0`。 |
+| `--feature-graph-gap-ratio R` | `featureGraphGapLengthRatio` | cleanup 桥接 endpoint/junction gap 的局部边长倍数。 | `FeatureGraphCleanup.cpp` | `graph_cleanup_bridged_gaps`、`graph_cleanup_merged_junctions`。 |
+| `--feature-graph-max-weak-spur-edges N` | `featureGraphMaxWeakSpurEdges` | 删除最多 N 条边的 tensor-only 弱 spur。 | `FeatureGraphCleanup.cpp` | `graph_cleanup_removed_spurs`、`weak_feature_components`。 |
+| `--feature-component-min-confidence C` | `featureComponentMinConfidence` | 报告 high-confidence component 的阈值。 | `FeatureGraphCleanup.cpp::summarizeFeatureComponents` | `high_confidence_feature_components`。 |
+| `--no-feature-graph-cleanup` | `cleanupFeatureGraph=false` | 关闭短 gap、短弱 spur 和近 junction cleanup。 | `FeatureDetector.cpp`、`FeatureGraphCleanup.cpp` | cleanup 计数为 0，loop closure 可能下降。 |
 
 调试建议：在 `boss_pocket_plate.obj` 上设置 `--feature-angle-deg 179 --weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2`，可把二面角通道基本关掉，专门观察 tensor 弱特征。`feature-report` 调试配置也会传入这组多尺度参数，用于观察 persistence 评分。
 
@@ -323,16 +327,32 @@ preventLocalIntersections = true
 | `normal_tensor_edges` | normal tensor 弱特征产生的边。 |
 | `normal_tensor_scored_vertices` | normal tensor 产生非零弱特征分数的顶点数。 |
 | `non_manifold_edges` | 非流形结构产生的边。 |
+| `feature_components` | cleanup 后的 trace connected component 数。 |
+| `weak_feature_components` | 弱证据边多于强证据边的 component 数。 |
+| `high_confidence_feature_components` | confidence 超过 `featureComponentMinConfidence` 的 component 数。 |
+| `graph_cleanup_bridged_gaps`、`graph_cleanup_removed_spurs`、`graph_cleanup_merged_junctions` | cleanup 实际桥接/删除/合并的数量。 |
 | `convex_edges`、`concave_edges` | 通过符号二面角区分的凸/凹边。 |
 | `unknown_signed_edges` | 无法稳定判断凸凹的特征边。 |
 | `max_normal_tensor_score` | 当前模型中最大的 tensor 特征分数。 |
 | `max_normal_tensor_persistent_score` | 结合平均分数和多尺度 persistence 后的最大 tensor 分数。 |
 | `mean_normal_tensor_local_scale` | tensor scored vertices 的平均局部边长尺度。 |
 | `mean_normal_tensor_persistence` | tensor scored vertices 的平均支持尺度数。 |
+| `mean_feature_component_confidence`、`min_feature_component_confidence` | component-level support 的平均/最低置信度。 |
 | `loops` | 恢复出的特征曲线/环数量。 |
 | `circle_loops`、`near_circle_loops`、`ellipse_loops`、`polygonal_loops` | primitive 拟合分类。 |
 
 如果 `--feature-angle-deg` 从 `15` 调到 `45` 后 `dihedral_edges` 下降，这是正常现象；阈值越大，只有更尖锐的折痕会被接受。
+
+### feature-benchmark 输出
+
+`feature-benchmark input.stl labels.csv --csv out.csv` 读取 0-based vertex-index 标签。普通行 `a,b` 表示 ground-truth feature edge，可选行 `junction,id` 表示 ground-truth junction。
+
+| 字段 | 含义 |
+| --- | --- |
+| `edge_precision`、`edge_recall`、`edge_f1` | 检测边与 ground-truth feature edge 的精确率、召回率和 F1。 |
+| `junction_precision`、`junction_recall`、`junction_f1` | 检测 junction 与标签 junction 的匹配情况。 |
+| `loop_closure_rate` | feature component closure rate 平均值。 |
+| `mean_component_confidence` | component-level support 平均置信度。 |
 
 ### simplify 控制台输出
 
@@ -363,6 +383,9 @@ preventLocalIntersections = true
 | `feature_vertices` | 被 feature graph 标记的顶点数。 |
 | `traced_feature_edges` | 进入 loop tracing 的输入 feature edge 数。 |
 | `untraced_feature_edges` | 只进入 evidence 诊断、没有进入 loop ownership 的 feature edge 数。 |
+| `feature_components`、`weak_feature_components`、`high_confidence_feature_components` | 特征 component 规模和强弱支持情况。 |
+| `graph_cleanup_bridged_gaps`、`graph_cleanup_removed_spurs`、`graph_cleanup_merged_junctions` | 特征图 cleanup 实际做了什么。 |
+| `mean_feature_component_confidence`、`min_feature_component_confidence` | QEM soft feature quadric 使用的 component confidence 诊断。 |
 | `feature_protection_mode` | 本次使用的硬保护模式。 |
 | `normal_tensor_feature_edges` | tensor 弱特征边数。 |
 | `normal_tensor_scored_vertices` | tensor 有效评分顶点数。 |

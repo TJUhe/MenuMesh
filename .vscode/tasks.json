@@ -1037,6 +1037,12 @@
         "0.05",
         "--min-circular-feature-loop-vertices",
         "12",
+        "--feature-graph-gap-ratio",
+        "1.25",
+        "--feature-graph-max-weak-spur-edges",
+        "2",
+        "--feature-component-min-confidence",
+        "0.35",
         "--ratio",
         "${input:demoRatio}",
         "--samples",
@@ -1079,6 +1085,12 @@
         "3",
         "--normal-tensor-min-persistent-scales",
         "2",
+        "--feature-graph-gap-ratio",
+        "1.25",
+        "--feature-graph-max-weak-spur-edges",
+        "2",
+        "--feature-component-min-confidence",
+        "0.35",
         "--ratio",
         "${input:demoRatio}",
         "--samples",
@@ -1116,8 +1128,50 @@
         "3",
         "--normal-tensor-min-persistent-scales",
         "2",
+        "--feature-graph-gap-ratio",
+        "1.25",
+        "--feature-graph-max-weak-spur-edges",
+        "2",
+        "--feature-component-min-confidence",
+        "0.35",
         "--csv",
         "output/vscode_demo/features.csv"
+      ],
+      "problemMatcher": [],
+      "dependsOn": [
+        "prepare: vscode demo output",
+        "build: mingw+ninja release"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "demo: feature benchmark selected mesh",
+      "type": "process",
+      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
+      "args": [
+        "feature-benchmark",
+        "${input:demoMesh}",
+        "${input:demoFeatureLabels}",
+        "--feature-angle-deg",
+        "${input:demoFeatureAngle}",
+        "--loop-trace-angle-deg",
+        "${input:demoLoopTraceAngle}",
+        "--normal-tensor-threshold",
+        "0.06",
+        "--normal-tensor-edge-alignment",
+        "0.2",
+        "--normal-tensor-scales",
+        "3",
+        "--normal-tensor-min-persistent-scales",
+        "2",
+        "--feature-graph-gap-ratio",
+        "1.25",
+        "--feature-graph-max-weak-spur-edges",
+        "2",
+        "--feature-component-min-confidence",
+        "0.35",
+        "--csv",
+        "output/vscode_demo/feature_benchmark.csv"
       ],
       "problemMatcher": [],
       "dependsOn": [
@@ -1291,6 +1345,15 @@
       "description": "Loop trace angle in degrees (-1 reuses feature angle)",
       "default": "-1",
       "options": ["-1", "15", "25", "35", "45", "179"]
+    },
+    {
+      "id": "demoFeatureLabels",
+      "type": "pickString",
+      "description": "Feature benchmark label CSV",
+      "default": "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv",
+      "options": [
+        "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv"
+      ]
     },
     {
       "id": "msvcGenerator",

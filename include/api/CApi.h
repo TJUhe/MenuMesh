@@ -109,6 +109,10 @@ typedef struct ManuMeshSimplifyOptions {
   ManuMeshFeatureProtectionMode feature_protection_mode;
   double loop_trace_angle_deg;
   int normal_tensor_min_persistent_scales;
+  int cleanup_feature_graph;
+  double feature_graph_gap_length_ratio;
+  int feature_graph_max_weak_spur_edges;
+  double feature_component_min_confidence;
 } ManuMeshSimplifyOptions;
 
 typedef struct ManuMeshSimplifyReport {
@@ -152,6 +156,15 @@ typedef struct ManuMeshSimplifyReport {
   double max_normal_tensor_persistent_score;
   double mean_normal_tensor_local_scale;
   double mean_normal_tensor_persistence;
+  /* Feature component confidence and cleanup diagnostics. */
+  int feature_components;
+  int weak_feature_components;
+  int high_confidence_feature_components;
+  int graph_cleanup_bridged_gaps;
+  int graph_cleanup_removed_spurs;
+  int graph_cleanup_merged_junctions;
+  double mean_feature_component_confidence;
+  double min_feature_component_confidence;
 } ManuMeshSimplifyReport;
 
 typedef struct ManuMeshMeshStats {

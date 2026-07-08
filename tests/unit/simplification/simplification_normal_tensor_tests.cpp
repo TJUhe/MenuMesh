@@ -67,6 +67,9 @@ TEST(ManuMesh, NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict) {
   EXPECT_GT(features.maxNormalTensorPersistentScore, 0.06);
   EXPECT_GT(features.meanNormalTensorLocalScale, 0.0);
   EXPECT_GT(features.meanNormalTensorPersistence, 1.0);
+  EXPECT_GT(features.components.size(), 0u);
+  EXPECT_GT(features.weakFeatureComponents, 0);
+  EXPECT_GT(features.meanFeatureComponentConfidence, 0.0);
 }
 
 TEST(ManuMesh, NormalTensorReportsLocalScaleAndPersistentScore) {
@@ -108,4 +111,27 @@ TEST(ManuMesh, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
   EXPECT_GT(result.report.maxNormalTensorPersistentScore, 0.0);
   EXPECT_GT(result.report.meanNormalTensorLocalScale, 0.0);
   EXPECT_GT(result.report.meanNormalTensorPersistence, 1.0);
+  EXPECT_GE(result.report.featureComponents, 0);
+}
+
+TEST(ManuMesh, FeatureProtectionReportsComponentConfidenceDiagnostics) {
+  const manumesh::Mesh input = manumesh::generateRidgeGrid(32, 2.0, 0.6);
+  manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.80);
+  options.preserveFeatureCurves = true;
+  options.featureAngleDeg = 179.0;
+  options.normalTensorFeatureThreshold = 0.06;
+  options.normalTensorMinEdgeAlignment = 0.2;
+  options.normalTensorScaleCount = 3;
+  options.normalTensorMinPersistentScales = 2;
+  options.featureProtectionMode =
+      manumesh::simplification::FeatureProtectionMode::AllFeatureEdges;
+
+  const SimplifiedMesh result = simplifyWithReport(input, options);
+
+  expectBudgetedSimplification(result, input, 0.80);
+  EXPECT_GT(result.report.featureComponents, 0);
+  EXPECT_GT(result.report.weakFeatureComponents, 0);
+  EXPECT_GT(result.report.highConfidenceFeatureComponents, 0);
+  EXPECT_GT(result.report.meanFeatureComponentConfidence, 0.0);
+  EXPECT_GE(result.report.minFeatureComponentConfidence, 0.0);
 }

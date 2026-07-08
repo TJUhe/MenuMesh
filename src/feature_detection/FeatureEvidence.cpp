@@ -112,7 +112,7 @@ int signedDihedralKind(const Mesh& mesh, const std::vector<Vec3>& normals,
   return normalsPointTowardEachOther ? -1 : 1;
 }
 
-bool normalTensorEdgeCandidate(const CandidateEdge& edge,
+bool normalTensorEdgeCandidate(CandidateEdge& edge,
                                const std::vector<NormalTensorVertex>& tensor,
                                const std::vector<char>& discreteFeatureVertex,
                                const Mesh& mesh, const FeatureOptions& options,
@@ -142,6 +142,8 @@ bool normalTensorEdgeCandidate(const CandidateEdge& edge,
                  std::max(1, options.normalTensorScaleCount));
   const int minPersistentScales =
       std::min(tensor[edge.a].persistentScales, tensor[edge.b].persistentScales);
+  edge.tensorPersistentScore = persistentScore;
+  edge.tensorPersistentScales = minPersistentScales;
   if (minPersistentScales < requiredPersistentScales) {
     return false;
   }

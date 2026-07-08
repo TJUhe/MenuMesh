@@ -26,6 +26,10 @@ struct FeatureDetectionPolicy {
   int normalTensorSmoothingIterations = 0;
   int normalTensorScaleCount = 1;
   int normalTensorMinPersistentScales = 1;
+  bool cleanupFeatureGraph = true;
+  double featureGraphGapLengthRatio = 1.25;
+  int featureGraphMaxWeakSpurEdges = 2;
+  double featureComponentMinConfidence = 0.35;
 
   feature::FeatureOptions toFeatureOptions() const;
 };

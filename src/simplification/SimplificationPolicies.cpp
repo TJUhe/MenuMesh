@@ -30,6 +30,10 @@ feature::FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
   options.normalTensorSmoothingIterations = normalTensorSmoothingIterations;
   options.normalTensorScaleCount = normalTensorScaleCount;
   options.normalTensorMinPersistentScales = normalTensorMinPersistentScales;
+  options.cleanupFeatureGraph = cleanupFeatureGraph;
+  options.featureGraphGapLengthRatio = featureGraphGapLengthRatio;
+  options.featureGraphMaxWeakSpurEdges = featureGraphMaxWeakSpurEdges;
+  options.featureComponentMinConfidence = featureComponentMinConfidence;
   return options;
 }
 
@@ -63,6 +67,12 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
   policies.features.normalTensorScaleCount = options.normalTensorScaleCount;
   policies.features.normalTensorMinPersistentScales =
       options.normalTensorMinPersistentScales;
+  policies.features.cleanupFeatureGraph = options.cleanupFeatureGraph;
+  policies.features.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
+  policies.features.featureGraphMaxWeakSpurEdges =
+      options.featureGraphMaxWeakSpurEdges;
+  policies.features.featureComponentMinConfidence =
+      options.featureComponentMinConfidence;
 
   policies.legality.preserveBoundary = options.preserveBoundary;
   policies.legality.minTriangleQuality = options.minTriangleQuality;

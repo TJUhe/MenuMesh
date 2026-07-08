@@ -2,6 +2,7 @@
 
 #include "core/Mesh.h"
 
+#include <utility>
 #include <vector>
 
 namespace manumesh::feature {
@@ -48,6 +49,14 @@ struct FeatureOptions {
   int normalTensorScaleCount = 1;
   /// Minimum scales that must support a tensor edge candidate.
   int normalTensorMinPersistentScales = 1;
+  /// Enables local feature-graph cleanup before loop recovery.
+  bool cleanupFeatureGraph = true;
+  /// Maximum endpoint gap, in local average-edge-length units, bridged by cleanup.
+  double featureGraphGapLengthRatio = 1.25;
+  /// Maximum weak normal-tensor spur length removed by cleanup.
+  int featureGraphMaxWeakSpurEdges = 2;
+  /// Confidence threshold used when reporting high-confidence components.
+  double featureComponentMinConfidence = 0.35;
 };
 
 /// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
@@ -74,11 +83,15 @@ struct NormalTensorVertex {
 struct FeatureLoop {
   // Topology of the recovered chain/loop.
   int id = -1;
+  int componentId = -1;
   std::vector<int> vertices;
   int edgeCount = 0;
   bool closed = false;
   bool circular = false;
   bool mostlyBoundary = false;
+  bool weakFeature = false;
+  double componentConfidence = 0.0;
+  double primitiveResidual = 0.0;
 
   // Primitive fit. Circle and near-circle use radius; ellipse uses major/minor.
   FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
@@ -109,8 +122,11 @@ struct VertexFeature {
   bool isFeature = false;
   bool circular = false;
   bool junction = false;
+  bool weakFeature = false;
   FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
   int loopId = -1;
+  int componentId = -1;
+  double confidence = 0.0;
   Vec3 tangent = Vec3::Zero();
 
   // Circle projection data for circular and near-circular feature vertices.
@@ -135,6 +151,8 @@ struct FeatureGraphEdge {
   bool dihedral = false;
   bool normalTensor = false;
   bool nonManifold = false;
+  bool cleanupBridge = false;
+  bool removedByCleanup = false;
   int signedKind = 0;
 };
 
@@ -154,6 +172,33 @@ struct FeatureGraph {
   std::vector<int> sharedVertices;
 };
 
+/// One connected feature-graph component after trace cleanup.
+///
+/// These diagnostics make weak-feature decisions explicit: downstream
+/// simplification can distinguish a closed, strongly supported CAD loop from a
+/// sparse, tensor-only ridge fragment even when both produce feature vertices.
+struct FeatureComponent {
+  int id = -1;
+  std::vector<int> vertices;
+  int edgeCount = 0;
+  int boundaryEdges = 0;
+  int dihedralEdges = 0;
+  int normalTensorEdges = 0;
+  int nonManifoldEdges = 0;
+  int cleanupBridgeEdges = 0;
+  int strongEvidenceEdges = 0;
+  int weakEvidenceEdges = 0;
+  int junctionVertices = 0;
+  int endpointVertices = 0;
+  int cycleRank = 0;
+  bool closed = false;
+  double closureRate = 0.0;
+  double strongEvidenceRatio = 0.0;
+  double meanTensorPersistence = 0.0;
+  double meanPrimitiveResidual = 0.0;
+  double confidence = 0.0;
+};
+
 /// Full feature-detection result for a mesh.
 ///
 /// Counts distinguish the evidence source used to build the explicit graph.
@@ -162,10 +207,14 @@ struct FeatureGraph {
 struct FeatureAnalysis {
   std::vector<VertexFeature> vertices;
   std::vector<FeatureLoop> loops;
+  std::vector<FeatureComponent> components;
   FeatureGraph graph;
   int featureEdges = 0;
   int tracedFeatureEdges = 0;
   int untracedFeatureEdges = 0;
+  int graphCleanupBridgedGaps = 0;
+  int graphCleanupRemovedSpurs = 0;
+  int graphCleanupMergedJunctions = 0;
   int boundaryFeatureEdges = 0;
   int dihedralFeatureEdges = 0;
   int normalTensorFeatureEdges = 0;
@@ -174,10 +223,36 @@ struct FeatureAnalysis {
   int convexFeatureEdges = 0;
   int concaveFeatureEdges = 0;
   int unknownSignedFeatureEdges = 0;
+  int weakFeatureComponents = 0;
+  int highConfidenceFeatureComponents = 0;
   double maxNormalTensorFeatureScore = 0.0;
   double maxNormalTensorPersistentScore = 0.0;
   double meanNormalTensorLocalScale = 0.0;
   double meanNormalTensorPersistence = 0.0;
+  double meanFeatureComponentConfidence = 0.0;
+  double minFeatureComponentConfidence = 0.0;
+};
+
+/// Edge-label benchmark summary for one detected feature graph.
+struct FeatureEdgeBenchmark {
+  int groundTruthEdges = 0;
+  int detectedEdges = 0;
+  int truePositiveEdges = 0;
+  int falsePositiveEdges = 0;
+  int falseNegativeEdges = 0;
+  int groundTruthJunctions = 0;
+  int detectedJunctions = 0;
+  int truePositiveJunctions = 0;
+  int falsePositiveJunctions = 0;
+  int falseNegativeJunctions = 0;
+  double edgePrecision = 0.0;
+  double edgeRecall = 0.0;
+  double edgeF1 = 0.0;
+  double junctionPrecision = 0.0;
+  double junctionRecall = 0.0;
+  double junctionF1 = 0.0;
+  double loopClosureRate = 0.0;
+  double meanComponentConfidence = 0.0;
 };
 
 /// Error of a detected loop against a circular reference curve.

@@ -31,6 +31,8 @@ normal tensor 弱特征现在还会记录每个顶点的局部边长尺度、多
 | 硬保护策略 | `featureProtectionMode` | 决定哪些 loop/边可以触发硬拒绝。 |
 | trace 诊断 | `tracedFeatureEdges`、`untracedFeatureEdges` | 区分 feature evidence 和可被 loop ownership 消费的边。 |
 | tensor 尺度诊断 | `normalTensorScoredVertices`、`maxNormalTensorPersistentScore`、`meanNormalTensorLocalScale`、`meanNormalTensorPersistence` | 判断弱特征证据是否有稳定多尺度支持。 |
+| graph cleanup | `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupMergedJunctions` | 在 primitive fitting 前修复短断裂、去掉 tensor-only 短 spur，并记录 cleanup 影响。 |
+| component confidence | `FeatureComponent`、`meanFeatureComponentConfidence`、`weakFeatureComponents` | 把强/弱证据比例、闭合率、junction、tensor persistence 和 primitive residual 汇总成可被 QEM 消费的 support 置信度。 |
 
 ## 每一层的由来
 
@@ -47,6 +49,14 @@ normal tensor 弱特征现在还会记录每个顶点的局部边长尺度、多
 对圆/椭圆 loop，这个切向来自 primitive 拟合；对折线 loop，则来自相邻特征边方向。这是“曲线支撑”而不是完整 CAD 约束。
 
 small cycle basis 和 circular fallback 现在按 trace connected component 运行。normal-tensor 产生的弱 ridge 只会阻止同一 component 的圆形 fallback，不会全局阻止其他干净圆孔或孔边界的补救恢复。
+
+### component confidence 与 graph cleanup
+
+`FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、primitive residual 和 confidence。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
+
+Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 会被桥接，近 junction 会被桥接，短 tensor-only spur 会被删除。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。
+
+QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。强 CAD loop 接近原始 `featureCurveWeight`，弱 tensor support 会先作为较软成本进入排序；是否硬保护仍由 `featureProtectionMode` 决定。
 
 ### placement 投影
 

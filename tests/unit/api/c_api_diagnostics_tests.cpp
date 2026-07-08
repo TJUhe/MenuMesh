@@ -38,6 +38,11 @@ TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
   EXPECT_GT(report.max_normal_tensor_persistent_score, 0.0);
   EXPECT_GT(report.mean_normal_tensor_local_scale, 0.0);
   EXPECT_GT(report.mean_normal_tensor_persistence, 1.0);
+  EXPECT_GT(report.feature_components, 0);
+  EXPECT_GT(report.weak_feature_components, 0);
+  EXPECT_GT(report.high_confidence_feature_components, 0);
+  EXPECT_GT(report.mean_feature_component_confidence, 0.0);
+  EXPECT_GE(report.min_feature_component_confidence, 0.0);
 
   manumesh_mesh_destroy(output);
   manumesh_mesh_destroy(input);

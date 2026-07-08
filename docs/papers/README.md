@@ -1,8 +1,10 @@
 # 论文索引
 
-本目录保存 ManuMesh 的论文 PDF 归档。PDF 按算法或研究方向分文件夹，文件名保留英文，方便和引用链接对应；本索引用中文说明它们在当前实现和后续路线中的作用。
+本目录保存 ManuMesh 的论文 PDF 归档。PDF 按算法或研究方向分组，文件名保留英文，便于和 DOI、论文标题及外部引用链接对应。
 
-如果要理解当前程序为什么这样设计，请先读 [`../design/algorithm_essence.md`](../design/algorithm_essence.md)，再按本文的算法问题选择论文。
+引用数量来自 OpenAlex `cited_by_count` 快照，查询日期为 2026-07-09。该数值可能与 Google Scholar、出版商统计或后续查询结果不同。
+
+如需理解当前实现和路线图，请先读 [`../design/algorithm_essence.md`](../design/algorithm_essence.md)，再按本文分组选择论文。
 
 ## 目录分组
 
@@ -10,7 +12,9 @@
 | --- | --- | --- |
 | `qem/` | 标准 QEM、QEM 属性扩展和近期 QEM 变体 | ManuMesh 当前 decimation 代价函数的基础。 |
 | `line_quadrics/` | line quadrics 控制 QEM | ManuMesh 当前复现和扩展的主参考。 |
-| `feature_detection/` | CAD/STL 特征线、normal tensor 和不连续检测 | 支撑特征检测模块和 feature graph 设计。 |
+| `feature_detection/` | CAD/STL 特征线、normal tensor、normal voting、crest/ridge 和神经线框提取 | 支撑特征检测模块、feature graph 和后续识别路线。 |
+| `segmentation/` | 工程对象分割和解析面恢复 | 支撑后续 patch/analytic surface recovery 路线。 |
+| `weak_features/` | 弱特征整合 | 支撑后续弱特征保护和高质量简化路线。 |
 | `feature_preserving_simplification/` | 特征保持简化、特征敏感度和学习式显著特征保护 | 支撑特征保护策略和后续显著性评分路线。 |
 | `edge_collapse/` | 边折叠框架、progressive mesh、局部 placement 和大模型简化 | 支撑 collapse workflow、队列和合法性检查。 |
 | `neural_and_temporal_qem/` | 神经 QEM 表示和时间一致性 QEM | 后续研究参考，当前未实现。 |
@@ -18,79 +22,108 @@
 
 ## QEM 基础与变体
 
-| 文件 | 在 ManuMesh 中的作用 | 来源 |
-| --- | --- | --- |
-| `qem/garland_heckbert_1997_surface_simplification_qem.pdf` | 原始 QEM 论文，解释 plane quadric、vertex quadric 和 edge contraction cost。 | https://www.cs.cmu.edu/~garland/Papers/quadrics.pdf |
-| `qem/garland_heckbert_1998_color_texture_qem.pdf` | QEM 属性扩展参考，说明如何把附加约束并入 quadric 风格误差项。 | https://www.cs.cmu.edu/~garland/Papers/quadric2.pdf |
-| `qem/chang_2025_two_round_optimization_qem.pdf` | 近期 QEM 变体，可用于比较二轮优化/后处理是否改善质量。 | 本地归档 |
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M001 | Two-Round Optimization Algorithm Based on Quadric Error Metrics (OpenAlex citations: 3) | `qem/chang_2025_two_round_optimization_qem.pdf` | `10.1109/ACCESS.2025.3541436` | 近期二轮 QEM 优化参考，可用于后处理和 refinement 路线。 |
+| M002 | Surface Simplification Using Quadric Error Metrics (OpenAlex citations: 3386) | `qem/garland_heckbert_1997_surface_simplification_qem.pdf` | `10.1145/258734.258849` | 原始 QEM 论文，解释 plane quadric、vertex quadric 和 edge contraction cost。 |
+| M003 | Simplifying Surfaces with Color and Texture Using Quadric Error Metrics (OpenAlex citations: 246) | `qem/garland_heckbert_1998_color_texture_qem.pdf` | `10.1109/VISUAL.1998.745312` | QEM 属性扩展参考，说明如何把颜色、纹理等属性并入 quadric 风格误差项。 |
 
 ## Line Quadrics
 
-| 文件 | 在 ManuMesh 中的作用 | 来源 |
-| --- | --- | --- |
-| `line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | ManuMesh 当前复现和扩展的主参考，解释用 point-to-line quadrics 软控制 QEM 简化。 | https://www.dgp.toronto.edu/~hsuehtil/pdf/lineQuadric.pdf |
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M004 | Controlling Quadric Error Simplification with Line Quadrics (OpenAlex citations: 1) | `line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | `10.1111/cgf.70184` | ManuMesh 当前复现和扩展的主参考，用于控制 QEM 平坦区切向漂移。 |
 
-## 特征检测
+## 特征检测与线框提取
 
-| 文件 | 在 ManuMesh 中的作用 | 来源 |
-| --- | --- | --- |
-| `feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | CAD 表面 C1/C2 不连续检测参考。 | https://www.ams.sunysb.edu/~jiao/papers/feature_detect.pdf |
-| `feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | CAD 三角网格特征线提取参考，对当前 feature graph 和 loop 检测有启发。 | https://www.scitepress.org/Papers/2011/33617/33617.pdf |
-| `feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | normal tensor 特征评分参考，当前 `normal-tensor` 模式受它启发。 | https://www.cad-journal.net/files/vol_11/CAD_11%282%29_2014_172-181.pdf |
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M005 | A Variational Approach for Detecting Feature Lines on Meshes (OpenAlex citations: 7) | `feature_detection/benhabiles_2011_variational_feature_lines_meshes.pdf` | `10.4208/jcm.1510-m4510` | 变分特征线参考，用于替换脆弱局部启发式的长期路线。 |
+| M006 | D-FRAME: Direction-Field-Based Wireframe Extraction for Complex CAD Models (OpenAlex citations: 0) | `feature_detection/feng_2025_dframe_direction_field_wireframe_extraction_cad.pdf` | `10.1109/TVCG.2025.3609350` | 复杂 CAD 方向场线框提取参考，用于后续图级特征恢复。 |
+| M007 | Identification of C1 and C2 Discontinuities for Surface Meshes in CAD (OpenAlex citations: 26) | `feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` | `10.1016/j.cad.2007.10.005` | CAD 表面 C1/C2 不连续检测参考。 |
+| M008 | PC2WF: 3D Wireframe Reconstruction from Raw Point Clouds (OpenAlex citations: 3) | `feature_detection/liu_2021_pc2wf_wireframe_reconstruction_raw_point_clouds.pdf` | `10.48550/arxiv.2103.02766` | 原始点云到线框重建参考，用于 feature graph 目标设计。 |
+| M009 | Multi-Scale Creases Detection on Noisy Meshes (OpenAlex citations: 1) | `feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf` | `10.1109/ICIP.2008.4712166` | 噪声网格多尺度 crease 检测参考。 |
+| M010 | DEF: Deep Estimation of Sharp Geometric Features in 3D Shapes (OpenAlex citations: 41) | `feature_detection/matveev_2022_def_deep_estimation_sharp_geometric_features.pdf` | `10.1145/3528223.3530140` | 尖锐几何特征估计和基准参考，当前不作为核心依赖。 |
+| M011 | Ridge-Valley Lines on Meshes via Implicit Surface Fitting (OpenAlex citations: 382) | `feature_detection/ohtake_2004_ridge_valley_lines_implicit_surface_fitting.pdf` | `10.1145/1015706.1015768` | smooth ridge/valley 特征线参考。 |
+| M012 | Robust Crease Detection and Curvature Estimation of Piecewise Smooth Surfaces from Triangle Mesh Approximations Using Normal Voting (OpenAlex citations: 60) | `feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf` | `10.1109/CVPR.2001.990471` | piecewise-smooth 三角网格 normal voting crease 检测参考。 |
+| M013 | Normal Vector Voting: Crease Detection and Curvature Estimation on Large, Noisy Meshes (OpenAlex citations: 121) | `feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf` | `10.1006/gmod.2002.0574` | 大型噪声网格 normal vector voting 参考。 |
+| M014 | Estimating Curvatures and Their Derivatives on Triangle Meshes (OpenAlex citations: 294) | `feature_detection/rusinkiewicz_2004_estimating_curvatures_derivatives_triangle_meshes.pdf` | `10.1109/TDPVT.2004.1335277` | 曲率和曲率导数估计基线，用于 ridge/valley 和 soft feature 路线。 |
+| M015 | Extraction of Surface-Feature Lines on Meshes Using Normal Tensor Framework (OpenAlex citations: 3) | `feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | `10.1080/16864360.2014.846088` | normal tensor 特征评分参考，当前 `normal-tensor` 模式受它启发。 |
+| M016 | Robust Feature Line Extraction on CAD Triangular Meshes (OpenAlex citations: 11) | `feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | `10.5220/0003361701620167` | CAD 三角网格特征线提取参考，对当前 feature graph 和 loop 检测有启发。 |
+| M017 | PIE-NET: Parametric Inference of Point Cloud Edges (OpenAlex citations: 43) | `feature_detection/wang_2020_pienet_parametric_inference_point_cloud_edges.pdf` | `10.48550/arxiv.2007.04883` | 点云参数化边推理参考，用于后续 primitive fitting 和点云路线。 |
+| M018 | Polygon Crawling: Feature-Edge Extraction from a General Polygonal Surface for Mesh Generation (OpenAlex citations: 12) | `feature_detection/yamakawa_2005_polygon_crawling_feature_edge_extraction.pdf` | `10.1007/3-540-29090-7_15` | CAD/STL polygon crawling 特征边提取参考。 |
+| M019 | Polygon Crawling: Feature Edge Extraction from a General Polygonal Surface for Mesh Generation (OpenAlex citations: 7) | `feature_detection/yamakawa_shimada_2009_polygon_crawling_feature_edge_extraction.pdf` | `10.1007/s00366-009-0165-y` | polygon crawling 期刊扩展，适合非均匀 CAD facet surface。 |
+| M020 | NEF: Neural Edge Fields for 3D Parametric Curve Reconstruction from Multi-View Images (OpenAlex citations: 26) | `feature_detection/ye_2023_nef_neural_edge_fields_curve_reconstruction.pdf` | `10.1109/CVPR52729.2023.00820` | 多视图神经边场曲线重建参考，当前不作为核心依赖。 |
+| M021 | Fast and Robust Detection of Crest Lines on Meshes (OpenAlex citations: 5) | `feature_detection/yoshizawa_2005_fast_robust_detection_crest_lines.pdf` | `10.1145/1060244.1060270` | crest-line 提取参考，用于 smooth salient feature 路线。 |
+| M022 | EC-Net: An Edge-Aware Point Set Consolidation Network (OpenAlex citations: 302) | `feature_detection/yu_2018_ecnet_edge_aware_point_set_consolidation.pdf` | `10.1007/978-3-030-01234-2_24` | 边感知点集 consolidation 参考，用于扫描件预处理和去噪路线。 |
+| M023 | NerVE: Neural Volumetric Edges for Parametric Curve Extraction from Point Cloud (OpenAlex citations: 31) | `feature_detection/zhu_2023_nerve_neural_volumetric_edges.pdf` | `10.1109/CVPR52729.2023.01307` | 点云参数曲线连续性和 junction 参考，当前不作为核心依赖。 |
+
+## 分割与解析面恢复
+
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M024 | An Edge-Based Mesh Segmentation Method for Engineering Objects (OpenAlex citations: 1) | `segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf` | `10.1109/MACE.2010.5536720` | 工程对象 edge-based segmentation 参考，用于闭合 feature loop 和 C1/C2 处理。 |
+| M025 | Segmentation of Scanned Mesh into Analytic Surfaces Based on Robust Curvature Estimation and Region Growing (OpenAlex citations: 19) | `segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf` | `10.1007/11802914_52` | 扫描网格解析面分割参考，用于 robust curvature 和 region growing 路线。 |
+
+## 弱特征整合
+
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M026 | CWF: Consolidating Weak Features in High-quality Mesh Simplification (OpenAlex citations: 18) | `weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf` | `10.1145/3658159` | 弱特征整合参考，用于高质量简化前的 coherent feature support 路线。 |
 
 ## 特征保持简化
 
-| 文件 | 在 ManuMesh 中的作用 | 来源 |
-| --- | --- | --- |
-| `feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf` | 支持把位置 QEM 扩展到法线/特征敏感度的思路。 | https://cg.cs.tsinghua.edu.cn/papers/weijin.pdf |
-| `feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | 特征保持简化参考，用于理解小特征保护和顶点覆盖思路。 | https://www.grahn.cse.bth.se/Papers/cgv2008.pdf |
-| `feature_preserving_simplification/ha_2025_deep_learning_salient_feature_preserving_mesh_simplification.pdf` | 学习式显著特征保护参考；ManuMesh 当前未实现学习模型。 | 本地归档 |
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M027 | A Deep Learning-Based Salient Feature-Preserving Algorithm for Mesh Simplification (OpenAlex citations: 1) | `feature_preserving_simplification/ha_2025_deep_learning_salient_feature_preserving_mesh_simplification.pdf` | `10.32604/cmc.2025.060260` | 学习式显著特征保护参考，ManuMesh 当前未实现学习模型。 |
+| M028 | Feature-Preserving Mesh Simplification: A Vertex Cover Approach (OpenAlex citations: 6) | `feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` | N/A | 顶点覆盖式特征保持简化参考，用于理解小特征保护。 |
+| M029 | Feature Preserving Mesh Simplification Using Feature Sensitive Metric (OpenAlex citations: 29) | `feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf` | `10.1007/s11390-010-9331-7` | feature-sensitive metric 参考，支持把位置 QEM 扩展到法线/特征敏感度。 |
 
 ## 边折叠与大模型简化
 
-| 文件 | 在 ManuMesh 中的作用 | 来源 |
-| --- | --- | --- |
-| `edge_collapse/hoppe_1996_progressive_meshes.pdf` | Progressive Mesh 框架参考，用于理解 collapse workflow 和重建。 | https://hhoppe.com/pm.pdf |
-| `edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | 局部边折叠、内存效率和约束保持参考。 | https://faculty.cc.gatech.edu/~turk/my_papers/memless_vis98.pdf |
-| `edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | 大模型自适应简化参考。 | https://mgarland.org/papers/massive.pdf |
-| `edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf` | 边折叠工程清单参考：队列、placement、合法性、边界和误差过滤。 | 本地归档 |
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M030 | Efficient Adaptive Simplification of Massive Meshes (OpenAlex citations: 84) | `edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | `10.1109/VISUAL.2001.964503` | 大模型自适应简化参考。 |
+| M031 | Progressive Meshes (OpenAlex citations: 2813) | `edge_collapse/hoppe_1996_progressive_meshes.pdf` | `10.1145/237170.237216` | Progressive Mesh 框架参考，用于理解 collapse workflow 和重建。 |
+| M032 | Fast and Memory Efficient Polygonal Simplification (OpenAlex citations: 151) | `edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | `10.1109/VISUAL.1998.745314` | 局部边折叠、内存效率和约束保持参考。 |
+| M033 | A Comprehensive Guide to Mesh Simplification using Edge Collapse (OpenAlex citations: 0) | `edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf` | `10.48550/arXiv.2512.19959` | 边折叠工程清单参考：队列、placement、合法性、边界和误差过滤。 |
 
 ## 神经与时间一致性 QEM
 
-| 文件 | 在 ManuMesh 中的作用 | 来源 |
-| --- | --- | --- |
-| `neural_and_temporal_qem/maruani_2024_ponq_neural_qem_representation.pdf` | 神经 QEM 表示参考，不是当前 decimator 的实现基础。 | 本地归档 |
-| `neural_and_temporal_qem/yokota_2024_tracked_qem_temporal_consistency.pdf` | 动态序列一致性参考；ManuMesh 当前只处理静态网格。 | 本地归档 |
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M034 | PoNQ: a Neural QEM-based Mesh Representation (OpenAlex citations: 13) | `neural_and_temporal_qem/maruani_2024_ponq_neural_qem_representation.pdf` | `10.1109/CVPR52733.2024.00350` | 神经 QEM 表示参考，不是当前 decimator 的实现基础。 |
+| M035 | Tracked QEM Algorithm: Adding Temporal Consistency to Dynamic Mesh Simplification Based on Mesh Registration (OpenAlex citations: 0) | `neural_and_temporal_qem/yokota_2024_tracked_qem_temporal_consistency.pdf` | `10.3169/mta.12.175` | 动态序列一致性参考；ManuMesh 当前只处理静态网格。 |
 
-## 网格生成
+## QEM 风格网格生成
 
-| 文件 | 在 ManuMesh 中的作用 | 来源 |
-| --- | --- | --- |
-| `mesh_generation/li_2025_qemesh_qem_based_mesh_generation.pdf` | QEM 风格表示在生成任务中的参考，ManuMesh 当前未实现生成模型。 | 本地归档 |
-
-## 在线工程参考
-
-| 参考 | 用途 |
-| --- | --- |
-| CGAL Surface Mesh Simplification | constrained edges、placement 和 stop predicate 的工程参考。 |
-| OpenMesh Decimation Framework | cost module + legality module 的架构参考。 |
-| libigl `qslim` | 紧凑 QEM 实现参考。 |
-| MeshLab / VCGLib | 生产型 decimation filter 和 mesh-quality safeguard 参考。 |
-| Yamakawa and Shimada Polygon Crawling | 特征边提取参考。 |
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M036 | QEMesh: Employing A Quadric Error Metrics-Based Representation for 3D Mesh Generation (OpenAlex citations: 0) | `mesh_generation/li_2025_qemesh_qem_based_mesh_generation.pdf` | `10.48550/arXiv.2504.05720` | QEM 风格表示在生成任务中的参考，ManuMesh 当前未实现生成模型。 |
 
 ## 与当前实现的关系
 
-ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-tensor 特征证据、圆/近圆/椭圆 loop 拟合、特征曲线保护、边界/拓扑/质量/局部误差/自交过滤。当前没有落地：论文中的完整 edge dihedral plane quadrics、学习式特征评分、时间一致性简化、神经 QEM 表示和通用 CAD/B-Rep 特征恢复。
+ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-tensor 特征证据、独立 loop trace 阈值、traced/untraced 诊断、局部尺度归一化、多尺度 persistence、圆/近圆/椭圆 loop 拟合、component-level fallback、特征曲线保护、边界/拓扑/质量/局部误差/自交过滤。2026-07-09 的特征识别升级见 [`../design/feature_detection_upgrade_2026_07_09.md`](../design/feature_detection_upgrade_2026_07_09.md)。
+
+当前没有落地：论文中的完整 edge dihedral plane quadrics、通用扫描去噪、曲率导数 ridge/valley 管线、学习式特征评分、时间一致性简化、神经 QEM 表示、工程对象分割和通用 CAD/B-Rep 特征恢复。
 
 ## 按问题阅读
 
 | 想理解的问题 | 推荐阅读 | 读完应回到的代码 |
 | --- | --- | --- |
-| 为什么标准 QEM 在平面区域会排序退化？ | `qem/garland_heckbert_1997_surface_simplification_qem.pdf`，再读 `line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf`。 | `src/simplification/Quadrics.cpp` |
-| line quadrics 为什么是正则项而不是替代 QEM？ | Line Quadrics 2025，配合 `docs/generated/notes/qem-line-quadrics-notes.html`。 | `lineQuadric()`、`computeInitialQuadrics()` |
-| 为什么不能只调大特征权重？ | Wang 2008、Hussain 2008、CWF 2024、Rose 2025。 | `FeatureConstraints.cpp`、`CollapseLegality.cpp` |
-| CAD/STL 特征边为什么优先用二面角和边界？ | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008。 | `FeatureEvidence.cpp::collectFeatureEdges()` |
-| normal tensor 的特征值怎么解释？ | Tsuchie-Higashi 2014，以及 normal voting/tensor 相关论文。 | `NormalTensor.cpp` |
-| 圆/椭圆 loop 为什么要拟合 primitive？ | CAD feature line 与工程对象 segmentation 论文，配合当前 feature fixture。 | `PrimitiveFit.cpp` |
-| 为什么需要 topology/quality/error/self-intersection filters？ | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025、自交检测相关论文。 | `CollapseLegality.cpp`、`GeometryPredicates.cpp` |
-| 下一步如果做全局误差 envelope 应看什么？ | Rose 2025、Garland/Shaffer 2002、CWF 2024、相关 Hausdorff/error-filter 文献。 | 未来 `validation` 或 `simplification/detail` 中独立 envelope filter |
+| 为什么标准 QEM 在平面区域会排序退化？ | M002，然后读 M004。 | `src/simplification/Quadrics.cpp` |
+| line quadrics 为什么是正则项而不是替代 QEM？ | M004，配合 `docs/generated/notes/qem-line-quadrics-notes.html`。 | `lineQuadric()`、`computeInitialQuadrics()` |
+| 为什么不能只调大特征权重？ | M026、M028、M029、M033。 | `FeatureConstraints.cpp`、`CollapseLegality.cpp` |
+| CAD/STL 特征边为什么优先用二面角、边界和 loop tracing？ | M007、M016、M018、M019。 | `FeatureEvidence.cpp`、`FeatureGraph.cpp`、`FeatureLoopRecovery.cpp` |
+| normal tensor 的特征值怎么解释？ | M012、M013、M015。 | `NormalTensor.cpp` |
+| 圆/椭圆 loop 为什么要拟合 primitive？ | M016、M024、M025，配合当前 feature fixture。 | `PrimitiveFit.cpp` |
+| 如果要补 ridge/valley/crest line 应看什么？ | M005、M011、M014、M021。 | 未来独立 curvature/feature-line 模块 |
+| 为什么需要 topology/quality/error/self-intersection filters？ | M031、M032、M033。 | `CollapseLegality.cpp`、`GeometryPredicates.cpp` |
+| 下一步如果做全局误差 envelope 应看什么？ | M030、M033、M026。 | 未来 `validation` 或 `simplification/detail` 中独立 envelope filter |
+
+## 下载状态
+
+下载状态、来源 URL、失败记录和 OpenAlex 结果快照见：
+
+- [`feature_recognition_download_status.md`](feature_recognition_download_status.md)
+- [`paper_index_openalex_2026-07-09.json`](paper_index_openalex_2026-07-09.json)

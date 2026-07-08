@@ -85,7 +85,7 @@ src/feature_detection/FeatureTraceRecovery.cpp     feature graph 上的 open cha
 src/feature_detection/FeaturePrimitiveRecovery.cpp primitive component 兜底恢复
 src/feature_detection/FeatureLoopBuilder.cpp       loop 构造、vertex ownership、切向和 primitive 数据写回
 src/feature_detection/FeatureCircularRecovery.cpp  有界圆形顶点簇 fallback 恢复
-src/feature_detection/NormalTensor.cpp             normal-tensor 特征评分公开函数实现
+src/feature_detection/NormalTensor.cpp             normal-tensor 特征评分公开函数实现，使用 common 局部边长尺度和多尺度 persistence
 src/feature_detection/PrimitiveFit.cpp             circle/near-circle/ellipse primitive 拟合和误差度量
 src/feature_detection/detail/*.h                   feature 检测私有类型、策略接口和 helper 声明
 ```

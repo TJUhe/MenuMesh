@@ -19,7 +19,9 @@ using manumesh::test::feature_detection::circularLoopsNearRadius;
 using manumesh::test::feature_detection::discreteOnlyOptions;
 using manumesh::test::feature_detection::hasClosedLoopWithVertices;
 using manumesh::test::feature_detection::makeBranchedCircularBoundaryMesh;
+using manumesh::test::feature_detection::makeFragmentedCircleWithTensorRidgeMesh;
 using manumesh::test::feature_detection::makeMultiJunctionPolygonalBoundaryMesh;
+using manumesh::test::feature_detection::makeShallowDihedralLoopMesh;
 
 } // namespace
 
@@ -73,4 +75,60 @@ TEST(FeatureDetection, RecoversPolygonalCycleThroughMultipleJunctions) {
   EXPECT_TRUE(features.vertices[0].junction);
   EXPECT_TRUE(features.vertices[2].junction);
   EXPECT_TRUE(features.vertices[5].junction);
+}
+
+TEST(FeatureDetection, TracesShallowDihedralLoopAtRequestedAngle) {
+  const Mesh mesh = makeShallowDihedralLoopMesh(0.27);
+
+  FeatureOptions options = discreteOnlyOptions();
+  options.featureAngleDeg = 20.0;
+  options.minFeatureLoopVertices = 4;
+  const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+
+  EXPECT_GT(features.dihedralFeatureEdges, 0);
+  EXPECT_EQ(features.featureEdges, features.tracedFeatureEdges);
+  EXPECT_EQ(0, features.untracedFeatureEdges);
+  EXPECT_FALSE(features.loops.empty());
+  for (int id : {2, 3, 4, 5}) {
+    ASSERT_LT(id, static_cast<int>(features.vertices.size()));
+    EXPECT_TRUE(features.vertices[id].isFeature);
+  }
+}
+
+TEST(FeatureDetection, ReportsUntracedDihedralEdgesWhenTraceAngleIsStricter) {
+  const Mesh mesh = makeShallowDihedralLoopMesh(0.27);
+
+  FeatureOptions options = discreteOnlyOptions();
+  options.featureAngleDeg = 20.0;
+  options.loopTraceAngleDeg = 179.0;
+  options.minFeatureLoopVertices = 4;
+  const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+
+  EXPECT_GT(features.dihedralFeatureEdges, 0);
+  EXPECT_EQ(features.featureEdges, features.untracedFeatureEdges);
+  EXPECT_EQ(0, features.tracedFeatureEdges);
+  EXPECT_TRUE(features.loops.empty());
+  for (int id : {2, 3, 4, 5}) {
+    ASSERT_LT(id, static_cast<int>(features.vertices.size()));
+    EXPECT_FALSE(features.vertices[id].isFeature);
+  }
+}
+
+TEST(FeatureDetection, TensorComponentDoesNotBlockSeparateCircularFallback) {
+  const Mesh mesh = makeFragmentedCircleWithTensorRidgeMesh();
+
+  FeatureOptions options;
+  options.featureAngleDeg = 179.0;
+  options.normalTensorFeatureThreshold = 0.06;
+  options.normalTensorMinEdgeAlignment = 0.2;
+  options.normalTensorSmoothingIterations = 1;
+  options.minFeatureLoopVertices = 12;
+  options.circleFitRelativeThreshold = 0.04;
+  const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+
+  EXPECT_GT(features.normalTensorFeatureEdges, 0);
+  EXPECT_GE(countCircularLoops(features), 1);
+  for (int i = 0; i < static_cast<int>(features.loops.size()); ++i) {
+    EXPECT_EQ(i, features.loops[i].id);
+  }
 }

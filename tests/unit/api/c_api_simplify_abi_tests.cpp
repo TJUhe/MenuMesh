@@ -81,12 +81,14 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
   EXPECT_DOUBLE_EQ(0.05, options.circle_fit_relative_threshold);
   EXPECT_DOUBLE_EQ(0.05, options.ellipse_fit_relative_threshold);
   EXPECT_DOUBLE_EQ(0.08, options.near_circle_axis_ratio_tolerance);
+  EXPECT_DOUBLE_EQ(-1.0, options.loop_trace_angle_deg);
   EXPECT_DOUBLE_EQ(0.0, options.max_feature_curve_deviation_ratio);
   EXPECT_EQ(6, options.min_circular_feature_loop_vertices);
   EXPECT_EQ(0, options.preserve_boundary);
   EXPECT_DOUBLE_EQ(0.0, options.min_triangle_quality);
   EXPECT_DOUBLE_EQ(90.0, options.max_normal_deviation_deg);
   EXPECT_EQ(1, options.normal_tensor_scale_count);
+  EXPECT_EQ(1, options.normal_tensor_min_persistent_scales);
   EXPECT_DOUBLE_EQ(0.0, options.max_local_error);
   EXPECT_DOUBLE_EQ(0.0, options.max_local_error_ratio);
   EXPECT_EQ(0, options.prevent_local_intersections);

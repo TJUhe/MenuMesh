@@ -19,6 +19,7 @@ int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
 feature::FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
   feature::FeatureOptions options;
   options.featureAngleDeg = featureAngleDeg;
+  options.loopTraceAngleDeg = loopTraceAngleDeg;
   options.circleFitRelativeThreshold = circleFitRelativeThreshold;
   options.ellipseFitRelativeThreshold = ellipseFitRelativeThreshold;
   options.nearCircleAxisRatioTolerance = nearCircleAxisRatioTolerance;
@@ -28,6 +29,7 @@ feature::FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
   options.normalTensorMinEdgeAlignment = normalTensorMinEdgeAlignment;
   options.normalTensorSmoothingIterations = normalTensorSmoothingIterations;
   options.normalTensorScaleCount = normalTensorScaleCount;
+  options.normalTensorMinPersistentScales = normalTensorMinPersistentScales;
   return options;
 }
 
@@ -48,6 +50,7 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
 
   policies.features.enabled = options.preserveFeatureCurves;
   policies.features.featureAngleDeg = options.featureAngleDeg;
+  policies.features.loopTraceAngleDeg = options.loopTraceAngleDeg;
   policies.features.circleFitRelativeThreshold = options.circleFitRelativeThreshold;
   policies.features.ellipseFitRelativeThreshold = options.ellipseFitRelativeThreshold;
   policies.features.nearCircleAxisRatioTolerance = options.nearCircleAxisRatioTolerance;
@@ -58,6 +61,8 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
   policies.features.normalTensorSmoothingIterations =
       options.normalTensorSmoothingIterations;
   policies.features.normalTensorScaleCount = options.normalTensorScaleCount;
+  policies.features.normalTensorMinPersistentScales =
+      options.normalTensorMinPersistentScales;
 
   policies.legality.preserveBoundary = options.preserveBoundary;
   policies.legality.minTriangleQuality = options.minTriangleQuality;

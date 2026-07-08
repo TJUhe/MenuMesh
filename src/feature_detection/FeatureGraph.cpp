@@ -31,27 +31,35 @@ void initializeFeatureGraph(const std::vector<CandidateEdge>& featureEdges,
 }
 
 TraceGraph buildTraceGraph(const Mesh& mesh, const FeatureOptions& options,
-                           const std::vector<CandidateEdge>& featureEdges) {
+                           const std::vector<CandidateEdge>& featureEdges,
+                           FeatureAnalysis& analysis) {
   TraceGraph trace;
   trace.adjacency.resize(mesh.vertices.size());
   trace.traceVertex.assign(mesh.vertices.size(), 0);
   trace.edgeIsBoundary.reserve(featureEdges.size());
+  trace.edgeIsNormalTensor.reserve(featureEdges.size());
   trace.edgeSignedKind.reserve(featureEdges.size());
   trace.graphEdges.reserve(featureEdges.size());
 
-  const double loopTraceAngle =
-      std::max(options.featureAngleDeg * kPi / 180.0, 40.0 * kPi / 180.0);
+  const double traceAngleDeg =
+      options.loopTraceAngleDeg < 0.0 ? options.featureAngleDeg
+                                      : options.loopTraceAngleDeg;
+  const double loopTraceAngle = traceAngleDeg * kPi / 180.0;
   for (const CandidateEdge& edge : featureEdges) {
     const bool traceEdge = edge.boundary || edge.nonManifold || edge.normalTensor ||
                            (edge.dihedral && edge.angleRad >= loopTraceAngle);
     if (!traceEdge) {
+      ++analysis.untracedFeatureEdges;
       continue;
     }
+    ++analysis.tracedFeatureEdges;
     trace.adjacency[edge.a].push_back(edge.b);
     trace.adjacency[edge.b].push_back(edge.a);
     trace.traceVertex[edge.a] = 1;
     trace.traceVertex[edge.b] = 1;
     trace.edgeIsBoundary[manumesh::detail::meshEdgeKey(edge.a, edge.b)] = edge.boundary;
+    trace.edgeIsNormalTensor[manumesh::detail::meshEdgeKey(edge.a, edge.b)] =
+        edge.normalTensor;
     trace.edgeSignedKind[manumesh::detail::meshEdgeKey(edge.a, edge.b)] =
         edge.signedKind;
     trace.graphEdges.emplace_back(edge.a, edge.b);
@@ -62,6 +70,11 @@ TraceGraph buildTraceGraph(const Mesh& mesh, const FeatureOptions& options,
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b) {
   const auto it = trace.edgeIsBoundary.find(manumesh::detail::meshEdgeKey(a, b));
   return it != trace.edgeIsBoundary.end() && it->second;
+}
+
+bool traceEdgeNormalTensor(const TraceGraph& trace, int a, int b) {
+  const auto it = trace.edgeIsNormalTensor.find(manumesh::detail::meshEdgeKey(a, b));
+  return it != trace.edgeIsNormalTensor.end() && it->second;
 }
 
 int traceEdgeSign(const TraceGraph& trace, int a, int b) {

@@ -173,6 +173,13 @@ void fillReport(const manumesh::simplification::SimplifyReport& source,
   target.termination_reason = convertTerminationReason(source.terminationReason);
   target.min_applied_line_weight = source.minAppliedLineWeight;
   target.max_applied_line_weight = source.maxAppliedLineWeight;
+  target.traced_feature_edges = source.tracedFeatureEdges;
+  target.untraced_feature_edges = source.untracedFeatureEdges;
+  target.normal_tensor_scored_vertices = source.normalTensorScoredVertices;
+  target.max_normal_tensor_persistent_score =
+      source.maxNormalTensorPersistentScore;
+  target.mean_normal_tensor_local_scale = source.meanNormalTensorLocalScale;
+  target.mean_normal_tensor_persistence = source.meanNormalTensorPersistence;
 }
 
 void fillStats(const manumesh::simplification::MeshStats& source,
@@ -447,6 +454,7 @@ void manumesh_simplify_options_init(ManuMeshSimplifyOptions* options) {
   options->weight_mode = MANUMESH_WEIGHT_MODE_UNIFORM;
   options->feature_boost = 0.05;
   options->feature_angle_deg = 40.0;
+  options->loop_trace_angle_deg = -1.0;
   options->adaptive_scale = 0;
   options->adaptive_base_line_weight = 1e-2;
   options->boundary_weight = 0.0;
@@ -471,6 +479,7 @@ void manumesh_simplify_options_init(ManuMeshSimplifyOptions* options) {
   options->prevent_local_intersections = 0;
   options->verbose = 0;
   options->feature_protection_mode = MANUMESH_FEATURE_PROTECTION_PRIMITIVE_CURVES;
+  options->normal_tensor_min_persistent_scales = 1;
 }
 
 void manumesh_simplify_report_init(ManuMeshSimplifyReport* report) {
@@ -527,6 +536,9 @@ ManuMeshStatus manumesh_simplify_mesh(ManuMeshContext* context,
       }
       if (MANUMESH_SIMPLIFY_FIELD_PRESENT(*options, feature_angle_deg)) {
         cppOptions.featureAngleDeg = options->feature_angle_deg;
+      }
+      if (MANUMESH_SIMPLIFY_FIELD_PRESENT(*options, loop_trace_angle_deg)) {
+        cppOptions.loopTraceAngleDeg = options->loop_trace_angle_deg;
       }
       if (MANUMESH_SIMPLIFY_FIELD_PRESENT(*options, adaptive_scale)) {
         cppOptions.adaptiveScale = boolFromInt(options->adaptive_scale);
@@ -596,6 +608,11 @@ ManuMeshStatus manumesh_simplify_mesh(ManuMeshContext* context,
       }
       if (MANUMESH_SIMPLIFY_FIELD_PRESENT(*options, normal_tensor_scale_count)) {
         cppOptions.normalTensorScaleCount = options->normal_tensor_scale_count;
+      }
+      if (MANUMESH_SIMPLIFY_FIELD_PRESENT(
+              *options, normal_tensor_min_persistent_scales)) {
+        cppOptions.normalTensorMinPersistentScales =
+            options->normal_tensor_min_persistent_scales;
       }
       if (MANUMESH_SIMPLIFY_FIELD_PRESENT(*options, min_triangle_quality)) {
         cppOptions.minTriangleQuality = options->min_triangle_quality;

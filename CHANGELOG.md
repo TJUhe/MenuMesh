@@ -1,5 +1,43 @@
 # 更新日志
 
+## 2026-07-09
+
+### 新增
+
+- 增加 `docs/delivery/manumesh_kernel_developer_guide.html`，作为商用内核交付级开发者手册入口，覆盖定位、架构、模块边界、API/C ABI、构建、验证、扩展约束和交付清单。
+- 将 2026-07-09 前的阶段性设计、指南和生成笔记归档到 `docs/archive/prototype-docs-2026-07-09/`，保留研发历史材料，同时避免和正式交付文档混用。
+- 扩充 `docs/papers/feature_detection/`、`docs/papers/segmentation/` 和 `docs/papers/weak_features/`，补入特征线、normal voting/tensor、ridge/valley、线框提取、工程对象分割和弱特征整合论文。
+- 增加 `docs/papers/feature_recognition_download_status.md` 和 `docs/papers/paper_index_openalex_2026-07-09.json`，记录论文下载状态、OpenAlex DOI/引用数量快照和未下载项线索。
+- 增加 `FeatureOptions::loopTraceAngleDeg` / `SimplifyOptions::loopTraceAngleDeg`、CLI `--loop-trace-angle-deg`、C ABI `loop_trace_angle_deg`，用于把 feature evidence 阈值和 loop tracing 阈值分开。
+- 增加 `tracedFeatureEdges` / `untracedFeatureEdges` 诊断，并同步到 feature report、simplify metrics CSV、C ABI report 和 VS Code demo/debug 配置。
+- 增加 common 层 `computeVertexAverageEdgeLength`，作为 normal tensor 和后续 feature/QEM 策略共享的局部采样尺度。
+- 增加 `normalTensorMinPersistentScales` / `--normal-tensor-min-persistent-scales` / C ABI `normal_tensor_min_persistent_scales`，用于要求 normal-tensor 弱特征至少被多个尺度支持。
+- 增加 normal-tensor scored vertices、`max_normal_tensor_persistent_score`、`mean_normal_tensor_local_scale`、`mean_normal_tensor_persistence` 诊断，并同步到 FeatureAnalysis、SimplifyReport、C ABI、feature-report CSV、metrics CSV 和 VS Code 配置。
+- 增加浅二面角 trace、严格 trace 下 untraced 诊断、tensor component 不阻塞独立圆孔 fallback 的 GoogleTest 回归保护。
+- 增加 `docs/design/feature_detection_upgrade_2026_07_09.md`，记录本次特征识别升级、文献锚点和后续算法计划。
+
+### 变更
+
+- 重写 `docs/README.md`，将文档入口拆分为正式交付文档、历史归档和论文资料库，并明确当前交付范围不包括完整 B-Rep CAD kernel、通用 Boolean/offset、完整 CAD feature tree 恢复和全局 Hausdorff/envelope 认证。
+- 重写 `docs/papers/README.md`，按 QEM、line quadrics、特征检测、分割、弱特征、特征保持简化、边折叠、神经/时间一致性 QEM 和网格生成分类索引 M001-M036，并在每篇论文标题后保留 OpenAlex 引用数量。
+- 将论文索引用途从“零散 PDF 列表”调整为可支持特征识别、商用内核路线图和算法审核的本地 literature map。
+- 移除 feature graph loop tracing 的 40 度硬下限，默认让浅特征按用户的 `featureAngleDeg` 进入 loop ownership；需要更严格 trace 时可显式设置 `loopTraceAngleDeg`。
+- 修正 primitive recovery / circular fallback 的 loop id 分配时机，避免无效 primitive 造成非连续 id 和后续约束表漏建。
+- 将 normal-tensor 对 small cycle basis 和 circular fallback 的影响从全局开关改成 trace connected component 级判断。
+- normal tensor 平滑改为按局部边长归一化的距离权重，多尺度结果输出平均 feature score、persistence、persistent score 和 local scale；feature edge 接受与 QEM `weight-mode=normal-tensor` 共用 persistent score。
+
+### 已验证
+
+- `cmake --build build\mingw-ninja-release --target manumesh_tests manumesh --parallel`
+- `ctest -R "FeatureDetection\.(TracesShallowDihedralLoopAtRequestedAngle|ReportsUntracedDihedralEdgesWhenTraceAngleIsStricter|TensorComponentDoesNotBlockSeparateCircularFallback)|CApiTest\.ExposesNormalTensorOptionsAndDiagnostics|CApiTest\.InitializesPrimitiveFitOptions" --output-on-failure`（5/5 passed）
+- `ctest --test-dir build\mingw-ninja-release -R "NormalTensor|MeshQueriesComputeLocalVertexEdgeScale|CApi" --output-on-failure`（16/16 passed）
+- `cmake --build build\mingw-ninja-release --parallel`
+- `ctest --test-dir build\mingw-ninja-release -LE performance --output-on-failure`（85/85 passed）
+- `.\build\mingw-ninja-release\bin\manumesh.exe feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --loop-trace-angle-deg -1 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2 --csv output\vscode_demo\features.csv`
+- `.\build\mingw-ninja-release\bin\manumesh.exe simplify tests\data\feature_fixtures\boss_pocket_plate.obj output\vscode_demo\normal_tensor.stl --method line --line-weight 1e-3 --weight-mode normal-tensor --feature-boost 0.08 --feature-angle-deg 179 --loop-trace-angle-deg -1 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2 --ratio 0.5 --samples 512 --metrics-csv output\vscode_demo\normal_tensor_metrics.csv`
+- `.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000`
+- `.\build\mingw-ninja-release\bin\manumesh.exe validate-external --ratio 0.25`
+
 ## 2026-07-07
 
 ### 变更

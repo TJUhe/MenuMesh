@@ -21,14 +21,23 @@ TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
   options.preserve_feature_curves = 1;
   options.weight_mode = MANUMESH_WEIGHT_MODE_NORMAL_TENSOR;
   options.feature_angle_deg = 179.0;
+  options.loop_trace_angle_deg = 179.0;
   options.normal_tensor_feature_threshold = 0.06;
   options.normal_tensor_min_edge_alignment = 0.2;
   options.normal_tensor_smoothing_iterations = 1;
+  options.normal_tensor_scale_count = 3;
+  options.normal_tensor_min_persistent_scales = 2;
 
   ManuMeshSimplifyReport report;
   EXPECT_EQ(MANUMESH_STATUS_OK,
             manumesh_simplify_mesh(context, input, &options, output, &report));
   EXPECT_GT(report.normal_tensor_feature_edges, 0);
+  EXPECT_GT(report.traced_feature_edges, 0);
+  EXPECT_EQ(0, report.untraced_feature_edges);
+  EXPECT_GT(report.normal_tensor_scored_vertices, 0);
+  EXPECT_GT(report.max_normal_tensor_persistent_score, 0.0);
+  EXPECT_GT(report.mean_normal_tensor_local_scale, 0.0);
+  EXPECT_GT(report.mean_normal_tensor_persistence, 1.0);
 
   manumesh_mesh_destroy(output);
   manumesh_mesh_destroy(input);

@@ -57,7 +57,14 @@ void SimplificationRun::analyzeFeatures() {
   featureAnalysis_ = feature::detectFeatureCurves(input_, featureOptions);
   featureAnalysisPtr_ = &featureAnalysis_;
   report_.featureLoops = static_cast<int>(featureAnalysis_.loops.size());
+  report_.tracedFeatureEdges = featureAnalysis_.tracedFeatureEdges;
+  report_.untracedFeatureEdges = featureAnalysis_.untracedFeatureEdges;
   report_.normalTensorFeatureEdges = featureAnalysis_.normalTensorFeatureEdges;
+  report_.normalTensorScoredVertices = featureAnalysis_.normalTensorScoredVertices;
+  report_.maxNormalTensorPersistentScore =
+      featureAnalysis_.maxNormalTensorPersistentScore;
+  report_.meanNormalTensorLocalScale = featureAnalysis_.meanNormalTensorLocalScale;
+  report_.meanNormalTensorPersistence = featureAnalysis_.meanNormalTensorPersistence;
   for (const feature::FeatureLoop& loop : featureAnalysis_.loops) {
     if (loop.circular) {
       ++report_.circularFeatureLoops;

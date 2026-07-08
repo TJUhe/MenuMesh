@@ -65,6 +65,9 @@ struct SimplifyOptions {
   double featureBoost = 0.05;
   /// Dihedral threshold, in degrees, for hard-edge feature detection.
   double featureAngleDeg = 40.0;
+  /// Dihedral threshold used when tracing detected edges into loop ownership.
+  /// Negative means "reuse featureAngleDeg".
+  double loopTraceAngleDeg = -1.0;
   /// Scales line weights from local mesh size instead of using lineWeight alone.
   bool adaptiveScale = false;
   double adaptiveBaseLineWeight = 1e-2;
@@ -97,6 +100,7 @@ struct SimplifyOptions {
   double normalTensorMinEdgeAlignment = 0.45;
   int normalTensorSmoothingIterations = 0;
   int normalTensorScaleCount = 1;
+  int normalTensorMinPersistentScales = 1;
 
   // Hard post-placement filters and diagnostics.
   /// Hard post-placement filters. Zero local-error budgets disable those tests.
@@ -132,7 +136,13 @@ struct SimplifyReport {
   int featureLoops = 0;
   int circularFeatureLoops = 0;
   int featureVertices = 0;
+  int tracedFeatureEdges = 0;
+  int untracedFeatureEdges = 0;
   int normalTensorFeatureEdges = 0;
+  int normalTensorScoredVertices = 0;
+  double maxNormalTensorPersistentScore = 0.0;
+  double meanNormalTensorLocalScale = 0.0;
+  double meanNormalTensorPersistence = 0.0;
 
   // First-reject counters for current collapse candidates.
   int featureRejectedCollapses = 0;

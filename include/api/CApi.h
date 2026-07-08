@@ -107,6 +107,8 @@ typedef struct ManuMeshSimplifyOptions {
   int prevent_local_intersections;
   int verbose;
   ManuMeshFeatureProtectionMode feature_protection_mode;
+  double loop_trace_angle_deg;
+  int normal_tensor_min_persistent_scales;
 } ManuMeshSimplifyOptions;
 
 typedef struct ManuMeshSimplifyReport {
@@ -142,6 +144,14 @@ typedef struct ManuMeshSimplifyReport {
   ManuMeshSimplifyTerminationReason termination_reason;
   double min_applied_line_weight;
   double max_applied_line_weight;
+  /* Feature trace diagnostics. Added at the tail to preserve old field offsets. */
+  int traced_feature_edges;
+  int untraced_feature_edges;
+  /* Normal-tensor scale diagnostics. Added at the tail for ABI compatibility. */
+  int normal_tensor_scored_vertices;
+  double max_normal_tensor_persistent_score;
+  double mean_normal_tensor_local_scale;
+  double mean_normal_tensor_persistence;
 } ManuMeshSimplifyReport;
 
 typedef struct ManuMeshMeshStats {

@@ -11,9 +11,11 @@ void initializeFeatureGraph(const std::vector<CandidateEdge>& featureEdges,
                             FeatureAnalysis& analysis);
 
 TraceGraph buildTraceGraph(const Mesh& mesh, const FeatureOptions& options,
-                           const std::vector<CandidateEdge>& featureEdges);
+                           const std::vector<CandidateEdge>& featureEdges,
+                           FeatureAnalysis& analysis);
 
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b);
+bool traceEdgeNormalTensor(const TraceGraph& trace, int a, int b);
 int traceEdgeSign(const TraceGraph& trace, int a, int b);
 
 void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis);

@@ -1,5 +1,7 @@
 #include "FeatureDetectionTestSupport.h"
 
+#include "core/MeshGenerators.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -151,6 +153,52 @@ Mesh makeMixedDiscreteEvidenceMesh() {
   mesh.faces = {
       {{0, 1, 2}}, {{1, 0, 3}}, {{0, 1, 4}}, {{5, 6, 7}}, {{6, 5, 8}},
   };
+  return mesh;
+}
+
+Mesh makeShallowDihedralLoopMesh(double height) {
+  Mesh mesh;
+  mesh.vertices = {
+      Vec3(0.0, 0.0, height),  Vec3(0.0, 0.0, -height),
+      Vec3(1.0, 1.0, 0.0),     Vec3(-1.0, 1.0, 0.0),
+      Vec3(-1.0, -1.0, 0.0),   Vec3(1.0, -1.0, 0.0),
+  };
+  constexpr int top = 0;
+  constexpr int bottom = 1;
+  constexpr int firstRing = 2;
+  for (int i = 0; i < 4; ++i) {
+    const int a = firstRing + i;
+    const int b = firstRing + ((i + 1) % 4);
+    mesh.faces.push_back({{top, b, a}});
+    mesh.faces.push_back({{bottom, a, b}});
+  }
+  return mesh;
+}
+
+Mesh makeFragmentedCircleWithTensorRidgeMesh() {
+  constexpr int kSegments = 18;
+  constexpr double kPi = 3.141592653589793238462643383279502884;
+  Mesh mesh;
+  for (int i = 0; i < kSegments; ++i) {
+    const double angle =
+        2.0 * kPi * static_cast<double>(i) / static_cast<double>(kSegments);
+    mesh.vertices.push_back(Vec3(std::cos(angle), std::sin(angle), 0.0));
+  }
+  const int center = static_cast<int>(mesh.vertices.size());
+  mesh.vertices.push_back(Vec3(0.0, 0.0, 0.0));
+  for (int i = 0; i + 1 < kSegments; ++i) {
+    mesh.faces.push_back({{center, i, i + 1}});
+  }
+
+  const int offset = static_cast<int>(mesh.vertices.size());
+  Mesh ridge = manumesh::generateRidgeGrid(24, 2.0, 0.6);
+  for (const Vec3& vertex : ridge.vertices) {
+    mesh.vertices.push_back(vertex + Vec3(4.0, 0.0, 0.0));
+  }
+  for (const Face& face : ridge.faces) {
+    mesh.faces.push_back(
+        {{face.v[0] + offset, face.v[1] + offset, face.v[2] + offset}});
+  }
   return mesh;
 }
 

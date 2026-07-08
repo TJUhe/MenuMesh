@@ -27,6 +27,7 @@ struct TraceGraph {
   std::vector<std::vector<int>> adjacency;
   std::vector<char> traceVertex;
   std::unordered_map<std::uint64_t, bool> edgeIsBoundary;
+  std::unordered_map<std::uint64_t, bool> edgeIsNormalTensor;
   std::unordered_map<std::uint64_t, int> edgeSignedKind;
   std::vector<std::pair<int, int>> graphEdges;
 };

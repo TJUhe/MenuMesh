@@ -12,12 +12,13 @@ loop、空间查询、索引重映射和诊断结构。
 
 ```text
 src/common/detail/MathConstants.h   数学常量，例如 kPi
-src/common/detail/MeshQueries.h     边 key、面 key、边-面 incidence、面法向、面心、顶点邻接、边界顶点
+src/common/detail/MeshQueries.h     边 key、面 key、边-面 incidence、面法向、面心、顶点邻接、局部边长尺度、边界顶点
 src/common/MeshQueries.cpp          MeshQueries 实现
 ```
 
-这些能力已经被 feature detection 和 simplification 共用。后续新模块应优先查看
-common 是否已有能力，再决定新增私有 helper。
+这些能力已经被 feature detection 和 simplification 共用。`computeVertexAverageEdgeLength`
+已经用于 normal tensor 的局部尺度归一化，也会继续作为 QEM/feature policy 的采样
+密度基础诊断。后续新模块应优先查看 common 是否已有能力，再决定新增私有 helper。
 
 ## 应继续沉淀的方向
 

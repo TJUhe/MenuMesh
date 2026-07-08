@@ -55,6 +55,11 @@ manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &
 
 需要复用配置时使用 `manumesh::simplification::QEMSimplifier` 对象。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
 
+如果使用 normal-tensor 弱特征，`SimplifyOptions::normalTensorMinPersistentScales`
+控制最小多尺度支持数；`SimplifyReport` 会返回
+`normalTensorScoredVertices`、`maxNormalTensorPersistentScore`、
+`meanNormalTensorLocalScale` 和 `meanNormalTensorPersistence`，用于判断弱特征是否形成稳定支持。
+
 如果宿主程序不希望自己的 C++ 交换类型暴露 Eigen，使用 `PlainMesh` 入口：
 
 ```cpp
@@ -90,6 +95,7 @@ manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 7. 销毁 mesh handle 和 context。
 
 所有带 `struct_size` / `abi_version` 的结构体都必须先调用对应初始化函数。当前 `MANUMESH_ABI_VERSION` 为 `1`。同一 ABI 版本内，库接受尾部较短的旧 `struct_size`，只读取调用方结构体中实际存在的字段，缺失的新尾部字段使用库默认值；未初始化结构体或 ABI 版本不匹配仍会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。
+`normal_tensor_min_persistent_scales` 和 normal-tensor persistence 报告字段都位于 C ABI 结构体尾部，旧调用方保持默认行为。
 
 ## CMake config 与 Eigen
 

@@ -74,7 +74,7 @@ cmake -S . -B $buildDir -G Ninja `
 
 1. 运行 `Terminal > Run Task... > build: mingw+ninja debug`。
 2. 打开 Run and Debug，选择 `(MinGW Ninja) Debug CLI Feature Curves` 或 `(MinGW Ninja) Debug CLI Feature Report`。
-3. 在 VS Code 弹出的输入框中选择 `launchMesh`、`launchRatio`、`launchSamples`、`launchFeatureAngle`。
+3. 在 VS Code 弹出的输入框中选择 `launchMesh`、`launchRatio`、`launchSamples`、`launchFeatureAngle`、`launchLoopTraceAngle`。
 4. 命中断点后观察 `args`、`options`、`featureAnalysis_`、`report_` 和输出 CSV。
 
 如果要调单元测试：
@@ -177,7 +177,7 @@ ManuMesh 当前简化管线可以看成四层：
 | --- | --- | --- | --- |
 | 目标规模 | `--ratio`、`--target-faces`、`--ratios`、`--faces` | 决定边坍缩停止条件。 | `faces`、`collapsed_edges`、`termination_reason`。 |
 | 候选排序 | `--method`、`--line-weight`、`--weight-mode`、`--feature-boost`、`--adaptive-scale` | QEM 和 line quadrics 给每个候选 placement 排序。line quadrics 主要抑制平坦区域切向漂移。 | `min_line_weight`、`max_line_weight`、`solver_fallbacks`。 |
-| 特征图与曲线保护 | `--feature-angle-deg`、`--preserve-feature-curves`、`--feature-protection-mode`、primitive 拟合参数、normal tensor 参数 | 从三角网格推断 boundary、crease、弱特征和 primitive loop，再决定软约束或硬拒绝。 | `feature_edges`、`loops`、`feature_rejected_collapses`、`projected_feature_placements`。 |
+| 特征图与曲线保护 | `--feature-angle-deg`、`--loop-trace-angle-deg`、`--preserve-feature-curves`、`--feature-protection-mode`、primitive 拟合参数、normal tensor 参数 | 从三角网格推断 boundary、crease、弱特征和 primitive loop，再决定软约束或硬拒绝。 | `feature_edges`、`traced_edges`、`untraced_edges`、`loops`、`feature_rejected_collapses`、`projected_feature_placements`。 |
 | 合法性过滤 | `--preserve-boundary`、`--min-triangle-quality`、`--max-normal-deviation-deg`、`--max-local-error*`、`--prevent-local-intersections`、`--industrial-safe` | QEM 是排序，不是安全证明。硬过滤器负责阻止拓扑、法线、质量、局部误差和自交问题。 | `boundary_rejected_collapses`、`quality_rejected_collapses`、`error_rejected_collapses` 等。 |
 
 文献上，QEM/line quadrics 更像候选代价，不能替代合法性检查。特征保护也不是“把所有特征点锁死”这么简单；过强硬锁会保住曲线但损伤三角形质量，所以当前默认 `primitive-curves` 只硬保护拟合出的圆、近圆和椭圆 loop，普通 crease 更多作为软成本和过滤依据。
@@ -246,6 +246,7 @@ ManuMesh 当前简化管线可以看成四层：
 | 参数 | 进入字段 | 数学/工程意义 | 断点 | 输出观察 |
 | --- | --- | --- | --- | --- |
 | `--feature-angle-deg A` | `featureAngleDeg` | 二面角阈值。相邻三角面法向夹角超过阈值时更容易被认为是 crease。 | `FeatureEvidence.cpp` | `dihedral_edges`、`convex_edges`、`concave_edges`。 |
+| `--loop-trace-angle-deg A` | `loopTraceAngleDeg` | 二面角 edge 进入 loop tracing 的阈值。`-1` 表示复用 `featureAngleDeg`；设得更高时，edge 仍可作为 evidence 统计，但不会进入 loop ownership。 | `FeatureGraph.cpp` | `traced_edges`、`untraced_edges`、`loops`、`feature_vertices`。 |
 | `--circle-fit-threshold R` | `circleFitRelativeThreshold` | 圆 loop 的相对拟合误差阈值。越小越严格。 | `PrimitiveFit.cpp` | `circle_loops`、`near_circle_loops`、`rmsRadialError`。 |
 | `--ellipse-fit-threshold R` | `ellipseFitRelativeThreshold` | 椭圆 loop 的相对拟合误差阈值。 | `PrimitiveFit.cpp` | `ellipse_loops`、`rmsEllipseError`。 |
 | `--near-circle-axis-ratio-tolerance R` | `nearCircleAxisRatioTolerance` | 椭圆长短轴比接近 1 时可归为 near-circle 的容差。 | `PrimitiveFit.cpp` | `near_circle_loops` 与 `ellipse_loops` 的分配。 |
@@ -255,9 +256,10 @@ ManuMesh 当前简化管线可以看成四层：
 | `--normal-tensor-edge-alignment A` | `normalTensorMinEdgeAlignment` | 边方向与 tensor crease tangent 的最小对齐要求，范围 `[0,1]`。 | `FeatureEvidence.cpp` | alignment 变严格时 `normal_tensor_edges` 减少。 |
 | `--normal-tensor-smoothing N` | `normalTensorSmoothingIterations` | tensor 评分前的法向平滑迭代数。 | `NormalTensor.cpp` | 噪声敏感性下降，但弱小特征可能被抹平。 |
 | `--normal-tensor-scales N` | `normalTensorScaleCount` | tensor 多尺度数量。 | `NormalTensor.cpp` | 多尺度能提高稳定性，但耗时增加。 |
+| `--normal-tensor-min-persistent-scales N` | `normalTensorMinPersistentScales` | tensor 弱特征边至少需要 N 个尺度支持。默认 1，调试弱特征时建议从 2 开始。 | `FeatureEvidence.cpp`、`Quadrics.cpp` | `normal_tensor_edges`、`max_normal_tensor_persistent_score`、`mean_normal_tensor_persistence`。 |
 | `--no-normal-tensor-features` | `useNormalTensorFeatures=false` | 关闭 tensor 弱特征候选，只保留 boundary/dihedral/non-manifold 证据。 | `FeatureEvidence.cpp` | `normal_tensor_edges=0`。 |
 
-调试建议：在 `boss_pocket_plate.obj` 上设置 `--feature-angle-deg 179 --weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2`，可把二面角通道基本关掉，专门观察 tensor 弱特征。
+调试建议：在 `boss_pocket_plate.obj` 上设置 `--feature-angle-deg 179 --weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2`，可把二面角通道基本关掉，专门观察 tensor 弱特征。`feature-report` 调试配置也会传入这组多尺度参数，用于观察 persistence 评分。
 
 ### 特征曲线保护参数
 
@@ -314,13 +316,19 @@ preventLocalIntersections = true
 | 字段 | 含义 |
 | --- | --- |
 | `feature_edges` | 进入 feature graph 的总边数。 |
+| `traced_edges` | 进入 loop tracing、可被 vertex ownership 和简化保护消费的边数。 |
+| `untraced_edges` | 被识别为 feature evidence 但没有进入 loop tracing 的边数。 |
 | `boundary_edges` | 开放边界产生的特征边。 |
 | `dihedral_edges` | 二面角阈值产生的特征边。 |
 | `normal_tensor_edges` | normal tensor 弱特征产生的边。 |
+| `normal_tensor_scored_vertices` | normal tensor 产生非零弱特征分数的顶点数。 |
 | `non_manifold_edges` | 非流形结构产生的边。 |
 | `convex_edges`、`concave_edges` | 通过符号二面角区分的凸/凹边。 |
 | `unknown_signed_edges` | 无法稳定判断凸凹的特征边。 |
 | `max_normal_tensor_score` | 当前模型中最大的 tensor 特征分数。 |
+| `max_normal_tensor_persistent_score` | 结合平均分数和多尺度 persistence 后的最大 tensor 分数。 |
+| `mean_normal_tensor_local_scale` | tensor scored vertices 的平均局部边长尺度。 |
+| `mean_normal_tensor_persistence` | tensor scored vertices 的平均支持尺度数。 |
 | `loops` | 恢复出的特征曲线/环数量。 |
 | `circle_loops`、`near_circle_loops`、`ellipse_loops`、`polygonal_loops` | primitive 拟合分类。 |
 
@@ -353,8 +361,14 @@ preventLocalIntersections = true
 | `feature_loops` | 简化开始时识别出的 loop 数。 |
 | `circular_feature_loops` | 圆/近圆 loop 数。 |
 | `feature_vertices` | 被 feature graph 标记的顶点数。 |
+| `traced_feature_edges` | 进入 loop tracing 的输入 feature edge 数。 |
+| `untraced_feature_edges` | 只进入 evidence 诊断、没有进入 loop ownership 的 feature edge 数。 |
 | `feature_protection_mode` | 本次使用的硬保护模式。 |
 | `normal_tensor_feature_edges` | tensor 弱特征边数。 |
+| `normal_tensor_scored_vertices` | tensor 有效评分顶点数。 |
+| `max_normal_tensor_persistent_score` | QEM normal-tensor weight mode 使用的最大 persistent score。 |
+| `mean_normal_tensor_local_scale` | tensor scored vertices 的平均局部尺度。 |
+| `mean_normal_tensor_persistence` | tensor scored vertices 的平均支持尺度数。 |
 | `primitive_feature_rejected` | primitive loop 保护产生的拒绝。 |
 | `generic_feature_rejected` | 普通 feature edge 保护产生的拒绝。 |
 | `projected_feature_placements` | placement 被投影回 primitive 曲线的次数。 |
@@ -372,7 +386,9 @@ preventLocalIntersections = true
 | `non_manifold_edges` | 输出是否产生非流形风险。 |
 | `collapsed_edges`、`rejected_collapses` | 候选接受与拒绝数量。 |
 | `feature_loops`、`circular_feature_loops`、`feature_vertices` | 特征识别进入简化的规模。 |
+| `traced_feature_edges`、`untraced_feature_edges` | 判断 feature evidence 是否真的进入 loop ownership。 |
 | `normal_tensor_feature_edges` | tensor 通道是否有效。 |
+| `normal_tensor_scored_vertices`、`max_normal_tensor_persistent_score`、`mean_normal_tensor_persistence` | tensor 多尺度弱特征是否形成稳定支持。 |
 | `feature_protection_mode` | 确认本次硬保护策略。 |
 | `*_rejected_collapses` | 定位哪个过滤器限制了简化。 |
 | `projected_feature_placements` | 曲线 projection 是否实际发生。 |
@@ -470,6 +486,7 @@ build/mingw-ninja-debug/bin/manumesh.exe
 先在 `parseSimplifyOptions` 或 `parseFeatureOptions` 看字段是否变了。如果字段变了但输出没变，说明参数所在层级没有成为当前模型的主导因素。例如：
 
 - `--feature-boost` 需要配合非 `uniform` 的 `--weight-mode` 才容易看到权重范围变化。
+- `--loop-trace-angle-deg` 只影响 edge 是否进入 loop ownership，不会改变 `feature_edges` evidence 总数。
 - `--max-feature-curve-deviation-ratio` 只有启用 `--preserve-feature-curves` 且存在 feature curve 时才有意义。
 - `--no-normal-tensor-features` 对只有强二面角特征的模型影响可能很小。
 - `--boundary-weight` 是软成本，想要硬保护开放边界应使用 `--preserve-boundary`。
@@ -498,9 +515,10 @@ build/mingw-ninja-debug/bin/manumesh.exe
 ```text
 --normal-tensor-smoothing
 --normal-tensor-scales
+--normal-tensor-min-persistent-scales
 ```
 
-然后用 `feature-report` 比较 `normal_tensor_edges` 和 `max_normal_tensor_score`。对于干净 CAD/STL，二面角和 primitive loop 通常比 tensor 更直接；tensor 更适合作为弱特征补充。
+然后用 `feature-report` 比较 `normal_tensor_edges`、`max_normal_tensor_persistent_score` 和 `mean_normal_tensor_persistence`。对于干净 CAD/STL，二面角和 primitive loop 通常比 tensor 更直接；tensor 更适合作为弱特征补充。
 
 ### CMakeCache 指向旧文件夹
 

@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ManuMesh Kernel Developer Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --ink: #1e293b;
+      --muted: #64748b;
+      --line: #d9e2ec;
+      --line-strong: #b8c7d9;
+      --brand: #115e8a;
+      --brand-dark: #0f4262;
+      --brand-soft: #e6f3f9;
+      --accent: #2f855a;
+      --warn: #a16207;
+      --danger: #b42318;
+      --code-bg: #101828;
+      --code-ink: #eef2f7;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      --radius: 6px;
+      --max: 1180px;
+      font-family:
+        "Segoe UI",
+        "Microsoft YaHei",
+        "PingFang SC",
+        Arial,
+        sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    a {
+      color: var(--brand);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .topbar-inner {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .product {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 38px;
+      height: 38px;
+      border: 1px solid #8eb9cf;
+      background:
+        linear-gradient(135deg, #e9f6fb 0%, #ffffff 58%),
+        #ffffff;
+      display: grid;
+      place-items: center;
+      color: var(--brand-dark);
+      font-weight: 700;
+      letter-spacing: 0;
+      border-radius: 4px;
+      flex: 0 0 auto;
+    }
+
+    .product h1 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.15;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .product small {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pill {
+      border: 1px solid var(--line-strong);
+      background: #f8fafc;
+      color: #334155;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .layout {
+      max-width: var(--max);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 22px;
+      padding: 22px 20px 54px;
+    }
+
+    aside {
+      position: sticky;
+      top: 73px;
+      align-self: start;
+      max-height: calc(100vh - 94px);
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .toc-head {
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .toc-head strong {
+      display: block;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--brand-dark);
+    }
+
+    .toc-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    nav {
+      padding: 10px 8px 14px;
+    }
+
+    nav a {
+      display: block;
+      color: #334155;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+    }
+
+    nav a:hover {
+      background: var(--brand-soft);
+      border-left-color: var(--brand);
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    .hero {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .hero-banner {
+      background:
+        linear-gradient(90deg, rgba(17, 94, 138, 0.96), rgba(21, 70, 98, 0.96)),
+        #115e8a;
+      color: #ffffff;
+      padding: 30px 32px 26px;
+    }
+
+    .hero-banner h2 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      font-weight: 680;
+    }
+
+    .hero-banner p {
+      max-width: 850px;
+      margin: 0;
+      color: #eaf6fb;
+      font-size: 16px;
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      background: #ffffff;
+    }
+
+    .hero-meta div {
+      padding: 14px 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .hero-meta div:last-child {
+      border-right: 0;
+    }
+
+    .hero-meta dt {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 0 0 4px;
+    }
+
+    .hero-meta dd {
+      margin: 0;
+      font-weight: 650;
+      color: #243447;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-top: 18px;
+      padding: 26px 30px;
+    }
+
+    section h2 {
+      margin: 0 0 14px;
+      color: var(--brand-dark);
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section h3 {
+      margin: 22px 0 9px;
+      font-size: 18px;
+      color: #223449;
+      letter-spacing: 0;
+    }
+
+    section h4 {
+      margin: 18px 0 8px;
+      font-size: 15px;
+      color: #334155;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    ul,
+    ol {
+      padding-left: 22px;
+      margin: 10px 0;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .note {
+      border-left: 4px solid var(--brand);
+      background: #f4f9fc;
+      padding: 12px 14px;
+      margin: 14px 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .warning {
+      border-left-color: var(--warn);
+      background: #fff8e7;
+    }
+
+    .success {
+      border-left-color: var(--accent);
+      background: #eef8f2;
+    }
+
+    .danger {
+      border-left-color: var(--danger);
+      background: #fff1f0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 14px 0;
+    }
+
+    .module {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      background: #fbfdff;
+      min-height: 132px;
+    }
+
+    .module h3 {
+      margin-top: 0;
+      font-size: 16px;
+      color: var(--brand-dark);
+    }
+
+    .module p {
+      color: #475569;
+      margin-bottom: 0;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #14532d;
+      background: #dcfce7;
+      border: 1px solid #bbf7d0;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .status.partial {
+      color: #7c2d12;
+      background: #ffedd5;
+      border-color: #fed7aa;
+    }
+
+    .status.future {
+      color: #334155;
+      background: #eef2f7;
+      border-color: #d8dee9;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      table-layout: fixed;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      word-break: break-word;
+    }
+
+    th {
+      background: #edf5f9;
+      color: var(--brand-dark);
+      text-align: left;
+      font-weight: 650;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      background: #eef2f7;
+      color: #0f172a;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.94em;
+    }
+
+    pre {
+      margin: 14px 0;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      border-radius: var(--radius);
+      overflow: auto;
+      padding: 15px 16px;
+      font-size: 13px;
+      line-height: 1.55;
+      border: 1px solid #1f2937;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .diagram {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 14px 0;
+      overflow-x: auto;
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      white-space: pre;
+      color: #1f2937;
+      line-height: 1.55;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 22px 0 10px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        position: static;
+        max-height: none;
+      }
+
+      .hero-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        justify-content: flex-start;
+      }
+
+      .hero-banner,
+      section {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .hero-banner h2 {
+        font-size: 24px;
+      }
+
+      .hero-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-meta div {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .hero-meta div:last-child {
+        border-bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="product">
+        <div class="mark" aria-hidden="true">MM</div>
+        <div>
+          <h1>ManuMesh Kernel Developer Guide</h1>
+          <small>Commercial mesh geometry kernel delivery documentation</small>
+        </div>
+      </div>
+      <div class="top-actions" aria-label="Document metadata">
+        <span class="pill">Version 0.1.0</span>
+        <span class="pill">C++17 SDK</span>
+        <span class="pill">2026-07-09</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="toc-head">
+        <strong>Contents</strong>
+        <span>交付级开发文档目录</span>
+      </div>
+      <nav>
+        <a href="#intro">1. Introduction</a>
+        <a href="#scope">2. Kernel Scope</a>
+        <a href="#modules">3. Module Map</a>
+        <a href="#architecture">4. Architecture</a>
+        <a href="#data-model">5. Mesh Data Model</a>
+        <a href="#feature">6. Feature Detection</a>
+        <a href="#simplification">7. QEM Simplification</a>
+        <a href="#api">8. Public API</a>
+        <a href="#capi">9. C ABI</a>
+        <a href="#build">10. Build And Packaging</a>
+        <a href="#validation">11. Validation</a>
+        <a href="#extension">12. Extension Policy</a>
+        <a href="#limitations">13. Boundaries</a>
+        <a href="#delivery">14. Delivery Checklist</a>
+      </nav>
+    </aside>
+
+    <main>
+      <article class="hero" id="intro">
+        <div class="hero-banner">
+          <h2>ManuMesh Commercial Kernel Documentation</h2>
+          <p>
+            ManuMesh is a C++17 faceted mesh geometry kernel focused on
+            additive-manufacturing mesh analysis and constrained mesh
+            simplification. This guide is written as a delivery document for SDK
+            consumers, integrators, QA engineers, and kernel developers.
+          </p>
+        </div>
+        <dl class="hero-meta">
+          <div>
+            <dt>Primary Domain</dt>
+            <dd>Triangle Mesh Kernel</dd>
+          </div>
+          <div>
+            <dt>Delivery Form</dt>
+            <dd>C++ SDK / C ABI / CLI</dd>
+          </div>
+          <div>
+            <dt>Core Algorithm</dt>
+            <dd>QEM + Line Quadrics</dd>
+          </div>
+          <div>
+            <dt>Validation Profile</dt>
+            <dd>CTest + External STL</dd>
+          </div>
+        </dl>
+      </article>
+
+      <section id="scope">
+        <h2>1. Kernel Scope</h2>
+        <p>
+          ManuMesh provides a reusable geometry-processing kernel for triangular
+          surface meshes. It is designed for applications that need robust mesh
+          simplification, feature evidence extraction, topology-aware edge
+          collapse, and SDK-level integration into manufacturing or inspection
+          software.
+        </p>
+        <div class="note">
+          <strong>Commercial positioning:</strong> the current release is a
+          mesh kernel, not a full B-Rep CAD kernel. It operates on STL/OBJ-style
+          triangle data and infers manufacturing features from tessellated
+          geometry.
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th>Status</th>
+              <th>Delivery meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Mesh storage, IO utilities, topology queries</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Public C++ mesh types and internal topology helpers are usable by SDK examples and tests.</td>
+            </tr>
+            <tr>
+              <td>Feature evidence and feature loop recovery</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Boundary, dihedral, non-manifold, local-scale normal-tensor evidence and primitive loop classification are available.</td>
+            </tr>
+            <tr>
+              <td>QEM / line-quadrics simplification</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Edge-collapse simplification with plane quadrics, line quadrics, feature-curve quadrics, and diagnostic reports.</td>
+            </tr>
+            <tr>
+              <td>Industrial legality gates</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Topology, boundary, normal deviation, triangle quality, local error, and local self-intersection filters.</td>
+            </tr>
+            <tr>
+              <td>Global tolerance envelope / certified Hausdorff bounds</td>
+              <td><span class="status partial">Partial</span></td>
+              <td>Local error and sampled distance metrics exist; global certification should be added before safety-critical use.</td>
+            </tr>
+            <tr>
+              <td>B-Rep modeling, Boolean operations, offset, shape healing</td>
+              <td><span class="status future">Roadmap</span></td>
+              <td>Out of scope for this mesh-kernel delivery; should be documented as separate kernel modules if implemented.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="modules">
+        <h2>2. Module Map</h2>
+        <p>
+          The SDK follows a modular structure similar to mature CAD kernels:
+          stable public headers are separated from implementation details, and
+          command-line tools consume the public API instead of owning algorithm
+          logic.
+        </p>
+        <div class="grid">
+          <div class="module">
+            <h3>Core</h3>
+            <p>
+              Defines mesh exchange types, status objects, topology caches, and
+              mesh generators. Public headers live in <code>include/core</code>.
+            </p>
+          </div>
+          <div class="module">
+            <h3>Feature Detection</h3>
+            <p>
+              Produces <code>FeatureAnalysis</code> from triangle meshes:
+              feature edges, loops, primitive fits, tangents, local tensor scale,
+              persistence, and diagnostics.
+            </p>
+          </div>
+          <div class="module">
+            <h3>Simplification</h3>
+            <p>
+              Runs QEM / line-quadrics edge collapse with feature policies and
+              hard legality filters. Public headers live in
+              <code>include/algorithms/simplification</code>.
+            </p>
+          </div>
+          <div class="module">
+            <h3>C ABI</h3>
+            <p>
+              Provides opaque handles, explicit struct initialization, and ABI
+              versioning for non-C++ or compiler-boundary integrations.
+            </p>
+          </div>
+          <div class="module">
+            <h3>CLI</h3>
+            <p>
+              The <code>manumesh</code> executable demonstrates SDK workflows,
+              generates validation output, and supports automation.
+            </p>
+          </div>
+          <div class="module">
+            <h3>Validation</h3>
+            <p>
+              GoogleTest, CTest, fixture meshes, external STL/OBJ data, and
+              metrics output form the acceptance basis for delivery.
+            </p>
+          </div>
+        </div>
+        <h3>Source Organization</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Role</th>
+              <th>Stability</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>include/core</code></td>
+              <td>SDK mesh, topology, status, generators, and plain exchange types.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>include/algorithms</code></td>
+              <td>Public algorithm options, result types, and object facades.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>include/api</code></td>
+              <td>C ABI for binary-stable client integration.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>src/common/detail</code></td>
+              <td>Internal reusable mesh queries and math constants.</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/feature_detection</code></td>
+              <td>Feature evidence, graph construction, loop recovery, primitive fitting.</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/simplification</code></td>
+              <td>QEM, queue, dynamic topology, collapse policy, legality checks.</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>apps/manumesh</code></td>
+              <td>Command-line application built on top of the SDK.</td>
+              <td>Application layer</td>
+            </tr>
+            <tr>
+              <td><code>tests</code></td>
+              <td>Regression, ABI, feature, simplification, and external-model validation.</td>
+              <td>Delivery gate</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="architecture">
+        <h2>3. Architecture</h2>
+        <p>
+          ManuMesh is organized around a narrow dependency direction. Core data
+          structures are the foundation. Feature detection consumes core mesh
+          data. Simplification may consume feature analysis, but feature
+          detection must not depend on simplification.
+        </p>
+        <div class="diagram">core
+  -> feature_detection
+  -> simplification
+
+core + common/detail
+  -> feature_detection
+  -> simplification
+
+applications
+  -> public SDK headers
+  -> C ABI when compiler or language boundaries require it</div>
+        <h3>Run-Time Pipeline</h3>
+        <div class="diagram">Mesh
+  -> validate input
+  -> analyze feature evidence
+  -> build initial plane / line / boundary / feature quadrics
+  -> initialize dynamic topology and candidate queue
+  -> solve edge-collapse placements
+  -> apply feature, boundary, topology, normal, quality, error, and intersection gates
+  -> update topology and queue
+  -> compact result and emit SimplifyReport</div>
+        <h3>Design Contracts</h3>
+        <ul>
+          <li>QEM and line quadrics rank collapse candidates; they do not replace hard legality checks.</li>
+          <li><code>FeatureAnalysis</code> is a reusable semantic support layer, not a private detail of the simplifier.</li>
+          <li>The CLI is a consumer of the SDK, not the owner of kernel behavior.</li>
+          <li>Public C++ types should remain stable and documented; algorithm internals stay in <code>src/.../detail</code>.</li>
+          <li>New production filters must report their first-rejection counters in <code>SimplifyReport</code>.</li>
+        </ul>
+      </section>
+
+      <section id="data-model">
+        <h2>4. Mesh Data Model</h2>
+        <p>
+          The kernel works on indexed triangle meshes. The main C++ type
+          <code>manumesh::Mesh</code> stores vertices and triangular faces and
+          is intended for in-process C++ SDK consumers. For ABI-sensitive
+          integration, use <code>PlainMesh</code> or the C API.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Purpose</th>
+              <th>Recommended use</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Mesh</code></td>
+              <td>Eigen-backed mesh convenience type.</td>
+              <td>C++ clients built with compatible compiler and ABI settings.</td>
+            </tr>
+            <tr>
+              <td><code>PlainMesh</code></td>
+              <td>Eigen-free exchange type.</td>
+              <td>Clients that want C++ ergonomics without exposing Eigen in exchange structs.</td>
+            </tr>
+            <tr>
+              <td><code>MeshTopology</code></td>
+              <td>Cached topology queries for boundary and non-manifold analysis.</td>
+              <td>SDK users that need read-only topology diagnostics.</td>
+            </tr>
+            <tr>
+              <td><code>ManuMeshMeshHandle</code></td>
+              <td>C ABI opaque mesh handle.</td>
+              <td>C, C#, Python bindings, plugins, and binary-boundary integrations.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="warning note">
+          STL and OBJ meshes do not carry B-Rep semantics. Circles, holes,
+          fillets, pockets, and patch boundaries are inferred from tessellation
+          evidence and should be validated for the target data source.
+        </div>
+      </section>
+
+      <section id="feature">
+        <h2>5. Feature Detection</h2>
+        <p>
+          The feature module converts low-level mesh evidence into an explicit
+          feature graph and loop-level descriptors. This layer is designed to be
+          consumed by simplification today and by repair, remeshing, or
+          validation modules in future releases.
+        </p>
+        <h3>Evidence Sources</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Evidence</th>
+              <th>Meaning</th>
+              <th>Main risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Boundary</td>
+              <td>Edge with only one adjacent face.</td>
+              <td>Open mesh boundaries may be intentional or defects.</td>
+            </tr>
+            <tr>
+              <td>Dihedral</td>
+              <td>Adjacent face normals exceed the angle threshold.</td>
+              <td>Threshold depends on tessellation and noise.</td>
+            </tr>
+            <tr>
+              <td>Non-manifold</td>
+              <td>Edge has more than two adjacent faces.</td>
+              <td>Often signals invalid input, not a design feature.</td>
+            </tr>
+            <tr>
+              <td>Normal tensor</td>
+              <td>Local normal distribution suggests crease or corner saliency.</td>
+              <td>Local edge scale, smoothing, multi-scale persistence, and minimum persistent scales dominate weak-feature behavior.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Feature Analysis Output</h3>
+        <ul>
+          <li><code>FeatureEdge</code>: classified edge evidence and source counters.</li>
+          <li><code>FeatureLoop</code>: recovered chain or loop with closure, primitive type, fit errors, and loop statistics.</li>
+          <li><code>VertexFeature</code>: per-vertex feature ownership, tangent, circle data, and ellipse data.</li>
+          <li>Diagnostics: boundary, dihedral, normal-tensor, non-manifold, convex, concave, unknown edge counts, traced/untraced edges, tensor scored vertices, persistent score, local scale, and persistence.</li>
+        </ul>
+        <h3>Primitive Recovery</h3>
+        <p>
+          Closed loops can be classified as circle, near-circle, ellipse, or
+          polygonal loop. Primitive fitting is intentionally limited to
+          tessellated feature supports; it is not a replacement for exact CAD
+          feature recognition.
+        </p>
+      </section>
+
+      <section id="simplification">
+        <h2>6. QEM Simplification</h2>
+        <p>
+          The simplification module is a constrained edge-collapse pipeline. It
+          uses Quadric Error Metrics for geometric ranking, line quadrics for
+          tangential regularization, and explicit filters for production safety.
+        </p>
+        <h3>Plane QEM</h3>
+        <p>
+          A face plane can be expressed as <code>n^T x + d = 0</code>. The
+          squared point-to-plane error is accumulated as a homogeneous quadric:
+        </p>
+        <pre><code>E_plane(x) = (n^T x + d)^2
+           = [x, 1]^T (p p^T) [x, 1]</code></pre>
+        <p>
+          Plane quadrics keep the simplified mesh close to local tangent
+          planes. In near-flat regions they may be underconstrained in tangential
+          directions, which is why the kernel also supports line quadrics.
+        </p>
+        <h3>Line Quadrics</h3>
+        <p>
+          A line quadric penalizes the distance from a placement to a local
+          support line. It behaves as a small regularizer that improves candidate
+          ordering and placement stability where plane QEM has weak tangential
+          constraints.
+        </p>
+        <pre><code>E_total = E_plane
+        + lambda_line * E_line
+        + lambda_boundary * E_boundary
+        + lambda_feature * E_feature_curve</code></pre>
+        <h3>Collapse Acceptance</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Gate</th>
+              <th>Report field</th>
+              <th>Delivery purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Feature policy</td>
+              <td><code>featureRejectedCollapses</code></td>
+              <td>Protect primitive loops, junctions, and minimum loop vertices.</td>
+            </tr>
+            <tr>
+              <td>Boundary policy</td>
+              <td><code>boundaryRejectedCollapses</code></td>
+              <td>Prevent unwanted open-boundary merging or removal.</td>
+            </tr>
+            <tr>
+              <td>Topology link condition</td>
+              <td><code>topologyRejectedCollapses</code></td>
+              <td>Preserve local topological consistency during collapse.</td>
+            </tr>
+            <tr>
+              <td>Normal deviation</td>
+              <td><code>normalFlipRejectedCollapses</code></td>
+              <td>Avoid foldover and severe local orientation changes.</td>
+            </tr>
+            <tr>
+              <td>Triangle quality</td>
+              <td><code>qualityRejectedCollapses</code></td>
+              <td>Reject triangles below the configured quality threshold.</td>
+            </tr>
+            <tr>
+              <td>Local error</td>
+              <td><code>errorRejectedCollapses</code></td>
+              <td>Reject collapses exceeding the configured local distance budget.</td>
+            </tr>
+            <tr>
+              <td>Local self-intersection</td>
+              <td><code>selfIntersectionRejectedCollapses</code></td>
+              <td>Avoid newly introduced intersections against active nearby faces.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Recommended Industrial Preset</h3>
+        <pre><code>manumesh::simplification::SimplifyOptions opt;
+opt.targetRatio = 0.25;
+opt.useLineQuadrics = true;
+opt.lineWeight = 1e-3;
+opt.weightMode = manumesh::simplification::WeightMode::Dihedral;
+opt.featureBoost = 0.05;
+opt.preserveFeatureCurves = true;
+opt.featureProtectionMode =
+    manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
+opt.featureCurveWeight = 0.05;
+opt.maxFeatureCurveDeviationRatio = 0.02;
+opt.maxNormalDeviationDeg = 60.0;
+opt.minTriangleQuality = 0.05;
+opt.maxLocalErrorRatio = 0.02;
+opt.preventLocalIntersections = true;</code></pre>
+        <div class="note">
+          The preset is conservative. For aggressive decimation, acceptance
+          should be based on <code>SimplifyReport</code>, metrics CSV output, and
+          visual review of representative production meshes.
+        </div>
+      </section>
+
+      <section id="api">
+        <h2>7. Public C++ API</h2>
+        <p>
+          The public API is intentionally small. Users configure an option
+          struct, call a stateless convenience function or a reusable object
+          facade, and inspect a report.
+        </p>
+        <h3>Minimal Simplification Example</h3>
+        <pre><code>#include "core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
+
+manumesh::Mesh input = loadUserMesh();
+
+manumesh::simplification::SimplifyOptions options;
+options.targetRatio = 0.25;
+options.useLineQuadrics = true;
+options.preserveFeatureCurves = true;
+
+manumesh::simplification::SimplifyReport report;
+manumesh::simplification::QEMSimplifier simplifier(options);
+manumesh::Mesh output = simplifier.simplify(input, &report);</code></pre>
+        <h3>Feature Analysis Example</h3>
+        <pre><code>#include "algorithms/feature_detection/FeatureDetector.h"
+
+manumesh::feature::FeatureOptions featureOptions;
+featureOptions.featureAngleDeg = 40.0;
+featureOptions.useNormalTensorFeatures = true;
+
+manumesh::feature::FeatureDetector detector(featureOptions);
+manumesh::feature::FeatureAnalysis analysis = detector.analyze(input);</code></pre>
+        <h3>PlainMesh Entry Point</h3>
+        <pre><code>#include "algorithms/simplification/PlainSimplifier.h"
+
+manumesh::PlainMesh plainInput = getPlainMeshFromHost();
+manumesh::simplification::SimplifyReport report;
+manumesh::PlainMesh plainOutput =
+    manumesh::simplification::simplifyPlainMesh(
+        plainInput, options, &report);</code></pre>
+      </section>
+
+      <section id="capi">
+        <h2>8. C ABI</h2>
+        <p>
+          The C ABI is the preferred boundary for plugins, other languages, or
+          clients that cannot share the same C++ compiler and standard-library
+          ABI. All public C structs must be initialized before use.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Call the matching <code>*_init</code> function for every public C struct.</td>
+              <td>Sets ABI version, struct size, and default values.</td>
+            </tr>
+            <tr>
+              <td>Do not allocate or free opaque handles manually.</td>
+              <td>The library owns handle lifetime and internal representation.</td>
+            </tr>
+            <tr>
+              <td>Pass caller-owned buffers when copying mesh data out.</td>
+              <td>Avoids allocator mismatch across module boundaries.</td>
+            </tr>
+            <tr>
+              <td>Check returned status values instead of expecting exceptions.</td>
+              <td>C clients need explicit error paths and stable status codes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="build">
+        <h2>9. Build And Packaging</h2>
+        <p>
+          ManuMesh uses CMake and supports static or shared library builds. The
+          recommended Windows development profile is MinGW + Ninja or a fully
+          initialized Visual Studio developer environment.
+        </p>
+        <h3>MinGW + Ninja</h3>
+        <pre><code>cmake -S . -B build/mingw-release -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_C_COMPILER=gcc ^
+  -DCMAKE_CXX_COMPILER=g++ ^
+  -DMANUMESH_EIGEN_PROVIDER=vendored ^
+  -DMANUMESH_GOOGLETEST_PROVIDER=source
+
+cmake --build build/mingw-release --parallel
+ctest --test-dir build/mingw-release -LE performance --output-on-failure</code></pre>
+        <h3>SDK Install Layout</h3>
+        <pre><code>cmake -S . -B build/sdk-release -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_C_COMPILER=gcc ^
+  -DCMAKE_CXX_COMPILER=g++ ^
+  -DMANUMESH_ENABLE_INSTALL=ON ^
+  -DMANUMESH_INSTALL_CMAKE_CONFIG=ON
+
+cmake --build build/sdk-release --target sdk-consumer-test --parallel</code></pre>
+        <table>
+          <thead>
+            <tr>
+              <th>Installed path</th>
+              <th>Contents</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>bin/</code></td>
+              <td>Runtime library and command-line executable.</td>
+            </tr>
+            <tr>
+              <td><code>include/</code></td>
+              <td>Public SDK headers.</td>
+            </tr>
+            <tr>
+              <td><code>lib/</code></td>
+              <td>Import or static libraries and optional CMake package files.</td>
+            </tr>
+            <tr>
+              <td><code>share/manumesh/</code></td>
+              <td>MSVC property sheet, vendored Eigen headers, and samples when enabled.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="validation">
+        <h2>10. Validation</h2>
+        <p>
+          Delivery acceptance should be based on repeatable build, unit tests,
+          ABI tests, external mesh fixtures, metrics, and visual inspection of
+          generated STL files.
+        </p>
+        <h3>Regression Gate</h3>
+        <pre><code>cmake --build build/audit-mingw --target unit-tests --parallel</code></pre>
+        <div class="success note">
+          Latest local audit on 2026-07-09: 80 / 80 non-performance tests passed
+          with the MinGW + Ninja release configuration.
+        </div>
+        <h3>External Model Gate</h3>
+        <pre><code>build/audit-mingw/bin/manumesh.exe validate-external --ratio 0.25 --samples 800</code></pre>
+        <p>
+          This command generates simplified STL outputs and metrics under
+          <code>tests/output/external_model_validation</code>. Review at least:
+        </p>
+        <ul>
+          <li>final face count and termination reason;</li>
+          <li>mean and maximum sampled original-to-simplified distance;</li>
+          <li>minimum triangle quality and edge-length variation;</li>
+          <li>feature loops and primitive preservation diagnostics;</li>
+          <li>topology, normal, quality, error, and self-intersection rejection counters.</li>
+        </ul>
+        <h3>Acceptance Matrix</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Required evidence</th>
+              <th>Pass signal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Build</td>
+              <td>Clean CMake configure and compile on the selected toolchain.</td>
+              <td>All requested SDK, CLI, examples, and tests build.</td>
+            </tr>
+            <tr>
+              <td>API</td>
+              <td>C++ and C ABI examples run without crashes or leaks visible to host tests.</td>
+              <td>Examples and ABI tests pass.</td>
+            </tr>
+            <tr>
+              <td>Algorithm</td>
+              <td>Fixture and external models reach target or report a meaningful blocking gate.</td>
+              <td><code>terminationReason</code> is explainable and diagnostics match parameter intent.</td>
+            </tr>
+            <tr>
+              <td>Geometry quality</td>
+              <td>Metrics CSV plus visual STL inspection.</td>
+              <td>No obvious holes, foldovers, unintended boundary merges, or severe sliver triangles under the acceptance preset.</td>
+            </tr>
+            <tr>
+              <td>Documentation</td>
+              <td>This HTML, API headers, examples, and archived prototype notes.</td>
+              <td>Integrator can build, call, validate, and diagnose the kernel without reading private source first.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="extension">
+        <h2>11. Extension Policy</h2>
+        <p>
+          New capabilities should enter the kernel as parallel modules with
+          explicit dependencies. Avoid turning the simplifier into a catch-all
+          geometry engine.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Future module</th>
+              <th>Recommended dependency</th>
+              <th>Public contract</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Repair</td>
+              <td><code>core</code>, <code>common/detail</code>, optional <code>FeatureAnalysis</code></td>
+              <td>Mesh validity repair, non-manifold cleanup, hole filling, boundary diagnostics.</td>
+            </tr>
+            <tr>
+              <td>Remeshing</td>
+              <td><code>core</code>, <code>feature_detection</code></td>
+              <td>Feature-aware isotropic or anisotropic remeshing.</td>
+            </tr>
+            <tr>
+              <td>Validation</td>
+              <td><code>core</code>, spatial indices, metrics</td>
+              <td>Global Hausdorff, envelope checks, manufacturability reports.</td>
+            </tr>
+            <tr>
+              <td>Data exchange</td>
+              <td><code>core</code></td>
+              <td>STL/OBJ/glTF/PLY readers and writers with status reporting.</td>
+            </tr>
+            <tr>
+              <td>B-Rep bridge</td>
+              <td>Separate geometry/topology model</td>
+              <td>Should not be bolted onto the current triangle-only mesh type.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Contribution Rules</h3>
+        <ol>
+          <li>Expose only stable SDK types under <code>include</code>.</li>
+          <li>Keep implementation helpers under <code>src/&lt;domain&gt;/detail</code>.</li>
+          <li>Add diagnostics for every production filter or recovery path.</li>
+          <li>Write fixture tests for algorithm behavior and external tests for representative meshes.</li>
+          <li>Document parameter intent and failure modes before promoting a feature to default behavior.</li>
+        </ol>
+      </section>
+
+      <section id="limitations">
+        <h2>12. Boundaries</h2>
+        <p>
+          Commercial delivery documentation should be explicit about boundaries.
+          Clear boundaries protect both the integrator and the kernel roadmap.
+        </p>
+        <div class="danger note">
+          ManuMesh currently does not guarantee direct manufacturing tolerance
+          compliance, full CAD feature-tree recovery, B-Rep validity, Boolean
+          robustness, offset robustness, or global envelope certification.
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Boundary</th>
+              <th>Current behavior</th>
+              <th>Mitigation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No B-Rep semantics in STL/OBJ</td>
+              <td>Features are inferred from triangles.</td>
+              <td>Validate on customer fixture meshes and keep primitive-fit thresholds explicit.</td>
+            </tr>
+            <tr>
+              <td>Weak features depend on scale</td>
+              <td>Normal tensor scores are sensitive to smoothing and sampling.</td>
+              <td>Use controlled parameter presets and compare before/after feature reports.</td>
+            </tr>
+            <tr>
+              <td>Aggressive simplification can harm triangle quality</td>
+              <td>Low target ratios may force poor local candidates or rejection-limit termination.</td>
+              <td>Enable quality, normal, local-error, and intersection gates for production presets.</td>
+            </tr>
+            <tr>
+              <td>Global error is sampled today</td>
+              <td>Metrics provide evidence but not a formal certificate.</td>
+              <td>Add a global envelope/Hausdorff module for certified downstream use.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="delivery">
+        <h2>13. Delivery Checklist</h2>
+        <p>
+          Use this checklist when packaging ManuMesh for a commercial SDK
+          handoff.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Expected artifact</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Source package</td>
+              <td>Repository snapshot excluding generated build trees.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>SDK package</td>
+              <td><code>bin</code>, <code>include</code>, <code>lib</code>, <code>share/manumesh</code>.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>Developer guide</td>
+              <td><code>docs/delivery/manumesh_kernel_developer_guide.html</code>.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>Prototype documentation archive</td>
+              <td><code>docs/archive/prototype-docs-2026-07-09</code>.</td>
+              <td>Included</td>
+            </tr>
+            <tr>
+              <td>Regression evidence</td>
+              <td>CTest log, build configuration, compiler version, and test count.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>External validation output</td>
+              <td>STL outputs, metrics CSV, and visual inspection notes.</td>
+              <td>Recommended</td>
+            </tr>
+            <tr>
+              <td>Known limitations</td>
+              <td>Explicit scope and boundary statement.</td>
+              <td>Included</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer">
+        ManuMesh Kernel Developer Guide. Generated for commercial delivery
+        review on 2026-07-09.
+      </p>
+    </main>
+  </div>
+</body>
+</html>

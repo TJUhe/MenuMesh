@@ -15,6 +15,7 @@ struct TargetPolicy {
 struct FeatureDetectionPolicy {
   bool enabled = false;
   double featureAngleDeg = 40.0;
+  double loopTraceAngleDeg = -1.0;
   double circleFitRelativeThreshold = 0.05;
   double ellipseFitRelativeThreshold = 0.05;
   double nearCircleAxisRatioTolerance = 0.08;
@@ -24,6 +25,7 @@ struct FeatureDetectionPolicy {
   double normalTensorMinEdgeAlignment = 0.45;
   int normalTensorSmoothingIterations = 0;
   int normalTensorScaleCount = 1;
+  int normalTensorMinPersistentScales = 1;
 
   feature::FeatureOptions toFeatureOptions() const;
 };

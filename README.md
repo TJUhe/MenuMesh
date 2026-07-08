@@ -318,7 +318,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 - `demo: feature report selected mesh`：查看输入网格的 feature edge、loop、circle/ellipse 识别。
 - `demo: simplify standard selected mesh`：用普通 QEM 简化下拉框选择的 mesh。
 - `demo: simplify feature curves selected mesh`：用 line quadrics、dihedral 权重和特征曲线保护简化选定 mesh。
-- `demo: simplify normal tensor selected mesh`：用 normal-tensor 权重调试弱特征补充。
+- `demo: simplify normal tensor selected mesh`：用局部尺度 + 多尺度 persistence 的 normal-tensor 权重调试弱特征补充。
 - `demo: ratio sweep selected mesh`：固定算法预设，生成多档 ratio 的 STL 和 `metrics.csv`。
 - `open: vscode demo output`：打开 `output/vscode_demo`。
 
@@ -339,7 +339,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 | `--feature-angle-deg 15/25/45` | `fandisk_2014.stl` | 二面角阈值如何改变硬边候选数量。 |
 | `--max-feature-curve-deviation-ratio 0.02/0.05` | `coaxial_hole_plate.obj` | 曲线预算如何限制圆 loop 漂移。 |
 | `--max-local-error-ratio 0.01/0.02` | `casting_aimshape_2014.stl` | 局部几何误差 guard 如何增加 `error_rejected_collapses`。 |
-| `--weight-mode normal-tensor` | `boss_pocket_plate.obj` | normal tensor 对弱特征的补充，以及对噪声/采样的敏感性。 |
+| `--weight-mode normal-tensor` | `boss_pocket_plate.obj` | normal tensor 对弱特征的补充，以及 `normal_tensor_scored_vertices`、persistent score、局部尺度对噪声/采样的敏感性。 |
 
 ## 主要指标
 

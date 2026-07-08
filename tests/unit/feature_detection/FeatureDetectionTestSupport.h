@@ -41,6 +41,8 @@ bool hasPlaneCluster(const std::vector<PlaneCluster>& planes, const Vec3& normal
 Mesh makeBranchedCircularBoundaryMesh();
 Mesh makeMultiJunctionPolygonalBoundaryMesh();
 Mesh makeMixedDiscreteEvidenceMesh();
+Mesh makeShallowDihedralLoopMesh(double height);
+Mesh makeFragmentedCircleWithTensorRidgeMesh();
 
 bool hasClosedLoopWithVertices(const FeatureAnalysis& features,
                                const std::vector<int>& expectedVertices);

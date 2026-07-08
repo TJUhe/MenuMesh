@@ -54,6 +54,8 @@ TEST(ManuMesh, NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict) {
   options.featureAngleDeg = 179.0;
   options.normalTensorFeatureThreshold = 0.06;
   options.normalTensorMinEdgeAlignment = 0.2;
+  options.normalTensorScaleCount = 3;
+  options.normalTensorMinPersistentScales = 2;
 
   const manumesh::feature::FeatureAnalysis features =
       manumesh::feature::detectFeatureCurves(input, options);
@@ -61,6 +63,33 @@ TEST(ManuMesh, NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict) {
   EXPECT_EQ(0, features.dihedralFeatureEdges);
   EXPECT_GT(features.normalTensorFeatureEdges, 0);
   EXPECT_GT(features.maxNormalTensorFeatureScore, 0.06);
+  EXPECT_GT(features.normalTensorScoredVertices, 0);
+  EXPECT_GT(features.maxNormalTensorPersistentScore, 0.06);
+  EXPECT_GT(features.meanNormalTensorLocalScale, 0.0);
+  EXPECT_GT(features.meanNormalTensorPersistence, 1.0);
+}
+
+TEST(ManuMesh, NormalTensorReportsLocalScaleAndPersistentScore) {
+  const manumesh::Mesh input = manumesh::generateRidgeGrid(16, 2.0, 0.5);
+
+  const std::vector<manumesh::feature::NormalTensorVertex> tensor =
+      manumesh::feature::computeNormalTensorFeatures(input, {1, 3});
+
+  ASSERT_EQ(input.vertices.size(), tensor.size());
+  double maxPersistentScore = 0.0;
+  int persistentVertices = 0;
+  for (const manumesh::feature::NormalTensorVertex& vertex : tensor) {
+    EXPECT_GT(vertex.localScale, 0.0);
+    EXPECT_GE(vertex.persistentFeatureScore, 0.0);
+    EXPECT_LE(vertex.persistentFeatureScore, vertex.featureScore + 1e-12);
+    maxPersistentScore = std::max(maxPersistentScore, vertex.persistentFeatureScore);
+    if (vertex.persistentScales >= 2) {
+      ++persistentVertices;
+    }
+  }
+
+  EXPECT_GT(maxPersistentScore, 0.04);
+  EXPECT_GT(persistentVertices, 0);
 }
 
 TEST(ManuMesh, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
@@ -68,9 +97,15 @@ TEST(ManuMesh, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
   manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.70);
   options.weightMode = manumesh::simplification::WeightMode::NormalTensor;
   options.normalTensorSmoothingIterations = 1;
+  options.normalTensorScaleCount = 3;
+  options.normalTensorMinPersistentScales = 2;
 
   const SimplifiedMesh result = simplifyWithReport(input, options);
 
   expectBudgetedSimplification(result, input, 0.70);
   EXPECT_GT(result.report.maxAppliedLineWeight, result.report.minAppliedLineWeight);
+  EXPECT_GT(result.report.normalTensorScoredVertices, 0);
+  EXPECT_GT(result.report.maxNormalTensorPersistentScore, 0.0);
+  EXPECT_GT(result.report.meanNormalTensorLocalScale, 0.0);
+  EXPECT_GT(result.report.meanNormalTensorPersistence, 1.0);
 }

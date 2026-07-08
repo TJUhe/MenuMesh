@@ -6,6 +6,7 @@
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
+#include "../../../src/common/detail/MeshQueries.h"
 
 #include <algorithm>
 #include <array>
@@ -26,6 +27,27 @@ using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
 
 namespace simplification = manumesh::simplification;
+TEST(ManuMesh, MeshQueriesComputeLocalVertexEdgeScale) {
+  manumesh::Mesh mesh;
+  mesh.vertices = {
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 2.0, 0.0),
+      manumesh::Vec3(10.0, 10.0, 10.0),
+  };
+  mesh.faces = {{{0, 1, 2}}};
+
+  const std::vector<double> scale =
+      manumesh::detail::computeVertexAverageEdgeLength(mesh);
+
+  ASSERT_EQ(4u, scale.size());
+  const double hyp = std::sqrt(5.0);
+  EXPECT_NEAR((1.0 + 2.0) / 2.0, scale[0], 1e-12);
+  EXPECT_NEAR((1.0 + hyp) / 2.0, scale[1], 1e-12);
+  EXPECT_NEAR((2.0 + hyp) / 2.0, scale[2], 1e-12);
+  EXPECT_NEAR((1.0 + 2.0 + hyp) / 3.0, scale[3], 1e-12);
+}
+
 TEST(ManuMesh, BuiltInGeneratorsCoverDemoAndIndustrialModels) {
   const std::vector<std::string> names = {
       "plane",         "clustered-plane", "hole-plane", "ridge",

@@ -14,8 +14,7 @@ void recoverFeatureLoops(const Mesh& mesh, const FeatureOptions& options,
   recoverSmallCycleBasis(mesh, options, trace, analysis, loopId);
   traceRemainingFeatureLoops(mesh, options, trace, analysis, loopId);
   recoverPrimitiveComponents(mesh, options, trace, analysis, loopId);
-  recoverCircularVertexClusters(mesh, options, trace.traceVertex, trace.adjacency,
-                                analysis, loopId);
+  recoverCircularVertexClusters(mesh, options, trace, analysis, loopId);
 }
 
 } // namespace manumesh::feature::detector_detail

@@ -107,14 +107,14 @@ E_total = E_plane + lambda * E_line
 | `FeatureGraph` | 边、顶点、junction、shared vertex，描述显式特征图结构。 |
 | `FeatureLoop` | chain/loop、闭合性、primitive 类型、半径/轴比/拟合误差。 |
 | `VertexFeature` | 每个顶点的 feature ownership、切向、圆/椭圆投影数据。 |
-| 计数字段 | 诊断边来源：boundary、dihedral、normal-tensor、non-manifold 等。 |
+| 计数字段 | 诊断边来源：boundary、dihedral、normal-tensor、non-manifold、traced/untraced 和 tensor local-scale/persistence 等。 |
 
 当前检测器的证据来源：
 
 1. boundary edge：只有一个相邻面。
 2. non-manifold edge：多于两个相邻面。
 3. dihedral edge：两个相邻面法向夹角超过阈值。
-4. normal-tensor edge：张量特征分数和边方向对齐满足阈值。
+4. normal-tensor edge：张量 persistent feature score、最小支持尺度数和边方向对齐满足阈值。
 
 内部实现按职责拆成小 pipeline：`FeatureEvidence.cpp` 组合多种 edge evidence strategy 并维护来源计数；`FeatureGraph.cpp` 构建 `FeatureGraph` 和 trace graph；`FeatureLoopRecovery.cpp` 只编排恢复顺序；`FeatureCycleRecovery.cpp` 恢复 junction cycle 和小 cycle basis；`FeatureTraceRecovery.cpp` 追踪图上的 open chain / closed loop；`FeaturePrimitiveRecovery.cpp` 处理 primitive component 兜底；`FeatureLoopBuilder.cpp` 负责 loop id、vertex ownership、切向和圆/椭圆投影数据写回；`FeatureCircularRecovery.cpp` 只处理有界三点圆扫描 fallback。随后程序恢复 junction 处可能断裂的 cycle，对闭合 loop 做 primitive fitting。圆、近圆、椭圆和折线 loop 会被写入 `FeatureLoop::primitive`。
 
@@ -142,14 +142,15 @@ surfaceSaliency = l0 - l1
 creaseSaliency  = l1 - l2
 cornerSaliency  = l2
 featureScore    = max(creaseSaliency, cornerSaliency)
+persistentFeatureScore = f(featureScore, averageFeatureScore, persistentScales)
 ```
 
-这不是完整 tensor voting 论文系统，而是一个轻量局部法向张量。它适合给弱特征提供证据或空间变权，但受邻域、采样密度、噪声和 smoothing iteration 影响很大。
+这不是完整 tensor voting 论文系统，而是一个轻量局部法向张量。当前实现会用 common 层局部平均边长做距离权重平滑，并用多尺度 `persistentFeatureScore` 抑制单尺度噪声。它适合给弱特征提供证据或空间变权，但仍受邻域、采样密度、噪声和 smoothing iteration 影响很大。
 
 程序中的使用方式：
 
 - 在 `FeatureEvidence.cpp` 中，normal tensor 只补充非 boundary、非 dihedral、非 non-manifold 的弱特征边。
-- 在 `Quadrics.cpp` 中，`weightMode=normal-tensor` 把 `featureScore` 作为 line weight 的空间权重来源。
+- 在 `Quadrics.cpp` 中，`weightMode=normal-tensor` 把 `persistentFeatureScore` 作为 line weight 的空间权重来源，并受 `normalTensorMinPersistentScales` 约束。
 
 这解释了为什么 normal tensor 不应该被文档写成“完整特征恢复算法”。它当前更像一个弱证据通道。
 

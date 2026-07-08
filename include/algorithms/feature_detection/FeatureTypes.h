@@ -25,6 +25,9 @@ enum class FeaturePrimitiveType {
 struct FeatureOptions {
   /// Dihedral angle threshold for hard feature edges, in degrees.
   double featureAngleDeg = 40.0;
+  /// Dihedral angle used when tracing feature edges into loop ownership.
+  /// Negative means "reuse featureAngleDeg".
+  double loopTraceAngleDeg = -1.0;
   /// Relative radial tolerance used when validating circular loops.
   double circleFitRelativeThreshold = 0.05;
   /// Relative residual tolerance used when validating elliptical loops.
@@ -43,6 +46,8 @@ struct FeatureOptions {
   int normalTensorSmoothingIterations = 0;
   /// Number of tensor scales sampled for weak feature scoring.
   int normalTensorScaleCount = 1;
+  /// Minimum scales that must support a tensor edge candidate.
+  int normalTensorMinPersistentScales = 1;
 };
 
 /// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
@@ -59,6 +64,10 @@ struct NormalTensorVertex {
   double creaseSaliency = 0.0;
   double cornerSaliency = 0.0;
   double featureScore = 0.0;
+  double averageFeatureScore = 0.0;
+  double persistentFeatureScore = 0.0;
+  double localScale = 0.0;
+  int persistentScales = 0;
 };
 
 /// One connected feature curve or loop detected in the mesh.
@@ -155,14 +164,20 @@ struct FeatureAnalysis {
   std::vector<FeatureLoop> loops;
   FeatureGraph graph;
   int featureEdges = 0;
+  int tracedFeatureEdges = 0;
+  int untracedFeatureEdges = 0;
   int boundaryFeatureEdges = 0;
   int dihedralFeatureEdges = 0;
   int normalTensorFeatureEdges = 0;
   int nonManifoldFeatureEdges = 0;
+  int normalTensorScoredVertices = 0;
   int convexFeatureEdges = 0;
   int concaveFeatureEdges = 0;
   int unknownSignedFeatureEdges = 0;
   double maxNormalTensorFeatureScore = 0.0;
+  double maxNormalTensorPersistentScore = 0.0;
+  double meanNormalTensorLocalScale = 0.0;
+  double meanNormalTensorPersistence = 0.0;
 };
 
 /// Error of a detected loop against a circular reference curve.

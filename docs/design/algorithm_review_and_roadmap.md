@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 80 个 CTest。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 83 个非性能 CTest。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。2026-07-09 的特征识别升级记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)。
 
 ## 当前理解框架
 
@@ -20,11 +20,11 @@ ManuMesh 的简化器应按四层阅读：
 | 标准 QEM | 已实现面 plane quadric 面积加权累加、边折叠候选、placement 求解和 fallback。 |
 | line quadrics | 已实现 `--method line` 和 `lineWeight`，作为候选排序成本的切向正则项。 |
 | 权重模式 | `uniform`、`dihedral`、`normal-tensor`、`height`、`xband`。 |
-| 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、loop tracing。 |
+| 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、loop tracing，并用 `loopTraceAngleDeg` 区分 evidence 阈值和 loop ownership 阈值；normal tensor 已接入局部尺度归一化、多尺度 persistence 和 persistent score。 |
 | primitive 拟合 | 支持圆、近圆、椭圆、折线 loop 的报告和保护策略。 |
 | 特征保护 | `none`、`circular-only`、`primitive-curves`、`all-feature-edges`。默认是 `primitive-curves`。 |
 | 合法性过滤 | 边界、拓扑、法线偏转、三角形质量、局部误差和局部自交过滤。 |
-| 诊断报告 | `SimplifyReport` / `ManuMeshSimplifyReport` 输出终止原因、拒绝计数、特征计数和权重范围。 |
+| 诊断报告 | `FeatureAnalysis`、`SimplifyReport` / `ManuMeshSimplifyReport` 输出终止原因、拒绝计数、特征计数、`tracedFeatureEdges` / `untracedFeatureEdges`、normal-tensor scored vertices、local scale / persistence 和权重范围。 |
 | CLI | `generate`、`simplify`、`compare`、`feature-report`、`feature-compare`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`summarize-metrics`、`validate-features`、`validate-external`。 |
 | SDK | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口和 C ABI 均可用，示例位于 `examples/`。 |
 
@@ -40,7 +40,7 @@ ManuMesh 的简化器应按四层阅读：
 
 1. line quadrics 是软约束，权重过高会牺牲几何保真。
 2. 特征检测目前以 CAD/STL 风格网格为主，噪声扫描件需要更稳健的法线估计、去噪或重建预处理。
-3. normal tensor 是弱特征证据和空间变权来源，不是通用 ridge/valley 提取器。
+3. normal tensor 是弱特征证据和空间变权来源，不是通用 ridge/valley 提取器；当前已把局部尺度、多尺度 persistence 和 persistent score 用于弱特征接受准则与 QEM normal-tensor 权重。
 4. `all-feature-edges` 会锁住太多 generic crease，可能导致 `rejection-limit`，默认 `primitive-curves` 更平衡。
 5. 局部自交和局部误差过滤改善安全性，但不是全局 Hausdorff/envelope 证明。
 6. C ABI 结构体依赖 `struct_size` 和 `abi_version`，外部调用必须初始化；同一 ABI 版本内允许旧尾部尺寸，缺失字段使用默认值。
@@ -48,14 +48,16 @@ ManuMesh 的简化器应按四层阅读：
 ## 短期路线
 
 - 保持 `build: mingw+ninja release all`、`test: mingw+ninja release` 和 `test: mingw+ninja release full` 稳定可跑。
-- 扩展特征报告 CSV，继续区分 circular、near-circle、ellipse、polygonal loop。
+- 扩展特征报告 CSV，继续区分 circular、near-circle、ellipse、polygonal loop，并持续跟踪 traced/untraced feature edges。
 - 用更多工业件验证 `primitive-curves` 默认策略，避免 generic crease 过度硬锁。
+- 增加带 ground-truth feature labels 的 precision/recall、loop closure、junction correctness、弱特征保留率和 feature drift benchmark。
 - 补充 CLI 子命令级帮助或明确保持顶层帮助模式。
 - 对 C API 增加更多端到端示例和 ABI 兼容测试。
 
 ## 中期路线
 
 - 实现独立 edge dihedral plane quadrics，和现有 feature graph 保护策略对比。
+- 将 normal tensor 接受准则继续升级为 component-level confidence，并把 confidence 传入 fallback 排序、feature protection policy 和 benchmark 报告。
 - 增加全局或近似 envelope/Hausdorff 过滤，把“局部安全”推进到更接近制造误差约束。
 - 探索二轮优化：第一轮 decimation 达到拓扑和面数目标，第二轮局部 relocation/refinement 降低漂移和改善三角形质量。
 - 增加属性传播策略，为法线、颜色、UV、source face id 做准备。

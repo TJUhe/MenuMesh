@@ -45,7 +45,8 @@ public:
   void run(FeatureDetectionContext& context) const {
     detector_detail::initializeFeatureGraph(context.featureEdges, context.analysis());
     context.trace = detector_detail::buildTraceGraph(context.mesh, context.options,
-                                                     context.featureEdges);
+                                                     context.featureEdges,
+                                                     context.analysis());
   }
 };
 

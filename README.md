@@ -24,6 +24,8 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 - [ManuMesh 程序原理说明](docs/generated/notes/manumesh-program-principles.html)
 - [ManuMesh 代码阅读手册](docs/generated/notes/manumesh-code-manual.html)
 - [算法本质、数学直觉与实现契约](docs/design/algorithm_essence.md)
+- [common 内部基础库规划](docs/design/common_foundation.md)
+- [新增算法模块指南](docs/design/adding_new_algorithm.md)
 - [VS Code + MinGW + Ninja 参数调试教程](docs/guide/vscode_mingw_ninja_parameter_debugging.md)
 - [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
 - [QEM 相关开源库与 ManuMesh 当前实现对比](docs/generated/notes/qem-library-comparison.html)

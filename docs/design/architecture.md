@@ -2,7 +2,7 @@
 
 ManuMesh 是面向增材制造的 C++ 多边形网格几何内核。当前稳定能力集中在 QEM/line quadrics 简化和 CAD/STL 风格特征检测，代码组织目标是让后续 `repair`、`boolean`、`offset`、`remesh` 等模块能并列加入，而不是继续堆到 QEM 实现里。
 
-算法层面的共同语境见 [`algorithm_essence.md`](algorithm_essence.md)。本文只描述架构边界：哪些概念可以公开，哪些必须留在私有实现里，哪些模块可以依赖彼此。
+算法层面的共同语境见 [`algorithm_essence.md`](algorithm_essence.md)。common 内部基础库的补强规划见 [`common_foundation.md`](common_foundation.md)；新增 `repair`、`remeshing` 等平级模块的落地流程见 [`adding_new_algorithm.md`](adding_new_algorithm.md)。本文只描述架构边界：哪些概念可以公开，哪些必须留在私有实现里，哪些模块可以依赖彼此。
 
 ## 分层
 
@@ -11,6 +11,7 @@ include/      安装级公共 SDK 头文件
   core/                         Mesh、PlainMesh、MeshTopology、Status、typed handles
   algorithms/feature_detection/ 特征检测模块入口、选项和结果类型
   algorithms/simplification/    QEM/line quadrics 简化入口、选项、报告和指标
+  algorithms/<domain>/          未来平级算法模块，例如 repair/remeshing
   api/                          C ABI，使用 handle 和显式初始化结构体
 
 src/common/detail/              跨算法私有工具，不安装
@@ -19,6 +20,8 @@ src/feature_detection/          特征检测实现，只依赖 core 和私有 co
 src/feature_detection/detail/   特征检测私有类型、策略接口和 helper
 src/simplification/             简化实现，可消费 FeatureAnalysis
 src/simplification/detail/      简化专属私有状态、policy 分组和策略
+src/<domain>/                   未来平级算法实现，例如 repair
+src/<domain>/detail/            未来平级算法私有状态和阶段 helper
 apps/manumesh/              CLI，按外部用户方式调用 SDK
 examples/                       C/C++ SDK 使用示例
 tests/                          GoogleTest 和 CTest 回归验证
@@ -50,7 +53,7 @@ CLI 是应用层消费者，不承载算法状态。`apps/manumesh/main.cpp` 只
 - 面法向、面心、顶点一环邻接。
 - 边界顶点标记。
 
-这层解决的是“实现复用”，不是“SDK 暴露”。如果某个能力未来需要外部稳定使用，应优先评估是否提升到 `core/MeshTopology` 或新的公共模块，而不是让外部 include `src/common/detail/...`。
+这层解决的是“实现复用”，不是“SDK 暴露”。后续 common 应继续沉淀几何谓词、边界 loop、通用空间索引、索引重映射、mesh 校验和内部诊断结构，避免 `repair`、`remeshing`、`validation` 各自复制基础设施。如果某个能力未来需要外部稳定使用，应优先评估是否提升到 `core/MeshTopology` 或新的公共模块，而不是让外部 include `src/common/detail/...`。
 
 ## 算法边界
 

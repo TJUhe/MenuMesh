@@ -37,6 +37,16 @@ set(MANUMESH_IO_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/io/MeshIo.cpp"
 )
 
+set(MANUMESH_DEBUG_UTIL_SOURCES)
+set(MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS
+  "${CMAKE_CURRENT_SOURCE_DIR}/debugUtil/debugUtil.h"
+)
+if(MANUMESH_ENABLE_DEBUG_UTIL)
+  list(APPEND MANUMESH_DEBUG_UTIL_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/debugUtil/debugUtil.cpp"
+  )
+endif()
+
 set(MANUMESH_FEATURE_DETECTION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCircularRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCycleRecovery.cpp"
@@ -75,6 +85,7 @@ set(MANUMESH_LIBRARY_SOURCES
   ${MANUMESH_COMMON_SOURCES}
   ${MANUMESH_GEOMETRY_SOURCES}
   ${MANUMESH_IO_SOURCES}
+  ${MANUMESH_DEBUG_UTIL_SOURCES}
   ${MANUMESH_FEATURE_DETECTION_SOURCES}
   ${MANUMESH_SIMPLIFICATION_SOURCES}
 )
@@ -117,6 +128,7 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
 
 set(MANUMESH_PRIVATE_HEADERS
   ${MANUMESH_COMMON_PRIVATE_HEADERS}
+  ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
   ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
   ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
 )
@@ -131,6 +143,12 @@ add_library(manumesh_geometry_objects OBJECT
 add_library(manumesh_io_objects OBJECT
   ${MANUMESH_IO_SOURCES}
 )
+if(MANUMESH_ENABLE_DEBUG_UTIL)
+  add_library(manumesh_debug_util_objects OBJECT
+    ${MANUMESH_DEBUG_UTIL_SOURCES}
+    ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
+  )
+endif()
 add_library(manumesh_feature_detection_objects OBJECT
   ${MANUMESH_FEATURE_DETECTION_SOURCES}
   ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
@@ -166,6 +184,9 @@ set(MANUMESH_INTERNAL_OBJECT_TARGETS
   manumesh_simplification_objects
   manumesh_c_api_objects
 )
+if(MANUMESH_ENABLE_DEBUG_UTIL)
+  list(APPEND MANUMESH_INTERNAL_OBJECT_TARGETS manumesh_debug_util_objects)
+endif()
 
 set(MANUMESH_LIBRARY_OBJECTS
   $<TARGET_OBJECTS:manumesh_common_objects>
@@ -175,6 +196,11 @@ set(MANUMESH_LIBRARY_OBJECTS
   $<TARGET_OBJECTS:manumesh_simplification_objects>
   $<TARGET_OBJECTS:manumesh_c_api_objects>
 )
+if(MANUMESH_ENABLE_DEBUG_UTIL)
+  list(APPEND MANUMESH_LIBRARY_OBJECTS
+    $<TARGET_OBJECTS:manumesh_debug_util_objects>
+  )
+endif()
 
 if(MANUMESH_BUILD_SHARED_LIBRARY)
   add_library(manumesh_core SHARED
@@ -202,6 +228,10 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/common/detail"
   PREFIX "Common Private Headers"
   FILES ${MANUMESH_COMMON_PRIVATE_HEADERS}
 )
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/debugUtil"
+  PREFIX "Debug Util"
+  FILES ${MANUMESH_DEBUG_UTIL_SOURCES} ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
+)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail"
   PREFIX "Feature Detection Private Headers"
   FILES ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
@@ -221,6 +251,23 @@ foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
   target_compile_definitions(${manumesh_internal_target}
     PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
   )
+  if(MSVC)
+    target_compile_options(${manumesh_internal_target}
+      PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:/FIdebugUtil/debugUtil.h>
+    )
+  else()
+    target_compile_options(${manumesh_internal_target}
+      PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-include>
+        $<$<COMPILE_LANGUAGE:CXX>:debugUtil/debugUtil.h>
+    )
+  endif()
+  if(MANUMESH_ENABLE_DEBUG_UTIL)
+    target_compile_definitions(${manumesh_internal_target}
+      PRIVATE $<$<CONFIG:Debug>:MANUMESH_ENABLE_DEBUG_UTIL>
+    )
+  endif()
   if(MANUMESH_BUILD_SHARED_LIBRARY)
     target_compile_definitions(${manumesh_internal_target}
       PRIVATE MANUMESH_BUILDING_DLL

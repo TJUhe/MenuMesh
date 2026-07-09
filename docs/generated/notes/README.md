@@ -5,7 +5,7 @@
 ## 当前维护规则
 
 - 如果 CLI、`SimplifyOptions`、特征检测、测试数据、验证输出或产品命名发生变化，相关 HTML/PDF 应重新生成或在索引中标注为历史资料。
-- 本目录中的 `*.html` 可用于浏览算法解释、代码阅读笔记和实验报告。
+- 本目录中的 `*.html` 可用于浏览算法解释、代码阅读笔记和实验报告；本轮已同步标注 `include/io`、`src/io` 和 Debug-only `src/debugUtil` 的当前源码位置。
 - `*.pdf` 是阅读版导出文件；当前未在本次文档更新中重写 PDF 二进制内容。
 - `eye-care.css` 是导出 HTML 共用样式。
 
@@ -15,7 +15,8 @@
 | --- | --- |
 | `docs/design/` | 架构、算法设计和验证记录。 |
 | `docs/guide/` | 使用和集成指南。 |
-| `docs/papers/` | 论文归档与索引。 |
+| `docs/design/source_organization.md` | 当前源码布局和私有/公共边界。 |
+| `docs/papers/` | 论文归档与索引；本次未更新 paper 部分。 |
 | `README.md` | 项目入口说明。 |
 
 如果发现 HTML 中的任务名、命令、源码路径或结论与当前 `.vscode/tasks.json`、`apps/manumesh/main.cpp`、`include/algorithms/` 或测试结果不一致，应以当前源码为准更新。

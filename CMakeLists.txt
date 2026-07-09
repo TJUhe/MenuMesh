@@ -20,6 +20,7 @@ option(MANUMESH_BUILD_CLI "Build the manumesh command line tool" ON)
 option(MANUMESH_BUILD_EXAMPLES "Build example programs that consume the library" ON)
 option(MANUMESH_BUILD_TESTS "Build GoogleTest based tests" ON)
 option(MANUMESH_ENABLE_INSTALL "Enable SDK install rules" OFF)
+option(MANUMESH_ENABLE_DEBUG_UTIL "Enable Debug-only internal HTML wireframe debug utility" OFF)
 
 set(MANUMESH_EIGEN_PROVIDER "auto" CACHE STRING
   "Eigen provider: auto, system, vendored, or fetch"

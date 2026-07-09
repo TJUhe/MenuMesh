@@ -879,6 +879,14 @@ img, svg, canvas, video {
             </p>
           </div>
           <div class="module">
+            <h3>I/O</h3>
+            <p>
+              Owns STL/OBJ loading and ASCII STL export through
+              <code>include/io/MeshIo.h</code>, keeping file format parsing out
+              of core mesh data structures.
+            </p>
+          </div>
+          <div class="module">
             <h3>Feature Detection</h3>
             <p>
               Produces <code>FeatureAnalysis</code> from triangle meshes:
@@ -915,6 +923,14 @@ img, svg, canvas, video {
               metrics output form the acceptance basis for delivery.
             </p>
           </div>
+          <div class="module">
+            <h3>Debug Utility</h3>
+            <p>
+              Optional Debug-only HTML wireframe output in
+              <code>src/debugUtil</code>. It is private, disabled by default,
+              and is not part of the SDK contract.
+            </p>
+          </div>
         </div>
         <h3>Source Organization</h3>
         <table>
@@ -929,6 +945,11 @@ img, svg, canvas, video {
             <tr>
               <td><code>include/core</code></td>
               <td>SDK mesh, topology, status, generators, and plain exchange types.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>include/io</code></td>
+              <td>Public STL/OBJ mesh file I/O declarations.</td>
               <td>Public contract</td>
             </tr>
             <tr>
@@ -947,6 +968,11 @@ img, svg, canvas, video {
               <td>Private implementation</td>
             </tr>
             <tr>
+              <td><code>src/io</code></td>
+              <td>STL/OBJ parsing and ASCII STL writing implementation.</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
               <td><code>src/feature_detection</code></td>
               <td>Feature evidence, graph construction, loop recovery, primitive fitting.</td>
               <td>Private implementation</td>
@@ -955,6 +981,11 @@ img, svg, canvas, video {
               <td><code>src/simplification</code></td>
               <td>QEM, queue, dynamic topology, collapse policy, legality checks.</td>
               <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/debugUtil</code></td>
+              <td>Optional Debug-only HTML wireframe snapshots for internal algorithm inspection.</td>
+              <td>Private debug aid</td>
             </tr>
             <tr>
               <td><code>apps/manumesh</code></td>
@@ -988,7 +1019,11 @@ core + common/detail
 
 applications
   -> public SDK headers
-  -> C ABI when compiler or language boundaries require it</div>
+  -> C ABI when compiler or language boundaries require it
+
+debugUtil
+  -> internal implementation files only
+  -> disabled in normal builds and SDK delivery</div>
         <h3>Run-Time Pipeline</h3>
         <div class="diagram">Mesh
   -> validate input
@@ -1539,6 +1574,29 @@ ctest --test-dir build/mingw-release -LE performance --output-on-failure</code><
   -DMANUMESH_INSTALL_CMAKE_CONFIG=ON
 
 cmake --build build/sdk-release --target sdk-consumer-test --parallel</code></pre>
+        <h3>Optional Debug HTML Wireframe</h3>
+        <p>
+          <code>MANUMESH_ENABLE_DEBUG_UTIL</code> builds a private Debug-only
+          HTML wireframe helper for local algorithm inspection. It should not be
+          enabled for SDK delivery, release packaging, or acceptance evidence.
+        </p>
+        <pre><code>cmake -S . -B build/mingw-debug-debugutil -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Debug ^
+  -DCMAKE_C_COMPILER=gcc ^
+  -DCMAKE_CXX_COMPILER=g++ ^
+  -DMANUMESH_ENABLE_DEBUG_UTIL=ON
+
+cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></pre>
+        <p>
+          The internal macros <code>MANUMESH_DEBUG_UTIL_WIREFRAME</code>,
+          <code>MANUMESH_DEBUG_UTIL_EDGE</code>,
+          <code>MANUMESH_DEBUG_UTIL_EDGES</code>, and
+          <code>MANUMESH_DEBUG_UTIL_FEATURES</code> write standalone HTML under
+          <code>MANUMESH_DEBUG_UTIL_DIR</code> or the system temp
+          <code>manumesh-debugUtil</code> directory. Set
+          <code>MANUMESH_DEBUG_UTIL_OPEN=0</code> to suppress automatic browser
+          launch.
+        </p>
         <table>
           <thead>
             <tr>

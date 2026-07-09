@@ -7,6 +7,7 @@
 | 文档 | 用途 |
 | --- | --- |
 | [`delivery/manumesh_kernel_developer_guide.html`](delivery/manumesh_kernel_developer_guide.html) | 商用内核交付级开发者手册，包含定位、架构、模块、API、C ABI、构建、验证、扩展边界和交付清单。 |
+| [`guide/debug_util_usage.md`](guide/debug_util_usage.md) | 内部 Debug-only HTML wireframe 工具使用教程，包含开启方式、常用宏、颜色约定、插入位置和截图预览。 |
 | [`design/feature_detection_upgrade_2026_07_09.md`](design/feature_detection_upgrade_2026_07_09.md) | 本次特征识别升级记录，覆盖 loop trace 阈值、traced/untraced 诊断、common 局部尺度、normal-tensor persistence、QEM 联动、gtest 保护和后续算法计划。 |
 | [`archive/prototype-docs-2026-07-09/`](archive/prototype-docs-2026-07-09/) | 2026-07-09 归档的阶段性设计、指南和生成笔记，用作历史备份。 |
 | [`papers/`](papers/) | 论文 PDF 资料库。该目录没有复制进归档目录，以避免重复大文件。 |
@@ -17,6 +18,7 @@
 - `archive/` 保存阶段性材料，不再作为当前产品能力说明的主入口。
 - `design/` 和 `guide/` 可继续作为研发工作区使用，但如果内容与交付文档冲突，以 `delivery/` 为准。
 - `generated/notes/` 属于历史导出资料，适合追溯思路，不适合作为商用交付主文档。
+- `generated/notes/*.html` 本轮同步补充了当前 `io/` 与 Debug-only `debugUtil/` 布局说明；PDF 二进制未重写。
 - 新增商业能力时，应先更新交付文档的能力边界、API、验证方法和限制说明，再补充研发细节。
 
 ## 交付定位
@@ -28,6 +30,7 @@ ManuMesh 当前定位为面向增材制造和三角网格处理的 C++17 mesh ge
 - QEM / line-quadrics edge-collapse simplification；
 - feature、boundary、topology、normal、triangle quality、local error 和 local intersection 过滤；
 - CLI、examples、CTest/GoogleTest 和外部 STL/OBJ 验证路径。
+- Debug-only HTML wireframe 辅助工具只属于内部算法排查手段，不属于 SDK/API 或交付 viewer。
 
 明确不在当前交付范围内的能力：
 

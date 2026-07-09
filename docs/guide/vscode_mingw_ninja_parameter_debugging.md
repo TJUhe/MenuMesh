@@ -107,6 +107,7 @@ cmake -S . -B $buildDir -G Ninja `
 | `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` | configure task | 生成 `compile_commands.json`，供 C/C++ 扩展和静态分析使用。 | 构建目录下存在 `compile_commands.json`。 |
 | `-DMANUMESH_GOOGLETEST_PROVIDER=auto` | MinGW configure task | 让 CMake 为当前 MinGW 选择合适 GoogleTest，避免旧预编译 DLL 不匹配。 | 测试 exe 启动不应报 `0xc0000139`。 |
 | `-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON/OFF` | performance configure task | 是否生成性能测试目标。 | `manumesh_performance_tests.exe` 是否存在。 |
+| `-DMANUMESH_ENABLE_DEBUG_UTIL=ON/OFF` | 手工 Debug configure 或临时 task | 是否编译内部 HTML wireframe 调试实现；默认关闭。 | Debug 构建中调用 `MANUMESH_DEBUG_UTIL_*` 宏会在临时目录生成 HTML。 |
 | `-DMANUMESH_ENABLE_INSTALL=ON` | release sdk task | 打开安装和 SDK 本地验证目标。 | `sdk-consumer-test` 可构建。 |
 | `-DMANUMESH_INSTALL_CMAKE_CONFIG=ON` | release sdk task | 安装 `ManuMeshConfig.cmake`，用于下游 `find_package`。 | SDK 目录下有 `lib/cmake/ManuMesh`。 |
 | `cmake --build <dir> --target manumesh --parallel` | build task | 只构建 CLI 和库所需目标。 | `bin/manumesh.exe` 更新。 |
@@ -162,12 +163,31 @@ cmake -S . -B $buildDir -G Ninja `
 | `src/simplification/CollapseAttempt.cpp` | 单个候选坍缩如何组合 feature、boundary、curve budget 和 legality filters。 |
 | `src/simplification/CollapseLegality.cpp` | 三角形质量、法线偏转、局部误差、自交检查。 |
 | `src/simplification/SimplificationRun.cpp` | collapse 主循环、队列推进、状态应用和 `SimplifyReport` 计数。 |
+| `src/debugUtil/debugUtil.cpp` | 仅在 `MANUMESH_ENABLE_DEBUG_UTIL=ON` 的 Debug 构建中观察 HTML wireframe 输出。 |
 
 调试时不要只看最后 STL。参数意义通常体现在三个层面：
 
 1. `Options` 字段是否变了。
 2. 队列排序或硬过滤是否因此改变。
 3. `SimplifyReport`、feature report CSV 或 metrics CSV 是否出现对应变化。
+
+## 可选 HTML wireframe 调试
+
+当 CSV 和断点都说明“问题在局部几何形态”，但最终 STL 太难定位时，可以临时打开内部 HTML 线框辅助：
+
+```powershell
+cmake -S . -B build/mingw-ninja-debug-debugutil -G Ninja `
+  -DCMAKE_BUILD_TYPE=Debug `
+  -DCMAKE_C_COMPILER=gcc `
+  -DCMAKE_CXX_COMPILER=g++ `
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+  -DMANUMESH_ENABLE_DEBUG_UTIL=ON
+cmake --build build/mingw-ninja-debug-debugutil --target manumesh --parallel
+```
+
+可用宏包括 `MANUMESH_DEBUG_UTIL_WIREFRAME`、`MANUMESH_DEBUG_UTIL_EDGE`、`MANUMESH_DEBUG_UTIL_EDGES` 和 `MANUMESH_DEBUG_UTIL_FEATURES`。输出默认写到系统临时目录下的 `manumesh-debugUtil`；设置 `MANUMESH_DEBUG_UTIL_DIR` 可改目录，设置 `MANUMESH_DEBUG_UTIL_OPEN=0` 可禁止自动打开浏览器。
+
+这个工具只用于内部源码调试。正式结论仍应回到 `feature-report`、metrics CSV、CTest 和输出 STL/OBJ 检查。
 
 ## 算法分层
 

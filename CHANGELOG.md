@@ -2,6 +2,17 @@
 
 ## 2026-07-09
 
+### 文档同步
+
+- 同步 README、docs 入口、源码组织说明、VS Code 调试手册、交付 HTML 和 generated notes HTML：补充 `include/io` / `src/io` 的当前 I/O 边界，以及默认关闭的 Debug-only `src/debugUtil` HTML wireframe 辅助工具用法。
+- 新增 `docs/guide/debug_util_usage.md`，补充 debugUtil 开启方式、常用宏、颜色约定、推荐插入位置、注意事项和截图预览；新增 UseCase 颜色总览、模块特征识别、简化前后对比三张文档截图资产。
+- 本轮未更新 `docs/papers/` 论文资料库和论文索引。
+
+### Debug 辅助工具
+
+- 新增内部 `debugUtil` HTML wireframe 工具，默认关闭，开启 `MANUMESH_ENABLE_DEBUG_UTIL` 且使用 Debug 构建时可通过一行宏输出本地 HTML，支持普通线框、按场景着色的边覆盖、feature analysis 叠加和简化前后对比。
+- CMake 会对内部 C++ object target force-include `debugUtil/debugUtil.h`；Release 或未开启 debugUtil 时宏保持 no-op，不进入 public SDK install headers。
+
 ### 解耦重构与边界收紧
 
 - 将 STL/OBJ 读写从 `core/Mesh.h` 拆到新的 `io/MeshIo.h` / `src/io/MeshIo.cpp`，让 `core` 继续专注 Mesh 数据结构、校验和基础几何；使用 `loadMesh()` / `saveAsciiStl()` 的 C++ 调用方现在需要显式包含 `io/MeshIo.h`。
@@ -20,6 +31,8 @@
 - `cmake -S . -B build\mingw-ninja-release-performance -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMANUMESH_GOOGLETEST_PROVIDER=auto -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON -DCMAKE_BUILD_TYPE=Release`
 - `cmake --build build\mingw-ninja-release-performance`
 - `ctest --test-dir build\mingw-ninja-release-performance -L performance --output-on-failure`：4/4 passed
+- `cmake --build build\debug-util-mingw --target manumesh_core --parallel`
+- `clang-format --dry-run --Werror src\debugUtil\debugUtil.h src\debugUtil\debugUtil.cpp`
 
 ### 本轮更新
 

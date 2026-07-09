@@ -10,6 +10,7 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | --- | --- | --- |
 | `include/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
 | `include/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
+| `include/io/` | STL/OBJ 网格读写 API | 外部应用读写文件时显式 include；不要让 `core` 重新承担文件格式解析。 |
 | `include/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
 | `include/algorithms/simplification/` | QEM 简化选项、报告、指标、Eigen-backed 入口和 PlainMesh 入口 | 当前主要 decimation 模块；`SimplificationTypes.h` 不依赖 Eigen。 |
 | `include/algorithms/<domain>/` | 未来平级算法 API，例如 `repair`、`remeshing` | 只放稳定 options/result/facade，不放 pipeline 私有状态。 |
@@ -17,10 +18,12 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `src/common/` | 跨算法私有实现工具 | 只能被库内部使用，不安装。 |
 | `src/common/detail/` | 私有公共头 | 放多个算法共享但尚不稳定的 mesh 查询、key、hash、几何谓词、边界 loop、空间索引、索引重映射等工具。 |
 | `src/core/` | 基础数据结构实现 | 与公共 core 头对应。 |
+| `src/io/` | 网格文件读写实现 | 对应 `include/io/`，避免 `core` 直接依赖 STL/OBJ 解析细节。 |
 | `src/feature_detection/` | 特征检测实现 | 对应 `FeatureDetector` 算法模块。 |
 | `src/feature_detection/detail/` | 特征检测私有 helper | primitive fitting 等不稳定实现细节。 |
 | `src/simplification/` | 简化算法实现 | 公开薄入口和拆分后的内部模块。 |
 | `src/simplification/detail/` | 简化专属私有头 | 只能被简化实现模块使用，不安装。 |
+| `src/debugUtil/` | Debug-only HTML wireframe 辅助工具 | 默认关闭；只给内部实现调试使用，不安装、不进入 SDK 合约。 |
 | `src/<domain>/` | 未来平级算法实现，例如 `repair` | 按 public facade、validation、run、stage 拆分。 |
 | `src/<domain>/detail/` | 未来平级算法私有头 | 只给该模块内部使用；跨模块复用前先判断是否真属于 common。 |
 | `apps/manumesh/` | CLI | 薄入口加 command registry，像外部消费者一样调用库。 |
@@ -37,6 +40,26 @@ src/common/detail/MeshQueries.h            无向边 key、面 key、边-面邻�
 ```
 
 这层不是 SDK 合约。外部代码不得 include `src/common/detail/...`；如果某个概念已经足够稳定，应提升到 `include/core/` 或新的公共算法模块。common 后续应优先沉淀 `GeometryPredicates`、`BoundaryLoops`、`SpatialIndex`、`IndexRemap`、`MeshValidation` 等跨算法基础设施，具体标准见 [`common_foundation.md`](common_foundation.md)。
+
+## 当前 I/O 模块
+
+```text
+include/io/MeshIo.h       公共 STL/OBJ 读写声明
+src/io/MeshIo.cpp         STL/OBJ 解析和 ASCII STL 输出实现
+```
+
+`Mesh`、`PlainMesh` 和拓扑缓存仍属于 `core`；文件格式边界属于 `io`。外部 C++ 调用方如果需要 `loadMesh()` 或 `saveAsciiStl()`，应显式包含 `io/MeshIo.h`，而不是依赖 `core/Mesh.h` 间接带入。
+
+## 内部 HTML debugUtil
+
+```text
+src/debugUtil/debugUtil.h    Debug 宏和内部声明
+src/debugUtil/debugUtil.cpp  HTML canvas wireframe 输出实现
+```
+
+`MANUMESH_ENABLE_DEBUG_UTIL` 默认关闭。关闭时，`MANUMESH_DEBUG_UTIL_*` 宏是 no-op；打开后也只在 Debug 且未定义 `NDEBUG` 时生成 HTML。CMake 会把 `debugUtil/debugUtil.h` 预包含到内部 object target，让实现文件可以临时插入 `MANUMESH_DEBUG_UTIL_WIREFRAME`、`MANUMESH_DEBUG_UTIL_EDGE`、`MANUMESH_DEBUG_UTIL_EDGES` 或 `MANUMESH_DEBUG_UTIL_FEATURES`。
+
+输出目录默认是系统临时目录下的 `manumesh-debugUtil`，可用 `MANUMESH_DEBUG_UTIL_DIR` 覆盖；默认会调用系统浏览器打开，可用 `MANUMESH_DEBUG_UTIL_OPEN=0` 关闭。它只用于排查 feature graph、边坍缩候选和局部拓扑，不替代 CLI STL/CSV 验证，也不应被公共头、示例或下游工程依赖。
 
 ## 当前简化模块拆分
 

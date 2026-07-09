@@ -224,7 +224,7 @@ img, svg, canvas, video {
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准；当前 STL/OBJ I/O 位于 <code>include/io</code> / <code>src/io</code>，Debug-only HTML wireframe 辅助工具位于默认关闭的 <code>src/debugUtil</code>。
 </div>
 
 <div class="header">
@@ -785,7 +785,9 @@ facesByKey[sorted(a,b,c)] = 具有同一顶点集合的活动 face id 集合</co
 <tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>QEM、line quadrics、优先队列、合法性、增量邻接、collapse 主循环</td></tr>
 <tr><td><code>src/feature_detection/FeatureDetector.cpp</code></td><td>边界/dihedral/non-manifold/normal-tensor 特征边检测，FeatureGraph、feature loop、圆/椭圆 loop 拟合</td></tr>
 <tr><td><code>src/core/MeshTopology.cpp</code></td><td>公共只读拓扑缓存，用于 metrics 和后续算法模块</td></tr>
+<tr><td><code>src/io/MeshIo.cpp</code></td><td>STL/OBJ 读取与 ASCII STL 输出；公共声明位于 <code>include/io/MeshIo.h</code></td></tr>
 <tr><td><code>src/simplification/Metrics.cpp</code></td><td>边界边、非流形边、面积、三角形质量、采样距离等评估指标</td></tr>
+<tr><td><code>src/debugUtil/debugUtil.cpp</code></td><td>可选 Debug-only HTML wireframe 输出，用于在源码阶段临时观察边、feature graph 和候选 collapse</td></tr>
 </table>
 
 <div class="callout success">
@@ -1221,8 +1223,14 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <li><strong>再看 trace / cleanup：</strong><code>graphCleanupBridgedGaps</code>、<code>graphCleanupRemovedSpurs</code>、<code>graphCleanupMergedJunctions</code> 是否过高。过高说明原始证据破碎或阈值太宽。</li>
 <li><strong>再看 component：</strong><code>weakFeatureComponents</code>、<code>highConfidenceFeatureComponents</code>、<code>meanFeatureComponentConfidence</code> 能告诉你弱证据是否真的形成稳定结构。</li>
 <li><strong>再看 primitive：</strong>circle/ellipse loop 数、radial residual、plane residual 和 loop closure rate 决定特征是否可被 hard budget 保护。</li>
+<li><strong>必要时看 HTML 线框：</strong>若 report 已经指出是哪类边异常，但 STL 里难以定位，可临时启用 <code>MANUMESH_ENABLE_DEBUG_UTIL</code>，用 <code>MANUMESH_DEBUG_UTIL_FEATURES</code> 或 <code>MANUMESH_DEBUG_UTIL_EDGES</code> 生成可旋转的 HTML 辅助页。</li>
 <li><strong>最后看 simplify rejection：</strong>如果检测正确但 <code>featureRejectedCollapses</code> 极高，问题在保护策略或目标 ratio；如果检测阶段就没有 loop，问题在 evidence/cleanup/primitive。</li>
 </ol>
+
+<div class="callout warn">
+<div class="callout-title">debugUtil 不是验收工具</div>
+<p><code>src/debugUtil</code> 只在 Debug + <code>MANUMESH_ENABLE_DEBUG_UTIL=ON</code> + 非 <code>NDEBUG</code> 时输出 HTML。它适合定位 edge evidence、loop tracing 或 collapse candidate 的空间位置；正式结论仍应回到 <code>feature-report</code>、metrics CSV、CTest 和输出 STL/OBJ。</p>
+</div>
 
 <h3 id="feature-recognition-dataflow-walkthrough">B.8 按源码走一遍：每一步输入、输出、失败信号</h3>
 <p>下面这张表可以当作调试特征识别的主地图。左边是程序真正经过的阶段，中间是它消费的数据和产出的结构，右边是如果结果不对应该先怀疑什么。这样读源码时不会把“检测到 edge”“形成 loop”“QEM 真正保护”混成一个问题。</p>

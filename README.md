@@ -37,11 +37,14 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | 路径 | 角色 |
 | --- | --- |
 | `include/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
+| `include/io/` | STL/OBJ 网格读写入口，外部 C++ 调用方使用 `io/MeshIo.h`。 |
 | `include/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `manumesh::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
 | `include/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
 | `include/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
-| `src/` | 库实现按职责分组：`common/`、`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
+| `src/` | 库实现按职责分组：`common/`、`core/`、`io/`、`feature_detection/`、`simplification/`、`api/` 和可选 `debugUtil/`。 |
 | `src/common/detail/` | 跨算法私有工具层，例如 mesh key、边-面邻接、面法向、顶点邻接和边界顶点查询；不属于 SDK。 |
+| `src/io/` | STL/OBJ 读写实现；`core` 不再承载文件格式解析。 |
+| `src/debugUtil/` | Debug-only HTML wireframe 辅助工具，默认不构建实现、不安装、不作为 SDK 合约。 |
 | `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
 | `apps/manumesh/` | `manumesh` CLI，薄 `main.cpp` 加 command registry，作为库的应用层消费者。 |
 | `tests/` | GoogleTest/CTest 回归测试，按 `support/`、`unit/`、`performance/` 和 `data/` 分类。 |
@@ -64,8 +67,9 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 | `tests/output/` | 测试/验证生成的 STL、CSV 等输出，属于本地生成物。 |
 | `docs/generated/notes/*.html`、`docs/api/` | 生成/导出的说明文档，不作为源码入口。 |
 
-网页 viewer、Node/Vite 配置已经从源码入口中筛掉。要看形状时，直接打开 CLI
-生成的 STL；要看性能和误差时，读取 CSV 指标。
+网页 viewer、Node/Vite 配置已经从源码入口中筛掉。要看交付结果时，直接打开 CLI
+生成的 STL；要看性能和误差时，读取 CSV 指标。内部算法调试可临时启用
+`MANUMESH_ENABLE_DEBUG_UTIL` 生成独立 HTML 线框页，但它不是对外交付 viewer。
 
 ## 构建
 
@@ -84,6 +88,18 @@ MSVC + Ninja 可作为备用链路，需要从 VS Developer Command Prompt 或�
 cmake -S . -B build/msvc-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build build/msvc-ninja-release --target manumesh --parallel
 ```
+
+可选内部 HTML 线框调试工具只建议用于本地 Debug 构建：
+
+```powershell
+cmake -S . -B build/mingw-ninja-debug-debugutil -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DMANUMESH_ENABLE_DEBUG_UTIL=ON
+cmake --build build/mingw-ninja-debug-debugutil --target manumesh --parallel
+```
+
+启用后，内部实现文件可调用 `MANUMESH_DEBUG_UTIL_WIREFRAME`、`MANUMESH_DEBUG_UTIL_EDGE`、
+`MANUMESH_DEBUG_UTIL_EDGES` 或 `MANUMESH_DEBUG_UTIL_FEATURES`。输出目录默认是系统临时目录下的
+`manumesh-debugUtil`，可用 `MANUMESH_DEBUG_UTIL_DIR` 覆盖；默认会打开浏览器，可用
+`MANUMESH_DEBUG_UTIL_OPEN=0` 关闭自动打开。
 
 完整 ManuMesh 构建、测试、文档目标：
 

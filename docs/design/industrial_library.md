@@ -8,7 +8,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 
 - CMake 构建和安装目标。
 - `manumesh` 共享库或静态库，作为 ManuMesh 当前 ABI 兼容交付物。
-- C++ 公共头：`core`、`algorithms/feature_detection`、`algorithms/simplification`。
+- C++ 公共头：`core`、`io`、`algorithms/feature_detection`、`algorithms/simplification`。
 - C ABI：`api/CApi.h`。
 - CLI：`manumesh.exe`，用于批处理、验证和示例。
 - 示例：C++ SDK 和 C ABI consumer。
@@ -24,6 +24,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 | 简化 | standard QEM、line quadrics、ratio/face target、sweep。 |
 | 保护 | boundary、feature curves、topology link condition、triangle quality、normal deviation、local error、local intersections。 |
 | 集成 | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口、C ABI、SDK 安装、示例工程。 |
+| 内部诊断 | 可选 Debug-only HTML wireframe 辅助工具；仅用于开发排查，不属于 SDK 合约。 |
 
 ## 与完整工业几何内核的差距
 
@@ -44,6 +45,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 3. C ABI 不暴露 C++ 类型、异常或 Eigen。
 4. C ABI 结构体只能向尾部追加；同一 ABI 版本内旧 `struct_size` 的缺失字段使用默认值。
 5. 所有“工业安全”说法必须绑定具体过滤器和测试数据，不做泛化承诺。
+6. Debug HTML、临时可视化和本地实验输出只能作为排查辅助；交付验收仍以 API、CTest、CSV 指标和 STL/OBJ 结果为准。
 
 ## 推荐对外表述
 

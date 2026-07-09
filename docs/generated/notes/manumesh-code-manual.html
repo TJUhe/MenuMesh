@@ -215,7 +215,7 @@ img, svg, canvas, video {
 </head>
 <body>
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
-  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准；当前 STL/OBJ I/O 位于 <code>include/io</code> / <code>src/io</code>，Debug-only HTML wireframe 辅助工具位于默认关闭的 <code>src/debugUtil</code>。
 </div>
 
 <div class="header">
@@ -389,6 +389,7 @@ img, svg, canvas, video {
 <tr><td><code>manumesh</code></td><td>命令行工具，链接核心库。</td></tr>
 <tr><td><code>manumesh_basic_simplify</code></td><td>外部调用风格的最小示例程序。</td></tr>
 <tr><td><code>manumesh_tests</code></td><td>GoogleTest 测试程序。</td></tr>
+<tr><td><code>manumesh_debug_util_objects</code></td><td>仅在 <code>MANUMESH_ENABLE_DEBUG_UTIL=ON</code> 时出现的内部 object target，用于 Debug HTML wireframe 输出。</td></tr>
 <tr><td><code>format</code> / <code>check-format</code></td><td>clang-format 格式化和检查。</td></tr>
 <tr><td><code>docs-api</code></td><td>Doxygen API 文档生成。</td></tr>
 </tbody>
@@ -401,6 +402,11 @@ cmake -E chdir build/industrial ctest -C Release --output-on-failure</code></pre
 <div class="callout success">
 <div class="callout-title">Windows DLL 拷贝处理</div>
 <p>库包提供了 <code>manumesh_copy_runtime_dependencies(target)</code>。外部 CMake 程序链接库后调用这一行，Windows 下会自动把 <code>manumesh.dll</code> 拷到目标 exe 旁边；静态库或非 Windows 平台则不做事。</p>
+</div>
+
+<div class="callout warn">
+<div class="callout-title">内部 Debug HTML 线框工具</div>
+<p><code>MANUMESH_ENABLE_DEBUG_UTIL</code> 默认关闭。临时打开后，Debug 构建中的内部实现文件可以通过 <code>MANUMESH_DEBUG_UTIL_WIREFRAME</code>、<code>MANUMESH_DEBUG_UTIL_EDGE</code>、<code>MANUMESH_DEBUG_UTIL_EDGES</code> 或 <code>MANUMESH_DEBUG_UTIL_FEATURES</code> 输出独立 HTML。它只用于定位局部几何/feature graph 问题，不安装到 SDK，也不替代 STL/CSV/CTest 验证。</p>
 </div>
 
 <h2 id="s4"><span class="num">4</span>公共 API 与数据结构</h2>
@@ -449,11 +455,13 @@ struct Mesh {
 <table>
 <thead><tr><th>文件</th><th>职责</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td><code>src/core/Mesh.cpp</code></td><td>基础网格 I/O 与几何函数</td><td>STL/OBJ 读取、ASCII STL 输出、bbox、面积、法线、唯一边。</td></tr>
+<tr><td><code>src/core/Mesh.cpp</code></td><td>基础网格容器辅助函数</td><td>bbox、索引/几何校验、移除未使用顶点、唯一边；不再负责 STL/OBJ 解析。</td></tr>
+<tr><td><code>src/io/MeshIo.cpp</code></td><td>网格文件读写</td><td>STL/OBJ 读取、ASCII STL 输出；公共声明位于 <code>include/io/MeshIo.h</code>。</td></tr>
 <tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>简化算法核心</td><td>平面 quadric、line quadric、边界项、特征项、边坍缩循环。</td></tr>
 <tr><td><code>src/feature_detection/FeatureDetector.cpp</code></td><td>特征边/环检测</td><td>边界边、二面角边、非流形边、特征 loop、圆拟合、切线。</td></tr>
 <tr><td><code>src/simplification/Metrics.cpp</code></td><td>质量指标</td><td>面积、边数、边界边、非流形边、三角形质量、采样距离。</td></tr>
 <tr><td><code>src/core/MeshGenerators.cpp</code></td><td>测试与 demo 几何</td><td>平面、孔洞、ridge、圆柱、torus、flange、stepped shaft 等。</td></tr>
+<tr><td><code>src/debugUtil/debugUtil.cpp</code></td><td>内部 HTML wireframe 调试</td><td>仅 Debug + <code>MANUMESH_ENABLE_DEBUG_UTIL</code> 下编译，生成可旋转/缩放的 HTML canvas 线框页。</td></tr>
 <tr><td><code>apps/manumesh/ManuMeshCommands.cpp</code></td><td>CLI 编排</td><td>参数解析、generate/simplify/compare/sweep/demo 等命令。</td></tr>
 </tbody>
 </table>
@@ -497,8 +505,31 @@ struct Mesh {
 <li><strong>先判定是检测问题还是简化问题：</strong>只跑 <code>feature-report</code>，如果 loop/component/primitive 已经不对，先别调 QEM。</li>
 <li><strong>再分强证据和弱证据：</strong>强 CAD 边看 boundary/dihedral/non-manifold；浅 ridge 看 normal tensor score、persistence、alignment。</li>
 <li><strong>再看图质量：</strong>edge 多但 loop 少时，通常是 gap、spur 或 junction 问题，不是 QEM 代价问题。</li>
+<li><strong>必要时打开 HTML 线框：</strong>如果 CSV 指标能说明阶段但很难定位局部边，临时用 <code>MANUMESH_DEBUG_UTIL_FEATURES</code> 或 <code>MANUMESH_DEBUG_UTIL_EDGES</code> 看 feature graph / candidate edge 的空间位置。</li>
 <li><strong>最后看 QEM 消费：</strong>检测正确但简化后漂移，才看 feature-curve weight、primitive hard budget、line weight 和 target ratio。</li>
 </ol>
+</section>
+
+<section class="feature-recognition-brief" id="debug-util-html-wireframe">
+<h2><span class="num">5B</span>内部 HTML wireframe 调试工具</h2>
+<p><code>src/debugUtil</code> 是当前源码里的私有排查工具，不是交付 viewer。它的目标是让开发者在某个算法阶段把 mesh edge、feature edge、候选 collapse、拒绝边或 warning/error 边直接画成一个独立 HTML 文件，快速确认“问题发生在空间上的哪里”。</p>
+
+<pre><code>cmake -S . -B build/mingw-ninja-debug-debugutil -G Ninja `
+  -DCMAKE_BUILD_TYPE=Debug `
+  -DCMAKE_C_COMPILER=gcc `
+  -DCMAKE_CXX_COMPILER=g++ `
+  -DMANUMESH_ENABLE_DEBUG_UTIL=ON
+cmake --build build/mingw-ninja-debug-debugutil --target manumesh --parallel</code></pre>
+
+<table>
+<tr><th>入口</th><th>用途</th></tr>
+<tr><td><code>MANUMESH_DEBUG_UTIL_WIREFRAME(tag, mesh)</code></td><td>输出基础 mesh 线框，适合先确认输入尺度、坐标和整体拓扑。</td></tr>
+<tr><td><code>MANUMESH_DEBUG_UTIL_EDGE(tag, mesh, a, b, useCase)</code></td><td>高亮单条边，适合检查某个候选 collapse 或拒绝原因。</td></tr>
+<tr><td><code>MANUMESH_DEBUG_UTIL_EDGES(tag, mesh, overlays)</code></td><td>批量叠加自定义边，适合看候选队列、accepted/rejected 对比或局部 guard。</td></tr>
+<tr><td><code>MANUMESH_DEBUG_UTIL_FEATURES(tag, mesh, analysis)</code></td><td>按 feature graph、weak feature、boundary、loop 等颜色输出 <code>FeatureAnalysis</code>。</td></tr>
+</table>
+
+<p>默认输出目录是系统临时目录下的 <code>manumesh-debugUtil</code>；可用 <code>MANUMESH_DEBUG_UTIL_DIR</code> 改目录，用 <code>MANUMESH_DEBUG_UTIL_OPEN=0</code> 关闭自动打开浏览器。Release、未启用选项或定义了 <code>NDEBUG</code> 时，这些宏全部退化为 no-op。</p>
 </section>
 
 <h2 id="s6"><span class="num">6</span>simplifyMesh 执行流程</h2>

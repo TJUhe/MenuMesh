@@ -1,8 +1,8 @@
 #pragma once
 
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 #include "detail/SimplificationTypes.h"
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <vector>
 
@@ -15,8 +15,7 @@ Mat4 lineQuadric(const Vec3& point, const Vec3& normal);
 
 void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
                             const feature::FeatureAnalysis* featureAnalysis,
-                            std::vector<Mat4>& quadrics, double& minLineWeight,
-                            double& maxLineWeight);
+                            std::vector<Mat4>& quadrics, SimplifyReport& report);
 
 std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a,
                                                   const Vec3& b);

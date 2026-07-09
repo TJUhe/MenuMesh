@@ -67,7 +67,7 @@ void recoverPrimitiveComponents(const Mesh& mesh, const FeatureOptions& options,
     }
 
     FeatureLoop loop;
-    loop.id = loopId++;
+    loop.id = loopId;
     loop.vertices = std::move(component);
     loop.edgeCount = edgeCount;
     loop.closed = true;
@@ -83,6 +83,7 @@ void recoverPrimitiveComponents(const Mesh& mesh, const FeatureOptions& options,
         loop.primitive != FeaturePrimitiveType::Ellipse) {
       continue;
     }
+    ++loopId;
     assignLoopToVertices(loop, mesh, adjacency, analysis);
     analysis.loops.push_back(std::move(loop));
   }

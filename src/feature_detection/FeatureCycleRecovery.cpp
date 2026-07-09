@@ -1,6 +1,7 @@
 #include "detail/FeatureCycleRecovery.h"
 
 #include "common/detail/MeshQueries.h"
+#include "detail/FeatureGraph.h"
 #include "detail/FeatureLoopBuilder.h"
 
 #include <algorithm>
@@ -104,6 +105,18 @@ std::vector<int> treePathCycle(int u, int v, const std::vector<int>& parent,
   return cycle;
 }
 
+bool componentHasNormalTensorEdge(const std::vector<int>& component,
+                                  const TraceGraph& trace) {
+  for (int v : component) {
+    for (int nb : trace.adjacency[v]) {
+      if (v < nb && traceEdgeNormalTensor(trace, v, nb)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 } // namespace
 
 void recoverCircularCyclesThroughJunctions(const Mesh& mesh,
@@ -131,10 +144,6 @@ void recoverCircularCyclesThroughJunctions(const Mesh& mesh,
 void recoverSmallCycleBasis(const Mesh& mesh, const FeatureOptions& options,
                             const TraceGraph& trace, FeatureAnalysis& analysis,
                             int& loopId) {
-  if (analysis.normalTensorFeatureEdges > 0) {
-    return;
-  }
-
   const std::vector<std::vector<int>>& adjacency = trace.adjacency;
   std::vector<char> componentVisited(mesh.vertices.size(), 0);
   std::unordered_set<std::string> seenCycles;
@@ -181,6 +190,9 @@ void recoverSmallCycleBasis(const Mesh& mesh, const FeatureOptions& options,
 
     const int edgeCount = edgeCount2x / 2;
     const int cycleRank = edgeCount - static_cast<int>(component.size()) + 1;
+    if (componentHasNormalTensorEdge(component, trace)) {
+      continue;
+    }
     if (static_cast<int>(component.size()) < options.minFeatureLoopVertices ||
         static_cast<int>(component.size()) > kMaxCycleComponentVertices ||
         edgeCount > kMaxCycleComponentEdges || cycleRank <= 0 ||

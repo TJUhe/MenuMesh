@@ -1,4 +1,4 @@
-#include "manumesh/core/MeshGenerators.h"
+#include "core/MeshGenerators.h"
 
 #include <algorithm>
 #include <cmath>

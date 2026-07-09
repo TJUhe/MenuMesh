@@ -9,7 +9,7 @@ ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同�
 MinGW + Ninja 的 Release 构建：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
@@ -23,7 +23,7 @@ cmake --build $buildDir --parallel
 如果要生成本地安装布局：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
@@ -40,8 +40,8 @@ cmake --build $buildDir --target sdk-install-local --parallel
 Eigen-backed 便利入口适合同编译器、同 C++ ABI 的消费工程：
 
 ```cpp
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
-#include "manumesh/core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
+#include "core/Mesh.h"
 
 manumesh::simplification::SimplifyOptions options;
 options.targetRatio = 0.25;
@@ -55,10 +55,21 @@ manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &
 
 需要复用配置时使用 `manumesh::simplification::QEMSimplifier` 对象。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
 
+如果使用 normal-tensor 弱特征，`SimplifyOptions::normalTensorMinPersistentScales`
+控制最小多尺度支持数；`SimplifyReport` 会返回
+`normalTensorScoredVertices`、`maxNormalTensorPersistentScore`、
+`meanNormalTensorLocalScale` 和 `meanNormalTensorPersistence`，用于判断弱特征是否形成稳定支持。
+
+特征识别还会输出 cleanup 和 component-level confidence 诊断。`FeatureAnalysis::components`
+记录强/弱证据比例、闭合率、junction/endpoint、tensor persistence、primitive residual 和 confidence；`SimplifyReport` 对应返回
+`featureComponents`、`weakFeatureComponents`、`highConfidenceFeatureComponents`、
+`graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupMergedJunctions`、
+`meanFeatureComponentConfidence` 和 `minFeatureComponentConfidence`。QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。
+
 如果宿主程序不希望自己的 C++ 交换类型暴露 Eigen，使用 `PlainMesh` 入口：
 
 ```cpp
-#include "manumesh/algorithms/simplification/PlainSimplifier.h"
+#include "algorithms/simplification/PlainSimplifier.h"
 
 manumesh::PlainMesh input;
 manumesh::simplification::SimplifyOptions options;
@@ -72,12 +83,15 @@ manumesh::PlainMesh output =
 独立特征检测入口：
 
 ```cpp
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 
 manumesh::feature::FeatureOptions featureOptions;
 manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
+
+如果有人工或 CAD 导出的 edge labels，可用
+`manumesh::feature::benchmarkFeatureEdges(features, labels, junctionLabels)` 计算 edge precision/recall/F1、junction correctness、loop closure rate 和平均 component confidence。
 
 ## C ABI 最小流程
 
@@ -90,6 +104,7 @@ manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 7. 销毁 mesh handle 和 context。
 
 所有带 `struct_size` / `abi_version` 的结构体都必须先调用对应初始化函数。当前 `MANUMESH_ABI_VERSION` 为 `1`。同一 ABI 版本内，库接受尾部较短的旧 `struct_size`，只读取调用方结构体中实际存在的字段，缺失的新尾部字段使用库默认值；未初始化结构体或 ABI 版本不匹配仍会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。
+`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部，旧调用方保持默认行为。
 
 ## CMake config 与 Eigen
 
@@ -124,13 +139,13 @@ Windows + MinGW 使用共享库时，应用目录需要：
 启用安装目标后可运行：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake --build $buildDir --target sdk-consumer-test --parallel
 ```
 
 ## 集成边界
 
-- 公共头只从 `include/manumesh/` 引入；新代码优先使用 `algorithms/feature_detection` 和 `algorithms/simplification`。
+- 公共头只从 `include/` 引入；新代码优先使用 `algorithms/feature_detection` 和 `algorithms/simplification`。
 - 不要依赖 `src/simplification/detail/`，这些是私有实现。
 - 不要依赖 `src/feature_detection/detail/`，primitive fitting、trace/cycle 恢复等 helper 仍是私有实现。
 - 当前 ManuMesh SDK 不承诺通用布尔、offset、修复或去噪能力。

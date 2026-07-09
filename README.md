@@ -24,6 +24,8 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 - [ManuMesh 程序原理说明](docs/generated/notes/manumesh-program-principles.html)
 - [ManuMesh 代码阅读手册](docs/generated/notes/manumesh-code-manual.html)
 - [算法本质、数学直觉与实现契约](docs/design/algorithm_essence.md)
+- [common 内部基础库规划](docs/design/common_foundation.md)
+- [新增算法模块指南](docs/design/adding_new_algorithm.md)
 - [VS Code + MinGW + Ninja 参数调试教程](docs/guide/vscode_mingw_ninja_parameter_debugging.md)
 - [凸台圆孔等圆特征实践结果](docs/generated/notes/circular-feature-practice-results.html)
 - [QEM 相关开源库与 ManuMesh 当前实现对比](docs/generated/notes/qem-library-comparison.html)
@@ -34,10 +36,10 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 
 | 路径 | 角色 |
 | --- | --- |
-| `include/manumesh/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
-| `include/manumesh/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `manumesh::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
-| `include/manumesh/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
-| `include/manumesh/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
+| `include/` | 公共 SDK 根目录；稳定入口是 `core/`、`algorithms/` 和 `api/`。 |
+| `include/algorithms/feature_detection/` | 平级特征检测模块，主命名空间为 `manumesh::feature`，提供 `FeatureDetector`、`FeatureOptions` 和 `FeatureAnalysis`。 |
+| `include/algorithms/simplification/SimplificationTypes.h` | Eigen-free 的简化选项、报告和枚举。 |
+| `include/algorithms/simplification/PlainSimplifier.h` | 使用 `PlainMesh` 的 Eigen-free C++ 简化入口。 |
 | `src/` | 库实现按职责分组：`common/`、`core/`、`feature_detection/`、`simplification/` 和 `api/`。 |
 | `src/common/detail/` | 跨算法私有工具层，例如 mesh key、边-面邻接、面法向、顶点邻接和边界顶点查询；不属于 SDK。 |
 | `src/<domain>/detail/` | 不安装的算法私有实现头文件。 |
@@ -70,7 +72,7 @@ CLI 生成 STL/CSV -> CTest/API 示例验证 -> 用 MeshLab/CAD Assistant/系统
 推荐 MinGW + Ninja。`--parallel` 不指定数字时，CMake 会让 Ninja 按可用核心数并行：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build $buildDir --target manumesh --parallel
 ```
@@ -107,8 +109,8 @@ cmake --build build/sdk-release --target sdk-consumer-test --parallel
 最小外部调用入口：
 
 ```cpp
-#include "manumesh/core/Mesh.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 
 manumesh::simplification::SimplifyOptions options;
 options.targetRatio = 0.2;
@@ -128,12 +130,14 @@ manumesh::Mesh simplified = simplifier.simplify(input, &report);
 特征检测也可以独立使用，不需要先运行 QEM：
 
 ```cpp
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 
 manumesh::feature::FeatureOptions featureOptions;
 manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
+
+`FeatureAnalysis` 现在同时包含 raw evidence、cleanup 后的 feature graph、loop/primitive、以及 `FeatureComponent` 级 confidence。常用诊断包括 `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`weakFeatureComponents`、`meanFeatureComponentConfidence` 和 loop CSV 中的 `component_confidence` / `primitive_residual`。
 
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
 如果下游本身也是 CMake 工程，并且安装 SDK 时打开了
@@ -151,7 +155,7 @@ vendored Eigen，则通过 `find_dependency(Eigen3 3.3 NO_MODULE)` 寻找系统 
 如果宿主程序不想在自己的 C++ 交换边界暴露 Eigen，可以使用 `PlainMesh` 入口：
 
 ```cpp
-#include "manumesh/algorithms/simplification/PlainSimplifier.h"
+#include "algorithms/simplification/PlainSimplifier.h"
 
 manumesh::PlainMesh plainInput;
 manumesh::simplification::SimplifyOptions options;
@@ -221,19 +225,19 @@ C:\opt\manumesh\share\manumesh\msvc\ManuMesh.props
 - `lib\manumesh.lib` 链接库；
 - 构建后把 `bin\manumesh.dll` 复制到你的程序输出目录。
 
-如果使用 C++ API，例如 `manumesh/core/Mesh.h`，属性表默认会引用
+如果使用 C++ API，例如 `core/Mesh.h`，属性表默认会引用
 SDK 自带的 Eigen 头文件目录。需要统一公司内部 Eigen 版本时，可以覆盖
-`ManuMeshEigenIncludeDir`。如果只使用 `manumesh/api/CApi.h` 这套 C ABI，
+`ManuMeshEigenIncludeDir`。如果只使用 `api/CApi.h` 这套 C ABI，
 调用方不需要包含 Eigen 头。
 如果希望使用 C++ 但避免在宿主交换类型中暴露 Eigen，可包含
-`manumesh/algorithms/simplification/PlainSimplifier.h` 并传入
+`algorithms/simplification/PlainSimplifier.h` 并传入
 `manumesh::PlainMesh`。
 
 最小 C++ 调用：
 
 ```cpp
-#include "manumesh/core/Mesh.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
+#include "core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 
 int main() {
   manumesh::Mesh input;
@@ -256,7 +260,7 @@ int main() {
 最小 C ABI 调用入口：
 
 ```c
-#include "manumesh/api/CApi.h"
+#include "api/CApi.h"
 ```
 
 ## 验证闭环
@@ -264,28 +268,28 @@ int main() {
 基础回归：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
 
 大模型性能测试：
 
 ```powershell
-$perfBuildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release-performance"
+$perfBuildDir = "build/mingw-ninja-release-performance"
 cmake -E chdir $perfBuildDir ctest -L performance --output-on-failure
 ```
 
 快速生成 STL/CSV：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe demo --quick --samples 500
 ```
 
 工业特征验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-features --ratio 0.20 --samples 1000
 ```
 
@@ -301,9 +305,18 @@ OpenFOAM flange。可用 `--spindle-input`、`--ring-input`、`--pulley-input`�
 外部 OBJ 基准验证：
 
 ```powershell
-$exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-external --ratio 0.25 --samples 800
 ```
+
+带 ground-truth edge labels 的特征识别 benchmark：
+
+```powershell
+$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+& $exe feature-benchmark input.stl labels.csv --csv output/feature_benchmark.csv
+```
+
+`labels.csv` 可用每行 `a,b` 表示一条 vertex-index ground-truth feature edge；可选 `junction,id` 行用于 junction correctness。
 
 每项能力、性能指标、输出文件和验收口径见
 [`docs/design/industrial_validation.md`](docs/design/industrial_validation.md)。
@@ -314,9 +327,10 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 `Terminal > Run Task...`：
 
 - `demo: feature report selected mesh`：查看输入网格的 feature edge、loop、circle/ellipse 识别。
+- `demo: feature benchmark selected mesh`：读取 edge label CSV，输出 precision/recall、junction、closure 和 confidence 指标。
 - `demo: simplify standard selected mesh`：用普通 QEM 简化下拉框选择的 mesh。
 - `demo: simplify feature curves selected mesh`：用 line quadrics、dihedral 权重和特征曲线保护简化选定 mesh。
-- `demo: simplify normal tensor selected mesh`：用 normal-tensor 权重调试弱特征补充。
+- `demo: simplify normal tensor selected mesh`：用局部尺度 + 多尺度 persistence 的 normal-tensor 权重调试弱特征补充。
 - `demo: ratio sweep selected mesh`：固定算法预设，生成多档 ratio 的 STL 和 `metrics.csv`。
 - `open: vscode demo output`：打开 `output/vscode_demo`。
 
@@ -337,7 +351,8 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 | `--feature-angle-deg 15/25/45` | `fandisk_2014.stl` | 二面角阈值如何改变硬边候选数量。 |
 | `--max-feature-curve-deviation-ratio 0.02/0.05` | `coaxial_hole_plate.obj` | 曲线预算如何限制圆 loop 漂移。 |
 | `--max-local-error-ratio 0.01/0.02` | `casting_aimshape_2014.stl` | 局部几何误差 guard 如何增加 `error_rejected_collapses`。 |
-| `--weight-mode normal-tensor` | `boss_pocket_plate.obj` | normal tensor 对弱特征的补充，以及对噪声/采样的敏感性。 |
+| `--weight-mode normal-tensor` | `boss_pocket_plate.obj` | normal tensor 对弱特征的补充，以及 `normal_tensor_scored_vertices`、persistent score、局部尺度对噪声/采样的敏感性。 |
+| `--feature-graph-gap-ratio` / `--feature-graph-max-weak-spur-edges` | `boss_pocket_plate.obj`、外部 CAD/STL | graph cleanup 对短断裂、弱 spur、component confidence 的影响。 |
 
 ## 主要指标
 
@@ -351,6 +366,9 @@ $exe = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release/bin/manumes
 | `mean_orig_to_simp`、`max_orig_to_simp` | 采样距离误差，越低表示几何偏差越小。 |
 | `non_manifold_edges` | 非流形风险提示。 |
 | `radial_rms`、`plane_rms` | 圆形特征半径漂移和平面漂移。 |
+| `feature_components`、`weak_feature_components` | cleanup 后的 feature component 总数和弱证据 component 数。 |
+| `graph_cleanup_bridged_gaps`、`graph_cleanup_removed_spurs` | feature graph cleanup 对输入 trace graph 做了多少修复/清理。 |
+| `mean_feature_component_confidence`、`min_feature_component_confidence` | component-level 特征支持置信度，用于判断弱特征是否足够稳定。 |
 | `feature_rejected_collapses` | 特征约束实际拦截了多少坍缩。 |
 | `solver_fallbacks` | 当前候选 placement 求解退化到端点/中点候选集的次数，不含队列入队预排序。 |
 

@@ -27,7 +27,7 @@ ManuMesh 当前核心管线可以读成：
 | collapse 主循环 | `src/simplification/SimplificationRun.cpp`、`CollapseAttempt.cpp` |
 | 特征约束、曲线投影 | `src/simplification/FeatureConstraints.cpp` |
 | 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseLegality.cpp`、`GeometryPredicates.cpp`、`SpatialFaceIndex.cpp` |
-| 结果压缩与报告 | `src/simplification/ResultBuilder.cpp`、`include/manumesh/algorithms/simplification/SimplificationTypes.h` |
+| 结果压缩与报告 | `src/simplification/ResultBuilder.cpp`、`include/algorithms/simplification/SimplificationTypes.h` |
 
 从算法关系看，当前实现遵循的是“排序成本 + 语义支撑 + 硬过滤器”的工程结构。QEM 和 line quadrics 负责给候选排序；`FeatureAnalysis` 给出制造特征的三角网格支撑；硬过滤器负责阻止局部拓扑和几何灾难。三者不能互相替代。
 
@@ -107,14 +107,14 @@ E_total = E_plane + lambda * E_line
 | `FeatureGraph` | 边、顶点、junction、shared vertex，描述显式特征图结构。 |
 | `FeatureLoop` | chain/loop、闭合性、primitive 类型、半径/轴比/拟合误差。 |
 | `VertexFeature` | 每个顶点的 feature ownership、切向、圆/椭圆投影数据。 |
-| 计数字段 | 诊断边来源：boundary、dihedral、normal-tensor、non-manifold 等。 |
+| 计数字段 | 诊断边来源：boundary、dihedral、normal-tensor、non-manifold、traced/untraced 和 tensor local-scale/persistence 等。 |
 
 当前检测器的证据来源：
 
 1. boundary edge：只有一个相邻面。
 2. non-manifold edge：多于两个相邻面。
 3. dihedral edge：两个相邻面法向夹角超过阈值。
-4. normal-tensor edge：张量特征分数和边方向对齐满足阈值。
+4. normal-tensor edge：张量 persistent feature score、最小支持尺度数和边方向对齐满足阈值。
 
 内部实现按职责拆成小 pipeline：`FeatureEvidence.cpp` 组合多种 edge evidence strategy 并维护来源计数；`FeatureGraph.cpp` 构建 `FeatureGraph` 和 trace graph；`FeatureLoopRecovery.cpp` 只编排恢复顺序；`FeatureCycleRecovery.cpp` 恢复 junction cycle 和小 cycle basis；`FeatureTraceRecovery.cpp` 追踪图上的 open chain / closed loop；`FeaturePrimitiveRecovery.cpp` 处理 primitive component 兜底；`FeatureLoopBuilder.cpp` 负责 loop id、vertex ownership、切向和圆/椭圆投影数据写回；`FeatureCircularRecovery.cpp` 只处理有界三点圆扫描 fallback。随后程序恢复 junction 处可能断裂的 cycle，对闭合 loop 做 primitive fitting。圆、近圆、椭圆和折线 loop 会被写入 `FeatureLoop::primitive`。
 
@@ -142,14 +142,15 @@ surfaceSaliency = l0 - l1
 creaseSaliency  = l1 - l2
 cornerSaliency  = l2
 featureScore    = max(creaseSaliency, cornerSaliency)
+persistentFeatureScore = f(featureScore, averageFeatureScore, persistentScales)
 ```
 
-这不是完整 tensor voting 论文系统，而是一个轻量局部法向张量。它适合给弱特征提供证据或空间变权，但受邻域、采样密度、噪声和 smoothing iteration 影响很大。
+这不是完整 tensor voting 论文系统，而是一个轻量局部法向张量。当前实现会用 common 层局部平均边长做距离权重平滑，并用多尺度 `persistentFeatureScore` 抑制单尺度噪声。它适合给弱特征提供证据或空间变权，但仍受邻域、采样密度、噪声和 smoothing iteration 影响很大。
 
 程序中的使用方式：
 
 - 在 `FeatureEvidence.cpp` 中，normal tensor 只补充非 boundary、非 dihedral、非 non-manifold 的弱特征边。
-- 在 `Quadrics.cpp` 中，`weightMode=normal-tensor` 把 `featureScore` 作为 line weight 的空间权重来源。
+- 在 `Quadrics.cpp` 中，`weightMode=normal-tensor` 把 `persistentFeatureScore` 作为 line weight 的空间权重来源，并受 `normalTensorMinPersistentScales` 约束。
 
 这解释了为什么 normal tensor 不应该被文档写成“完整特征恢复算法”。它当前更像一个弱证据通道。
 
@@ -184,7 +185,8 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | 层 | 代表选项 | 类型 | 作用 |
 | --- | --- | --- | --- |
 | 特征邻域加权 | `weightMode`、`featureBoost` | 软 | 让特征附近候选成本更高。 |
-| 曲线 quadric | `featureCurveWeight` | 软 | 让特征点靠近曲线局部模型。 |
+| component confidence | `FeatureComponent`、`meanFeatureComponentConfidence` | 软诊断 | 把强/弱证据、闭合率、junction、primitive residual 和 tensor persistence 汇总成 support 可信度。 |
+| 曲线 quadric | `featureCurveWeight` | 软 | 让特征点靠近曲线局部模型，并按 component confidence 温和缩放。 |
 | placement 投影和预算 | `maxFeatureCurveDeviationRatio` | 半硬 | 先限制原始 placement 偏离，再投影到圆/椭圆/折线。 |
 | hard protection | `featureProtectionMode` | 硬 | 拒绝会破坏受保护 loop ownership、junction 或最低顶点数的 collapse。 |
 
@@ -279,4 +281,4 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 - 讲 line quadrics 时不要说它能去噪；它当前解决的是平坦区切向欠约束和候选排序退化。
 - 讲 normal tensor 时不要写成万能特征恢复；它是弱特征证据和空间变权来源，受邻域、尺度和噪声影响。
 - 讲工业安全时必须绑定具体过滤器、测试数据和报告字段。
-- 新增能力应进入 `include/manumesh/algorithms/<domain>/` 下的平级模块，而不是反向塞进 simplification。
+- 新增能力应进入 `include/algorithms/<domain>/` 下的平级模块，而不是反向塞进 simplification。

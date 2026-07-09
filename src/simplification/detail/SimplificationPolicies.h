@@ -1,7 +1,7 @@
 #pragma once
 
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
-#include "manumesh/algorithms/simplification/SimplificationTypes.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/simplification/SimplificationTypes.h"
 
 namespace manumesh::simplification {
 
@@ -15,6 +15,7 @@ struct TargetPolicy {
 struct FeatureDetectionPolicy {
   bool enabled = false;
   double featureAngleDeg = 40.0;
+  double loopTraceAngleDeg = -1.0;
   double circleFitRelativeThreshold = 0.05;
   double ellipseFitRelativeThreshold = 0.05;
   double nearCircleAxisRatioTolerance = 0.08;
@@ -24,6 +25,11 @@ struct FeatureDetectionPolicy {
   double normalTensorMinEdgeAlignment = 0.45;
   int normalTensorSmoothingIterations = 0;
   int normalTensorScaleCount = 1;
+  int normalTensorMinPersistentScales = 1;
+  bool cleanupFeatureGraph = true;
+  double featureGraphGapLengthRatio = 1.25;
+  int featureGraphMaxWeakSpurEdges = 2;
+  double featureComponentMinConfidence = 0.35;
 
   feature::FeatureOptions toFeatureOptions() const;
 };

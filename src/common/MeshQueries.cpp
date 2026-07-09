@@ -1,6 +1,7 @@
 #include "common/detail/MeshQueries.h"
 
 #include <algorithm>
+#include <cmath>
 #include <unordered_set>
 
 namespace manumesh::detail {
@@ -73,6 +74,44 @@ std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh) {
     neighbors[i].assign(neighborSets[i].begin(), neighborSets[i].end());
   }
   return neighbors;
+}
+
+std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
+  std::vector<double> sums(mesh.vertices.size(), 0.0);
+  std::vector<int> counts(mesh.vertices.size(), 0);
+
+  double totalLength = 0.0;
+  int totalEdges = 0;
+  const MeshEdgeInfoMap edgeInfo = buildMeshEdgeInfo(mesh);
+  for (const auto& [key, info] : edgeInfo) {
+    (void)info;
+    const auto [a, b] = unpackMeshEdgeKey(key);
+    if (a < 0 || b < 0 || a >= static_cast<int>(mesh.vertices.size()) ||
+        b >= static_cast<int>(mesh.vertices.size()) || a == b) {
+      continue;
+    }
+
+    const double length = (mesh.vertices[b] - mesh.vertices[a]).norm();
+    if (!std::isfinite(length) || length <= 1e-20) {
+      continue;
+    }
+    sums[a] += length;
+    sums[b] += length;
+    ++counts[a];
+    ++counts[b];
+    totalLength += length;
+    ++totalEdges;
+  }
+
+  const double fallback =
+      totalEdges > 0 ? totalLength / static_cast<double>(totalEdges) : 0.0;
+  std::vector<double> localScale(mesh.vertices.size(), fallback);
+  for (int i = 0; i < static_cast<int>(localScale.size()); ++i) {
+    if (counts[i] > 0) {
+      localScale[i] = sums[i] / static_cast<double>(counts[i]);
+    }
+  }
+  return localScale;
 }
 
 std::vector<char> computeBoundaryVertices(const Mesh& mesh) {

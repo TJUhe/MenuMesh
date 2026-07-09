@@ -24,6 +24,18 @@ void accumulateTraceEdgeStats(const TraceGraph& trace, int a, int b,
   if (traceEdgeBoundary(trace, a, b)) {
     ++stats.boundaryEdges;
   }
+  if (traceEdgeDihedral(trace, a, b)) {
+    ++stats.dihedralEdges;
+  }
+  if (traceEdgeNormalTensor(trace, a, b)) {
+    ++stats.normalTensorEdges;
+  }
+  if (traceEdgeNonManifold(trace, a, b)) {
+    ++stats.nonManifoldEdges;
+  }
+  if (traceEdgeCleanupBridge(trace, a, b)) {
+    ++stats.cleanupBridgeEdges;
+  }
   const int sign = traceEdgeSign(trace, a, b);
   if (sign > 0) ++stats.convexEdges;
   if (sign < 0) ++stats.concaveEdges;

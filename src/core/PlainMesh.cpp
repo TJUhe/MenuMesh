@@ -1,6 +1,6 @@
-#include "manumesh/core/PlainMesh.h"
+#include "core/PlainMesh.h"
 
-#include "manumesh/core/Mesh.h"
+#include "core/Mesh.h"
 
 namespace manumesh {
 

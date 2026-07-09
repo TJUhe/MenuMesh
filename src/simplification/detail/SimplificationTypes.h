@@ -1,7 +1,7 @@
 #pragma once
 
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
-#include "manumesh/core/Mesh.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "core/Mesh.h"
 
 #include <array>
 #include <cstdint>
@@ -25,9 +25,12 @@ struct VertexState {
   bool isBoundary = false;
   bool circularFeature = false;
   bool featureJunction = false;
+  bool weakFeature = false;
   feature::FeaturePrimitiveType featurePrimitive =
       feature::FeaturePrimitiveType::Unknown;
   int featureLoopId = -1;
+  int featureComponentId = -1;
+  double featureConfidence = 0.0;
   Vec3 curveTangent = Vec3::Zero();
   Vec3 circleCenter = Vec3::Zero();
   Vec3 circleNormal = Vec3(0.0, 0.0, 1.0);

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "common/detail/MathConstants.h"
 
 #include <cstdint>
 #include <unordered_map>
@@ -9,7 +10,7 @@
 
 namespace manumesh::feature::detector_detail {
 
-constexpr double kPi = 3.141592653589793238462643383279502884;
+using manumesh::detail::kPi;
 
 struct CandidateEdge {
   int a = -1;
@@ -18,21 +19,34 @@ struct CandidateEdge {
   bool dihedral = false;
   bool normalTensor = false;
   bool nonManifold = false;
+  bool cleanupBridge = false;
   int signedKind = 0;
   double angleRad = 0.0;
+  double tensorPersistentScore = 0.0;
+  int tensorPersistentScales = 0;
 };
 
 struct TraceGraph {
   std::vector<std::vector<int>> adjacency;
   std::vector<char> traceVertex;
   std::unordered_map<std::uint64_t, bool> edgeIsBoundary;
+  std::unordered_map<std::uint64_t, bool> edgeIsDihedral;
+  std::unordered_map<std::uint64_t, bool> edgeIsNormalTensor;
+  std::unordered_map<std::uint64_t, bool> edgeIsNonManifold;
+  std::unordered_map<std::uint64_t, bool> edgeIsCleanupBridge;
   std::unordered_map<std::uint64_t, int> edgeSignedKind;
+  std::unordered_map<std::uint64_t, double> edgeTensorPersistence;
+  std::unordered_map<std::uint64_t, int> edgeTensorPersistentScales;
   std::vector<std::pair<int, int>> graphEdges;
 };
 
 struct TraceLoopStats {
   int edgeCount = 0;
   int boundaryEdges = 0;
+  int dihedralEdges = 0;
+  int normalTensorEdges = 0;
+  int nonManifoldEdges = 0;
+  int cleanupBridgeEdges = 0;
   int convexEdges = 0;
   int concaveEdges = 0;
   int unknownSignedEdges = 0;

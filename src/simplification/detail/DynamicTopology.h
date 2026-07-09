@@ -1,8 +1,8 @@
 #pragma once
 
+#include "algorithms/simplification/QEMSimplifier.h"
 #include "common/detail/MeshQueries.h"
 #include "detail/SimplificationTypes.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <unordered_map>
 #include <unordered_set>

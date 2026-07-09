@@ -1,5 +1,7 @@
 #pragma once
 
+#include "algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/simplification/QEMSimplifier.h"
 #include "detail/CandidateQueue.h"
 #include "detail/CollapseAttempt.h"
 #include "detail/DynamicTopology.h"
@@ -7,8 +9,6 @@
 #include "detail/Quadrics.h"
 #include "detail/SimplificationPolicies.h"
 #include "detail/SpatialFaceIndex.h"
-#include "manumesh/algorithms/feature_detection/FeatureTypes.h"
-#include "manumesh/algorithms/simplification/QEMSimplifier.h"
 
 #include <memory>
 #include <unordered_set>

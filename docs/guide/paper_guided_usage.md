@@ -5,7 +5,7 @@
 建议先在 PowerShell 中定义当前 VS Code task 一致的输出目录：
 
 ```powershell
-$buildDir = "build/$(Split-Path -Leaf (Get-Location))/mingw-ninja-release"
+$buildDir = "build/mingw-ninja-release"
 $exe = "$buildDir/bin/manumesh.exe"
 ```
 
@@ -17,7 +17,7 @@ $exe = "$buildDir/bin/manumesh.exe"
 | 圆孔简化后变椭圆或顶点太少 | 特征 loop 没有形成硬保护，或最低 loop 顶点数太低。 | `--preserve-feature-curves`、`--feature-protection-mode primitive-curves`、`--min-circular-feature-loop-vertices`。 |
 | 开边界被吃掉或合并 | boundary 只作为软成本，不足以阻止拓扑改变。 | `--preserve-boundary`，以及 `boundary_rejected_collapses`。 |
 | 达不到目标面数，提前停止 | 目标比例和硬过滤器冲突，候选被大量拒绝。 | `termination_reason`、最高的 `*_rejected_collapses`。 |
-| normal tensor 结果不稳定 | 张量特征受邻域、尺度、噪声和采样影响。 | `--normal-tensor-threshold`、`--normal-tensor-edge-alignment`、是否需要预处理。 |
+| normal tensor 结果不稳定 | 张量特征受邻域、尺度、噪声和采样影响。 | `--normal-tensor-threshold`、`--normal-tensor-edge-alignment`、`--normal-tensor-scales`、`--normal-tensor-min-persistent-scales`、是否需要预处理。 |
 
 这个阅读顺序比单纯调大某个权重更安全。QEM 和 line quadrics 是排序成本；feature graph 是曲线支撑；legality filters 才是硬安全闸。
 
@@ -62,7 +62,7 @@ line quadrics 对照：
 当前有三类特征相关能力：
 
 - `--weight-mode dihedral`：用二面角硬边提高附近顶点 line weight，是软成本。
-- `--weight-mode normal-tensor`：用 normal tensor 给弱特征提供附加证据，是软成本。
+- `--weight-mode normal-tensor`：用带局部尺度和多尺度 persistence 的 normal tensor 给弱特征提供附加证据，是软成本。
 - `--preserve-feature-curves`：启用特征环检测、曲线 quadric、placement 投影和硬保护策略。
 
 曲线特征保护的推荐起点：

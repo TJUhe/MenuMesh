@@ -1,6 +1,6 @@
 #include "detail/SimplificationValidation.h"
 
-#include "manumesh/core/MeshTopology.h"
+#include "core/MeshTopology.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -46,6 +46,11 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
       options.featureAngleDeg > 180.0) {
     throw std::invalid_argument("featureAngleDeg must be finite and in [0, 180].");
   }
+  if (!std::isfinite(options.loopTraceAngleDeg) ||
+      (options.loopTraceAngleDeg >= 0.0 && options.loopTraceAngleDeg > 180.0)) {
+    throw std::invalid_argument(
+        "loopTraceAngleDeg must be negative or finite and in [0, 180].");
+  }
   if (!std::isfinite(options.normalTensorMinEdgeAlignment) ||
       options.normalTensorMinEdgeAlignment < 0.0 ||
       options.normalTensorMinEdgeAlignment > 1.0) {
@@ -64,6 +69,20 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
   }
   if (options.normalTensorScaleCount < 1) {
     throw std::invalid_argument("normalTensorScaleCount must be positive.");
+  }
+  if (options.normalTensorMinPersistentScales < 1) {
+    throw std::invalid_argument("normalTensorMinPersistentScales must be positive.");
+  }
+  requireFiniteNonNegative(options.featureGraphGapLengthRatio,
+                           "featureGraphGapLengthRatio");
+  if (options.featureGraphMaxWeakSpurEdges < 0) {
+    throw std::invalid_argument("featureGraphMaxWeakSpurEdges must be non-negative.");
+  }
+  if (!std::isfinite(options.featureComponentMinConfidence) ||
+      options.featureComponentMinConfidence < 0.0 ||
+      options.featureComponentMinConfidence > 1.0) {
+    throw std::invalid_argument(
+        "featureComponentMinConfidence must be finite and in [0, 1].");
   }
   requireFiniteNonNegative(options.minTriangleQuality, "minTriangleQuality");
   if (options.minTriangleQuality > 1.0) {

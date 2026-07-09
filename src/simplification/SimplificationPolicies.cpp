@@ -1,11 +1,13 @@
 #include "detail/SimplificationPolicies.h"
 
-#include "detail/SimplificationConstants.h"
+#include "common/detail/MathConstants.h"
 
 #include <algorithm>
 #include <cmath>
 
 namespace manumesh::simplification {
+
+using manumesh::detail::kPi;
 
 int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
   if (targetFaces > 0) {
@@ -17,6 +19,7 @@ int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
 feature::FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
   feature::FeatureOptions options;
   options.featureAngleDeg = featureAngleDeg;
+  options.loopTraceAngleDeg = loopTraceAngleDeg;
   options.circleFitRelativeThreshold = circleFitRelativeThreshold;
   options.ellipseFitRelativeThreshold = ellipseFitRelativeThreshold;
   options.nearCircleAxisRatioTolerance = nearCircleAxisRatioTolerance;
@@ -26,6 +29,11 @@ feature::FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
   options.normalTensorMinEdgeAlignment = normalTensorMinEdgeAlignment;
   options.normalTensorSmoothingIterations = normalTensorSmoothingIterations;
   options.normalTensorScaleCount = normalTensorScaleCount;
+  options.normalTensorMinPersistentScales = normalTensorMinPersistentScales;
+  options.cleanupFeatureGraph = cleanupFeatureGraph;
+  options.featureGraphGapLengthRatio = featureGraphGapLengthRatio;
+  options.featureGraphMaxWeakSpurEdges = featureGraphMaxWeakSpurEdges;
+  options.featureComponentMinConfidence = featureComponentMinConfidence;
   return options;
 }
 
@@ -46,6 +54,7 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
 
   policies.features.enabled = options.preserveFeatureCurves;
   policies.features.featureAngleDeg = options.featureAngleDeg;
+  policies.features.loopTraceAngleDeg = options.loopTraceAngleDeg;
   policies.features.circleFitRelativeThreshold = options.circleFitRelativeThreshold;
   policies.features.ellipseFitRelativeThreshold = options.ellipseFitRelativeThreshold;
   policies.features.nearCircleAxisRatioTolerance = options.nearCircleAxisRatioTolerance;
@@ -56,6 +65,13 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
   policies.features.normalTensorSmoothingIterations =
       options.normalTensorSmoothingIterations;
   policies.features.normalTensorScaleCount = options.normalTensorScaleCount;
+  policies.features.normalTensorMinPersistentScales =
+      options.normalTensorMinPersistentScales;
+  policies.features.cleanupFeatureGraph = options.cleanupFeatureGraph;
+  policies.features.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
+  policies.features.featureGraphMaxWeakSpurEdges = options.featureGraphMaxWeakSpurEdges;
+  policies.features.featureComponentMinConfidence =
+      options.featureComponentMinConfidence;
 
   policies.legality.preserveBoundary = options.preserveBoundary;
   policies.legality.minTriangleQuality = options.minTriangleQuality;

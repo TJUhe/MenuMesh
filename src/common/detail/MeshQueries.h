@@ -1,6 +1,7 @@
 #pragma once
 
-#include "manumesh/core/Mesh.h"
+#include "Export.h"
+#include "core/Mesh.h"
 
 #include <array>
 #include <cstdint>
@@ -41,6 +42,12 @@ Vec3 faceCentroid(const Mesh& mesh, const Face& face);
 
 /// Builds deduplicated one-ring vertex adjacency.
 std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh);
+
+/// Computes the average incident edge length per vertex.
+///
+/// Isolated vertices receive the global mean edge length when available, or 0
+/// for an edgeless mesh. Algorithms use this as a local sampling-density scale.
+MANUMESH_API std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh);
 
 /// Marks vertices incident to boundary edges.
 std::vector<char> computeBoundaryVertices(const Mesh& mesh);

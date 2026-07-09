@@ -19,6 +19,7 @@ const std::unordered_set<std::string>& valueFlags() {
       "--weight-mode",
       "--feature-boost",
       "--feature-angle-deg",
+      "--loop-trace-angle-deg",
       "--adaptive-base-line-weight",
       "--boundary-weight",
       "--feature-protection-mode",
@@ -33,6 +34,10 @@ const std::unordered_set<std::string>& valueFlags() {
       "--normal-tensor-edge-alignment",
       "--normal-tensor-smoothing",
       "--normal-tensor-scales",
+      "--normal-tensor-min-persistent-scales",
+      "--feature-graph-gap-ratio",
+      "--feature-graph-max-weak-spur-edges",
+      "--feature-component-min-confidence",
       "--min-triangle-quality",
       "--max-normal-deviation-deg",
       "--max-local-error",
@@ -63,6 +68,7 @@ const std::unordered_set<std::string>& switchFlags() {
       "--preserve-feature-curves",
       "--industrial-safe",
       "--no-normal-tensor-features",
+      "--no-feature-graph-cleanup",
       "--quick",
   };
   return flags;

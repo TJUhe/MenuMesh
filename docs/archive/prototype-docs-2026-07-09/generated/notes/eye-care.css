@@ -1,0 +1,147 @@
+/* Shared eye-care reading theme inspired by the VS Code Green paper theme. */
+:root {
+  color-scheme: light;
+  --bg: #ecfaee;
+  --card: #f8fbf1;
+  --panel: #e4ecdc;
+  --border: #c5d6c7;
+  --text: #222222;
+  --dim: #555555;
+  --accent: #207f4c;
+  --accent-soft: #3ba776;
+  --green: #207f4c;
+  --orange: #9a6422;
+  --red: #b34047;
+  --code-bg: #dce9de;
+  --callout-bg: #e0f4ee;
+  --warn-bg: #f7eedb;
+  --danger-bg: #f5e2e2;
+  --success-bg: #dff3e3;
+}
+
+html {
+  background: #cdd9cf;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.header,
+header,
+.hero {
+  background: linear-gradient(135deg, #657b69, #207f4c) !important;
+  color: #f8fbf1 !important;
+}
+
+.header .subtitle,
+header .subtitle,
+.subtitle,
+.meta {
+  color: #dcebd8 !important;
+}
+
+.tag {
+  background: rgba(248, 251, 241, 0.16) !important;
+  border-color: rgba(248, 251, 241, 0.3) !important;
+  color: #f8fbf1 !important;
+}
+
+.content,
+main,
+article,
+section {
+  background-color: var(--bg);
+}
+
+a,
+h3,
+.toc a {
+  color: var(--accent) !important;
+}
+
+h2 {
+  border-bottom-color: var(--accent) !important;
+}
+
+h2 .num,
+.badge,
+.pill {
+  background: var(--accent) !important;
+  color: #f8fbf1 !important;
+}
+
+code {
+  background: var(--code-bg) !important;
+  color: #006600 !important;
+}
+
+pre,
+.diagram {
+  background: #cdd9cf !important;
+  color: #222222 !important;
+  box-shadow: inset 0 0 0 1px rgba(32, 127, 76, 0.18);
+}
+
+pre code {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.toc,
+.formula,
+.compare-box,
+.card,
+.panel,
+blockquote {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+}
+
+th {
+  background: var(--panel) !important;
+  border-bottom-color: var(--accent) !important;
+  color: #222222 !important;
+}
+
+td {
+  border-bottom-color: var(--border) !important;
+}
+
+tr:nth-child(even) td {
+  background: #e0f4ee !important;
+}
+
+.callout,
+.callout.key {
+  background: var(--callout-bg) !important;
+  border-color: var(--accent) !important;
+}
+
+.callout.warn {
+  background: var(--warn-bg) !important;
+  border-color: var(--orange) !important;
+}
+
+.callout.danger {
+  background: var(--danger-bg) !important;
+  border-color: var(--red) !important;
+}
+
+.callout.success {
+  background: var(--success-bg) !important;
+  border-color: var(--green) !important;
+}
+
+.callout-title,
+.toc-title,
+strong {
+  color: #253d24;
+}
+
+.footer,
+footer {
+  color: var(--dim) !important;
+  border-top-color: var(--border) !important;
+}

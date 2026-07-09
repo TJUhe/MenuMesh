@@ -12,7 +12,12 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 - 非流形边。
 - 二面角超过 `featureAngleDeg` 的硬边。
 - normal-tensor 弱特征证据。
+- `loopTraceAngleDeg` 控制哪些已识别 edge 进入 loop tracing；默认 `-1` 表示复用 `featureAngleDeg`。
 - loop tracing 后的圆、近圆、椭圆和折线 primitive 拟合。
+
+`featureAngleDeg` 决定“这条边是否进入 feature evidence”，`loopTraceAngleDeg` 决定“这条二面角边是否参与 loop ownership”。因此浅特征可以被用户显式保留下来；如果用户把 trace 阈值设得更严格，报告中的 `untracedFeatureEdges` 会提示这些 edge 没有被下游曲线保护消费。
+
+normal tensor 弱特征现在还会记录每个顶点的局部边长尺度、多尺度 persistence 和 `persistentFeatureScore`。`--normal-tensor-min-persistent-scales` 同时影响 feature edge 接受和 QEM `weight-mode=normal-tensor` 的空间权重，避免检测和简化使用两套弱特征语义。
 
 ## 简化中的约束层
 
@@ -24,6 +29,10 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 | 曲线预算 | `maxFeatureCurveDeviationRatio` | 原始 placement 偏离曲线太远时拒绝。 |
 | 最小 loop 顶点数 | `minFeatureLoopVertices`、`minCircularFeatureLoopVertices` | 防止重要 loop 被压到过少顶点。 |
 | 硬保护策略 | `featureProtectionMode` | 决定哪些 loop/边可以触发硬拒绝。 |
+| trace 诊断 | `tracedFeatureEdges`、`untracedFeatureEdges` | 区分 feature evidence 和可被 loop ownership 消费的边。 |
+| tensor 尺度诊断 | `normalTensorScoredVertices`、`maxNormalTensorPersistentScore`、`meanNormalTensorLocalScale`、`meanNormalTensorPersistence` | 判断弱特征证据是否有稳定多尺度支持。 |
+| graph cleanup | `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupMergedJunctions` | 在 primitive fitting 前修复短断裂、去掉 tensor-only 短 spur，并记录 cleanup 影响。 |
+| component confidence | `FeatureComponent`、`meanFeatureComponentConfidence`、`weakFeatureComponents` | 把强/弱证据比例、闭合率、junction、tensor persistence 和 primitive residual 汇总成可被 QEM 消费的 support 置信度。 |
 
 ## 每一层的由来
 
@@ -38,6 +47,16 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 普通 line quadric 使用顶点法向线，主要解决平坦区切向漂移；feature curve quadric 使用的是特征曲线切向。直观上，它惩罚点离开曲线附近的二维正交补，使 feature 顶点更愿意沿曲线方向移动，而不是横向漂移。
 
 对圆/椭圆 loop，这个切向来自 primitive 拟合；对折线 loop，则来自相邻特征边方向。这是“曲线支撑”而不是完整 CAD 约束。
+
+small cycle basis 和 circular fallback 现在按 trace connected component 运行。normal-tensor 产生的弱 ridge 只会阻止同一 component 的圆形 fallback，不会全局阻止其他干净圆孔或孔边界的补救恢复。
+
+### component confidence 与 graph cleanup
+
+`FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、primitive residual 和 confidence。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
+
+Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 会被桥接，近 junction 会被桥接，短 tensor-only spur 会被删除。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。
+
+QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。强 CAD loop 接近原始 `featureCurveWeight`，弱 tensor support 会先作为较软成本进入排序；是否硬保护仍由 `featureProtectionMode` 决定。
 
 ### placement 投影
 
@@ -78,7 +97,9 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 
 - 普通圆孔：`--preserve-feature-curves --feature-protection-mode primitive-curves --min-circular-feature-loop-vertices 12`。
 - 泛硬边太多导致停滞：避免 `all-feature-edges`，使用默认 `primitive-curves`。
-- 弱特征不明显：尝试 `--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2`。
+- 浅二面角需要进入 loop：降低 `--feature-angle-deg`，并让 `--loop-trace-angle-deg -1` 复用同一阈值。
+- 只想观察浅边但暂不让它保护简化：把 `--loop-trace-angle-deg` 设得高于 `--feature-angle-deg`，再检查 `untraced_edges`。
+- 弱特征不明显：尝试 `--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2`。
 - 输出偏离曲线：增大 `featureCurveWeight` 或减小 `maxFeatureCurveDeviationRatio`，同时检查拒绝计数是否过高。
 
 ## 相关算法出处
@@ -90,3 +111,5 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 | 特征保持简化 | `docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf`、`hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` |
 | 弱特征支撑 | 文献库 source 088 `CWF: Consolidating Weak Features in High-quality Mesh Simplification` |
 | 边折叠合法性 | `docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf` |
+
+本次实现细节和后续算法计划见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)。

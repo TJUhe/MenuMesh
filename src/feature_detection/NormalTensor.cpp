@@ -1,8 +1,9 @@
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>
+#include <cmath>
 
 namespace manumesh::feature {
 namespace {
@@ -61,41 +62,70 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
 
   const std::vector<std::vector<int>> neighbors =
       manumesh::detail::buildVertexNeighbors(mesh);
+  const std::vector<double> localScale =
+      manumesh::detail::computeVertexAverageEdgeLength(mesh);
   const int baseIterations = std::clamp(options.smoothingIterations, 0, 8);
   const int scaleCount = std::clamp(options.scaleCount, 1, 8);
 
-  auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current) {
-    std::vector<Eigen::Matrix3d> next = tensors;
-    next = current;
+  auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current,
+                        double radiusMultiplier) {
+    std::vector<Eigen::Matrix3d> next = current;
     for (int i = 0; i < static_cast<int>(current.size()); ++i) {
       if (neighbors[i].empty()) {
         continue;
       }
+      const double radius =
+          std::max(1e-12, localScale[i] * std::max(0.25, radiusMultiplier));
       Eigen::Matrix3d sum = current[i];
-      double count = 1.0;
+      double weightSum = 1.0;
       for (int nb : neighbors[i]) {
-        sum += current[nb];
-        count += 1.0;
+        const double distance = (mesh.vertices[nb] - mesh.vertices[i]).norm();
+        const double normalized = distance / radius;
+        const double weight = std::exp(-normalized * normalized);
+        if (weight <= 1e-12) {
+          continue;
+        }
+        sum += weight * current[nb];
+        weightSum += weight;
       }
-      next[i] = sum / count;
+      next[i] = sum / weightSum;
     }
     current.swap(next);
   };
 
   for (int iter = 0; iter < baseIterations; ++iter) {
-    smoothOnce(tensors);
+    smoothOnce(tensors, 1.0);
   }
 
   for (int scale = 0; scale < scaleCount; ++scale) {
     for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
-      const NormalTensorVertex candidate = analyzeNormalTensor(tensors[i]);
+      NormalTensorVertex candidate = analyzeNormalTensor(tensors[i]);
+      candidate.localScale =
+          i < static_cast<int>(localScale.size()) ? localScale[i] : 0.0;
+      result[i].averageFeatureScore += candidate.featureScore;
+      if (candidate.featureScore > 1e-12) {
+        ++result[i].persistentScales;
+      }
       if (scale == 0 || candidate.featureScore > result[i].featureScore) {
+        const double accumulatedAverage = result[i].averageFeatureScore;
+        const int accumulatedPersistence = result[i].persistentScales;
         result[i] = candidate;
+        result[i].averageFeatureScore = accumulatedAverage;
+        result[i].persistentScales = accumulatedPersistence;
       }
     }
     if (scale + 1 < scaleCount) {
-      smoothOnce(tensors);
+      smoothOnce(tensors, 1.0 + 0.5 * static_cast<double>(scale + 1));
     }
+  }
+  for (NormalTensorVertex& vertex : result) {
+    vertex.averageFeatureScore /= static_cast<double>(scaleCount);
+    const double persistenceRatio = std::clamp(
+        static_cast<double>(vertex.persistentScales) / static_cast<double>(scaleCount),
+        0.0, 1.0);
+    const double robustScore =
+        0.65 * vertex.featureScore + 0.35 * vertex.averageFeatureScore;
+    vertex.persistentFeatureScore = robustScore * (0.5 + 0.5 * persistenceRatio);
   }
   return result;
 }

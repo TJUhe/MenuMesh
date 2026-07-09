@@ -1,4 +1,4 @@
-#include "manumesh/core/Mesh.h"
+#include "core/Mesh.h"
 
 #include <algorithm>
 #include <array>
@@ -464,6 +464,24 @@ bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
       if (error) {
         *error = "Mesh vertex " + std::to_string(vertexIndex) +
                  " contains a non-finite coordinate.";
+      }
+      return false;
+    }
+  }
+  for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
+    const Face& face = mesh.faces[faceIndex];
+    if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
+      if (error) {
+        *error = "Mesh face " + std::to_string(faceIndex) + " is degenerate.";
+      }
+      return false;
+    }
+    const Vec3& a = mesh.vertices[face.v[0]];
+    const Vec3& b = mesh.vertices[face.v[1]];
+    const Vec3& c = mesh.vertices[face.v[2]];
+    if ((b - a).cross(c - a).squaredNorm() <= 0.0) {
+      if (error) {
+        *error = "Mesh face " + std::to_string(faceIndex) + " has zero area.";
       }
       return false;
     }

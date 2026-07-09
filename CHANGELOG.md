@@ -1,5 +1,109 @@
 # 更新日志
 
+## 2026-07-09
+
+### 修复
+
+- 修复 C API 输出结构体的 ABI 写越界风险：`ManuMeshSimplifyReport` 和
+  `ManuMeshMeshStats` 现在会按调用方传入的 `struct_size` 限定清零和字段写入，
+  保留旧版尾部较短结构体的兼容性。
+- 网格几何校验现在会拒绝重复顶点面和零面积三角形；C API
+  `manumesh_mesh_set_data()` 在遇到退化面时不会替换调用方已有 mesh。
+
+### 变更
+
+- 重构 CMake 组织方式，移除项目自有 `.cmake` 模块，改为按目录维护：
+  顶层 `CMakeLists.txt` 只保留全局选项、Eigen 解析、通用 helper 和目录装配；
+  `src/`、`apps/manumesh/`、`tests/`、`examples/`、`adm/` 分别维护库、CLI、
+  测试、示例和开发/安装规则。
+- 将 `manumesh_core`、CLI、GoogleTest provider、format/check-format、docs-api、
+  SDK install/export/consumer test 等逻辑移动到对应目录级 `CMakeLists.txt`，
+  保持 CMake 3.18 可用。
+
+### 新增
+
+- 新增 `docs/guide/adding_feature_workflow.md`，说明新增功能时如何判断落点、
+  设计公共 API、拆实现文件、接入目录级 CMakeLists、补测试、扩展 CLI/C API
+  和验证 SDK。
+- 新增 `examples/feature_workflow_demo.cpp`，演示“特征检测 + feature-preserving
+  QEM 简化 + 网格质量门禁”的 SDK 组合工作流，并接入 CTest 和 SDK samples 安装。
+- 新增退化面拒绝、C ABI 旧结构体输出保护等回归测试。
+
+### 已验证
+
+- `cmake --build build\mingw-ninja-release --parallel`
+- `cmake --build build\mingw-ninja-release --target check-format`
+- `ctest --test-dir build\mingw-ninja-release --output-on-failure`：91/91 passed
+- `cmake -S . -B build\cmakelists-maintain-install-check-mingw -G Ninja -DMANUMESH_ENABLE_INSTALL=ON -DMANUMESH_INSTALL_CMAKE_CONFIG=ON ...`
+- `cmake --build build\cmakelists-maintain-install-check-mingw --target sdk-install-local --parallel`
+- `cmake --build build\cmakelists-maintain-install-check-mingw --target sdk-consumer-test --parallel`：2/2 passed
+
+### 文档
+
+- 全量收紧 `docs/**/*.html` 响应式排版：统一加入换行、表格固定布局、代码/公式/长路径断行和移动端宽度保护，清理会导致横向溢出的 `nowrap`、固定单元格宽度和可见横向溢出规则。
+- 大幅扩充特征识别说明：`current-program-principles.html` 增加从 edge evidence 到 `FeatureAnalysis` 的源码级数据流、失败信号、文献路线和下一轮算法落地清单；`normal-tensor-qem-notes.html` 增加 Normal Tensor 从论文公式到源码执行路径的逐步映射。
+- 扩充 `manumesh-code-manual.html` 的特征识别函数级阅读顺序和测试保护建议，并在 `manumesh_kernel_developer_guide.html` 增加 Feature Detection Debug Contract，明确 evidence、trace ownership、cleanup、primitive fitting 和 QEM consumption 的模块边界。
+- 同步更新 generated notes、delivery guide 和 `docs/archive/prototype-docs-2026-07-09/` 内的 HTML 副本，使正式文档、历史归档和论文引用说明保持一致。
+- 扩充所有 HTML 的 QEM 二次型说明：统一展开 `Q=[[A,b],[b^T,c]]`、`E=x^T A x+2b^T x+c`，并用具体数值例子代入 `lineWeight=1e-3`、`featureBoost=0.08`、`boundaryWeight=5`、`featureCurveWeight=0.08` 和 component confidence，展示各项如何改变 `A/b/c` 与候选 collapse 代价。
+- 澄清 QEM 深入页和执行计划中的 primitive 保护描述：当前代码没有独立的径向权重参数或径向二次型构造函数，圆/椭圆/多边形 loop 通过 tangent-line quadric、primitive projection、`maxFeatureCurveDeviationRatio` 与 hard feature policy 共同保护。
+- 在 notes HTML 中补充 dihedral / normal-tensor 特征提高 line-quadric 权重的详细解释：明确该权重会偏离纯 plane-QEM 最优点，但用于抑制平坦区和特征附近的切向漂移、改变候选 collapse 排序；同时说明边界保护还依赖 boundary quadric / hard guards，弱特征需要 persistence、component confidence 与 benchmark 避免过度正则化。
+
+### 测试
+
+- 修正 performance 数据集测试中非圆硬特征用例的保护策略断言：`PrimitiveCurves` 模式负责验证可达到目标面数预算，`AllFeatureEdges` 模式单独验证 generic feature hard rejection，避免把严格锁定全部特征的保守模式误判为必须达到生产默认简化预算。
+
+### 新增
+
+- 增加 feature graph cleanup：在 loop recovery 前按局部边长归一化做短 gap bridge、近 junction bridge 和 tensor-only 弱 spur 删除；新增 `cleanupFeatureGraph`、`featureGraphGapLengthRatio`、`featureGraphMaxWeakSpurEdges`、`featureComponentMinConfidence` 选项及 CLI/C ABI 尾部字段。
+- 增加 component-level confidence：`FeatureAnalysis::components` 统计强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual 和 confidence；loop 与 vertex 记录 `componentId`、`confidence`、`weakFeature`。
+- 增加 `feature-benchmark` CLI 和 `benchmarkFeatureEdges()`，支持用 vertex-index ground-truth edge labels 评估 precision/recall/F1、junction correctness、loop closure rate 和 component confidence。
+- `SimplifyReport` / C ABI report / metrics CSV 增加 `feature_components`、`weak_feature_components`、`high_confidence_feature_components`、`graph_cleanup_*`、`mean_feature_component_confidence` 和 `min_feature_component_confidence`。
+
+### 变更
+
+- feature-curve soft quadric 权重按 component confidence 温和缩放，使强 CAD loop 保持接近原权重，弱证据 component 在 QEM 中先作为较软 support 使用。
+- `feature-report` loop CSV 增加 `component_id`、`component_confidence`、`weak_feature` 和 `primitive_residual`，便于定位弱特征、破碎 loop 和 primitive fit 风险。
+
+### 新增
+
+- 增加 `docs/delivery/manumesh_kernel_developer_guide.html`，作为商用内核交付级开发者手册入口，覆盖定位、架构、模块边界、API/C ABI、构建、验证、扩展约束和交付清单。
+- 将 2026-07-09 前的阶段性设计、指南和生成笔记归档到 `docs/archive/prototype-docs-2026-07-09/`，保留研发历史材料，同时避免和正式交付文档混用。
+- 扩充 `docs/papers/feature_detection/`、`docs/papers/segmentation/` 和 `docs/papers/weak_features/`，补入特征线、normal voting/tensor、ridge/valley、线框提取、工程对象分割和弱特征整合论文。
+- 增加 `docs/papers/feature_recognition_download_status.md` 和 `docs/papers/paper_index_openalex_2026-07-09.json`，记录论文下载状态、OpenAlex DOI/引用数量快照和未下载项线索。
+- 增加 `FeatureOptions::loopTraceAngleDeg` / `SimplifyOptions::loopTraceAngleDeg`、CLI `--loop-trace-angle-deg`、C ABI `loop_trace_angle_deg`，用于把 feature evidence 阈值和 loop tracing 阈值分开。
+- 增加 `tracedFeatureEdges` / `untracedFeatureEdges` 诊断，并同步到 feature report、simplify metrics CSV、C ABI report 和 VS Code demo/debug 配置。
+- 增加 common 层 `computeVertexAverageEdgeLength`，作为 normal tensor 和后续 feature/QEM 策略共享的局部采样尺度。
+- 增加 `normalTensorMinPersistentScales` / `--normal-tensor-min-persistent-scales` / C ABI `normal_tensor_min_persistent_scales`，用于要求 normal-tensor 弱特征至少被多个尺度支持。
+- 增加 normal-tensor scored vertices、`max_normal_tensor_persistent_score`、`mean_normal_tensor_local_scale`、`mean_normal_tensor_persistence` 诊断，并同步到 FeatureAnalysis、SimplifyReport、C ABI、feature-report CSV、metrics CSV 和 VS Code 配置。
+- 增加浅二面角 trace、严格 trace 下 untraced 诊断、tensor component 不阻塞独立圆孔 fallback 的 GoogleTest 回归保护。
+- 增加 `docs/design/feature_detection_upgrade_2026_07_09.md`，记录本次特征识别升级、文献锚点和后续算法计划。
+
+### 变更
+
+- 重写 `docs/README.md`，将文档入口拆分为正式交付文档、历史归档和论文资料库，并明确当前交付范围不包括完整 B-Rep CAD kernel、通用 Boolean/offset、完整 CAD feature tree 恢复和全局 Hausdorff/envelope 认证。
+- 重写 `docs/papers/README.md`，按 QEM、line quadrics、特征检测、分割、弱特征、特征保持简化、边折叠、神经/时间一致性 QEM 和网格生成分类索引 M001-M036，并在每篇论文标题后保留 OpenAlex 引用数量。
+- 将论文索引用途从“零散 PDF 列表”调整为可支持特征识别、商用内核路线图和算法审核的本地 literature map。
+- 移除 feature graph loop tracing 的 40 度硬下限，默认让浅特征按用户的 `featureAngleDeg` 进入 loop ownership；需要更严格 trace 时可显式设置 `loopTraceAngleDeg`。
+- 修正 primitive recovery / circular fallback 的 loop id 分配时机，避免无效 primitive 造成非连续 id 和后续约束表漏建。
+- 将 normal-tensor 对 small cycle basis 和 circular fallback 的影响从全局开关改成 trace connected component 级判断。
+- normal tensor 平滑改为按局部边长归一化的距离权重，多尺度结果输出平均 feature score、persistence、persistent score 和 local scale；feature edge 接受与 QEM `weight-mode=normal-tensor` 共用 persistent score。
+
+### 已验证
+
+- `cmake --build build\mingw-ninja-release --target manumesh_tests manumesh --parallel`
+- `ctest -R "FeatureDetection\.(TracesShallowDihedralLoopAtRequestedAngle|ReportsUntracedDihedralEdgesWhenTraceAngleIsStricter|TensorComponentDoesNotBlockSeparateCircularFallback)|CApiTest\.ExposesNormalTensorOptionsAndDiagnostics|CApiTest\.InitializesPrimitiveFitOptions" --output-on-failure`（5/5 passed）
+- `ctest --test-dir build\mingw-ninja-release -R "NormalTensor|MeshQueriesComputeLocalVertexEdgeScale|CApi" --output-on-failure`（16/16 passed）
+- `cmake --build build\mingw-ninja-release --parallel`
+- `ctest --test-dir build\mingw-ninja-release -LE performance --output-on-failure`（85/85 passed）
+- `.\build\mingw-ninja-release\bin\manumesh.exe feature-report tests\data\feature_fixtures\coaxial_hole_plate.obj --feature-angle-deg 25 --loop-trace-angle-deg -1 --circle-fit-threshold 0.04 --ellipse-fit-threshold 0.05 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2 --csv output\vscode_demo\features.csv`
+- `.\build\mingw-ninja-release\bin\manumesh.exe simplify tests\data\feature_fixtures\boss_pocket_plate.obj output\vscode_demo\normal_tensor.stl --method line --line-weight 1e-3 --weight-mode normal-tensor --feature-boost 0.08 --feature-angle-deg 179 --loop-trace-angle-deg -1 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2 --ratio 0.5 --samples 512 --metrics-csv output\vscode_demo\normal_tensor_metrics.csv`
+- `.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000`
+- `.\build\mingw-ninja-release\bin\manumesh.exe validate-external --ratio 0.25`
+- HTML 静态审核：确认 `docs/**/*.html` 无残留 `white-space: nowrap`、移动端 `min-width:120px`、可见横向溢出规则、控制字符或错误转义引号；21 个 HTML 的 `table` / `section` / `style` 标签计数配平。
+- 文档引用审核：`docs/papers/paper_index_openalex_2026-07-09.json` 可解析，generated/delivery HTML 中 18 个 `docs/papers/*.pdf` 引用均存在。
+- Git 属性审核：新增 `.gitattributes` 将 `*.pdf` 作为二进制文件处理，避免论文 PDF 被文本 diff/check 误判为 trailing whitespace。
+- `git diff --check`
+
 ## 2026-07-07
 
 ### 变更

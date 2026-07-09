@@ -1,7 +1,7 @@
 #include "detail/FeatureEvidence.h"
 
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
-#include "manumesh/algorithms/feature_detection/FeatureDetector.h"
 
 #include <algorithm>
 #include <array>
@@ -24,6 +24,7 @@ struct EdgeEvidenceContext {
                                                 options.normalTensorScaleCount})
                 : std::vector<NormalTensorVertex>()),
         discreteFeatureVertex(mesh.vertices.size(), 0) {
+    summarizeNormalTensorVertices();
     markDiscreteFeatureVertices();
   }
 
@@ -37,6 +38,33 @@ struct EdgeEvidenceContext {
   std::vector<char> discreteFeatureVertex;
 
 private:
+  void summarizeNormalTensorVertices() {
+    if (tensor.empty()) {
+      return;
+    }
+
+    double localScaleSum = 0.0;
+    double persistenceSum = 0.0;
+    for (const NormalTensorVertex& vertex : tensor) {
+      analysis.maxNormalTensorFeatureScore =
+          std::max(analysis.maxNormalTensorFeatureScore, vertex.featureScore);
+      analysis.maxNormalTensorPersistentScore = std::max(
+          analysis.maxNormalTensorPersistentScore, vertex.persistentFeatureScore);
+      if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
+        continue;
+      }
+      ++analysis.normalTensorScoredVertices;
+      localScaleSum += vertex.localScale;
+      persistenceSum += static_cast<double>(vertex.persistentScales);
+    }
+
+    if (analysis.normalTensorScoredVertices > 0) {
+      const double count = static_cast<double>(analysis.normalTensorScoredVertices);
+      analysis.meanNormalTensorLocalScale = localScaleSum / count;
+      analysis.meanNormalTensorPersistence = persistenceSum / count;
+    }
+  }
+
   void markDiscreteFeatureVertices() {
     for (const auto& [key, info] : edges) {
       bool discrete = false;
@@ -82,7 +110,7 @@ int signedDihedralKind(const Mesh& mesh, const std::vector<Vec3>& normals,
   return normalsPointTowardEachOther ? -1 : 1;
 }
 
-bool normalTensorEdgeCandidate(const CandidateEdge& edge,
+bool normalTensorEdgeCandidate(CandidateEdge& edge,
                                const std::vector<NormalTensorVertex>& tensor,
                                const std::vector<char>& discreteFeatureVertex,
                                const Mesh& mesh, const FeatureOptions& options,
@@ -102,8 +130,22 @@ bool normalTensorEdgeCandidate(const CandidateEdge& edge,
       0.5 * (tensor[edge.a].featureScore + tensor[edge.b].featureScore);
   analysis.maxNormalTensorFeatureScore =
       std::max(analysis.maxNormalTensorFeatureScore, score);
-  const double minEndpointScore =
-      std::min(tensor[edge.a].featureScore, tensor[edge.b].featureScore);
+  const double persistentScore = 0.5 * (tensor[edge.a].persistentFeatureScore +
+                                        tensor[edge.b].persistentFeatureScore);
+  analysis.maxNormalTensorPersistentScore =
+      std::max(analysis.maxNormalTensorPersistentScore, persistentScore);
+  const int requiredPersistentScales =
+      std::clamp(options.normalTensorMinPersistentScales, 1,
+                 std::max(1, options.normalTensorScaleCount));
+  const int minPersistentScales =
+      std::min(tensor[edge.a].persistentScales, tensor[edge.b].persistentScales);
+  edge.tensorPersistentScore = persistentScore;
+  edge.tensorPersistentScales = minPersistentScales;
+  if (minPersistentScales < requiredPersistentScales) {
+    return false;
+  }
+  const double minEndpointScore = std::min(tensor[edge.a].persistentFeatureScore,
+                                           tensor[edge.b].persistentFeatureScore);
   if (minEndpointScore < options.normalTensorFeatureThreshold) {
     return false;
   }

@@ -142,3 +142,40 @@ TEST_F(CApiTest, RejectsInvalidFaceIndicesWithoutReplacingMesh) {
 
   manumesh_mesh_destroy(mesh);
 }
+
+TEST_F(CApiTest, RejectsDegenerateFacesWithoutReplacingMesh) {
+  ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
+  ASSERT_NE(mesh, nullptr);
+
+  const ManuMeshVec3 vertices[] = {
+      {0.0, 0.0, 0.0},
+      {1.0, 0.0, 0.0},
+      {0.0, 1.0, 0.0},
+  };
+  const ManuMeshFace validFaces[] = {{{0, 1, 2}}};
+  ASSERT_EQ(MANUMESH_STATUS_OK,
+            manumesh_mesh_set_data(context, mesh, vertices, 3, validFaces, 1));
+
+  const ManuMeshFace repeatedVertexFaces[] = {{{0, 1, 1}}};
+  EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT,
+            manumesh_mesh_set_data(context, mesh, vertices, 3, repeatedVertexFaces, 1));
+  EXPECT_NE('\0', manumesh_context_last_error(context)[0]);
+
+  const ManuMeshVec3 collinearVertices[] = {
+      {0.0, 0.0, 0.0},
+      {1.0, 0.0, 0.0},
+      {2.0, 0.0, 0.0},
+  };
+  EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT,
+            manumesh_mesh_set_data(context, mesh, collinearVertices, 3, validFaces, 1));
+  EXPECT_NE('\0', manumesh_context_last_error(context)[0]);
+
+  size_t vertexCount = 0;
+  size_t faceCount = 0;
+  EXPECT_EQ(MANUMESH_STATUS_OK,
+            manumesh_mesh_get_counts(context, mesh, &vertexCount, &faceCount));
+  EXPECT_EQ(3u, vertexCount);
+  EXPECT_EQ(1u, faceCount);
+
+  manumesh_mesh_destroy(mesh);
+}

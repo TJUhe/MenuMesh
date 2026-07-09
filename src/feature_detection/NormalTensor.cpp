@@ -120,10 +120,9 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
   }
   for (NormalTensorVertex& vertex : result) {
     vertex.averageFeatureScore /= static_cast<double>(scaleCount);
-    const double persistenceRatio =
-        std::clamp(static_cast<double>(vertex.persistentScales) /
-                       static_cast<double>(scaleCount),
-                   0.0, 1.0);
+    const double persistenceRatio = std::clamp(
+        static_cast<double>(vertex.persistentScales) / static_cast<double>(scaleCount),
+        0.0, 1.0);
     const double robustScore =
         0.65 * vertex.featureScore + 0.35 * vertex.averageFeatureScore;
     vertex.persistentFeatureScore = robustScore * (0.5 + 0.5 * persistenceRatio);

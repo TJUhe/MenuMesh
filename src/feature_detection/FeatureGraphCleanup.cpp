@@ -63,11 +63,10 @@ void markFeatureGraphEdgeRemoved(FeatureAnalysis& analysis, int a, int b) {
   }
 }
 
-std::vector<std::pair<int, int>>
-traceShortWeakSpur(const TraceGraph& trace, int seed, int maxEdges) {
+std::vector<std::pair<int, int>> traceShortWeakSpur(const TraceGraph& trace, int seed,
+                                                    int maxEdges) {
   std::vector<std::pair<int, int>> path;
-  if (maxEdges <= 0 || seed < 0 ||
-      seed >= static_cast<int>(trace.adjacency.size()) ||
+  if (maxEdges <= 0 || seed < 0 || seed >= static_cast<int>(trace.adjacency.size()) ||
       trace.adjacency[seed].size() != 1) {
     return path;
   }
@@ -120,8 +119,8 @@ void removeWeakSpurs(const FeatureOptions& options, TraceGraph& trace,
         continue;
       }
       for (const auto& edge : traceShortWeakSpur(trace, seed, maxEdges)) {
-        const std::uint64_t key = manumesh::detail::meshEdgeKey(edge.first,
-                                                                edge.second);
+        const std::uint64_t key =
+            manumesh::detail::meshEdgeKey(edge.first, edge.second);
         if (removeKeys.insert(key).second) {
           removeEdges.push_back(edge);
         }
@@ -148,9 +147,10 @@ void removeWeakSpurs(const FeatureOptions& options, TraceGraph& trace,
   }
 }
 
-std::vector<EndpointCandidate>
-collectEndpoints(const Mesh& mesh, const TraceGraph& trace,
-                 const std::vector<double>& localScale, double fallbackScale) {
+std::vector<EndpointCandidate> collectEndpoints(const Mesh& mesh,
+                                                const TraceGraph& trace,
+                                                const std::vector<double>& localScale,
+                                                double fallbackScale) {
   std::vector<EndpointCandidate> endpoints;
   for (int id = 0; id < static_cast<int>(trace.adjacency.size()); ++id) {
     if (trace.adjacency[id].size() != 1 ||
@@ -173,8 +173,7 @@ collectEndpoints(const Mesh& mesh, const TraceGraph& trace,
 }
 
 bool endpointGapDirectionsCompatible(const EndpointCandidate& a,
-                                     const EndpointCandidate& b,
-                                     const Mesh& mesh) {
+                                     const EndpointCandidate& b, const Mesh& mesh) {
   Vec3 direction = mesh.vertices[b.vertex] - mesh.vertices[a.vertex];
   if (direction.norm() <= 1e-20) {
     return false;
@@ -211,11 +210,11 @@ void bridgeEndpointGaps(const Mesh& mesh, const FeatureOptions& options,
           traceGraphHasEdge(trace, a.vertex, b.vertex)) {
         continue;
       }
-      const double distance = (mesh.vertices[a.vertex] - mesh.vertices[b.vertex]).norm();
+      const double distance =
+          (mesh.vertices[a.vertex] - mesh.vertices[b.vertex]).norm();
       const double allowed =
           options.featureGraphGapLengthRatio * 0.5 * (a.scale + b.scale);
-      if (distance > allowed ||
-          !endpointGapDirectionsCompatible(a, b, mesh)) {
+      if (distance > allowed || !endpointGapDirectionsCompatible(a, b, mesh)) {
         continue;
       }
       candidates.push_back(GapCandidate{a.vertex, b.vertex, distance});
@@ -228,8 +227,7 @@ void bridgeEndpointGaps(const Mesh& mesh, const FeatureOptions& options,
             });
   std::unordered_set<int> used;
   for (const GapCandidate& candidate : candidates) {
-    if (used.find(candidate.a) != used.end() ||
-        used.find(candidate.b) != used.end()) {
+    if (used.find(candidate.a) != used.end() || used.find(candidate.b) != used.end()) {
       continue;
     }
     CandidateEdge bridge;
@@ -258,8 +256,7 @@ void bridgeCloseJunctions(const Mesh& mesh, const FeatureOptions& options,
 
   std::vector<int> junctions;
   for (int id = 0; id < static_cast<int>(trace.adjacency.size()); ++id) {
-    if (id < static_cast<int>(mesh.vertices.size()) &&
-        trace.adjacency[id].size() > 2) {
+    if (id < static_cast<int>(mesh.vertices.size()) && trace.adjacency[id].size() > 2) {
       junctions.push_back(id);
     }
   }
@@ -277,10 +274,9 @@ void bridgeCloseJunctions(const Mesh& mesh, const FeatureOptions& options,
         continue;
       }
       const double distance = (mesh.vertices[a] - mesh.vertices[b]).norm();
-      const double allowed =
-          0.5 * options.featureGraphGapLengthRatio *
-          (vertexScale(localScale, a, fallbackScale) +
-           vertexScale(localScale, b, fallbackScale));
+      const double allowed = 0.5 * options.featureGraphGapLengthRatio *
+                             (vertexScale(localScale, a, fallbackScale) +
+                              vertexScale(localScale, b, fallbackScale));
       if (distance <= allowed) {
         candidates.push_back(GapCandidate{a, b, distance});
       }
@@ -293,8 +289,7 @@ void bridgeCloseJunctions(const Mesh& mesh, const FeatureOptions& options,
             });
   std::unordered_set<int> used;
   for (const GapCandidate& candidate : candidates) {
-    if (used.find(candidate.a) != used.end() ||
-        used.find(candidate.b) != used.end()) {
+    if (used.find(candidate.a) != used.end() || used.find(candidate.b) != used.end()) {
       continue;
     }
     CandidateEdge bridge;
@@ -341,15 +336,14 @@ double computeClosureRate(int endpointCount, int cycleRank) {
 }
 
 double computeConfidence(const FeatureComponent& component,
-                         const FeatureOptions& options,
-                         bool hasPrimitiveResidual) {
+                         const FeatureOptions& options, bool hasPrimitiveResidual) {
   if (component.edgeCount <= 0) {
     return 0.0;
   }
-  const double tensorScore = std::clamp(
-      component.meanTensorPersistence /
-          std::max(1e-12, options.normalTensorFeatureThreshold),
-      0.0, 1.0);
+  const double tensorScore =
+      std::clamp(component.meanTensorPersistence /
+                     std::max(1e-12, options.normalTensorFeatureThreshold),
+                 0.0, 1.0);
   const double evidenceScore =
       std::max(component.strongEvidenceRatio, 0.75 * tensorScore);
   const double residualScore =
@@ -361,8 +355,7 @@ double computeConfidence(const FeatureComponent& component,
           ? std::min(0.25, 0.04 * static_cast<double>(component.junctionVertices - 2))
           : 0.0;
   return std::clamp(0.45 * evidenceScore + 0.25 * component.closureRate +
-                        0.20 * residualScore + 0.10 * tensorScore -
-                        junctionPenalty,
+                        0.20 * residualScore + 0.10 * tensorScore - junctionPenalty,
                     0.0, 1.0);
 }
 
@@ -405,8 +398,7 @@ void cleanupTraceGraph(const Mesh& mesh, const FeatureOptions& options,
 }
 
 void summarizeFeatureComponents(const Mesh& mesh, const FeatureOptions& options,
-                                const TraceGraph& trace,
-                                FeatureAnalysis& analysis) {
+                                const TraceGraph& trace, FeatureAnalysis& analysis) {
   analysis.components.clear();
   std::vector<int> vertexToComponent(trace.adjacency.size(), -1);
   std::vector<char> visited(trace.adjacency.size(), 0);
@@ -456,8 +448,8 @@ void summarizeFeatureComponents(const Mesh& mesh, const FeatureOptions& options,
         }
       }
     }
-    component.strongEvidenceEdges = component.boundaryEdges + component.dihedralEdges +
-                                    component.nonManifoldEdges;
+    component.strongEvidenceEdges =
+        component.boundaryEdges + component.dihedralEdges + component.nonManifoldEdges;
     component.weakEvidenceEdges =
         component.normalTensorEdges + component.cleanupBridgeEdges;
     component.cycleRank =
@@ -467,10 +459,9 @@ void summarizeFeatureComponents(const Mesh& mesh, const FeatureOptions& options,
     component.closureRate =
         computeClosureRate(component.endpointVertices, component.cycleRank);
     component.strongEvidenceRatio =
-        component.edgeCount > 0
-            ? static_cast<double>(component.strongEvidenceEdges) /
-                  static_cast<double>(component.edgeCount)
-            : 0.0;
+        component.edgeCount > 0 ? static_cast<double>(component.strongEvidenceEdges) /
+                                      static_cast<double>(component.edgeCount)
+                                : 0.0;
     component.meanTensorPersistence =
         component.normalTensorEdges > 0
             ? tensorPersistenceSum / static_cast<double>(component.normalTensorEdges)
@@ -498,12 +489,10 @@ void summarizeFeatureComponents(const Mesh& mesh, const FeatureOptions& options,
   for (FeatureComponent& component : analysis.components) {
     const bool hasPrimitiveResidual = residualCounts[component.id] > 0;
     component.meanPrimitiveResidual =
-        hasPrimitiveResidual
-            ? residualSums[component.id] /
-                  static_cast<double>(residualCounts[component.id])
-            : 0.0;
-    component.confidence =
-        computeConfidence(component, options, hasPrimitiveResidual);
+        hasPrimitiveResidual ? residualSums[component.id] /
+                                   static_cast<double>(residualCounts[component.id])
+                             : 0.0;
+    component.confidence = computeConfidence(component, options, hasPrimitiveResidual);
     if (component.weakEvidenceEdges > component.strongEvidenceEdges) {
       ++analysis.weakFeatureComponents;
     }

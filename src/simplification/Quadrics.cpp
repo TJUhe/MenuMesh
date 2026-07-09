@@ -34,8 +34,7 @@ void summarizeNormalTensorScores(const std::vector<feature::NormalTensorVertex>&
   double persistenceSum = 0.0;
   for (const feature::NormalTensorVertex& vertex : tensor) {
     result.maxNormalTensorPersistentScore =
-        std::max(result.maxNormalTensorPersistentScore,
-                 vertex.persistentFeatureScore);
+        std::max(result.maxNormalTensorPersistentScore, vertex.persistentFeatureScore);
     if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
       continue;
     }
@@ -234,20 +233,17 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
     report.minAppliedLineWeight = 0.0;
   }
 
-  const FeatureScoreResult featureScores =
-      useNormalLineQuadrics ? computeFeatureScores(mesh, options)
-                            : FeatureScoreResult{};
+  const FeatureScoreResult featureScores = useNormalLineQuadrics
+                                               ? computeFeatureScores(mesh, options)
+                                               : FeatureScoreResult{};
   if (featureScores.normalTensorScoredVertices > 0) {
-    report.normalTensorScoredVertices =
-        std::max(report.normalTensorScoredVertices,
-                 featureScores.normalTensorScoredVertices);
+    report.normalTensorScoredVertices = std::max(
+        report.normalTensorScoredVertices, featureScores.normalTensorScoredVertices);
     report.maxNormalTensorPersistentScore =
         std::max(report.maxNormalTensorPersistentScore,
                  featureScores.maxNormalTensorPersistentScore);
-    report.meanNormalTensorLocalScale =
-        featureScores.meanNormalTensorLocalScale;
-    report.meanNormalTensorPersistence =
-        featureScores.meanNormalTensorPersistence;
+    report.meanNormalTensorLocalScale = featureScores.meanNormalTensorLocalScale;
+    report.meanNormalTensorPersistence = featureScores.meanNormalTensorPersistence;
   }
 
   if (useNormalLineQuadrics) {

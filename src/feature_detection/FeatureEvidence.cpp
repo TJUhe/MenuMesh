@@ -48,9 +48,8 @@ private:
     for (const NormalTensorVertex& vertex : tensor) {
       analysis.maxNormalTensorFeatureScore =
           std::max(analysis.maxNormalTensorFeatureScore, vertex.featureScore);
-      analysis.maxNormalTensorPersistentScore =
-          std::max(analysis.maxNormalTensorPersistentScore,
-                   vertex.persistentFeatureScore);
+      analysis.maxNormalTensorPersistentScore = std::max(
+          analysis.maxNormalTensorPersistentScore, vertex.persistentFeatureScore);
       if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
         continue;
       }
@@ -60,8 +59,7 @@ private:
     }
 
     if (analysis.normalTensorScoredVertices > 0) {
-      const double count =
-          static_cast<double>(analysis.normalTensorScoredVertices);
+      const double count = static_cast<double>(analysis.normalTensorScoredVertices);
       analysis.meanNormalTensorLocalScale = localScaleSum / count;
       analysis.meanNormalTensorPersistence = persistenceSum / count;
     }
@@ -132,9 +130,8 @@ bool normalTensorEdgeCandidate(CandidateEdge& edge,
       0.5 * (tensor[edge.a].featureScore + tensor[edge.b].featureScore);
   analysis.maxNormalTensorFeatureScore =
       std::max(analysis.maxNormalTensorFeatureScore, score);
-  const double persistentScore =
-      0.5 * (tensor[edge.a].persistentFeatureScore +
-             tensor[edge.b].persistentFeatureScore);
+  const double persistentScore = 0.5 * (tensor[edge.a].persistentFeatureScore +
+                                        tensor[edge.b].persistentFeatureScore);
   analysis.maxNormalTensorPersistentScore =
       std::max(analysis.maxNormalTensorPersistentScore, persistentScore);
   const int requiredPersistentScales =
@@ -147,9 +144,8 @@ bool normalTensorEdgeCandidate(CandidateEdge& edge,
   if (minPersistentScales < requiredPersistentScales) {
     return false;
   }
-  const double minEndpointScore =
-      std::min(tensor[edge.a].persistentFeatureScore,
-               tensor[edge.b].persistentFeatureScore);
+  const double minEndpointScore = std::min(tensor[edge.a].persistentFeatureScore,
+                                           tensor[edge.b].persistentFeatureScore);
   if (minEndpointScore < options.normalTensorFeatureThreshold) {
     return false;
   }

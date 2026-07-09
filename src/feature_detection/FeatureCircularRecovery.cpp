@@ -182,8 +182,7 @@ void recoverCircularVertexClusters(const Mesh& mesh, const FeatureOptions& optio
             continue;
           }
           const double allowed =
-              std::max(3.0 * options.circleFitRelativeThreshold, 0.08) *
-              circle.radius;
+              std::max(3.0 * options.circleFitRelativeThreshold, 0.08) * circle.radius;
           std::vector<int> cluster;
           for (int id : candidates) {
             const Vec3 delta = mesh.vertices[id] - circle.center;

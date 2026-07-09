@@ -1,8 +1,8 @@
 #include "FeatureDetectionTestSupport.h"
 
 #include <algorithm>
-#include <utility>
 #include <gtest/gtest.h>
+#include <utility>
 
 namespace {
 

@@ -2,6 +2,42 @@
 
 ## 2026-07-09
 
+### 修复
+
+- 修复 C API 输出结构体的 ABI 写越界风险：`ManuMeshSimplifyReport` 和
+  `ManuMeshMeshStats` 现在会按调用方传入的 `struct_size` 限定清零和字段写入，
+  保留旧版尾部较短结构体的兼容性。
+- 网格几何校验现在会拒绝重复顶点面和零面积三角形；C API
+  `manumesh_mesh_set_data()` 在遇到退化面时不会替换调用方已有 mesh。
+
+### 变更
+
+- 重构 CMake 组织方式，移除项目自有 `.cmake` 模块，改为按目录维护：
+  顶层 `CMakeLists.txt` 只保留全局选项、Eigen 解析、通用 helper 和目录装配；
+  `src/`、`apps/manumesh/`、`tests/`、`examples/`、`adm/` 分别维护库、CLI、
+  测试、示例和开发/安装规则。
+- 将 `manumesh_core`、CLI、GoogleTest provider、format/check-format、docs-api、
+  SDK install/export/consumer test 等逻辑移动到对应目录级 `CMakeLists.txt`，
+  保持 CMake 3.18 可用。
+
+### 新增
+
+- 新增 `docs/guide/adding_feature_workflow.md`，说明新增功能时如何判断落点、
+  设计公共 API、拆实现文件、接入目录级 CMakeLists、补测试、扩展 CLI/C API
+  和验证 SDK。
+- 新增 `examples/feature_workflow_demo.cpp`，演示“特征检测 + feature-preserving
+  QEM 简化 + 网格质量门禁”的 SDK 组合工作流，并接入 CTest 和 SDK samples 安装。
+- 新增退化面拒绝、C ABI 旧结构体输出保护等回归测试。
+
+### 已验证
+
+- `cmake --build build\mingw-ninja-release --parallel`
+- `cmake --build build\mingw-ninja-release --target check-format`
+- `ctest --test-dir build\mingw-ninja-release --output-on-failure`：91/91 passed
+- `cmake -S . -B build\cmakelists-maintain-install-check-mingw -G Ninja -DMANUMESH_ENABLE_INSTALL=ON -DMANUMESH_INSTALL_CMAKE_CONFIG=ON ...`
+- `cmake --build build\cmakelists-maintain-install-check-mingw --target sdk-install-local --parallel`
+- `cmake --build build\cmakelists-maintain-install-check-mingw --target sdk-consumer-test --parallel`：2/2 passed
+
 ### 文档
 
 - 全量收紧 `docs/**/*.html` 响应式排版：统一加入换行、表格固定布局、代码/公式/长路径断行和移动端宽度保护，清理会导致横向溢出的 `nowrap`、固定单元格宽度和可见横向溢出规则。

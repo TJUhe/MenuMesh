@@ -50,7 +50,8 @@ MANUMESH_API bool loadMesh(const std::string& path, Mesh& mesh,
                            double mergeRelativeEpsilon = 1e-9);
 /// Returns false and writes an error when any face index is out of range.
 MANUMESH_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
-/// Returns false when indices are invalid or vertex coordinates are not finite.
+/// Returns false when indices are invalid, vertex coordinates are not finite,
+/// or a face is degenerate.
 MANUMESH_API bool validateMeshGeometry(const Mesh& mesh, std::string* error = nullptr);
 /// Writes the mesh as an ASCII STL file.
 MANUMESH_API bool saveAsciiStl(const std::string& path, const Mesh& mesh,

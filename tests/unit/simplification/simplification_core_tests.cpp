@@ -1,3 +1,4 @@
+#include "../../../src/common/detail/MeshQueries.h"
 #include "SimplificationTestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/Metrics.h"
@@ -6,7 +7,6 @@
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
-#include "../../../src/common/detail/MeshQueries.h"
 
 #include <algorithm>
 #include <array>
@@ -193,6 +193,31 @@ TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
   nonFinite.faces = {{{0, 1, 2}}};
   error.clear();
   EXPECT_FALSE(manumesh::validateMeshGeometry(nonFinite, &error));
+  EXPECT_FALSE(error.empty());
+
+  manumesh::Mesh repeatedVertexFace;
+  repeatedVertexFace.vertices = {
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(0.0, 1.0, 0.0),
+  };
+  repeatedVertexFace.faces = {{{0, 1, 1}}};
+  error.clear();
+  EXPECT_FALSE(manumesh::validateMeshGeometry(repeatedVertexFace, &error));
+  EXPECT_FALSE(error.empty());
+
+  manumesh::Mesh zeroArea;
+  zeroArea.vertices = {
+      manumesh::Vec3(0.0, 0.0, 0.0),
+      manumesh::Vec3(1.0, 0.0, 0.0),
+      manumesh::Vec3(2.0, 0.0, 0.0),
+  };
+  zeroArea.faces = {{{0, 1, 2}}};
+  error.clear();
+  EXPECT_FALSE(manumesh::validateMeshGeometry(zeroArea, &error));
+  EXPECT_FALSE(error.empty());
+  error.clear();
+  EXPECT_FALSE(manumesh::saveAsciiStl(stlPath.string(), zeroArea, "zero_area", &error));
   EXPECT_FALSE(error.empty());
 }
 

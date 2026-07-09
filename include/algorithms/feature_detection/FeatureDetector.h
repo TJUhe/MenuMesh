@@ -75,9 +75,9 @@ MANUMESH_API std::string featureLoopRowCsv(const FeatureLoop& loop);
 /// Stable string name for a fitted feature primitive.
 MANUMESH_API std::string toString(FeaturePrimitiveType primitive);
 /// Compares detected graph edges against vertex-index ground-truth labels.
-MANUMESH_API FeatureEdgeBenchmark benchmarkFeatureEdges(
-    const FeatureAnalysis& analysis,
-    const std::vector<std::pair<int, int>>& groundTruthEdges,
-    const std::vector<int>& groundTruthJunctionVertices = {});
+MANUMESH_API FeatureEdgeBenchmark
+benchmarkFeatureEdges(const FeatureAnalysis& analysis,
+                      const std::vector<std::pair<int, int>>& groundTruthEdges,
+                      const std::vector<int>& groundTruthJunctionVertices = {});
 
 } // namespace manumesh::feature

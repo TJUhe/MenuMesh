@@ -117,9 +117,8 @@ manumesh::simplification::SimplifyOptions parseSimplifyOptions(const Args& args)
   options.normalTensorMinPersistentScales =
       getIntArg(args, "--normal-tensor-min-persistent-scales",
                 options.normalTensorMinPersistentScales);
-  options.featureGraphGapLengthRatio =
-      getDoubleArg(args, "--feature-graph-gap-ratio",
-                   options.featureGraphGapLengthRatio);
+  options.featureGraphGapLengthRatio = getDoubleArg(args, "--feature-graph-gap-ratio",
+                                                    options.featureGraphGapLengthRatio);
   options.featureGraphMaxWeakSpurEdges =
       getIntArg(args, "--feature-graph-max-weak-spur-edges",
                 options.featureGraphMaxWeakSpurEdges);
@@ -192,9 +191,8 @@ manumesh::feature::FeatureOptions parseFeatureOptions(const Args& args) {
   options.normalTensorMinPersistentScales =
       getIntArg(args, "--normal-tensor-min-persistent-scales",
                 options.normalTensorMinPersistentScales);
-  options.featureGraphGapLengthRatio =
-      getDoubleArg(args, "--feature-graph-gap-ratio",
-                   options.featureGraphGapLengthRatio);
+  options.featureGraphGapLengthRatio = getDoubleArg(args, "--feature-graph-gap-ratio",
+                                                    options.featureGraphGapLengthRatio);
   options.featureGraphMaxWeakSpurEdges =
       getIntArg(args, "--feature-graph-max-weak-spur-edges",
                 options.featureGraphMaxWeakSpurEdges);
@@ -526,44 +524,37 @@ int commandFeatureReport(const Args& args) {
       countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::Ellipse);
   const int polygonalLoops = countPrimitiveLoops(
       analysis, manumesh::feature::FeaturePrimitiveType::PolygonalLoop);
-  std::cout << "feature_edges=" << analysis.featureEdges
-            << " traced_edges=" << analysis.tracedFeatureEdges
-            << " untraced_edges=" << analysis.untracedFeatureEdges
-            << " boundary_edges=" << analysis.boundaryFeatureEdges
-            << " dihedral_edges=" << analysis.dihedralFeatureEdges
-            << " normal_tensor_edges=" << analysis.normalTensorFeatureEdges
-            << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
-            << " feature_components=" << analysis.components.size()
-            << " weak_feature_components=" << analysis.weakFeatureComponents
-            << " high_confidence_feature_components="
-            << analysis.highConfidenceFeatureComponents
-            << " graph_cleanup_bridged_gaps="
-            << analysis.graphCleanupBridgedGaps
-            << " graph_cleanup_removed_spurs="
-            << analysis.graphCleanupRemovedSpurs
-            << " graph_cleanup_merged_junctions="
-            << analysis.graphCleanupMergedJunctions
-            << " normal_tensor_scored_vertices="
-            << analysis.normalTensorScoredVertices
-            << " convex_edges=" << analysis.convexFeatureEdges
-            << " concave_edges=" << analysis.concaveFeatureEdges
-            << " unknown_signed_edges=" << analysis.unknownSignedFeatureEdges
-            << " max_normal_tensor_score=" << analysis.maxNormalTensorFeatureScore
-            << " max_normal_tensor_persistent_score="
-            << analysis.maxNormalTensorPersistentScore
-            << " mean_normal_tensor_local_scale="
-            << analysis.meanNormalTensorLocalScale
-            << " mean_normal_tensor_persistence="
-            << analysis.meanNormalTensorPersistence
-            << " mean_feature_component_confidence="
-            << analysis.meanFeatureComponentConfidence
-            << " min_feature_component_confidence="
-            << analysis.minFeatureComponentConfidence
-            << " loops=" << analysis.loops.size() << " circular_loops=" << circularLoops
-            << " circle_loops=" << circleLoops
-            << " near_circle_loops=" << nearCircleLoops
-            << " ellipse_loops=" << ellipseLoops
-            << " polygonal_loops=" << polygonalLoops << "\n";
+  std::cout
+      << "feature_edges=" << analysis.featureEdges
+      << " traced_edges=" << analysis.tracedFeatureEdges
+      << " untraced_edges=" << analysis.untracedFeatureEdges
+      << " boundary_edges=" << analysis.boundaryFeatureEdges
+      << " dihedral_edges=" << analysis.dihedralFeatureEdges
+      << " normal_tensor_edges=" << analysis.normalTensorFeatureEdges
+      << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
+      << " feature_components=" << analysis.components.size()
+      << " weak_feature_components=" << analysis.weakFeatureComponents
+      << " high_confidence_feature_components="
+      << analysis.highConfidenceFeatureComponents
+      << " graph_cleanup_bridged_gaps=" << analysis.graphCleanupBridgedGaps
+      << " graph_cleanup_removed_spurs=" << analysis.graphCleanupRemovedSpurs
+      << " graph_cleanup_merged_junctions=" << analysis.graphCleanupMergedJunctions
+      << " normal_tensor_scored_vertices=" << analysis.normalTensorScoredVertices
+      << " convex_edges=" << analysis.convexFeatureEdges
+      << " concave_edges=" << analysis.concaveFeatureEdges
+      << " unknown_signed_edges=" << analysis.unknownSignedFeatureEdges
+      << " max_normal_tensor_score=" << analysis.maxNormalTensorFeatureScore
+      << " max_normal_tensor_persistent_score="
+      << analysis.maxNormalTensorPersistentScore
+      << " mean_normal_tensor_local_scale=" << analysis.meanNormalTensorLocalScale
+      << " mean_normal_tensor_persistence=" << analysis.meanNormalTensorPersistence
+      << " mean_feature_component_confidence="
+      << analysis.meanFeatureComponentConfidence
+      << " min_feature_component_confidence=" << analysis.minFeatureComponentConfidence
+      << " loops=" << analysis.loops.size() << " circular_loops=" << circularLoops
+      << " circle_loops=" << circleLoops << " near_circle_loops=" << nearCircleLoops
+      << " ellipse_loops=" << ellipseLoops << " polygonal_loops=" << polygonalLoops
+      << "\n";
   std::cout << manumesh::feature::featureReportHeaderCsv() << "\n";
   for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
     std::cout << manumesh::feature::featureLoopRowCsv(loop) << "\n";
@@ -591,14 +582,13 @@ int commandFeatureReport(const Args& args) {
     csv << analysis.featureEdges << "," << analysis.tracedFeatureEdges << ","
         << analysis.untracedFeatureEdges << "," << analysis.boundaryFeatureEdges << ","
         << analysis.dihedralFeatureEdges << "," << analysis.normalTensorFeatureEdges
-        << "," << analysis.nonManifoldFeatureEdges << ","
-        << analysis.components.size() << "," << analysis.weakFeatureComponents << ","
+        << "," << analysis.nonManifoldFeatureEdges << "," << analysis.components.size()
+        << "," << analysis.weakFeatureComponents << ","
         << analysis.highConfidenceFeatureComponents << ","
-        << analysis.graphCleanupBridgedGaps << ","
-        << analysis.graphCleanupRemovedSpurs << ","
-        << analysis.graphCleanupMergedJunctions << ","
-        << analysis.normalTensorScoredVertices << ","
-        << analysis.convexFeatureEdges << "," << analysis.concaveFeatureEdges << ","
+        << analysis.graphCleanupBridgedGaps << "," << analysis.graphCleanupRemovedSpurs
+        << "," << analysis.graphCleanupMergedJunctions << ","
+        << analysis.normalTensorScoredVertices << "," << analysis.convexFeatureEdges
+        << "," << analysis.concaveFeatureEdges << ","
         << analysis.unknownSignedFeatureEdges << ","
         << analysis.maxNormalTensorFeatureScore << ","
         << analysis.maxNormalTensorPersistentScore << ","
@@ -700,10 +690,10 @@ int commandFeatureBenchmark(const Args& args) {
       << benchmark.edgePrecision << "," << benchmark.edgeRecall << ","
       << benchmark.edgeF1 << "," << benchmark.groundTruthJunctions << ","
       << benchmark.detectedJunctions << "," << benchmark.truePositiveJunctions << ","
-      << benchmark.falsePositiveJunctions << ","
-      << benchmark.falseNegativeJunctions << "," << benchmark.junctionPrecision << ","
-      << benchmark.junctionRecall << "," << benchmark.junctionF1 << ","
-      << benchmark.loopClosureRate << "," << benchmark.meanComponentConfidence;
+      << benchmark.falsePositiveJunctions << "," << benchmark.falseNegativeJunctions
+      << "," << benchmark.junctionPrecision << "," << benchmark.junctionRecall << ","
+      << benchmark.junctionF1 << "," << benchmark.loopClosureRate << ","
+      << benchmark.meanComponentConfidence;
 
   std::cout << header << "\n" << row.str() << "\n";
   const std::string csvPath = getArg(args, "--csv");
@@ -907,43 +897,36 @@ int commandSimplify(const Args& args) {
             << " line_weight_range=[" << report.minAppliedLineWeight << ", "
             << report.maxAppliedLineWeight << "]\n";
   if (options.preserveFeatureCurves) {
-    std::cout << "feature_loops=" << report.featureLoops
-              << " circular_feature_loops=" << report.circularFeatureLoops
-              << " feature_vertices=" << report.featureVertices
-              << " traced_feature_edges=" << report.tracedFeatureEdges
-              << " untraced_feature_edges=" << report.untracedFeatureEdges
-              << " feature_components=" << report.featureComponents
-              << " weak_feature_components=" << report.weakFeatureComponents
-              << " high_confidence_feature_components="
-              << report.highConfidenceFeatureComponents
-              << " graph_cleanup_bridged_gaps="
-              << report.graphCleanupBridgedGaps
-              << " graph_cleanup_removed_spurs="
-              << report.graphCleanupRemovedSpurs
-              << " graph_cleanup_merged_junctions="
-              << report.graphCleanupMergedJunctions
-              << " mean_feature_component_confidence="
-              << report.meanFeatureComponentConfidence
-              << " min_feature_component_confidence="
-              << report.minFeatureComponentConfidence
-              << " feature_protection_mode="
-              << manumesh::simplification::toString(options.featureProtectionMode)
-              << " normal_tensor_feature_edges=" << report.normalTensorFeatureEdges
-              << " normal_tensor_scored_vertices="
-              << report.normalTensorScoredVertices
-              << " max_normal_tensor_persistent_score="
-              << report.maxNormalTensorPersistentScore
-              << " mean_normal_tensor_local_scale="
-              << report.meanNormalTensorLocalScale
-              << " mean_normal_tensor_persistence="
-              << report.meanNormalTensorPersistence
-              << " feature_rejected=" << report.featureRejectedCollapses
-              << " primitive_feature_rejected="
-              << report.primitiveFeatureRejectedCollapses
-              << " generic_feature_rejected=" << report.genericFeatureRejectedCollapses
-              << " curve_budget_rejected=" << report.curveBudgetRejectedCollapses
-              << " projected_feature_placements=" << report.projectedFeaturePlacements
-              << "\n";
+    std::cout
+        << "feature_loops=" << report.featureLoops
+        << " circular_feature_loops=" << report.circularFeatureLoops
+        << " feature_vertices=" << report.featureVertices
+        << " traced_feature_edges=" << report.tracedFeatureEdges
+        << " untraced_feature_edges=" << report.untracedFeatureEdges
+        << " feature_components=" << report.featureComponents
+        << " weak_feature_components=" << report.weakFeatureComponents
+        << " high_confidence_feature_components="
+        << report.highConfidenceFeatureComponents
+        << " graph_cleanup_bridged_gaps=" << report.graphCleanupBridgedGaps
+        << " graph_cleanup_removed_spurs=" << report.graphCleanupRemovedSpurs
+        << " graph_cleanup_merged_junctions=" << report.graphCleanupMergedJunctions
+        << " mean_feature_component_confidence="
+        << report.meanFeatureComponentConfidence
+        << " min_feature_component_confidence=" << report.minFeatureComponentConfidence
+        << " feature_protection_mode="
+        << manumesh::simplification::toString(options.featureProtectionMode)
+        << " normal_tensor_feature_edges=" << report.normalTensorFeatureEdges
+        << " normal_tensor_scored_vertices=" << report.normalTensorScoredVertices
+        << " max_normal_tensor_persistent_score="
+        << report.maxNormalTensorPersistentScore
+        << " mean_normal_tensor_local_scale=" << report.meanNormalTensorLocalScale
+        << " mean_normal_tensor_persistence=" << report.meanNormalTensorPersistence
+        << " feature_rejected=" << report.featureRejectedCollapses
+        << " primitive_feature_rejected=" << report.primitiveFeatureRejectedCollapses
+        << " generic_feature_rejected=" << report.genericFeatureRejectedCollapses
+        << " curve_budget_rejected=" << report.curveBudgetRejectedCollapses
+        << " projected_feature_placements=" << report.projectedFeaturePlacements
+        << "\n";
   }
   std::cout << "distance mean original->simplified="
             << distance.meanOriginalToSimplified
@@ -981,14 +964,12 @@ int commandSimplify(const Args& args) {
         << report.tracedFeatureEdges << "," << report.untracedFeatureEdges << ","
         << report.featureComponents << "," << report.weakFeatureComponents << ","
         << report.highConfidenceFeatureComponents << ","
-        << report.graphCleanupBridgedGaps << ","
-        << report.graphCleanupRemovedSpurs << ","
-        << report.graphCleanupMergedJunctions << ","
+        << report.graphCleanupBridgedGaps << "," << report.graphCleanupRemovedSpurs
+        << "," << report.graphCleanupMergedJunctions << ","
         << report.meanFeatureComponentConfidence << ","
         << report.minFeatureComponentConfidence << ","
-        << report.normalTensorFeatureEdges << ","
-        << report.normalTensorScoredVertices << ","
-        << report.maxNormalTensorPersistentScore << ","
+        << report.normalTensorFeatureEdges << "," << report.normalTensorScoredVertices
+        << "," << report.maxNormalTensorPersistentScore << ","
         << report.meanNormalTensorLocalScale << ","
         << report.meanNormalTensorPersistence << ","
         << manumesh::simplification::toString(options.featureProtectionMode) << ","

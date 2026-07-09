@@ -159,9 +159,8 @@ Mesh makeMixedDiscreteEvidenceMesh() {
 Mesh makeShallowDihedralLoopMesh(double height) {
   Mesh mesh;
   mesh.vertices = {
-      Vec3(0.0, 0.0, height),  Vec3(0.0, 0.0, -height),
-      Vec3(1.0, 1.0, 0.0),     Vec3(-1.0, 1.0, 0.0),
-      Vec3(-1.0, -1.0, 0.0),   Vec3(1.0, -1.0, 0.0),
+      Vec3(0.0, 0.0, height), Vec3(0.0, 0.0, -height), Vec3(1.0, 1.0, 0.0),
+      Vec3(-1.0, 1.0, 0.0),   Vec3(-1.0, -1.0, 0.0),   Vec3(1.0, -1.0, 0.0),
   };
   constexpr int top = 0;
   constexpr int bottom = 1;

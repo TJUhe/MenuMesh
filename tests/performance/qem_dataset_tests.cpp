@@ -138,24 +138,20 @@ TEST(ManuMeshDataset, NonCircularHardFeatureCasesExerciseProtection) {
         manumesh::feature::detectFeatureCurves(input, circularFeatureOptions());
     ASSERT_GT(originalFeatures.featureEdges, 0);
 
-    manumesh::simplification::SimplifyOptions primitiveOptions =
-        protectedOptions(0.85);
+    manumesh::simplification::SimplifyOptions primitiveOptions = protectedOptions(0.85);
     primitiveOptions.featureProtectionMode =
         manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
-    const SimplifiedMesh primitiveResult =
-        simplifyWithReport(input, primitiveOptions);
+    const SimplifiedMesh primitiveResult = simplifyWithReport(input, primitiveOptions);
     expectBudget(primitiveResult, input, 0.85);
     EXPECT_GT(primitiveResult.report.featureLoops, 0);
     EXPECT_GT(primitiveResult.report.featureVertices, 0);
 
-    manumesh::simplification::SimplifyOptions strictOptions =
-        primitiveOptions;
+    manumesh::simplification::SimplifyOptions strictOptions = primitiveOptions;
     strictOptions.featureProtectionMode =
         manumesh::simplification::FeatureProtectionMode::AllFeatureEdges;
     const SimplifiedMesh strictResult = simplifyWithReport(input, strictOptions);
     EXPECT_FALSE(strictResult.mesh.empty());
-    EXPECT_EQ(strictResult.report.initialFaces,
-              static_cast<int>(input.faces.size()));
+    EXPECT_EQ(strictResult.report.initialFaces, static_cast<int>(input.faces.size()));
     EXPECT_EQ(strictResult.report.finalFaces,
               static_cast<int>(strictResult.mesh.faces.size()));
     EXPECT_LT(strictResult.report.finalFaces, strictResult.report.initialFaces);

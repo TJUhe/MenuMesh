@@ -1,6 +1,8 @@
 #include "CApiTestSupport.h"
 
+#include <array>
 #include <cstddef>
+#include <cstring>
 #include <gtest/gtest.h>
 #include <limits>
 #include <string>
@@ -70,6 +72,77 @@ TEST_F(CApiTest, AcceptsOlderTrailingSimplifyOptionsAbiStruct) {
 
   manumesh_mesh_destroy(output);
   manumesh_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, DoesNotWritePastCallerSizedSimplifyReport) {
+  ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+  ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+  ASSERT_NE(input, nullptr);
+  ASSERT_NE(output, nullptr);
+
+  ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 8, input));
+
+  ManuMeshSimplifyOptions options;
+  manumesh_simplify_options_init(&options);
+  options.target_ratio = 0.75;
+
+  constexpr unsigned char kSentinel = 0xA5;
+  constexpr std::size_t kOlderReportSize =
+      offsetof(ManuMeshSimplifyReport, traced_feature_edges);
+  alignas(ManuMeshSimplifyReport)
+      std::array<unsigned char, sizeof(ManuMeshSimplifyReport) + 16>
+          storage;
+  storage.fill(kSentinel);
+
+  auto* report = reinterpret_cast<ManuMeshSimplifyReport*>(storage.data());
+  std::memset(report, 0, kOlderReportSize);
+  report->struct_size = kOlderReportSize;
+  report->abi_version = MANUMESH_ABI_VERSION;
+
+  EXPECT_EQ(MANUMESH_STATUS_OK,
+            manumesh_simplify_mesh(context, input, &options, output, report));
+  EXPECT_EQ(kOlderReportSize, report->struct_size);
+  EXPECT_EQ(MANUMESH_ABI_VERSION, report->abi_version);
+  EXPECT_GT(report->initial_faces, report->final_faces);
+  EXPECT_EQ(MANUMESH_SIMPLIFY_TERMINATION_REACHED_TARGET, report->termination_reason);
+
+  for (std::size_t i = kOlderReportSize; i < storage.size(); ++i) {
+    EXPECT_EQ(kSentinel, storage[i]) << "byte " << i << " was overwritten";
+  }
+
+  manumesh_mesh_destroy(output);
+  manumesh_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, DoesNotWritePastCallerSizedMeshStats) {
+  ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
+  ASSERT_NE(mesh, nullptr);
+
+  ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "cube", 4, mesh));
+
+  constexpr unsigned char kSentinel = 0x5A;
+  constexpr std::size_t kOlderStatsSize =
+      offsetof(ManuMeshMeshStats, mean_triangle_quality);
+  alignas(ManuMeshMeshStats) std::array<unsigned char, sizeof(ManuMeshMeshStats) + 16>
+      storage;
+  storage.fill(kSentinel);
+
+  auto* stats = reinterpret_cast<ManuMeshMeshStats*>(storage.data());
+  std::memset(stats, 0, kOlderStatsSize);
+  stats->struct_size = kOlderStatsSize;
+  stats->abi_version = MANUMESH_ABI_VERSION;
+
+  EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_compute_mesh_stats(context, mesh, stats));
+  EXPECT_EQ(kOlderStatsSize, stats->struct_size);
+  EXPECT_EQ(MANUMESH_ABI_VERSION, stats->abi_version);
+  EXPECT_GT(stats->vertices, 0);
+  EXPECT_GT(stats->faces, 0);
+
+  for (std::size_t i = kOlderStatsSize; i < storage.size(); ++i) {
+    EXPECT_EQ(kSentinel, storage[i]) << "byte " << i << " was overwritten";
+  }
+
+  manumesh_mesh_destroy(mesh);
 }
 
 TEST_F(CApiTest, InitializesPrimitiveFitOptions) {

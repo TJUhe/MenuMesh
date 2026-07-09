@@ -1,3 +1,281 @@
+include(FetchContent)
+
+option(MANUMESH_BUILD_PERFORMANCE_TESTS "Build large mesh performance tests" OFF)
+
+set(MANUMESH_GOOGLETEST_PROVIDER "auto" CACHE STRING
+  "GoogleTest provider for tests: auto, source, prebuilt, system, or fetch"
+)
+set_property(CACHE MANUMESH_GOOGLETEST_PROVIDER PROPERTY STRINGS
+  auto
+  source
+  prebuilt
+  system
+  fetch
+)
+option(MANUMESH_MINGW_AUTO_GOOGLETEST_FROM_SOURCE
+  "When MANUMESH_GOOGLETEST_PROVIDER=auto under MinGW, do not use prebuilt GoogleTest DLLs; build GoogleTest for the active compiler instead."
+  ON
+)
+set(MANUMESH_GOOGLETEST_SOURCE_DIR
+  "${PROJECT_SOURCE_DIR}/thirdParty/googletest/source/googletest"
+  CACHE PATH "Path to a GoogleTest source tree with CMakeLists.txt"
+)
+set(MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR
+  "${PROJECT_SOURCE_DIR}/thirdParty/googletest/prebuilt/mingw-x64-shared"
+)
+if(MSVC)
+  set(MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR
+    "${PROJECT_SOURCE_DIR}/thirdParty/googletest/prebuilt/msvc-x64-static"
+  )
+endif()
+set(MANUMESH_GOOGLETEST_PREBUILT_DIR
+  "${MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR}"
+  CACHE PATH "Root of a prebuilt GoogleTest bundle with include, lib, and bin folders"
+)
+set(MANUMESH_GTEST_INCLUDE_DIR "" CACHE PATH "Path to prebuilt GoogleTest headers")
+set(MANUMESH_GTEST_LIBRARY "" CACHE FILEPATH "Path to prebuilt gtest library")
+set(MANUMESH_GTEST_MAIN_LIBRARY "" CACHE FILEPATH
+  "Path to prebuilt gtest_main library"
+)
+set(MANUMESH_GTEST_RUNTIME_DIR "" CACHE PATH
+  "Optional path to prebuilt GoogleTest runtime DLL/shared library folder"
+)
+
+function(manumesh_copy_gtest_runtime_dependencies target)
+  if(MANUMESH_RESOLVED_GTEST_RUNTIME_DIR AND
+     EXISTS "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}")
+    file(GLOB MANUMESH_GTEST_RUNTIME_FILES CONFIGURE_DEPENDS
+      "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}/*.dll"
+      "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}/*.so"
+      "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}/*.dylib"
+    )
+    foreach(gtest_runtime_file IN LISTS MANUMESH_GTEST_RUNTIME_FILES)
+      add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+          "${gtest_runtime_file}"
+          "$<TARGET_FILE_DIR:${target}>"
+        COMMENT "Copying prebuilt GoogleTest runtime next to ${target}"
+        VERBATIM
+      )
+    endforeach()
+  endif()
+endfunction()
+
+function(manumesh_import_prebuilt_gtest bundle_root)
+  if(TARGET GTest::gtest_main)
+    return()
+  endif()
+
+  set(gtest_include "${MANUMESH_GTEST_INCLUDE_DIR}")
+  set(gtest_library "${MANUMESH_GTEST_LIBRARY}")
+  set(gtest_main_library "${MANUMESH_GTEST_MAIN_LIBRARY}")
+  set(gtest_runtime_dir "${MANUMESH_GTEST_RUNTIME_DIR}")
+  set(gtest_library_debug "")
+  set(gtest_library_release "")
+  set(gtest_main_library_debug "")
+  set(gtest_main_library_release "")
+
+  if(NOT gtest_include)
+    set(gtest_include "${bundle_root}/include")
+  endif()
+
+  if(NOT gtest_library)
+    if(EXISTS "${bundle_root}/lib/Debug/gtest.lib")
+      set(gtest_library_debug "${bundle_root}/lib/Debug/gtest.lib")
+    endif()
+    if(EXISTS "${bundle_root}/lib/Release/gtest.lib")
+      set(gtest_library_release "${bundle_root}/lib/Release/gtest.lib")
+    endif()
+    foreach(candidate IN ITEMS
+        "${bundle_root}/lib/gtest.lib"
+        "${bundle_root}/lib/libgtest.lib"
+        "${bundle_root}/lib/libgtest.dll.a"
+        "${bundle_root}/lib/libgtest.a")
+      if(EXISTS "${candidate}")
+        set(gtest_library "${candidate}")
+        break()
+      endif()
+    endforeach()
+  endif()
+
+  if(NOT gtest_main_library)
+    if(EXISTS "${bundle_root}/lib/Debug/gtest_main.lib")
+      set(gtest_main_library_debug "${bundle_root}/lib/Debug/gtest_main.lib")
+    endif()
+    if(EXISTS "${bundle_root}/lib/Release/gtest_main.lib")
+      set(gtest_main_library_release "${bundle_root}/lib/Release/gtest_main.lib")
+    endif()
+    foreach(candidate IN ITEMS
+        "${bundle_root}/lib/gtest_main.lib"
+        "${bundle_root}/lib/libgtest_main.lib"
+        "${bundle_root}/lib/libgtest_main.dll.a"
+        "${bundle_root}/lib/libgtest_main.a")
+      if(EXISTS "${candidate}")
+        set(gtest_main_library "${candidate}")
+        break()
+      endif()
+    endforeach()
+  endif()
+
+  if(NOT gtest_runtime_dir)
+    set(gtest_runtime_dir "${bundle_root}/bin")
+  endif()
+
+  if(NOT EXISTS "${gtest_include}/gtest/gtest.h" OR
+     ((NOT gtest_library OR NOT gtest_main_library) AND
+      (NOT gtest_library_debug OR NOT gtest_main_library_debug)))
+    return()
+  endif()
+
+  add_library(GTest::gtest UNKNOWN IMPORTED)
+  set_target_properties(GTest::gtest PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${gtest_include}"
+  )
+  if(gtest_library_debug OR gtest_library_release)
+    if(NOT gtest_library_release)
+      set(gtest_library_release "${gtest_library_debug}")
+    endif()
+    set_target_properties(GTest::gtest PROPERTIES
+      IMPORTED_CONFIGURATIONS "DEBUG;RELEASE;RELWITHDEBINFO;MINSIZEREL"
+      IMPORTED_LOCATION_DEBUG "${gtest_library_debug}"
+      IMPORTED_LOCATION_RELEASE "${gtest_library_release}"
+      IMPORTED_LOCATION_RELWITHDEBINFO "${gtest_library_release}"
+      IMPORTED_LOCATION_MINSIZEREL "${gtest_library_release}"
+    )
+  else()
+    set_target_properties(GTest::gtest PROPERTIES
+      IMPORTED_LOCATION "${gtest_library}"
+    )
+  endif()
+
+  add_library(GTest::gtest_main UNKNOWN IMPORTED)
+  set_target_properties(GTest::gtest_main PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${gtest_include}"
+    INTERFACE_LINK_LIBRARIES GTest::gtest
+  )
+  if(gtest_main_library_debug OR gtest_main_library_release)
+    if(NOT gtest_main_library_release)
+      set(gtest_main_library_release "${gtest_main_library_debug}")
+    endif()
+    set_target_properties(GTest::gtest_main PROPERTIES
+      IMPORTED_CONFIGURATIONS "DEBUG;RELEASE;RELWITHDEBINFO;MINSIZEREL"
+      IMPORTED_LOCATION_DEBUG "${gtest_main_library_debug}"
+      IMPORTED_LOCATION_RELEASE "${gtest_main_library_release}"
+      IMPORTED_LOCATION_RELWITHDEBINFO "${gtest_main_library_release}"
+      IMPORTED_LOCATION_MINSIZEREL "${gtest_main_library_release}"
+    )
+  else()
+    set_target_properties(GTest::gtest_main PROPERTIES
+      IMPORTED_LOCATION "${gtest_main_library}"
+    )
+  endif()
+  set(MANUMESH_RESOLVED_GTEST_RUNTIME_DIR "${gtest_runtime_dir}" PARENT_SCOPE)
+endfunction()
+
+function(manumesh_add_source_gtest source_dir)
+  if(TARGET GTest::gtest_main)
+    return()
+  endif()
+  if(NOT EXISTS "${source_dir}/CMakeLists.txt")
+    return()
+  endif()
+
+  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  set(gtest_build_samples OFF CACHE BOOL "" FORCE)
+  set(gtest_build_tests OFF CACHE BOOL "" FORCE)
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  if(NOT DEFINED GOOGLETEST_VERSION)
+    set(GOOGLETEST_VERSION 1.15.2)
+  endif()
+  add_subdirectory(
+    "${source_dir}"
+    "${CMAKE_BINARY_DIR}/_deps/manumesh-googletest-build"
+    EXCLUDE_FROM_ALL
+  )
+  if(TARGET gtest AND NOT TARGET GTest::gtest)
+    add_library(GTest::gtest ALIAS gtest)
+  endif()
+  if(TARGET gtest_main AND NOT TARGET GTest::gtest_main)
+    add_library(GTest::gtest_main ALIAS gtest_main)
+  endif()
+endfunction()
+
+if(NOT MANUMESH_GOOGLETEST_PROVIDER MATCHES "^(auto|source|prebuilt|system|fetch)$")
+  message(FATAL_ERROR
+    "MANUMESH_GOOGLETEST_PROVIDER must be one of: auto, source, prebuilt, system, fetch."
+  )
+endif()
+
+set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO OFF)
+if(MINGW AND MANUMESH_MINGW_AUTO_GOOGLETEST_FROM_SOURCE AND
+   MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto")
+  set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO ON)
+endif()
+
+if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source" OR
+   MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO)
+  manumesh_add_source_gtest("${MANUMESH_GOOGLETEST_SOURCE_DIR}")
+  if(NOT TARGET GTest::gtest_main AND MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source")
+    message(FATAL_ERROR
+      "GoogleTest source was not found at "
+      "MANUMESH_GOOGLETEST_SOURCE_DIR='${MANUMESH_GOOGLETEST_SOURCE_DIR}'."
+    )
+  endif()
+endif()
+
+if((MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" AND
+    NOT MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO) OR
+   MANUMESH_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
+  manumesh_import_prebuilt_gtest("${MANUMESH_GOOGLETEST_PREBUILT_DIR}")
+  if(NOT TARGET GTest::gtest_main AND
+     MANUMESH_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
+    message(FATAL_ERROR
+      "Prebuilt GoogleTest was not found. Expected a binary bundle with "
+      "include/gtest/gtest.h, lib/gtest, lib/gtest_main, and optional bin "
+      "runtime files at MANUMESH_GOOGLETEST_PREBUILT_DIR='${MANUMESH_GOOGLETEST_PREBUILT_DIR}', "
+      "or set MANUMESH_GTEST_INCLUDE_DIR, MANUMESH_GTEST_LIBRARY, and MANUMESH_GTEST_MAIN_LIBRARY."
+    )
+  endif()
+endif()
+
+if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" OR
+   MANUMESH_GOOGLETEST_PROVIDER STREQUAL "system")
+  if(NOT TARGET GTest::gtest_main)
+    find_package(GTest QUIET)
+    if(TARGET GTest::Main AND NOT TARGET GTest::gtest_main)
+      add_library(GTest::gtest_main INTERFACE IMPORTED)
+      target_link_libraries(GTest::gtest_main INTERFACE GTest::Main)
+    endif()
+  endif()
+endif()
+
+if(NOT TARGET GTest::gtest_main AND
+   (MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" OR
+    MANUMESH_GOOGLETEST_PROVIDER STREQUAL "fetch"))
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+    ${MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS}
+  )
+  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+endif()
+
+if(NOT TARGET GTest::gtest_main)
+  message(FATAL_ERROR
+    "GoogleTest was not found. Use the prebuilt binary bundle under "
+    "thirdParty/googletest/prebuilt, the vendored source tree under "
+    "thirdParty/googletest/source, install a system GTest discoverable by "
+    "find_package(GTest), or configure with -DMANUMESH_GOOGLETEST_PROVIDER=fetch. "
+    "For MinGW, the default auto provider skips prebuilt GoogleTest DLLs "
+    "and builds GoogleTest for the active compiler from vendored source; use "
+    "-DMANUMESH_GOOGLETEST_PROVIDER=prebuilt only when that binary bundle matches "
+    "the selected MinGW runtime."
+  )
+endif()
+
 set(MANUMESH_UNIT_TEST_SOURCES
   support/TestSupport.cpp
   unit/api/c_api_diagnostics_tests.cpp

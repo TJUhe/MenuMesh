@@ -48,9 +48,8 @@ class FeatureGraphStage {
 public:
   void run(FeatureDetectionContext& context) const {
     detector_detail::initializeFeatureGraph(context.featureEdges, context.analysis());
-    context.trace = detector_detail::buildTraceGraph(context.mesh, context.options,
-                                                     context.featureEdges,
-                                                     context.analysis());
+    context.trace = detector_detail::buildTraceGraph(
+        context.mesh, context.options, context.featureEdges, context.analysis());
   }
 };
 
@@ -195,19 +194,18 @@ std::string featureLoopRowCsv(const FeatureLoop& loop) {
   out << std::setprecision(12);
   out << loop.id << "," << loop.componentId << "," << loop.componentConfidence << ","
       << (loop.weakFeature ? 1 : 0) << "," << loop.primitiveResidual << ","
-      << loop.vertices.size() << "," << loop.edgeCount << ","
-      << (loop.closed ? 1 : 0) << "," << toString(loop.primitive) << ","
-      << (loop.circular ? 1 : 0) << "," << (loop.mostlyBoundary ? 1 : 0) << ","
-      << loop.center.x() << "," << loop.center.y() << "," << loop.center.z() << ","
-      << loop.normal.x() << "," << loop.normal.y() << "," << loop.normal.z() << ","
-      << loop.majorAxis.x() << "," << loop.majorAxis.y() << "," << loop.majorAxis.z()
-      << "," << loop.minorAxis.x() << "," << loop.minorAxis.y() << ","
-      << loop.minorAxis.z() << "," << loop.radius << "," << loop.majorRadius << ","
-      << loop.minorRadius << "," << loop.axisRatio << "," << loop.rmsRadialError << ","
-      << loop.maxRadialError << "," << loop.rmsEllipseError << ","
-      << loop.maxEllipseError << "," << loop.rmsPlaneError << "," << loop.maxPlaneError
-      << "," << loop.convexEdges << "," << loop.concaveEdges << ","
-      << loop.unknownSignedEdges;
+      << loop.vertices.size() << "," << loop.edgeCount << "," << (loop.closed ? 1 : 0)
+      << "," << toString(loop.primitive) << "," << (loop.circular ? 1 : 0) << ","
+      << (loop.mostlyBoundary ? 1 : 0) << "," << loop.center.x() << ","
+      << loop.center.y() << "," << loop.center.z() << "," << loop.normal.x() << ","
+      << loop.normal.y() << "," << loop.normal.z() << "," << loop.majorAxis.x() << ","
+      << loop.majorAxis.y() << "," << loop.majorAxis.z() << "," << loop.minorAxis.x()
+      << "," << loop.minorAxis.y() << "," << loop.minorAxis.z() << "," << loop.radius
+      << "," << loop.majorRadius << "," << loop.minorRadius << "," << loop.axisRatio
+      << "," << loop.rmsRadialError << "," << loop.maxRadialError << ","
+      << loop.rmsEllipseError << "," << loop.maxEllipseError << ","
+      << loop.rmsPlaneError << "," << loop.maxPlaneError << "," << loop.convexEdges
+      << "," << loop.concaveEdges << "," << loop.unknownSignedEdges;
   return out.str();
 }
 
@@ -227,10 +225,10 @@ std::string toString(FeaturePrimitiveType primitive) {
   return "unknown";
 }
 
-FeatureEdgeBenchmark benchmarkFeatureEdges(
-    const FeatureAnalysis& analysis,
-    const std::vector<std::pair<int, int>>& groundTruthEdges,
-    const std::vector<int>& groundTruthJunctionVertices) {
+FeatureEdgeBenchmark
+benchmarkFeatureEdges(const FeatureAnalysis& analysis,
+                      const std::vector<std::pair<int, int>>& groundTruthEdges,
+                      const std::vector<int>& groundTruthJunctionVertices) {
   FeatureEdgeBenchmark result;
   std::unordered_set<std::uint64_t> truthEdges;
   truthEdges.reserve(groundTruthEdges.size());
@@ -265,21 +263,18 @@ FeatureEdgeBenchmark benchmarkFeatureEdges(
   }
 
   auto ratio = [](int numerator, int denominator) {
-    return denominator > 0 ? static_cast<double>(numerator) /
-                                static_cast<double>(denominator)
-                          : 0.0;
+    return denominator > 0
+               ? static_cast<double>(numerator) / static_cast<double>(denominator)
+               : 0.0;
   };
   auto f1 = [](double precision, double recall) {
-    return precision + recall > 0.0 ? 2.0 * precision * recall /
-                                          (precision + recall)
+    return precision + recall > 0.0 ? 2.0 * precision * recall / (precision + recall)
                                     : 0.0;
   };
-  result.edgePrecision =
-      ratio(result.truePositiveEdges,
-            result.truePositiveEdges + result.falsePositiveEdges);
-  result.edgeRecall =
-      ratio(result.truePositiveEdges,
-            result.truePositiveEdges + result.falseNegativeEdges);
+  result.edgePrecision = ratio(result.truePositiveEdges,
+                               result.truePositiveEdges + result.falsePositiveEdges);
+  result.edgeRecall = ratio(result.truePositiveEdges,
+                            result.truePositiveEdges + result.falseNegativeEdges);
   result.edgeF1 = f1(result.edgePrecision, result.edgeRecall);
 
   std::unordered_set<int> truthJunctions;
@@ -318,7 +313,8 @@ FeatureEdgeBenchmark benchmarkFeatureEdges(
     for (const FeatureComponent& component : analysis.components) {
       closureSum += component.closureRate;
     }
-    result.loopClosureRate = closureSum / static_cast<double>(analysis.components.size());
+    result.loopClosureRate =
+        closureSum / static_cast<double>(analysis.components.size());
   }
   result.meanComponentConfidence = analysis.meanFeatureComponentConfidence;
   return result;

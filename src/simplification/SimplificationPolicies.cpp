@@ -69,8 +69,7 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
       options.normalTensorMinPersistentScales;
   policies.features.cleanupFeatureGraph = options.cleanupFeatureGraph;
   policies.features.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
-  policies.features.featureGraphMaxWeakSpurEdges =
-      options.featureGraphMaxWeakSpurEdges;
+  policies.features.featureGraphMaxWeakSpurEdges = options.featureGraphMaxWeakSpurEdges;
   policies.features.featureComponentMinConfidence =
       options.featureComponentMinConfidence;
 

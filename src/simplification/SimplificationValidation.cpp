@@ -71,14 +71,12 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
     throw std::invalid_argument("normalTensorScaleCount must be positive.");
   }
   if (options.normalTensorMinPersistentScales < 1) {
-    throw std::invalid_argument(
-        "normalTensorMinPersistentScales must be positive.");
+    throw std::invalid_argument("normalTensorMinPersistentScales must be positive.");
   }
   requireFiniteNonNegative(options.featureGraphGapLengthRatio,
                            "featureGraphGapLengthRatio");
   if (options.featureGraphMaxWeakSpurEdges < 0) {
-    throw std::invalid_argument(
-        "featureGraphMaxWeakSpurEdges must be non-negative.");
+    throw std::invalid_argument("featureGraphMaxWeakSpurEdges must be non-negative.");
   }
   if (!std::isfinite(options.featureComponentMinConfidence) ||
       options.featureComponentMinConfidence < 0.0 ||

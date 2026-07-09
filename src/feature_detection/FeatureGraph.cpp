@@ -8,8 +8,7 @@ namespace manumesh::feature::detector_detail {
 namespace {
 
 void removeNeighbor(std::vector<int>& neighbors, int id) {
-  neighbors.erase(std::remove(neighbors.begin(), neighbors.end(), id),
-                  neighbors.end());
+  neighbors.erase(std::remove(neighbors.begin(), neighbors.end(), id), neighbors.end());
 }
 
 void appendFeatureGraphEdge(FeatureAnalysis& analysis, const CandidateEdge& edge) {
@@ -82,9 +81,9 @@ TraceGraph buildTraceGraph(const Mesh& mesh, const FeatureOptions& options,
   trace.edgeTensorPersistentScales.reserve(featureEdges.size());
   trace.graphEdges.reserve(featureEdges.size());
 
-  const double traceAngleDeg =
-      options.loopTraceAngleDeg < 0.0 ? options.featureAngleDeg
-                                      : options.loopTraceAngleDeg;
+  const double traceAngleDeg = options.loopTraceAngleDeg < 0.0
+                                   ? options.featureAngleDeg
+                                   : options.loopTraceAngleDeg;
   const double loopTraceAngle = traceAngleDeg * kPi / 180.0;
   for (const CandidateEdge& edge : featureEdges) {
     const bool traceEdge = edge.boundary || edge.nonManifold || edge.normalTensor ||
@@ -130,8 +129,7 @@ int traceEdgeSign(const TraceGraph& trace, int a, int b) {
 }
 
 double traceEdgeTensorPersistence(const TraceGraph& trace, int a, int b) {
-  const auto it =
-      trace.edgeTensorPersistence.find(manumesh::detail::meshEdgeKey(a, b));
+  const auto it = trace.edgeTensorPersistence.find(manumesh::detail::meshEdgeKey(a, b));
   return it == trace.edgeTensorPersistence.end() ? 0.0 : it->second;
 }
 
@@ -204,7 +202,8 @@ void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis) {
     FeatureGraphVertex& vertex = analysis.graph.vertices[id];
     const int activeIncidentEdges = static_cast<int>(std::count_if(
         vertex.incidentEdges.begin(), vertex.incidentEdges.end(), [&](int edgeId) {
-          return edgeId >= 0 && edgeId < static_cast<int>(analysis.graph.edges.size()) &&
+          return edgeId >= 0 &&
+                 edgeId < static_cast<int>(analysis.graph.edges.size()) &&
                  !analysis.graph.edges[edgeId].removedByCleanup;
         }));
     vertex.junction = activeIncidentEdges != 2 || vertex.loopIds.size() > 1 ||

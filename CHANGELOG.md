@@ -10,6 +10,7 @@
 - 同步更新 generated notes、delivery guide 和 `docs/archive/prototype-docs-2026-07-09/` 内的 HTML 副本，使正式文档、历史归档和论文引用说明保持一致。
 - 扩充所有 HTML 的 QEM 二次型说明：统一展开 `Q=[[A,b],[b^T,c]]`、`E=x^T A x+2b^T x+c`，并用具体数值例子代入 `lineWeight=1e-3`、`featureBoost=0.08`、`boundaryWeight=5`、`featureCurveWeight=0.08` 和 component confidence，展示各项如何改变 `A/b/c` 与候选 collapse 代价。
 - 澄清 QEM 深入页和执行计划中的 primitive 保护描述：当前代码没有独立的径向权重参数或径向二次型构造函数，圆/椭圆/多边形 loop 通过 tangent-line quadric、primitive projection、`maxFeatureCurveDeviationRatio` 与 hard feature policy 共同保护。
+- 在 notes HTML 中补充 dihedral / normal-tensor 特征提高 line-quadric 权重的详细解释：明确该权重会偏离纯 plane-QEM 最优点，但用于抑制平坦区和特征附近的切向漂移、改变候选 collapse 排序；同时说明边界保护还依赖 boundary quadric / hard guards，弱特征需要 persistence、component confidence 与 benchmark 避免过度正则化。
 
 ### 测试
 

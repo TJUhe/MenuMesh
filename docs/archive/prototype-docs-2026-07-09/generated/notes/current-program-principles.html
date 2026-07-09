@@ -283,6 +283,23 @@ img, svg, canvas, video {
       </tbody>
     </table>
     <p>例如同一个候选位移 <code>x=(11,5,0.2)</code>：平面项给 <code>0.08</code>，普通 line 项只给 <code>0.002</code>，normal-tensor 特征加权 line 项给 <code>0.098</code>。所以默认 line quadric 是温和正则；一旦 feature score 和 <code>featureBoost</code> 介入，它才会变成明显影响 collapse 排序的特征保护成本。</p>
+  <div class="callout warn qem-line-weight-feature-explanation" id="line-weight-feature-explanation">
+    <div class="callout-title">为什么识别到边界、dihedral 或 normal-tensor 特征后要提高 Line Quadric 权重</div>
+    <p>先把一个容易误解的点说清楚：提高 <code>lineWeight</code> 或 <code>featureBoost</code>，确实会改变 <code>A x=-b</code> 的最小误差位置。它会让位置从“纯 plane QEM 的最优点”偏向“更靠近原顶点法线支撑线、切向漂移更小”的点。因此这不是免费的精度提升，而是一个有意加入的软正则项。M004 line quadrics 的核心价值，正是给标准 QEM 在平坦或近似平坦区域缺失的切向方向补一个小惩罚；M030-M033 的 edge-collapse 工程路线也强调，QEM/line quadrics 负责候选排序，真正危险的 collapse 仍要交给拓扑、边界、特征和质量过滤器。</p>
+    <p>当前代码里，<code>weightMode=dihedral</code> 会把开边界边记为 <code>score=1</code>，把超过 <code>featureAngleDeg</code> 的二面角边按强度写入端点分数；<code>weightMode=normal-tensor</code> 则使用满足 <code>normalTensorMinPersistentScales</code> 的 persistent feature score。随后普通 line quadric 的权重变成 <code>w_i=lineWeight+featureBoost*s_i</code>。这意味着边界、硬折痕、弱 ridge 附近的候选点，如果试图沿局部切平面大幅滑走，会在优先队列里付出更高代价。</p>
+    <table>
+      <thead><tr><th>疑问</th><th>准确回答</th><th>对应代码/参数</th></tr></thead>
+      <tbody>
+        <tr><td>为什么识别到特征还要加 line 权重？</td><td>因为 plane QEM 主要惩罚离开局部平面，很多特征破坏发生在切向：点沿表面滑过折痕、孔边被拖圆、边界轮廓缩进。Line quadric 惩罚 <code>||(I-nn^T)(x-p)||^2</code>，正好给这种切向漂移加成本。</td><td><code>Quadrics.cpp::lineQuadric</code>，<code>lineWeight</code>，<code>featureBoost</code></td></tr>
+        <tr><td>这会不会让最小误差位置更偏？</td><td>会。它会偏离纯 plane QEM 的最优点，但这个偏移的方向是“少做切向漂移”。如果纯 plane QEM 本来在切向不满秩或近似不满秩，那么这个偏移反而让候选 placement 更稳定。</td><td><code>solvePlacementCandidates()</code> 用合并后的 <code>Q_i+Q_j</code> 求解</td></tr>
+        <tr><td>为什么特征附近要比普通平面更强？</td><td>普通平面内的小滑动通常视觉影响不大；特征线附近同样大小的滑动可能跨过 CAD patch boundary、浅 ridge 或孔边。提高 <code>w_i</code> 让这些 collapse 排序靠后，给非特征区域优先被简化的机会。</td><td><code>w_i=lineWeight+featureBoost*s_i</code></td></tr>
+        <tr><td>边界线也靠 line 权重保护吗？</td><td>不是只靠它。开边界在 dihedral weight mode 下会得到高 feature score，从而减少切向漂移；但真正的边界形状和拓扑还要看 <code>boundaryWeight</code> 的边界 plane quadric、<code>preserveBoundary</code> 的硬策略和 topology guards。</td><td><code>addBoundaryQuadrics()</code>，<code>preserveBoundary</code></td></tr>
+        <tr><td>normal tensor 弱特征会不会误检后过度保护？</td><td>会有这个风险。所以 normal-tensor 路径现在用 persistent score、最小 persistent scales、edge alignment 和 component confidence 来减少单尺度噪声；弱特征更适合先作为软成本进入 QEM，而不是一上来全量 hard lock。</td><td><code>normalTensorFeatureThreshold</code>，<code>normalTensorMinPersistentScales</code>，<code>featureComponentMinConfidence</code></td></tr>
+      </tbody>
+    </table>
+    <p>可以用一个二维化的例子看直觉。假设局部平面是 <code>z=0</code>，纯 plane QEM 是 <code>E_plane=2*z^2</code>。候选点从 <code>(10,5,0)</code> 滑到 <code>(11,5,0)</code> 时，纯 plane QEM 代价仍是 0，因为它没有离开平面。加入普通 line quadric 后，代价多出 <code>0.002</code>；如果 normal-tensor persistent score 是 <code>0.6</code> 且 <code>featureBoost=0.08</code>，同样 1 mm 切向滑动代价变成 <code>0.098</code>。这并不是说几何误差突然大了 49 倍，而是系统在告诉优先队列：“这里像特征支撑，不要把切向漂移很大的 collapse 排得太靠前。”</p>
+    <p>因此正确的调参原则不是“特征越强，line 权重越大越好”。更稳的顺序是：保持基础 <code>lineWeight</code> 小，让它只修补平坦区病态；让 <code>featureBoost</code> 只放大高置信的 dihedral/normal-tensor 证据；把圆、椭圆、polygonal loop 交给 <code>featureCurveWeight</code>、primitive projection 和 hard feature policy；最后用 <code>feature_rejected</code>、<code>generic_feature_rejected</code>、<code>max_orig_to_simp</code> 和 feature drift 去判断是否过度保护。这个取舍也对应 M026 弱特征整合和 M030-M033 collapse guards 的思路：先让特征证据形成可靠 support，再决定软成本、硬保护或后处理投影。</p>
+  </div>
   </div>
   <p>因此当前总能量可读成：<code>E = E_plane + E_line(weightMode) + E_boundary + E_feature_curve</code>；拓扑、边界、特征保护、法向翻转、三角形质量、局部误差和自交检查不是二次型项，而是候选折叠通过 QEM 排序之后的硬过滤。</p>
 </section>

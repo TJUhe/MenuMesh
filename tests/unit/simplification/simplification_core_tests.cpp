@@ -7,6 +7,7 @@
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
+#include "io/MeshIo.h"
 
 #include <algorithm>
 #include <array>

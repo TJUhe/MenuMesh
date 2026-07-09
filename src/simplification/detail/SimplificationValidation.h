@@ -1,6 +1,7 @@
 #pragma once
 
-#include "algorithms/simplification/QEMSimplifier.h"
+#include "algorithms/simplification/SimplificationTypes.h"
+#include "core/Mesh.h"
 
 namespace manumesh::simplification {
 

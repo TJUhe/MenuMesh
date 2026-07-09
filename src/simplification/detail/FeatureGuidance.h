@@ -6,6 +6,10 @@
 
 #include <vector>
 
+namespace manumesh::feature {
+struct FeatureAnalysis;
+}
+
 namespace manumesh::simplification {
 
 struct FeatureDetectionPolicy;
@@ -69,6 +73,9 @@ struct FeatureWeightScores {
 
 FeatureGuidance buildFeatureGuidance(const Mesh& mesh,
                                      const FeatureDetectionPolicy& policy);
+FeatureGuidance buildFeatureGuidance(const Mesh& mesh,
+                                     const FeatureDetectionPolicy& policy,
+                                     const feature::FeatureAnalysis* precomputed);
 
 FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh,
                                                const SimplifyOptions& options);

@@ -110,6 +110,7 @@ cmake --build build/sdk-release --target sdk-consumer-test --parallel
 
 ```cpp
 #include "core/Mesh.h"
+#include "io/MeshIo.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 
 manumesh::simplification::SimplifyOptions options;

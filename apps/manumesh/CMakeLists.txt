@@ -1,7 +1,11 @@
 add_executable(manumesh
   CliArguments.cpp
   CliArguments.h
+  CliCsv.cpp
+  CliCsv.h
   CliCommands.h
+  CliOptionBinding.cpp
+  CliOptionBinding.h
   ManuMeshCommands.cpp
   main.cpp
   ManuMeshCli.cpp

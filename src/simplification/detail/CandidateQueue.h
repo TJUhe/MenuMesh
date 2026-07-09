@@ -1,6 +1,5 @@
 #pragma once
 
-#include "algorithms/simplification/QEMSimplifier.h"
 #include "detail/SimplificationTypes.h"
 
 #include <queue>

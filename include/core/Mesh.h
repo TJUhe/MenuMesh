@@ -37,26 +37,11 @@ struct Mesh {
   MANUMESH_API void removeUnusedVertices();
 };
 
-/// Loads an STL file, automatically handling ASCII and binary encodings.
-MANUMESH_API bool loadStl(const std::string& path, Mesh& mesh,
-                          std::string* error = nullptr,
-                          double mergeRelativeEpsilon = 1e-9);
-/// Loads a simple OBJ triangle mesh.
-MANUMESH_API bool loadObj(const std::string& path, Mesh& mesh,
-                          std::string* error = nullptr);
-/// Loads a mesh by file extension. Supported formats are STL and OBJ.
-MANUMESH_API bool loadMesh(const std::string& path, Mesh& mesh,
-                           std::string* error = nullptr,
-                           double mergeRelativeEpsilon = 1e-9);
 /// Returns false and writes an error when any face index is out of range.
 MANUMESH_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
 /// Returns false when indices are invalid, vertex coordinates are not finite,
 /// or a face is degenerate.
 MANUMESH_API bool validateMeshGeometry(const Mesh& mesh, std::string* error = nullptr);
-/// Writes the mesh as an ASCII STL file.
-MANUMESH_API bool saveAsciiStl(const std::string& path, const Mesh& mesh,
-                               const std::string& solidName = "mesh",
-                               std::string* error = nullptr);
 
 /// Returns the area of one triangle.
 MANUMESH_API double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c);

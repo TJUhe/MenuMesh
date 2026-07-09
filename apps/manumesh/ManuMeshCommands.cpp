@@ -1,10 +1,13 @@
 #include "CliArguments.h"
 #include "CliCommands.h"
+#include "CliCsv.h"
+#include "CliOptionBinding.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/Metrics.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/Mesh.h"
 #include "core/MeshGenerators.h"
+#include "io/MeshIo.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -25,14 +28,18 @@ namespace fs = std::filesystem;
 namespace {
 
 using manumesh::cli::Args;
+using manumesh::cli::csvValue;
 using manumesh::cli::getArg;
-using manumesh::cli::getDoubleArg;
 using manumesh::cli::getIntArg;
 using manumesh::cli::hasFlag;
-using manumesh::cli::parseDoubleStrict;
 using manumesh::cli::parseFaceCounts;
+using manumesh::cli::parseFeatureOptions;
+using manumesh::cli::parseSimplifyOptions;
 using manumesh::cli::parseWeights;
 using manumesh::cli::positionalArgs;
+using manumesh::cli::quoteCsv;
+using manumesh::cli::readFirstCsvRow;
+using manumesh::cli::splitCsvLine;
 
 int commandGenerate(const Args& args);
 int commandSimplify(const Args& args);
@@ -76,134 +83,6 @@ std::string sanitizeRatio(double value) {
   return text;
 }
 
-manumesh::simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
-  manumesh::simplification::SimplifyOptions options;
-  options.targetRatio = getDoubleArg(args, "--ratio", options.targetRatio);
-  options.targetFaces = getIntArg(args, "--target-faces", options.targetFaces);
-  options.lineWeight = getDoubleArg(args, "--line-weight", options.lineWeight);
-  options.featureBoost = getDoubleArg(args, "--feature-boost", options.featureBoost);
-  options.featureAngleDeg =
-      getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
-  options.loopTraceAngleDeg =
-      getDoubleArg(args, "--loop-trace-angle-deg", options.loopTraceAngleDeg);
-  options.boundaryWeight =
-      getDoubleArg(args, "--boundary-weight", options.boundaryWeight);
-  options.featureCurveWeight =
-      getDoubleArg(args, "--feature-curve-weight", options.featureCurveWeight);
-  options.maxFeatureCurveDeviationRatio =
-      getDoubleArg(args, "--max-feature-curve-deviation-ratio",
-                   options.maxFeatureCurveDeviationRatio);
-  options.circleFitRelativeThreshold =
-      getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
-  options.ellipseFitRelativeThreshold = getDoubleArg(
-      args, "--ellipse-fit-threshold", options.ellipseFitRelativeThreshold);
-  options.nearCircleAxisRatioTolerance = getDoubleArg(
-      args, "--near-circle-axis-ratio-tolerance", options.nearCircleAxisRatioTolerance);
-  options.minFeatureLoopVertices =
-      getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
-  options.minCircularFeatureLoopVertices =
-      getIntArg(args, "--min-circular-feature-loop-vertices",
-                options.minCircularFeatureLoopVertices);
-  options.adaptiveBaseLineWeight =
-      getDoubleArg(args, "--adaptive-base-line-weight", options.adaptiveBaseLineWeight);
-  options.normalTensorFeatureThreshold = getDoubleArg(
-      args, "--normal-tensor-threshold", options.normalTensorFeatureThreshold);
-  options.normalTensorMinEdgeAlignment = getDoubleArg(
-      args, "--normal-tensor-edge-alignment", options.normalTensorMinEdgeAlignment);
-  options.normalTensorSmoothingIterations = getIntArg(
-      args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
-  options.normalTensorScaleCount =
-      getIntArg(args, "--normal-tensor-scales", options.normalTensorScaleCount);
-  options.normalTensorMinPersistentScales =
-      getIntArg(args, "--normal-tensor-min-persistent-scales",
-                options.normalTensorMinPersistentScales);
-  options.featureGraphGapLengthRatio = getDoubleArg(args, "--feature-graph-gap-ratio",
-                                                    options.featureGraphGapLengthRatio);
-  options.featureGraphMaxWeakSpurEdges =
-      getIntArg(args, "--feature-graph-max-weak-spur-edges",
-                options.featureGraphMaxWeakSpurEdges);
-  options.featureComponentMinConfidence =
-      getDoubleArg(args, "--feature-component-min-confidence",
-                   options.featureComponentMinConfidence);
-  options.minTriangleQuality =
-      getDoubleArg(args, "--min-triangle-quality", options.minTriangleQuality);
-  options.maxNormalDeviationDeg =
-      getDoubleArg(args, "--max-normal-deviation-deg", options.maxNormalDeviationDeg);
-  options.maxLocalError =
-      getDoubleArg(args, "--max-local-error", options.maxLocalError);
-  options.maxLocalErrorRatio =
-      getDoubleArg(args, "--max-local-error-ratio", options.maxLocalErrorRatio);
-  options.verbose = hasFlag(args, "--verbose");
-  options.adaptiveScale = hasFlag(args, "--adaptive-scale");
-  options.preserveBoundary = hasFlag(args, "--preserve-boundary");
-  options.preventLocalIntersections = hasFlag(args, "--prevent-local-intersections");
-  options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
-  options.featureProtectionMode = manumesh::simplification::parseFeatureProtectionMode(
-      getArg(args, "--feature-protection-mode",
-             manumesh::simplification::toString(options.featureProtectionMode)));
-  options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
-  options.cleanupFeatureGraph = !hasFlag(args, "--no-feature-graph-cleanup");
-  if (hasFlag(args, "--industrial-safe")) {
-    options.preserveBoundary = true;
-    options.minTriangleQuality = std::max(options.minTriangleQuality, 1e-4);
-    options.maxNormalDeviationDeg = std::min(options.maxNormalDeviationDeg, 75.0);
-    options.maxLocalErrorRatio = std::max(options.maxLocalErrorRatio, 0.02);
-    options.preventLocalIntersections = true;
-  }
-
-  const std::string mode = getArg(args, "--weight-mode", "uniform");
-  options.weightMode = manumesh::simplification::parseWeightMode(mode);
-
-  const std::string method = getArg(args, "--method", "line");
-  if (method == "standard" || method == "qem") {
-    options.useLineQuadrics = false;
-    options.lineWeight = 0.0;
-  } else if (method == "line") {
-    options.useLineQuadrics = true;
-  } else {
-    throw std::invalid_argument("Unknown --method. Use standard or line.");
-  }
-  return options;
-}
-
-manumesh::feature::FeatureOptions parseFeatureOptions(const Args& args) {
-  manumesh::feature::FeatureOptions options;
-  options.featureAngleDeg =
-      getDoubleArg(args, "--feature-angle-deg", options.featureAngleDeg);
-  options.loopTraceAngleDeg =
-      getDoubleArg(args, "--loop-trace-angle-deg", options.loopTraceAngleDeg);
-  options.circleFitRelativeThreshold =
-      getDoubleArg(args, "--circle-fit-threshold", options.circleFitRelativeThreshold);
-  options.ellipseFitRelativeThreshold = getDoubleArg(
-      args, "--ellipse-fit-threshold", options.ellipseFitRelativeThreshold);
-  options.nearCircleAxisRatioTolerance = getDoubleArg(
-      args, "--near-circle-axis-ratio-tolerance", options.nearCircleAxisRatioTolerance);
-  options.minFeatureLoopVertices =
-      getIntArg(args, "--min-feature-loop-vertices", options.minFeatureLoopVertices);
-  options.normalTensorFeatureThreshold = getDoubleArg(
-      args, "--normal-tensor-threshold", options.normalTensorFeatureThreshold);
-  options.normalTensorMinEdgeAlignment = getDoubleArg(
-      args, "--normal-tensor-edge-alignment", options.normalTensorMinEdgeAlignment);
-  options.normalTensorSmoothingIterations = getIntArg(
-      args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
-  options.normalTensorScaleCount =
-      getIntArg(args, "--normal-tensor-scales", options.normalTensorScaleCount);
-  options.normalTensorMinPersistentScales =
-      getIntArg(args, "--normal-tensor-min-persistent-scales",
-                options.normalTensorMinPersistentScales);
-  options.featureGraphGapLengthRatio = getDoubleArg(args, "--feature-graph-gap-ratio",
-                                                    options.featureGraphGapLengthRatio);
-  options.featureGraphMaxWeakSpurEdges =
-      getIntArg(args, "--feature-graph-max-weak-spur-edges",
-                options.featureGraphMaxWeakSpurEdges);
-  options.featureComponentMinConfidence =
-      getDoubleArg(args, "--feature-component-min-confidence",
-                   options.featureComponentMinConfidence);
-  options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
-  options.cleanupFeatureGraph = !hasFlag(args, "--no-feature-graph-cleanup");
-  return options;
-}
-
 void printStats(const std::string& label,
                 const manumesh::simplification::MeshStats& stats) {
   std::cout << label << ": vertices=" << stats.vertices << " faces=" << stats.faces
@@ -220,72 +99,6 @@ Args makeArgs(std::initializer_list<std::string> values) {
 
 std::string pathString(const fs::path& path) {
   return path.string();
-}
-
-std::vector<std::string> splitCsvLine(const std::string& line) {
-  std::vector<std::string> out;
-  std::string current;
-  bool quoted = false;
-  for (std::size_t i = 0; i < line.size(); ++i) {
-    const char ch = line[i];
-    if (ch == '"') {
-      if (quoted && i + 1 < line.size() && line[i + 1] == '"') {
-        current.push_back('"');
-        ++i;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (ch == ',' && !quoted) {
-      out.push_back(current);
-      current.clear();
-    } else {
-      current.push_back(ch);
-    }
-  }
-  out.push_back(current);
-  return out;
-}
-
-std::string quoteCsv(const std::string& value) {
-  bool needsQuotes = false;
-  std::string escaped;
-  for (char ch : value) {
-    if (ch == '"') {
-      escaped += "\"\"";
-      needsQuotes = true;
-    } else {
-      if (ch == ',' || ch == '\n' || ch == '\r') {
-        needsQuotes = true;
-      }
-      escaped.push_back(ch);
-    }
-  }
-  return needsQuotes ? '"' + escaped + '"' : escaped;
-}
-
-std::map<std::string, std::string> readFirstCsvRow(const fs::path& path) {
-  std::ifstream in(path);
-  if (!in) {
-    return {};
-  }
-  std::string headerLine;
-  std::string valueLine;
-  if (!std::getline(in, headerLine) || !std::getline(in, valueLine)) {
-    return {};
-  }
-  const std::vector<std::string> headers = splitCsvLine(headerLine);
-  const std::vector<std::string> values = splitCsvLine(valueLine);
-  std::map<std::string, std::string> row;
-  for (std::size_t i = 0; i < headers.size(); ++i) {
-    row[headers[i]] = i < values.size() ? values[i] : "";
-  }
-  return row;
-}
-
-std::string csvValue(const std::map<std::string, std::string>& row,
-                     const std::string& key) {
-  const auto it = row.find(key);
-  return it == row.end() ? "" : it->second;
 }
 
 void runGenerate(const fs::path& inputDir, const std::string& name,

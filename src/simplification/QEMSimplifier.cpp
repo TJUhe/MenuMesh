@@ -156,10 +156,35 @@ Mesh QEMSimplifier::simplify(const Mesh& input, SimplifyReport* outReport) {
   return output;
 }
 
+Mesh QEMSimplifier::simplify(const Mesh& input,
+                             const feature::FeatureAnalysis& features) {
+  return simplify(input, features, nullptr);
+}
+
+Mesh QEMSimplifier::simplify(const Mesh& input,
+                             const feature::FeatureAnalysis& features,
+                             SimplifyReport* outReport) {
+  validateSimplifyOptions(impl_->options);
+  validateSimplifierInput(input);
+  SimplificationRun run(input, impl_->options, &features);
+  Mesh output = run.execute(&impl_->report);
+  if (outReport) {
+    *outReport = impl_->report;
+  }
+  return output;
+}
+
 Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
                   SimplifyReport* outReport) {
   QEMSimplifier simplifier(options);
   return simplifier.simplify(input, outReport);
+}
+
+Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options,
+                  const feature::FeatureAnalysis& features,
+                  SimplifyReport* outReport) {
+  QEMSimplifier simplifier(options);
+  return simplifier.simplify(input, features, outReport);
 }
 
 PlainMesh simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& options,

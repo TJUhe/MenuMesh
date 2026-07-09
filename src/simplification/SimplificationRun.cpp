@@ -17,7 +17,12 @@
 namespace manumesh::simplification {
 
 SimplificationRun::SimplificationRun(const Mesh& input, const SimplifyOptions& options)
-    : input_(input), options_(options),
+    : SimplificationRun(input, options, nullptr) {
+}
+
+SimplificationRun::SimplificationRun(const Mesh& input, const SimplifyOptions& options,
+                                     const feature::FeatureAnalysis* features)
+    : input_(input), options_(options), precomputedFeatures_(features),
       policies_(SimplificationPolicies::fromOptions(options)), quadrics_(options),
       featurePolicy_(options) {
 }
@@ -52,7 +57,8 @@ void SimplificationRun::analyzeFeatures() {
     return;
   }
 
-  featureGuidance_ = buildFeatureGuidance(input_, policies_.features);
+  featureGuidance_ =
+      buildFeatureGuidance(input_, policies_.features, precomputedFeatures_);
   applyFeatureGuidanceSummary(featureGuidance_.summary, report_);
 }
 

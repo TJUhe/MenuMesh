@@ -133,6 +133,32 @@ TEST(ManuMesh, QEMSimplifierObjectStoresOptionsAndLatestReport) {
             simplifier.report().terminationReason);
 }
 
+TEST(ManuMesh, QEMSimplifierConsumesPrecomputedFeatureAnalysis) {
+  const manumesh::Mesh input = manumesh::generateCylinderGrid(24, 6, 1.0, 2.0);
+  const manumesh::feature::FeatureAnalysis features =
+      manumesh::feature::detectFeatureCurves(input, circularFeatureOptions());
+  ASSERT_FALSE(features.loops.empty());
+
+  manumesh::simplification::SimplifyOptions options =
+      protectedIndustrialFeatureOptions(0.75);
+  manumesh::simplification::QEMSimplifier simplifier(options);
+
+  manumesh::simplification::SimplifyReport objectReport;
+  const manumesh::Mesh objectOutput =
+      simplifier.simplify(input, features, &objectReport);
+
+  manumesh::simplification::SimplifyReport freeReport;
+  const manumesh::Mesh freeOutput =
+      manumesh::simplification::simplifyMesh(input, options, features, &freeReport);
+
+  EXPECT_FALSE(objectOutput.empty());
+  EXPECT_FALSE(freeOutput.empty());
+  EXPECT_EQ(static_cast<int>(features.loops.size()), objectReport.featureLoops);
+  EXPECT_EQ(objectReport.featureLoops, simplifier.report().featureLoops);
+  EXPECT_EQ(objectReport.featureLoops, freeReport.featureLoops);
+  EXPECT_EQ(objectReport.finalFaces, freeReport.finalFaces);
+}
+
 TEST(ManuMesh, QEMSimplifierCopiesPimplStateIndependently) {
   manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.60);
   manumesh::simplification::QEMSimplifier original(options);

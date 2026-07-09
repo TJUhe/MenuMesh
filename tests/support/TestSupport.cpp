@@ -1,5 +1,7 @@
 #include "TestSupport.h"
 
+#include "io/MeshIo.h"
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>

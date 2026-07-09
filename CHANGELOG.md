@@ -2,6 +2,25 @@
 
 ## 2026-07-09
 
+### 解耦重构与边界收紧
+
+- 将 STL/OBJ 读写从 `core/Mesh.h` 拆到新的 `io/MeshIo.h` / `src/io/MeshIo.cpp`，让 `core` 继续专注 Mesh 数据结构、校验和基础几何；使用 `loadMesh()` / `saveAsciiStl()` 的 C++ 调用方现在需要显式包含 `io/MeshIo.h`。
+- 收紧 `src/CMakeLists.txt` 的内部 target include 作用域：新增 `manumesh_io_objects`，不再把 `src/simplification` 私有 include 目录暴露给所有内部 object target。
+- 清理 simplification detail 头文件对 public facade `QEMSimplifier.h` 的依赖，内部头只依赖 `SimplificationTypes.h`、`core/Mesh.h` 或真实需要的私有类型。
+- 增加 `QEMSimplifier::simplify()` 和 `simplifyMesh()` 的预计算 `feature::FeatureAnalysis` 重载，使 simplification 可以直接消费外部 feature analysis，后续 repair/remesh/validation 可复用同一份特征结果。
+- 将 C ABI 的 options/report/stats 字段映射、ABI 尺寸兼容写入和枚举转换集中到 `src/api/CApiConverters.cpp` / `src/api/detail/CApiConverters.h`，让 `CApi.cpp` 只保留边界生命周期、错误翻译和 API 调度。
+- 拆出 CLI 横向工具层：`CliOptionBinding.*` 负责命令行参数到 SDK options 的绑定，`CliCsv.*` 负责 CSV 读写，降低 `ManuMeshCommands.cpp` 的基础设施耦合。
+- 更新 README 最小 C++ 示例，补充新的 `io/MeshIo.h` include。
+
+### 本轮已验证
+
+- `cmake -S . -B build\mingw-ninja-release -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMANUMESH_GOOGLETEST_PROVIDER=auto -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF -DCMAKE_BUILD_TYPE=Release`
+- `cmake --build build\mingw-ninja-release`
+- `ctest --test-dir build\mingw-ninja-release -LE performance --output-on-failure`：94/94 passed
+- `cmake -S . -B build\mingw-ninja-release-performance -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMANUMESH_GOOGLETEST_PROVIDER=auto -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON -DCMAKE_BUILD_TYPE=Release`
+- `cmake --build build\mingw-ninja-release-performance`
+- `ctest --test-dir build\mingw-ninja-release-performance -L performance --output-on-failure`：4/4 passed
+
 ### 本轮更新
 
 - 强化特征检测入口校验：新增公共 `validateFeatureOptions()`，

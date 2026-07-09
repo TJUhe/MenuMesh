@@ -1,6 +1,6 @@
 #pragma once
 
-#include "algorithms/simplification/QEMSimplifier.h"
+#include "algorithms/simplification/SimplificationTypes.h"
 #include "detail/SimplificationTypes.h"
 
 #include <vector>

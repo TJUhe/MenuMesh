@@ -1,6 +1,7 @@
 #pragma once
 
-#include "algorithms/simplification/QEMSimplifier.h"
+#include "algorithms/simplification/SimplificationTypes.h"
+#include "core/Mesh.h"
 #include "detail/CandidateQueue.h"
 #include "detail/CollapseAttempt.h"
 #include "detail/DynamicTopology.h"
@@ -14,11 +15,17 @@
 #include <unordered_set>
 #include <vector>
 
+namespace manumesh::feature {
+struct FeatureAnalysis;
+}
+
 namespace manumesh::simplification {
 
 class SimplificationRun {
 public:
   SimplificationRun(const Mesh& input, const SimplifyOptions& options);
+  SimplificationRun(const Mesh& input, const SimplifyOptions& options,
+                    const feature::FeatureAnalysis* features);
 
   Mesh execute(SimplifyReport* outReport);
 
@@ -43,6 +50,7 @@ private:
 
   const Mesh& input_;
   const SimplifyOptions& options_;
+  const feature::FeatureAnalysis* precomputedFeatures_ = nullptr;
   SimplificationPolicies policies_;
   SimplifyReport report_;
   FeatureGuidance featureGuidance_;

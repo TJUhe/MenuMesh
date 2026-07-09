@@ -90,18 +90,10 @@ void summarizeNormalTensorScores(const std::vector<feature::NormalTensorVertex>&
   }
 }
 
-} // namespace
-
-FeatureGuidance buildFeatureGuidance(const Mesh& mesh,
-                                     const FeatureDetectionPolicy& policy) {
+FeatureGuidance buildFeatureGuidanceFromAnalysis(
+    const Mesh& mesh, const feature::FeatureAnalysis& analysis) {
   FeatureGuidance guidance;
-  if (!policy.enabled) {
-    return guidance;
-  }
-
   guidance.enabled = true;
-  const feature::FeatureAnalysis analysis =
-      feature::detectFeatureCurves(mesh, policy.options);
 
   guidance.summary.featureLoops = static_cast<int>(analysis.loops.size());
   guidance.summary.tracedFeatureEdges = analysis.tracedFeatureEdges;
@@ -155,6 +147,30 @@ FeatureGuidance buildFeatureGuidance(const Mesh& mesh,
   }
 
   return guidance;
+}
+
+} // namespace
+
+FeatureGuidance buildFeatureGuidance(const Mesh& mesh,
+                                     const FeatureDetectionPolicy& policy) {
+  return buildFeatureGuidance(mesh, policy, nullptr);
+}
+
+FeatureGuidance buildFeatureGuidance(const Mesh& mesh,
+                                     const FeatureDetectionPolicy& policy,
+                                     const feature::FeatureAnalysis* precomputed) {
+  FeatureGuidance guidance;
+  if (!policy.enabled) {
+    return guidance;
+  }
+
+  if (precomputed) {
+    return buildFeatureGuidanceFromAnalysis(mesh, *precomputed);
+  }
+
+  const feature::FeatureAnalysis analysis =
+      feature::detectFeatureCurves(mesh, policy.options);
+  return buildFeatureGuidanceFromAnalysis(mesh, analysis);
 }
 
 FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh,

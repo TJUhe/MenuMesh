@@ -143,6 +143,32 @@ TEST_F(CApiTest, RejectsInvalidFaceIndicesWithoutReplacingMesh) {
   manumesh_mesh_destroy(mesh);
 }
 
+TEST_F(CApiTest, RejectsFaceCountOutsideSupportedIndexRange) {
+  ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
+  ASSERT_NE(mesh, nullptr);
+
+  const ManuMeshVec3 vertices[] = {
+      {0.0, 0.0, 0.0},
+      {1.0, 0.0, 0.0},
+      {0.0, 1.0, 0.0},
+  };
+  const ManuMeshFace face = {{0, 1, 2}};
+  const size_t tooManyFaces = static_cast<size_t>(std::numeric_limits<int>::max()) + 1u;
+
+  EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT,
+            manumesh_mesh_set_data(context, mesh, vertices, 3, &face, tooManyFaces));
+  EXPECT_NE('\0', manumesh_context_last_error(context)[0]);
+
+  size_t vertexCount = 99;
+  size_t faceCount = 99;
+  EXPECT_EQ(MANUMESH_STATUS_OK,
+            manumesh_mesh_get_counts(context, mesh, &vertexCount, &faceCount));
+  EXPECT_EQ(0u, vertexCount);
+  EXPECT_EQ(0u, faceCount);
+
+  manumesh_mesh_destroy(mesh);
+}
+
 TEST_F(CApiTest, RejectsDegenerateFacesWithoutReplacingMesh) {
   ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
   ASSERT_NE(mesh, nullptr);

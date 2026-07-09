@@ -175,6 +175,25 @@ TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
   EXPECT_FALSE(error.empty());
   std::filesystem::remove(objPath);
 
+  const std::filesystem::path degenerateStlPath =
+      std::filesystem::temp_directory_path() / "line_quadrics_degenerate_only.stl";
+  {
+    std::ofstream out(degenerateStlPath);
+    out << "solid degenerate\n";
+    out << "  facet normal 0 0 1\n";
+    out << "    outer loop\n";
+    out << "      vertex 0 0 0\n";
+    out << "      vertex 0 0 0\n";
+    out << "      vertex 1 0 0\n";
+    out << "    endloop\n";
+    out << "  endfacet\n";
+    out << "endsolid degenerate\n";
+  }
+  error.clear();
+  EXPECT_FALSE(manumesh::loadStl(degenerateStlPath.string(), mesh, &error));
+  EXPECT_FALSE(error.empty());
+  std::filesystem::remove(degenerateStlPath);
+
   manumesh::Mesh invalid;
   invalid.vertices = {manumesh::Vec3(0.0, 0.0, 0.0)};
   invalid.faces = {{{0, 1, 2}}};

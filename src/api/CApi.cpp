@@ -374,6 +374,10 @@ ManuMeshStatus manumesh_mesh_set_data(ManuMeshContext* context,
     return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT,
                 "Vertex count exceeds the supported int-index range.");
   }
+  if (face_count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT,
+                "Face count exceeds the supported int-index range.");
+  }
 
   try {
     manumesh::Mesh next;

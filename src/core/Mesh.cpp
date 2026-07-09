@@ -329,7 +329,13 @@ bool loadStl(const std::string& path, Mesh& mesh, std::string* error,
 
   mergeDuplicateTriangleVertices(triangles, mesh, mergeRelativeEpsilon);
   mesh.removeUnusedVertices();
-  return !mesh.empty();
+  if (mesh.empty()) {
+    if (error) {
+      *error = "STL contains no non-degenerate triangles after vertex merging.";
+    }
+    return false;
+  }
+  return true;
 }
 
 int parseObjVertexIndex(const std::string& token, int vertexCount) {

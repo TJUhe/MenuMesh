@@ -29,13 +29,13 @@ bool curveBudgetAllows(const CollapseAttemptInput& input, const Vec3& position) 
     const Vec3 projected = projectToCircle(position, a.circularFeature ? a : b);
     return (position - projected).squaredNorm() <= maxDistance * maxDistance;
   }
-  if (a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ||
-      b.featurePrimitive == feature::FeaturePrimitiveType::Ellipse) {
+  if (a.featurePrimitive == FeatureCurveKind::Ellipse ||
+      b.featurePrimitive == FeatureCurveKind::Ellipse) {
     const Vec3 projected = projectToEllipse(
-        position, a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ? a : b);
+        position, a.featurePrimitive == FeatureCurveKind::Ellipse ? a : b);
     return (position - projected).squaredNorm() <= maxDistance * maxDistance;
   }
-  if (curve.primitive != feature::FeaturePrimitiveType::PolygonalLoop) {
+  if (curve.primitive != FeatureCurveKind::PolygonalLoop) {
     return true;
   }
 

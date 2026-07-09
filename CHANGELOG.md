@@ -2,6 +2,30 @@
 
 ## 2026-07-09
 
+### 本轮更新
+
+- 强化特征检测入口校验：新增公共 `validateFeatureOptions()`，
+  `FeatureDetector` 现在会统一拒绝非法阈值、尺度参数和空/无效 mesh。
+- 强化 mesh/C API 防护：C API 增加 face count 到 `int` 的溢出保护；
+  STL 读取遇到仅包含退化三角形的输入时会明确失败，而不是静默生成空网格。
+- 重构内部构建分层：`src/CMakeLists.txt` 拆出 common、geometry、
+  feature_detection、simplification 和 C API object targets，保持对外仍只导出
+  `ManuMesh::manumesh` SDK 目标。
+- 增加 `FeatureGuidance` 适配层，让 `simplification -> feature_detection -> core`
+  的依赖关系显式化；QEM、collapse policy、约束和运行循环消费窄接口，
+  不在 QEM 内部重复特征识别逻辑。
+- 简化模块复用特征模块的 option validation，减少重复校验逻辑，并同步收紧
+  Doxygen docs-api 输入，使 API 文档继续覆盖核心公开头文件。
+
+### 本轮已验证
+
+- `cmake --build build/mingw-ninja-release --target check-format --parallel`
+- `cmake --build build/mingw-ninja-release --target unit-tests --parallel`：93/93 passed
+- `cmake --build build/cmakelists-maintain-install-check-mingw --target sdk-consumer-test --parallel`：2/2 passed
+- `cmake --build build/mingw-ninja-release-performance --target performance-tests --parallel`：4/4 passed
+- `cmake --build build/mingw-ninja-release --target docs-api --parallel`
+- `git diff --check`
+
 ### 修复
 
 - 修复 C API 输出结构体的 ABI 写越界风险：`ManuMeshSimplifyReport` 和

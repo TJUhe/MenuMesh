@@ -62,6 +62,7 @@ if(MANUMESH_BUILD_DOCS)
       "${PROJECT_SOURCE_DIR}/docs/guide/vscode_setup.md"
       "${PROJECT_SOURCE_DIR}/docs/guide/vscode_mingw_ninja_parameter_debugging.md"
       "${PROJECT_SOURCE_DIR}/docs/guide/paper_guided_usage.md"
+      "${PROJECT_SOURCE_DIR}/docs/design/feature_detection_upgrade_2026_07_09.md"
       "${PROJECT_SOURCE_DIR}/docs/design/feature_curve_constraints.md"
       "${PROJECT_SOURCE_DIR}/docs/design/feature_curve_experiment.md"
       "${PROJECT_SOURCE_DIR}/docs/design/external_model_validation.md"

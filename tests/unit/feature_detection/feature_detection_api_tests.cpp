@@ -1,6 +1,8 @@
 #include "FeatureDetectionTestSupport.h"
 
 #include <gtest/gtest.h>
+#include <limits>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
@@ -105,4 +107,37 @@ TEST(FeatureDetection, FeatureDetectorCopiesAndMovesPimplOptions) {
   moveAssigned = std::move(moved);
   EXPECT_DOUBLE_EQ(25.0, moveAssigned.options().featureAngleDeg);
   EXPECT_EQ(5, moveAssigned.options().minFeatureLoopVertices);
+}
+
+TEST(FeatureDetection, RejectsInvalidOptionsAndMeshes) {
+  Mesh mesh;
+  mesh.vertices = {
+      Vec3(0.0, 0.0, 0.0),
+      Vec3(1.0, 0.0, 0.0),
+      Vec3(0.0, 1.0, 0.0),
+  };
+  mesh.faces = {{{0, 1, 2}}};
+
+  FeatureOptions invalidOptions = discreteOnlyOptions();
+  invalidOptions.featureAngleDeg = std::numeric_limits<double>::infinity();
+  EXPECT_THROW(feature::detectFeatureCurves(mesh, invalidOptions),
+               std::invalid_argument);
+
+  invalidOptions = discreteOnlyOptions();
+  invalidOptions.minFeatureLoopVertices = 2;
+  FeatureDetector detector(invalidOptions);
+  EXPECT_THROW(detector.analyze(mesh), std::invalid_argument);
+
+  Mesh invalidMesh = mesh;
+  invalidMesh.faces = {{{0, 1, 9}}};
+  EXPECT_THROW(feature::detectFeatureCurves(invalidMesh, discreteOnlyOptions()),
+               std::invalid_argument);
+
+  Mesh emptyFaceSet;
+  emptyFaceSet.vertices = {Vec3(0.0, 0.0, 0.0)};
+  EXPECT_NO_THROW({
+    const FeatureAnalysis analysis =
+        feature::detectFeatureCurves(emptyFaceSet, discreteOnlyOptions());
+    EXPECT_TRUE(analysis.loops.empty());
+  });
 }

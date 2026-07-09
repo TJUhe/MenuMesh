@@ -9,9 +9,12 @@
 #include "detail/PrimitiveFit.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 #include <unordered_set>
 #include <utility>
 
@@ -35,6 +38,73 @@ struct FeatureDetectionContext {
   std::vector<CandidateEdge> featureEdges;
   TraceGraph trace;
 };
+
+void requireFiniteNonNegative(double value, const char* name) {
+  if (!std::isfinite(value) || value < 0.0) {
+    throw std::invalid_argument(std::string(name) +
+                                " must be finite and non-negative.");
+  }
+}
+
+void validateFeatureOptionsImpl(const FeatureOptions& options) {
+  if (!std::isfinite(options.featureAngleDeg) || options.featureAngleDeg < 0.0 ||
+      options.featureAngleDeg > 180.0) {
+    throw std::invalid_argument("featureAngleDeg must be finite and in [0, 180].");
+  }
+  if (!std::isfinite(options.loopTraceAngleDeg) ||
+      (options.loopTraceAngleDeg >= 0.0 && options.loopTraceAngleDeg > 180.0)) {
+    throw std::invalid_argument(
+        "loopTraceAngleDeg must be negative or finite and in [0, 180].");
+  }
+  requireFiniteNonNegative(options.circleFitRelativeThreshold,
+                           "circleFitRelativeThreshold");
+  requireFiniteNonNegative(options.ellipseFitRelativeThreshold,
+                           "ellipseFitRelativeThreshold");
+  requireFiniteNonNegative(options.nearCircleAxisRatioTolerance,
+                           "nearCircleAxisRatioTolerance");
+  requireFiniteNonNegative(options.normalTensorFeatureThreshold,
+                           "normalTensorFeatureThreshold");
+  if (!std::isfinite(options.normalTensorMinEdgeAlignment) ||
+      options.normalTensorMinEdgeAlignment < 0.0 ||
+      options.normalTensorMinEdgeAlignment > 1.0) {
+    throw std::invalid_argument(
+        "normalTensorMinEdgeAlignment must be finite and in [0, 1].");
+  }
+  if (options.minFeatureLoopVertices < 3) {
+    throw std::invalid_argument("minFeatureLoopVertices must be at least 3.");
+  }
+  if (options.normalTensorSmoothingIterations < 0) {
+    throw std::invalid_argument(
+        "normalTensorSmoothingIterations must be non-negative.");
+  }
+  if (options.normalTensorScaleCount < 1) {
+    throw std::invalid_argument("normalTensorScaleCount must be positive.");
+  }
+  if (options.normalTensorMinPersistentScales < 1) {
+    throw std::invalid_argument("normalTensorMinPersistentScales must be positive.");
+  }
+  requireFiniteNonNegative(options.featureGraphGapLengthRatio,
+                           "featureGraphGapLengthRatio");
+  if (options.featureGraphMaxWeakSpurEdges < 0) {
+    throw std::invalid_argument("featureGraphMaxWeakSpurEdges must be non-negative.");
+  }
+  if (!std::isfinite(options.featureComponentMinConfidence) ||
+      options.featureComponentMinConfidence < 0.0 ||
+      options.featureComponentMinConfidence > 1.0) {
+    throw std::invalid_argument(
+        "featureComponentMinConfidence must be finite and in [0, 1].");
+  }
+}
+
+void validateFeatureInput(const Mesh& mesh) {
+  if (mesh.faces.empty()) {
+    return;
+  }
+  std::string error;
+  if (!validateMeshGeometry(mesh, &error)) {
+    throw std::invalid_argument(error);
+  }
+}
 
 class EdgeEvidenceStage {
 public:
@@ -88,6 +158,9 @@ public:
 class FeatureDetectionPipeline {
 public:
   FeatureAnalysis run(const Mesh& mesh, const FeatureOptions& options) const {
+    validateFeatureOptionsImpl(options);
+    validateFeatureInput(mesh);
+
     FeatureDetectionContext context(mesh, options);
     if (mesh.empty()) {
       return context.builder.build();
@@ -112,6 +185,10 @@ private:
 };
 
 } // namespace
+
+void validateFeatureOptions(const FeatureOptions& options) {
+  validateFeatureOptionsImpl(options);
+}
 
 struct FeatureDetector::Impl {
   FeatureOptions options;

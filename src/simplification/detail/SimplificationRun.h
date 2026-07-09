@@ -1,11 +1,11 @@
 #pragma once
 
-#include "algorithms/feature_detection/FeatureTypes.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "detail/CandidateQueue.h"
 #include "detail/CollapseAttempt.h"
 #include "detail/DynamicTopology.h"
 #include "detail/FeatureConstraints.h"
+#include "detail/FeatureGuidance.h"
 #include "detail/Quadrics.h"
 #include "detail/SimplificationPolicies.h"
 #include "detail/SpatialFaceIndex.h"
@@ -25,7 +25,6 @@ public:
 private:
   void initializeReport();
   void analyzeFeatures();
-  void initializeFeatureCurveConstraints();
   void initializeVertices();
   void initializeVertexFeature(int vertexId);
   void initializeFaces();
@@ -46,15 +45,13 @@ private:
   const SimplifyOptions& options_;
   SimplificationPolicies policies_;
   SimplifyReport report_;
-  feature::FeatureAnalysis featureAnalysis_;
-  const feature::FeatureAnalysis* featureAnalysisPtr_ = nullptr;
+  FeatureGuidance featureGuidance_;
   std::vector<char> boundaryVertices_;
   std::vector<VertexState> vertices_;
   std::vector<FaceState> faces_;
   std::unique_ptr<DynamicTopology> topology_;
   SpatialFaceIndex spatialIndex_;
   std::vector<int> activeLoopCounts_;
-  std::vector<FeatureCurveConstraint> featureCurves_;
   CandidateQueue queue_;
   InitialQuadricBuilder quadrics_;
   FeatureConstraintPolicy featurePolicy_;

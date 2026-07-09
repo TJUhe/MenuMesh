@@ -1,7 +1,7 @@
 #pragma once
 
-#include "algorithms/feature_detection/FeatureTypes.h"
 #include "algorithms/simplification/QEMSimplifier.h"
+#include "detail/FeatureGuidance.h"
 #include "detail/SimplificationTypes.h"
 
 #include <vector>
@@ -14,7 +14,7 @@ Mat4 pointQuadric(const Vec3& point);
 Mat4 lineQuadric(const Vec3& point, const Vec3& normal);
 
 void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
-                            const feature::FeatureAnalysis* featureAnalysis,
+                            const FeatureGuidance& featureGuidance,
                             std::vector<Mat4>& quadrics, SimplifyReport& report);
 
 std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a,
@@ -25,8 +25,7 @@ class InitialQuadricBuilder {
 public:
   explicit InitialQuadricBuilder(const SimplifyOptions& options);
 
-  std::vector<Mat4> build(const Mesh& mesh,
-                          const feature::FeatureAnalysis* featureAnalysis,
+  std::vector<Mat4> build(const Mesh& mesh, const FeatureGuidance& featureGuidance,
                           SimplifyReport& report) const;
 
 private:

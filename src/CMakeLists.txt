@@ -15,14 +15,23 @@ set(MANUMESH_PUBLIC_HEADERS
   "${PROJECT_SOURCE_DIR}/include/core/Status.h"
 )
 
-set(MANUMESH_LIBRARY_SOURCES
+set(MANUMESH_API_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/api/CApi.cpp"
+)
+
+set(MANUMESH_COMMON_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/common/MeshQueries.cpp"
+)
+
+set(MANUMESH_GEOMETRY_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/core/Mesh.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/core/MeshGenerators.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/core/MeshTopology.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/core/PlainMesh.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/core/Status.cpp"
+)
+
+set(MANUMESH_FEATURE_DETECTION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCircularRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCycleRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureDetector.cpp"
@@ -35,11 +44,15 @@ set(MANUMESH_LIBRARY_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureTraceRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/NormalTensor.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
+)
+
+set(MANUMESH_SIMPLIFICATION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CandidateQueue.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseAttempt.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseLegality.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/DynamicTopology.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureConstraints.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureGuidance.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/GeometryPredicates.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/Metrics.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/QEMSimplifier.cpp"
@@ -49,6 +62,14 @@ set(MANUMESH_LIBRARY_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SimplificationRun.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SimplificationValidation.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SpatialFaceIndex.cpp"
+)
+
+set(MANUMESH_LIBRARY_SOURCES
+  ${MANUMESH_API_SOURCES}
+  ${MANUMESH_COMMON_SOURCES}
+  ${MANUMESH_GEOMETRY_SOURCES}
+  ${MANUMESH_FEATURE_DETECTION_SOURCES}
+  ${MANUMESH_SIMPLIFICATION_SOURCES}
 )
 
 set(MANUMESH_COMMON_PRIVATE_HEADERS
@@ -76,6 +97,7 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CollapseLegality.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/DynamicTopology.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureConstraints.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureGuidance.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/GeometryPredicates.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/Quadrics.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/ResultBuilder.h"
@@ -92,17 +114,65 @@ set(MANUMESH_PRIVATE_HEADERS
   ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
 )
 
+add_library(manumesh_common_objects OBJECT
+  ${MANUMESH_COMMON_SOURCES}
+  ${MANUMESH_COMMON_PRIVATE_HEADERS}
+)
+add_library(manumesh_geometry_objects OBJECT
+  ${MANUMESH_GEOMETRY_SOURCES}
+)
+add_library(manumesh_feature_detection_objects OBJECT
+  ${MANUMESH_FEATURE_DETECTION_SOURCES}
+  ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
+)
+add_library(manumesh_simplification_objects OBJECT
+  ${MANUMESH_SIMPLIFICATION_SOURCES}
+  ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
+)
+add_library(manumesh_c_api_objects OBJECT
+  ${MANUMESH_API_SOURCES}
+)
+
+target_link_libraries(manumesh_feature_detection_objects
+  PRIVATE manumesh_common_objects
+)
+target_link_libraries(manumesh_simplification_objects
+  PRIVATE
+    manumesh_common_objects
+    manumesh_geometry_objects
+    manumesh_feature_detection_objects
+)
+target_link_libraries(manumesh_c_api_objects
+  PRIVATE
+    manumesh_geometry_objects
+    manumesh_simplification_objects
+)
+
+set(MANUMESH_INTERNAL_OBJECT_TARGETS
+  manumesh_common_objects
+  manumesh_geometry_objects
+  manumesh_feature_detection_objects
+  manumesh_simplification_objects
+  manumesh_c_api_objects
+)
+
+set(MANUMESH_LIBRARY_OBJECTS
+  $<TARGET_OBJECTS:manumesh_common_objects>
+  $<TARGET_OBJECTS:manumesh_geometry_objects>
+  $<TARGET_OBJECTS:manumesh_feature_detection_objects>
+  $<TARGET_OBJECTS:manumesh_simplification_objects>
+  $<TARGET_OBJECTS:manumesh_c_api_objects>
+)
+
 if(MANUMESH_BUILD_SHARED_LIBRARY)
   add_library(manumesh_core SHARED
-    ${MANUMESH_LIBRARY_SOURCES}
+    ${MANUMESH_LIBRARY_OBJECTS}
     ${MANUMESH_PUBLIC_HEADERS}
-    ${MANUMESH_PRIVATE_HEADERS}
   )
 else()
   add_library(manumesh_core STATIC
-    ${MANUMESH_LIBRARY_SOURCES}
+    ${MANUMESH_LIBRARY_OBJECTS}
     ${MANUMESH_PUBLIC_HEADERS}
-    ${MANUMESH_PRIVATE_HEADERS}
   )
 endif()
 add_library(ManuMesh::manumesh ALIAS manumesh_core)
@@ -129,6 +199,29 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail"
   FILES ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
 )
 
+foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
+  target_compile_features(${manumesh_internal_target} PUBLIC cxx_std_17)
+  target_include_directories(${manumesh_internal_target}
+    PUBLIC
+      "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
+  )
+  target_compile_definitions(${manumesh_internal_target}
+    PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
+  )
+  if(MANUMESH_BUILD_SHARED_LIBRARY)
+    target_compile_definitions(${manumesh_internal_target}
+      PRIVATE MANUMESH_BUILDING_DLL
+    )
+  endif()
+  set_target_properties(${manumesh_internal_target}
+    PROPERTIES POSITION_INDEPENDENT_CODE ON
+  )
+  manumesh_apply_warnings(${manumesh_internal_target})
+endforeach()
+
 target_compile_features(manumesh_core PUBLIC cxx_std_17)
 target_include_directories(manumesh_core
   PUBLIC
@@ -141,8 +234,14 @@ target_include_directories(manumesh_core
 
 if(TARGET Eigen3::Eigen)
   target_link_libraries(manumesh_core PUBLIC Eigen3::Eigen)
+  foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
+    target_link_libraries(${manumesh_internal_target} PRIVATE Eigen3::Eigen)
+  endforeach()
 elseif(DEFINED eigen_SOURCE_DIR)
   target_include_directories(manumesh_core PUBLIC "${eigen_SOURCE_DIR}")
+  foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
+    target_include_directories(${manumesh_internal_target} PRIVATE "${eigen_SOURCE_DIR}")
+  endforeach()
 else()
   message(FATAL_ERROR
     "Eigen3 was not found and FetchContent did not provide eigen_SOURCE_DIR."
@@ -155,6 +254,11 @@ if(EXISTS "${MANUMESH_EIGEN_SOURCE_DIR}/Eigen/Core")
       "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_DATADIR}/manumesh/thirdParty/eigen/include>"
   )
+  foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
+    target_include_directories(${manumesh_internal_target}
+      PRIVATE "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
+    )
+  endforeach()
 endif()
 
 target_compile_definitions(manumesh_core

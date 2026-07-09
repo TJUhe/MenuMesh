@@ -1,9 +1,9 @@
 #include "detail/SimplificationRun.h"
 
-#include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
 #include "detail/DynamicTopology.h"
 #include "detail/FeatureConstraints.h"
+#include "detail/FeatureGuidance.h"
 #include "detail/Quadrics.h"
 #include "detail/ResultBuilder.h"
 
@@ -47,73 +47,18 @@ void SimplificationRun::initializeReport() {
 }
 
 void SimplificationRun::analyzeFeatures() {
-  featureAnalysis_ = feature::FeatureAnalysis{};
-  featureAnalysisPtr_ = nullptr;
+  featureGuidance_ = FeatureGuidance{};
   if (!policies_.features.enabled) {
     return;
   }
 
-  const feature::FeatureOptions featureOptions = policies_.features.toFeatureOptions();
-  featureAnalysis_ = feature::detectFeatureCurves(input_, featureOptions);
-  featureAnalysisPtr_ = &featureAnalysis_;
-  report_.featureLoops = static_cast<int>(featureAnalysis_.loops.size());
-  report_.tracedFeatureEdges = featureAnalysis_.tracedFeatureEdges;
-  report_.untracedFeatureEdges = featureAnalysis_.untracedFeatureEdges;
-  report_.featureComponents = static_cast<int>(featureAnalysis_.components.size());
-  report_.weakFeatureComponents = featureAnalysis_.weakFeatureComponents;
-  report_.highConfidenceFeatureComponents =
-      featureAnalysis_.highConfidenceFeatureComponents;
-  report_.graphCleanupBridgedGaps = featureAnalysis_.graphCleanupBridgedGaps;
-  report_.graphCleanupRemovedSpurs = featureAnalysis_.graphCleanupRemovedSpurs;
-  report_.graphCleanupMergedJunctions = featureAnalysis_.graphCleanupMergedJunctions;
-  report_.normalTensorFeatureEdges = featureAnalysis_.normalTensorFeatureEdges;
-  report_.normalTensorScoredVertices = featureAnalysis_.normalTensorScoredVertices;
-  report_.maxNormalTensorPersistentScore =
-      featureAnalysis_.maxNormalTensorPersistentScore;
-  report_.meanNormalTensorLocalScale = featureAnalysis_.meanNormalTensorLocalScale;
-  report_.meanNormalTensorPersistence = featureAnalysis_.meanNormalTensorPersistence;
-  report_.meanFeatureComponentConfidence =
-      featureAnalysis_.meanFeatureComponentConfidence;
-  report_.minFeatureComponentConfidence =
-      featureAnalysis_.minFeatureComponentConfidence;
-  for (const feature::FeatureLoop& loop : featureAnalysis_.loops) {
-    if (loop.circular) {
-      ++report_.circularFeatureLoops;
-    }
-  }
-  for (const feature::VertexFeature& vertex : featureAnalysis_.vertices) {
-    if (vertex.isFeature) {
-      ++report_.featureVertices;
-    }
-  }
-  initializeFeatureCurveConstraints();
-}
-
-void SimplificationRun::initializeFeatureCurveConstraints() {
-  featureCurves_.clear();
-  featureCurves_.resize(featureAnalysis_.loops.size());
-  for (const feature::FeatureLoop& loop : featureAnalysis_.loops) {
-    if (loop.id < 0 || loop.id >= static_cast<int>(featureCurves_.size())) {
-      continue;
-    }
-    FeatureCurveConstraint constraint;
-    constraint.valid = loop.vertices.size() >= 2;
-    constraint.closed = loop.closed;
-    constraint.primitive = loop.primitive;
-    constraint.samples.reserve(loop.vertices.size());
-    for (int vertexId : loop.vertices) {
-      if (vertexId >= 0 && vertexId < static_cast<int>(input_.vertices.size())) {
-        constraint.samples.push_back(input_.vertices[vertexId]);
-      }
-    }
-    constraint.valid = constraint.valid && constraint.samples.size() >= 2;
-    featureCurves_[loop.id] = std::move(constraint);
-  }
+  featureGuidance_ = buildFeatureGuidance(input_, policies_.features);
+  applyFeatureGuidanceSummary(featureGuidance_.summary, report_);
 }
 
 void SimplificationRun::initializeVertices() {
   const std::vector<Mat4> initialQuadrics =
-      quadrics_.build(input_, featureAnalysisPtr_, report_);
+      quadrics_.build(input_, featureGuidance_, report_);
   boundaryVertices_ = policies_.legality.preserveBoundary
                           ? detail::computeBoundaryVertices(input_)
                           : std::vector<char>();
@@ -127,10 +72,10 @@ void SimplificationRun::initializeVertices() {
   }
 
   activeLoopCounts_.clear();
-  if (!featureAnalysisPtr_) {
+  if (!featureGuidance_.enabled) {
     return;
   }
-  activeLoopCounts_.assign(featureAnalysisPtr_->loops.size(), 0);
+  activeLoopCounts_.assign(featureGuidance_.curves.size(), 0);
   for (const VertexState& vertex : vertices_) {
     if (vertex.isFeature && vertex.featureLoopId >= 0 &&
         vertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
@@ -140,11 +85,11 @@ void SimplificationRun::initializeVertices() {
 }
 
 void SimplificationRun::initializeVertexFeature(int vertexId) {
-  if (!featureAnalysisPtr_ ||
-      vertexId >= static_cast<int>(featureAnalysisPtr_->vertices.size())) {
+  if (!featureGuidance_.enabled ||
+      vertexId >= static_cast<int>(featureGuidance_.vertices.size())) {
     return;
   }
-  const feature::VertexFeature& vf = featureAnalysisPtr_->vertices[vertexId];
+  const FeatureVertexGuidance& vf = featureGuidance_.vertices[vertexId];
   VertexState& vertex = vertices_[vertexId];
   vertex.isFeature = vf.isFeature;
   vertex.circularFeature = vf.circular;
@@ -281,7 +226,7 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
 
   const CollapseAttemptResult result = evaluateCollapseAttempt(
       {edge, mergedQ, placements, options_, policies_, vertices_, faces_, *topology_,
-       activeLoopCounts_, featureCurves_, featurePolicy_,
+       activeLoopCounts_, featureGuidance_.curves, featurePolicy_,
        policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
        input_.bboxDiag(), areaEps_, minNormalDot_, maxLocalError_});
   if (result.accepted()) {

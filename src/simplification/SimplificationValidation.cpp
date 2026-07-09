@@ -1,6 +1,8 @@
 #include "detail/SimplificationValidation.h"
 
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "core/MeshTopology.h"
+#include "detail/SimplificationPolicies.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -34,55 +36,9 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
   requireFiniteNonNegative(options.featureCurveWeight, "featureCurveWeight");
   requireFiniteNonNegative(options.maxFeatureCurveDeviationRatio,
                            "maxFeatureCurveDeviationRatio");
-  requireFiniteNonNegative(options.circleFitRelativeThreshold,
-                           "circleFitRelativeThreshold");
-  requireFiniteNonNegative(options.ellipseFitRelativeThreshold,
-                           "ellipseFitRelativeThreshold");
-  requireFiniteNonNegative(options.nearCircleAxisRatioTolerance,
-                           "nearCircleAxisRatioTolerance");
-  requireFiniteNonNegative(options.normalTensorFeatureThreshold,
-                           "normalTensorFeatureThreshold");
-  if (!std::isfinite(options.featureAngleDeg) || options.featureAngleDeg < 0.0 ||
-      options.featureAngleDeg > 180.0) {
-    throw std::invalid_argument("featureAngleDeg must be finite and in [0, 180].");
-  }
-  if (!std::isfinite(options.loopTraceAngleDeg) ||
-      (options.loopTraceAngleDeg >= 0.0 && options.loopTraceAngleDeg > 180.0)) {
-    throw std::invalid_argument(
-        "loopTraceAngleDeg must be negative or finite and in [0, 180].");
-  }
-  if (!std::isfinite(options.normalTensorMinEdgeAlignment) ||
-      options.normalTensorMinEdgeAlignment < 0.0 ||
-      options.normalTensorMinEdgeAlignment > 1.0) {
-    throw std::invalid_argument(
-        "normalTensorMinEdgeAlignment must be finite and in [0, 1].");
-  }
-  if (options.minFeatureLoopVertices < 3) {
-    throw std::invalid_argument("minFeatureLoopVertices must be at least 3.");
-  }
+  feature::validateFeatureOptions(featureOptionsFromSimplifyOptions(options));
   if (options.minCircularFeatureLoopVertices < 3) {
     throw std::invalid_argument("minCircularFeatureLoopVertices must be at least 3.");
-  }
-  if (options.normalTensorSmoothingIterations < 0) {
-    throw std::invalid_argument(
-        "normalTensorSmoothingIterations must be non-negative.");
-  }
-  if (options.normalTensorScaleCount < 1) {
-    throw std::invalid_argument("normalTensorScaleCount must be positive.");
-  }
-  if (options.normalTensorMinPersistentScales < 1) {
-    throw std::invalid_argument("normalTensorMinPersistentScales must be positive.");
-  }
-  requireFiniteNonNegative(options.featureGraphGapLengthRatio,
-                           "featureGraphGapLengthRatio");
-  if (options.featureGraphMaxWeakSpurEdges < 0) {
-    throw std::invalid_argument("featureGraphMaxWeakSpurEdges must be non-negative.");
-  }
-  if (!std::isfinite(options.featureComponentMinConfidence) ||
-      options.featureComponentMinConfidence < 0.0 ||
-      options.featureComponentMinConfidence > 1.0) {
-    throw std::invalid_argument(
-        "featureComponentMinConfidence must be finite and in [0, 1].");
   }
   requireFiniteNonNegative(options.minTriangleQuality, "minTriangleQuality");
   if (options.minTriangleQuality > 1.0) {

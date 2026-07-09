@@ -16,25 +16,30 @@ int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
   return std::max(4, static_cast<int>(std::llround(inputFaceCount * targetRatio)));
 }
 
-feature::FeatureOptions FeatureDetectionPolicy::toFeatureOptions() const {
-  feature::FeatureOptions options;
-  options.featureAngleDeg = featureAngleDeg;
-  options.loopTraceAngleDeg = loopTraceAngleDeg;
-  options.circleFitRelativeThreshold = circleFitRelativeThreshold;
-  options.ellipseFitRelativeThreshold = ellipseFitRelativeThreshold;
-  options.nearCircleAxisRatioTolerance = nearCircleAxisRatioTolerance;
-  options.minFeatureLoopVertices = std::max(5, minFeatureLoopVertices);
-  options.useNormalTensorFeatures = useNormalTensorFeatures;
-  options.normalTensorFeatureThreshold = normalTensorFeatureThreshold;
-  options.normalTensorMinEdgeAlignment = normalTensorMinEdgeAlignment;
-  options.normalTensorSmoothingIterations = normalTensorSmoothingIterations;
-  options.normalTensorScaleCount = normalTensorScaleCount;
-  options.normalTensorMinPersistentScales = normalTensorMinPersistentScales;
-  options.cleanupFeatureGraph = cleanupFeatureGraph;
-  options.featureGraphGapLengthRatio = featureGraphGapLengthRatio;
-  options.featureGraphMaxWeakSpurEdges = featureGraphMaxWeakSpurEdges;
-  options.featureComponentMinConfidence = featureComponentMinConfidence;
-  return options;
+feature::FeatureOptions
+featureOptionsFromSimplifyOptions(const SimplifyOptions& options,
+                                  int minFeatureLoopVerticesFloor) {
+  feature::FeatureOptions featureOptions;
+  featureOptions.featureAngleDeg = options.featureAngleDeg;
+  featureOptions.loopTraceAngleDeg = options.loopTraceAngleDeg;
+  featureOptions.circleFitRelativeThreshold = options.circleFitRelativeThreshold;
+  featureOptions.ellipseFitRelativeThreshold = options.ellipseFitRelativeThreshold;
+  featureOptions.nearCircleAxisRatioTolerance = options.nearCircleAxisRatioTolerance;
+  featureOptions.minFeatureLoopVertices =
+      std::max(minFeatureLoopVerticesFloor, options.minFeatureLoopVertices);
+  featureOptions.useNormalTensorFeatures = options.useNormalTensorFeatures;
+  featureOptions.normalTensorFeatureThreshold = options.normalTensorFeatureThreshold;
+  featureOptions.normalTensorMinEdgeAlignment = options.normalTensorMinEdgeAlignment;
+  featureOptions.normalTensorSmoothingIterations =
+      options.normalTensorSmoothingIterations;
+  featureOptions.normalTensorScaleCount = options.normalTensorScaleCount;
+  featureOptions.normalTensorMinPersistentScales =
+      options.normalTensorMinPersistentScales;
+  featureOptions.cleanupFeatureGraph = options.cleanupFeatureGraph;
+  featureOptions.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
+  featureOptions.featureGraphMaxWeakSpurEdges = options.featureGraphMaxWeakSpurEdges;
+  featureOptions.featureComponentMinConfidence = options.featureComponentMinConfidence;
+  return featureOptions;
 }
 
 double LegalityPolicy::resolveMinNormalDot() const {
@@ -53,25 +58,7 @@ SimplificationPolicies::fromOptions(const SimplifyOptions& options) {
   policies.target.targetRatio = options.targetRatio;
 
   policies.features.enabled = options.preserveFeatureCurves;
-  policies.features.featureAngleDeg = options.featureAngleDeg;
-  policies.features.loopTraceAngleDeg = options.loopTraceAngleDeg;
-  policies.features.circleFitRelativeThreshold = options.circleFitRelativeThreshold;
-  policies.features.ellipseFitRelativeThreshold = options.ellipseFitRelativeThreshold;
-  policies.features.nearCircleAxisRatioTolerance = options.nearCircleAxisRatioTolerance;
-  policies.features.minFeatureLoopVertices = options.minFeatureLoopVertices;
-  policies.features.useNormalTensorFeatures = options.useNormalTensorFeatures;
-  policies.features.normalTensorFeatureThreshold = options.normalTensorFeatureThreshold;
-  policies.features.normalTensorMinEdgeAlignment = options.normalTensorMinEdgeAlignment;
-  policies.features.normalTensorSmoothingIterations =
-      options.normalTensorSmoothingIterations;
-  policies.features.normalTensorScaleCount = options.normalTensorScaleCount;
-  policies.features.normalTensorMinPersistentScales =
-      options.normalTensorMinPersistentScales;
-  policies.features.cleanupFeatureGraph = options.cleanupFeatureGraph;
-  policies.features.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
-  policies.features.featureGraphMaxWeakSpurEdges = options.featureGraphMaxWeakSpurEdges;
-  policies.features.featureComponentMinConfidence =
-      options.featureComponentMinConfidence;
+  policies.features.options = featureOptionsFromSimplifyOptions(options, 5);
 
   policies.legality.preserveBoundary = options.preserveBoundary;
   policies.legality.minTriangleQuality = options.minTriangleQuality;

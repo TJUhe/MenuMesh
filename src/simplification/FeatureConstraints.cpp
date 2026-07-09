@@ -14,9 +14,9 @@ FeatureProtectionMode effectiveFeatureProtectionMode(const SimplifyOptions& opti
   return options.featureProtectionMode;
 }
 
-bool isCircularPrimitive(feature::FeaturePrimitiveType primitive) {
-  return primitive == feature::FeaturePrimitiveType::Circle ||
-         primitive == feature::FeaturePrimitiveType::NearCircle;
+bool isCircularPrimitive(FeatureCurveKind primitive) {
+  return primitive == FeatureCurveKind::Circle ||
+         primitive == FeatureCurveKind::NearCircle;
 }
 
 bool isPrimitiveProtected(const VertexState& vertex, FeatureProtectionMode mode) {
@@ -30,7 +30,7 @@ bool isPrimitiveProtected(const VertexState& vertex, FeatureProtectionMode mode)
     return vertex.circularFeature || isCircularPrimitive(vertex.featurePrimitive);
   case FeatureProtectionMode::PrimitiveCurves:
     return vertex.circularFeature || isCircularPrimitive(vertex.featurePrimitive) ||
-           vertex.featurePrimitive == feature::FeaturePrimitiveType::Ellipse;
+           vertex.featurePrimitive == FeatureCurveKind::Ellipse;
   case FeatureProtectionMode::AllFeatureEdges:
     return vertex.isFeature;
   }
@@ -90,9 +90,8 @@ FeatureCollapseRejectKind featureCollapseRejectKind(const FeatureCollapseInput& 
                                         : options.minFeatureLoopVertices;
   if (activeLoopCounts[a.featureLoopId] <= minActiveLoopVertices) {
     const bool hasCurveErrorBudget = options.maxFeatureCurveDeviationRatio > 0.0;
-    const bool ellipseFeature =
-        a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse ||
-        b.featurePrimitive == feature::FeaturePrimitiveType::Ellipse;
+    const bool ellipseFeature = a.featurePrimitive == FeatureCurveKind::Ellipse ||
+                                b.featurePrimitive == FeatureCurveKind::Ellipse;
     const int absoluteMinLoopVertices =
         (a.circularFeature || b.circularFeature || ellipseFeature) ? 4 : 3;
     if (!hasCurveErrorBudget ||
@@ -130,20 +129,19 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input,
     return true;
   }
   if (mode == FeatureProtectionMode::PrimitiveCurves &&
-      a.featurePrimitive == feature::FeaturePrimitiveType::Ellipse) {
+      a.featurePrimitive == FeatureCurveKind::Ellipse) {
     position = projectToEllipse(position, a);
     return true;
   }
   if (mode == FeatureProtectionMode::PrimitiveCurves &&
-      b.featurePrimitive == feature::FeaturePrimitiveType::Ellipse) {
+      b.featurePrimitive == FeatureCurveKind::Ellipse) {
     position = projectToEllipse(position, b);
     return true;
   }
   if (mode == FeatureProtectionMode::AllFeatureEdges && a.featureLoopId >= 0 &&
       a.featureLoopId < static_cast<int>(curves.size()) &&
       curves[a.featureLoopId].valid &&
-      curves[a.featureLoopId].primitive ==
-          feature::FeaturePrimitiveType::PolygonalLoop) {
+      curves[a.featureLoopId].primitive == FeatureCurveKind::PolygonalLoop) {
     const FeatureCurveConstraint& curve = curves[a.featureLoopId];
     double bestDist2 = std::numeric_limits<double>::infinity();
     Vec3 best = position;
@@ -258,7 +256,7 @@ void refreshCircularTangent(VertexState& vertex) {
 }
 
 void refreshEllipseTangent(VertexState& vertex) {
-  if (vertex.featurePrimitive != feature::FeaturePrimitiveType::Ellipse) {
+  if (vertex.featurePrimitive != FeatureCurveKind::Ellipse) {
     return;
   }
   Vec3 major = vertex.ellipseMajorAxis;

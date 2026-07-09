@@ -1,6 +1,5 @@
 #pragma once
 
-#include "algorithms/feature_detection/FeatureTypes.h"
 #include "core/Mesh.h"
 
 #include <array>
@@ -8,6 +7,14 @@
 #include <vector>
 
 namespace manumesh::simplification {
+
+enum class FeatureCurveKind {
+  Unknown,
+  Circle,
+  NearCircle,
+  Ellipse,
+  PolygonalLoop,
+};
 
 /// Mutable vertex record used only during one simplification run.
 ///
@@ -20,14 +27,13 @@ struct VertexState {
   Mat4 q = Mat4::Zero();
   bool active = true;
 
-  // Feature ownership and primitive-fit data copied from feature::FeatureAnalysis.
+  // Feature ownership and primitive-fit data copied from FeatureGuidance.
   bool isFeature = false;
   bool isBoundary = false;
   bool circularFeature = false;
   bool featureJunction = false;
   bool weakFeature = false;
-  feature::FeaturePrimitiveType featurePrimitive =
-      feature::FeaturePrimitiveType::Unknown;
+  FeatureCurveKind featurePrimitive = FeatureCurveKind::Unknown;
   int featureLoopId = -1;
   int featureComponentId = -1;
   double featureConfidence = 0.0;
@@ -100,7 +106,7 @@ struct BoundaryCollapseDecision {
 struct FeatureCurveConstraint {
   bool valid = false;
   bool closed = false;
-  feature::FeaturePrimitiveType primitive = feature::FeaturePrimitiveType::Unknown;
+  FeatureCurveKind primitive = FeatureCurveKind::Unknown;
   std::vector<Vec3> samples;
 };
 

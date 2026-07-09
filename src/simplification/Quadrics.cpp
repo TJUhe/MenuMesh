@@ -1,7 +1,5 @@
 #include "detail/Quadrics.h"
 
-#include "algorithms/feature_detection/FeatureDetector.h"
-#include "common/detail/MathConstants.h"
 #include "common/detail/MeshQueries.h"
 
 #include <Eigen/Eigenvalues>
@@ -10,47 +8,6 @@
 #include <limits>
 
 namespace manumesh::simplification {
-
-using manumesh::detail::kPi;
-
-namespace {
-
-struct FeatureScoreResult {
-  std::vector<double> values;
-  int normalTensorScoredVertices = 0;
-  double maxNormalTensorPersistentScore = 0.0;
-  double meanNormalTensorLocalScale = 0.0;
-  double meanNormalTensorPersistence = 0.0;
-};
-
-int resolveNormalTensorMinPersistentScales(const SimplifyOptions& options) {
-  return std::clamp(options.normalTensorMinPersistentScales, 1,
-                    std::max(1, options.normalTensorScaleCount));
-}
-
-void summarizeNormalTensorScores(const std::vector<feature::NormalTensorVertex>& tensor,
-                                 FeatureScoreResult& result) {
-  double localScaleSum = 0.0;
-  double persistenceSum = 0.0;
-  for (const feature::NormalTensorVertex& vertex : tensor) {
-    result.maxNormalTensorPersistentScore =
-        std::max(result.maxNormalTensorPersistentScore, vertex.persistentFeatureScore);
-    if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
-      continue;
-    }
-    ++result.normalTensorScoredVertices;
-    localScaleSum += vertex.localScale;
-    persistenceSum += static_cast<double>(vertex.persistentScales);
-  }
-
-  if (result.normalTensorScoredVertices > 0) {
-    const double count = static_cast<double>(result.normalTensorScoredVertices);
-    result.meanNormalTensorLocalScale = localScaleSum / count;
-    result.meanNormalTensorPersistence = persistenceSum / count;
-  }
-}
-
-} // namespace
 
 double evaluateQuadric(const Mat4& q, const Vec3& p) {
   Eigen::Vector4d h;
@@ -94,78 +51,6 @@ Mat4 lineQuadric(const Vec3& point, const Vec3& normal) {
   return planeQuadric(x, point) + planeQuadric(y, point);
 }
 
-FeatureScoreResult computeFeatureScores(const Mesh& mesh,
-                                        const SimplifyOptions& options) {
-  const WeightMode mode = options.weightMode;
-  FeatureScoreResult result;
-  std::vector<double>& score = result.values;
-  score.assign(mesh.vertices.size(), 0.0);
-  if (mode == WeightMode::Uniform) {
-    return result;
-  }
-
-  const Vec3 lo = mesh.bboxMin();
-  const Vec3 hi = mesh.bboxMax();
-  const Vec3 span = hi - lo;
-
-  if (mode == WeightMode::Height) {
-    const double denom = std::max(1e-12, span.z());
-    for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
-      score[i] = std::clamp((mesh.vertices[i].z() - lo.z()) / denom, 0.0, 1.0);
-    }
-    return result;
-  }
-
-  if (mode == WeightMode::XBand) {
-    const double denom = std::max(1e-12, span.x());
-    for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
-      const double x = (mesh.vertices[i].x() - lo.x()) / denom;
-      score[i] = std::exp(-80.0 * (x - 0.5) * (x - 0.5));
-    }
-    return result;
-  }
-
-  if (mode == WeightMode::NormalTensor) {
-    const std::vector<feature::NormalTensorVertex> tensor =
-        feature::computeNormalTensorFeatures(
-            mesh, feature::NormalTensorOptions{options.normalTensorSmoothingIterations,
-                                               options.normalTensorScaleCount});
-    summarizeNormalTensorScores(tensor, result);
-    const int requiredPersistentScales =
-        resolveNormalTensorMinPersistentScales(options);
-    for (int i = 0; i < static_cast<int>(tensor.size()); ++i) {
-      if (tensor[i].persistentScales >= requiredPersistentScales) {
-        score[i] = tensor[i].persistentFeatureScore;
-      }
-    }
-    return result;
-  }
-
-  const std::vector<Vec3> faceNormals = detail::computeFaceNormals(mesh);
-
-  const detail::MeshEdgeInfoMap edgeInfo = detail::buildMeshEdgeInfo(mesh);
-  const double threshold = options.featureAngleDeg * kPi / 180.0;
-  const double denom = std::max(1e-12, kPi - threshold);
-  for (const auto& [key, info] : edgeInfo) {
-    double edgeScore = 0.0;
-    if (info.faces.size() == 1) {
-      edgeScore = 1.0;
-    } else if (info.faces.size() == 2) {
-      const double dot = std::clamp(
-          std::abs(faceNormals[info.faces[0]].dot(faceNormals[info.faces[1]])), -1.0,
-          1.0);
-      const double angle = std::acos(dot);
-      edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
-    }
-    if (edgeScore > 0.0) {
-      const auto [a, b] = detail::unpackMeshEdgeKey(key);
-      score[a] = std::max(score[a], edgeScore);
-      score[b] = std::max(score[b], edgeScore);
-    }
-  }
-  return result;
-}
-
 void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight,
                          std::vector<Mat4>& quadrics) {
   if (boundaryWeight <= 0.0) {
@@ -195,7 +80,7 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight,
 }
 
 void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
-                            const feature::FeatureAnalysis* featureAnalysis,
+                            const FeatureGuidance& featureGuidance,
                             std::vector<Mat4>& quadrics, SimplifyReport& report) {
   quadrics.assign(mesh.vertices.size(), Mat4::Zero());
   std::vector<double> vertexArea(mesh.vertices.size(), 0.0);
@@ -233,9 +118,9 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
     report.minAppliedLineWeight = 0.0;
   }
 
-  const FeatureScoreResult featureScores = useNormalLineQuadrics
-                                               ? computeFeatureScores(mesh, options)
-                                               : FeatureScoreResult{};
+  const FeatureWeightScores featureScores =
+      useNormalLineQuadrics ? computeFeatureWeightScores(mesh, options)
+                            : FeatureWeightScores{};
   if (featureScores.normalTensorScoredVertices > 0) {
     report.normalTensorScoredVertices = std::max(
         report.normalTensorScoredVertices, featureScores.normalTensorScoredVertices);
@@ -275,7 +160,7 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
     }
   }
 
-  if (options.preserveFeatureCurves && featureAnalysis &&
+  if (options.preserveFeatureCurves && featureGuidance.enabled &&
       options.featureCurveWeight > 0.0) {
     double positiveAreaSum = 0.0;
     int positiveAreaCount = 0;
@@ -291,10 +176,10 @@ void computeInitialQuadrics(const Mesh& mesh, const SimplifyOptions& options,
             : std::max(1e-12, mesh.bboxDiag() * mesh.bboxDiag() * 1e-6);
 
     for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
-      if (i >= static_cast<int>(featureAnalysis->vertices.size())) {
+      if (i >= static_cast<int>(featureGuidance.vertices.size())) {
         continue;
       }
-      const feature::VertexFeature& vf = featureAnalysis->vertices[i];
+      const FeatureVertexGuidance& vf = featureGuidance.vertices[i];
       if (!vf.isFeature || vf.tangent.norm() <= 1e-20) {
         continue;
       }
@@ -370,12 +255,11 @@ InitialQuadricBuilder::InitialQuadricBuilder(const SimplifyOptions& options)
     : options_(options) {
 }
 
-std::vector<Mat4>
-InitialQuadricBuilder::build(const Mesh& mesh,
-                             const feature::FeatureAnalysis* featureAnalysis,
-                             SimplifyReport& report) const {
+std::vector<Mat4> InitialQuadricBuilder::build(const Mesh& mesh,
+                                               const FeatureGuidance& featureGuidance,
+                                               SimplifyReport& report) const {
   std::vector<Mat4> quadrics;
-  computeInitialQuadrics(mesh, options_, featureAnalysis, quadrics, report);
+  computeInitialQuadrics(mesh, options_, featureGuidance, quadrics, report);
   return quadrics;
 }
 

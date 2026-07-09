@@ -8,6 +8,8 @@
 - 大幅扩充特征识别说明：`current-program-principles.html` 增加从 edge evidence 到 `FeatureAnalysis` 的源码级数据流、失败信号、文献路线和下一轮算法落地清单；`normal-tensor-qem-notes.html` 增加 Normal Tensor 从论文公式到源码执行路径的逐步映射。
 - 扩充 `manumesh-code-manual.html` 的特征识别函数级阅读顺序和测试保护建议，并在 `manumesh_kernel_developer_guide.html` 增加 Feature Detection Debug Contract，明确 evidence、trace ownership、cleanup、primitive fitting 和 QEM consumption 的模块边界。
 - 同步更新 generated notes、delivery guide 和 `docs/archive/prototype-docs-2026-07-09/` 内的 HTML 副本，使正式文档、历史归档和论文引用说明保持一致。
+- 扩充所有 HTML 的 QEM 二次型说明：统一展开 `Q=[[A,b],[b^T,c]]`、`E=x^T A x+2b^T x+c`，并用具体数值例子代入 `lineWeight=1e-3`、`featureBoost=0.08`、`boundaryWeight=5`、`featureCurveWeight=0.08` 和 component confidence，展示各项如何改变 `A/b/c` 与候选 collapse 代价。
+- 澄清 QEM 深入页和执行计划中的 primitive 保护描述：当前代码没有独立的径向权重参数或径向二次型构造函数，圆/椭圆/多边形 loop 通过 tangent-line quadric、primitive projection、`maxFeatureCurveDeviationRatio` 与 hard feature policy 共同保护。
 
 ### 新增
 

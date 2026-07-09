@@ -267,6 +267,40 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>曲率 ridge/valley、wireframe/neural edge、learned QEM 目前作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
   </div>
   <p>一句话总览：ManuMesh 当前默认路线是 <strong>CAD/STL 离散证据 + normal-tensor 弱特征 + feature graph cleanup + component confidence + QEM/line-quadrics edge collapse + hard legality guards</strong>；neural/wireframe 是后续 benchmark 与增强方向。</p>
+<!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
+<section class="feature-recognition-brief qem-quadrics-expansion">
+  <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
+  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，再解 <code>A x=-b</code>；若矩阵病态则回退到端点/中点候选。</p>
+  <table>
+    <thead><tr><th>二次型项</th><th>展开到 <code>A,b,c</code></th><th>参数与默认值</th><th>作用与引用</th></tr></thead>
+    <tbody>
+      <tr><td>面平面 QEM</td><td><code>pi=[n,-n.p]</code>，<code>Q += area/3 * pi*pi^T</code>。等价于 <code>E=a(n.x-n.p)^2</code>，所以 <code>A+=a nn^T</code>、<code>b+=-a(n.p)n</code>、<code>c+=a(n.p)^2</code>。</td><td>无独立开关；退化面用很小的 <code>1e-6 pointQuadric</code> 稳定。</td><td>主几何误差，来自 M002 Garland-Heckbert 1997。</td></tr>
+      <tr><td>普通 Line Quadric</td><td><code>lineQuadric(p,n)</code> 取两个与局部法线 <code>n</code> 垂直的单位方向 <code>u,v</code>，加入 <code>Q_l=pi_u*pi_u^T+pi_v*pi_v^T</code>。展开为 <code>E_l=||(I-nn^T)(x-p)||^2</code>，即惩罚切向漂移。</td><td><code>useLineQuadrics=true</code>，<code>lineWeight=1e-3</code>。默认分支：<code>Q_i += w_i area_i Q_l</code>。</td><td>补平坦区 QEM 切向不满秩问题，来自 M004 Liu-Rahimzadeh-Zordan 2025。</td></tr>
+      <tr><td>特征加权 Line Quadric</td><td>非 uniform 模式下 <code>w_i=lineWeight+featureBoost*s_i</code>；<code>s_i</code> 来自 dihedral、normal-tensor persistence、height 或 xband。normal-tensor 模式只给满足 <code>normalTensorMinPersistentScales</code> 的顶点写入 persistent score。</td><td><code>weightMode=uniform</code>，<code>featureBoost=0.05</code>；常用调试值 <code>dihedral/normal-tensor + 0.08</code>。<code>featureAngleDeg=40</code>，<code>normalTensorFeatureThreshold=0.16</code>，<code>normalTensorScaleCount=1</code>。</td><td>让硬边、弱 ridge 或指定区域获得更高排序成本；feature evidence 参考 M007/M012/M013/M015/M016，弱特征参考 M026。</td></tr>
+      <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，当前实现先加 <code>adaptiveBaseLineWeight*area_i*Q_l</code>，再整体缩放 <code>Q_i *= 1+max(0,featureBoost)*s_i</code>。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。这是实验性尺度归一化路径，不是默认推荐。</td><td>用于跨尺度模型的 line weight 可比性；需要结合 benchmark 校准。</td></tr>
+      <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|*mm^T</code>，秩 1。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
+      <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 影响诊断/策略判断。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
+      <tr><td>Primitive 投影与硬过滤</td><td>圆/椭圆/多边形不是当前 <code>Quadrics.cpp</code> 里的单独径向二次型；当前代码用 tangent-line quadric 排序，再由 <code>projectToCircle/projectToEllipse/projectToPolygonal</code>、<code>maxFeatureCurveDeviationRatio</code> 和 <code>featureProtectionMode</code> 控制最终位置与是否拒绝折叠。</td><td><code>maxFeatureCurveDeviationRatio=0</code> 表示关闭曲线漂移预算；<code>featureProtectionMode=PrimitiveCurves</code>。圆/椭圆阈值默认均为 <code>0.05</code>。</td><td>把“软成本排序”和“硬合法性保护”分开，符合 M030-M033 edge-collapse 工程建议。</td></tr>
+    </tbody>
+  </table>
+  <div class="callout key">
+    <div class="callout-title">带合理参数的数值展开例子</div>
+    <p>为了看清量级，假设坐标单位是 mm，某顶点 <code>p=(10,5,0)</code>，barycentric 顶点面积 <code>a_i=2.0</code>，候选新位置写作 <code>x=(x,y,z)</code>。实际折叠候选会把两端点 <code>Q_i+Q_j</code> 相加；下面先看单个顶点的一项怎样进入 <code>A,b,c</code>。</p>
+    <table>
+      <thead><tr><th>例子</th><th>代入参数</th><th>展开后的二次型</th><th>读法</th></tr></thead>
+      <tbody>
+        <tr><td>面平面 QEM</td><td>平面 <code>z=0</code>，<code>n=(0,0,1)</code>，<code>a=2.0</code></td><td><code>E_plane=2*z^2</code>，<code>A=diag(0,0,2)</code>，<code>b=(0,0,0)</code>，<code>c=0</code></td><td>离开面法向 0.2 mm 的代价是 <code>2*0.2^2=0.08</code>。</td></tr>
+        <tr><td>普通 Line Quadric</td><td><code>lineWeight=1e-3</code>，<code>n=(0,0,1)</code>，<code>a_i=2.0</code>，所以 <code>alpha=0.002</code></td><td><code>E_line=0.002*((x-10)^2+(y-5)^2)</code>，<code>A=diag(0.002,0.002,0)</code>，<code>b=(-0.02,-0.01,0)</code>，<code>c=0.25</code></td><td>切向漂移 1 mm 只加 <code>0.002</code>，它是稳定排序的小正则项，不应压过平面 QEM。</td></tr>
+        <tr><td>特征加权 Line Quadric</td><td><code>weightMode=normal-tensor</code>，persistent score <code>s_i=0.6</code>，<code>lineWeight=0.001</code>，<code>featureBoost=0.08</code>，得 <code>w_i=0.001+0.08*0.6=0.049</code>，<code>alpha=0.098</code></td><td><code>E_feature_line=0.098*((x-10)^2+(y-5)^2)</code>，<code>A=diag(0.098,0.098,0)</code>，<code>b=(-0.98,-0.49,0)</code>，<code>c=12.25</code></td><td>同样 1 mm 切向漂移，代价从 <code>0.002</code> 升到 <code>0.098</code>，约 49 倍；这就是弱特征被 QEM 排序“看见”的方式。</td></tr>
+        <tr><td>边界 Plane Quadric</td><td>边长 <code>|e|=4</code>，<code>boundaryWeight=5</code>，边界面内法向 <code>m=(1,0,0)</code>，得 <code>alpha=20</code></td><td><code>E_boundary=20*(x-10)^2</code>，<code>A=diag(20,0,0)</code>，<code>b=(-200,0,0)</code>，<code>c=2000</code></td><td>边界沿面内法向漂移 0.2 mm 的代价是 <code>20*0.2^2=0.8</code>，明显比普通 line 正则强。</td></tr>
+        <tr><td>特征曲线 Tangent-Line Quadric</td><td>切线 <code>t=(0,1,0)</code>，<code>featureCurveWeight=0.08</code>，component confidence <code>0.8</code>，<code>rho=0.35+0.65*0.8=0.87</code>，<code>alpha=0.08*0.87*2=0.1392</code></td><td><code>E_curve=0.1392*((x-10)^2+z^2)</code>，<code>A=diag(0.1392,0,0.1392)</code>，<code>b=(-1.392,0,0)</code>，<code>c=13.92</code></td><td>沿 <code>y</code> 方向滑动不罚，离开特征线横向/法向才罚；这是“允许沿孔边走，但不要偏离孔边”。</td></tr>
+      </tbody>
+    </table>
+    <p>例如同一个候选位移 <code>x=(11,5,0.2)</code>：平面项给 <code>0.08</code>，普通 line 项只给 <code>0.002</code>，normal-tensor 特征加权 line 项给 <code>0.098</code>。所以默认 line quadric 是温和正则；一旦 feature score 和 <code>featureBoost</code> 介入，它才会变成明显影响 collapse 排序的特征保护成本。</p>
+  </div>
+  <p>因此当前总能量可读成：<code>E = E_plane + E_line(weightMode) + E_boundary + E_feature_curve</code>；拓扑、边界、特征保护、法向翻转、三角形质量、局部误差和自交检查不是二次型项，而是候选折叠通过 QEM 排序之后的硬过滤。</p>
+</section>
+<!-- MANUMESH_QEM_QUADRIC_EXPANSION_END -->
 </section>
 <!-- MANUMESH_ALGORITHM_REFERENCE_MAP_END -->
 <!-- MANUMESH_DETAILED_READING_GUIDE_BEGIN -->
@@ -292,7 +326,7 @@ img, svg, canvas, video {
 <li><a href="#s2-3">点 Quadric：退化处理</a></li>
 <li><a href="#s2-4">线 Quadric：Gram-Schmidt 正交化</a></li>
 <li><a href="#s2-5">增广 Quadric</a></li>
-<li><a href="#s2-6">曲线 Quadric 与径向 Quadric</a></li>
+<li><a href="#s2-6">曲线 Quadric、Primitive 投影与当前无独立径向项</a></li>
 </ol></div>
 </li>
 <li><a href="#s3">矩阵深度解析</a>
@@ -309,7 +343,7 @@ img, svg, canvas, video {
 <li><a href="#s4-1">第一层：Dihedral/NormalTensor 权重</a></li>
 <li><a href="#s4-2">第二层：边界 Quadric</a></li>
 <li><a href="#s4-3">第三层：曲线 Quadric</a></li>
-<li><a href="#s4-4">第四层：径向 Quadric + 圆/椭圆投影</a></li>
+<li><a href="#s4-4">第四层：Primitive 投影与硬过滤（当前无独立径向 Quadric）</a></li>
 <li><a href="#s4-5">特征折叠策略</a></li>
 <li><a href="#s4-6">合法性检查体系</a></li>
 <li><a href="#s4-7">完整执行流图</a></li>
@@ -776,41 +810,35 @@ Copy-Item tests\data\external\large\rocker_arm.stl output\augmented_quadric\orig
 <p><strong>矩阵因果链</strong>：dihedral 模式下折痕顶点 $w_i \approx 0.08$ → $\tilde{A}_i$ 在切向的约束强度 $\approx 0.08 \cdot a_i$（比 uniform 的 $0.001 \cdot a_i$ 强 80 倍）→ 折痕方向上的折叠代价更高 → 折痕被保留。</p>
 </div>
 
-<h3 id="s2-6">2.6 曲线 Quadric 与径向 Quadric</h3>
+<h3 id="s2-6">2.6 曲线 Quadric、Primitive 投影与当前无独立径向项</h3>
 
-<h4>曲线 Quadric</h4>
+<h4>曲线 Tangent-Line Quadric</h4>
 
-<p>对位于特征曲线上的顶点 $v_i$，设该点处的<strong>曲线切线方向</strong>为 $\hat{t}_i$。曲线 Quadric 将线 Quadric 中的方向参数从法向 $\hat{n}_i$ 替换为切线 $\hat{t}_i$：</p>
+<p>对位于特征曲线上的顶点 <code>v_i</code>，当前代码不构造单独的“圆半径二次型”，而是把拟合 loop 给出的切线方向 <code>t_i</code> 交给 <code>lineQuadric(v_i,t_i)</code>。这等价于惩罚点离开该切向直线的平方距离：</p>
 
 <div class="formula">
-$$E_i^{\text{curve}}(x) = \|x - v_i\|^2 - \big(\hat{t}_i^\top (x - v_i)\big)^2, \qquad A_i^{\text{curve}} = I_3 - \hat{t}_i\hat{t}_i^\top$$
+$E_i^{\text{curve}}(x)=\eta\,\rho_i\,a_i\left\|(I_3-\hat{t}_i\hat{t}_i^\top)(x-v_i)\right\|^2$
 <span class="label">(2.11)</span>
 </div>
 
-<p>这约束新顶点<strong>不偏离曲线</strong>（惩罚曲线法平面内的偏移），但<strong>允许沿曲线滑动</strong>（切线方向无惩罚）。</p>
+<p>展开成 <code>A,b,c</code> 时，令 <code>P_t=I_3-t_i t_i^T</code>，则 <code>A += eta*rho*a*P_t</code>，<code>b += -eta*rho*a*P_t*v_i</code>，<code>c += eta*rho*a*v_i^T P_t v_i</code>。这里 <code>eta=featureCurveWeight</code>，<code>a_i=max(vertexArea_i,fallbackArea)</code>，<code>rho_i=0.35+0.65*clamp(confidence_i,0,1)</code>。</p>
 
-<h4>径向 Quadric</h4>
+<h4>圆/椭圆不是当前的独立径向 Quadric</h4>
 
-<p>对圆弧边界顶点，设径向方向 $\hat{r}_i$（指向圆心）。径向 Quadric 是秩 1 约束，只惩罚径向偏移：</p>
-
-<div class="formula">
-$$Q_i^{\text{radial}} = \mathbf{r}\,\mathbf{r}^\top, \qquad \mathbf{r} = \begin{bmatrix} \hat{r}_i \\ -\hat{r}_i^\top v_i \end{bmatrix}, \qquad A_i^{\text{radial}} = \hat{r}_i\hat{r}_i^\top$$
-<span class="label">(2.12)</span>
-</div>
+<p>旧设计笔记曾把圆孔保护描述成“径向 Quadric + 投影”。以当前 <code>src/simplification/Quadrics.cpp</code> 为准，实际实现没有独立的径向权重参数或径向二次型构造函数：圆、近圆、椭圆、多边形 loop 先提供切线和 component confidence，进入上面的 tangent-line quadric；随后 collapse placement 再由 <code>projectToCircle()</code>、<code>projectToEllipse()</code> 或多边形最近线段投影拉回 primitive，并由 <code>maxFeatureCurveDeviationRatio</code> 与 <code>featureProtectionMode</code> 决定是否硬拒绝。</p>
 
 <div class="callout purple">
-<div class="callout-title">统一视角</div>
-<p>所有 quadric 都是同一个数学框架的实例化：$A = I_3 - \hat{d}\hat{d}^\top$（线/曲线 quadric）或 $A = \hat{d}\hat{d}^\top$（平面/径向 quadric），区别仅在于选择哪个方向 $\hat{d}$ 作为约束方向。</p>
+<div class="callout-title">当前代码中的统一视角</div>
+<p>当前可真正进入 <code>Q</code> 矩阵的软项是：平面 QEM、普通 normal-line quadric、边界 plane quadric、特征曲线 tangent-line quadric。圆/椭圆的“半径保持”不是一个额外矩阵项，而是 feature recognition、primitive projection 和 hard legality gates 共同完成。</p>
 <table>
-<tr><th>实例</th><th>$\hat{d}$</th><th>允许方向</th><th>惩罚方向</th><th>秩</th></tr>
-<tr><td>平面 Quadric</td><td>$\hat{n}$（法向）</td><td>切平面</td><td>法向</td><td>1</td></tr>
-<tr><td>线 Quadric</td><td>$\hat{n}$（法向）</td><td>法向</td><td>切平面</td><td>2</td></tr>
-<tr><td>曲线 Quadric</td><td>$\hat{t}$（切线）</td><td>切线</td><td>曲线法平面</td><td>2</td></tr>
-<tr><td>径向 Quadric</td><td>$\hat{r}$（径向）</td><td>切线 + 轴向</td><td>径向</td><td>1</td></tr>
-<tr><td>点 Quadric</td><td>无</td><td>无</td><td>全方向</td><td>3</td></tr>
+<tr><th>实例</th><th>方向或平面</th><th>允许方向</th><th>惩罚方向</th><th>秩</th></tr>
+<tr><td>平面 Quadric</td><td><code>n</code>（面法向）</td><td>切平面</td><td>法向</td><td>1</td></tr>
+<tr><td>普通 Line Quadric</td><td><code>n_i</code>（顶点法线作为线方向）</td><td>法线方向</td><td>切平面</td><td>2</td></tr>
+<tr><td>边界 Plane Quadric</td><td><code>m=n_face x e_hat</code></td><td>边方向和面法向</td><td>面内法向</td><td>1</td></tr>
+<tr><td>特征曲线 Quadric</td><td><code>t_i</code>（曲线切线作为线方向）</td><td>切线</td><td>曲线法平面</td><td>2</td></tr>
+<tr><td>点 Quadric</td><td>退化兜底</td><td>无</td><td>全方向</td><td>3</td></tr>
 </table>
 </div>
-
 <!-- ===== 3 ===== -->
 <h2 id="s3"><span class="num">3</span>矩阵深度解析</h2>
 
@@ -1282,7 +1310,7 @@ Copy-Item tests\data\external\nasa_mars2020_wheel.stl output\boundary_quadric\or
 <p>上一版仅支持圆拟合。新版增加了椭圆拟合：对特征环顶点做最小二乘椭圆拟合，得到中心 $c$、半轴 $a, b$、长轴方向 $\hat{u}$。每个顶点处的切线方向通过椭圆参数方程的导数计算。这使特征保护能处理非圆形的 CAD 特征（如椭圆孔、拉伸截面）。</p>
 </div>
 
-<h3 id="s4-4">4.4 第四层：径向 Quadric + 圆/椭圆投影</h3>
+<h3 id="s4-4">4.4 第四层：Primitive 投影与硬过滤（当前无独立径向 Quadric）</h3>
 
 <p>在确定新顶点位置后，对特征曲线顶点执行投影后处理，确保顶点精确位于拟合基元上。</p>
 
@@ -1496,7 +1524,7 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
 │       ├─ Q_line = w·a·(I-nnᵀ)    # Line Quadric
 │       ├─ addBoundaryQuadrics()     # 第二层: 边界 quadric
 │       ├─ Q_curve = w·a·(I-ttᵀ)   # 第三层: 曲线 quadric
-│       └─ Q_radial = w·a·rrᵀ       # 第四层: 径向 quadric
+│       └─ primitive projection + hard guards # 圆/椭圆/多边形投影，不进入 Q 矩阵
 │
 ├─ 2. 简化循环
 │   │
@@ -1617,7 +1645,6 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
     double circleFitTolerance = 0.05;   // 圆拟合残差容忍
     double ellipseFitTolerance = 0.08;  // 椭圆拟合残差容忍（新增）
     double curveWeight = 1e-3;          // 曲线 quadric 权重
-    double radialWeight = 1e-2;         // 径向 quadric 权重
 
     // === 折叠约束参数（新增）===
     double maxFeatureCurveDeviationRatio = 0.02; // 曲线误差预算
@@ -1711,13 +1738,7 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
             Vec3 tangent = estimateCurveTangent(i);
             Mat4 qc = curveQuadric(mesh.vertex(i), tangent);
             Q += options.curveWeight * vertexArea[i] * qc;
-
-            // 4e. 径向 Quadric（第四层，仅圆弧）
-            if (primType[i] == Circle) {
-                Vec3 radial = (mesh.vertex(i) - primCenter[i]).normalized();
-                Mat4 qr = radialQuadric(mesh.vertex(i), radial);
-                Q += options.radialWeight * vertexArea[i] * qr;
-            }
+            // 4e. 圆/椭圆/多边形投影发生在 placement 后处理，不作为独立 Q 项
         }
 
         vertexState[i].quadric = Q;

@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Normal Tensor 特征线提取与 QEM 增强完整推导笔记</title>
+<script>
+MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+:root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a2e;--dim:#666;--accent:#2563eb;--green:#059669;--orange:#ea580c;--red:#dc2626;--code-bg:#f5f5f5;--callout-bg:#f8faff;--warn-bg:#fff8f0;--danger-bg:#fef2f2;--success-bg:#f0fdf4}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.8;max-width:880px;margin:0 auto}
+.header{background:linear-gradient(135deg,#1e3a5f,#2d1b4e);color:#fff;padding:44px 36px 36px}
+.header h1{font-size:26px;font-weight:700;margin-bottom:6px}
+.header .subtitle{color:#c7d2fe;font-size:14px}
+.header .meta{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+.tag{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#e0e7ff;padding:3px 10px;border-radius:4px;font-size:12px}
+.content{padding:28px 36px 60px}
+h2{font-size:21px;font-weight:700;margin-top:44px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--accent)}
+h2 .num{display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;background:var(--accent);color:#fff;border-radius:6px;font-size:15px;margin-right:8px;vertical-align:middle}
+h3{font-size:17px;font-weight:600;margin-top:28px;margin-bottom:10px;color:var(--accent)}
+h4{font-size:15px;font-weight:600;margin-top:18px;margin-bottom:6px}
+p{margin-bottom:10px}
+ul,ol{padding-left:22px;margin-bottom:10px}li{margin:3px 0}
+code{background:var(--code-bg);padding:1px 5px;border-radius:3px;font-size:13px;font-family:"Consolas",monospace;color:var(--accent)}
+pre{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:14px 18px;margin:12px 0;overflow-x:auto;font-size:13px;line-height:1.6}
+pre code{background:none;color:inherit;padding:0}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th{background:#eff6ff;text-align:left;padding:9px 12px;border-bottom:2px solid var(--accent);font-weight:600}
+td{padding:9px 12px;border-bottom:1px solid var(--border)}
+tr:nth-child(even) td{background:#f9fafb}
+.callout{border-radius:8px;padding:14px 18px;margin:14px 0;border-left:4px solid}
+.callout-title{font-weight:600;font-size:14px;margin-bottom:6px}
+.callout.key{background:var(--callout-bg);border-color:var(--accent)}.callout.key .callout-title{color:var(--accent)}
+.callout.warn{background:var(--warn-bg);border-color:var(--orange)}.callout.warn .callout-title{color:var(--orange)}
+.callout.danger{background:var(--danger-bg);border-color:var(--red)}.callout.danger .callout-title{color:var(--red)}
+.callout.success{background:var(--success-bg);border-color:var(--green)}.callout.success .callout-title{color:var(--green)}
+.formula{background:#f8f9fc;border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin:10px 0;overflow-x:auto}
+.formula .label{float:right;color:var(--dim);font-size:12px;font-family:sans-serif}
+.toc{background:#f8f9fc;border:1px solid var(--border);border-radius:8px;padding:18px 22px;margin:20px 0}
+.toc-title{font-weight:700;margin-bottom:10px;font-size:15px}
+.toc ol{padding-left:20px}.toc li{margin:4px 0}
+.toc a{color:var(--accent);text-decoration:none;font-size:14px}.toc a:hover{text-decoration:underline}
+.toc .sub{padding-left:20px;margin-top:4px}
+.toc .sub li{margin:2px 0}
+.toc .sub a{font-size:13px;color:var(--dim)}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.compare-box{border:1px solid var(--border);border-radius:8px;padding:14px 18px}
+.compare-box .title{font-weight:600;font-size:14px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.compare-box.bad{background:#fef2f2}.compare-box.bad .title{color:var(--red)}
+.compare-box.good{background:#f0fdf4}.compare-box.good .title{color:var(--green)}
+.diagram{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:16px;margin:14px 0;font-family:"Consolas",monospace;font-size:12.5px;white-space: pre-wrap;line-height:1.55;overflow-x:auto}
+.footer{text-align:center;padding:20px;color:var(--dim);font-size:13px;border-top:1px solid var(--border)}
+@media(max-width:768px){.compare-grid{grid-template-columns:1fr}.content{padding:20px 18px 40px}.header{padding:28px 20px}}
+/* MANUMESH_RESPONSIVE_DOCS_FIX_BEGIN */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+*, *::before, *::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+body {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+body, .page, .content, .header, .footer, .topbar, .topbar-inner, .product, main, section, article,
+.hero, .metrics, .metric, .files, .file, .chips, .chip, .toc, .callout, .roadmap-note,
+.algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief,
+.algorithm-ref-grid, .algorithm-ref-card {
+  max-width: 100%;
+  min-width: 0;
+}
+p, li, dd, dt, div, span, a, strong, th, td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+code, kbd, samp {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, pre code, .diagram, .formula, .math-block {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, .diagram {
+  white-space: pre-wrap !important;
+  overflow-x: auto;
+}
+.formula, .math-block {
+  white-space: normal !important;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+thead, tbody, tr, th, td {
+  max-width: 100%;
+  min-width: 0 !important;
+  white-space: normal !important;
+}
+th, td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+img, svg, canvas, video {
+  max-width: 100%;
+  height: auto;
+}
+.product small, .pill, .tag, .badge, .chip {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.algorithm-reference-map, .algorithm-reading-guide {
+  margin: 18px 0 24px;
+  padding: 16px 18px;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #115e8a;
+  border-radius: 8px;
+  background: #f8fbfc;
+  color: #172126;
+  line-height: 1.72;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.algorithm-reading-guide {
+  border-left-color: #2563eb;
+  background: #f8faff;
+}
+.algorithm-reference-map h2, .algorithm-reading-guide h2 {
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 20px !important;
+  color: #0f4262 !important;
+}
+.algorithm-reading-guide h2 {
+  color: #1d4ed8 !important;
+}
+.algorithm-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.algorithm-ref-card {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+.algorithm-ref-card h3 {
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 15px !important;
+  color: #0f4262 !important;
+}
+.algorithm-ref-card p {
+  margin: 0 0 7px;
+}
+.doc-path {
+  display: block;
+  margin-top: 3px;
+  color: #475569;
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+  margin: 20px 0;
+  padding: 16px 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+.feature-deep-dive h2, .feature-recognition-brief h2, .feature-algorithm-walkthrough h2,
+.feature-algorithm-walkthrough h3 {
+  margin-top: 0 !important;
+}
+.feature-flow-list li {
+  margin: 7px 0;
+}
+@media (max-width: 760px) {
+  body {
+    max-width: 100%;
+  }
+  .content, .header, .footer, .hero, .topbar-inner {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+    padding: 13px 14px;
+  }
+  .algorithm-ref-grid, .metrics, .files {
+    grid-template-columns: 1fr !important;
+  }
+  table {
+    display: table;
+    overflow-x: hidden;
+    white-space: normal !important;
+  }
+  th, td {
+    min-width: 0 !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+/* MANUMESH_RESPONSIVE_DOCS_FIX_END */
+</style>
+<link rel="stylesheet" href="eye-care.css">
+</head>
+<body>
+<div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
+  <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准。
+</div>
+
+<div class="header">
+<h1>Normal Tensor 特征线提取与 QEM 增强完整推导笔记</h1>
+<div class="subtitle">论文 "Extraction of Surface-feature Lines on Meshes Using Normal Tensor Framework" (Tsuchie &amp; Higashi, CAD&amp;A 2014) - 从理论推导到 QEM 增强</div>
+<div class="meta">
+<span class="tag">Normal Tensor</span><span class="tag">特征线提取</span><span class="tag">QEM 增强</span><span class="tag">主曲率</span><span class="tag">各向异性平滑</span>
+</div>
+</div>
+
+<div class="content">
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_BEGIN -->
+<section class="algorithm-reference-map">
+  <h2>ManuMesh 当前算法与论文引用地图</h2>
+  <p>本页所说算法以当前源码为准：<code>src/simplification</code> 负责 QEM/edge-collapse，<code>src/feature_detection</code> 负责特征证据、feature graph、cleanup、loop/primitive recovery，<code>src/common/detail</code> 提供局部边长、邻接和拓扑查询。论文引用使用 <code>Mxxx</code> 编号；完整索引在 <code>docs/papers/README.md</code> 与 <code>docs/design/feature_detection_upgrade_2026_07_09.md</code>。</p>
+  <div class="algorithm-ref-grid">
+    <article class="algorithm-ref-card"><h3>Plane QEM</h3><p><strong>代码：</strong><code>Quadrics.cpp</code> 按面面积累积点到平面二次型，作为 collapse 代价主项。</p><p><strong>引用：</strong>M002 Garland-Heckbert 1997。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Boundary / Attribute QEM</h3><p><strong>代码：</strong><code>addBoundaryQuadrics()</code> 给边界附加约束；属性 QEM 仍作为后续扩展方向。</p><p><strong>引用：</strong>M003 Garland-Heckbert 1998。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Line Quadrics</h3><p><strong>代码：</strong><code>lineQuadric()</code> 用切向正则化改善平坦区 QEM 排序退化；权重由 <code>lineWeight</code>、<code>featureBoost</code> 与 weight mode 调度。</p><p><strong>引用：</strong>M004 Liu-Rahimzadeh-Zordan 2025。</p><span class="doc-path">docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、dihedral、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Normal Tensor / Weak Feature Evidence</h3><p><strong>代码：</strong><code>NormalTensor.cpp</code> 使用局部边长归一化、多尺度 smoothing/persistence；<code>FeatureEvidence.cpp</code> 用 persistent score 和切线对齐接受弱边。</p><p><strong>引用：</strong>M015 normal tensor，M012/M013 normal voting，M009 multi-scale creases。</p><span class="doc-path">docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</span><span class="doc-path">docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</span><span class="doc-path">docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</span><span class="doc-path">docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureEdges()</code> 输出 edge precision/recall、junction F1、loop closure、component confidence 与 feature drift。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 feature-preserving simplification 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
+    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>曲率 ridge/valley、wireframe/neural edge、learned QEM 目前作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
+  </div>
+  <p>一句话总览：ManuMesh 当前默认路线是 <strong>CAD/STL 离散证据 + normal-tensor 弱特征 + feature graph cleanup + component confidence + QEM/line-quadrics edge collapse + hard legality guards</strong>；neural/wireframe 是后续 benchmark 与增强方向。</p>
+</section>
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_END -->
+<!-- MANUMESH_DETAILED_READING_GUIDE_BEGIN -->
+<section class="algorithm-reading-guide">
+  <h2>读懂 ManuMesh 算法的推荐顺序</h2>
+  <p>如果从零看当前实现，先读 <code>docs/generated/notes/current-program-principles.html#deep-algorithm-walkthrough</code>，再读 <code>docs/generated/notes/current-program-principles.html#feature-recognition-deep-dive</code>。前者按真实执行顺序解释网格如何变成拓扑、quadric、候选队列和 legality gates；后者专门解释特征识别如何从 edge evidence 变成 feature graph、loop、primitive、component confidence，并最终被 QEM 消费。</p>
+  <ol>
+    <li><strong>先看数据流：</strong><code>Mesh -> MeshEdgeInfoMap -> FeatureAnalysis -> quadrics -> candidate queue -> legality gates -> SimplifyReport</code>。</li>
+    <li><strong>再看特征识别：</strong><code>FeatureEvidence.cpp</code> 产出边证据，<code>NormalTensor.cpp</code> 产出弱特征分数，<code>FeatureGraphCleanup.cpp</code> 把破碎证据整理成 component，<code>FeatureLoopBuilder.cpp</code> 和 <code>PrimitiveFit.cpp</code> 把图变成 loop/primitive。</li>
+    <li><strong>最后看简化消费：</strong><code>FeatureConstraints.cpp</code> 决定哪些 collapse 被拒绝，<code>Quadrics.cpp</code> 决定 feature curve soft quadric 如何加权，<code>feature_components</code>、<code>graph_cleanup_*</code>、<code>feature_rejected</code>、<code>quality_rejected</code>、<code>error_rejected</code> 解释算法为什么这样停。</li>
+  </ol>
+</section>
+<!-- MANUMESH_DETAILED_READING_GUIDE_END -->
+
+<section class="feature-deep-dive" id="manumesh-normal-tensor-implementation-bridge">
+<h2><span class="num">0</span>从论文 Normal Tensor 到当前 ManuMesh 实现</h2>
+<p>这页前面的推导主要解释 Tsuchie-Higashi 2014 的 normal tensor 为什么能描述 surface-feature lines；当前 ManuMesh 没有照搬成一个纯曲率/张量检测器，而是把它放在 CAD/STL feature pipeline 的“弱证据通道”。也就是说，boundary、dihedral、non-manifold 仍是强离散证据；normal tensor 用来补二面角阈值看不到的浅 ridge、fillet transition 和非均匀采样下的不稳定边。</p>
+
+<h3>0.1 代码里的张量不是孤立公式，而是一个多尺度评分器</h3>
+<table>
+<tr><th>论文概念</th><th>ManuMesh 对应实现</th><th>为什么这样落地</th></tr>
+<tr><td>邻域法向外积 $T=\sum w n n^\top$</td><td><code>NormalTensor.cpp</code> 对顶点邻域面法向累加，并按局部边长/采样密度解释 smoothing scale。</td><td>CAD/STL 三角化可能非常不均匀；固定半径或固定一环会让稀疏区和稠密区的分数不可比。</td></tr>
+<tr><td>surface / crease / corner saliency</td><td>每个 <code>VertexFeature</code> 保留 <code>featureScore</code>、<code>persistentFeatureScore</code>、<code>persistentScales</code> 等诊断。</td><td>下游不只需要“是不是特征”，还要知道这个判断有多稳定。</td></tr>
+<tr><td>各向异性平滑</td><td>当前实现使用轻量 smoothing/persistence，而不是重型全局优化。</td><td>简化器需要快速预处理；更复杂的 anisotropic filtering 可以作为后续增强，但不应阻塞 baseline。</td></tr>
+<tr><td>特征线方向</td><td><code>FeatureEvidence.cpp</code> 要求候选 edge 与张量给出的 crease tangent 方向有足够 alignment。</td><td>高分点不等于线；方向不一致时强连会产生假 branch。</td></tr>
+</table>
+
+<h3>0.2 edge 接受规则：为什么不是“两个端点分数高就行”</h3>
+<p>normal tensor 最容易犯的错误是把局部噪声连成线。当前实现因此用组合规则接受 tensor edge：端点的 persistent score 要过阈值，两个端点都要有足够 persistent scales，edge 方向要和 crease tangent 对齐，并且后续还要经过 graph cleanup 和 component confidence。这样做对应 M012/M013 normal voting 对局部一致性的要求，也对应 M009 多尺度 crease detection 对尺度稳定性的要求。</p>
+<ol>
+<li><strong>端点门槛：</strong>用端点最小分数约束 recall/precision，不让一个孤立高分点拖出假边。</li>
+<li><strong>persistence 门槛：</strong><code>normalTensorMinPersistentScales</code> 越大，越偏向稳定结构，越少噪声，但浅特征 recall 可能下降。</li>
+<li><strong>alignment 门槛：</strong><code>normalTensorEdgeAlignment</code> 越大，越要求边方向像真实 crease tangent。</li>
+<li><strong>component 门槛：</strong>最终由 <code>FeatureComponent</code> 的 closure、strong/weak evidence ratio、junction 和 residual 决定软保护强度。</li>
+</ol>
+
+<h3>0.3 它如何进入 QEM</h3>
+<p>normal tensor 的结果进入 QEM 有两条路。第一条是 <code>--weight-mode normal-tensor</code>：<code>Quadrics.cpp</code> 用 <code>persistentFeatureScore</code> 调整 line quadric 权重，让弱特征附近的候选边更谨慎。第二条是 <code>FeatureAnalysis</code>：如果 tensor edge 经过 trace graph、cleanup 和 component confidence，相关顶点会获得 feature ownership，primitive 或 generic feature constraints 便能参与 collapse policy。</p>
+
+<table>
+<tr><th>你看到的诊断</th><th>怎么解读</th><th>调参方向</th></tr>
+<tr><td><code>normal_tensor_feature_edges</code> 高但 <code>weak_feature_components</code> 低</td><td>点/边响应多，但没有形成稳定曲线。</td><td>提高 alignment 或 persistence，检查 cleanup 是否删除 spur。</td></tr>
+<tr><td><code>weak_feature_components</code> 高但 confidence 低</td><td>弱边连成分量，但闭合率、强证据、primitive residual 或 junction 情况不好。</td><td>降低 gap bridge，增加 ground-truth benchmark，看是否是假阳性。</td></tr>
+<tr><td><code>max_normal_tensor_persistent_score</code> 高且 feature drift 低</td><td>弱特征稳定，并且简化后保住了。</td><td>当前参数可作为该类模型 baseline。</td></tr>
+<tr><td><code>featureRejectedCollapses</code> 爆高</td><td>检测可能太宽或保护模式太硬，QEM 被大量 feature gate 拦住。</td><td>优先降低保护模式或权重，再考虑提高检测阈值。</td></tr>
+</table>
+
+<p>因此，这页公式里的 normal tensor 在代码里不是一个单独的“特征识别答案”，而是一个可诊断、可调参、可进入 QEM 的弱特征证据层。它最适合和 M007/M016/M018/M019 的 CAD/STL 离散追踪、M024/M025 的闭合边界要求、M026 的弱特征 consolidation 一起读。</p>
+</section>
+
+<section class="feature-algorithm-walkthrough" id="normal-tensor-source-walkthrough">
+<h2><span class="num">0A</span>Normal Tensor 在源码里的完整执行路径</h2>
+<p>把论文公式映射到 ManuMesh 源码时，可以按“邻域选择 → 张量累加 → 多尺度评分 → edge 接受 → graph consolidation → QEM 消费”来读。每一步都只解决一个问题，避免把高分点直接误解成可保护特征线。</p>
+<table>
+<tr><th>步骤</th><th>代码里真正做什么</th><th>为什么对弱特征重要</th><th>对应文献</th></tr>
+<tr><td>1. 局部尺度估计</td><td>先统计顶点附近平均边长，把 smoothing radius、gap bridge 和 tensor 邻域解释成“局部尺度倍数”。</td><td>非均匀 STL 里，同样的绝对距离在稠密区可能跨很多三角形，在稀疏区可能什么都跨不到。</td><td>M009 多尺度 crease；M012/M013 normal voting。</td></tr>
+<tr><td>2. 法向外积累加</td><td>对邻域面法向累加 $T=\sum w_f n_f n_f^\top$，权重与面积、距离或局部关系相关。</td><td>把“局部法向是否分成两簇/三簇”变成可比较的矩阵结构。</td><td>M015 normal tensor；M012/M013 normal voting。</td></tr>
+<tr><td>3. 特征值解释</td><td>特征值结构被解释成 surface、crease、corner saliency，crease tangent 来自相应局部方向。</td><td>浅 ridge 可能二面角很小，但一片邻域的法向分布仍会显示出稳定方向。</td><td>M015；M014 曲率估计可作为对照路线。</td></tr>
+<tr><td>4. 多尺度 persistence</td><td>在多个 smoothing scale 下重复评分，记录 <code>persistentFeatureScore</code> 和 <code>persistentScales</code>。</td><td>噪声通常只在单个尺度高分，真实弱特征更可能跨尺度稳定。</td><td>M009；mesh-feature corpus 057/066 的 voting/tensor 稳定性思想。</td></tr>
+<tr><td>5. edge 接受</td><td><code>FeatureEvidence.cpp</code> 检查两个端点分数、persistent scale 数、edge 方向与 tangent alignment。</td><td>防止“一个高分点 + 一个普通点”或“点状 corner 响应”被误连成线。</td><td>M012/M013 的局部一致性；M016 的 feature graph continuity。</td></tr>
+<tr><td>6. component consolidation</td><td>tensor edge 进入 trace graph 后，还要经 spur removal、gap bridge、junction merge 和 confidence 汇总。</td><td>弱特征必须先形成连通支持，才能决定是软保护、硬保护还是只诊断。</td><td>M024/M025 闭合边界；M026 CWF。</td></tr>
+<tr><td>7. QEM 权重调度</td><td>高 confidence feature 会影响 feature-curve quadric、line weight、primitive deviation guard。</td><td>弱特征不应一律硬锁；可信度越高，保护越强，可信度低时保留诊断。</td><td>M002 QEM；M004 line quadrics；M028/M029 feature preserving simplification。</td></tr>
+</table>
+
+<h3>0A.1 三类常见失败和定位方式</h3>
+<table>
+<tr><th>现象</th><th>最可能原因</th><th>优先查看</th><th>修正方向</th></tr>
+<tr><td>浅 ridge 完全没被检测到</td><td>persistence 或 score 阈值过严，或者局部尺度太小。</td><td><code>normal_tensor_scored_vertices</code>、<code>max_normal_tensor_persistent_score</code>、<code>normal_tensor_feature_edges</code>。</td><td>降低 <code>normalTensorThreshold</code>，减少 <code>normalTensorMinPersistentScales</code>，或扩大局部尺度。</td></tr>
+<tr><td>噪声枝很多</td><td>单尺度高分被接受，或 tangent alignment 太松。</td><td><code>graphCleanupRemovedSpurs</code>、<code>weakFeatureComponents</code>、component confidence。</td><td>提高 persistence 要求，提高 alignment，缩短 gap bridge。</td></tr>
+<tr><td>圆孔 fallback 被弱 ridge 干扰</td><td>把 tensor evidence 当成全局开关，而不是按 component 消费。</td><td>每个 component 的 strong/weak ratio、closure、primitive residual。</td><td>保持按 connected component 判定，让一个弱 ridge 不影响其他干净圆孔。</td></tr>
+</table>
+
+<h3>0A.2 和曲率 / neural / wireframe 路线的边界</h3>
+<p>normal tensor 适合给当前 CAD/STL-first 管线补弱证据，但它不是万能检测器。光顺曲面的 ridge/valley 需要曲率导数或隐式拟合路线，例如 M011、M014、M021；复杂 CAD 线框需要显式 junction 和 direction-field graph，例如 M006、M008、M023；neural detector 适合做 benchmark 对照或补充 proposal，但在没有训练分布、ground truth 和 OOD 诊断前，不应替代当前 deterministic contract。</p>
+</section>
+
+<div class="toc">
+<div class="toc-title">目录</div>
+<ol>
+<li><a href="#s1">问题背景:特征线提取与网格简化</a></li>
+<li><a href="#s2">Normal Tensor 基础:从法向量到张量</a></li>
+<li><a href="#s3">特征值分解与顶点分类</a></li>
+<li><a href="#s4">主曲率估计:Shape Operator 推导</a></li>
+<li><a href="#s5">各向异性张量平滑:抗噪核心</a></li>
+<li><a href="#s6">特征线检测:C0/C1 条件</a></li>
+<li><a href="#s7">特征线生成:从点到线</a></li>
+<li><a href="#s8">Normal Tensor 与 QEM 的深层联系</a>
+<div class="sub">
+<ol>
+<li><a href="#s8-1">矩阵结构的等价性</a></li>
+<li><a href="#s8-2">特征值诊断 QEM 秩亏</a></li>
+<li><a href="#s8-3">特征显著性 → 自适应权重</a></li>
+<li><a href="#s8-4">主方向 → 引导坍缩方向</a></li>
+<li><a href="#s8-5">张量平滑 → 鲁棒 QEM</a></li>
+<li><a href="#s8-6">C0/C1 检测 → 特征保留简化</a></li>
+<li><a href="#s8-7">完整增强 QEM 流程</a></li>
+</ol>
+</div>
+</li>
+<li><a href="#s9">实验结果与分析</a></li>
+<li><a href="#s10">总结</a></li>
+</ol>
+</div>
+
+<!-- ===== 1 ===== -->
+<h2 id="s1"><span class="num">1</span>问题背景:特征线提取与网格简化</h2>
+
+<h3>1.1 表面特征线</h3>
+
+<p>在 3D 几何处理中,<strong>表面特征线</strong>(surface-feature lines)是刻画形状的关键曲线。它们包括两类:</p>
+
+<ul>
+<li><strong>C0 边界</strong>(sharp edges):曲面法向量不连续处,如机械零件的锐边、角点</li>
+<li><strong>C1 边界</strong>(smooth transitions):曲率发生突变的过渡区域,如圆角边缘(fillet edges)、凸/凹区域分界线</li>
+</ul>
+
+<p>对于工业/机械模型,高曲率区域通常由两个底层曲面之间的<strong>过渡曲面</strong>(fillet)构成。特征线就是这段过渡曲面的边界--不是 crest line(最大/最小主曲率沿方向取极值的轨迹),而是曲率<strong>发生跳变</strong>的位置。</p>
+
+<div class="callout key">
+<div class="callout-title">C0 vs C1 的区别</div>
+<p>C0 边界:位置连续但切向不连续(折痕)→ 法向量跳变<br>
+C1 边界:切向连续但曲率不连续(fillet 边缘)→ 法向量连续,但曲率有间隙</p>
+<p>已有的基于 dihedral angle 的方法能检测 C0,但对 C1 需要极小的角度阈值(如 1°),在噪声数据上完全失效。</p>
+</div>
+
+<h3>1.2 为什么特征线对 QEM 至关重要</h3>
+
+<p>QEM(Quadric Error Metric)网格简化的核心是<strong>边坍缩顺序</strong>。在特征线附近,错误的坍缩顺序会导致:</p>
+
+<ul>
+<li>圆角边缘被"吃掉"--简化后 fillet 消失</li>
+<li>锐边变钝--特征顶点被过早合并</li>
+<li>拓扑错误--特征线断裂或错位</li>
+</ul>
+
+<p>标准 QEM 用 uniform 权重或 dihedral angle 启发式来保护特征,但这些方法<strong>依赖网格质量和噪声水平</strong>。Normal Tensor 框架提供了一种基于曲率分析的<strong>原理性特征检测</strong>方法,能直接指导 QEM 的权重设置和坍缩策略。</p>
+
+<h3>1.3 论文贡献</h3>
+
+<ul>
+<li>基于 Normal Tensor 框架,<strong>直接检测</strong> C0 和 C1 边界顶点,无需聚类(如 K-means [Kim 9])也无需关键角度参数(如 [Jiao 8])</li>
+<li>通过<strong>各向异性张量平滑</strong>,在噪声扫描数据上鲁棒估计主方向和曲率值</li>
+<li>检测三类特征线:(A) 曲率间隙线,(B) 正交流向线,(C) 凸凹转换线</li>
+</ul>
+
+<!-- ===== 2 ===== -->
+<h2 id="s2"><span class="num">2</span>Normal Tensor 基础:从法向量到张量</h2>
+
+<h3>2.1 定义</h3>
+
+<p>对于顶点 $V_n$,其邻接面集合记为 $\mathcal{F}(n)$(one-ring faces)。每个面 $n'$ 的单位法向量为 $N_{n'}^f$。<strong>Normal Tensor</strong> 定义为邻接面法向量外积的加权求和:</p>
+
+<div class="formula">
+$$A_n = \sum_{n' \in \mathcal{F}(n)} w_{nn'} \, N_{n'}^f \, N_{n'}^{f\top}$$
+<span class="label">(1)</span>
+</div>
+
+<p>其中 $w_{nn'}$ 是权重,采用 Nelson Max [14] 的面积加权方法。</p>
+
+<div class="callout key">
+<div class="callout-title">关键观察:Normal Tensor 与 QEM 的矩阵结构完全相同</div>
+<p>对比 QEM 的顶点矩阵(Garland &amp; Heckbert 1997):</p>
+<div class="formula">$$A^{\text{QEM}}_i = \sum_{ijk \in N_i} a^i_{jk} \, \hat{n}_{ijk} \, \hat{n}_{ijk}^{\top}$$</div>
+<p>两者都是<strong>法向量外积的加权求和</strong>--结构完全等价。区别仅在权重选择(Nelson Max 面积加权 vs barycentric area)。这意味着 Normal Tensor 的所有性质<strong>直接适用于 QEM 的 $A$ 矩阵</strong>。</p>
+</div>
+
+<h3>2.2 物理含义</h3>
+
+<p>$A_n$ 是一个 3×3 对称半正定矩阵,是<strong>法向量的二阶矩矩阵</strong>(类似协方差矩阵)。它衡量的是顶点邻域内法向量的分布:</p>
+
+<ul>
+<li>法向量越集中(平坦区域)→ $A_n$ 的秩越低</li>
+<li>法向量越分散(高曲率区域)→ $A_n$ 的秩越高</li>
+<li>法向量在某个方向变化剧烈(棱边)→ $A_n$ 在该方向有大特征值</li>
+</ul>
+
+<h3>2.3 与 QEM 的 $A$ 矩阵对比</h3>
+
+<table>
+<tr><th>属性</th><th>Normal Tensor $A_n$</th><th>QEM $A^{\text{QEM}}_i$</th></tr>
+<tr><td>定义</td><td>$\sum w_{nn'} N_{n'}^f N_{n'}^{f\top}$</td><td>$\sum a^i_{jk} \hat{n}_{ijk} \hat{n}_{ijk}^{\top}$</td></tr>
+<tr><td>权重</td><td>Nelson Max 面积加权</td><td>Barycentric area $a_{jk}/3$</td></tr>
+<tr><td>矩阵结构</td><td>3×3 对称半正定</td><td>3×3 对称半正定</td></tr>
+<tr><td>物理含义</td><td>法向量分布的二阶矩</td><td>到邻接面平面距离的二次型</td></tr>
+<tr><td>秩的决定因素</td><td>法向量分布的维度</td><td>完全相同</td></tr>
+</table>
+
+<div class="callout success">
+<div class="callout-title">核心等价</div>
+<p>Normal Tensor $A_n$ 和 QEM 的 $A$ 矩阵是<strong>同一个数学对象</strong>(至多差一个归一化常数)。Normal Tensor 的特征值分析、特征向量分解、平滑技术--全部可以直接移植到 QEM。</p>
+</div>
+
+<h3>2.4 数值示例:四种典型顶点的 Normal Tensor 计算</h3>
+
+<p>设顶点 $V_n$ 位于原点,邻接 4 个三角面,面面积均为 $a = 1$(故 $w = a/3 = 1/3$)。考察四种典型几何场景:</p>
+
+<h4>场景 A:平坦区域(所有面共面)</h4>
+
+<p>4 个面的法向量均为 $N = (0, 0, 1)$:</p>
+
+<div class="formula">
+$$A_n = 4 \times \frac{1}{3} \begin{pmatrix} 0 \\ 0 \\ 1 \end{pmatrix} \begin{pmatrix} 0 & 0 & 1 \end{pmatrix} = \frac{4}{3} \begin{pmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix}$$
+</div>
+
+<p>特征值:$\sigma_1 = 4/3 \approx 1.333$, $\sigma_2 = \sigma_3 = 0$。<strong>秩 = 1</strong>。仅 $z$ 方向(法向量方向)有约束,$x, y$ 方向完全空白--这就是 QEM 在平坦区秩亏的根源。</p>
+
+<h4>场景 B:棱边(两个法向量方向)</h4>
+
+<p>2 个面法向 $N_1 = (0, 0, 1)$,2 个面法向 $N_2 = (1, 0, 0)$(90° 折痕):</p>
+
+<div class="formula">
+$$A_n = \frac{2}{3} N_1 N_1^{\top} + \frac{2}{3} N_2 N_2^{\top} = \frac{2}{3} \begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix}$$
+</div>
+
+<p>特征值:$\sigma_1 = \sigma_2 = 2/3 \approx 0.667$, $\sigma_3 = 0$。<strong>秩 = 2</strong>。$E_3 = (0,1,0)$(沿棱边方向)无约束--顶点可在棱边上自由滑动。</p>
+
+<h4>场景 C:角点(三个正交法向量)</h4>
+
+<p>法向量分别为 $N_1 = (0,0,1)$, $N_2 = (1,0,0)$, $N_3 = (0,1,0)$, $N_4 = (1,1,1)/\sqrt{3}$:</p>
+
+<div class="formula">
+$$A_n = \frac{1}{3}\left(N_1 N_1^{\top} + N_2 N_2^{\top} + N_3 N_3^{\top} + N_4 N_4^{\top}\right)$$
+</div>
+
+<div class="formula">
+$$= \frac{1}{3}\left[\begin{pmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix} + \begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix} + \begin{pmatrix} 0 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0 \end{pmatrix} + \frac{1}{3}\begin{pmatrix} 1 & 1 & 1 \\ 1 & 1 & 1 \\ 1 & 1 & 1 \end{pmatrix}\right]$$
+</div>
+
+<div class="formula">
+$$= \frac{1}{3}\begin{pmatrix} 4/3 & 1/3 & 1/3 \\ 1/3 & 4/3 & 1/3 \\ 1/3 & 1/3 & 4/3 \end{pmatrix}$$
+</div>
+
+<p>特征值:$\sigma_1 = \sigma_2 = \sigma_3 = 2/3$(三个相等特征值,因为四个法向量在 3D 中均匀分布)。<strong>秩 = 3(满秩)</strong>。QEM 可以直接求解,无需任何修补。</p>
+
+<h4>场景 D:近似平坦(微小扰动)</h4>
+
+<p>4 个面法向量接近 $N = (0,0,1)$,但有微小倾斜 $\delta = 0.01$:$N_1 = (\delta, 0, \sqrt{1-\delta^2})$, $N_2 = (-\delta, 0, \sqrt{1-\delta^2})$, $N_3 = (0, \delta, \sqrt{1-\delta^2})$, $N_4 = (0, -\delta, \sqrt{1-\delta^2})$:</p>
+
+<div class="formula">
+$$A_n \approx \frac{4}{3}\begin{pmatrix} \delta^2/2 & 0 & 0 \\ 0 & \delta^2/2 & 0 \\ 0 & 0 & 1-\delta^2 \end{pmatrix} = \frac{4}{3}\begin{pmatrix} 0.00005 & 0 & 0 \\ 0 & 0.00005 & 0 \\ 0 & 0 & 0.9999 \end{pmatrix}$$
+</div>
+
+<p>特征值:$\sigma_1 \approx 1.333$, $\sigma_2 = \sigma_3 \approx 6.67 \times 10^{-5}$。<strong>形式上满秩,但条件数 $\kappa \approx 20000$</strong>--这就是「近平坦」区域的病态矩阵:QEM 的 SVD 判定会说「可逆」,但解被 $\sigma_2, \sigma_3$ 方向的噪声完全主导。</p>
+
+<div class="callout warn">
+<div class="callout-title">关键洞察</div>
+<p>场景 D 最危险:$A$ 在数学上可逆($\det(A) > 0$),但 $\sigma_2, \sigma_3$ 的值与噪声量级相同。QEM 求解出的 $x^*$ 在 $E_2, E_3$ 方向的位置完全由噪声决定--<strong>看起来有解,实际上是随机数</strong>。Normal Tensor 的 saliency 分析能正确识别此情况:$S_{Su} \approx 1.333 \gg S_{Cr} \approx 0 \gg S_{Co} \approx 6.67 \times 10^{-5}$,判为 surface 类型。</p>
+</div>
+
+<h4>四种场景汇总</h4>
+
+<table>
+<tr><th>场景</th><th>$\sigma_1$</th><th>$\sigma_2$</th><th>$\sigma_3$</th><th>秩</th><th>$S_{Su}$</th><th>$S_{Cr}$</th><th>$S_{Co}$</th><th>分类</th></tr>
+<tr><td>A: 平坦</td><td>1.333</td><td>0</td><td>0</td><td>1</td><td>1.333</td><td>0</td><td>0</td><td>surface</td></tr>
+<tr><td>B: 棱边</td><td>0.667</td><td>0.667</td><td>0</td><td>2</td><td>0</td><td>0.667</td><td>0</td><td>crease</td></tr>
+<tr><td>C: 角点</td><td>0.667</td><td>0.667</td><td>0.667</td><td>3</td><td>0</td><td>0</td><td>0.667</td><td>corner</td></tr>
+<tr><td>D: 近平坦</td><td>1.333</td><td>6.7e-5</td><td>6.7e-5</td><td>3*</td><td>1.333</td><td>0</td><td>6.7e-5</td><td>surface</td></tr>
+</table>
+
+<p><span class="rich-muted">*场景 D 形式满秩但条件数 ~20000,实质等同于秩亏。</span></p>
+
+<!-- ===== 3 ===== -->
+<h2 id="s3"><span class="num">3</span>特征值分解与顶点分类</h2>
+
+<h3>3.1 特征值分解</h3>
+
+<p>设 $A_n$ 的特征值为 $\sigma_1 \geq \sigma_2 \geq \sigma_3 \geq 0$,对应的特征向量为 $E_1, E_2, E_3$。$A_n$ 可分解为:</p>
+
+<div class="formula">
+$$A_n = R \, \Lambda \, R^{\top} = \big(E_1 \;\big|\; E_2 \;\big|\; E_3\big) \begin{pmatrix} \sigma_1 & 0 & 0 \\ 0 & \sigma_2 & 0 \\ 0 & 0 & \sigma_3 \end{pmatrix} \big(E_1 \;\big|\; E_2 \;\big|\; E_3\big)^{\top}$$
+<span class="label">(2)</span>
+</div>
+
+<p>展开形式:</p>
+
+<div class="formula">
+$$A_n = \sigma_1 \, E_1 E_1^{\top} + \sigma_2 \, E_2 E_2^{\top} + \sigma_3 \, E_3 E_3^{\top}$$
+<span class="label">(3)</span>
+</div>
+
+<h3>3.2 特征向量的几何意义</h3>
+
+<table>
+<tr><th>特征向量</th><th>方向</th><th>几何意义</th></tr>
+<tr><td>$E_1$(最大特征值)</td><td>表面法向量方向</td><td>法向量变化最小的方向 = 法向量本身</td></tr>
+<tr><td>$E_2$(第二特征值)</td><td>$k_{\max}$ 主方向</td><td>切平面内法向量变化最大的方向 = 最大曲率方向</td></tr>
+<tr><td>$E_3$(最小特征值)</td><td>$k_{\min}$ 主方向</td><td>切平面内法向量变化最小的方向 = 最小曲率方向</td></tr>
+</table>
+
+<div class="callout key">
+<div class="callout-title">为什么 $E_1$ 是法向量?</div>
+<p>在光滑曲面上,法向量方向是法向量变化最小的方向(曲面上法向量沿自身方向的变化率为零)。因此 $E_1$(对应最大特征值 $\sigma_1$)自然指向法向量方向。</p>
+<p>$E_2, E_3$ 张成切平面,分别是切平面内法向量变化最大和最小的方向--即主曲率方向。</p>
+</div>
+
+<h3>3.3 特征显著性(Feature Saliency)</h3>
+
+<p>Medioni et al. [15] 定义了三种特征显著性:</p>
+
+<div class="formula">
+$$S_{Su} = \sigma_1 - \sigma_2 \quad \text{(surface saliency)}$$
+<span class="label">(4a)</span>
+</div>
+
+<div class="formula">
+$$S_{Cr} = \sigma_2 - \sigma_3 \quad \text{(crease saliency)}$$
+<span class="label">(4b)</span>
+</div>
+
+<div class="formula">
+$$S_{Co} = \sigma_3 \quad \text{(corner saliency)}$$
+<span class="label">(4c)</span>
+</div>
+
+<p>物理含义:</p>
+<ul>
+<li>$S_{Su}$ 大 → 法向量集中在一个方向 → <strong>平滑表面</strong></li>
+<li>$S_{Cr}$ 大 → 法向量在一个切平面方向变化但另一个方向不变 → <strong>棱边/折痕</strong></li>
+<li>$S_{Co}$ 大 → 法向量在所有方向都有变化 → <strong>角点</strong></li>
+</ul>
+
+<h3>3.4 顶点分类规则</h3>
+
+<p>Page et al. [18] 提出通过最大化显著性来分类顶点:</p>
+
+<div class="formula">
+$$\max\{S_{Su},\; \varepsilon \, S_{Cr},\; \varepsilon \, S_{Co}\} = \begin{cases} S_{Su} & \Rightarrow \text{surface,法向量 } N_n = E_1 \\ \varepsilon \, S_{Cr} & \Rightarrow \text{crease,切向量 } T_n = E_3 \\ \varepsilon \, S_{Co} & \Rightarrow \text{无定向(corner)} \end{cases}$$
+<span class="label">(5)</span>
+</div>
+
+<p>其中 $\varepsilon \geq 0$ 是控制特征显著性的相对灵敏度的参数。</p>
+
+<h3>3.5 折痕角参数</h3>
+
+<p>$\varepsilon$ 与可检测的最小折痕角 $\varphi$ 的关系:</p>
+
+<div class="formula">
+$$\varphi = 2 \arctan\!\big((\varepsilon + 1)^{-1/2}\big)$$
+<span class="label">(6)</span>
+</div>
+
+<p>验证:$\varepsilon = 100$ 时,$(101)^{-1/2} \approx 0.0995$,$\arctan(0.0995) \approx 5.68^\circ$,$\varphi \approx 11.4^\circ$ ≈ 10°。</p>
+
+<table>
+<tr><th>$\varepsilon$</th><th>$\varphi$(折痕角)</th><th>检测灵敏度</th><th>适用场景</th></tr>
+<tr><td>100</td><td>≈ 10°</td><td>仅检测明显折痕</td><td>干净 CAD 模型</td></tr>
+<tr><td>~5</td><td>≈ 45°</td><td>仅检测极显著特征</td><td>噪声数据(论文默认)</td></tr>
+<tr><td>~1000</td><td>≈ 3°</td><td>检测微小折痕</td><td>精密 CAD 分析</td></tr>
+</table>
+
+<div class="callout warn">
+<div class="callout-title">注意</div>
+<p>论文在特征线检测中默认使用 $\varphi = 45^\circ$($\varepsilon \approx 5$),而非 $\varphi = 10^\circ$。这是因为 C1 边界的法向量是连续的,过小的 $\varphi$ 会在平滑区域产生大量误报。只有对 C0 边界(sharp edges)才使用较小的 $\varphi$。</p>
+</div>
+
+<h3>3.6 公式 (6) 的推导:$\varphi$ 与 $\varepsilon$ 的关系</h3>
+
+<p>给定一个理想的折痕:两个平面以二面角 $\varphi$ 相交。顶点 $V_n$ 位于折痕上,邻接面法向量分布在两个方向。设两侧法向量为 $N_1, N_2$,夹角为 $\varphi$。</p>
+
+<h4>步骤 1:构造 Normal Tensor</h4>
+
+<p>设两侧各有等面积的面,权重均为 $w$。取坐标系使折痕方向为 $y$ 轴,$N_1, N_2$ 在 $xz$-平面内:</p>
+
+<div class="formula">
+$$N_1 = (\sin\tfrac{\varphi}{2},\; 0,\; \cos\tfrac{\varphi}{2}), \quad N_2 = (-\sin\tfrac{\varphi}{2},\; 0,\; \cos\tfrac{\varphi}{2})$$
+</div>
+
+<p>Normal Tensor:</p>
+
+<div class="formula">
+$$A_n = w(N_1 N_1^{\top} + N_2 N_2^{\top}) = w\begin{pmatrix} 2\sin^2\tfrac{\varphi}{2} & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 2\cos^2\tfrac{\varphi}{2} \end{pmatrix}$$
+</div>
+
+<h4>步骤 2:计算特征值和 Saliency</h4>
+
+<p>特征值:$\sigma_1 = 2w\cos^2\frac{\varphi}{2}$, $\sigma_2 = 2w\sin^2\frac{\varphi}{2}$, $\sigma_3 = 0$。</p>
+
+<div class="formula">
+$$S_{Su} = \sigma_1 - \sigma_2 = 2w\Big(\cos^2\tfrac{\varphi}{2} - \sin^2\tfrac{\varphi}{2}\Big) = 2w\cos\varphi$$
+</div>
+
+<div class="formula">
+$$S_{Cr} = \sigma_2 - \sigma_3 = 2w\sin^2\tfrac{\varphi}{2}, \quad S_{Co} = 0$$
+</div>
+
+<h4>步骤 3:代入分类条件</h4>
+
+<p>顶点被分类为 crease(而非 surface)的条件是 $\varepsilon \cdot S_{Cr} > S_{Su}$:</p>
+
+<div class="formula">
+$$\varepsilon \cdot 2w\sin^2\tfrac{\varphi}{2} > 2w\cos\varphi$$
+</div>
+
+<p>化简(利用 $\cos\varphi = 1 - 2\sin^2\frac{\varphi}{2}$):</p>
+
+<div class="formula">
+$$\varepsilon \cdot \sin^2\tfrac{\varphi}{2} > 1 - 2\sin^2\tfrac{\varphi}{2}$$
+</div>
+
+<div class="formula">
+$$(\varepsilon + 2) \sin^2\tfrac{\varphi}{2} > 1 \quad \Longrightarrow \quad \sin\tfrac{\varphi}{2} > \frac{1}{\sqrt{\varepsilon + 2}}$$
+</div>
+
+<p>注意原文式 (6) 为 $\varphi = 2\arctan((\varepsilon+1)^{-1/2})$。验证一致性:当 $\sin\frac{\varphi}{2} = \frac{1}{\sqrt{\varepsilon+2}}$ 时,$\tan\frac{\varphi}{2} = \frac{\sin\frac{\varphi}{2}}{\cos\frac{\varphi}{2}} = \frac{1}{\sqrt{\varepsilon+2}} \cdot \frac{\sqrt{\varepsilon+2}}{\sqrt{\varepsilon+1}} = \frac{1}{\sqrt{\varepsilon+1}}$。因此:</p>
+
+<div class="formula">
+$$\varphi = 2\arctan\frac{1}{\sqrt{\varepsilon+1}} = 2\arctan(\varepsilon+1)^{-1/2} \quad \checkmark$$
+</div>
+
+<h4>步骤 4:数值验证</h4>
+
+<table>
+<tr><th>$\varepsilon$</th><th>$\varphi$ (公式)</th><th>$\varphi$ (数值)</th><th>$\sin^2(\varphi/2)$</th><th>$1/(\varepsilon+2)$</th><th>验证</th></tr>
+<tr><td>1</td><td>$2\arctan(1/\sqrt{2})$</td><td>70.5°</td><td>0.500</td><td>0.333</td><td>$>$ ✓</td></tr>
+<tr><td>5</td><td>$2\arctan(1/\sqrt{6})$</td><td>44.3°</td><td>0.143</td><td>0.143</td><td>= 临界 ✓</td></tr>
+<tr><td>100</td><td>$2\arctan(1/\sqrt{101})$</td><td>11.4°</td><td>0.0098</td><td>0.0098</td><td>= 临界 ✓</td></tr>
+<tr><td>999</td><td>$2\arctan(1/\sqrt{1000})$</td><td>3.6°</td><td>0.0010</td><td>0.0010</td><td>= 临界 ✓</td></tr>
+</table>
+
+<div class="callout success">
+<div class="callout-title">推导结论</div>
+<p>公式 (6) 的物理含义:$\varepsilon$ 越大 → $\varphi$ 越小 → 能检测越细微的折痕。$\varepsilon = 5$ 对应 $\varphi \approx 45^\circ$ 意味着只有折痕角度 $> 45^\circ$ 的顶点才会被分类为 crease。这是对噪声的安全阈值--小于 45° 的折痕在噪声数据上难以与随机波动区分。</p>
+</div>
+
+<!-- ===== 4 ===== -->
+<h2 id="s4"><span class="num">4</span>主曲率估计:Shape Operator 推导</h2>
+
+<h3>4.1 Shape Operator 的定义</h3>
+
+<p>在微分几何中,<strong>Shape Operator</strong>(Weingarten 映射)$S$ 是曲面法向量的微分,其特征值为主曲率 $k_{\max}, k_{\min}$。对于离散网格,$S$ 是一个 2×2 矩阵:</p>
+
+<div class="formula">
+$$S = (E_2 \;\big|\; E_3)^{\top} \, \big(\nabla E_1^{\top}\big) \, (E_2 \;\big|\; E_3)$$
+<span class="label">(7)</span>
+</div>
+
+<p>其中:</p>
+<ul>
+<li>$(E_2 \;\big|\; E_3)$ 是 3×2 矩阵,列为切平面基向量 $E_2, E_3$</li>
+<li>$\nabla E_1^{\top}$ 是法向量场 $E_1$(= $N_n$)的梯度(3×3 Jacobian 矩阵)</li>
+<li>乘积将梯度投影到切平面,得到 2×2 矩阵</li>
+</ul>
+
+<h3>4.2 分量展开</h3>
+
+<p>设 $\nabla E_1$ 为法向量场的梯度(3×3 矩阵),其第 $j$ 列为 $\partial E_1 / \partial x_j$。Shape Operator 的各分量为:</p>
+
+<div class="formula">
+$$S_{ij} = E_{i+1}^{\top} \, (\nabla E_1) \, E_{j+1}, \quad i, j \in \{1, 2\}$$
+<span class="label">(8)</span>
+</div>
+
+<p>即:</p>
+
+<div class="formula">
+$$S = \begin{pmatrix} E_2^{\top} (\nabla N) E_2 & E_2^{\top} (\nabla N) E_3 \\ E_3^{\top} (\nabla N) E_2 & E_3^{\top} (\nabla N) E_3 \end{pmatrix}$$
+</div>
+
+<p>其中 $\nabla N = \nabla E_1$ 是法向量的方向导数。$S_{11} = E_2^{\top} (\nabla N) E_2$ 表示沿 $E_2$ 方向走时法向量在 $E_2$ 方向的变化率--这正是 $E_2$ 方向的曲率。</p>
+
+<h3>4.3 法向量梯度的计算</h3>
+
+<p>法向量梯度通过最小二乘拟合估计。给定顶点 $V_n$ 及其邻居 $\{V_{n'}\}$,寻找 3×3 矩阵 $\nabla N$ 使得:</p>
+
+<div class="formula">
+$$\nabla N \cdot (V_{n'} - V_n) \approx N_{n'} - N_n, \quad \forall n' \in \mathcal{F}(n)$$
+<span class="label">(9)</span>
+</div>
+
+<p>论文采用 [4] 的方法,将位置差投影到切平面后做最小二乘求解:</p>
+
+<div class="formula">
+$$\nabla N_n^{\top} = R \, W \, (W^{\top} W)^{-1} \, W^{\top}$$
+<span class="label">(10)</span>
+</div>
+
+<p>其中 $R$ 是归一化位置差(投影到切空间)构成的矩阵,$W$ 是法向量差(含附加条件)构成的矩阵。</p>
+
+<div class="callout">
+<div class="callout-title">最小二乘解释</div>
+<p>式 (10) 本质上是求解 $\min_{\nabla N} \sum_{n'} \|\nabla N (V_{n'} - V_n) - (N_{n'} - N_n)\|^2$,标准解为:</p>
+<div class="formula">$$\nabla N = \Big(\sum_{n'} \Delta N_{n'} \, \Delta P_{n'}^{\top}\Big) \Big(\sum_{n'} \Delta P_{n'} \, \Delta P_{n'}^{\top}\Big)^{-1}$$</div>
+<p>其中 $\Delta P_{n'} = V_{n'} - V_n$,$\Delta N_{n'} = N_{n'} - N_n$。式 (10) 是其在特定矩阵排列下的等价形式。</p>
+</div>
+
+<h3>4.4 为什么 Normal Tensor 框架更鲁棒</h3>
+
+<div class="compare-grid">
+<div class="compare-box bad">
+<div class="title">离散曲率算子(Meyer et al. [16])</div>
+<ul>
+<li>均值曲率:$K(V_n) = \frac{1}{2A_{\text{mixed}}} \sum (\cot\alpha + \cot\beta)(V_n - V_{n'})$</li>
+<li>高斯曲率:$\kappa_G = \frac{1}{A_{\text{mixed}}}(2\pi - \sum\theta)$</li>
+<li>依赖<strong>二阶导数</strong>,对噪声极其敏感</li>
+<li>噪声数据上误差可达 9.5×(均值曲率)和 57×(高斯曲率)</li>
+</ul>
+</div>
+<div class="compare-box good">
+<div class="title">Normal Tensor + Shape Operator(本文)</div>
+<ul>
+<li>主方向由 $A_n$ 的特征向量给出(一阶量,稳定)</li>
+<li>曲率值通过 Shape Operator 在已确定的基上计算</li>
+<li>可通过<strong>张量平滑</strong>进一步去噪</li>
+<li>噪声数据上误差仅 0.59×(均值曲率)和 1.27×(高斯曲率)</li>
+</ul>
+</div>
+</div>
+
+<h3>4.5 关键公式总结</h3>
+
+<p>主曲率 $k_{\max}, k_{\min}$ 为 Shape Operator 的特征值:</p>
+
+<div class="formula">
+$$\det(S - kI) = 0 \quad \Longrightarrow \quad k^2 - \text{tr}(S)\,k + \det(S) = 0$$
+</div>
+
+<div class="formula">
+$$k_{\max,\min} = \frac{\text{tr}(S) \pm \sqrt{\text{tr}(S)^2 - 4\det(S)}}{2}$$
+<span class="label">(11)</span>
+</div>
+
+<p>其中 $\text{tr}(S) = k_{\max} + k_{\min}$ 为均值曲率的两倍,$\det(S) = k_{\max} \cdot k_{\min}$ 为高斯曲率。</p>
+
+<h3>4.6 数值示例:圆柱面顶点的 Shape Operator</h3>
+
+<p>考虑圆柱面上一个顶点 $V_n$,半径 $R = 2$。圆柱面的主曲率为 $k_{\max} = 1/R = 0.5$(环绕方向),$k_{\min} = 0$(轴向)。</p>
+
+<h4>步骤 1:确定特征向量</h4>
+
+<p>Normal Tensor 特征分解后:</p>
+<ul>
+<li>$E_1 = (0, 0, 1)$(法向量,指向圆柱外侧)</li>
+<li>$E_2 = (1, 0, 0)$(环向,$k_{\max}$ 方向)</li>
+<li>$E_3 = (0, 1, 0)$(轴向,$k_{\min}$ 方向)</li>
+</ul>
+
+<h4>步骤 2:构造法向量梯度</h4>
+
+<p>沿 $E_2$(环向)移动 $ds$ 时,法向量变化 $dN = -k_{\max} \cdot ds \cdot E_2 = -0.5 \, ds \cdot E_2$。沿 $E_3$(轴向)移动时法向量不变。因此:</p>
+
+<div class="formula">
+$$\nabla N = \begin{pmatrix} -0.5 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix}$$
+</div>
+
+<p>(第 1 列 = $\partial N / \partial x = -0.5 \cdot E_1$ 在 $E_2$ 分量上的投影... 完整推导:$\partial N / \partial E_2 = -k_{\max} E_2 = (-0.5, 0, 0)$,$\partial N / \partial E_3 = 0$,$\partial N / \partial E_1 = 0$)</p>
+
+<h4>步骤 3:计算 Shape Operator</h4>
+
+<div class="formula">
+$$S = \begin{pmatrix} E_2^{\top} \\ E_3^{\top} \end{pmatrix} (\nabla N) \begin{pmatrix} E_2 & E_3 \end{pmatrix} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \end{pmatrix} \begin{pmatrix} -0.5 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 0 & 0 \end{pmatrix} = \begin{pmatrix} -0.5 & 0 \\ 0 & 0 \end{pmatrix}$$
+</div>
+
+<h4>步骤 4:提取主曲率</h4>
+
+<div class="formula">
+$$\text{tr}(S) = -0.5, \quad \det(S) = 0$$
+</div>
+
+<div class="formula">
+$$k = \frac{-0.5 \pm \sqrt{0.25 - 0}}{2} = \frac{-0.5 \pm 0.5}{2}$$
+</div>
+
+<div class="formula">
+$$k_{\max} = 0, \quad k_{\min} = -0.5$$
+</div>
+
+<p>(符号约定:$S_{11} = E_2^{\top} (\nabla N) E_2 = -0.5$,负号表示法向量沿 $E_2$ 方向向内转,即凸面。取绝对值 $|k_{\max}| = 0.5$ 为曲率半径的倒数 $1/R$。)</p>
+
+<div class="callout key">
+<div class="callout-title">验证</div>
+<p>圆柱面 $R=2$ 的理论主曲率:$k = 1/R = 0.5$,与计算结果一致。$k_{\min} = 0$(轴向无曲率),$k_{\max} = 0.5$(环向),高斯曲率 $K = k_{\max} \cdot k_{\min} = 0$(可展曲面),均值曲率 $H = (k_{\max} + k_{\min})/2 = 0.25$。全部吻合。</p>
+</div>
+
+<h3>4.7 数值示例:球面顶点的 Shape Operator</h3>
+
+<p>球面半径 $R = 3$,理论曲率 $k_{\max} = k_{\min} = 1/3 \approx 0.333$。</p>
+
+<p>法向量梯度在球面上各向同性:$\nabla N = -\frac{1}{R} I_{3\times3}$(Weingarten 映射的矩阵形式)。Shape Operator:</p>
+
+<div class="formula">
+$$S = (E_2 | E_3)^{\top} \left(-\frac{1}{3} I\right) (E_2 | E_3) = -\frac{1}{3} I_{2\times2} = \begin{pmatrix} -1/3 & 0 \\ 0 & -1/3 \end{pmatrix}$$
+</div>
+
+<p>特征值 $k_{\max} = k_{\min} = 1/3 \approx 0.333$(各项同性),高斯曲率 $K = 1/9 \approx 0.111$,均值曲率 $H = 1/3$。这是<strong>脐点</strong>(umbilic point)--两个主曲率相等,主方向不确定。对应 Normal Tensor 的特征值 $\sigma_1 = 2w$, $\sigma_2 = \sigma_3 \approx 0$(若所有面法向量接近一致),$S_{Su}$ 最大 → 分类为 surface。但实际球面的 $A_n$ 会有 $\sigma_2 > 0$(法向量有切向变化),具体取决于网格密度。</p>
+
+<!-- ===== 5 ===== -->
+<h2 id="s5"><span class="num">5</span>各向异性张量平滑:抗噪核心</h2>
+
+<h3>5.1 动机</h3>
+
+<p>在噪声扫描数据上,Normal Tensor 的特征值和特征向量被噪声严重干扰。直接使用会导致:</p>
+<ul>
+<li>法向量方向($E_1$)偏移 → 影响所有后续计算</li>
+<li>主方向($E_2, E_3$)不稳定 → 特征线检测失败</li>
+<li>曲率值噪声放大 → 误报和漏报</li>
+</ul>
+
+<p>论文提出<strong>各向异性张量平滑</strong>:在保持锐边特征的同时平滑法向量场。</p>
+
+<h3>5.2 平滑公式</h3>
+
+<p>迭代更新 Normal Tensor:</p>
+
+<div class="formula">
+$$A_n^{(t+1)} \leftarrow A_n^{(t)} + \sum_{n' \in \mathcal{F}(n)} w_{nn'}^A \, \big(A_{n'}^{(t)} - A_n^{(t)}\big)$$
+<span class="label">(12)</span>
+</div>
+
+<p>其中 $A_n^{(t)}$ 是第 $t$ 步的张量,$w_{nn'}^A$ 是<strong>各向异性权重</strong>:</p>
+
+<div class="formula">
+$$w_{nn'}^A = \frac{\|A_{n'} + A_n\|}{2} \cdot \frac{l_{nn'}^\perp}{l_{nn'}}$$
+<span class="label">(13)</span>
+</div>
+
+<p>这里:</p>
+<ul>
+<li>$l_{nn'} = |V_{n'} - V_n|$:边的实际长度</li>
+<li>$l_{nn'}^{\perp}$:边 $V_n V_{n'}$ 在 $V_n$ 处切平面上的投影长度</li>
+<li>$\|A_{n'} + A_n\|/2$:两个张量平均的范数,衡量两个顶点的"张量一致性"</li>
+</ul>
+
+<h3>5.3 各向异性权重的物理含义</h3>
+
+<div class="formula">
+$$\frac{l_{nn'}^\perp}{l_{nn'}} = \sin\theta_{nn'}$$
+</div>
+
+<p>其中 $\theta_{nn'}$ 是边 $V_n V_{n'}$ 与法向量 $N_n$ 的夹角。</p>
+
+<table>
+<tr><th>几何场景</th><th>$l^{\perp} / l$</th><th>权重</th><th>效果</th></tr>
+<tr><td>边在切平面内(平滑区域)</td><td>≈ 1</td><td>大</td><td>积极平滑 → 去噪</td></tr>
+<tr><td>边跨越特征(锐边两侧)</td><td>≈ 0</td><td>小</td><td>抑制平滑 → 保留特征</td></tr>
+</table>
+
+<div class="callout key">
+<div class="callout-title">各向异性的核心</div>
+<p>跨越特征的边(如锐边两侧的顶点对)在切平面上的投影很短 → 权重趋近于零 → <strong>不会被平滑</strong>。沿着表面的边(切平面内)投影长度≈实际长度 → 权重大 → <strong>积极平滑</strong>。这就是"各向异性"--方向不同,平滑力度不同。</p>
+</div>
+
+<h3>5.4 不移动顶点的法向量修正</h3>
+
+<p>论文的一个重要特点:<strong>仅通过张量平滑修正法向量,不移动顶点位置</strong>。</p>
+
+<div class="formula">
+$$N_n^{\text{new}} = E_1^{(t+1)} \quad \text{(平滑后张量的最大特征向量)}$$
+<span class="label">(14)</span>
+</div>
+
+<p>这种方法的优势:</p>
+<ul>
+<li>不改变顶点坐标 → 不引入几何变形</li>
+<li>法向量修正后可以直接用于曲率计算和特征检测</li>
+<li>计算效率高(无需顶点重定位)</li>
+</ul>
+
+<h3>5.5 默认参数</h3>
+
+<table>
+<tr><th>参数</th><th>默认值</th><th>说明</th></tr>
+<tr><td>迭代次数</td><td>10</td><td>足以收敛</td></tr>
+<tr><td>邻域范围</td><td>2-ring</td><td>比 1-ring 更稳定,不过度平滑</td></tr>
+</table>
+
+<div class="callout success">
+<div class="callout-title">实验验证</div>
+<p>在噪声 torus 数据上(最大噪声 0.1 $\bar{e}$,$\bar{e}$ 为平均边长),平滑后:</p>
+<ul>
+<li>均值曲率相对误差:9.539 → 0.585(降低 16×)</li>
+<li>高斯曲率相对误差:57.15 → 1.267(降低 45×)</li>
+<li>仅通过替换法向量(不移动顶点),噪声模型的渲染外观变得平滑</li>
+</ul>
+</div>
+
+<h3>5.6 数值示例:各向异性权重计算</h3>
+
+<p>设顶点 $V_n$ 位于棱边上,法向量 $N_n = (0, 0, 1)$。两个邻居顶点:$V_{n'}$ 在切平面内(沿表面),$V_{n''}$ 跨越棱边(到另一侧)。</p>
+
+<h4>邻居 1:沿表面的边</h4>
+
+<p>$V_{n'} = (0.5, 0, 0)$,边向量 $(0.5, 0, 0)$,边长 $l = 0.5$。</p>
+
+<div class="formula">
+$$l^{\perp} = |(V_{n'} - V_n) - (N_n^{\top}(V_{n'} - V_n)) N_n| = |(0.5, 0, 0) - 0| = 0.5$$
+</div>
+
+<div class="formula">
+$$\frac{l^\perp}{l} = \frac{0.5}{0.5} = 1.0, \quad \theta = 90^\circ, \quad \sin\theta = 1.0$$
+</div>
+
+<p>设 $\|A_{n'} + A_n\|/2 = 0.8$,则 $w_{nn'}^A = 0.8 \times 1.0 = 0.8$。<strong>权重大,积极平滑</strong>。</p>
+
+<h4>邻居 2:跨越棱边的边</h4>
+
+<p>$V_{n''} = (0, 0, 0.5)$,边向量 $(0, 0, 0.5)$,几乎沿法向量方向。</p>
+
+<div class="formula">
+$$l^{\perp} = |(0, 0, 0.5) - (0.5)(0, 0, 1)| = |(0, 0, 0)| = 0$$
+</div>
+
+<div class="formula">
+$$\frac{l^\perp}{l} = \frac{0}{0.5} = 0, \quad \theta = 0^\circ, \quad \sin\theta = 0$$
+</div>
+
+<p>$w_{nn''}^A = 0.8 \times 0 = 0$。<strong>权重为零,完全不平滑</strong>--棱边特征被完美保留。</p>
+
+<h4>邻居 3:斜向跨越(一般情况)</h4>
+
+<p>$V_{n'''} = (0.3, 0, 0.3)$,边向量 $(0.3, 0, 0.3)$,边长 $l = 0.424$。</p>
+
+<div class="formula">
+$$l^{\perp} = |(0.3, 0, 0.3) - 0.3 \cdot (0,0,1)| = |(0.3, 0, 0)| = 0.3$$
+</div>
+
+<div class="formula">
+$$\frac{l^\perp}{l} = \frac{0.3}{0.424} = 0.707, \quad \theta = 45^\circ, \quad \sin\theta = 0.707$$
+</div>
+
+<p>$w_{nn'''}^A = 0.8 \times 0.707 = 0.566$。<strong>中等权重,部分平滑</strong>--既不是完全平滑也不是完全保留,取决于边与法向量的夹角。</p>
+
+<h3>5.7 数值示例:平滑前后的 Normal Tensor 对比</h3>
+
+<p>以一个位于近平坦区域的顶点为例,真实几何是平面($\sigma_2 = \sigma_3 = 0$),但网格添加了 $\delta = 0.05$ 的高斯噪声。</p>
+
+<h4>平滑前(1 次迭代 = 原始数据)</h4>
+
+<div class="formula">
+$$A_n^{(0)} = \begin{pmatrix} 0.0025 & 0.0008 & -0.0003 \\ 0.0008 & 0.0031 & 0.0012 \\ -0.0003 & 0.0012 & 1.3287 \end{pmatrix}$$
+</div>
+
+<p>特征值:$\sigma_1 = 1.329$, $\sigma_2 = 0.0036$, $\sigma_3 = 0.0018$。<br>
+Saliency: $S_{Su} = 1.325$, $S_{Cr} = 0.0018$, $S_{Co} = 0.0018$。<br>
+判为 surface,但 $\sigma_2, \sigma_3 > 0$ → <strong>形式满秩,条件数 $\kappa = 738$</strong>。QEM 会误判为可逆。</p>
+
+<h4>平滑后(10 次迭代,2-ring 邻域)</h4>
+
+<div class="formula">
+$$A_n^{(10)} = \begin{pmatrix} 0.00002 & 0.000003 & -0.000001 \\ 0.000003 & 0.000018 & 0.000002 \\ -0.000001 & 0.000002 & 1.3315 \end{pmatrix}$$
+</div>
+
+<p>特征值:$\sigma_1 = 1.332$, $\sigma_2 = 0.00002$, $\sigma_3 = 0.000018$。<br>
+Saliency: $S_{Su} = 1.332$, $S_{Cr} = 0.000002$, $S_{Co} = 0.000018$。<br>
+$\sigma_2, \sigma_3$ 降低了约 <strong>100×</strong> → 条件数 $\kappa = 74000$ → <strong>正确反映了秩亏状态</strong>。</p>
+
+<div class="callout key">
+<div class="callout-title">平滑对 QEM 的具体影响</div>
+<table>
+<tr><th>指标</th><th>平滑前</th><th>平滑后</th><th>改善</th></tr>
+<tr><td>$\sigma_2$</td><td>0.0036</td><td>0.00002</td><td>180×</td></tr>
+<tr><td>$\sigma_3$</td><td>0.0018</td><td>0.000018</td><td>100×</td></tr>
+<tr><td>条件数 $\kappa$</td><td>738</td><td>74000</td><td>更准确反映秩亏</td></tr>
+<tr><td>QEM 诊断</td><td>假满秩</td><td>正确诊断为近似秩亏</td><td>-</td></tr>
+<tr><td>$w_i$ 设置</td><td>误设为小值</td><td>正确设为 $w_0 = 10^{-4}$</td><td>-</td></tr>
+</table>
+<p>关键:平滑后条件数反而<strong>增大</strong>--这不是退化,而是<strong>更准确地反映了真实几何</strong>。平滑前的高条件数被噪声"伪装"成良态矩阵,导致 QEM 误判。</p>
+</div>
+
+<!-- ===== 6 ===== -->
+<h2 id="s6"><span class="num">6</span>特征线检测:C0/C1 条件</h2>
+
+<p>有了平滑后的 Normal Tensor、主曲率 $k_{\max}$ 和主方向 $E_2, E_3$,可以检测特征线上的控制点。顶点 $V_n$ 被判定为特征点的条件如下:</p>
+
+<h3>6.1 条件 C0:锐特征检测</h3>
+
+<div class="formula">
+$$\text{C0:} \quad \text{feature saliency} \neq S_{Su} \quad \text{(即不是 surface 类型)}$$
+<span class="label">(15)</span>
+</div>
+
+<p>通过式 (5) 的分类规则,设 $\varphi = 45^\circ$($\varepsilon \approx 5$)。满足 C0 的顶点位于锐边和角点上。对应函数:<code>IsSharpVtx(V_n)</code>。</p>
+
+<h3>6.2 条件 C1:曲率间隙</h3>
+
+<p>沿 $E_2$ 方向(最大曲率方向)检查 $k_{\max}$ 是否存在间隙。给定 $V_n$ 及其在 $E_2$ 和 $-E_2$ 方向的最近邻 $V_{n,F}$ 和 $V_{n,B}$:</p>
+
+<div class="formula">
+$$\text{C1:} \quad \left|\frac{k_{\max}(V_n)}{k_{\max}(V_{n'})}\right| > e \quad \text{或} \quad \left|\frac{k_{\max}(V_n)}{k_{\max}(V_{n'})}\right| < \frac{1}{e}$$
+<span class="label">(16)</span>
+</div>
+
+<p>其中 $e = 2$(默认),$n' \in \{n_F, n_B\}$。</p>
+
+<div class="callout key">
+<div class="callout-title">曲率间隙的含义</div>
+<p>比值 $> e$ 或 $< 1/e$ 意味着 $V_n$ 处的曲率是邻居的<strong>至少 2 倍</strong>或<strong>至多一半</strong>。这标识了曲率突变的位置--即 C1 边界。典型场景:从平面(低曲率)进入 fillet(高曲率)的边界。</p>
+<p>附加条件:沿该方向继续走一步,间隙<strong>不再存在</strong>--确保检测到的是边界点而非整个高曲率区域内部。</p>
+</div>
+
+<p>对应函数:<code>HasCurvatureGap(V_n)</code>。检测的是图中的黄色线 (A) 类型特征。</p>
+
+<h3>6.2.1 数值示例:C1 曲率间隙检测</h3>
+
+<p>考虑一个 fillet 边缘场景。$V_n$ 位于 fillet 边界(从平面进入圆角的过渡点),沿 $E_2$ 方向有两个邻居 $V_{n,F}$(fillet 内侧)和 $V_{n,B}$(平面侧)。</p>
+
+<h4>典型数值</h4>
+
+<table>
+<tr><th>顶点</th><th>位置描述</th><th>$k_{\max}$</th><th>$|k_{\max}|$</th></tr>
+<tr><td>$V_{n,B}$(平面侧)</td><td>平面上的点</td><td>$0.01$</td><td>$0.01$</td></tr>
+<tr><td>$V_n$(边界点)</td><td>fillet 边缘</td><td>$2.0$</td><td>$2.0$</td></tr>
+<tr><td>$V_{n,F}$(fillet 内)</td><td>fillet 中部</td><td>$2.1$</td><td>$2.1$</td></tr>
+</table>
+
+<h4>检测过程</h4>
+
+<p><strong>检查 $V_n$ 与 $V_{n,B}$(平面侧):</strong></p>
+
+<div class="formula">
+$$\left|\frac{k_{\max}(V_n)}{k_{\max}(V_{n,B})}\right| = \frac{2.0}{0.01} = 200 > e = 2 \quad \checkmark \text{ 间隙存在}$$
+</div>
+
+<p><strong>检查 $V_n$ 与 $V_{n,F}$(fillet 内侧):</strong></p>
+
+<div class="formula">
+$$\left|\frac{k_{\max}(V_n)}{k_{\max}(V_{n,F})}\right| = \frac{2.0}{2.1} = 0.952, \quad \frac{1}{e} = 0.5 < 0.952 < 2 = e$$
+</div>
+
+<p>无间隙 → $V_n$ 是 fillet 内部点,不是边界点。<strong>但与平面侧有间隙 → $V_n$ 是边界点</strong>。</p>
+
+<p><strong>附加条件验证</strong>:沿 $E_2$ 再走一步到 $V_{n,F}$,检查 $V_{n,F}$ 与 $V_{n,F2}$(fillet 更深处):</p>
+
+<div class="formula">
+$$\left|\frac{k_{\max}(V_{n,F})}{k_{\max}(V_{n,F2})}\right| = \frac{2.1}{2.05} = 1.024 < 2 = e \quad \text{无间隙}$$
+</div>
+
+<p>附加条件满足(间隙不再存在)→ <strong>确认 $V_n$ 是 C1 边界点</strong>,而非 fillet 内部点。</p>
+
+<div class="callout key">
+<div class="callout-title">检测逻辑总结</div>
+<p>核心思路:曲率间隙在边界处<strong>出现一次</strong>然后<strong>消失</strong>。如果间隙持续存在,说明在特征线内部而非边界。这个"出现且消失"的模式精确定位了 C1 边界。</p>
+</div>
+
+<h3>6.2.2 数值示例:C3 凸凹转换检测</h3>
+
+<p>考虑一个 S 形曲面,从凸区域过渡到凹区域。沿 $E_2$ 方向的三个顶点:</p>
+
+<table>
+<tr><th>顶点</th><th>$k_{\max}$(含符号)</th><th>区域类型</th></tr>
+<tr><td>$V_{n,B}$</td><td>$+1.5$</td><td>凸(正曲率)</td></tr>
+<tr><td>$V_n$</td><td>$+0.1$</td><td>过渡点</td></tr>
+<tr><td>$V_{n,F}$</td><td>$-1.3$</td><td>凹(负曲率)</td></tr>
+</table>
+
+<p>检测条件:$k_{\max}(V_{n,B}) \cdot k_{\max}(V_{n,F}) = 1.5 \times (-1.3) = -1.95 < 0$ → <strong>符号变化</strong> → $V_n$ 被标记为凸凹转换点 (C3)。</p>
+
+<p>在汽车外观设计中,这种点位于车顶到车身的过渡处--凸曲面变为凹曲面。保留这些特征点可以防止简化后过渡区域消失。</p>
+
+<h3>6.3 条件 C2:正交流向</h3>
+
+<div class="formula">
+$$\text{C2:} \quad \text{非平坦区域中相邻顶点的主方向互相正交}$$
+<span class="label">(17)</span>
+</div>
+
+<p>当两个相邻区域的曲率方向发生显著偏转时(如两个不同方向的 fillet 相交),主方向场呈现正交模式。对应函数:<code>IsOrthogonal(V_n)</code>。检测的是图中 (B) 类型特征。</p>
+
+<h3>6.4 条件 C3:凸凹转换</h3>
+
+<div class="formula">
+$$\text{C3:} \quad k_{\max} \text{ 的符号沿 } E_2 \text{ 方向发生变化}$$
+<span class="label">(18)</span>
+</div>
+
+<p>$k_{\max} > 0$ 表示凸区域,$k_{\max} < 0$ 表示凹区域。符号变化处即为凸凹分界线。对应函数:<code>IsConvexConcave(V_n)</code>。检测的是图中 (C) 类型特征。</p>
+
+<h3>6.5 综合检测</h3>
+
+<p>最终判定逻辑:</p>
+
+<div class="diagram">对每个顶点 V_n:
+  ├─ C0: IsSharpVtx(V_n)        → 检测 C0 边界(锐边、角点)
+  ├─ C1: HasCurvatureGap(V_n)   → 检测 C1 边界(曲率突变)
+  ├─ C2: IsOrthogonal(V_n)      → 检测方向正交区域
+  └─ C3: IsConvexConcave(V_n)   → 检测凸凹转换线
+
+  交叉验证: 检查 E_3 方向的邻居 V_{n,R}, V_{n,L}
+            是否也满足 C0-C3 → 排除噪声误报
+
+  最终: union(C0, C1, C2, C3) 且通过交叉验证 → 特征点</div>
+
+<h3>6.6 与现有方法的对比</h3>
+
+<table>
+<tr><th>方法</th><th>(A) 曲率间隙</th><th>(B) 正交流向</th><th>(C) 凸凹转换</th><th>需要聚类</th><th>需要角度阈值</th><th>抗噪</th></tr>
+<tr><td>Kim [9](K-means 聚类)</td><td>✓</td><td>✓</td><td>✗</td><td>是</td><td>否</td><td>-</td></tr>
+<tr><td>Jiao [8](dihedral angle)</td><td>✗</td><td>✓</td><td>-</td><td>否</td><td>是(1° for C1)</td><td>✗</td></tr>
+<tr><td>本文</td><td style="color:#059669">✓</td><td style="color:#059669">✓</td><td style="color:#059669">✓</td><td style="color:#059669">否</td><td style="color:#059669">否</td><td style="color:#059669">✓</td></tr>
+</table>
+
+<div class="callout warn">
+<div class="callout-title">dihedral angle 方法的根本问题</div>
+<p>dihedral angle $\theta$ 在 $V_n$ 处:粗网格中 $\theta$ 偏大,细网格中 $\theta$ 偏小--<strong>即使曲率半径 $R$ 不变</strong>。这意味着角度阈值依赖于网格分辨率,无法通用。Normal Tensor 的特征值分析基于法向量分布(本质是曲率信息),不受网格密度影响。</p>
+</div>
+
+<!-- ===== 7 ===== -->
+<h2 id="s7"><span class="num">7</span>特征线生成:从点到线</h2>
+
+<h3>7.1 噪声数据的邻域搜索</h3>
+
+<p>在 CAD 模型中,网格边通常沿特征线排列。但在扫描数据中,网格边方向随机,需要:</p>
+<ul>
+<li>在 <strong>2-ring 邻域</strong>内搜索 $V_{n,F}, V_{n,B}, V_{n,R}, V_{n,L}$(沿 $E_2, -E_2, E_3, -E_3$ 方向的最近邻)</li>
+<li>使用平滑后的 Normal Tensor 获得稳定的主方向</li>
+</ul>
+
+<h3>7.2 代表点选取与线追踪</h3>
+
+<div class="diagram">步骤 1: 提取特征点(满足 C0-C3 且通过交叉验证)
+         ↓
+步骤 2: 选取代表点
+         ├─ 取每个特征点的 2-3 ring 邻域内特征点的质心
+         └─ 将质心投影回网格表面
+         ↓
+步骤 3: 沿 E_3 方向追踪代表点
+         ├─ 从一个代表点出发
+         ├─ 沿 E_3(最小曲率方向 = 沿特征线方向)寻找下一个代表点
+         └─ 串联成线
+         ↓
+步骤 4: 插值生成平滑特征线</div>
+
+<div class="callout key">
+<div class="callout-title">为什么沿 $E_3$ 追踪?</div>
+<p>特征线(如 fillet edge)沿其延伸方向的曲率变化最小--这正是 $E_3$($k_{\min}$ 方向)。$E_2$($k_{\max}$ 方向)横切特征线。因此用 $E_3$ 作为追踪方向,用 $E_2$ 作为检测方向。</p>
+</div>
+
+<!-- ===== 8 ===== -->
+<h2 id="s8"><span class="num">8</span>Normal Tensor 与 QEM 的深层联系</h2>
+
+<p>本章是全文的核心:详细推导 Normal Tensor 框架如何增强 QEM 网格简化。从矩阵结构等价性出发,逐层建立从特征检测到 QEM 权重设置的完整桥梁。</p>
+
+<h3 id="s8-1">8.1 矩阵结构的等价性:严格证明</h3>
+
+<h4>定理:Normal Tensor 与 QEM 的 $A$ 矩阵是同一数学对象</h4>
+
+<p><strong>QEM 的 $A$ 矩阵</strong>(Garland &amp; Heckbert 1997,式 (7) 的左上 3×3 子块):</p>
+
+<div class="formula">
+$$A^{\text{QEM}}_i = \sum_{ijk \in N_i} a^i_{jk} \, \hat{n}_{ijk} \, \hat{n}_{ijk}^{\top}$$
+</div>
+
+<p>其中 $a^i_{jk} = a_{jk}/3$ 是面 $ijk$ 面积的三分之一(barycentric area)。</p>
+
+<p><strong>Normal Tensor</strong>(本文式 (1)):</p>
+
+<div class="formula">
+$$A_n = \sum_{n' \in \mathcal{F}(n)} w_{nn'} \, N_{n'}^f \, N_{n'}^{f\top}$$
+</div>
+
+<p>其中 $w_{nn'}$ 采用 Nelson Max [14] 的面积加权。</p>
+
+<p><strong>Nelson Max 权重</strong>:对于顶点 $V_n$ 在面 $f$ 中的权重,定义为:</p>
+
+<div class="formula">
+$$w_{nf} = \frac{1}{2} \|e_{\text{opposite}}\| \cdot h_n$$
+</div>
+
+<p>其中 $e_{\text{opposite}}$ 是面 $f$ 中对着 $V_n$ 的边,$h_n$ 是 $V_n$ 到该边的高。这恰好等于<strong>面面积的三分之一</strong>:</p>
+
+<div class="formula">
+$$w_{nf} = \frac{1}{2} \cdot \|e_{\text{opp}}\| \cdot h_n = \frac{1}{3} \cdot \frac{1}{2} \|e_{\text{opp}}\| \cdot h_n \cdot 3 = \frac{a_f}{3} = a^n_f$$
+</div>
+
+<p>因此:</p>
+
+<div class="formula">
+$$\boxed{A_n \equiv A^{\text{QEM}}_n \quad \text{(严格相等,仅差归一化约定)}}$$
+<span class="label">(19)</span>
+</div>
+
+<div class="callout success">
+<div class="callout-title">等价性的意义</div>
+<p>Normal Tensor 的所有数学性质--特征值、特征向量、秩、条件数、平滑公式--<strong>直接就是 QEM 矩阵的性质</strong>。无需任何近似或假设。</p>
+</div>
+
+<h3 id="s8-2">8.2 特征值诊断 QEM 秩亏:精确对应</h3>
+
+<p>QEM 在边坍缩时需要求解 $A_{ij} x^* = -b_{ij}$,要求 $A_{ij}$ 可逆。$A_{ij}$ 的可逆性由其特征值决定,而特征值正是 Normal Tensor 的 $\sigma_1, \sigma_2, \sigma_3$。</p>
+
+<h4>特征值与几何场景的精确对应</h4>
+
+<table>
+<tr><th>特征值模式</th><th>几何场景</th><th>$A$ 的秩</th><th>QEM 状态</th><th>Normal Tensor 分类</th></tr>
+<tr><td>$\sigma_1 \gg \sigma_2 \gg \sigma_3 > 0$</td><td>高曲率区域(球面、角点)</td><td>3(满秩)</td><td style="color:#059669">良好 ✓</td><td>corner ($S_{Co}$ 大)</td></tr>
+<tr><td>$\sigma_1 \gg \sigma_2 \gg \sigma_3 \approx 0$</td><td>棱边、折痕</td><td>2</td><td style="color:#ea580c">秩亏 1 ⚠</td><td>crease ($S_{Cr}$ 大)</td></tr>
+<tr><td>$\sigma_1 \gg \sigma_2 \approx \sigma_3 \approx 0$</td><td>平坦区域</td><td>1</td><td style="color:#dc2626">秩亏 2 ✗</td><td>surface ($S_{Su}$ 大)</td></tr>
+<tr><td>$\sigma_1 \approx \sigma_2 \approx \sigma_3 \approx 0$</td><td>孤立顶点</td><td>0</td><td style="color:#dc2626">零矩阵 ✗</td><td>-</td></tr>
+</table>
+
+<h4>精确诊断公式</h4>
+
+<p>给定 $A_{ij}$ 的特征值 $\sigma_1 \geq \sigma_2 \geq \sigma_3 \geq 0$,QEM 的状态可精确诊断:</p>
+
+<div class="formula">
+$$\text{条件数} \quad \kappa(A_{ij}) = \frac{\sigma_1}{\sigma_3}$$
+<span class="label">(20)</span>
+</div>
+
+<div class="formula">
+$$\text{秩亏方向} \quad \text{null}(A_{ij}) = \text{span}\{E_i : \sigma_i \approx 0\}$$
+<span class="label">(21)</span>
+</div>
+
+<p>具体场景:</p>
+
+<ul>
+<li><strong>平坦区域</strong>($\sigma_2, \sigma_3 \approx 0$):$A$ 在 $E_2, E_3$ 方向(整个切平面)无约束 → $x, y$ 坐标任意 → 解不唯一</li>
+<li><strong>棱边</strong>($\sigma_3 \approx 0$):$A$ 在 $E_3$ 方向(沿棱边方向)无约束 → 沿棱边移动无代价 → 顶点可能在棱边上滑动</li>
+<li><strong>角点</strong>($\sigma_1, \sigma_2, \sigma_3$ 均大):$A$ 满秩 → 解唯一且稳定 → 无需任何修补</li>
+</ul>
+
+<div class="callout key">
+<div class="callout-title">Normal Tensor 给 QEM 提供的精确诊断</div>
+<p>标准 QEM 实现中，判断 $A$ 是否奇异需要计算 $\det(A)$ 或做 SVD——前者只给“是/否”，后者计算昂贵。Normal Tensor 框架提供<strong>三层诊断</strong>：</p>
+<ol>
+<li>$S_{Su} = \sigma_1 - \sigma_2$ 大 → 平坦区域 → $A$ 严重秩亏</li>
+<li>$S_{Cr} = \sigma_2 - \sigma_3$ 大 → 棱边 → $A$ 秩亏 1，方向为 $E_3$</li>
+<li>$S_{Co} = \sigma_3$ 大 → 角点 → $A$ 满秩，无需处理</li>
+</ol>
+<p>且每个诊断都附带<strong>精确的缺陷方向</strong>（$E_2$ 或 $E_3$），可以直接用于定向修补。</p>
+</div>
+
+<h4>数值示例：QEM 方程组求解的对比</h4>
+
+<p>使用 2.4 节场景 B（棱边顶点），$A = \frac{2}{3}\begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix}$，设 $\mathbf{b} = (-0.4, 0, -0.6)^{\top}$。</p>
+
+<h4>标准 QEM 求解：$Ax^* = -b$</h4>
+
+<div class="formula">
+$$\frac{2}{3}\begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix} \begin{pmatrix} x \\ y \\ z \end{pmatrix} = \begin{pmatrix} 0.4 \\ 0 \\ 0.6 \end{pmatrix}$$
+</div>
+
+<p>展开：$\frac{2}{3}x = 0.4 \to x^* = 0.6$，$0 \cdot y = 0$（任意），$\frac{2}{3}z = 0.6 \to z^* = 0.9$。</p>
+
+<p>解：$x^* = (0.6, \textbf{?}, 0.9)$。<strong>$y$ 坐标无约束</strong>——顶点可以在棱边方向上自由滑动。标准 QEM 的 fallback 通常是取 $y = 0$（或取两端点中点），这意味着<strong>坍缩后的顶点位置在棱边上是任意的</strong>。</p>
+
+<h4>增强 QEM 求解（加入 Line Quadric）</h4>
+
+<p>Line Quadric $A^l = I - E_1 E_1^{\top} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0 \end{pmatrix}$（填补切平面），$E_1 = (0,0,1)$。</p>
+
+<div class="formula">
+$$\tilde{A} = A + w \cdot a \cdot A^l = \frac{2}{3}\begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix} + 0.0001 \cdot 1.0 \cdot \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 0 \end{pmatrix}$$
+</div>
+
+<div class="formula">
+$$= \begin{pmatrix} 0.667 & 0 & 0 \\ 0 & 0.0001 & 0 \\ 0 & 0 & 0.667 \end{pmatrix}$$
+</div>
+
+<p>特征值：$\sigma_1 = 0.667$, $\sigma_2 = 0.667$, $\sigma_3 = 0.0001$。满秩！条件数 $\kappa = 6670$——虽然大但可解。</p>
+
+<p>求解 $\tilde{A} x^* = -\tilde{b}$（设 $\tilde{b}_y = -0.00005$）：</p>
+
+<div class="formula">
+$$x^* = 0.6, \quad y^* = \frac{0.00005}{0.0001} = 0.5, \quad z^* = 0.9$$
+</div>
+
+<p>解：$x^* = (0.6, 0.5, 0.9)$。<strong>$y$ 坐标现在有约束了</strong>——Line Quadric 把顶点拉向原始顶点在切平面内的投影，不再在棱边上随机滑动。$y^* = 0.5$ 恰好是两端点的中点——这正是 Line Quadric 的 Fréchet 均值效应。</p>
+
+<div class="callout success">
+<div class="callout-title">求解对比汇总</div>
+<table>
+<tr><th>方法</th><th>$x^*$</th><th>$y^*$</th><th>$z^*$</th><th>$A$ 可逆</th><th>解的来源</th></tr>
+<tr><td>标准 QEM</td><td>0.6</td><td><strong>任意</strong></td><td>0.9</td><td style="color:#dc2626">否（秩 2）</td><td>fallback 启发式</td></tr>
+<tr><td>+ Line Quadric</td><td>0.6</td><td>0.5</td><td>0.9</td><td style="color:#059669">是（满秩）</td><td>Cholesky 直接解</td></tr>
+</table>
+<p>Line Quadric 用 $w = 10^{-4}$ 的小权重，在 $x, z$ 方向几乎不影响 QEM 的解（$0.667 \gg 0.0001$），但在 $y$ 方向提供了唯一约束。这就是“小权重填补秩亏”的精确机制。</p>
+</div>
+
+<h3 id="s8-3">8.3 特征显著性 → 自适应 QEM 权重</h3>
+
+<p>Line Quadrics 方法(SGP 2025)在 QEM 中加入 $w_i \cdot a_i \cdot (I - \hat{n}\hat{n}^{\top})$ 来填补切平面方向。但 $w_i$ 如何设置?原文仅给出 uniform $w = 10^{-4}$。Normal Tensor 的特征显著性提供了<strong>原理性的自适应权重方案</strong>:</p>
+
+<h4>权重映射公式</h4>
+
+<div class="formula">
+$$w_i = w_0 + \alpha \cdot \frac{S_{Cr}(V_i)}{S_{Su}(V_i) + \epsilon} + \beta \cdot S_{Co}(V_i)$$
+<span class="label">(22)</span>
+</div>
+
+<p>其中:</p>
+<ul>
+<li>$w_0 = 10^{-4}$:基础权重(保证平坦区域也有约束)</li>
+<li>$\alpha$:crease 保护系数(典型 $\alpha = 10^{-2}$)</li>
+<li>$\beta$:corner 保护系数(典型 $\beta = 10^{-1}$)</li>
+<li>$\epsilon$:防止除零的小常数</li>
+</ul>
+
+<h4>各区域的权重效果</h4>
+
+<table>
+<tr><th>区域类型</th><th>$S_{Su}$</th><th>$S_{Cr}$</th><th>$S_{Co}$</th><th>$w_i$</th><th>QEM 效果</th></tr>
+<tr><td>平坦区域</td><td>大</td><td>≈ 0</td><td>≈ 0</td><td>≈ $w_0$</td><td>基础约束 → 均匀简化</td></tr>
+<tr><td>棱边/折痕</td><td>中</td><td>大</td><td>≈ 0</td><td>$w_0 + \alpha \cdot \text{large}$</td><td>强约束 → 保留棱边</td></tr>
+<tr><td>角点</td><td>小</td><td>中</td><td>大</td><td>$w_0 + \beta \cdot \text{large}$</td><td>最强约束 → 保护角点</td></tr>
+<tr><td>Fillet 边缘</td><td>中</td><td>中</td><td>≈ 0</td><td>$w_0 + \alpha \cdot \text{medium}$</td><td>中等约束 → 适度保留</td></tr>
+</table>
+
+<div class="callout success">
+<div class="callout-title">与 Line Quadrics 的协同</div>
+<p>Line Quadrics 的 $A^l = I - \hat{n}\hat{n}^{\top}$ 填补整个切平面。Normal Tensor 进一步告诉我们:</p>
+<ul>
+<li>在棱边处,$E_3$ 方向(沿棱边)比 $E_2$ 方向(横切棱边)更需要约束 → 可以用<strong>方向性 Line Quadric</strong>:$A^l_{\text{dir}} = w_{E_2} E_2 E_2^{\top} + w_{E_3} E_3 E_3^{\top}$,其中 $w_{E_3} > w_{E_2}$</li>
+<li>在角点处,$A$ 已满秩 → $w_i$ 可以设为 0 → 不浪费约束力</li>
+</ul>
+</div>
+
+<h4>数值示例:三种顶点的自适应权重计算</h4>
+
+<p>取 $w_0 = 10^{-4}$, $\alpha = 10^{-2}$, $\beta = 10^{-1}$, $\epsilon = 10^{-6}$。使用第 2.4 节的四种场景数据:</p>
+
+<h4>顶点 1:平坦区域顶点(场景 A)</h4>
+
+<div class="formula">
+$$S_{Su} = 1.333, \quad S_{Cr} = 0, \quad S_{Co} = 0$$
+</div>
+
+<div class="formula">
+$$w_i = 10^{-4} + 10^{-2} \cdot \frac{0}{1.333 + 10^{-6}} + 10^{-1} \cdot 0 = 10^{-4} = 0.0001$$
+</div>
+
+<p>权重 = 基础值 $w_0$。Line Quadric 仅提供基础的质心约束,允许积极简化。<strong>效果:均匀分布顶点</strong>。</p>
+
+<h4>顶点 2:棱边顶点(场景 B)</h4>
+
+<div class="formula">
+$$S_{Su} = 0, \quad S_{Cr} = 0.667, \quad S_{Co} = 0$$
+</div>
+
+<div class="formula">
+$$w_i = 10^{-4} + 10^{-2} \cdot \frac{0.667}{0 + 10^{-6}} + 10^{-1} \cdot 0 = 10^{-4} + 6670 = 6670$$
+</div>
+
+<p>权重 = 6670。Line Quadric 强烈约束此顶点 → 坍缩代价极高 → <strong>棱边被保留</strong>。</p>
+
+<div class="callout warn">
+<div class="callout-title">分母问题</div>
+<p>当 $S_{Su} \approx 0$ 时,$S_{Cr}/S_{Su}$ 爆炸。实际实现中应加 clip:$w_i = w_0 + \alpha \cdot \min(S_{Cr}/(S_{Su}+\epsilon),\; w_{\max})$,其中 $w_{\max} = 10^4$。或者改用乘性形式:$w_i = w_0 \cdot (1 + \alpha' S_{Cr}) \cdot (1 + \beta' S_{Co})$。</p>
+</div>
+
+<h4>顶点 3:角点顶点(场景 C)</h4>
+
+<div class="formula">
+$$S_{Su} = 0, \quad S_{Cr} = 0, \quad S_{Co} = 0.667$$
+</div>
+
+<div class="formula">
+$$w_i = 10^{-4} + 10^{-2} \cdot \frac{0}{0 + 10^{-6}} + 10^{-1} \cdot 0.667 = 10^{-4} + 0.0667 = 0.0668$$
+</div>
+
+<p>权重 = 0.0668。角点已有满秩 $A$ → Line Quadric 仅提供补充约束。但 $\beta S_{Co}$ 项使角点坍缩代价仍比平坦区高 668× → <strong>角点得到额外保护</strong>。</p>
+
+<h4>顶点 4:近平坦区域(场景 D,噪声网格)</h4>
+
+<div class="formula">
+$$S_{Su} = 1.333, \quad S_{Cr} \approx 0, \quad S_{Co} \approx 6.7 \times 10^{-5}$$
+</div>
+
+<div class="formula">
+$$w_i = 10^{-4} + 10^{-2} \cdot \frac{0}{1.333 + 10^{-6}} + 10^{-1} \cdot 6.7 \times 10^{-5} = 10^{-4} + 6.7 \times 10^{-6} \approx 1.07 \times 10^{-4}$$
+</div>
+
+<p>权重 ≈ $w_0$。噪声没有导致权重误判 → <strong>近平坦区域被正确当作平坦区域处理</strong>。</p>
+
+<h4>四种顶点权重汇总</h4>
+
+<table>
+<tr><th>顶点类型</th><th>$S_{Su}$</th><th>$S_{Cr}$</th><th>$S_{Co}$</th><th>$w_i$</th><th>相对平坦区</th><th>效果</th></tr>
+<tr><td>平坦</td><td>1.333</td><td>0</td><td>0</td><td>0.0001</td><td>1×</td><td>积极简化</td></tr>
+<tr><td>棱边</td><td>0</td><td>0.667</td><td>0</td><td>6670 (clip)</td><td>66700×</td><td>强烈保留</td></tr>
+<tr><td>角点</td><td>0</td><td>0</td><td>0.667</td><td>0.0668</td><td>668×</td><td>额外保护</td></tr>
+<tr><td>近平坦(噪声)</td><td>1.333</td><td>~0</td><td>6.7e-5</td><td>1.07e-4</td><td>1.07×</td><td>当作平坦处理</td></tr>
+</table>
+
+<p>关键:从 $w_i$ 的比值可以看出,自适应权重使得棱边顶点的坍缩代价是平坦区的 <strong>66700 倍</strong>--这确保了在简化过程中棱边几乎不会被碰,而平坦区域可以积极简化。这种自适应对比是 uniform $w = 10^{-4}$ 无法实现的。</p>
+
+<h3 id="s8-4">8.4 主方向 → 引导坍缩方向</h3>
+
+<p>标准 QEM 按标量代价排序边,不考虑<strong>边的方向</strong>。Normal Tensor 的主方向提供了方向信息:</p>
+
+<h4>方向引导的坍缩策略</h4>
+
+<p>对边 $V_i V_j$,计算边方向相对于主方向的投影:</p>
+
+<div class="formula">
+$$\cos\theta_{ij} = \frac{|(V_j - V_i)^{\top} E_3|}{\|V_j - V_i\|}$$
+<span class="label">(23)</span>
+</div>
+
+<p>其中 $\theta_{ij}$ 是边与 $E_3$(最小曲率方向)的夹角。</p>
+
+<table>
+<tr><th>边的方向</th><th>$\cos\theta$</th><th>含义</th><th>坍缩策略</th></tr>
+<tr><td>沿 $E_3$(最小曲率方向)</td><td>≈ 1</td><td>边沿特征线延伸方向</td><td style="color:#059669">优先坍缩 ✓</td></tr>
+<tr><td>沿 $E_2$(最大曲率方向)</td><td>≈ 0</td><td>边横切特征线</td><td style="color:#dc2626">推迟坍缩 ✗</td></tr>
+<tr><td>沿法向量 $E_1$</td><td>≈ 0</td><td>边跨越表面(法向)</td><td>正常处理</td></tr>
+</table>
+
+<p>方向引导的代价调整:</p>
+
+<div class="formula">
+$$\text{cost}_{ij}^{\text{dir}} = \text{cost}_{ij}^{\text{QEM}} \cdot \big(1 + \gamma \cdot \sin^2\theta_{ij}\big)$$
+<span class="label">(24)</span>
+</div>
+
+<p>其中 $\gamma > 0$ 控制方向引导强度。沿 $E_3$ 的边 $\sin^2\theta \approx 0$ → 代价不变 → 优先坍缩。横切 $E_2$ 的边 $\sin^2\theta \approx 1$ → 代价增大 → 推迟坍缩。</p>
+
+<div class="callout key">
+<div class="callout-title">具体效果</div>
+<p>在 fillet 区域,沿 fillet 延伸方向的边被优先坍缩 → fillet 变窄但不断裂。横切 fillet 的边被保留 → fillet 的形状特征得以维持。这比标准 QEM 的"随机选边"或 Line Quadrics 的"仅按距离排序"更精确。</p>
+</div>
+
+<h4>数值示例:fillet 区域的方向引导</h4>
+
+<p>设 fillet 半径 $R = 1$,延伸方向为 $E_3 = (0, 1, 0)$,横切方向 $E_2 = (1, 0, 0)$,法向量 $E_1 = (0, 0, 1)$。取 $\gamma = 0.5$。</p>
+
+<h4>边 A:沿 fillet 延伸方向</h4>
+
+<p>边向量 $V_j - V_i = (0, 0.3, 0)$,$\|V_j - V_i\| = 0.3$。</p>
+
+<div class="formula">
+$$\cos\theta_A = \frac{|(0, 0.3, 0) \cdot (0, 1, 0)|}{0.3} = 1.0, \quad \sin^2\theta_A = 0$$
+</div>
+
+<div class="formula">
+$$\text{cost}_A^{\text{dir}} = \text{cost}_A^{\text{QEM}} \cdot (1 + 0.5 \times 0) = \text{cost}_A^{\text{QEM}}$$
+</div>
+
+<p>代价不变 → <strong>优先坍缩</strong>。这是沿特征线的边,坍缩后 fillet 变窄但特征线不断裂。</p>
+
+<h4>边 B:横切 fillet 方向</h4>
+
+<p>边向量 $V_j - V_i = (0.3, 0, 0)$,$\|V_j - V_i\| = 0.3$。</p>
+
+<div class="formula">
+$$\cos\theta_B = \frac{|(0.3, 0, 0) \cdot (0, 1, 0)|}{0.3} = 0, \quad \sin^2\theta_B = 1$$
+</div>
+
+<div class="formula">
+$$\text{cost}_B^{\text{dir}} = \text{cost}_B^{\text{QEM}} \cdot (1 + 0.5 \times 1) = 1.5 \times \text{cost}_B^{\text{QEM}}$$
+</div>
+
+<p>代价增加 50% → <strong>推迟坍缩</strong>。横切 fillet 的边被保留 → fillet 的曲率特征得以维持。</p>
+
+<h4>边 C:对角方向(45°)</h4>
+
+<p>边向量 $V_j - V_i = (0.2, 0.2, 0)$,$\|V_j - V_i\| = 0.283$。</p>
+
+<div class="formula">
+$$\cos\theta_C = \frac{|0.2|}{0.283} = 0.707, \quad \sin^2\theta_C = 0.5$$
+</div>
+
+<div class="formula">
+$$\text{cost}_C^{\text{dir}} = \text{cost}_C^{\text{QEM}} \cdot (1 + 0.5 \times 0.5) = 1.25 \times \text{cost}_C^{\text{QEM}}$$
+</div>
+
+<p>代价增加 25% → 介于两者之间。对角方向的边按方向部分调整代价。</p>
+
+<h4>三条边的方向引导效果汇总</h4>
+
+<table>
+<tr><th>边</th><th>方向</th><th>$\theta$</th><th>$\sin^2\theta$</th><th>代价乘数</th><th>效果</th></tr>
+<tr><td>A</td><td>沿 $E_3$(fillet 延伸)</td><td>0°</td><td>0</td><td>1.0×</td><td style="color:#059669">优先坍缩</td></tr>
+<tr><td>C</td><td>对角 45°</td><td>45°</td><td>0.5</td><td>1.25×</td><td>中等推迟</td></tr>
+<tr><td>B</td><td>沿 $E_2$(横切 fillet)</td><td>90°</td><td>1.0</td><td>1.5×</td><td style="color:#dc2626">推迟坍缩</td></tr>
+</table>
+
+<div class="callout success">
+<div class="callout-title">效果量化</div>
+<p>在 fillet 区域,方向引导使得沿 fillet 的边比横切 fillet 的边坍缩概率高约 <strong>1.5×</strong>(代价乘数比的倒数)。这不是禁止横切坍缩,而是让优先队列<strong>自然地先选沿 fillet 的边</strong>。结果:fillet 简化后变窄但保持连续,而非断裂成碎片。</p>
+</div>
+
+<h3 id="s8-5">8.5 张量平滑 → 鲁棒 QEM</h3>
+
+<p>在噪声网格上,QEM 的 $A$ 矩阵被噪声干扰:</p>
+
+<div class="formula">
+$$A^{\text{noisy}} = A^{\text{true}} + A^{\text{noise}}$$
+</div>
+
+<p>噪声项 $A^{\text{noise}}$ 的效果:</p>
+<ul>
+<li>在平坦区域:$\sigma_2, \sigma_3$ 从 0 变成 $\sim \varepsilon_{\text{noise}}^2$ → <strong>假满秩</strong> → SVD 判定不奇异 → 实际解被噪声主导</li>
+<li>在棱边:$\sigma_3$ 从 0 变成 $\sim \varepsilon_{\text{noise}}^2$ → <strong>假满秩</strong> → 沿棱边方向的约束是噪声 → 顶点在棱边上随机滑动</li>
+<li>特征值比 $\sigma_2/\sigma_3$ 从 $\infty$ 变成有限值 → <strong>误判特征类型</strong></li>
+</ul>
+
+<h4>将 Normal Tensor 平滑直接应用于 QEM</h4>
+
+<p>由于 $A_n \equiv A^{\text{QEM}}_n$,式 (12) 的平滑公式可以直接用于 QEM 的 $A$ 矩阵:</p>
+
+<div class="formula">
+$$A_i^{\text{QEM},(t+1)} \leftarrow A_i^{\text{QEM},(t)} + \sum_{j \in \mathcal{N}(i)} w_{ij}^A \big(A_j^{\text{QEM},(t)} - A_i^{\text{QEM},(t)}\big)$$
+<span class="label">(25)</span>
+</div>
+
+<p>完整 QEM quadric 的平滑(同时平滑 $A$, $\mathbf{b}$, $c$):</p>
+
+<div class="formula">
+$$Q_i^{(t+1)} \leftarrow Q_i^{(t)} + \sum_{j \in \mathcal{N}(i)} w_{ij}^A \big(Q_j^{(t)} - Q_i^{(t)}\big)$$
+<span class="label">(26)</span>
+</div>
+
+<div class="callout key">
+<div class="callout-title">各向异性 QEM 平滑的关键优势</div>
+<ul>
+<li><strong>跨特征的边</strong>:$l^{\perp}/l \approx 0$ → 权重 ≈ 0 → <strong>不平滑</strong> → 保留特征边界</li>
+<li><strong>沿表面的边</strong>:$l^{\perp}/l \approx 1$ → 权重大 → <strong>积极平滑</strong> → 去除噪声</li>
+<li>平滑后的 $A$ 矩阵:平坦区域恢复为正确的低秩,棱边恢复为正确的秩 2</li>
+<li><strong>不需要顶点重定位</strong>--仅修正 quadric 矩阵</li>
+</ul>
+</div>
+
+<h4>数值效果</h4>
+
+<table>
+<tr><th>网格类型</th><th>平滑前 $\sigma_3$(平坦区)</th><th>平滑后 $\sigma_3$</th><th>平滑前条件数</th><th>平滑后条件数</th></tr>
+<tr><td>干净网格</td><td>≈ 0</td><td>≈ 0</td><td>∞</td><td>∞(不变)</td></tr>
+<tr><td>噪声网格(0.1 $\bar{e}$)</td><td>≈ $10^{-3}$(假满秩)</td><td>≈ $10^{-6}$(恢复低秩)</td><td>≈ $10^3$</td><td>≈ $10^6$(正确反映秩亏)</td></tr>
+</table>
+
+<p>关键:平滑后 $\sigma_3$ 更接近 0 → <strong>恢复了正确的秩亏诊断</strong> → Line Quadrics 的 $w_i$ 权重可以正确设置 → 噪声网格上也能实现特征保留简化。</p>
+
+<h3 id="s8-6">8.6 C0/C1 检测 → 特征保留简化</h3>
+
+<h4>特征线 → QEM 约束</h4>
+
+<p>检测到的 C0/C1 特征线直接定义了 QEM 的特征保留策略:</p>
+
+<table>
+<tr><th>特征类型</th><th>检测条件</th><th>QEM 约束</th><th>效果</th></tr>
+<tr><td>C0 锐边</td><td>IsSharpVtx ($\varphi=45^\circ$)</td><td>$w_i \to \infty$(或硬约束)</td><td>完全保留锐边顶点</td></tr>
+<tr><td>C1 Fillet 边缘</td><td>HasCurvatureGap ($e=2$)</td><td>$w_i = \alpha \cdot S_{Cr}$</td><td>软性保留,允许高代价坍缩</td></tr>
+<tr><td>凸凹分界线</td><td>IsConvexConcave</td><td>$w_i$ 增大 + 边界 quadric</td><td>保留区域分界</td></tr>
+<tr><td>方向正交区</td><td>IsOrthogonal</td><td>方向性 Line Quadric</td><td>保留方向变化</td></tr>
+</table>
+
+<h4>Boundary Quadrics 的改进</h4>
+
+<p>Garland &amp; Heckbert (1998) 的 boundary quadrics 在<strong>网格边界</strong>处添加约束平面。Normal Tensor 的特征线检测将这一思想推广到<strong>内部特征边界</strong>:</p>
+
+<div class="formula">
+$$\tilde{Q}_i = Q_i + w_i \, a_i \, Q_i^l + \sum_{\ell \in \text{feature lines through } V_i} \lambda_\ell \, Q_\ell^{\text{boundary}}$$
+<span class="label">(27)</span>
+</div>
+
+<p>其中 $Q_\ell^{\text{boundary}}$ 是在特征线 $\ell$ 处添加的约束 quadric,$\lambda_\ell$ 根据特征类型设置:</p>
+<ul>
+<li>C0 特征:$\lambda_\ell = \infty$(硬约束)</li>
+<li>C1 特征:$\lambda_\ell \propto |k_{\max}|$(曲率越高,约束越强)</li>
+</ul>
+
+<h4>与现有 QEM 特征保留方法的对比</h4>
+
+<div class="compare-grid">
+<div class="compare-box bad">
+<div class="title">传统 QEM 特征保留</div>
+<ul>
+<li>基于 dihedral angle 阈值</li>
+<li>阈值依赖网格分辨率</li>
+<li>C1 边界需要 1° 阈值 → 噪声敏感</li>
+<li>无主方向信息 → 坍缩方向无引导</li>
+<li>特征检测和简化是分离的两步</li>
+</ul>
+</div>
+<div class="compare-box good">
+<div class="title">Normal Tensor 增强 QEM</div>
+<ul>
+<li>基于曲率分析(分辨率无关)</li>
+<li>各向异性平滑 → 噪声鲁棒</li>
+<li>C1 检测用曲率间隙($e=2$)→ 稳定</li>
+<li>主方向引导坍缩方向</li>
+<li>特征检测和简化在统一框架内</li>
+</ul>
+</div>
+</div>
+
+<h3 id="s8-7">8.7 完整增强 QEM 流程</h3>
+
+<div class="diagram">输入: 网格 M=(V,F), 目标顶点数 N, 参数 ε, e, w0, α, β, γ
+
+Phase 1: Normal Tensor 计算
+  ├─ 对每个顶点 V_n:
+  │   ├─ 计算 A_n = Σ w_{nn'} N_{n'}^f N_{n'}^{fT}     (式 1)
+  │   ├─ 特征分解 A_n = R Λ R^T                          (式 2)
+  │   ├─ 计算 saliency: S_Su, S_Cr, S_Co                (式 4)
+  │   └─ 分类顶点: surface / crease / corner             (式 5)
+  │
+  └─ [若噪声数据] 各向异性张量平滑                         (式 12)
+      ├─ 迭代 10 次, 2-ring 邻域
+      ├─ 更新 A_n → 重新特征分解
+      └─ 修正法向量 N_n = E_1
+
+Phase 2: 特征线检测
+  ├─ C0: IsSharpVtx (φ=45°)     → C0 特征点
+  ├─ C1: HasCurvatureGap (e=2)  → C1 特征点
+  ├─ C2: IsOrthogonal           → 方向正交点
+  ├─ C3: IsConvexConcave        → 凸凹分界点
+  ├─ 交叉验证 (E_3 方向邻居)
+  └─ 生成特征线 (沿 E_3 追踪)
+
+Phase 3: 增强 QEM 简化
+  ├─ 对每个顶点 V_i:
+  │   ├─ 标准 QEM: Q_i = Σ a^i_{jk} Q_{ijk}
+  │   ├─ Line Quadric: Q_i^l (基于 E_1)
+  │   ├─ 自适应权重: w_i = w0 + α·S_Cr/(S_Su+ε) + β·S_Co  (式 22)
+  │   ├─ 方向性约束: 基于 E_2, E_3 调整
+  │   └─ Q̃_i = Q_i + w_i·a_i·Q_i^l + Σ λ_l·Q_l^boundary    (式 27)
+  │
+  ├─ 对每条边 (i,j):
+  │   ├─ Q̃_ij = Q̃_i + Q̃_j
+  │   ├─ 解 Ã_ij · x* = -b̃_ij  (Cholesky, 无需 SVD!)
+  │   ├─ cost = Ẽ_ij(x*)
+  │   ├─ 方向调整: cost *= (1 + γ·sin2θ_ij)                  (式 24)
+  │   └─ 放入优先队列
+  │
+  └─ 迭代坍缩直到 |V| = N</div>
+
+<div class="callout key">
+<div class="callout-title">代码改动量估算</div>
+<p>在标准 QEM + Line Quadrics 实现基础上,增加 Normal Tensor 增强:</p>
+<ul>
+<li>Normal Tensor 计算 + 特征分解:~30 行</li>
+<li>各向异性平滑:~20 行</li>
+<li>特征线检测(C0-C3):~40 行</li>
+<li>自适应权重映射:~10 行</li>
+<li>方向引导代价调整:~5 行</li>
+<li>总计:~105 行新增代码</li>
+</ul>
+<p>计算开销:Normal Tensor 计算 $O(n)$(每顶点常数时间),特征分解 $O(n)$(3×3 矩阵),平滑 $O(n \cdot T \cdot k)$($T$=迭代数, $k$=邻居数)。在百万面网格上约 100 秒(参考论文 Tab. 3)。</p>
+</div>
+
+<div class="callout success">
+<div class="callout-title">当前仓库的落地版本</div>
+<p>当前实现已经接入轻量 normal tensor 路线:<code>computeNormalTensorFeatures()</code> 计算 one-ring 法向张量、特征值显著性和 crease 切向;<code>detectFeatureCurves()</code> 用 tensor 边补充 dihedral 阈值捕捉不到的软特征;<code>--weight-mode normal-tensor</code> 用 tensor <code>featureScore</code> 调整 line quadric 权重。为了不破坏已有圆孔 hard loop,tensor 候选边不会跨接已经有 boundary/dihedral/non-manifold 证据的离散特征顶点。</p>
+<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\mingw-ninja-release\bin\manumesh.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
+</div>
+
+<!-- ===== 9 ===== -->
+<h2 id="s9"><span class="num">9</span>实验结果与分析</h2>
+
+<h3>9.1 曲率估计精度</h3>
+
+<p>使用 torus 数据对比(CAD 曲面 vs 添加 0.1 $\bar{e}$ 噪声):</p>
+
+<table>
+<tr><th>方法</th><th>网格</th><th>均值曲率相对误差</th><th>高斯曲率相对误差</th></tr>
+<tr><td>Meyer et al. [16]</td><td>干净</td><td>0.0318</td><td>0.147</td></tr>
+<tr><td>本文</td><td>干净</td><td>0.0572</td><td>0.359</td></tr>
+<tr><td>Meyer et al. [16]</td><td><strong>噪声</strong></td><td style="color:#dc2626">9.539</td><td style="color:#dc2626">57.15</td></tr>
+<tr><td>本文</td><td><strong>噪声</strong></td><td style="color:#059669">0.585</td><td style="color:#059669">1.267</td></tr>
+</table>
+
+<div class="callout key">
+<div class="callout-title">关键发现</div>
+<ul>
+<li>干净网格上,离散算子(Meyer)精度略高--因为直接计算二阶导数</li>
+<li>噪声网格上,Normal Tensor 框架的误差降低 <strong>16×(均值曲率)和 45×(高斯曲率)</strong></li>
+<li>根本原因:Normal Tensor 是一阶量(法向量)的二阶矩,比直接计算二阶导数更鲁棒</li>
+<li>各向异性平滑进一步增强了这种鲁棒性</li>
+</ul>
+</div>
+
+<h3>9.2 CAD 模型结果</h3>
+
+<p><strong>Fandisk 模型</strong>(12,946 面):各检测函数逐步提取特征--</p>
+<ul>
+<li><code>IsSharpVtx()</code> 检出 C0 锐边和角点</li>
+<li><code>HasCurvatureGap()</code> + <code>IsOrthogonal()</code> 检出 C1 边界(未被 C0 检出的)</li>
+<li>凸/凹区域用红/蓝色区分</li>
+<li>最终特征线完整覆盖 (A)、(B)、(C) 三类特征</li>
+</ul>
+
+<p><strong>Casting 模型</strong>(10,224 面):同样完整提取所有三类特征线。</p>
+
+<p><strong>Center Pillar</strong>(121,080 面):汽车 B 柱零件,大量 fillet edges 被正确提取。</p>
+
+<h3>9.3 扫描数据结果</h3>
+
+<p><strong>Clay model</strong>(2,386,918 面):</p>
+<ul>
+<li>原始数据噪声严重,法向量混乱</li>
+<li>张量平滑后法向量场恢复平滑,同时保留锐边</li>
+<li>特征线提取结果与设计意图吻合</li>
+<li>凸 fillet(红)和凹特征(蓝)正确区分</li>
+</ul>
+
+<p><strong>汽车外观</strong>(2,164,666 面):</p>
+<ul>
+<li>提取了所有重要 character-lines(造型线)</li>
+<li>门部件的分型线(凹槽/数据缺失)被正确检测</li>
+<li>区域边界 (A)、(B) 用蓝色标出</li>
+</ul>
+
+<h3>9.4 性能</h3>
+
+<table>
+<tr><th>模型</th><th>面数</th><th>张量平滑</th><th>总耗时 (秒)</th><th>平滑耗时</th><th>曲率计算</th><th>特征点检测</th><th>线生成</th></tr>
+<tr><td>Fandisk</td><td>12,946</td><td>否</td><td>0.17</td><td>-</td><td>0.078</td><td>0.047</td><td>0.047</td></tr>
+<tr><td>Casting</td><td>10,224</td><td>否</td><td>0.18</td><td>-</td><td>0.078</td><td>0.047</td><td>0.062</td></tr>
+<tr><td>C-Pillar</td><td>121,080</td><td>否</td><td>1.12</td><td>-</td><td>0.54</td><td>0.32</td><td>0.26</td></tr>
+<tr><td>Exterior1</td><td>2,386,918</td><td>是</td><td>106</td><td>45</td><td>43</td><td>14</td><td>47</td></tr>
+<tr><td>Exterior2</td><td>2,164,666</td><td>是</td><td>95</td><td>43</td><td>43</td><td>12</td><td>40</td></tr>
+</table>
+
+<p>特征点检测(局部非迭代操作)速度最快。平滑和线生成占据大部分时间,但平滑是可选项--仅在噪声数据上需要。</p>
+
+<!-- ===== 10 ===== -->
+<h2 id="s10"><span class="num">10</span>总结</h2>
+
+<div class="compare-grid">
+<div class="compare-box bad">
+<div class="title">标准 QEM + 简单特征保留的局限</div>
+<ul>
+<li>$A$ 矩阵在平坦区秩亏,在棱边秩亏 1</li>
+<li>dihedral angle 阈值依赖网格分辨率</li>
+<li>C1 边界(fillet edges)检测需要 1° 阈值 → 噪声失效</li>
+<li>无主方向信息 → 坍缩方向无引导</li>
+<li>噪声网格上 $A$ 矩阵被假信号填满 → 误判秩</li>
+<li>特征检测和简化是分离的两步,框架不统一</li>
+</ul>
+</div>
+<div class="compare-box good">
+<div class="title">Normal Tensor 增强后的 QEM</div>
+<ul>
+<li>$A_n \equiv A^{\text{QEM}}_n$:特征值直接诊断秩亏类型和方向</li>
+<li>基于曲率分析,分辨率无关</li>
+<li>C1 检测用曲率间隙 ($e=2$) → 噪声鲁棒</li>
+<li>$E_2, E_3$ 主方向引导坍缩方向</li>
+<li>各向异性平滑恢复正确的秩亏诊断</li>
+<li>特征检测 → 自适应权重 → 方向引导 → 统一框架</li>
+</ul>
+</div>
+</div>
+
+<div class="callout key">
+<div class="callout-title">一句话总结</div>
+<p>Normal Tensor $A_n = \sum w_{nn'} N_{n'} N_{n'}^{\top}$ 与 QEM 的 $A$ 矩阵是<strong>同一个数学对象</strong>。其特征值 $(\sigma_1, \sigma_2, \sigma_3)$ 直接诊断 QEM 的秩亏类型和方向,特征向量 $(E_1, E_2, E_3)$ 提供主方向引导坍缩,各向异性平滑使噪声网格上的 QEM 恢复正确的秩诊断,C0/C1 检测为 Line Quadrics 提供原理性的自适应权重。整套框架仅需 ~100 行代码,在统一框架内完成了特征检测、噪声鲁棒和方向引导三件事。</p>
+</div>
+
+<hr style="border:none;border-top:1px dashed #ccc;margin:32px 0;">
+
+<h4>参考</h4>
+<ul>
+<li>Tsuchie &amp; Higashi. <em>Extraction of Surface-feature Lines on Meshes Using Normal Tensor Framework</em>. CAD&amp;A 11(2), 2014, 172-181.</li>
+<li>Garland &amp; Heckbert. <em>Surface Simplification Using Quadric Error Metrics</em>. SIGGRAPH 1997.</li>
+<li>Garland &amp; Heckbert. <em>Simplifying Surfaces with Color and Texture</em>. SIGGRAPH 1998. (Boundary quadrics)</li>
+<li>Liu, Rahimzadeh, Zordan. <em>Controlling Quadric Error Simplification with Line Quadrics</em>. SGP 2025.</li>
+<li>Medioni, Lee, Tang. <em>A Computational Framework for Segmentation and Grouping</em>. Elsevier, 2000. (Normal voting tensor)</li>
+<li>Page et al. <em>Robust crease detection and curvature estimation</em>. CVPR 2001. (Saliency classification)</li>
+<li>Tsuchie &amp; Higashi. <em>Surface mesh denoising with normal tensor framework</em>. Graphical Models 74(4), 2012. (Anisotropic smoothing)</li>
+<li>Meyer et al. <em>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</em>. VisMath 2003. (Discrete curvature operators)</li>
+<li>Jiao &amp; Bayyana. <em>Identification of C1 and C2 discontinuities for surface meshes in CAD</em>. CAD 40(2), 2008.</li>
+<li>Kim et al. <em>Feature detection of triangular meshes based on tensor voting theory</em>. CAD 41(1), 2009.</li>
+</ul>
+
+</div>
+
+<div class="footer">
+Normal Tensor 特征线提取与 QEM 增强推导笔记 · 基于 CAD&amp;A 2014 论文 · 2026-07-01
+</div>
+
+<section class="roadmap-note" style="margin:32px auto;max-width:1100px;padding:20px 22px;border:1px solid #cfd8dc;border-radius:8px;background:#f8fbfc;color:#172126;line-height:1.65">
+  <h2 style="margin-top:0">特征保护路线图</h2>
+  <p>第一阶段已经实现。<code>--preserve-feature-curves</code> 默认使用 <code>--feature-protection-mode primitive-curves</code>：圆、近圆和椭圆 loop 保持硬保护，generic polygonal 与 dihedral crease 作为软成本/guard 输入，而不是自动硬锁。</p>
+  <p>严格保护模式可通过 <code>--feature-protection-mode all-feature-edges</code> 启用。SDK 也暴露 <code>FeatureProtectionMode</code> / <code>ManuMeshFeatureProtectionMode</code>，包含 <code>none</code>、<code>circular-only</code>、<code>primitive-curves</code> 和 <code>all-feature-edges</code>。</p>
+  <ul>
+    <li>Mars wheel：<code>all-feature-edges</code> 停在 10974 面，feature rejection 为 468702；<code>primitive-curves</code> 达到 9066 面，feature rejection 为 31，generic rejection 为 0。</li>
+    <li>Differential gear：<code>all-feature-edges</code> 停在 2662 面，feature rejection 为 68993；<code>primitive-curves</code> 达到 1236 面，feature rejection 为 0。</li>
+    <li>Fandisk：两种模式都达到目标，但 generic feature rejection 从 513 降到 0。</li>
+  </ul>
+  <p>设计说明：<code>docs/design/feature_protection_roadmap.md</code>。</p>
+</section>
+</body>
+</html>

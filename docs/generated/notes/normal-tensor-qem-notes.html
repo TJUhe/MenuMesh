@@ -51,9 +51,174 @@ tr:nth-child(even) td{background:#f9fafb}
 .compare-box .title{font-weight:600;font-size:14px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .compare-box.bad{background:#fef2f2}.compare-box.bad .title{color:var(--red)}
 .compare-box.good{background:#f0fdf4}.compare-box.good .title{color:var(--green)}
-.diagram{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:16px;margin:14px 0;font-family:"Consolas",monospace;font-size:12.5px;white-space:pre;line-height:1.55;overflow-x:auto}
+.diagram{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:16px;margin:14px 0;font-family:"Consolas",monospace;font-size:12.5px;white-space: pre-wrap;line-height:1.55;overflow-x:auto}
 .footer{text-align:center;padding:20px;color:var(--dim);font-size:13px;border-top:1px solid var(--border)}
 @media(max-width:768px){.compare-grid{grid-template-columns:1fr}.content{padding:20px 18px 40px}.header{padding:28px 20px}}
+/* MANUMESH_RESPONSIVE_DOCS_FIX_BEGIN */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+*, *::before, *::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+body {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+body, .page, .content, .header, .footer, .topbar, .topbar-inner, .product, main, section, article,
+.hero, .metrics, .metric, .files, .file, .chips, .chip, .toc, .callout, .roadmap-note,
+.algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief,
+.algorithm-ref-grid, .algorithm-ref-card {
+  max-width: 100%;
+  min-width: 0;
+}
+p, li, dd, dt, div, span, a, strong, th, td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+code, kbd, samp {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, pre code, .diagram, .formula, .math-block {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, .diagram {
+  white-space: pre-wrap !important;
+  overflow-x: auto;
+}
+.formula, .math-block {
+  white-space: normal !important;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+thead, tbody, tr, th, td {
+  max-width: 100%;
+  min-width: 0 !important;
+  white-space: normal !important;
+}
+th, td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+img, svg, canvas, video {
+  max-width: 100%;
+  height: auto;
+}
+.product small, .pill, .tag, .badge, .chip {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.algorithm-reference-map, .algorithm-reading-guide {
+  margin: 18px 0 24px;
+  padding: 16px 18px;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #115e8a;
+  border-radius: 8px;
+  background: #f8fbfc;
+  color: #172126;
+  line-height: 1.72;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.algorithm-reading-guide {
+  border-left-color: #2563eb;
+  background: #f8faff;
+}
+.algorithm-reference-map h2, .algorithm-reading-guide h2 {
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 20px !important;
+  color: #0f4262 !important;
+}
+.algorithm-reading-guide h2 {
+  color: #1d4ed8 !important;
+}
+.algorithm-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.algorithm-ref-card {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+.algorithm-ref-card h3 {
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 15px !important;
+  color: #0f4262 !important;
+}
+.algorithm-ref-card p {
+  margin: 0 0 7px;
+}
+.doc-path {
+  display: block;
+  margin-top: 3px;
+  color: #475569;
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+  margin: 20px 0;
+  padding: 16px 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+.feature-deep-dive h2, .feature-recognition-brief h2, .feature-algorithm-walkthrough h2,
+.feature-algorithm-walkthrough h3 {
+  margin-top: 0 !important;
+}
+.feature-flow-list li {
+  margin: 7px 0;
+}
+@media (max-width: 760px) {
+  body {
+    max-width: 100%;
+  }
+  .content, .header, .footer, .hero, .topbar-inner {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+    padding: 13px 14px;
+  }
+  .algorithm-ref-grid, .metrics, .files {
+    grid-template-columns: 1fr !important;
+  }
+  table {
+    display: table;
+    overflow-x: hidden;
+    white-space: normal !important;
+  }
+  th, td {
+    min-width: 0 !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+/* MANUMESH_RESPONSIVE_DOCS_FIX_END */
 </style>
 <link rel="stylesheet" href="eye-care.css">
 </head>
@@ -71,6 +236,98 @@ tr:nth-child(even) td{background:#f9fafb}
 </div>
 
 <div class="content">
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_BEGIN -->
+<section class="algorithm-reference-map">
+  <h2>ManuMesh 当前算法与论文引用地图</h2>
+  <p>本页所说算法以当前源码为准：<code>src/simplification</code> 负责 QEM/edge-collapse，<code>src/feature_detection</code> 负责特征证据、feature graph、cleanup、loop/primitive recovery，<code>src/common/detail</code> 提供局部边长、邻接和拓扑查询。论文引用使用 <code>Mxxx</code> 编号；完整索引在 <code>docs/papers/README.md</code> 与 <code>docs/design/feature_detection_upgrade_2026_07_09.md</code>。</p>
+  <div class="algorithm-ref-grid">
+    <article class="algorithm-ref-card"><h3>Plane QEM</h3><p><strong>代码：</strong><code>Quadrics.cpp</code> 按面面积累积点到平面二次型，作为 collapse 代价主项。</p><p><strong>引用：</strong>M002 Garland-Heckbert 1997。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Boundary / Attribute QEM</h3><p><strong>代码：</strong><code>addBoundaryQuadrics()</code> 给边界附加约束；属性 QEM 仍作为后续扩展方向。</p><p><strong>引用：</strong>M003 Garland-Heckbert 1998。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Line Quadrics</h3><p><strong>代码：</strong><code>lineQuadric()</code> 用切向正则化改善平坦区 QEM 排序退化；权重由 <code>lineWeight</code>、<code>featureBoost</code> 与 weight mode 调度。</p><p><strong>引用：</strong>M004 Liu-Rahimzadeh-Zordan 2025。</p><span class="doc-path">docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、dihedral、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Normal Tensor / Weak Feature Evidence</h3><p><strong>代码：</strong><code>NormalTensor.cpp</code> 使用局部边长归一化、多尺度 smoothing/persistence；<code>FeatureEvidence.cpp</code> 用 persistent score 和切线对齐接受弱边。</p><p><strong>引用：</strong>M015 normal tensor，M012/M013 normal voting，M009 multi-scale creases。</p><span class="doc-path">docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</span><span class="doc-path">docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</span><span class="doc-path">docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</span><span class="doc-path">docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureEdges()</code> 输出 edge precision/recall、junction F1、loop closure、component confidence 与 feature drift。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 feature-preserving simplification 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
+    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>曲率 ridge/valley、wireframe/neural edge、learned QEM 目前作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
+  </div>
+  <p>一句话总览：ManuMesh 当前默认路线是 <strong>CAD/STL 离散证据 + normal-tensor 弱特征 + feature graph cleanup + component confidence + QEM/line-quadrics edge collapse + hard legality guards</strong>；neural/wireframe 是后续 benchmark 与增强方向。</p>
+</section>
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_END -->
+<!-- MANUMESH_DETAILED_READING_GUIDE_BEGIN -->
+<section class="algorithm-reading-guide">
+  <h2>读懂 ManuMesh 算法的推荐顺序</h2>
+  <p>如果从零看当前实现，先读 <code>docs/generated/notes/current-program-principles.html#deep-algorithm-walkthrough</code>，再读 <code>docs/generated/notes/current-program-principles.html#feature-recognition-deep-dive</code>。前者按真实执行顺序解释网格如何变成拓扑、quadric、候选队列和 legality gates；后者专门解释特征识别如何从 edge evidence 变成 feature graph、loop、primitive、component confidence，并最终被 QEM 消费。</p>
+  <ol>
+    <li><strong>先看数据流：</strong><code>Mesh -> MeshEdgeInfoMap -> FeatureAnalysis -> quadrics -> candidate queue -> legality gates -> SimplifyReport</code>。</li>
+    <li><strong>再看特征识别：</strong><code>FeatureEvidence.cpp</code> 产出边证据，<code>NormalTensor.cpp</code> 产出弱特征分数，<code>FeatureGraphCleanup.cpp</code> 把破碎证据整理成 component，<code>FeatureLoopBuilder.cpp</code> 和 <code>PrimitiveFit.cpp</code> 把图变成 loop/primitive。</li>
+    <li><strong>最后看简化消费：</strong><code>FeatureConstraints.cpp</code> 决定哪些 collapse 被拒绝，<code>Quadrics.cpp</code> 决定 feature curve soft quadric 如何加权，<code>feature_components</code>、<code>graph_cleanup_*</code>、<code>feature_rejected</code>、<code>quality_rejected</code>、<code>error_rejected</code> 解释算法为什么这样停。</li>
+  </ol>
+</section>
+<!-- MANUMESH_DETAILED_READING_GUIDE_END -->
+
+<section class="feature-deep-dive" id="manumesh-normal-tensor-implementation-bridge">
+<h2><span class="num">0</span>从论文 Normal Tensor 到当前 ManuMesh 实现</h2>
+<p>这页前面的推导主要解释 Tsuchie-Higashi 2014 的 normal tensor 为什么能描述 surface-feature lines；当前 ManuMesh 没有照搬成一个纯曲率/张量检测器，而是把它放在 CAD/STL feature pipeline 的“弱证据通道”。也就是说，boundary、dihedral、non-manifold 仍是强离散证据；normal tensor 用来补二面角阈值看不到的浅 ridge、fillet transition 和非均匀采样下的不稳定边。</p>
+
+<h3>0.1 代码里的张量不是孤立公式，而是一个多尺度评分器</h3>
+<table>
+<tr><th>论文概念</th><th>ManuMesh 对应实现</th><th>为什么这样落地</th></tr>
+<tr><td>邻域法向外积 $T=\sum w n n^\top$</td><td><code>NormalTensor.cpp</code> 对顶点邻域面法向累加，并按局部边长/采样密度解释 smoothing scale。</td><td>CAD/STL 三角化可能非常不均匀；固定半径或固定一环会让稀疏区和稠密区的分数不可比。</td></tr>
+<tr><td>surface / crease / corner saliency</td><td>每个 <code>VertexFeature</code> 保留 <code>featureScore</code>、<code>persistentFeatureScore</code>、<code>persistentScales</code> 等诊断。</td><td>下游不只需要“是不是特征”，还要知道这个判断有多稳定。</td></tr>
+<tr><td>各向异性平滑</td><td>当前实现使用轻量 smoothing/persistence，而不是重型全局优化。</td><td>简化器需要快速预处理；更复杂的 anisotropic filtering 可以作为后续增强，但不应阻塞 baseline。</td></tr>
+<tr><td>特征线方向</td><td><code>FeatureEvidence.cpp</code> 要求候选 edge 与张量给出的 crease tangent 方向有足够 alignment。</td><td>高分点不等于线；方向不一致时强连会产生假 branch。</td></tr>
+</table>
+
+<h3>0.2 edge 接受规则：为什么不是“两个端点分数高就行”</h3>
+<p>normal tensor 最容易犯的错误是把局部噪声连成线。当前实现因此用组合规则接受 tensor edge：端点的 persistent score 要过阈值，两个端点都要有足够 persistent scales，edge 方向要和 crease tangent 对齐，并且后续还要经过 graph cleanup 和 component confidence。这样做对应 M012/M013 normal voting 对局部一致性的要求，也对应 M009 多尺度 crease detection 对尺度稳定性的要求。</p>
+<ol>
+<li><strong>端点门槛：</strong>用端点最小分数约束 recall/precision，不让一个孤立高分点拖出假边。</li>
+<li><strong>persistence 门槛：</strong><code>normalTensorMinPersistentScales</code> 越大，越偏向稳定结构，越少噪声，但浅特征 recall 可能下降。</li>
+<li><strong>alignment 门槛：</strong><code>normalTensorEdgeAlignment</code> 越大，越要求边方向像真实 crease tangent。</li>
+<li><strong>component 门槛：</strong>最终由 <code>FeatureComponent</code> 的 closure、strong/weak evidence ratio、junction 和 residual 决定软保护强度。</li>
+</ol>
+
+<h3>0.3 它如何进入 QEM</h3>
+<p>normal tensor 的结果进入 QEM 有两条路。第一条是 <code>--weight-mode normal-tensor</code>：<code>Quadrics.cpp</code> 用 <code>persistentFeatureScore</code> 调整 line quadric 权重，让弱特征附近的候选边更谨慎。第二条是 <code>FeatureAnalysis</code>：如果 tensor edge 经过 trace graph、cleanup 和 component confidence，相关顶点会获得 feature ownership，primitive 或 generic feature constraints 便能参与 collapse policy。</p>
+
+<table>
+<tr><th>你看到的诊断</th><th>怎么解读</th><th>调参方向</th></tr>
+<tr><td><code>normal_tensor_feature_edges</code> 高但 <code>weak_feature_components</code> 低</td><td>点/边响应多，但没有形成稳定曲线。</td><td>提高 alignment 或 persistence，检查 cleanup 是否删除 spur。</td></tr>
+<tr><td><code>weak_feature_components</code> 高但 confidence 低</td><td>弱边连成分量，但闭合率、强证据、primitive residual 或 junction 情况不好。</td><td>降低 gap bridge，增加 ground-truth benchmark，看是否是假阳性。</td></tr>
+<tr><td><code>max_normal_tensor_persistent_score</code> 高且 feature drift 低</td><td>弱特征稳定，并且简化后保住了。</td><td>当前参数可作为该类模型 baseline。</td></tr>
+<tr><td><code>featureRejectedCollapses</code> 爆高</td><td>检测可能太宽或保护模式太硬，QEM 被大量 feature gate 拦住。</td><td>优先降低保护模式或权重，再考虑提高检测阈值。</td></tr>
+</table>
+
+<p>因此，这页公式里的 normal tensor 在代码里不是一个单独的“特征识别答案”，而是一个可诊断、可调参、可进入 QEM 的弱特征证据层。它最适合和 M007/M016/M018/M019 的 CAD/STL 离散追踪、M024/M025 的闭合边界要求、M026 的弱特征 consolidation 一起读。</p>
+</section>
+
+<section class="feature-algorithm-walkthrough" id="normal-tensor-source-walkthrough">
+<h2><span class="num">0A</span>Normal Tensor 在源码里的完整执行路径</h2>
+<p>把论文公式映射到 ManuMesh 源码时，可以按“邻域选择 → 张量累加 → 多尺度评分 → edge 接受 → graph consolidation → QEM 消费”来读。每一步都只解决一个问题，避免把高分点直接误解成可保护特征线。</p>
+<table>
+<tr><th>步骤</th><th>代码里真正做什么</th><th>为什么对弱特征重要</th><th>对应文献</th></tr>
+<tr><td>1. 局部尺度估计</td><td>先统计顶点附近平均边长，把 smoothing radius、gap bridge 和 tensor 邻域解释成“局部尺度倍数”。</td><td>非均匀 STL 里，同样的绝对距离在稠密区可能跨很多三角形，在稀疏区可能什么都跨不到。</td><td>M009 多尺度 crease；M012/M013 normal voting。</td></tr>
+<tr><td>2. 法向外积累加</td><td>对邻域面法向累加 $T=\sum w_f n_f n_f^\top$，权重与面积、距离或局部关系相关。</td><td>把“局部法向是否分成两簇/三簇”变成可比较的矩阵结构。</td><td>M015 normal tensor；M012/M013 normal voting。</td></tr>
+<tr><td>3. 特征值解释</td><td>特征值结构被解释成 surface、crease、corner saliency，crease tangent 来自相应局部方向。</td><td>浅 ridge 可能二面角很小，但一片邻域的法向分布仍会显示出稳定方向。</td><td>M015；M014 曲率估计可作为对照路线。</td></tr>
+<tr><td>4. 多尺度 persistence</td><td>在多个 smoothing scale 下重复评分，记录 <code>persistentFeatureScore</code> 和 <code>persistentScales</code>。</td><td>噪声通常只在单个尺度高分，真实弱特征更可能跨尺度稳定。</td><td>M009；mesh-feature corpus 057/066 的 voting/tensor 稳定性思想。</td></tr>
+<tr><td>5. edge 接受</td><td><code>FeatureEvidence.cpp</code> 检查两个端点分数、persistent scale 数、edge 方向与 tangent alignment。</td><td>防止“一个高分点 + 一个普通点”或“点状 corner 响应”被误连成线。</td><td>M012/M013 的局部一致性；M016 的 feature graph continuity。</td></tr>
+<tr><td>6. component consolidation</td><td>tensor edge 进入 trace graph 后，还要经 spur removal、gap bridge、junction merge 和 confidence 汇总。</td><td>弱特征必须先形成连通支持，才能决定是软保护、硬保护还是只诊断。</td><td>M024/M025 闭合边界；M026 CWF。</td></tr>
+<tr><td>7. QEM 权重调度</td><td>高 confidence feature 会影响 feature-curve quadric、line weight、primitive deviation guard。</td><td>弱特征不应一律硬锁；可信度越高，保护越强，可信度低时保留诊断。</td><td>M002 QEM；M004 line quadrics；M028/M029 feature preserving simplification。</td></tr>
+</table>
+
+<h3>0A.1 三类常见失败和定位方式</h3>
+<table>
+<tr><th>现象</th><th>最可能原因</th><th>优先查看</th><th>修正方向</th></tr>
+<tr><td>浅 ridge 完全没被检测到</td><td>persistence 或 score 阈值过严，或者局部尺度太小。</td><td><code>normal_tensor_scored_vertices</code>、<code>max_normal_tensor_persistent_score</code>、<code>normal_tensor_feature_edges</code>。</td><td>降低 <code>normalTensorThreshold</code>，减少 <code>normalTensorMinPersistentScales</code>，或扩大局部尺度。</td></tr>
+<tr><td>噪声枝很多</td><td>单尺度高分被接受，或 tangent alignment 太松。</td><td><code>graphCleanupRemovedSpurs</code>、<code>weakFeatureComponents</code>、component confidence。</td><td>提高 persistence 要求，提高 alignment，缩短 gap bridge。</td></tr>
+<tr><td>圆孔 fallback 被弱 ridge 干扰</td><td>把 tensor evidence 当成全局开关，而不是按 component 消费。</td><td>每个 component 的 strong/weak ratio、closure、primitive residual。</td><td>保持按 connected component 判定，让一个弱 ridge 不影响其他干净圆孔。</td></tr>
+</table>
+
+<h3>0A.2 和曲率 / neural / wireframe 路线的边界</h3>
+<p>normal tensor 适合给当前 CAD/STL-first 管线补弱证据，但它不是万能检测器。光顺曲面的 ridge/valley 需要曲率导数或隐式拟合路线，例如 M011、M014、M021；复杂 CAD 线框需要显式 junction 和 direction-field graph，例如 M006、M008、M023；neural detector 适合做 benchmark 对照或补充 proposal，但在没有训练分布、ground truth 和 OOD 诊断前，不应替代当前 deterministic contract。</p>
+</section>
 
 <div class="toc">
 <div class="toc-title">目录</div>

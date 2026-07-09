@@ -2,6 +2,13 @@
 
 ## 2026-07-09
 
+### 文档
+
+- 全量收紧 `docs/**/*.html` 响应式排版：统一加入换行、表格固定布局、代码/公式/长路径断行和移动端宽度保护，清理会导致横向溢出的 `nowrap`、固定单元格宽度和可见横向溢出规则。
+- 大幅扩充特征识别说明：`current-program-principles.html` 增加从 edge evidence 到 `FeatureAnalysis` 的源码级数据流、失败信号、文献路线和下一轮算法落地清单；`normal-tensor-qem-notes.html` 增加 Normal Tensor 从论文公式到源码执行路径的逐步映射。
+- 扩充 `manumesh-code-manual.html` 的特征识别函数级阅读顺序和测试保护建议，并在 `manumesh_kernel_developer_guide.html` 增加 Feature Detection Debug Contract，明确 evidence、trace ownership、cleanup、primitive fitting 和 QEM consumption 的模块边界。
+- 同步更新 generated notes、delivery guide 和 `docs/archive/prototype-docs-2026-07-09/` 内的 HTML 副本，使正式文档、历史归档和论文引用说明保持一致。
+
 ### 新增
 
 - 增加 feature graph cleanup：在 loop recovery 前按局部边长归一化做短 gap bridge、近 junction bridge 和 tensor-only 弱 spur 删除；新增 `cleanupFeatureGraph`、`featureGraphGapLengthRatio`、`featureGraphMaxWeakSpurEdges`、`featureComponentMinConfidence` 选项及 CLI/C ABI 尾部字段。
@@ -49,6 +56,10 @@
 - `.\build\mingw-ninja-release\bin\manumesh.exe simplify tests\data\feature_fixtures\boss_pocket_plate.obj output\vscode_demo\normal_tensor.stl --method line --line-weight 1e-3 --weight-mode normal-tensor --feature-boost 0.08 --feature-angle-deg 179 --loop-trace-angle-deg -1 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2 --ratio 0.5 --samples 512 --metrics-csv output\vscode_demo\normal_tensor_metrics.csv`
 - `.\build\mingw-ninja-release\bin\manumesh.exe validate-features --ratio 0.20 --samples 1000`
 - `.\build\mingw-ninja-release\bin\manumesh.exe validate-external --ratio 0.25`
+- HTML 静态审核：确认 `docs/**/*.html` 无残留 `white-space: nowrap`、移动端 `min-width:120px`、可见横向溢出规则、控制字符或错误转义引号；21 个 HTML 的 `table` / `section` / `style` 标签计数配平。
+- 文档引用审核：`docs/papers/paper_index_openalex_2026-07-09.json` 可解析，generated/delivery HTML 中 18 个 `docs/papers/*.pdf` 引用均存在。
+- Git 属性审核：新增 `.gitattributes` 将 `*.pdf` 作为二进制文件处理，避免论文 PDF 被文本 diff/check 误判为 trailing whitespace。
+- `git diff --check`
 
 ## 2026-07-07
 

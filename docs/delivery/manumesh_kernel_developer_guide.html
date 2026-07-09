@@ -112,7 +112,7 @@
       margin-top: 2px;
       color: var(--muted);
       font-size: 12px;
-      white-space: nowrap;
+      white-space: normal;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -132,7 +132,7 @@
       padding: 5px 9px;
       border-radius: 999px;
       font-size: 12px;
-      white-space: nowrap;
+      white-space: normal;
     }
 
     .layout {
@@ -436,7 +436,7 @@
       margin: 14px 0;
       overflow-x: auto;
       font-family: Consolas, "SFMono-Regular", Menlo, monospace;
-      white-space: pre;
+      white-space: pre-wrap;
       color: #1f2937;
       line-height: 1.55;
     }
@@ -500,7 +500,172 @@
         border-bottom: 0;
       }
     }
-  </style>
+  /* MANUMESH_RESPONSIVE_DOCS_FIX_BEGIN */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+*, *::before, *::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+body {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+body, .page, .content, .header, .footer, .topbar, .topbar-inner, .product, main, section, article,
+.hero, .metrics, .metric, .files, .file, .chips, .chip, .toc, .callout, .roadmap-note,
+.algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief,
+.algorithm-ref-grid, .algorithm-ref-card {
+  max-width: 100%;
+  min-width: 0;
+}
+p, li, dd, dt, div, span, a, strong, th, td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+code, kbd, samp {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, pre code, .diagram, .formula, .math-block {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, .diagram {
+  white-space: pre-wrap !important;
+  overflow-x: auto;
+}
+.formula, .math-block {
+  white-space: normal !important;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+thead, tbody, tr, th, td {
+  max-width: 100%;
+  min-width: 0 !important;
+  white-space: normal !important;
+}
+th, td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+img, svg, canvas, video {
+  max-width: 100%;
+  height: auto;
+}
+.product small, .pill, .tag, .badge, .chip {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.algorithm-reference-map, .algorithm-reading-guide {
+  margin: 18px 0 24px;
+  padding: 16px 18px;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #115e8a;
+  border-radius: 8px;
+  background: #f8fbfc;
+  color: #172126;
+  line-height: 1.72;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.algorithm-reading-guide {
+  border-left-color: #2563eb;
+  background: #f8faff;
+}
+.algorithm-reference-map h2, .algorithm-reading-guide h2 {
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 20px !important;
+  color: #0f4262 !important;
+}
+.algorithm-reading-guide h2 {
+  color: #1d4ed8 !important;
+}
+.algorithm-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.algorithm-ref-card {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+.algorithm-ref-card h3 {
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 15px !important;
+  color: #0f4262 !important;
+}
+.algorithm-ref-card p {
+  margin: 0 0 7px;
+}
+.doc-path {
+  display: block;
+  margin-top: 3px;
+  color: #475569;
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+  margin: 20px 0;
+  padding: 16px 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+.feature-deep-dive h2, .feature-recognition-brief h2, .feature-algorithm-walkthrough h2,
+.feature-algorithm-walkthrough h3 {
+  margin-top: 0 !important;
+}
+.feature-flow-list li {
+  margin: 7px 0;
+}
+@media (max-width: 760px) {
+  body {
+    max-width: 100%;
+  }
+  .content, .header, .footer, .hero, .topbar-inner {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+    padding: 13px 14px;
+  }
+  .algorithm-ref-grid, .metrics, .files {
+    grid-template-columns: 1fr !important;
+  }
+  table {
+    display: table;
+    overflow-x: hidden;
+    white-space: normal !important;
+  }
+  th, td {
+    min-width: 0 !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+/* MANUMESH_RESPONSIVE_DOCS_FIX_END */
+</style>
 </head>
 <body>
   <header class="topbar">
@@ -545,6 +710,36 @@
     </aside>
 
     <main>
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_BEGIN -->
+<section class="algorithm-reference-map">
+  <h2>ManuMesh 当前算法与论文引用地图</h2>
+  <p>本页所说算法以当前源码为准：<code>src/simplification</code> 负责 QEM/edge-collapse，<code>src/feature_detection</code> 负责特征证据、feature graph、cleanup、loop/primitive recovery，<code>src/common/detail</code> 提供局部边长、邻接和拓扑查询。论文引用使用 <code>Mxxx</code> 编号；完整索引在 <code>docs/papers/README.md</code> 与 <code>docs/design/feature_detection_upgrade_2026_07_09.md</code>。</p>
+  <div class="algorithm-ref-grid">
+    <article class="algorithm-ref-card"><h3>Plane QEM</h3><p><strong>代码：</strong><code>Quadrics.cpp</code> 按面面积累积点到平面二次型，作为 collapse 代价主项。</p><p><strong>引用：</strong>M002 Garland-Heckbert 1997。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Boundary / Attribute QEM</h3><p><strong>代码：</strong><code>addBoundaryQuadrics()</code> 给边界附加约束；属性 QEM 仍作为后续扩展方向。</p><p><strong>引用：</strong>M003 Garland-Heckbert 1998。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Line Quadrics</h3><p><strong>代码：</strong><code>lineQuadric()</code> 用切向正则化改善平坦区 QEM 排序退化；权重由 <code>lineWeight</code>、<code>featureBoost</code> 与 weight mode 调度。</p><p><strong>引用：</strong>M004 Liu-Rahimzadeh-Zordan 2025。</p><span class="doc-path">docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、dihedral、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Normal Tensor / Weak Feature Evidence</h3><p><strong>代码：</strong><code>NormalTensor.cpp</code> 使用局部边长归一化、多尺度 smoothing/persistence；<code>FeatureEvidence.cpp</code> 用 persistent score 和切线对齐接受弱边。</p><p><strong>引用：</strong>M015 normal tensor，M012/M013 normal voting，M009 multi-scale creases。</p><span class="doc-path">docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</span><span class="doc-path">docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</span><span class="doc-path">docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</span><span class="doc-path">docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureEdges()</code> 输出 edge precision/recall、junction F1、loop closure、component confidence 与 feature drift。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 feature-preserving simplification 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
+    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>曲率 ridge/valley、wireframe/neural edge、learned QEM 目前作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
+  </div>
+  <p>一句话总览：ManuMesh 当前默认路线是 <strong>CAD/STL 离散证据 + normal-tensor 弱特征 + feature graph cleanup + component confidence + QEM/line-quadrics edge collapse + hard legality guards</strong>；neural/wireframe 是后续 benchmark 与增强方向。</p>
+</section>
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_END -->
+<!-- MANUMESH_DETAILED_READING_GUIDE_BEGIN -->
+<section class="algorithm-reading-guide">
+  <h2>读懂 ManuMesh 算法的推荐顺序</h2>
+  <p>如果从零看当前实现，先读 <code>docs/generated/notes/current-program-principles.html#deep-algorithm-walkthrough</code>，再读 <code>docs/generated/notes/current-program-principles.html#feature-recognition-deep-dive</code>。前者按真实执行顺序解释网格如何变成拓扑、quadric、候选队列和 legality gates；后者专门解释特征识别如何从 edge evidence 变成 feature graph、loop、primitive、component confidence，并最终被 QEM 消费。</p>
+  <ol>
+    <li><strong>先看数据流：</strong><code>Mesh -> MeshEdgeInfoMap -> FeatureAnalysis -> quadrics -> candidate queue -> legality gates -> SimplifyReport</code>。</li>
+    <li><strong>再看特征识别：</strong><code>FeatureEvidence.cpp</code> 产出边证据，<code>NormalTensor.cpp</code> 产出弱特征分数，<code>FeatureGraphCleanup.cpp</code> 把破碎证据整理成 component，<code>FeatureLoopBuilder.cpp</code> 和 <code>PrimitiveFit.cpp</code> 把图变成 loop/primitive。</li>
+    <li><strong>最后看简化消费：</strong><code>FeatureConstraints.cpp</code> 决定哪些 collapse 被拒绝，<code>Quadrics.cpp</code> 决定 feature curve soft quadric 如何加权，<code>feature_components</code>、<code>graph_cleanup_*</code>、<code>feature_rejected</code>、<code>quality_rejected</code>、<code>error_rejected</code> 解释算法为什么这样停。</li>
+  </ol>
+</section>
+<!-- MANUMESH_DETAILED_READING_GUIDE_END -->
       <article class="hero" id="intro">
         <div class="hero-banner">
           <h2>ManuMesh Commercial Kernel Documentation</h2>
@@ -834,6 +1029,133 @@ applications
           consumed by simplification today and by repair, remeshing, or
           validation modules in future releases.
         </p>
+        <h3>Feature Recognition Pipeline Narrative</h3>
+        <p>
+          Feature recognition is intentionally staged. The detector first builds
+          an undirected edge-to-face map from <code>src/common/detail</code>,
+          then classifies each mesh edge as boundary, dihedral, non-manifold, or
+          normal-tensor-supported weak evidence. It then builds a trace graph,
+          cleans that graph, recovers loops and primitives, summarizes connected
+          components, and writes per-vertex ownership back into
+          <code>FeatureAnalysis</code>. The simplifier consumes that analysis
+          through feature-curve quadrics, feature collapse guards, primitive
+          deviation budgets, and diagnostics.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Stage</th>
+              <th>Implementation</th>
+              <th>Why it exists</th>
+              <th>Literature anchor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Discrete edge evidence</td>
+              <td><code>FeatureEvidence.cpp</code>, <code>MeshQueries.h</code></td>
+              <td>Boundary, dihedral, and non-manifold edges are the fastest explainable CAD/STL signals.</td>
+              <td>M007, M016, M018/M019</td>
+            </tr>
+            <tr>
+              <td>Weak evidence</td>
+              <td><code>NormalTensor.cpp</code></td>
+              <td>Local-scale normalized tensor scores and multi-scale persistence catch shallow or noisy creases that dihedral thresholds miss.</td>
+              <td>M009, M012, M013, M015</td>
+            </tr>
+            <tr>
+              <td>Evidence-to-graph conversion</td>
+              <td><code>FeatureGraph.cpp</code></td>
+              <td><code>featureAngleDeg</code> controls dihedral evidence; <code>loopTraceAngleDeg</code> controls trace ownership, with negative values reusing the evidence threshold.</td>
+              <td>M016, M018/M019</td>
+            </tr>
+            <tr>
+              <td>Graph cleanup</td>
+              <td><code>FeatureGraphCleanup.cpp</code></td>
+              <td>Short gap bridging, tensor-only spur removal, and near-junction merging turn broken evidence into usable curve support while preserving diagnostics.</td>
+              <td>M024/M025, M026</td>
+            </tr>
+            <tr>
+              <td>Loop and primitive recovery</td>
+              <td><code>FeatureLoopBuilder.cpp</code>, <code>FeatureTraceRecovery.cpp</code>, <code>FeatureCycleRecovery.cpp</code>, <code>FeatureCircularRecovery.cpp</code>, <code>PrimitiveFit.cpp</code></td>
+              <td>Closed loops, circles, near-circles, ellipses, and polygonal chains are the units that QEM can protect or penalize.</td>
+              <td>M007, M016, M024/M025</td>
+            </tr>
+            <tr>
+              <td>Component confidence</td>
+              <td><code>FeatureGraphCleanup.cpp</code>, <code>FeatureTypes.h</code></td>
+              <td>Strong-evidence ratio, weak-evidence support, closure, junction count, and primitive residual decide whether the simplifier should use soft costs, hard guards, or only diagnostics.</td>
+              <td>M026, M028/M029</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          This design follows the literature tension rather than hiding it:
+          dihedral/CAD extraction is fast and precise for hard edges, normal
+          tensor and voting improve weak-feature recall, graph cleanup is needed
+          before segmentation or primitive fitting, and QEM should consume
+          feature support as both ranking information and hard legality where
+          the primitive is trusted.
+        </p>
+        <h3>Feature Detection Debug Contract</h3>
+        <p>
+          The detector deliberately separates evidence, trace ownership, graph
+          cleanup, primitive confidence, and simplification consumption. Keep
+          those layers separate when adding algorithms. A new detector may add
+          evidence, but it should not silently bypass loop recovery or QEM
+          guards; otherwise diagnostics will say a feature exists while the
+          simplifier has no stable curve to protect.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Contract</th>
+              <th>Do not mix with</th>
+              <th>Primary references</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Evidence</td>
+              <td>Report why an edge is suspicious: boundary, dihedral, non-manifold, tensor score, convexity, cleanup bridge.</td>
+              <td>Loop ownership or collapse rejection.</td>
+              <td>M007, M016, M018/M019.</td>
+            </tr>
+            <tr>
+              <td>Trace ownership</td>
+              <td>Decide which evidence edges are coherent enough to enter the feature graph; keep <code>featureAngleDeg</code> and <code>loopTraceAngleDeg</code> meanings explicit.</td>
+              <td>QEM weights.</td>
+              <td>M016, M018/M019.</td>
+            </tr>
+            <tr>
+              <td>Graph cleanup</td>
+              <td>Bridge short local gaps, remove tensor-only spurs, merge near junctions, and expose each action in diagnostics.</td>
+              <td>Original evidence counts.</td>
+              <td>M024/M025, M026.</td>
+            </tr>
+            <tr>
+              <td>Primitive fitting</td>
+              <td>Classify loops as circle, near-circle, ellipse, or polygon only when ordering, planarity, and residual checks pass.</td>
+              <td>Generic feature-edge protection.</td>
+              <td>M007, M016, M024/M025.</td>
+            </tr>
+            <tr>
+              <td>QEM consumption</td>
+              <td>Use confidence as soft feature-curve cost where possible and hard primitive guards only when the primitive is trustworthy.</td>
+              <td>Raw tensor score alone.</td>
+              <td>M002, M004, M026, M028/M029, M033.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          This contract is the reason the benchmark plan measures precision and
+          recall, loop closure, junction correctness, primitive residual, and
+          feature drift after simplification. Counting detected edges alone is
+          not enough: a high edge count can still produce no protectable curve,
+          and an over-eager hard lock can preserve a feature while damaging
+          triangle quality.
+        </p>
         <h3>Evidence Sources</h3>
         <table>
           <thead>
@@ -866,12 +1188,69 @@ applications
             </tr>
           </tbody>
         </table>
+        <h3>Current Detection Pipeline And References</h3>
+        <p>
+          The implemented detector is a deterministic CAD/STL-first pipeline.
+          It does not try to infer a full CAD feature tree. It builds a
+          measurable feature graph from triangle evidence, cleans that graph,
+          then exposes loops and component confidence to simplification.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Stage</th>
+              <th>Exact implementation behavior</th>
+              <th>Code entry</th>
+              <th>Reference location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Discrete edge evidence</td>
+              <td>Classify mesh edges as boundary, dihedral crease, or non-manifold. Dihedral evidence uses <code>featureAngleDeg</code>; loop ownership can use <code>loopTraceAngleDeg</code>.</td>
+              <td><code>FeatureEvidence.cpp</code>, <code>FeatureGraph.cpp</code></td>
+              <td>M007 <code>docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</code>; M016 <code>vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</code>; M018/M019 polygon crawling PDFs.</td>
+            </tr>
+            <tr>
+              <td>Normal-tensor weak evidence</td>
+              <td>Compute per-vertex normal tensors, smooth by local edge-length scale, score crease/corner saliency over multiple scales, and accept weak feature edges only when persistent score and tangent alignment agree.</td>
+              <td><code>NormalTensor.cpp</code>, <code>FeatureEvidence.cpp</code></td>
+              <td>M015 <code>docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</code>; M012 <code>docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</code>; M013 <code>docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</code>; M009 <code>docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</code>.</td>
+            </tr>
+            <tr>
+              <td>Trace graph cleanup</td>
+              <td>Remove short tensor-only spurs, bridge endpoint gaps in local edge-length units, and merge close junction gaps before primitive recovery.</td>
+              <td><code>FeatureGraphCleanup.cpp</code></td>
+              <td>M016 for CAD feature graph continuity; M024/M025 for segmentation boundary closure; M026 <code>docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</code> for weak-feature support consolidation.</td>
+            </tr>
+            <tr>
+              <td>Loop and primitive recovery</td>
+              <td>Recover chains/cycles, fit circle, near-circle, ellipse, or polygonal loop primitives, and assign feature ownership to vertices.</td>
+              <td><code>FeatureTraceRecovery.cpp</code>, <code>FeatureLoopBuilder.cpp</code>, <code>PrimitiveFit.cpp</code>, <code>FeaturePrimitiveRecovery.cpp</code></td>
+              <td>M007 and M016 for CAD feature boundaries; M024/M025 for loop closure as a segmentation prerequisite.</td>
+            </tr>
+            <tr>
+              <td>Component confidence</td>
+              <td>Summarize each connected feature component by strong/weak evidence ratio, closure rate, endpoints, junctions, tensor persistence, primitive residual, and confidence.</td>
+              <td><code>FeatureGraphCleanup.cpp</code>, public <code>FeatureComponent</code></td>
+              <td>M026 weak feature consolidation; M028/M029 feature-preserving simplification references.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          Algorithm boundary: curvature ridge/valley extraction, learned
+          wireframe extraction, and neural edge fields are documented as future
+          comparison routes. They are not the default production path because
+          the current kernel prioritizes deterministic CAD/STL behavior,
+          explainable diagnostics, and stable C/C++ integration.
+        </div>
         <h3>Feature Analysis Output</h3>
         <ul>
-          <li><code>FeatureEdge</code>: classified edge evidence and source counters.</li>
+          <li><code>FeatureGraphEdge</code>: explicit feature graph edge with boundary, dihedral, normal-tensor, non-manifold, cleanup bridge, and signed-kind markers.</li>
           <li><code>FeatureLoop</code>: recovered chain or loop with closure, primitive type, fit errors, and loop statistics.</li>
-          <li><code>VertexFeature</code>: per-vertex feature ownership, tangent, circle data, and ellipse data.</li>
-          <li>Diagnostics: boundary, dihedral, normal-tensor, non-manifold, convex, concave, unknown edge counts, traced/untraced edges, tensor scored vertices, persistent score, local scale, and persistence.</li>
+          <li><code>FeatureComponent</code>: connected feature-graph support with confidence, weak/strong evidence counts, closure rate, junction and endpoint diagnostics.</li>
+          <li><code>VertexFeature</code>: per-vertex feature ownership, tangent, component id, confidence, circle data, and ellipse data.</li>
+          <li>Diagnostics: boundary, dihedral, normal-tensor, non-manifold, cleanup bridge, convex, concave, unknown edge counts, traced/untraced edges, tensor scored vertices, persistent score, local scale, persistence, and feature benchmark metrics.</li>
         </ul>
         <h3>Primitive Recovery</h3>
         <p>
@@ -912,6 +1291,49 @@ applications
         + lambda_line * E_line
         + lambda_boundary * E_boundary
         + lambda_feature * E_feature_curve</code></pre>
+        <h3>Energy Terms And Source Papers</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Meaning in ManuMesh</th>
+              <th>Implemented in</th>
+              <th>Primary reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>E_plane</code></td>
+              <td>Area-weighted point-to-face-plane error accumulated per vertex and summed across collapse endpoints.</td>
+              <td><code>Quadrics.cpp::planeQuadric</code>, <code>computeInitialQuadrics</code></td>
+              <td>M002 Garland-Heckbert 1997, <code>docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</code></td>
+            </tr>
+            <tr>
+              <td><code>E_line</code></td>
+              <td>Small line-quadric regularizer that reduces tangential drift and improves candidate ranking in flat regions.</td>
+              <td><code>Quadrics.cpp::lineQuadric</code></td>
+              <td>M004 Liu-Rahimzadeh-Zordan 2025, <code>docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code></td>
+            </tr>
+            <tr>
+              <td><code>E_boundary</code></td>
+              <td>Extra boundary plane constraints used when boundary preservation is enabled.</td>
+              <td><code>Quadrics.cpp::addBoundaryQuadrics</code>, <code>FeatureConstraints.cpp</code></td>
+              <td>M003 Garland-Heckbert 1998 attribute/extended QEM path, <code>docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</code></td>
+            </tr>
+            <tr>
+              <td><code>E_feature_curve</code></td>
+              <td>Feature tangent line quadric. Its weight is softened by <code>VertexFeature::confidence</code>, so weak components influence ranking without being treated as equally hard CAD edges.</td>
+              <td><code>Quadrics.cpp</code>, <code>FeatureConstraints.cpp</code></td>
+              <td>M026 weak-feature consolidation; M028 vertex-cover feature preservation; M029 feature-sensitive metric.</td>
+            </tr>
+            <tr>
+              <td>Hard legality gates</td>
+              <td>QEM ranks candidates, but topology, feature policy, boundary policy, normal deviation, triangle quality, local error, and local intersection guards decide whether a collapse is allowed.</td>
+              <td><code>CollapseLegality.cpp</code>, <code>FeatureConstraints.cpp</code>, <code>SpatialFaceIndex.cpp</code></td>
+              <td>M030-M033 edge-collapse engineering references, especially M033 <code>docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</code></td>
+            </tr>
+          </tbody>
+        </table>
         <h3>Collapse Acceptance</h3>
         <table>
           <thead>

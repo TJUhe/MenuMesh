@@ -1,0 +1,92 @@
+# 特征曲线约束说明
+
+ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurves()`、`FeatureConstraints.cpp` 和 `SimplifyOptions` 中的 feature 相关参数共同实现。它不是完整 CAD 约束求解器，而是在三角网格上识别特征 loop，并在 QEM collapse 中加入软成本、投影和硬拒绝策略。
+
+更完整的数学背景见 [`algorithm_essence.md`](algorithm_essence.md)。本文聚焦“特征曲线进入简化器后，每一步为什么这样做”。
+
+## 检测输入
+
+`FeatureOptions` 当前使用：
+
+- 边界边。
+- 非流形边。
+- 二面角超过 `featureAngleDeg` 的硬边。
+- normal-tensor 弱特征证据。
+- loop tracing 后的圆、近圆、椭圆和折线 primitive 拟合。
+
+## 简化中的约束层
+
+| 层 | 当前实现 | 作用 |
+| --- | --- | --- |
+| 软 line weight | `weightMode`、`featureBoost` | 让特征附近候选成本更高。 |
+| 特征曲线 quadric | `featureCurveWeight` | 沿检测到的 loop 加 tangent-line 约束。 |
+| placement 投影 | 圆、近圆、椭圆、polyline | 把候选位置拉回拟合 primitive 或原始折线。 |
+| 曲线预算 | `maxFeatureCurveDeviationRatio` | 原始 placement 偏离曲线太远时拒绝。 |
+| 最小 loop 顶点数 | `minFeatureLoopVertices`、`minCircularFeatureLoopVertices` | 防止重要 loop 被压到过少顶点。 |
+| 硬保护策略 | `featureProtectionMode` | 决定哪些 loop/边可以触发硬拒绝。 |
+
+## 每一层的由来
+
+### 软 line weight
+
+二面角、normal tensor 和高度/空间带权重本质上都是“候选排序偏置”。它们不会禁止坍缩，只是让特征附近的 line quadric 权重更高，使优先队列更倾向于先删掉非特征区域。
+
+这对应特征保持简化中的常见思路：不要一开始就把所有特征锁死，而是先让代价函数表达局部重要性。相关来源包括 feature-sensitive metric、显著性加权简化和 QEM 变体。
+
+### 特征曲线 quadric
+
+普通 line quadric 使用顶点法向线，主要解决平坦区切向漂移；feature curve quadric 使用的是特征曲线切向。直观上，它惩罚点离开曲线附近的二维正交补，使 feature 顶点更愿意沿曲线方向移动，而不是横向漂移。
+
+对圆/椭圆 loop，这个切向来自 primitive 拟合；对折线 loop，则来自相邻特征边方向。这是“曲线支撑”而不是完整 CAD 约束。
+
+### placement 投影
+
+即使 quadric cost 偏好曲线，新位置仍可能落在曲线附近但不在曲线上。圆孔这类制造特征对径向漂移敏感，所以当前实现会把同一受保护 loop 内的 collapse placement 投影回：
+
+- 圆：固定圆心、法向和半径。
+- 椭圆：固定中心、法向、主/次轴和主/次半径。
+- 折线：严格模式下投影到原始折线段或局部切线。
+
+投影的数学含义是把无约束局部最优点映射到低维曲线模型上。它改善特征形状，但仍要经过后续拓扑、质量、法线和自交过滤。
+
+### 曲线预算
+
+`maxFeatureCurveDeviationRatio` 在投影前检查原始 placement 到曲线的距离。如果原始最优点离曲线太远，直接投影可能把点拉到一个局部几何完全不同的位置，造成瘦三角形或局部折叠。预算检查相当于问：“这个候选本来是否已经接近曲线约束？”如果答案是否，就拒绝而不是强行投影。
+
+### 最小 loop 顶点数
+
+圆孔或椭圆孔即使形状还在，如果被压到极少顶点，也会失去可制造和可识别性。`minCircularFeatureLoopVertices` 和 `minFeatureLoopVertices` 控制的是 feature support 的离散分辨率，不是几何距离误差。它与 `featureCurveWeight`、曲线预算共同决定“保形”和“可删减”的折中。
+
+## 保护模式
+
+| 模式 | 含义 |
+| --- | --- |
+| `none` | 不启用硬特征保护，只保留软成本。 |
+| `circular-only` | 只硬保护圆和近圆 loop。 |
+| `primitive-curves` | 默认模式，硬保护圆、近圆和椭圆，generic crease 保持较软。 |
+| `all-feature-edges` | 严格模式，所有检测到的特征边都硬保护。 |
+
+
+
+## 适用场景
+
+适合：干净 CAD/STL 三角网格、孔洞边界、圆孔、近圆孔、椭圆孔、明显硬边和规则工业件。
+
+不适合直接承诺：高噪扫描件、缺失拓扑的点云重建、B-Rep 语义特征、严格尺寸公差证明和全局几何约束。
+
+## 调参建议
+
+- 普通圆孔：`--preserve-feature-curves --feature-protection-mode primitive-curves --min-circular-feature-loop-vertices 12`。
+- 泛硬边太多导致停滞：避免 `all-feature-edges`，使用默认 `primitive-curves`。
+- 弱特征不明显：尝试 `--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2`。
+- 输出偏离曲线：增大 `featureCurveWeight` 或减小 `maxFeatureCurveDeviationRatio`，同时检查拒绝计数是否过高。
+
+## 相关算法出处
+
+| 主题 | 参考 |
+| --- | --- |
+| CAD/STL 特征线和边界提取 | `docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf`、`jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf` |
+| normal tensor / voting | `docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf`，以及文献库 source 031、057、066、080 |
+| 特征保持简化 | `docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf`、`hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf` |
+| 弱特征支撑 | 文献库 source 088 `CWF: Consolidating Weak Features in High-quality Mesh Simplification` |
+| 边折叠合法性 | `docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf` |

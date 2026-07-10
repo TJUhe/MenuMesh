@@ -1,10 +1,11 @@
 #pragma once
 
 #include "algorithms/simplification/SimplificationTypes.h"
+#include "common/detail/MeshDistanceIndex.h"
 #include "core/Mesh.h"
 #include "detail/CandidateQueue.h"
 #include "detail/CollapseAttempt.h"
-#include "detail/DynamicTopology.h"
+#include "detail/CollapseTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/FeatureGuidance.h"
 #include "detail/Quadrics.h"
@@ -37,6 +38,7 @@ private:
     void initializeBudget();
     void rebuildQueue();
     void collapseUntilTarget();
+    void refineQuality();
     bool ensureQueueHasCandidates();
     bool isCurrentCandidate(const Candidate& candidate) const;
     void handleStaleCandidate();
@@ -58,6 +60,7 @@ private:
     std::vector<FaceState> faces_;
     std::unique_ptr<DynamicTopology> topology_;
     SpatialFaceIndex spatialIndex_;
+    std::unique_ptr<manumesh::detail::MeshDistanceIndex> referenceSurface_;
     std::vector<int> activeLoopCounts_;
     CandidateQueue queue_;
     InitialQuadricBuilder quadrics_;

@@ -108,13 +108,18 @@ struct SimplifyOptions {
     double featureComponentMinConfidence = 0.35;
 
     // Hard post-placement filters and diagnostics.
-    /// Hard post-placement filters. Zero local-error budgets disable those tests.
+    /// Hard post-placement filters. Local-error budgets enforce an approximate
+    /// bidirectional patch envelope and keep new samples near the original input surface.
+    /// Zero local-error budgets disable those tests.
     double minTriangleQuality = 0.0;
     double maxNormalDeviationDeg = 90.0;
     double maxLocalError = 0.0;
     double maxLocalErrorRatio = 0.0;
     bool preventLocalIntersections = false;
     bool verbose = false;
+    /// Fixed-topology, tangential quality-improvement passes after edge collapse.
+    /// Zero preserves the one-round simplification behavior exactly.
+    int qualityRefinementIterations = 0;
 };
 
 /// Diagnostics collected during simplification.
@@ -174,6 +179,11 @@ struct SimplifyReport {
     SimplifyTerminationReason terminationReason = SimplifyTerminationReason::NotStarted;
     double minAppliedLineWeight = 0.0;
     double maxAppliedLineWeight = 0.0;
+
+    // Fixed-topology second-round quality refinement.
+    int qualityRefinementIterationsCompleted = 0;
+    int qualityRefinementAttemptedMoves = 0;
+    int qualityRefinementAcceptedMoves = 0;
 };
 
 /// Parses a command/user string into a weight mode.

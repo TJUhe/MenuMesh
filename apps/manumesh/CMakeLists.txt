@@ -7,6 +7,10 @@ add_executable(manumesh
   CliOptionBinding.cpp
   CliOptionBinding.h
   ManuMeshCommands.cpp
+  ManuMeshFeatureCommands.cpp
+  ManuMeshFeatureCommands.h
+  ManuMeshWorkflowCommands.cpp
+  ManuMeshWorkflowCommands.h
   main.cpp
   ManuMeshCli.cpp
   ManuMeshCli.h
@@ -26,10 +30,38 @@ if(BUILD_TESTING)
   add_test(NAME manumesh_cli_rejects_malformed_number
     COMMAND manumesh generate --type plane --n 12x --out bad.stl
   )
+  add_test(NAME manumesh_cli_feature_report
+    COMMAND manumesh feature-report
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
+  )
+  add_test(NAME manumesh_cli_feature_benchmark
+    COMMAND manumesh feature-benchmark
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv"
+  )
+  add_test(NAME manumesh_cli_feature_compare
+    COMMAND manumesh feature-compare
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
+  )
+  add_test(NAME manumesh_cli_quality_refinement
+    COMMAND manumesh simplify
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/boss_pocket_plate.obj"
+      "${CMAKE_CURRENT_BINARY_DIR}/cli_quality_refinement.stl"
+      --ratio 0.75
+      --preserve-boundary
+      --quality-refinement-iterations 2
+  )
   set_tests_properties(manumesh_cli_rejects_unknown_option
     manumesh_cli_rejects_missing_option_value
     manumesh_cli_rejects_malformed_number
-    PROPERTIES WILL_FAIL TRUE
+      PROPERTIES WILL_FAIL TRUE
+  )
+  set_tests_properties(manumesh_cli_feature_report
+    manumesh_cli_feature_benchmark
+    manumesh_cli_feature_compare
+    manumesh_cli_quality_refinement
+    PROPERTIES LABELS cli
   )
 endif()
 

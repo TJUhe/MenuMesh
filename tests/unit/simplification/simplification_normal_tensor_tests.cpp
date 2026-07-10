@@ -75,7 +75,7 @@ TEST(ManuMesh, NormalTensorReportsLocalScaleAndPersistentScore) {
     const manumesh::Mesh input = manumesh::generateRidgeGrid(16, 2.0, 0.5);
 
     const std::vector<manumesh::feature::NormalTensorVertex> tensor =
-        manumesh::feature::computeNormalTensorFeatures(input, {1, 3});
+        manumesh::feature::computeNormalTensorFeatures(input, {1, 3}, 0.04);
 
     ASSERT_EQ(input.vertices.size(), tensor.size());
     double maxPersistentScore = 0.0;
@@ -94,10 +94,50 @@ TEST(ManuMesh, NormalTensorReportsLocalScaleAndPersistentScore) {
     EXPECT_GT(persistentVertices, 0);
 }
 
+TEST(ManuMesh, NormalTensorPersistenceRequiresSignificantScaleSupport) {
+    const manumesh::Mesh input = manumesh::generateRidgeGrid(16, 2.0, 0.5);
+
+    const std::vector<manumesh::feature::NormalTensorVertex> permissive =
+        manumesh::feature::computeNormalTensorFeatures(input, {1, 3}, 0.04);
+    const std::vector<manumesh::feature::NormalTensorVertex> suppressed =
+        manumesh::feature::computeNormalTensorFeatures(input, {1, 3}, 1.0);
+
+    int permissivePersistentVertices = 0;
+    for (const manumesh::feature::NormalTensorVertex& vertex : permissive) {
+        if (vertex.persistentScales >= 2) {
+            ++permissivePersistentVertices;
+        }
+    }
+    EXPECT_GT(permissivePersistentVertices, 0);
+    for (const manumesh::feature::NormalTensorVertex& vertex : suppressed) {
+        EXPECT_EQ(0, vertex.persistentScales);
+        EXPECT_DOUBLE_EQ(0.0, vertex.persistentFeatureScore);
+    }
+}
+
+TEST(ManuMesh, NormalTensorFeatureThresholdControlsPersistentEdgeEvidence) {
+    const manumesh::Mesh input = manumesh::generateRidgeGrid(32, 2.0, 0.6);
+    manumesh::feature::FeatureOptions options;
+    options.featureAngleDeg = 179.0;
+    options.normalTensorMinEdgeAlignment = 0.2;
+    options.normalTensorScaleCount = 3;
+    options.normalTensorMinPersistentScales = 2;
+
+    options.normalTensorFeatureThreshold = 0.06;
+    const manumesh::feature::FeatureAnalysis detected = manumesh::feature::detectFeatureCurves(input, options);
+    EXPECT_GT(detected.normalTensorFeatureEdges, 0);
+
+    options.normalTensorFeatureThreshold = 1.0;
+    const manumesh::feature::FeatureAnalysis suppressed = manumesh::feature::detectFeatureCurves(input, options);
+    EXPECT_EQ(0, suppressed.normalTensorFeatureEdges);
+    EXPECT_EQ(0, suppressed.weakFeatureComponents);
+}
+
 TEST(ManuMesh, NormalTensorWeightModeAppliesSpatiallyVaryingWeights) {
     const manumesh::Mesh input = manumesh::generateRidgeGrid(32, 2.0, 0.6);
     manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.70);
     options.weightMode = manumesh::simplification::WeightMode::NormalTensor;
+    options.normalTensorFeatureThreshold = 0.04;
     options.normalTensorSmoothingIterations = 1;
     options.normalTensorScaleCount = 3;
     options.normalTensorMinPersistentScales = 2;

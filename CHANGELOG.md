@@ -1,5 +1,44 @@
 # 更新日志
 
+## 2026-07-11
+
+### 可复用网格编辑基础层
+
+- 新增内部 `mesh_edit` 层，将活动面、增量 vertex-face incidence、邻接/重复面查询和
+  edit-state 到稠密 `Mesh` 的压实映射从 QEM 私有实现中拆出，作为后续 remeshing、repair
+  和其他拓扑编辑算法的共享基础。
+- 将边坍缩专属的拓扑更新保留在 `simplification/CollapseTopology.*`，quadrics、候选队列、
+  特征约束和 collapse legality 继续由 simplification 策略层拥有，形成
+  `core <- common <- mesh_edit <- simplification` 的单向依赖。
+- 新增 `manumesh_mesh_edit_objects` 构建目标和 include-boundary 规则，禁止 `mesh_edit`
+  反向依赖 simplification；内部编辑类型不安装到 SDK，不扩大公共 ABI/API。
+
+### 几何基础与二轮质量优化
+
+- 将三角形质量、距离、包围盒和相交谓词，以及通用空间候选索引和 mesh distance index
+  下沉到 `common`，供简化、质量优化和后续 remeshing/validation 复用。
+- 新增可选的 QEM 二轮局部质量优化，在不改变拓扑、参考面 envelope 和硬保护特征的前提下
+  改善最差三角形质量；同步扩展 C++/C ABI options、report diagnostics 和 CLI 参数绑定。
+- 将 CLI 的 feature/report/benchmark 与 workflow 命令拆分到独立 translation units，降低
+  `ManuMeshCommands.cpp` 的体积和跨命令耦合。
+
+### 测试与文档
+
+- 新增 `mesh_edit` 单元测试，覆盖确定性顶点/面 remap、非活动/无效/退化面过滤、邻接缓存和
+  重复面增量更新；新增 common 几何/空间索引测试和 quality-refinement 回归测试。
+- 增加 include-boundary 检查器及其自测，测试中明确阻止 `mesh_edit -> simplification` 等
+  反向依赖；补充圆孔、椭圆孔、boss/pocket 和多 junction 的 feature ground-truth 标签。
+- 新增 `docs/design/mesh_edit_foundation.md`，并同步架构、源码组织、算法扩展、公共基础层、
+  交付手册和 generated notes，说明未来 remeshing/repair 的复用边界。
+
+### 本轮已验证
+
+- `cmake --build build\mingw-ninja-release --target check-format`
+- `ctest --test-dir build\mingw-ninja-release --output-on-failure -E '^ManuMeshDataset\\.'`：127/127 passed
+- `ctest --test-dir build\mingw-ninja-release-performance --output-on-failure -R '^ManuMeshDataset\\.'`：4/4 passed
+- `ctest --test-dir build\mingw-ninja-release-sdk --output-on-failure -R '^sdk_consumer_examples$'`：1/1 passed
+- `git diff --check`
+
 ## 2026-07-10
 
 ### 架构边界修复

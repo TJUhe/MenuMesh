@@ -258,7 +258,7 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>Plane QEM</h3><p><strong>代码：</strong><code>Quadrics.cpp</code> 按面面积累积点到平面二次型，作为 collapse 代价主项。</p><p><strong>引用：</strong>M002 Garland-Heckbert 1997。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Boundary / Attribute QEM</h3><p><strong>代码：</strong><code>addBoundaryQuadrics()</code> 给边界附加约束；属性 QEM 仍作为后续扩展方向。</p><p><strong>引用：</strong>M003 Garland-Heckbert 1998。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Line Quadrics</h3><p><strong>代码：</strong><code>lineQuadric()</code> 用切向正则化改善平坦区 QEM 排序退化；权重由 <code>lineWeight</code>、<code>featureBoost</code> 与 weight mode 调度。</p><p><strong>引用：</strong>M004 Liu-Rahimzadeh-Zordan 2025。</p><span class="doc-path">docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</span></article>
-    <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code>、<code>src/common/GeometryPredicates.cpp</code>、<code>src/common/SpatialIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
     <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、dihedral、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Normal Tensor / Weak Feature Evidence</h3><p><strong>代码：</strong><code>NormalTensor.cpp</code> 使用局部边长归一化、多尺度 smoothing/persistence；<code>FeatureEvidence.cpp</code> 用 persistent score 和切线对齐接受弱边。</p><p><strong>引用：</strong>M015 normal tensor，M012/M013 normal voting，M009 multi-scale creases。</p><span class="doc-path">docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</span><span class="doc-path">docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</span><span class="doc-path">docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</span><span class="doc-path">docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
@@ -434,7 +434,7 @@ img, svg, canvas, video {
 │   ├── SimplifyOptions.hpp
 │   ├── SimplifyReport.hpp
 │   ├── SimplificationRun.hpp  # 面向对象的简化流程
-│   ├── SpatialFaceIndex.hpp   # 空间索引加速自交检测
+│   ├── SpatialFaceIndex.hpp   # common AABB 候选适配
 │   └── DynamicTopology.hpp   # 增量拓扑维护
 └── api/            # C API 导出
     └── qem_c_api.h</div>
@@ -1447,14 +1447,14 @@ Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_rad
 <tr><td><strong>Topology</strong></td><td>Link condition 检查</td><td><code>rejectTopology</code></td><td>边折叠后拓扑正确性保证，防止非流形</td></tr>
 <tr><td><strong>NormalFlip</strong></td><td>法向翻转检查</td><td><code>rejectNormalFlip</code></td><td>折叠后邻接面法向不翻转</td></tr>
 <tr><td><strong>TriangleQuality</strong></td><td>最小三角质量</td><td><code>rejectTriangleQuality</code></td><td>折叠后三角形质量不低于阈值</td></tr>
-<tr><td><strong>SelfIntersection</strong></td><td>三角形相交检测</td><td><code>rejectSelfIntersection</code></td><td>折叠后不产生自交（含 <code>SpatialFaceIndex</code> 加速）</td></tr>
+<tr><td><strong>SelfIntersection</strong></td><td>三角形相交检测</td><td><code>rejectSelfIntersection</code></td><td>折叠后不产生自交（含 <code>SpatialFaceIndex</code> 候选过滤）</td></tr>
 <tr><td><strong>LocalError</strong></td><td>局部误差预算</td><td><code>rejectLocalError</code></td><td>折叠误差不超过局部预算</td></tr>
 <tr><td><strong>Feature</strong></td><td>特征折叠策略</td><td><code>rejectFeature</code></td><td>由 <code>featureCollapseAllowed()</code> 判定</td></tr>
 </table>
 
 <div class="callout teal">
-<div class="callout-title">SpatialFaceIndex 空间索引加速</div>
-<p>自交检测是计算密集型操作——需要检查折叠后新三角形与周围所有三角形是否相交。新版引入 <code>SpatialFaceIndex</code> 空间索引，将时间复杂度从 $O(n)$ 降至 $O(\log n)$。索引基于 AABB（Axis-Aligned Bounding Box）层次结构，每次折叠后增量更新。</p>
+<div class="callout-title">SpatialFaceIndex 适配 common AABB 候选网格</div>
+<p>自交检测是计算密集型操作——需要检查折叠后新三角形与周围三角形是否相交。当前 <code>SpatialFaceIndex</code> 是 simplification 私有状态到 common <code>UniformAabbCandidateGrid</code> 的薄适配层；它先用 AABB uniform grid 给出保守候选集，再交给 common 几何谓词做精确三角形相交判断。</p>
 </div>
 
 <div class="iter">
@@ -1492,7 +1492,7 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
 <li>min-triangle-quality：折叠后三角形 $4\sqrt{3}S/(l_1^2+l_2^2+l_3^2) \geq 10^{-4}$ 才允许</li>
 <li>max-normal-deviation：折叠后邻接面法向变化 $\leq 75°$</li>
 <li>max-local-error-ratio：折叠后顶点漂移 $\leq 0.02 \times \text{diag}$</li>
-<li>prevent-local-intersections：启用 SpatialFaceIndex 空间哈希加速自交检测</li>
+<li>prevent-local-intersections：启用 SpatialFaceIndex + common UniformAabbCandidateGrid 候选过滤自交检测</li>
 </ul></li>
 </ul>
 
@@ -1548,7 +1548,7 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
 │   │   ┌─────────────────────────────────────────┐
 │   │   │  SimplificationRun                      │
 │   │   │  ├─ 优先队列 (按 error 排序的边)         │
-│   │   │  ├─ SpatialFaceIndex (自交检测加速)      │
+│   │   │  ├─ SpatialFaceIndex (common AABB 候选适配)      │
 │   │   │  └─ DynamicTopology (增量拓扑维护)       │
 │   │   └─────────────────────────────────────────┘
 │   │
@@ -1836,42 +1836,26 @@ private:
 </ul>
 </div>
 
-<h3 id="s5-7">5.7 SpatialFaceIndex 空间索引</h3>
+<h3 id="s5-7">5.7 SpatialFaceIndex 适配层</h3>
 
-<p><code>SpatialFaceIndex</code> 是新增的加速结构，用于自交检测：</p>
+<p><code>SpatialFaceIndex</code> 是 simplification 专属状态到 common 空间索引的薄适配器，用于自交候选过滤：</p>
 
 <pre><code>class SpatialFaceIndex {
 public:
-    SpatialFaceIndex(const Mesh& mesh);
-
-    // 构建空间索引
-    void build();
-
-    // 查询: 给定三角形 AABB，返回可能相交的三角形列表
-    std::vector&lt;int&gt; queryPotentialIntersections(const BoundingBox&amp; queryAABB) const;
-
-    // 增量更新: 折叠后更新索引
-    void updateAfterCollapse(int vi, int vj, const std::vector&lt;int&gt;&amp; affectedFaces);
+    void rebuild(const std::vector&lt;FaceState&gt;&amp; faces,
+                 const std::vector&lt;VertexState&gt;&amp; vertices);
+    void removeFace(int faceId);
+    void updateFace(int faceId, const FaceState&amp; face,
+                    const std::vector&lt;VertexState&gt;&amp; vertices);
+    std::vector&lt;int&gt; query(const Vec3&amp; lo, const Vec3&amp; hi) const;
 
 private:
-    // 基于 AABB 层次结构的 BVH
-    struct BVHNode {
-        BoundingBox bbox;
-        int leftChild = -1;
-        int rightChild = -1;
-        std::vector&lt;int&gt; faceIndices;  // 叶节点存储面索引
-    };
-
-    std::vector&lt;BVHNode&gt; nodes_;
-    int root_ = -1;
-
-    // 面 → 叶节点映射，便于增量更新
-    std::unordered_map&lt;int, int&gt; faceToLeaf_;
+    manumesh::detail::UniformAabbCandidateGrid grid_;
 };</code></pre>
 
 <div class="callout teal">
-<div class="callout-title">性能提升</div>
-<p>无空间索引时，每次折叠需检查所有 $n$ 个三角形是否自交，总时间 $O(n^2)$。使用 BVH 空间索引后，每次查询降为 $O(\log n)$，总时间 $O(n \log n)$。对于 10 万面的网格，加速约 1000 倍。</p>
+<div class="callout-title">候选过滤</div>
+<p>底层 <code>UniformAabbCandidateGrid</code> 位于 <code>src/common/SpatialIndex.cpp</code>，基于 AABB uniform grid 提供保守候选集；超大范围或异常查询会回退到 overflow/active 候选，优先保证不漏检。精确相交判断仍由 <code>src/common/GeometryPredicates.cpp</code> 完成。</p>
 </div>
 
 <h3 id="s5-8">5.8 DynamicTopology 增量拓扑</h3>
@@ -1985,7 +1969,7 @@ private:
 <tr><td><code>--max-normal-deviation-deg</code></td><td>90</td><td>折叠后邻接面法向与原始法向最大偏差角（度）</td><td>10–75</td><td>不影响 Q，折叠后检查法向偏差是否超阈值；90 基本等同于宽松默认值</td><td><code>--max-normal-deviation-deg 20</code></td></tr>
 <tr><td><code>--max-local-error</code></td><td>0（禁用）</td><td>单次折叠局部误差绝对上限</td><td>视模型尺度</td><td>不影响 Q，单次折叠局部误差绝对上限</td><td><code>--max-local-error 0.1</code></td></tr>
 <tr><td><code>--max-local-error-ratio</code></td><td>0（禁用）</td><td>局部误差 / bbox 对角线的上限比值</td><td>0.01–0.05</td><td>不影响 Q，按模型尺度自动换算局部误差预算</td><td><code>--max-local-error-ratio 0.02</code></td></tr>
-<tr><td><code>--prevent-local-intersections</code></td><td>false</td><td>折叠后检测并阻止局部自交（使用 SpatialFaceIndex 加速）</td><td>严格生产检查时启用</td><td>不影响 Q，折叠后检测并阻止局部自交</td><td><code>--prevent-local-intersections</code></td></tr>
+<tr><td><code>--prevent-local-intersections</code></td><td>false</td><td>折叠后检测并阻止局部自交（使用 SpatialFaceIndex 候选过滤）</td><td>严格生产检查时启用</td><td>不影响 Q，折叠后检测并阻止局部自交</td><td><code>--prevent-local-intersections</code></td></tr>
 <tr><td><code>--industrial-safe</code></td><td>false</td><td>工业安全 preset：边界保护、质量 guard、法向 guard、局部误差 guard、局部自交检查</td><td>生产环境推荐</td><td>不改变 Q 矩阵构造，也不自动开启特征曲线保护；拓扑 link condition 始终由合法性检查负责</td><td><code>--industrial-safe</code></td></tr>
 </table>
 
@@ -2281,7 +2265,7 @@ ctest -T coverage --output-on-failure</code></pre>
 <li><strong>椭圆拟合与投影</strong>：<code>fitEllipse()</code> + <code>projectToEllipse()</code></li>
 <li><strong>多边形环投影</strong>：线段最近点投影</li>
 <li><strong>Link condition 拓扑检查</strong>：防止非流形拓扑</li>
-<li><strong>自交检测</strong>：含 <code>SpatialFaceIndex</code> BVH 加速</li>
+<li><strong>自交检测</strong>：含 <code>SpatialFaceIndex</code> + common <code>UniformAabbCandidateGrid</code> 候选过滤</li>
 <li><strong>法向翻转检查</strong>：保证折叠后法向一致</li>
 <li><strong>三角质量检查</strong>：防止退化三角形</li>
 <li><strong>局部误差预算</strong>：控制局部简化程度</li>

@@ -26,8 +26,8 @@ ManuMesh 当前核心管线可以读成：
 | 策略转换 | `src/simplification/SimplificationPolicies.cpp` |
 | collapse 主循环 | `src/simplification/SimplificationRun.cpp`、`CollapseAttempt.cpp` |
 | 特征约束、曲线投影 | `src/simplification/FeatureConstraints.cpp` |
-| 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseLegality.cpp`、`GeometryPredicates.cpp`、`SpatialFaceIndex.cpp` |
-| 结果压缩与报告 | `src/simplification/ResultBuilder.cpp`、`include/algorithms/simplification/SimplificationTypes.h` |
+| 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseLegality.cpp`、`SpatialFaceIndex.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/MeshDistanceIndex.cpp`、`src/common/SpatialIndex.cpp` |
+| 结果压缩与报告 | `src/mesh_edit/MeshCompaction.cpp`、`include/algorithms/simplification/SimplificationTypes.h` |
 
 从算法关系看，当前实现遵循的是“排序成本 + 语义支撑 + 硬过滤器”的工程结构。QEM 和 line quadrics 负责给候选排序；`FeatureAnalysis` 给出制造特征的三角网格支撑；硬过滤器负责阻止局部拓扑和几何灾难。三者不能互相替代。
 
@@ -145,7 +145,7 @@ featureScore    = max(creaseSaliency, cornerSaliency)
 persistentFeatureScore = f(featureScore, averageFeatureScore, persistentScales)
 ```
 
-这不是完整 tensor voting 论文系统，而是一个轻量局部法向张量。当前实现会用 common 层局部平均边长做距离权重平滑，并用多尺度 `persistentFeatureScore` 抑制单尺度噪声。它适合给弱特征提供证据或空间变权，但仍受邻域、采样密度、噪声和 smoothing iteration 影响很大。
+这不是完整 tensor voting 论文系统，而是一个轻量局部法向张量。当前实现会用 common 层局部平均边长做距离权重平滑；只有单尺度 saliency 达到 `normalTensorFeatureThreshold` 时，该尺度才计入 `persistentScales`，`persistentFeatureScore` 再按有效尺度比例衰减。它适合给弱特征提供证据或空间变权，但仍受邻域、采样密度、噪声和 smoothing iteration 影响很大。
 
 程序中的使用方式：
 
@@ -230,7 +230,7 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | CAD/STL feature line extraction | `docs/papers/feature_detection/*.pdf` | 已实现 boundary/dihedral/non-manifold/normal-tensor feature graph、loop tracing、primitive fitting 的工程子集。 |
 | Feature-sensitive simplification | `docs/papers/feature_preserving_simplification/*.pdf` | 已实现特征软成本、primitive 硬保护、投影和拒绝计数；未实现完整 feature-sensitive metric 系列。 |
 | Edge-collapse engineering | `docs/papers/edge_collapse/*.pdf` | 已实现队列、动态拓扑、placement fallback、若干 legality filters。 |
-| Two-round QEM / post optimization | `docs/papers/qem/chang_2025_two_round_optimization_qem.pdf` | 当前未实现二轮优化，可作为后续质量修复方向。 |
+| Two-round QEM / post optimization | `docs/papers/qem/chang_2025_two_round_optimization_qem.pdf` | 已实现可选的固定拓扑切向 refinement：回溯线搜索只接受局部最差质量提升且平均质量不下降的移动，并复用边界、硬特征、法向、误差包络和自交约束。 |
 | Neural / saliency QEM | `docs/papers/neural_and_temporal_qem/`、`feature_preserving_simplification/ha_2025...pdf` | 当前未实现学习模型。 |
 | Temporal QEM | `docs/papers/neural_and_temporal_qem/yokota_2024_tracked_qem_temporal_consistency.pdf` | 当前未实现时间序列一致性。 |
 
@@ -245,7 +245,8 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 5. `featureProtectionMode`：哪些 feature 从软成本升级为硬拒绝。
 6. `featureCurveWeight` / `maxFeatureCurveDeviationRatio`：曲线靠附和漂移预算。
 7. `preserveBoundary` / `minTriangleQuality` / `maxNormalDeviationDeg` / `maxLocalErrorRatio` / `preventLocalIntersections`：几何安全闸。
-8. `SimplifyReport` / metrics CSV：解释运行结果，而不是只看最后面数。
+8. `qualityRefinementIterations`：edge collapse 后的固定拓扑质量优化轮数；默认 `0` 保持单轮行为。
+9. `SimplifyReport` / metrics CSV：解释运行结果，而不是只看最后面数。
 
 一个结果没有达到目标面数时，第一反应不应是“QEM 坏了”，而要看：
 

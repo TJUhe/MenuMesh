@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace manumesh::test {
@@ -21,10 +22,16 @@ struct SimplifiedMesh {
     simplification::SimplifyReport report;
 };
 
+struct FeatureLabels {
+    std::vector<std::pair<int, int>> edges;
+    std::vector<int> junctions;
+};
+
 std::filesystem::path dataRoot();
 std::filesystem::path externalDataRoot();
 
 std::vector<CaseLine> readCaseLines(const std::filesystem::path& relativeCaseFile);
+FeatureLabels readFeatureLabels(const std::filesystem::path& relativeLabelFile);
 Mesh loadCaseMesh(const std::filesystem::path& relativePath);
 Mesh loadFixtureMesh(const std::filesystem::path& relativePath);
 Mesh loadExternalMesh(const std::filesystem::path& relativePath);

@@ -278,6 +278,10 @@ endif()
 
 set(MANUMESH_UNIT_TEST_SOURCES
   support/TestSupport.cpp
+  unit/common/geometry_predicates_tests.cpp
+  unit/common/mesh_distance_index_tests.cpp
+  unit/common/spatial_index_tests.cpp
+  unit/mesh_edit/mesh_edit_tests.cpp
   unit/api/c_api_diagnostics_tests.cpp
   unit/api/c_api_mesh_tests.cpp
   unit/api/c_api_simplify_abi_tests.cpp
@@ -296,12 +300,21 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/simplification/simplification_feature_protection_tests.cpp
   unit/simplification/simplification_legality_tests.cpp
   unit/simplification/simplification_normal_tensor_tests.cpp
+  unit/simplification/simplification_quality_refinement_tests.cpp
 )
 
 add_executable(manumesh_tests ${MANUMESH_UNIT_TEST_SOURCES})
+if(WIN32 AND MANUMESH_BUILD_SHARED_LIBRARY)
+  target_sources(manumesh_tests
+    PRIVATE
+      $<TARGET_OBJECTS:manumesh_common_objects>
+      $<TARGET_OBJECTS:manumesh_mesh_edit_objects>
+  )
+endif()
 target_include_directories(manumesh_tests
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/support"
+    "${PROJECT_SOURCE_DIR}/src"
 )
 target_link_libraries(manumesh_tests
   PRIVATE
@@ -324,6 +337,24 @@ gtest_add_tests(TARGET manumesh_tests
 )
 if(MANUMESH_UNIT_TESTS)
   set_tests_properties(${MANUMESH_UNIT_TESTS} PROPERTIES LABELS unit)
+endif()
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME include_boundaries
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/support/check_include_boundaries.py"
+      "${PROJECT_SOURCE_DIR}"
+  )
+  add_test(NAME include_boundary_checker_tests
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/support/check_include_boundaries_tests.py"
+  )
+  set_tests_properties(include_boundaries include_boundary_checker_tests
+    PROPERTIES LABELS architecture
+  )
+else()
+  message(STATUS "Python3 not found; include boundary CTest disabled.")
 endif()
 
 set(MANUMESH_UNIT_TEST_DEPENDS manumesh_tests)

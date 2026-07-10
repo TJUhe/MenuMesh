@@ -37,6 +37,7 @@ public:
     explicit FeatureConstraintPolicy(const SimplifyOptions& options);
 
     FeatureCollapseRejectKind collapseRejectKind(const FeatureCollapseInput& input) const;
+    bool isHardProtectedVertex(int vertex, const std::vector<VertexState>& vertices) const;
     bool isHardProtectedCollapse(CollapseEdge edge, const std::vector<VertexState>& vertices) const;
     bool projectPlacement(const FeatureProjectionInput& input, Vec3& position) const;
 

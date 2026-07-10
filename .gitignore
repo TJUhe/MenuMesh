@@ -13,6 +13,7 @@ Testing/
 CTestTestfile.cmake
 install_manifest.txt
 *.csv
+!tests/data/feature_labels/*.csv
 *.log
 *.tmp
 *.out

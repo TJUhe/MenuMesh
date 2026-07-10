@@ -5,12 +5,12 @@
 
 ManuMesh 的扩展原则是：新能力作为平级算法加入，不反向塞进
 `simplification` 或 `feature_detection`。公共 API 先定义清楚，内部实现再按
-pipeline 拆分；能复用的底层 mesh 查询进入 `src/common/detail/`，但不要过早把
-算法私有状态放到 common。
+pipeline 拆分；能复用的底层 mesh 查询进入 `src/common/detail/`，可变拓扑和
+compact/remap 进入 `src/mesh_edit/detail/`，但不要把算法私有状态放进基础层。
 
 新增模块前应先读 [`common_foundation.md`](common_foundation.md)。如果新功能需要
-边界 loop、几何谓词、空间索引、索引重映射或 mesh 校验，应优先把这些基础能力做成
-common 组件，再在算法模块里组合策略。
+边界 loop、几何谓词、空间索引、索引重映射或 mesh 校验，应先判断属于 common
+查询能力还是 mesh_edit 编辑能力，再在算法模块里组合策略。
 
 ## 何时新建模块
 
@@ -125,10 +125,11 @@ RepairResult repairMesh(const Mesh& input, const RepairOptions& options);
 稳定复用，并且语义不是 repair 专属，再考虑放到 `src/common/detail/`。例如：
 
 - 适合 common：边 key、边-面 incidence、面法向、顶点一环、边界顶点标记。
+- 适合 mesh_edit：活动面、动态邻接、edge split/collapse/flip 的状态提交、compact/remap。
 - 不适合 common：repair 的 hole patch 候选、修复 issue 聚类、阶段私有状态。
 
 对 `repair` 来说，应优先补强 common 的 `MeshValidation`、`BoundaryLoops`、
-`IndexRemap`、`GeometryPredicates` 和 `SpatialIndex`，让 repair 只负责“怎么修”，
+`GeometryPredicates`、`SpatialIndex` 和 mesh_edit 的 `IndexRemap`，让 repair 只负责“怎么修”，
 不负责重复实现所有 mesh 基础设施。
 
 ## 模块依赖

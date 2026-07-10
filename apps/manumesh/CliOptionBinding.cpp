@@ -46,6 +46,8 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
     options.maxNormalDeviationDeg = getDoubleArg(args, "--max-normal-deviation-deg", options.maxNormalDeviationDeg);
     options.maxLocalError = getDoubleArg(args, "--max-local-error", options.maxLocalError);
     options.maxLocalErrorRatio = getDoubleArg(args, "--max-local-error-ratio", options.maxLocalErrorRatio);
+    options.qualityRefinementIterations =
+        getIntArg(args, "--quality-refinement-iterations", options.qualityRefinementIterations);
     options.verbose = hasFlag(args, "--verbose");
     options.adaptiveScale = hasFlag(args, "--adaptive-scale");
     options.preserveBoundary = hasFlag(args, "--preserve-boundary");
@@ -62,6 +64,7 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
         options.maxNormalDeviationDeg = std::min(options.maxNormalDeviationDeg, 75.0);
         options.maxLocalErrorRatio = std::max(options.maxLocalErrorRatio, 0.02);
         options.preventLocalIntersections = true;
+        options.qualityRefinementIterations = std::max(options.qualityRefinementIterations, 2);
     }
 
     const std::string mode = getArg(args, "--weight-mode", "uniform");

@@ -1,9 +1,8 @@
 #pragma once
 
 #include "core/Mesh.h"
+#include "mesh_edit/detail/MeshEditTypes.h"
 
-#include <array>
-#include <cstdint>
 #include <vector>
 
 namespace manumesh::simplification {
@@ -52,11 +51,7 @@ struct VertexState {
     int version = 0;
 };
 
-/// Mutable triangle record used by the active topology during simplification.
-struct FaceState {
-    std::array<int, 3> v{};
-    bool active = true;
-};
+using FaceState = mesh_edit::EditableFace;
 
 /// Directed edge-collapse choice: keep one endpoint and remove the other.
 struct CollapseEdge {
@@ -108,28 +103,6 @@ struct FeatureCurveConstraint {
     bool closed = false;
     FeatureCurveKind primitive = FeatureCurveKind::Unknown;
     std::vector<Vec3> samples;
-};
-
-struct CellCoord {
-    int x = 0;
-    int y = 0;
-    int z = 0;
-
-    bool operator==(const CellCoord& other) const { return x == other.x && y == other.y && z == other.z; }
-};
-
-struct CellCoordHash {
-    std::size_t operator()(const CellCoord& cell) const {
-        std::size_t seed = 1469598103934665603ull;
-        auto mix = [&](int value) {
-            seed ^= static_cast<std::size_t>(static_cast<std::uint32_t>(value));
-            seed *= 1099511628211ull;
-        };
-        mix(cell.x);
-        mix(cell.y);
-        mix(cell.z);
-        return seed;
-    }
 };
 
 } // namespace manumesh::simplification

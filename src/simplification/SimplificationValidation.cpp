@@ -43,6 +43,9 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
     }
     requireFiniteNonNegative(options.maxLocalError, "maxLocalError");
     requireFiniteNonNegative(options.maxLocalErrorRatio, "maxLocalErrorRatio");
+    if (options.qualityRefinementIterations < 0) {
+        throw std::invalid_argument("qualityRefinementIterations must be non-negative.");
+    }
     if (!std::isfinite(options.maxNormalDeviationDeg) || options.maxNormalDeviationDeg < 0.0 ||
         options.maxNormalDeviationDeg > 180.0) {
         throw std::invalid_argument("maxNormalDeviationDeg must be finite and in [0, 180].");

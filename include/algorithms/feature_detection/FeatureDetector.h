@@ -52,6 +52,10 @@ private:
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options = {});
 
+/// Counts a scale as persistent only when its saliency reaches the supplied threshold.
+MANUMESH_API std::vector<NormalTensorVertex>
+computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options, double persistenceThreshold);
+
 /// Throws std::invalid_argument when feature-detection options are inconsistent.
 MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 

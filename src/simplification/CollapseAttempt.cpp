@@ -104,7 +104,8 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
              input.minNormalDot,
              input.maxLocalError,
              input.policies.legality.preventLocalIntersections,
-             input.spatialIndex}
+             input.spatialIndex,
+             input.referenceSurface}
         );
         if (rejectReason == CollapseRejectReason::None) {
             result.status = CollapseAttemptStatus::Accepted;

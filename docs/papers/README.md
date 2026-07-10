@@ -118,7 +118,7 @@ ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-te
 | normal tensor 的特征值怎么解释？ | M012、M013、M015。 | `NormalTensor.cpp` |
 | 圆/椭圆 loop 为什么要拟合 primitive？ | M016、M024、M025，配合当前 feature fixture。 | `PrimitiveFit.cpp` |
 | 如果要补 ridge/valley/crest line 应看什么？ | M005、M011、M014、M021。 | 未来独立 curvature/feature-line 模块 |
-| 为什么需要 topology/quality/error/self-intersection filters？ | M031、M032、M033。 | `CollapseLegality.cpp`、`GeometryPredicates.cpp` |
+| 为什么需要 topology/quality/error/self-intersection filters？ | M031、M032、M033。 | `CollapseLegality.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/SpatialIndex.cpp` |
 | 下一步如果做全局误差 envelope 应看什么？ | M030、M033、M026。 | 未来 `validation` 或 `simplification/detail` 中独立 envelope filter |
 
 ## 下载状态

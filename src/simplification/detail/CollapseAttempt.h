@@ -28,6 +28,7 @@ struct CollapseAttemptInput {
     const std::vector<FeatureCurveConstraint>& featureCurves;
     const FeatureConstraintPolicy& featurePolicy;
     const SpatialFaceIndex* spatialIndex = nullptr;
+    const manumesh::detail::MeshDistanceIndex* referenceSurface = nullptr;
     double meshDiagonal = 0.0;
     double areaEps = 0.0;
     double minNormalDot = 0.0;

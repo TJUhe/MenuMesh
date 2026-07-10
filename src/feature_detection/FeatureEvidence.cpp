@@ -19,12 +19,15 @@ struct EdgeEvidenceContext {
           edges(manumesh::detail::buildMeshEdgeInfo(mesh)),
           dihedralThreshold(options.featureAngleDeg * kPi / 180.0),
           tensor(
-              options.useNormalTensorFeatures
-                  ? computeNormalTensorFeatures(
-                        mesh,
-                        NormalTensorOptions{options.normalTensorSmoothingIterations, options.normalTensorScaleCount}
-                    )
-                  : std::vector<NormalTensorVertex>()
+              options.useNormalTensorFeatures ? computeNormalTensorFeatures(
+                                                    mesh,
+                                                    NormalTensorOptions{
+                                                        options.normalTensorSmoothingIterations,
+                                                        options.normalTensorScaleCount,
+                                                    },
+                                                    options.normalTensorFeatureThreshold
+                                                )
+                                              : std::vector<NormalTensorVertex>()
           ),
           discreteFeatureVertex(mesh.vertices.size(), 0) {
         summarizeNormalTensorVertices();

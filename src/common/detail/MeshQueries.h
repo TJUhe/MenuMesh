@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Export.h"
 #include "core/Mesh.h"
 
 #include <array>
@@ -47,7 +46,7 @@ std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh);
 ///
 /// Isolated vertices receive the global mean edge length when available, or 0
 /// for an edgeless mesh. Algorithms use this as a local sampling-density scale.
-MANUMESH_API std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh);
+std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh);
 
 /// Marks vertices incident to boundary edges.
 std::vector<char> computeBoundaryVertices(const Mesh& mesh);

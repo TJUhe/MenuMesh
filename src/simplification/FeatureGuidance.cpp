@@ -196,7 +196,12 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
 
     if (mode == WeightMode::NormalTensor) {
         const std::vector<feature::NormalTensorVertex> tensor = feature::computeNormalTensorFeatures(
-            mesh, feature::NormalTensorOptions{options.normalTensorSmoothingIterations, options.normalTensorScaleCount}
+            mesh,
+            feature::NormalTensorOptions{
+                options.normalTensorSmoothingIterations,
+                options.normalTensorScaleCount,
+            },
+            options.normalTensorFeatureThreshold
         );
         summarizeNormalTensorScores(tensor, result);
         const int requiredPersistentScales = resolveNormalTensorMinPersistentScales(options);

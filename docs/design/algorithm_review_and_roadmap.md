@@ -59,8 +59,8 @@ ManuMesh 的简化器应按四层阅读：
 
 - 实现独立 edge dihedral plane quadrics，和现有 feature graph 保护策略对比。
 - 将弱特征 support consolidation 做到 component 之间，参考 CWF/M026，把多个低置信弱 component 合并成更稳定的保护支撑。
-- 增加全局或近似 envelope/Hausdorff 过滤，把“局部安全”推进到更接近制造误差约束。
-- 探索二轮优化：第一轮 decimation 达到拓扑和面数目标，第二轮局部 relocation/refinement 降低漂移和改善三角形质量。
+- 将当前双向局部采样和原始曲面 BVH 包络扩展为自适应采样或可证明的全局 Hausdorff 上界。
+- 将已落地的质量型二轮 refinement 扩展到高置信 feature support 的受约束重投影和属性感知 relocation。
 - 增加属性传播策略，为法线、颜色、UV、source face id 做准备。
 - 继续沿 `algorithms/<domain>` 组织新增模块，建立更清晰的 `repair`、`remesh` 和 `boolean` 边界。
 - 将本地自交过滤扩展成更完整的空间查询和 envelope 检查。

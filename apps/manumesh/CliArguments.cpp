@@ -42,6 +42,7 @@ const std::unordered_set<std::string>& valueFlags() {
         "--max-normal-deviation-deg",
         "--max-local-error",
         "--max-local-error-ratio",
+        "--quality-refinement-iterations",
         "--metrics-csv",
         "--samples",
         "--ratios",

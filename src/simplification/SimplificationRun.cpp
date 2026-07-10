@@ -1,11 +1,12 @@
 #include "detail/SimplificationRun.h"
 
 #include "common/detail/MeshQueries.h"
-#include "detail/DynamicTopology.h"
+#include "detail/CollapseTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/FeatureGuidance.h"
 #include "detail/Quadrics.h"
-#include "detail/ResultBuilder.h"
+#include "detail/QualityRefinement.h"
+#include "mesh_edit/detail/MeshCompaction.h"
 
 #include <algorithm>
 #include <cmath>
@@ -37,14 +38,42 @@ Mesh SimplificationRun::execute(SimplifyReport* outReport) {
     initializeBudget();
     rebuildQueue();
     collapseUntilTarget();
+    refineQuality();
 
-    Mesh result = compactResult(vertices_, faces_);
+    std::vector<Vec3> positions;
+    std::vector<char> activeVertices;
+    positions.reserve(vertices_.size());
+    activeVertices.reserve(vertices_.size());
+    for (const VertexState& vertex : vertices_) {
+        positions.push_back(vertex.p);
+        activeVertices.push_back(vertex.active ? 1 : 0);
+    }
+    Mesh result = std::move(mesh_edit::compactActiveMesh(positions, activeVertices, faces_).mesh);
     report_.finalVertices = static_cast<int>(result.vertices.size());
     report_.finalFaces = static_cast<int>(result.faces.size());
     if (outReport) {
         *outReport = report_;
     }
     return result;
+}
+
+void SimplificationRun::refineQuality() {
+    if (options_.qualityRefinementIterations <= 0) {
+        return;
+    }
+    runQualityRefinement(
+        {options_,
+         vertices_,
+         faces_,
+         *topology_,
+         featurePolicy_,
+         policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
+         referenceSurface_.get(),
+         areaEps_,
+         minNormalDot_,
+         maxLocalError_},
+        report_
+    );
 }
 
 void SimplificationRun::initializeReport() {
@@ -132,6 +161,9 @@ void SimplificationRun::initializeBudget() {
     areaEps_ = diag * diag * 1e-18;
     minNormalDot_ = policies_.legality.resolveMinNormalDot();
     maxLocalError_ = policies_.legality.resolveMaxLocalError(diag);
+    if (maxLocalError_ > 0.0) {
+        referenceSurface_ = std::make_unique<manumesh::detail::MeshDistanceIndex>(input_);
+    }
 
     const int initialActiveEdgeCount = static_cast<int>(collectActiveEdges(faces_).size());
     maxAttemptsWithoutCollapse_ = std::max(1000, std::max(1, initialActiveEdgeCount) * 6);
@@ -234,6 +266,7 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
          featureGuidance_.curves,
          featurePolicy_,
          policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
+         referenceSurface_.get(),
          input_.bboxDiag(),
          areaEps_,
          minNormalDot_,

@@ -1,6 +1,6 @@
 #include "detail/CollapseLegality.h"
 
-#include "detail/GeometryPredicates.h"
+#include "common/detail/GeometryPredicates.h"
 
 #include <algorithm>
 #include <array>
@@ -18,6 +18,10 @@ struct NewTriangle {
     std::array<Vec3, 3> p{};
 };
 
+struct OldTriangle {
+    std::array<Vec3, 3> p{};
+};
+
 std::unordered_set<int> collectTouchedFaces(const CollapseLegalityInput& input) {
     std::unordered_set<int> touchedFaces = input.mesh.topology.vertexFaces[input.edge.keep];
     const auto& removeFaces = input.mesh.topology.vertexFaces[input.edge.remove];
@@ -25,19 +29,17 @@ std::unordered_set<int> collectTouchedFaces(const CollapseLegalityInput& input) 
     return touchedFaces;
 }
 
-void addOldTriangleReferenceSamples(
-    const FaceState& face, const std::vector<VertexState>& vertices, std::vector<Vec3>& localReferencePoints
-) {
-    const Vec3& a = vertices[face.v[0]].p;
-    const Vec3& b = vertices[face.v[1]].p;
-    const Vec3& c = vertices[face.v[2]].p;
-    localReferencePoints.push_back(a);
-    localReferencePoints.push_back(b);
-    localReferencePoints.push_back(c);
-    localReferencePoints.push_back(0.5 * (a + b));
-    localReferencePoints.push_back(0.5 * (b + c));
-    localReferencePoints.push_back(0.5 * (c + a));
-    localReferencePoints.push_back((a + b + c) / 3.0);
+void addTriangleSamples(const std::array<Vec3, 3>& triangle, std::vector<Vec3>& samples) {
+    const Vec3& a = triangle[0];
+    const Vec3& b = triangle[1];
+    const Vec3& c = triangle[2];
+    samples.push_back(a);
+    samples.push_back(b);
+    samples.push_back(c);
+    samples.push_back(0.5 * (a + b));
+    samples.push_back(0.5 * (b + c));
+    samples.push_back(0.5 * (c + a));
+    samples.push_back((a + b + c) / 3.0);
 }
 
 bool containsBothEndpoints(const FaceState& face, int keep, int remove) {
@@ -79,6 +81,7 @@ std::array<Vec3, 3> mappedTrianglePositions(
 CollapseRejectReason collectNewTriangles(
     const CollapseLegalityInput& input,
     const std::unordered_set<int>& touchedFaces,
+    std::vector<OldTriangle>& oldTriangles,
     std::vector<NewTriangle>& newTriangles,
     std::vector<Vec3>& localReferencePoints
 ) {
@@ -94,7 +97,13 @@ CollapseRejectReason collectNewTriangles(
             continue;
         }
         if (measureLocalError) {
-            addOldTriangleReferenceSamples(face, vertices, localReferencePoints);
+            const std::array<Vec3, 3> oldTriangle = {
+                vertices[face.v[0]].p,
+                vertices[face.v[1]].p,
+                vertices[face.v[2]].p,
+            };
+            oldTriangles.push_back(OldTriangle{oldTriangle});
+            addTriangleSamples(oldTriangle, localReferencePoints);
         }
 
         std::array<int, 3> mapped{};
@@ -114,7 +123,7 @@ CollapseRejectReason collectNewTriangles(
         if (area <= input.areaEps) {
             return CollapseRejectReason::Topology;
         }
-        if (input.minTriangleQuality > 0.0 && triangleQualityLocal(a, b, c) < input.minTriangleQuality) {
+        if (input.minTriangleQuality > 0.0 && manumesh::detail::triangleQuality(a, b, c) < input.minTriangleQuality) {
             return CollapseRejectReason::TriangleQuality;
         }
         if (input.minNormalDot > -1.0 && oldNormal.norm() > 1e-20) {
@@ -132,6 +141,7 @@ CollapseRejectReason collectNewTriangles(
 
 CollapseRejectReason checkLocalError(
     const CollapseLegalityInput& input,
+    const std::vector<OldTriangle>& oldTriangles,
     const std::vector<NewTriangle>& newTriangles,
     const std::vector<Vec3>& localReferencePoints
 ) {
@@ -143,10 +153,35 @@ CollapseRejectReason checkLocalError(
         for (const Vec3& point : localReferencePoints) {
             double best = std::numeric_limits<double>::infinity();
             for (const NewTriangle& tri : newTriangles) {
-                best = std::min(best, pointTriangleDistanceSquaredLocal(point, tri.p[0], tri.p[1], tri.p[2]));
+                best =
+                    std::min(best, manumesh::detail::pointTriangleDistanceSquared(point, tri.p[0], tri.p[1], tri.p[2]));
             }
             if (!std::isfinite(best) || best > maxError2) {
                 return CollapseRejectReason::LocalError;
+            }
+        }
+
+        std::vector<Vec3> newSamples;
+        newSamples.reserve(newTriangles.size() * 7);
+        for (const NewTriangle& triangle : newTriangles) {
+            addTriangleSamples(triangle.p, newSamples);
+        }
+        for (const Vec3& point : newSamples) {
+            double bestOld = std::numeric_limits<double>::infinity();
+            for (const OldTriangle& triangle : oldTriangles) {
+                bestOld = std::min(
+                    bestOld,
+                    manumesh::detail::pointTriangleDistanceSquared(point, triangle.p[0], triangle.p[1], triangle.p[2])
+                );
+            }
+            if (!std::isfinite(bestOld) || bestOld > maxError2) {
+                return CollapseRejectReason::LocalError;
+            }
+            if (input.referenceSurface && !input.referenceSurface->empty()) {
+                const double referenceDistance = input.referenceSurface->distanceSquared(point);
+                if (!std::isfinite(referenceDistance) || referenceDistance > maxError2) {
+                    return CollapseRejectReason::LocalError;
+                }
             }
         }
     }
@@ -178,7 +213,7 @@ CollapseRejectReason checkLocalIntersections(
     const std::vector<VertexState>& vertices = input.mesh.vertices;
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const NewTriangle& tri : newTriangles) {
-        const auto [triLo, triHi] = triangleAabb(tri.p, eps);
+        const auto [triLo, triHi] = manumesh::detail::triangleAabb(tri.p, eps);
         const std::vector<int> spatialCandidates =
             useSpatialCandidates ? input.spatialIndex->query(triLo, triHi) : std::vector<int>();
         const int candidateCount =
@@ -197,7 +232,7 @@ CollapseRejectReason checkLocalIntersections(
                 vertices[face.v[1]].p,
                 vertices[face.v[2]].p,
             };
-            if (trianglesIntersect(tri.p, other, eps)) {
+            if (manumesh::detail::trianglesIntersect(tri.p, other, eps)) {
                 return CollapseRejectReason::SelfIntersection;
             }
         }
@@ -215,6 +250,7 @@ CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input) {
     }
 
     std::vector<NewTriangle> newTriangles;
+    std::vector<OldTriangle> oldTriangles;
     std::vector<Vec3> localReferencePoints;
     if (input.maxLocalError > 0.0) {
         localReferencePoints.push_back(input.mesh.vertices[keep].p);
@@ -222,12 +258,13 @@ CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input) {
     }
 
     const std::unordered_set<int> touchedFaces = collectTouchedFaces(input);
-    CollapseRejectReason reason = collectNewTriangles(input, touchedFaces, newTriangles, localReferencePoints);
+    CollapseRejectReason reason =
+        collectNewTriangles(input, touchedFaces, oldTriangles, newTriangles, localReferencePoints);
     if (reason != CollapseRejectReason::None) {
         return reason;
     }
 
-    reason = checkLocalError(input, newTriangles, localReferencePoints);
+    reason = checkLocalError(input, oldTriangles, newTriangles, localReferencePoints);
     if (reason != CollapseRejectReason::None) {
         return reason;
     }

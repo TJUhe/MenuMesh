@@ -299,6 +299,11 @@ FeatureCollapseRejectKind FeatureConstraintPolicy::collapseRejectKind(const Feat
     return featureCollapseRejectKind(input, options_);
 }
 
+bool FeatureConstraintPolicy::isHardProtectedVertex(int vertex, const std::vector<VertexState>& vertices) const {
+    return vertex >= 0 && vertex < static_cast<int>(vertices.size()) &&
+           isPrimitiveProtected(vertices[vertex], effectiveFeatureProtectionMode(options_));
+}
+
 bool FeatureConstraintPolicy::isHardProtectedCollapse(
     CollapseEdge edge, const std::vector<VertexState>& vertices
 ) const {

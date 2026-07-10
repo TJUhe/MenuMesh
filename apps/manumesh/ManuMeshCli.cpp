@@ -75,6 +75,8 @@ void printUsage() {
               << "  --max-local-error D             Reject local collapse drift above D\n"
               << "  --max-local-error-ratio R       Reject local drift above R*bbox diagonal\n"
               << "  --prevent-local-intersections   Reject local triangle intersections\n"
+              << "  --quality-refinement-iterations N\n"
+                 "                                    Run N fixed-topology quality passes\n"
               << "  --industrial-safe               Enable conservative boundary/quality "
                  "guards\n"
               << "  --metrics-csv path              Write one-row CSV metrics\n"

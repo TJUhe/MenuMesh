@@ -1,7 +1,8 @@
 #pragma once
 
+#include "common/detail/MeshDistanceIndex.h"
 #include "core/Mesh.h"
-#include "detail/DynamicTopology.h"
+#include "detail/CollapseTopology.h"
 #include "detail/SpatialFaceIndex.h"
 
 #include <vector>
@@ -24,6 +25,7 @@ struct CollapseLegalityInput {
     double maxLocalError = 0.0;
     bool preventLocalIntersections = false;
     const SpatialFaceIndex* spatialIndex = nullptr;
+    const manumesh::detail::MeshDistanceIndex* referenceSurface = nullptr;
 };
 
 CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input);

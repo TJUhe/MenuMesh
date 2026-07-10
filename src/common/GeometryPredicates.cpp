@@ -1,10 +1,10 @@
-#include "detail/GeometryPredicates.h"
+#include "common/detail/GeometryPredicates.h"
 
 #include <Eigen/Core>
 #include <algorithm>
 #include <cmath>
 
-namespace manumesh::simplification {
+namespace manumesh::detail {
 namespace {
 
 bool aabbOverlap(const Vec3& aLo, const Vec3& aHi, const Vec3& bLo, const Vec3& bHi, double eps) {
@@ -155,7 +155,7 @@ bool coplanarTrianglesOverlap(
 
 } // namespace
 
-double triangleQualityLocal(const Vec3& a, const Vec3& b, const Vec3& c) {
+double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
     const double l0 = (b - a).squaredNorm();
     const double l1 = (c - b).squaredNorm();
     const double l2 = (a - c).squaredNorm();
@@ -166,7 +166,7 @@ double triangleQualityLocal(const Vec3& a, const Vec3& b, const Vec3& c) {
     return 4.0 * std::sqrt(3.0) * triangleArea(a, b, c) / denom;
 }
 
-double pointTriangleDistanceSquaredLocal(const Vec3& p, const Vec3& a, const Vec3& b, const Vec3& c) {
+double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b, const Vec3& c) {
     const Vec3 ab = b - a;
     const Vec3 ac = c - a;
     const Vec3 ap = p - a;
@@ -214,6 +214,21 @@ double pointTriangleDistanceSquaredLocal(const Vec3& p, const Vec3& a, const Vec
     return distance * distance / nn;
 }
 
+double pointAabbDistanceSquared(const Vec3& p, const Vec3& lo, const Vec3& hi) {
+    double d2 = 0.0;
+    for (int axis = 0; axis < 3; ++axis) {
+        const double value = p[axis];
+        if (value < lo[axis]) {
+            const double d = lo[axis] - value;
+            d2 += d * d;
+        } else if (value > hi[axis]) {
+            const double d = value - hi[axis];
+            d2 += d * d;
+        }
+    }
+    return d2;
+}
+
 std::pair<Vec3, Vec3> triangleAabb(const std::array<Vec3, 3>& tri, double padding) {
     Vec3 lo = tri[0].cwiseMin(tri[1]).cwiseMin(tri[2]);
     Vec3 hi = tri[0].cwiseMax(tri[1]).cwiseMax(tri[2]);
@@ -259,4 +274,4 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     return false;
 }
 
-} // namespace manumesh::simplification
+} // namespace manumesh::detail

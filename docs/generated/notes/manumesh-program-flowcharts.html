@@ -802,7 +802,7 @@ flowchart TD
   LER -- 是 --> Local["LocalError"]
   LER -- 否 --> SI
   LE -- 否 --> SI{preventLocalIntersections?}
-  SI -- 是 --> SIC["用 SpatialFaceIndex 或全量 face 查自交"]
+  SI -- 是 --> SIC["用 SpatialFaceIndex 候选集或全量 face 查自交"]
   SIC --> SIR{发现相交?}
   SIR -- 是 --> Inter["SelfIntersection"]
   SIR -- 否 --> OK["None"]

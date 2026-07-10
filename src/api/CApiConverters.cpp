@@ -186,6 +186,7 @@ void initializeSimplifyOptions(ManuMeshSimplifyOptions& options) {
     options.feature_graph_gap_length_ratio = 1.25;
     options.feature_graph_max_weak_spur_edges = 2;
     options.feature_component_min_confidence = 0.35;
+    options.quality_refinement_iterations = 0;
 }
 
 void initializeSimplifyReport(ManuMeshSimplifyReport& report) { initializeAbiStruct(report); }
@@ -297,6 +298,9 @@ bool readSimplifyOptions(
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_component_min_confidence)) {
         target.featureComponentMinConfidence = source.feature_component_min_confidence;
     }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, quality_refinement_iterations)) {
+        target.qualityRefinementIterations = source.quality_refinement_iterations;
+    }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, min_triangle_quality)) {
         target.minTriangleQuality = source.min_triangle_quality;
     }
@@ -384,6 +388,15 @@ void fillSimplifyReport(const simplification::SimplifyReport& source, ManuMeshSi
     );
     MANUMESH_SET_REPORT_FIELD(
         target, writeSize, min_feature_component_confidence, source.minFeatureComponentConfidence
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, quality_refinement_iterations_completed, source.qualityRefinementIterationsCompleted
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, quality_refinement_attempted_moves, source.qualityRefinementAttemptedMoves
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, quality_refinement_accepted_moves, source.qualityRefinementAcceptedMoves
     );
 }
 

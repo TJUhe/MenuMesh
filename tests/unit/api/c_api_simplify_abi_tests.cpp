@@ -74,6 +74,56 @@ TEST_F(CApiTest, AcceptsOlderTrailingSimplifyOptionsAbiStruct) {
     manumesh_mesh_destroy(input);
 }
 
+TEST_F(CApiTest, IgnoresAbsentQualityRefinementTailFieldInOlderOptionsStruct) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 8, input));
+
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.target_ratio = 0.75;
+    options.quality_refinement_iterations = -1;
+    options.struct_size = offsetof(ManuMeshSimplifyOptions, quality_refinement_iterations);
+
+    ManuMeshSimplifyReport report;
+    manumesh_simplify_report_init(&report);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
+    EXPECT_EQ(0, report.quality_refinement_iterations_completed);
+    EXPECT_EQ(0, report.quality_refinement_attempted_moves);
+    EXPECT_EQ(0, report.quality_refinement_accepted_moves);
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, MapsQualityRefinementTailOptionAndReportFields) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 8, input));
+
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.target_ratio = 1.0;
+    options.preserve_boundary = 1;
+    options.quality_refinement_iterations = 2;
+
+    ManuMeshSimplifyReport report;
+    manumesh_simplify_report_init(&report);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
+    EXPECT_GE(report.quality_refinement_iterations_completed, 1);
+    EXPECT_LE(report.quality_refinement_iterations_completed, 2);
+    EXPECT_GE(report.quality_refinement_attempted_moves, report.quality_refinement_accepted_moves);
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
 TEST_F(CApiTest, RejectsUninitializedSimplifyReportAbiStruct) {
     ManuMeshMeshHandle* input = manumesh_mesh_create(context);
     ManuMeshMeshHandle* output = manumesh_mesh_create(context);
@@ -193,6 +243,7 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
     EXPECT_DOUBLE_EQ(1.25, options.feature_graph_gap_length_ratio);
     EXPECT_EQ(2, options.feature_graph_max_weak_spur_edges);
     EXPECT_DOUBLE_EQ(0.35, options.feature_component_min_confidence);
+    EXPECT_EQ(0, options.quality_refinement_iterations);
     EXPECT_DOUBLE_EQ(0.0, options.max_local_error);
     EXPECT_DOUBLE_EQ(0.0, options.max_local_error_ratio);
     EXPECT_EQ(0, options.prevent_local_intersections);

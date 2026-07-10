@@ -94,6 +94,32 @@ std::vector<CaseLine> readCaseLines(const std::filesystem::path& relativeCaseFil
     return cases;
 }
 
+FeatureLabels readFeatureLabels(const std::filesystem::path& relativeLabelFile) {
+    const std::filesystem::path path = dataRoot() / relativeLabelFile;
+    std::ifstream in(path);
+    EXPECT_TRUE(in) << "Failed to open feature label file: " << path.string();
+
+    FeatureLabels labels;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        std::replace(line.begin(), line.end(), ',', ' ');
+        const std::vector<std::string> fields = splitWords(line);
+        if (fields.size() < 2 || fields[0] == "a") {
+            continue;
+        }
+        if (fields[0] == "junction") {
+            labels.junctions.push_back(std::stoi(fields[1]));
+        } else {
+            labels.edges.emplace_back(std::stoi(fields[0]), std::stoi(fields[1]));
+        }
+    }
+    EXPECT_FALSE(labels.edges.empty()) << "No edge labels in " << path.string();
+    return labels;
+}
+
 Mesh loadCaseMesh(const std::filesystem::path& relativePath) {
     Mesh mesh;
     std::string error;

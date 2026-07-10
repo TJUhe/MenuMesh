@@ -9,7 +9,7 @@
 - small cycle basis 和 circular vertex-cluster fallback 改成按 trace connected component 判定 tensor 影响；一个 normal-tensor ridge 不再全局阻塞其他干净圆孔的 fallback。
 - common 层新增 `computeVertexAverageEdgeLength`，提供每个顶点的局部采样尺度；孤立顶点使用全局平均边长 fallback。
 - normal tensor 平滑从简单一环平均改为按局部边长归一化的距离权重平滑，降低非均匀 STL tessellation 对弱特征分数的影响。
-- normal tensor 多尺度结果增加 `averageFeatureScore`、`persistentScales`、`persistentFeatureScore` 和 `localScale`。
+- normal tensor 多尺度结果增加 `averageFeatureScore`、`persistentScales`、`persistentFeatureScore` 和 `localScale`；尺度 saliency 必须达到检测阈值才计入 persistence，避免把数值非零噪声误报为多尺度支持。
 - `normalTensorMinPersistentScales` / `--normal-tensor-min-persistent-scales` 接入 FeatureOptions、SimplifyOptions、CLI、C ABI 和 VS Code 调试配置；默认 1，调试配置使用 2。
 - QEM 的 `WeightMode::NormalTensor` 改用同一套 `persistentFeatureScore` 和最小 persistent scales 门槛，避免 feature detection 与 line-quadric 权重使用两套弱特征判据。
 - `FeatureAnalysis`、`SimplifyReport`、C ABI report、feature-report CSV 和 simplify metrics CSV 增加 normal-tensor scored vertices、最大 persistent score、平均 local scale、平均 persistence 诊断。
@@ -18,6 +18,8 @@
 
 - `ManuMesh.MeshQueriesComputeLocalVertexEdgeScale`：保护 common 局部边长尺度和孤立点 fallback。
 - `ManuMesh.NormalTensorReportsLocalScaleAndPersistentScore`：保护 normal tensor 的 local scale、persistence 和 persistent score 输出。
+- `ManuMesh.NormalTensorPersistenceRequiresSignificantScaleSupport`：保护 persistence 使用显著性阈值，而不是数值非零判断。
+- `ManuMesh.NormalTensorFeatureThresholdControlsPersistentEdgeEvidence`：验证同一阈值贯穿 tensor scoring、edge evidence 和弱 component。
 - `ManuMesh.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict`：在二面角通道基本关闭时，验证多尺度 tensor 仍能补弱 ridge。
 - `ManuMesh.NormalTensorWeightModeAppliesSpatiallyVaryingWeights`：保护 QEM normal-tensor weight mode 使用 persistent score 后仍产生空间变化权重。
 - `CApiTest.ExposesNormalTensorOptionsAndDiagnostics`：保护 C ABI 能读写最小 persistent scales 和新增 tensor 诊断。
@@ -47,7 +49,7 @@
 ## 仍待推进
 
 1. 弱特征 consolidation：参考 CWF/M026，把多个低置信弱 component 合并成更稳定的 feature support，再决定软成本、硬保护或 post-relocation。
-2. Benchmark 第二版：加入弱特征保留率、简化前后 feature drift / Hausdorff envelope，并把 `feature-benchmark` 的 label 格式扩展到 loop/junction/weak feature group。
-3. QEM 二阶段优化：在 benchmark 稳定后评估 two-round relocation/refinement，优先约束 protected support 的漂移和局部三角形质量。
+2. Benchmark 第二版：edge/junction 多类型真值和闭环指标已落地；下一步加入 weak feature group、简化前后 feature drift 和全局 Hausdorff 指标。
+3. QEM 二阶段优化：固定拓扑质量 refinement 已落地；下一步扩展到 high-confidence primitive/component 的受约束 feature relocation。
 4. Edge dihedral plane quadrics 与 line weight 调度：比较 component confidence、dihedral plane quadrics、line quadrics 在浅特征/平面漂移上的收益。
 5. Learned saliency / neural QEM：只在 deterministic baseline 对弱、浅、非均匀采样特征失效时作为对比项接入，且不得替代拓扑、法向、局部误差和 feature drift 硬过滤。

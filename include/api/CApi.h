@@ -113,6 +113,8 @@ typedef struct ManuMeshSimplifyOptions {
     double feature_graph_gap_length_ratio;
     int feature_graph_max_weak_spur_edges;
     double feature_component_min_confidence;
+    /* Optional fixed-topology quality-improvement passes after simplification. */
+    int quality_refinement_iterations;
 } ManuMeshSimplifyOptions;
 
 typedef struct ManuMeshSimplifyReport {
@@ -169,6 +171,10 @@ typedef struct ManuMeshSimplifyReport {
     int graph_cleanup_merged_junctions;
     double mean_feature_component_confidence;
     double min_feature_component_confidence;
+    /* Fixed-topology second-round quality-refinement diagnostics. */
+    int quality_refinement_iterations_completed;
+    int quality_refinement_attempted_moves;
+    int quality_refinement_accepted_moves;
 } ManuMeshSimplifyReport;
 
 typedef struct ManuMeshMeshStats {

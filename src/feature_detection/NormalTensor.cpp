@@ -29,7 +29,9 @@ NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
 
 } // namespace
 
-std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options) {
+std::vector<NormalTensorVertex> computeNormalTensorFeatures(
+    const Mesh& mesh, const NormalTensorOptions& options, double requestedPersistenceThreshold
+) {
     std::vector<NormalTensorVertex> result(mesh.vertices.size());
     if (mesh.empty()) {
         return result;
@@ -63,6 +65,8 @@ std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, co
     const std::vector<double> localScale = manumesh::detail::computeVertexAverageEdgeLength(mesh);
     const int baseIterations = std::clamp(options.smoothingIterations, 0, 8);
     const int scaleCount = std::clamp(options.scaleCount, 1, 8);
+    const double persistenceThreshold =
+        std::isfinite(requestedPersistenceThreshold) ? std::max(1e-12, requestedPersistenceThreshold) : 1e-12;
 
     auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current, double radiusMultiplier) {
         std::vector<Eigen::Matrix3d> next = current;
@@ -97,7 +101,7 @@ std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, co
             NormalTensorVertex candidate = analyzeNormalTensor(tensors[i]);
             candidate.localScale = i < static_cast<int>(localScale.size()) ? localScale[i] : 0.0;
             result[i].averageFeatureScore += candidate.featureScore;
-            if (candidate.featureScore > 1e-12) {
+            if (candidate.featureScore >= persistenceThreshold) {
                 ++result[i].persistentScales;
             }
             if (scale == 0 || candidate.featureScore > result[i].featureScore) {
@@ -117,9 +121,13 @@ std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, co
         const double persistenceRatio =
             std::clamp(static_cast<double>(vertex.persistentScales) / static_cast<double>(scaleCount), 0.0, 1.0);
         const double robustScore = 0.65 * vertex.featureScore + 0.35 * vertex.averageFeatureScore;
-        vertex.persistentFeatureScore = robustScore * (0.5 + 0.5 * persistenceRatio);
+        vertex.persistentFeatureScore = robustScore * persistenceRatio;
     }
     return result;
+}
+
+std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options) {
+    return computeNormalTensorFeatures(mesh, options, 0.0);
 }
 
 } // namespace manumesh::feature

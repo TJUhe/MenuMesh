@@ -2,6 +2,7 @@
 #include "TestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/Metrics.h"
+#include "core/MeshGenerators.h"
 
 #include <algorithm>
 #include <gtest/gtest.h>
@@ -83,4 +84,30 @@ TEST(ManuMeshParameters, IndustrialGateChecksFeatureDriftDistanceAndTopology) {
     const manumesh::simplification::DistanceStats distance =
         manumesh::simplification::compareMeshesBySampledDistance(input, result.mesh, 512);
     EXPECT_LT(distance.maxOriginalToSimplified, 0.20 * input.bboxDiag());
+}
+
+TEST(ManuMeshParameters, ReferenceSurfaceEnvelopeReducesCumulativeTerrainDrift) {
+    const manumesh::Mesh input = manumesh::generateSineTerrainGrid(28, 2.0);
+    ASSERT_FALSE(input.empty());
+
+    manumesh::simplification::SimplifyOptions freeOptions = lineOptions(0.12);
+    freeOptions.maxNormalDeviationDeg = 180.0;
+    const SimplifiedMesh freeResult = simplifyWithReport(input, freeOptions);
+
+    manumesh::simplification::SimplifyOptions boundedOptions = freeOptions;
+    boundedOptions.maxLocalErrorRatio = 0.01;
+    const SimplifiedMesh boundedResult = simplifyWithReport(input, boundedOptions);
+
+    expectBudget(freeResult, input, 0.12);
+    expectBudget(boundedResult, input, 0.12);
+    EXPECT_GT(boundedResult.report.errorRejectedCollapses, 0);
+
+    const manumesh::simplification::DistanceStats freeDistance =
+        manumesh::simplification::compareMeshesBySampledDistance(input, freeResult.mesh, 3000);
+    const manumesh::simplification::DistanceStats boundedDistance =
+        manumesh::simplification::compareMeshesBySampledDistance(input, boundedResult.mesh, 3000);
+
+    EXPECT_LT(boundedDistance.meanOriginalToSimplified, freeDistance.meanOriginalToSimplified);
+    EXPECT_LT(boundedDistance.maxOriginalToSimplified, 0.5 * freeDistance.maxOriginalToSimplified);
+    EXPECT_LT(boundedDistance.maxSimplifiedToOriginal, 0.015 * input.bboxDiag());
 }

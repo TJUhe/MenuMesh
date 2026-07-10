@@ -17,12 +17,15 @@ using FeaturePrimitiveType = feature::FeaturePrimitiveType;
 using Mesh = manumesh::Mesh;
 using Vec3 = manumesh::Vec3;
 using VertexFeature = feature::VertexFeature;
+using manumesh::test::FeatureLabels;
 using manumesh::test::loadFixtureMesh;
+using manumesh::test::readFeatureLabels;
 using manumesh::test::feature_detection::circularLoopsNearRadius;
 using manumesh::test::feature_detection::clusterCoplanarFaces;
 using manumesh::test::feature_detection::countLoopsOfType;
 using manumesh::test::feature_detection::discreteOnlyOptions;
 using manumesh::test::feature_detection::hasPlaneCluster;
+using manumesh::test::feature_detection::makeMultiJunctionPolygonalBoundaryMesh;
 using manumesh::test::feature_detection::parallelError;
 using manumesh::test::feature_detection::PlaneCluster;
 using manumesh::test::feature_detection::radialCenterOffsetBetweenLoops;
@@ -68,6 +71,93 @@ TEST(FeatureDetection, FixtureDetectsCoaxialHoleLoopsAndPlanarFaces) {
     };
     EXPECT_TRUE(hasLargeHorizontalPlane(0.5));
     EXPECT_TRUE(hasLargeHorizontalPlane(-0.5));
+}
+
+TEST(FeatureDetection, FixtureBenchmarkUsesCoaxialHoleGroundTruthLabels) {
+    const Mesh mesh = loadFixtureMesh("feature_fixtures/coaxial_hole_plate.obj");
+    const FeatureLabels labels = readFeatureLabels("feature_labels/coaxial_hole_plate_inner_top_edges.csv");
+    ASSERT_FALSE(mesh.empty());
+    ASSERT_EQ(24u, labels.edges.size());
+
+    FeatureOptions options = discreteOnlyOptions();
+    options.featureAngleDeg = 25.0;
+    options.circleFitRelativeThreshold = 0.03;
+    options.minFeatureLoopVertices = 16;
+    const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+    const feature::FeatureEdgeBenchmark benchmark =
+        feature::benchmarkFeatureEdges(features, labels.edges, labels.junctions);
+
+    EXPECT_EQ(24, benchmark.groundTruthEdges);
+    EXPECT_EQ(24, benchmark.truePositiveEdges);
+    EXPECT_EQ(0, benchmark.falseNegativeEdges);
+    EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
+    EXPECT_GE(benchmark.edgePrecision, 0.20);
+    EXPECT_GT(benchmark.loopClosureRate, 0.95);
+}
+
+TEST(FeatureDetection, FixtureBenchmarkUsesEllipticalHoleGroundTruthLabels) {
+    const Mesh mesh = loadFixtureMesh("feature_fixtures/elliptical_hole_plate.obj");
+    const FeatureLabels labels = readFeatureLabels("feature_labels/elliptical_hole_plate_inner_top_edges.csv");
+    ASSERT_FALSE(mesh.empty());
+    ASSERT_EQ(40u, labels.edges.size());
+
+    FeatureOptions options = discreteOnlyOptions();
+    options.featureAngleDeg = 25.0;
+    options.circleFitRelativeThreshold = 0.03;
+    options.ellipseFitRelativeThreshold = 0.03;
+    options.minFeatureLoopVertices = 16;
+    const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+    const feature::FeatureEdgeBenchmark benchmark =
+        feature::benchmarkFeatureEdges(features, labels.edges, labels.junctions);
+
+    EXPECT_EQ(40, benchmark.truePositiveEdges);
+    EXPECT_EQ(0, benchmark.falseNegativeEdges);
+    EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
+    EXPECT_GE(benchmark.edgePrecision, 0.20);
+    EXPECT_GT(benchmark.loopClosureRate, 0.95);
+}
+
+TEST(FeatureDetection, FixtureBenchmarkUsesBossAndPocketGroundTruthLabels) {
+    const Mesh mesh = loadFixtureMesh("feature_fixtures/boss_pocket_plate.obj");
+    const FeatureLabels labels = readFeatureLabels("feature_labels/boss_pocket_primary_edges.csv");
+    ASSERT_FALSE(mesh.empty());
+    ASSERT_EQ(60u, labels.edges.size());
+
+    FeatureOptions options = discreteOnlyOptions();
+    options.featureAngleDeg = 25.0;
+    options.minFeatureLoopVertices = 4;
+    const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+    const feature::FeatureEdgeBenchmark benchmark =
+        feature::benchmarkFeatureEdges(features, labels.edges, labels.junctions);
+
+    EXPECT_EQ(60, benchmark.truePositiveEdges);
+    EXPECT_EQ(0, benchmark.falseNegativeEdges);
+    EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
+    EXPECT_GE(benchmark.edgePrecision, 0.90);
+    EXPECT_GT(benchmark.loopClosureRate, 0.95);
+}
+
+TEST(FeatureDetection, SyntheticBenchmarkUsesPolygonAndJunctionGroundTruthLabels) {
+    const Mesh mesh = makeMultiJunctionPolygonalBoundaryMesh();
+    const FeatureLabels labels = readFeatureLabels("feature_labels/multi_junction_polygon_edges.csv");
+    ASSERT_EQ(8u, labels.edges.size());
+    ASSERT_EQ(3u, labels.junctions.size());
+
+    FeatureOptions options = discreteOnlyOptions();
+    options.minFeatureLoopVertices = 8;
+    options.circleFitRelativeThreshold = 0.005;
+    options.ellipseFitRelativeThreshold = 0.005;
+    const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
+    const feature::FeatureEdgeBenchmark benchmark =
+        feature::benchmarkFeatureEdges(features, labels.edges, labels.junctions);
+
+    EXPECT_EQ(8, benchmark.truePositiveEdges);
+    EXPECT_EQ(0, benchmark.falseNegativeEdges);
+    EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
+    EXPECT_EQ(3, benchmark.truePositiveJunctions);
+    EXPECT_EQ(0, benchmark.falseNegativeJunctions);
+    EXPECT_DOUBLE_EQ(1.0, benchmark.junctionRecall);
+    EXPECT_GT(benchmark.loopClosureRate, 0.95);
 }
 
 TEST(FeatureDetection, FixtureDetectsTiltedCoaxialHoleAxis) {

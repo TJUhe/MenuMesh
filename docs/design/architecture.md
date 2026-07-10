@@ -15,6 +15,8 @@ include/      安装级公共 SDK 头文件
   api/                          C ABI，使用 handle 和显式初始化结构体
 
 src/common/detail/              跨算法私有工具，不安装
+src/mesh_edit/                  可编辑 mesh 状态、动态邻接和 compact/remap
+src/mesh_edit/detail/           mesh edit 私有类型和 helper，不安装
 src/core/                       公共 core 类型的实现
 src/feature_detection/          特征检测实现，只依赖 core 和私有 common
 src/feature_detection/detail/   特征检测私有类型、策略接口和 helper
@@ -33,10 +35,10 @@ docs/                           当前设计、指南、论文索引和历史生
 公共头文件只表达稳定 SDK 合约，不承载算法内部状态。当前使用 pimpl 的公共对象包括：
 
 - `MeshTopology`：隐藏拓扑缓存的存储布局。
-- `QEMSimplifier`：隐藏单次简化运行状态、队列、动态拓扑和策略对象。
+- `QEMSimplifier`：隐藏单次简化运行状态、队列、QEM 属性和策略对象。
 - `FeatureDetector`：隐藏检测器内部配置和后续可能加入的缓存、策略或统计字段。
 
-`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；真实功能命名空间按模块拆开：特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。功能模块类型不再回灌到根命名空间。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、空间索引、feature graph 追踪辅助结构、edge evidence strategy 和 loop recovery helper，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
+`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；真实功能命名空间按模块拆开：特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。功能模块类型不再回灌到根命名空间。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、动态拓扑、空间索引、feature graph 追踪辅助结构、edge evidence strategy 和 loop recovery helper，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
 
 特征检测内部按 pipeline 组织：`FeatureDetector.cpp` 只负责 public facade 和阶段编排；`FeatureEvidence.cpp` 负责 boundary、dihedral、non-manifold、normal-tensor 等证据来源；`FeatureGraph.cpp` 负责显式 graph 和 trace graph；`FeatureLoopRecovery.cpp` 只负责恢复阶段调度；`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp` 和 `FeaturePrimitiveRecovery.cpp` 分别承载 cycle、trace chain 和 primitive component 恢复；`FeatureLoopBuilder.cpp` 负责把 loop 写回 `FeatureAnalysis::vertices`；`FeatureCircularRecovery.cpp` 保留有界圆形 fallback。新增识别能力应优先加入对应私有阶段，而不是继续扩张 `FeatureDetector.cpp`。
 
@@ -46,14 +48,22 @@ CLI 是应用层消费者，不承载算法状态。`apps/manumesh/main.cpp` 只
 
 ## 公共私有层
 
-`src/common/detail/MeshQueries.h` 是库内部公共层，负责多个算法都会用到但暂不应进入 SDK 的网格查询：
+`src/common/detail/` 是库内部公共层，负责多个算法都会用到但暂不应进入 SDK 的网格与几何基础设施：
 
 - 无向边 key 和面 key。
 - 边到相邻面的局部 incidence。
 - 面法向、面心、顶点一环邻接。
 - 边界顶点标记。
+- 三角形质量、点到三角形距离、AABB 距离、三角形包围盒和三角形相交谓词。
+- AABB uniform grid、cell key/hash、overflow 候选管理。
 
-这层解决的是“实现复用”，不是“SDK 暴露”。后续 common 应继续沉淀几何谓词、边界 loop、通用空间索引、索引重映射、mesh 校验和内部诊断结构，避免 `repair`、`remeshing`、`validation` 各自复制基础设施。如果某个能力未来需要外部稳定使用，应优先评估是否提升到 `core/MeshTopology` 或新的公共模块，而不是让外部 include `src/common/detail/...`。
+这层解决的是“实现复用”，不是“SDK 暴露”。后续 common 应继续沉淀边界 loop、mesh 校验和内部诊断结构；可变拓扑、活动状态和索引重映射进入 `mesh_edit`，避免 `repair`、`remeshing`、`simplification` 各自复制编辑内核。如果某个能力未来需要外部稳定使用，应优先评估是否提升到 `core/MeshTopology` 或新的公共模块，而不是让外部 include `src/common/detail/...`。
+
+## 可编辑网格基础层
+
+`src/mesh_edit/` 是算法之间共享的内部编辑层。当前提供活动三角面、增量 face incidence、活动边查询、duplicate-face 跟踪，以及返回 vertex/face old-to-new 映射的 Mesh compaction。详细边界见 [`mesh_edit_foundation.md`](mesh_edit_foundation.md)。
+
+它不包含 QEM cost、feature policy 或 remeshing 调度。简化模块只通过 position/activity/face 状态调用 compaction，并在自己的 `CollapseTopology.cpp` 中保留 boundary 和 link-condition 策略。未来 remeshing 应复用同一编辑层，而不是 include `simplification/detail/...`。
 
 ## 算法边界
 
@@ -67,10 +77,12 @@ QEM/line quadrics 只负责候选折叠排序和局部几何优化，工业级�
 
 ```text
 core
-  -> feature_detection
-  -> simplification
+  -> common
+  -> mesh_edit
+  -> simplification / future remeshing / future repair
 
-core + common/detail 可被 feature_detection 和 simplification 使用；
+core + common/detail 可被 feature_detection、mesh_edit 和算法模块使用；
+mesh_edit 只能依赖 core/common；
 simplification 可以消费 feature::FeatureAnalysis；
 feature_detection 不能反向 include simplification；
 未来 repair/remesh/validation 可以消费 feature::FeatureAnalysis。
@@ -85,7 +97,7 @@ feature_detection 不能反向 include simplification；
 `simplifyPlainMesh()`，内部转换为 `Mesh` 后复用同一套简化实现。真正跨语言或
 严格 ABI 边界仍优先使用 `api/CApi.h`。
 
-未来若加入可编辑半边拓扑，应使用 `VertexId`、`EdgeId`、`HalfedgeId`、`FaceId` 等 typed handle，配合 generation-aware free list 和显式 compaction。属性不要塞进基础顶点结构，应以类型化数组挂在拓扑旁边，方便重映射、导出和 ABI 隔离。
+当前 `mesh_edit` 仍是稳定索引的最小编辑层。未来升级为可编辑半边拓扑时，应使用 `VertexId`、`EdgeId`、`HalfedgeId`、`FaceId` 等 typed handle，配合 generation-aware free list 和显式 compaction。属性不要塞进基础顶点结构，应以类型化数组挂在拓扑旁边，方便重映射、导出和 ABI 隔离。
 
 ## API 形态
 

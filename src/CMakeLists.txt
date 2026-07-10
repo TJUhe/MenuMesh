@@ -22,7 +22,15 @@ set(MANUMESH_API_SOURCES
 )
 
 set(MANUMESH_COMMON_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/GeometryPredicates.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/MeshDistanceIndex.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/MeshQueries.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/SpatialIndex.cpp"
+)
+
+set(MANUMESH_MESH_EDIT_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/DynamicTopology.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/MeshCompaction.cpp"
 )
 
 set(MANUMESH_GEOMETRY_SOURCES
@@ -66,14 +74,13 @@ set(MANUMESH_SIMPLIFICATION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CandidateQueue.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseAttempt.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseLegality.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/DynamicTopology.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseTopology.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureConstraints.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureGuidance.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/GeometryPredicates.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/Metrics.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/QEMSimplifier.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/Quadrics.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/ResultBuilder.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/QualityRefinement.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SimplificationPolicies.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SimplificationRun.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SimplificationValidation.cpp"
@@ -83,6 +90,7 @@ set(MANUMESH_SIMPLIFICATION_SOURCES
 set(MANUMESH_LIBRARY_SOURCES
   ${MANUMESH_API_SOURCES}
   ${MANUMESH_COMMON_SOURCES}
+  ${MANUMESH_MESH_EDIT_SOURCES}
   ${MANUMESH_GEOMETRY_SOURCES}
   ${MANUMESH_IO_SOURCES}
   ${MANUMESH_DEBUG_UTIL_SOURCES}
@@ -91,8 +99,17 @@ set(MANUMESH_LIBRARY_SOURCES
 )
 
 set(MANUMESH_COMMON_PRIVATE_HEADERS
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/GeometryPredicates.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/MathConstants.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/MeshDistanceIndex.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/MeshQueries.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/SpatialIndex.h"
+)
+
+set(MANUMESH_MESH_EDIT_PRIVATE_HEADERS
+  "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/detail/DynamicTopology.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/detail/MeshCompaction.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/detail/MeshEditTypes.h"
 )
 
 set(MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS
@@ -113,12 +130,11 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CandidateQueue.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CollapseAttempt.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CollapseLegality.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/DynamicTopology.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CollapseTopology.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureConstraints.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureGuidance.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/GeometryPredicates.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/Quadrics.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/ResultBuilder.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/QualityRefinement.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/SimplificationPolicies.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/SimplificationRun.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/SimplificationTypes.h"
@@ -128,6 +144,7 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
 
 set(MANUMESH_PRIVATE_HEADERS
   ${MANUMESH_COMMON_PRIVATE_HEADERS}
+  ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
   ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
   ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
   ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
@@ -136,6 +153,10 @@ set(MANUMESH_PRIVATE_HEADERS
 add_library(manumesh_common_objects OBJECT
   ${MANUMESH_COMMON_SOURCES}
   ${MANUMESH_COMMON_PRIVATE_HEADERS}
+)
+add_library(manumesh_mesh_edit_objects OBJECT
+  ${MANUMESH_MESH_EDIT_SOURCES}
+  ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
 )
 add_library(manumesh_geometry_objects OBJECT
   ${MANUMESH_GEOMETRY_SOURCES}
@@ -161,23 +182,46 @@ add_library(manumesh_c_api_objects OBJECT
   ${MANUMESH_API_SOURCES}
 )
 
+target_link_libraries(manumesh_common_objects
+  PRIVATE manumesh_geometry_objects
+)
+target_link_libraries(manumesh_mesh_edit_objects
+  PRIVATE
+    manumesh_common_objects
+    manumesh_geometry_objects
+)
+target_link_libraries(manumesh_io_objects
+  PRIVATE manumesh_geometry_objects
+)
 target_link_libraries(manumesh_feature_detection_objects
-  PRIVATE manumesh_common_objects
+  PRIVATE
+    manumesh_common_objects
+    manumesh_geometry_objects
 )
 target_link_libraries(manumesh_simplification_objects
   PRIVATE
     manumesh_common_objects
     manumesh_geometry_objects
     manumesh_feature_detection_objects
+    manumesh_mesh_edit_objects
 )
 target_link_libraries(manumesh_c_api_objects
   PRIVATE
     manumesh_geometry_objects
+    manumesh_io_objects
     manumesh_simplification_objects
 )
+if(MANUMESH_ENABLE_DEBUG_UTIL)
+  target_link_libraries(manumesh_debug_util_objects
+    PRIVATE
+      manumesh_geometry_objects
+      manumesh_feature_detection_objects
+  )
+endif()
 
 set(MANUMESH_INTERNAL_OBJECT_TARGETS
   manumesh_common_objects
+  manumesh_mesh_edit_objects
   manumesh_geometry_objects
   manumesh_io_objects
   manumesh_feature_detection_objects
@@ -190,6 +234,7 @@ endif()
 
 set(MANUMESH_LIBRARY_OBJECTS
   $<TARGET_OBJECTS:manumesh_common_objects>
+  $<TARGET_OBJECTS:manumesh_mesh_edit_objects>
   $<TARGET_OBJECTS:manumesh_geometry_objects>
   $<TARGET_OBJECTS:manumesh_io_objects>
   $<TARGET_OBJECTS:manumesh_feature_detection_objects>
@@ -227,6 +272,10 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/common/detail"
   PREFIX "Common Private Headers"
   FILES ${MANUMESH_COMMON_PRIVATE_HEADERS}
+)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/detail"
+  PREFIX "Mesh Edit Private Headers"
+  FILES ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/debugUtil"
   PREFIX "Debug Util"

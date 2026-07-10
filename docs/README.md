@@ -9,6 +9,7 @@
 | [`delivery/manumesh_kernel_developer_guide.html`](delivery/manumesh_kernel_developer_guide.html) | 商用内核交付级开发者手册，包含定位、架构、模块、API、C ABI、构建、验证、扩展边界和交付清单。 |
 | [`guide/debug_util_usage.md`](guide/debug_util_usage.md) | 内部 Debug-only HTML wireframe 工具使用教程，包含开启方式、常用宏、颜色约定、插入位置和截图预览。 |
 | [`design/feature_detection_upgrade_2026_07_09.md`](design/feature_detection_upgrade_2026_07_09.md) | 本次特征识别升级记录，覆盖 loop trace 阈值、traced/untraced 诊断、common 局部尺度、normal-tensor persistence、QEM 联动、gtest 保护和后续算法计划。 |
+| [`design/mesh_edit_foundation.md`](design/mesh_edit_foundation.md) | 可供 simplification 与未来 remeshing/repair 复用的内部编辑层，说明动态拓扑、compact/remap 和扩展边界。 |
 | [`archive/prototype-docs-2026-07-09/`](archive/prototype-docs-2026-07-09/) | 2026-07-09 归档的阶段性设计、指南和生成笔记，用作历史备份。 |
 | [`papers/`](papers/) | 论文 PDF 资料库。该目录没有复制进归档目录，以避免重复大文件。 |
 

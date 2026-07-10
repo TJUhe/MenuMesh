@@ -27,212 +27,196 @@ using namespace manumesh::test::simplification;
 
 namespace simplification = manumesh::simplification;
 TEST(ManuMesh, StrictTriangleQualityRejectsPoorCollapsePlacements) {
-  const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
+    const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-  options.minTriangleQuality = 0.95;
-  options.maxNormalDeviationDeg = 180.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
+    options.minTriangleQuality = 0.95;
+    options.maxNormalDeviationDeg = 180.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_GT(result.report.qualityRejectedCollapses, 0);
-  EXPECT_EQ(result.report.rejectedCollapses,
-            result.report.topologyRejectedCollapses +
-                result.report.normalFlipRejectedCollapses +
-                result.report.qualityRejectedCollapses +
-                result.report.boundaryRejectedCollapses +
-                result.report.selfIntersectionRejectedCollapses +
-                result.report.curveBudgetRejectedCollapses +
-                result.report.errorRejectedCollapses +
-                result.report.featureRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_GT(result.report.qualityRejectedCollapses, 0);
+    EXPECT_EQ(
+        result.report.rejectedCollapses,
+        result.report.topologyRejectedCollapses + result.report.normalFlipRejectedCollapses +
+            result.report.qualityRejectedCollapses + result.report.boundaryRejectedCollapses +
+            result.report.selfIntersectionRejectedCollapses + result.report.curveBudgetRejectedCollapses +
+            result.report.errorRejectedCollapses + result.report.featureRejectedCollapses
+    );
 }
 
 TEST(ManuMesh, TriesEndpointPlacementWhenBestPlacementFailsLegality) {
-  const manumesh::Mesh input = makePlacementFallbackMesh();
+    const manumesh::Mesh input = makePlacementFallbackMesh();
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.5);
-  options.targetFaces = 1;
-  options.minTriangleQuality = 0.35;
-  options.maxNormalDeviationDeg = 180.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.5);
+    options.targetFaces = 1;
+    options.minTriangleQuality = 0.35;
+    options.maxNormalDeviationDeg = 180.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget,
-            result.report.terminationReason);
-  EXPECT_EQ(1, result.report.finalFaces);
-  EXPECT_EQ(0, result.report.rejectedCollapses);
+    EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);
+    EXPECT_EQ(1, result.report.finalFaces);
+    EXPECT_EQ(0, result.report.rejectedCollapses);
 }
 
 TEST(ManuMesh, StrictNormalDeviationRejectsFoldoverRisk) {
-  const manumesh::Mesh input = manumesh::generateCubeGrid(3, 1.0);
+    const manumesh::Mesh input = manumesh::generateCubeGrid(3, 1.0);
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-  options.minTriangleQuality = 0.0;
-  options.maxNormalDeviationDeg = 0.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
+    options.minTriangleQuality = 0.0;
+    options.maxNormalDeviationDeg = 0.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_GT(result.report.normalFlipRejectedCollapses, 0);
-  EXPECT_EQ(result.report.rejectedCollapses,
-            result.report.topologyRejectedCollapses +
-                result.report.normalFlipRejectedCollapses +
-                result.report.qualityRejectedCollapses +
-                result.report.boundaryRejectedCollapses +
-                result.report.selfIntersectionRejectedCollapses +
-                result.report.curveBudgetRejectedCollapses +
-                result.report.errorRejectedCollapses +
-                result.report.featureRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_GT(result.report.normalFlipRejectedCollapses, 0);
+    EXPECT_EQ(
+        result.report.rejectedCollapses,
+        result.report.topologyRejectedCollapses + result.report.normalFlipRejectedCollapses +
+            result.report.qualityRejectedCollapses + result.report.boundaryRejectedCollapses +
+            result.report.selfIntersectionRejectedCollapses + result.report.curveBudgetRejectedCollapses +
+            result.report.errorRejectedCollapses + result.report.featureRejectedCollapses
+    );
 }
 
 TEST(ManuMesh, StrictLocalErrorRejectsLargeVertexDrift) {
-  const manumesh::Mesh input = manumesh::generatePlaneGrid(3, 2.0, false);
+    const manumesh::Mesh input = manumesh::generatePlaneGrid(3, 2.0, false);
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-  options.maxNormalDeviationDeg = 180.0;
-  options.maxLocalErrorRatio = 1e-12;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
+    options.maxNormalDeviationDeg = 180.0;
+    options.maxLocalErrorRatio = 1e-12;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_GT(result.report.errorRejectedCollapses, 0);
-  EXPECT_EQ(result.report.rejectedCollapses,
-            result.report.topologyRejectedCollapses +
-                result.report.normalFlipRejectedCollapses +
-                result.report.qualityRejectedCollapses +
-                result.report.boundaryRejectedCollapses +
-                result.report.selfIntersectionRejectedCollapses +
-                result.report.curveBudgetRejectedCollapses +
-                result.report.errorRejectedCollapses +
-                result.report.featureRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_GT(result.report.errorRejectedCollapses, 0);
+    EXPECT_EQ(
+        result.report.rejectedCollapses,
+        result.report.topologyRejectedCollapses + result.report.normalFlipRejectedCollapses +
+            result.report.qualityRejectedCollapses + result.report.boundaryRejectedCollapses +
+            result.report.selfIntersectionRejectedCollapses + result.report.curveBudgetRejectedCollapses +
+            result.report.errorRejectedCollapses + result.report.featureRejectedCollapses
+    );
 }
 
 TEST(ManuMesh, SimplifiesOpenBoundaryEdgesWhenTopologyIsPreserved) {
-  const manumesh::Mesh input = manumesh::generatePlaneGrid(8, 2.0, false);
-  const manumesh::simplification::MeshStats inputStats =
-      manumesh::simplification::computeMeshStats(input);
-  ASSERT_GT(inputStats.boundaryEdges, 0);
-  ASSERT_EQ(1, countBoundaryComponents(input));
+    const manumesh::Mesh input = manumesh::generatePlaneGrid(8, 2.0, false);
+    const manumesh::simplification::MeshStats inputStats = manumesh::simplification::computeMeshStats(input);
+    ASSERT_GT(inputStats.boundaryEdges, 0);
+    ASSERT_EQ(1, countBoundaryComponents(input));
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.08);
-  options.preserveBoundary = true;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
-  const manumesh::simplification::MeshStats outputStats =
-      manumesh::simplification::computeMeshStats(result.mesh);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.08);
+    options.preserveBoundary = true;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
+    const manumesh::simplification::MeshStats outputStats = manumesh::simplification::computeMeshStats(result.mesh);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-  EXPECT_LT(outputStats.boundaryEdges, inputStats.boundaryEdges);
-  EXPECT_LT(countBoundaryVertices(result.mesh), countBoundaryVertices(input));
-  EXPECT_EQ(1, countBoundaryComponents(result.mesh));
-  EXPECT_EQ(0, outputStats.nonManifoldEdges);
-  EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+    EXPECT_LT(outputStats.boundaryEdges, inputStats.boundaryEdges);
+    EXPECT_LT(countBoundaryVertices(result.mesh), countBoundaryVertices(input));
+    EXPECT_EQ(1, countBoundaryComponents(result.mesh));
+    EXPECT_EQ(0, outputStats.nonManifoldEdges);
+    EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
 }
 
 TEST(ManuMesh, KeepsSeparateBoundaryLoopsWhenBoundaryEdgesCollapse) {
-  const manumesh::Mesh input = manumesh::generateHolePlaneGrid(16, 2.0, 0.35);
-  const manumesh::simplification::MeshStats inputStats =
-      manumesh::simplification::computeMeshStats(input);
-  ASSERT_GT(inputStats.boundaryEdges, 0);
-  ASSERT_GE(countBoundaryComponents(input), 2);
+    const manumesh::Mesh input = manumesh::generateHolePlaneGrid(16, 2.0, 0.35);
+    const manumesh::simplification::MeshStats inputStats = manumesh::simplification::computeMeshStats(input);
+    ASSERT_GT(inputStats.boundaryEdges, 0);
+    ASSERT_GE(countBoundaryComponents(input), 2);
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.15);
-  options.preserveBoundary = true;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
-  const manumesh::simplification::MeshStats outputStats =
-      manumesh::simplification::computeMeshStats(result.mesh);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.15);
+    options.preserveBoundary = true;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
+    const manumesh::simplification::MeshStats outputStats = manumesh::simplification::computeMeshStats(result.mesh);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-  EXPECT_EQ(countBoundaryComponents(input), countBoundaryComponents(result.mesh));
-  EXPECT_LE(outputStats.boundaryEdges, inputStats.boundaryEdges);
-  EXPECT_EQ(0, outputStats.nonManifoldEdges);
-  EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+    EXPECT_EQ(countBoundaryComponents(input), countBoundaryComponents(result.mesh));
+    EXPECT_LE(outputStats.boundaryEdges, inputStats.boundaryEdges);
+    EXPECT_EQ(0, outputStats.nonManifoldEdges);
+    EXPECT_GT(result.report.boundaryRejectedCollapses, 0);
 }
 
 TEST(ManuMesh, LocalIntersectionGuardRejectsIntersectingCollapse) {
-  const manumesh::Mesh input = makeLocalIntersectionGuardMesh();
+    const manumesh::Mesh input = makeLocalIntersectionGuardMesh();
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-  options.targetFaces = 1;
-  options.preventLocalIntersections = true;
-  options.maxNormalDeviationDeg = 180.0;
-  options.minTriangleQuality = 0.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
+    options.targetFaces = 1;
+    options.preventLocalIntersections = true;
+    options.maxNormalDeviationDeg = 180.0;
+    options.minTriangleQuality = 0.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
-  EXPECT_EQ(result.report.rejectedCollapses,
-            result.report.topologyRejectedCollapses +
-                result.report.normalFlipRejectedCollapses +
-                result.report.qualityRejectedCollapses +
-                result.report.boundaryRejectedCollapses +
-                result.report.selfIntersectionRejectedCollapses +
-                result.report.curveBudgetRejectedCollapses +
-                result.report.errorRejectedCollapses +
-                result.report.featureRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
+    EXPECT_EQ(
+        result.report.rejectedCollapses,
+        result.report.topologyRejectedCollapses + result.report.normalFlipRejectedCollapses +
+            result.report.qualityRejectedCollapses + result.report.boundaryRejectedCollapses +
+            result.report.selfIntersectionRejectedCollapses + result.report.curveBudgetRejectedCollapses +
+            result.report.errorRejectedCollapses + result.report.featureRejectedCollapses
+    );
 }
 
 TEST(ManuMesh, LocalIntersectionGuardFindsIndexedDistantCandidates) {
-  const manumesh::Mesh input = makeSpatialIntersectionGuardMeshWithFarFaces();
+    const manumesh::Mesh input = makeSpatialIntersectionGuardMeshWithFarFaces();
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.98);
-  options.targetFaces = static_cast<int>(input.faces.size()) - 1;
-  options.preventLocalIntersections = true;
-  options.maxNormalDeviationDeg = 180.0;
-  options.minTriangleQuality = 0.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.98);
+    options.targetFaces = static_cast<int>(input.faces.size()) - 1;
+    options.preventLocalIntersections = true;
+    options.maxNormalDeviationDeg = 180.0;
+    options.minTriangleQuality = 0.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
-  EXPECT_EQ(result.report.rejectedCollapses,
-            result.report.topologyRejectedCollapses +
-                result.report.normalFlipRejectedCollapses +
-                result.report.qualityRejectedCollapses +
-                result.report.boundaryRejectedCollapses +
-                result.report.selfIntersectionRejectedCollapses +
-                result.report.curveBudgetRejectedCollapses +
-                result.report.errorRejectedCollapses +
-                result.report.featureRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_GT(result.report.selfIntersectionRejectedCollapses, 0);
+    EXPECT_EQ(
+        result.report.rejectedCollapses,
+        result.report.topologyRejectedCollapses + result.report.normalFlipRejectedCollapses +
+            result.report.qualityRejectedCollapses + result.report.boundaryRejectedCollapses +
+            result.report.selfIntersectionRejectedCollapses + result.report.curveBudgetRejectedCollapses +
+            result.report.errorRejectedCollapses + result.report.featureRejectedCollapses
+    );
 }
 
 TEST(ManuMesh, LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap) {
-  const manumesh::Mesh input = makeCoplanarOverlapGuardMesh();
+    const manumesh::Mesh input = makeCoplanarOverlapGuardMesh();
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-  options.targetFaces = 1;
-  options.preventLocalIntersections = true;
-  options.maxNormalDeviationDeg = 180.0;
-  options.minTriangleQuality = 0.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
+    options.targetFaces = 1;
+    options.preventLocalIntersections = true;
+    options.maxNormalDeviationDeg = 180.0;
+    options.minTriangleQuality = 0.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget,
-            result.report.terminationReason);
-  EXPECT_EQ(1, result.report.finalFaces);
-  EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);
+    EXPECT_EQ(1, result.report.finalFaces);
+    EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }
 
 TEST(ManuMesh, LocalIntersectionGuardAllowsCoplanarSeparatedTriangles) {
-  const manumesh::Mesh input = makeCoplanarSeparatedGuardMesh();
+    const manumesh::Mesh input = makeCoplanarSeparatedGuardMesh();
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-  options.targetFaces = 1;
-  options.preventLocalIntersections = true;
-  options.maxNormalDeviationDeg = 180.0;
-  options.minTriangleQuality = 0.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
+    options.targetFaces = 1;
+    options.preventLocalIntersections = true;
+    options.maxNormalDeviationDeg = 180.0;
+    options.minTriangleQuality = 0.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }
 
 TEST(ManuMesh, LocalIntersectionGuardAllowsSharedCoplanarEdges) {
-  const manumesh::Mesh input = manumesh::generatePlaneGrid(3, 1.0, false);
+    const manumesh::Mesh input = manumesh::generatePlaneGrid(3, 1.0, false);
 
-  manumesh::simplification::SimplifyOptions options = standardQemOptions(0.55);
-  options.preventLocalIntersections = true;
-  options.maxNormalDeviationDeg = 180.0;
-  const SimplifiedMesh result = simplifyWithReport(input, options);
+    manumesh::simplification::SimplifyOptions options = standardQemOptions(0.55);
+    options.preventLocalIntersections = true;
+    options.maxNormalDeviationDeg = 180.0;
+    const SimplifiedMesh result = simplifyWithReport(input, options);
 
-  EXPECT_FALSE(result.mesh.empty());
-  EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-  EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
+    EXPECT_FALSE(result.mesh.empty());
+    EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+    EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
 }

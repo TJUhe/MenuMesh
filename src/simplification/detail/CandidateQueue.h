@@ -9,13 +9,13 @@ namespace manumesh::simplification {
 
 class CandidateQueue {
 public:
-  void clear();
-  bool empty() const;
-  Candidate pop();
-  void pushEdge(int a, int b, const std::vector<VertexState>& vertices);
+    void clear();
+    bool empty() const;
+    Candidate pop();
+    void pushEdge(int a, int b, const std::vector<VertexState>& vertices);
 
 private:
-  std::priority_queue<Candidate> queue_;
+    std::priority_queue<Candidate> queue_;
 };
 
 } // namespace manumesh::simplification

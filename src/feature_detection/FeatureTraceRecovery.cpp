@@ -9,153 +9,158 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
-bool traceEdgeVisited(const std::unordered_set<std::uint64_t>& visitedEdges, int a,
-                      int b) {
-  return visitedEdges.find(manumesh::detail::meshEdgeKey(a, b)) != visitedEdges.end();
+bool traceEdgeVisited(const std::unordered_set<std::uint64_t>& visitedEdges, int a, int b) {
+    return visitedEdges.find(manumesh::detail::meshEdgeKey(a, b)) != visitedEdges.end();
 }
 
 void markTraceEdge(std::unordered_set<std::uint64_t>& visitedEdges, int a, int b) {
-  visitedEdges.insert(manumesh::detail::meshEdgeKey(a, b));
+    visitedEdges.insert(manumesh::detail::meshEdgeKey(a, b));
 }
 
-void accumulateTraceEdgeStats(const TraceGraph& trace, int a, int b,
-                              TraceLoopStats& stats) {
-  ++stats.edgeCount;
-  if (traceEdgeBoundary(trace, a, b)) {
-    ++stats.boundaryEdges;
-  }
-  if (traceEdgeDihedral(trace, a, b)) {
-    ++stats.dihedralEdges;
-  }
-  if (traceEdgeNormalTensor(trace, a, b)) {
-    ++stats.normalTensorEdges;
-  }
-  if (traceEdgeNonManifold(trace, a, b)) {
-    ++stats.nonManifoldEdges;
-  }
-  if (traceEdgeCleanupBridge(trace, a, b)) {
-    ++stats.cleanupBridgeEdges;
-  }
-  const int sign = traceEdgeSign(trace, a, b);
-  if (sign > 0) ++stats.convexEdges;
-  if (sign < 0) ++stats.concaveEdges;
-  if (sign == 0 && !traceEdgeBoundary(trace, a, b)) {
-    ++stats.unknownSignedEdges;
-  }
+void accumulateTraceEdgeStats(const TraceGraph& trace, int a, int b, TraceLoopStats& stats) {
+    ++stats.edgeCount;
+    if (traceEdgeBoundary(trace, a, b)) {
+        ++stats.boundaryEdges;
+    }
+    if (traceEdgeDihedral(trace, a, b)) {
+        ++stats.dihedralEdges;
+    }
+    if (traceEdgeNormalTensor(trace, a, b)) {
+        ++stats.normalTensorEdges;
+    }
+    if (traceEdgeNonManifold(trace, a, b)) {
+        ++stats.nonManifoldEdges;
+    }
+    if (traceEdgeCleanupBridge(trace, a, b)) {
+        ++stats.cleanupBridgeEdges;
+    }
+    const int sign = traceEdgeSign(trace, a, b);
+    if (sign > 0)
+        ++stats.convexEdges;
+    if (sign < 0)
+        ++stats.concaveEdges;
+    if (sign == 0 && !traceEdgeBoundary(trace, a, b)) {
+        ++stats.unknownSignedEdges;
+    }
 }
 
-std::vector<int> traceOpenChain(const TraceGraph& trace, int seed, int firstNeighbor,
-                                std::unordered_set<std::uint64_t>& visitedEdges,
-                                TraceLoopStats& stats) {
-  std::vector<int> vertices;
-  vertices.push_back(seed);
+std::vector<int> traceOpenChain(
+    const TraceGraph& trace,
+    int seed,
+    int firstNeighbor,
+    std::unordered_set<std::uint64_t>& visitedEdges,
+    TraceLoopStats& stats
+) {
+    std::vector<int> vertices;
+    vertices.push_back(seed);
 
-  int previous = seed;
-  int current = firstNeighbor;
-  while (true) {
-    if (traceEdgeVisited(visitedEdges, previous, current)) {
-      break;
-    }
-    markTraceEdge(visitedEdges, previous, current);
-    accumulateTraceEdgeStats(trace, previous, current, stats);
-    vertices.push_back(current);
-    if (current == seed) {
-      vertices.pop_back();
-      stats.closed = true;
-      break;
+    int previous = seed;
+    int current = firstNeighbor;
+    while (true) {
+        if (traceEdgeVisited(visitedEdges, previous, current)) {
+            break;
+        }
+        markTraceEdge(visitedEdges, previous, current);
+        accumulateTraceEdgeStats(trace, previous, current, stats);
+        vertices.push_back(current);
+        if (current == seed) {
+            vertices.pop_back();
+            stats.closed = true;
+            break;
+        }
+
+        if (trace.adjacency[current].size() != 2) {
+            break;
+        }
+
+        int next = -1;
+        for (int candidate : trace.adjacency[current]) {
+            if (candidate != previous && !traceEdgeVisited(visitedEdges, current, candidate)) {
+                next = candidate;
+                break;
+            }
+        }
+        if (next < 0) {
+            break;
+        }
+        previous = current;
+        current = next;
     }
 
-    if (trace.adjacency[current].size() != 2) {
-      break;
-    }
-
-    int next = -1;
-    for (int candidate : trace.adjacency[current]) {
-      if (candidate != previous &&
-          !traceEdgeVisited(visitedEdges, current, candidate)) {
-        next = candidate;
-        break;
-      }
-    }
-    if (next < 0) {
-      break;
-    }
-    previous = current;
-    current = next;
-  }
-
-  return vertices;
+    return vertices;
 }
 
-std::vector<int> traceClosedLoop(const TraceGraph& trace, int seed, int firstNeighbor,
-                                 std::unordered_set<std::uint64_t>& visitedEdges,
-                                 TraceLoopStats& stats) {
-  std::vector<int> vertices;
-  vertices.push_back(seed);
+std::vector<int> traceClosedLoop(
+    const TraceGraph& trace,
+    int seed,
+    int firstNeighbor,
+    std::unordered_set<std::uint64_t>& visitedEdges,
+    TraceLoopStats& stats
+) {
+    std::vector<int> vertices;
+    vertices.push_back(seed);
 
-  int previous = seed;
-  int current = firstNeighbor;
-  while (true) {
-    if (traceEdgeVisited(visitedEdges, previous, current)) {
-      break;
-    }
-    markTraceEdge(visitedEdges, previous, current);
-    accumulateTraceEdgeStats(trace, previous, current, stats);
-    if (current == seed) {
-      stats.closed = true;
-      break;
-    }
-    vertices.push_back(current);
+    int previous = seed;
+    int current = firstNeighbor;
+    while (true) {
+        if (traceEdgeVisited(visitedEdges, previous, current)) {
+            break;
+        }
+        markTraceEdge(visitedEdges, previous, current);
+        accumulateTraceEdgeStats(trace, previous, current, stats);
+        if (current == seed) {
+            stats.closed = true;
+            break;
+        }
+        vertices.push_back(current);
 
-    int next = -1;
-    for (int candidate : trace.adjacency[current]) {
-      if (candidate != previous) {
-        next = candidate;
-        break;
-      }
+        int next = -1;
+        for (int candidate : trace.adjacency[current]) {
+            if (candidate != previous) {
+                next = candidate;
+                break;
+            }
+        }
+        if (next < 0) {
+            break;
+        }
+        previous = current;
+        current = next;
     }
-    if (next < 0) {
-      break;
-    }
-    previous = current;
-    current = next;
-  }
 
-  return vertices;
+    return vertices;
 }
 
 } // namespace
 
-void traceRemainingFeatureLoops(const Mesh& mesh, const FeatureOptions& options,
-                                const TraceGraph& trace, FeatureAnalysis& analysis,
-                                int& loopId) {
-  std::unordered_set<std::uint64_t> visitedEdges;
-  visitedEdges.reserve(trace.graphEdges.size());
+void traceRemainingFeatureLoops(
+    const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
+) {
+    std::unordered_set<std::uint64_t> visitedEdges;
+    visitedEdges.reserve(trace.graphEdges.size());
 
-  for (int seed = 0; seed < static_cast<int>(trace.adjacency.size()); ++seed) {
-    if (trace.adjacency[seed].empty() || trace.adjacency[seed].size() == 2) {
-      continue;
+    for (int seed = 0; seed < static_cast<int>(trace.adjacency.size()); ++seed) {
+        if (trace.adjacency[seed].empty() || trace.adjacency[seed].size() == 2) {
+            continue;
+        }
+        for (int nb : trace.adjacency[seed]) {
+            if (traceEdgeVisited(visitedEdges, seed, nb)) {
+                continue;
+            }
+            TraceLoopStats stats;
+            std::vector<int> vertices = traceOpenChain(trace, seed, nb, visitedEdges, stats);
+            addTracedLoop(mesh, options, trace.adjacency, std::move(vertices), stats, analysis, loopId);
+        }
     }
-    for (int nb : trace.adjacency[seed]) {
-      if (traceEdgeVisited(visitedEdges, seed, nb)) {
-        continue;
-      }
-      TraceLoopStats stats;
-      std::vector<int> vertices = traceOpenChain(trace, seed, nb, visitedEdges, stats);
-      addTracedLoop(mesh, options, trace.adjacency, std::move(vertices), stats,
-                    analysis, loopId);
-    }
-  }
 
-  for (const auto& [a, b] : trace.graphEdges) {
-    if (traceEdgeVisited(visitedEdges, a, b)) {
-      continue;
+    for (const auto& [a, b] : trace.graphEdges) {
+        if (traceEdgeVisited(visitedEdges, a, b)) {
+            continue;
+        }
+        TraceLoopStats stats;
+        std::vector<int> vertices = traceClosedLoop(trace, a, b, visitedEdges, stats);
+        addTracedLoop(mesh, options, trace.adjacency, std::move(vertices), stats, analysis, loopId);
     }
-    TraceLoopStats stats;
-    std::vector<int> vertices = traceClosedLoop(trace, a, b, visitedEdges, stats);
-    addTracedLoop(mesh, options, trace.adjacency, std::move(vertices), stats, analysis,
-                  loopId);
-  }
 }
 
 } // namespace manumesh::feature::detector_detail

@@ -2,6 +2,10 @@ option(MANUMESH_BUILD_DOCS
   "Enable the Doxygen docs-api target when Doxygen is available"
   ON
 )
+option(MANUMESH_DOXYGEN_ENABLE_GRAPHS
+  "Enable Graphviz-backed diagrams in generated Doxygen documentation when dot is available"
+  ON
+)
 option(MANUMESH_INSTALL_CMAKE_CONFIG
   "Install optional CMake config files for CMake consumers"
   OFF
@@ -48,6 +52,12 @@ endif()
 if(MANUMESH_BUILD_DOCS)
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)
+    find_program(MANUMESH_DOXYGEN_DOT_EXE NAMES dot)
+    set(MANUMESH_DOXYGEN_HAVE_DOT "NO")
+    if(MANUMESH_DOXYGEN_ENABLE_GRAPHS AND MANUMESH_DOXYGEN_DOT_EXE)
+      set(MANUMESH_DOXYGEN_HAVE_DOT "YES")
+    endif()
+
     set(MANUMESH_DOXYGEN_INPUT_FILES
       "${PROJECT_SOURCE_DIR}/README.md"
       "${PROJECT_SOURCE_DIR}/docs/design/algorithm_essence.md"

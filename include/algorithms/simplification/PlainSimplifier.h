@@ -11,8 +11,7 @@ namespace manumesh::simplification {
 /// This entry point keeps host-facing C++ boundaries independent from Eigen.
 /// The implementation converts to the internal Eigen-backed mesh, runs the same
 /// simplifier as `simplifyMesh`, and converts the result back to `PlainMesh`.
-MANUMESH_API PlainMesh simplifyPlainMesh(const PlainMesh& input,
-                                         const SimplifyOptions& options,
-                                         SimplifyReport* report = nullptr);
+MANUMESH_API PlainMesh
+simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& options, SimplifyReport* report = nullptr);
 
 } // namespace manumesh::simplification

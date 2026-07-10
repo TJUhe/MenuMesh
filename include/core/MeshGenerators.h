@@ -22,11 +22,9 @@ MANUMESH_API Mesh generateTerraceGrid(int n, double size);
 /// Generates a smooth bump surface.
 MANUMESH_API Mesh generateBumpGrid(int n, double size);
 /// Generates a capped cylinder grid.
-MANUMESH_API Mesh generateCylinderGrid(int radialSegments, int heightSegments,
-                                       double radius, double height);
+MANUMESH_API Mesh generateCylinderGrid(int radialSegments, int heightSegments, double radius, double height);
 /// Generates a torus grid.
-MANUMESH_API Mesh generateTorusGrid(int majorSegments, int minorSegments,
-                                    double majorRadius, double minorRadius);
+MANUMESH_API Mesh generateTorusGrid(int majorSegments, int minorSegments, double majorRadius, double minorRadius);
 /// Generates a subdivided cube shell.
 MANUMESH_API Mesh generateCubeGrid(int n, double size);
 /// Generates a thin-fin stress case.
@@ -39,7 +37,6 @@ MANUMESH_API Mesh generatePipeCouplingGrid(int n);
 MANUMESH_API Mesh generatePulleyGrid(int n);
 
 /// Dispatches one built-in generator by stable string name.
-MANUMESH_API bool generateMeshByName(const std::string& type, int n, Mesh& mesh,
-                                     std::string* error = nullptr);
+MANUMESH_API bool generateMeshByName(const std::string& type, int n, Mesh& mesh, std::string* error = nullptr);
 
 } // namespace manumesh

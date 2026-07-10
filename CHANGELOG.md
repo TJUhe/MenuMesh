@@ -1,5 +1,21 @@
 # 更新日志
 
+## 2026-07-10
+
+### 架构边界修复
+
+- 收紧 Eigen provider 语义：CMake 现在记录实际解析到的 Eigen 来源，只有确实选择 vendored Eigen 时才把 `thirdParty/eigen` 暴露到 `manumesh_core` 的 public include 并安装到 SDK，避免 `system`/`fetch` 被源码树中的 vendored Eigen 静默覆盖。
+- 强化 `Result<T>` 和 `MeshTopology` 公共契约：`Result<T>` 新增 `hasValue()`，错误状态下访问 `value()` 会抛出清晰异常；`MeshTopology::edge()` / `vertex()` 现在会对越界 handle 抛出 `std::out_of_range`，并新增 `hasEdge()` / `hasVertex()` 供调用方预检。
+- 收紧 C ABI 输出结构体契约：`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats` 在写入前必须通过 init 函数或有效的旧版 `struct_size` / `abi_version` 初始化；新增未初始化输出结构体拒绝测试，同时保留旧版短结构尾部兼容写入。
+- 更新 C API 示例和 SDK consumer C 示例，显式初始化 report/stats 输出结构体。
+
+### 本轮已验证
+
+- `cmake --build build\mingw-ninja-release --target check-format --parallel`
+- `cmake --build build\mingw-ninja-release --target unit-tests --parallel`：97/97 passed
+- `cmake --build build\mingw-ninja-release-performance --target performance-tests --parallel`：4/4 passed
+- `cmake --build build\cmakelists-maintain-install-check-mingw --target sdk-consumer-test --parallel`：2/2 passed
+
 ## 2026-07-09
 
 ### 文档同步
@@ -12,6 +28,11 @@
 
 - 新增内部 `debugUtil` HTML wireframe 工具，默认关闭，开启 `MANUMESH_ENABLE_DEBUG_UTIL` 且使用 Debug 构建时可通过一行宏输出本地 HTML，支持普通线框、按场景着色的边覆盖、feature analysis 叠加和简化前后对比。
 - CMake 会对内部 C++ object target force-include `debugUtil/debugUtil.h`；Release 或未开启 debugUtil 时宏保持 no-op，不进入 public SDK install headers。
+
+### 工程工具链
+
+- 参考 `TJUhe/WeldPathExtract` 对齐 `.clang-format`：切换为 4 空格缩进、120 列、参数/实参不 bin-pack、BlockIndent 参数换行、lambda/构造函数初始化列表等规则，并按新规则全量格式化 C/C++ 源码和测试。
+- 参考 `TJUhe/WeldPathExtract` 扩展 Doxygen：启用 UTF-8 输入、source browser、treeview、搜索、引用关系、private/static/local class 抽取，以及可选 Graphviz 图；新增 `MANUMESH_DOXYGEN_ENABLE_GRAPHS`，在检测到 `dot` 时生成类图、include 图和调用关系图。
 
 ### 解耦重构与边界收紧
 
@@ -33,6 +54,9 @@
 - `ctest --test-dir build\mingw-ninja-release-performance -L performance --output-on-failure`：4/4 passed
 - `cmake --build build\debug-util-mingw --target manumesh_core --parallel`
 - `clang-format --dry-run --Werror src\debugUtil\debugUtil.h src\debugUtil\debugUtil.cpp`
+- `cmake --build build\mingw-ninja-release --target check-format --parallel`
+- `cmake --build build\mingw-ninja-release --target unit-tests --parallel`：94/94 passed
+- `cmake --build build\mingw-ninja-release --target docs-api --parallel`
 
 ### 本轮更新
 

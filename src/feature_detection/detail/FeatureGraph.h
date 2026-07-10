@@ -7,12 +7,14 @@
 
 namespace manumesh::feature::detector_detail {
 
-void initializeFeatureGraph(const std::vector<CandidateEdge>& featureEdges,
-                            FeatureAnalysis& analysis);
+void initializeFeatureGraph(const std::vector<CandidateEdge>& featureEdges, FeatureAnalysis& analysis);
 
-TraceGraph buildTraceGraph(const Mesh& mesh, const FeatureOptions& options,
-                           const std::vector<CandidateEdge>& featureEdges,
-                           FeatureAnalysis& analysis);
+TraceGraph buildTraceGraph(
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    const std::vector<CandidateEdge>& featureEdges,
+    FeatureAnalysis& analysis
+);
 
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b);
 bool traceEdgeDihedral(const TraceGraph& trace, int a, int b);
@@ -24,8 +26,7 @@ double traceEdgeTensorPersistence(const TraceGraph& trace, int a, int b);
 int traceEdgeTensorPersistentScales(const TraceGraph& trace, int a, int b);
 
 bool traceGraphHasEdge(const TraceGraph& trace, int a, int b);
-void addTraceGraphEdge(TraceGraph& trace, FeatureAnalysis& analysis,
-                       const CandidateEdge& edge);
+void addTraceGraphEdge(TraceGraph& trace, FeatureAnalysis& analysis, const CandidateEdge& edge);
 void removeTraceGraphEdge(TraceGraph& trace, int a, int b);
 void rebuildTraceGraphEdges(TraceGraph& trace);
 

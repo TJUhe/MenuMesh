@@ -7,8 +7,7 @@
 
 namespace manumesh::feature::detector_detail {
 
-std::vector<CandidateEdge> collectFeatureEdges(const Mesh& mesh,
-                                               const FeatureOptions& options,
-                                               FeatureAnalysisBuilder& builder);
+std::vector<CandidateEdge>
+collectFeatureEdges(const Mesh& mesh, const FeatureOptions& options, FeatureAnalysisBuilder& builder);
 
 } // namespace manumesh::feature::detector_detail

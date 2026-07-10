@@ -12,13 +12,13 @@
 namespace manumesh::test {
 
 struct CaseLine {
-  std::filesystem::path relativePath;
-  std::vector<std::string> fields;
+    std::filesystem::path relativePath;
+    std::vector<std::string> fields;
 };
 
 struct SimplifiedMesh {
-  Mesh mesh;
-  simplification::SimplifyReport report;
+    Mesh mesh;
+    simplification::SimplifyReport report;
 };
 
 std::filesystem::path dataRoot();
@@ -34,13 +34,11 @@ simplification::SimplifyOptions standardOptions(double ratio);
 simplification::SimplifyOptions lineOptions(double ratio);
 simplification::SimplifyOptions protectedOptions(double ratio);
 
-feature::FeatureOptions
-circularFeatureOptions(double circleFitRelativeThreshold = 0.05);
+feature::FeatureOptions circularFeatureOptions(double circleFitRelativeThreshold = 0.05);
 int countCircularLoops(const feature::FeatureAnalysis& analysis);
 double maxCircularRelativeError(const feature::FeatureAnalysis& analysis);
 
-SimplifiedMesh simplifyWithReport(const Mesh& input,
-                                  const simplification::SimplifyOptions& options);
+SimplifiedMesh simplifyWithReport(const Mesh& input, const simplification::SimplifyOptions& options);
 void expectReportCountersConsistent(const simplification::SimplifyReport& report);
 void expectBudget(const SimplifiedMesh& result, const Mesh& input, double ratio);
 int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue);

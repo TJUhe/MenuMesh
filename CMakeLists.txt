@@ -45,9 +45,19 @@ if(NOT MANUMESH_EIGEN_PROVIDER MATCHES "^(auto|system|vendored|fetch)$")
   )
 endif()
 
+set(MANUMESH_RESOLVED_EIGEN_PROVIDER "")
+
 if(MANUMESH_EIGEN_PROVIDER STREQUAL "auto" OR
    MANUMESH_EIGEN_PROVIDER STREQUAL "system")
   find_package(Eigen3 3.3 QUIET NO_MODULE)
+  if(TARGET Eigen3::Eigen)
+    set(MANUMESH_RESOLVED_EIGEN_PROVIDER "system")
+  elseif(MANUMESH_EIGEN_PROVIDER STREQUAL "system")
+    message(FATAL_ERROR
+      "System Eigen3 was not found. Install Eigen3 or use "
+      "-DMANUMESH_EIGEN_PROVIDER=vendored/fetch."
+    )
+  endif()
 endif()
 
 if(NOT TARGET Eigen3::Eigen AND
@@ -56,6 +66,7 @@ if(NOT TARGET Eigen3::Eigen AND
   if(EXISTS "${MANUMESH_EIGEN_SOURCE_DIR}/Eigen/Core")
     add_library(Eigen3::Eigen INTERFACE IMPORTED)
     target_include_directories(Eigen3::Eigen INTERFACE "${MANUMESH_EIGEN_SOURCE_DIR}")
+    set(MANUMESH_RESOLVED_EIGEN_PROVIDER "vendored")
   elseif(MANUMESH_EIGEN_PROVIDER STREQUAL "vendored")
     message(FATAL_ERROR
       "Vendored Eigen was not found at "
@@ -79,6 +90,11 @@ if(NOT TARGET Eigen3::Eigen AND
     "Enable project tests"
     FORCE
   )
+  set(MANUMESH_RESOLVED_EIGEN_PROVIDER "fetch")
+endif()
+
+if(NOT MANUMESH_RESOLVED_EIGEN_PROVIDER AND TARGET Eigen3::Eigen)
+  set(MANUMESH_RESOLVED_EIGEN_PROVIDER "external")
 endif()
 
 function(manumesh_apply_warnings target)

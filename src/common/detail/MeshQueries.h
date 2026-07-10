@@ -13,7 +13,7 @@ namespace manumesh::detail {
 
 /// Adjacent face list for one undirected mesh edge.
 struct MeshEdgeInfo {
-  std::vector<int> faces;
+    std::vector<int> faces;
 };
 
 using MeshEdgeInfoMap = std::unordered_map<std::uint64_t, MeshEdgeInfo>;
@@ -28,7 +28,7 @@ std::pair<int, int> unpackMeshEdgeKey(std::uint64_t key);
 std::array<int, 3> sortedFaceKey(std::array<int, 3> ids);
 
 struct FaceKeyHash {
-  std::size_t operator()(const std::array<int, 3>& ids) const;
+    std::size_t operator()(const std::array<int, 3>& ids) const;
 };
 
 /// Builds edge-to-face incidence once for algorithms that need local topology.

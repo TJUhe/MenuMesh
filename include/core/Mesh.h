@@ -17,24 +17,24 @@ using Mat4 = Eigen::Matrix4d;
 
 /// Triangle face storing three zero-based vertex indices.
 struct Face {
-  std::array<int, 3> v{};
+    std::array<int, 3> v{};
 };
 
 /// Minimal triangle mesh container used by the simplifier and utilities.
 struct Mesh {
-  std::vector<Vec3> vertices;
-  std::vector<Face> faces;
+    std::vector<Vec3> vertices;
+    std::vector<Face> faces;
 
-  /// Returns true when either vertex or face storage is empty.
-  MANUMESH_API bool empty() const;
-  /// Axis-aligned bounding-box minimum corner.
-  MANUMESH_API Vec3 bboxMin() const;
-  /// Axis-aligned bounding-box maximum corner.
-  MANUMESH_API Vec3 bboxMax() const;
-  /// Length of the axis-aligned bounding-box diagonal.
-  MANUMESH_API double bboxDiag() const;
-  /// Compacts vertex storage and rewrites face indices after deletions.
-  MANUMESH_API void removeUnusedVertices();
+    /// Returns true when either vertex or face storage is empty.
+    MANUMESH_API bool empty() const;
+    /// Axis-aligned bounding-box minimum corner.
+    MANUMESH_API Vec3 bboxMin() const;
+    /// Axis-aligned bounding-box maximum corner.
+    MANUMESH_API Vec3 bboxMax() const;
+    /// Length of the axis-aligned bounding-box diagonal.
+    MANUMESH_API double bboxDiag() const;
+    /// Compacts vertex storage and rewrites face indices after deletions.
+    MANUMESH_API void removeUnusedVertices();
 };
 
 /// Returns false and writes an error when any face index is out of range.

@@ -5,8 +5,8 @@
 
 namespace manumesh::feature::detector_detail {
 
-void recoverFeatureLoops(const Mesh& mesh, const FeatureOptions& options,
-                         const TraceGraph& trace, FeatureAnalysis& analysis,
-                         int& loopId);
+void recoverFeatureLoops(
+    const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
+);
 
 } // namespace manumesh::feature::detector_detail

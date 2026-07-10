@@ -1,25 +1,33 @@
-BasedOnStyle: LLVM
+---
 Language: Cpp
+BasedOnStyle: LLVM
 Standard: c++17
-ColumnLimit: 88
-IndentWidth: 2
-ContinuationIndentWidth: 4
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
 PointerAlignment: Left
 ReferenceAlignment: Left
-AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
-AllowShortBlocksOnASingleLine: Empty
-AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: InlineOnly
-AllowShortIfStatementsOnASingleLine: WithoutElse
-AllowShortLoopsOnASingleLine: false
+
+# Match the formatting profile used by TJUhe/WeldPathExtract.
+LambdaBodyIndentation: Signature
+PackConstructorInitializers: Never
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+
 BreakBeforeBraces: Attach
-Cpp11BracedListStyle: true
-DerivePointerAlignment: false
-FixNamespaceComments: true
-IncludeBlocks: Regroup
-SortIncludes: CaseSensitive
-SpaceAfterCStyleCast: false
-SpacesInAngles: Never
-UseTab: Never
+
+AlignAfterOpenBracket: BlockIndent
+ContinuationIndentWidth: 4
+
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackParameters: false
+BinPackArguments: false
+
+AllowShortLambdasOnASingleLine: None
+
+BreakStringLiterals: false
+ReflowComments: false
+
+IndentAccessModifiers: false
+AccessModifierOffset: -4

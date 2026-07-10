@@ -308,7 +308,7 @@ else()
   )
 endif()
 
-if(EXISTS "${MANUMESH_EIGEN_SOURCE_DIR}/Eigen/Core")
+if(MANUMESH_RESOLVED_EIGEN_PROVIDER STREQUAL "vendored")
   target_include_directories(manumesh_core
     PUBLIC
       "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
@@ -354,7 +354,7 @@ if(MANUMESH_ENABLE_INSTALL)
     FILES_MATCHING PATTERN "*.h"
   )
 
-  if(EXISTS "${MANUMESH_EIGEN_SOURCE_DIR}/Eigen/Core")
+  if(MANUMESH_RESOLVED_EIGEN_PROVIDER STREQUAL "vendored")
     install(DIRECTORY "${MANUMESH_EIGEN_SOURCE_DIR}/"
       DESTINATION "${CMAKE_INSTALL_DATADIR}/manumesh/thirdParty/eigen/include"
       FILES_MATCHING PATTERN "*"

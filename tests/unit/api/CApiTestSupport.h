@@ -7,12 +7,12 @@
 
 class CApiTest : public ::testing::Test {
 protected:
-  void SetUp() override {
-    context = manumesh_context_create();
-    ASSERT_NE(context, nullptr);
-  }
+    void SetUp() override {
+        context = manumesh_context_create();
+        ASSERT_NE(context, nullptr);
+    }
 
-  void TearDown() override { manumesh_context_destroy(context); }
+    void TearDown() override { manumesh_context_destroy(context); }
 
-  ManuMeshContext* context = nullptr;
+    ManuMeshContext* context = nullptr;
 };

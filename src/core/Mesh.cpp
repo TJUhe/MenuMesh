@@ -9,177 +9,180 @@
 namespace manumesh {
 namespace {
 
-bool finitePoint(const Vec3& p) {
-  return std::isfinite(p.x()) && std::isfinite(p.y()) && std::isfinite(p.z());
-}
+bool finitePoint(const Vec3& p) { return std::isfinite(p.x()) && std::isfinite(p.y()) && std::isfinite(p.z()); }
 
 } // namespace
 
-bool Mesh::empty() const {
-  return vertices.empty() || faces.empty();
-}
+bool Mesh::empty() const { return vertices.empty() || faces.empty(); }
 
 Vec3 Mesh::bboxMin() const {
-  Vec3 lo(std::numeric_limits<double>::infinity(),
-          std::numeric_limits<double>::infinity(),
-          std::numeric_limits<double>::infinity());
-  for (const Vec3& p : vertices) {
-    lo = lo.cwiseMin(p);
-  }
-  return lo;
+    Vec3 lo(
+        std::numeric_limits<double>::infinity(),
+        std::numeric_limits<double>::infinity(),
+        std::numeric_limits<double>::infinity()
+    );
+    for (const Vec3& p : vertices) {
+        lo = lo.cwiseMin(p);
+    }
+    return lo;
 }
 
 Vec3 Mesh::bboxMax() const {
-  Vec3 hi(-std::numeric_limits<double>::infinity(),
-          -std::numeric_limits<double>::infinity(),
-          -std::numeric_limits<double>::infinity());
-  for (const Vec3& p : vertices) {
-    hi = hi.cwiseMax(p);
-  }
-  return hi;
+    Vec3 hi(
+        -std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity()
+    );
+    for (const Vec3& p : vertices) {
+        hi = hi.cwiseMax(p);
+    }
+    return hi;
 }
 
 double Mesh::bboxDiag() const {
-  if (vertices.empty()) {
-    return 0.0;
-  }
-  return (bboxMax() - bboxMin()).norm();
+    if (vertices.empty()) {
+        return 0.0;
+    }
+    return (bboxMax() - bboxMin()).norm();
 }
 
 void Mesh::removeUnusedVertices() {
-  std::vector<int> remap(vertices.size(), -1);
-  std::vector<Vec3> newVertices;
-  newVertices.reserve(vertices.size());
-  std::vector<char> validFace(faces.size(), 1);
+    std::vector<int> remap(vertices.size(), -1);
+    std::vector<Vec3> newVertices;
+    newVertices.reserve(vertices.size());
+    std::vector<char> validFace(faces.size(), 1);
 
-  for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
-    const Face& face = faces[faceIndex];
-    for (int id : face.v) {
-      if (id < 0 || id >= static_cast<int>(vertices.size())) {
-        validFace[faceIndex] = 0;
-        continue;
-      }
-      if (remap[id] < 0) {
-        remap[id] = static_cast<int>(newVertices.size());
-        newVertices.push_back(vertices[id]);
-      }
+    for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
+        const Face& face = faces[faceIndex];
+        for (int id : face.v) {
+            if (id < 0 || id >= static_cast<int>(vertices.size())) {
+                validFace[faceIndex] = 0;
+                continue;
+            }
+            if (remap[id] < 0) {
+                remap[id] = static_cast<int>(newVertices.size());
+                newVertices.push_back(vertices[id]);
+            }
+        }
     }
-  }
 
-  for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
-    if (!validFace[faceIndex]) {
-      continue;
+    for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
+        if (!validFace[faceIndex]) {
+            continue;
+        }
+        Face& face = faces[faceIndex];
+        for (int& id : face.v) {
+            id = remap[id];
+        }
     }
-    Face& face = faces[faceIndex];
-    for (int& id : face.v) {
-      id = remap[id];
-    }
-  }
-  faces.erase(std::remove_if(faces.begin(), faces.end(),
-                             [&](const Face& face) {
-                               for (int id : face.v) {
-                                 if (id < 0 || id >= static_cast<int>(remap.size())) {
-                                   return true;
-                                 }
-                               }
-                               return false;
-                             }),
-              faces.end());
-  vertices.swap(newVertices);
+    faces.erase(
+        std::remove_if(
+            faces.begin(),
+            faces.end(),
+            [&](const Face& face) {
+                for (int id : face.v) {
+                    if (id < 0 || id >= static_cast<int>(remap.size())) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        ),
+        faces.end()
+    );
+    vertices.swap(newVertices);
 }
 
 bool validateMeshIndices(const Mesh& mesh, std::string* error) {
-  if (mesh.vertices.size() >
-      static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    if (error) *error = "Vertex count exceeds the supported int-index range.";
-    return false;
-  }
-  for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
-    const Face& face = mesh.faces[faceIndex];
-    for (int id : face.v) {
-      if (id < 0 || id >= static_cast<int>(mesh.vertices.size())) {
-        if (error) {
-          *error = "Mesh face " + std::to_string(faceIndex) +
-                   " references an invalid vertex index.";
-        }
+    if (mesh.vertices.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        if (error)
+            *error = "Vertex count exceeds the supported int-index range.";
         return false;
-      }
     }
-  }
-  return true;
+    for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
+        const Face& face = mesh.faces[faceIndex];
+        for (int id : face.v) {
+            if (id < 0 || id >= static_cast<int>(mesh.vertices.size())) {
+                if (error) {
+                    *error = "Mesh face " + std::to_string(faceIndex) + " references an invalid vertex index.";
+                }
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
-  if (!validateMeshIndices(mesh, error)) {
-    return false;
-  }
-  for (std::size_t vertexIndex = 0; vertexIndex < mesh.vertices.size(); ++vertexIndex) {
-    if (!finitePoint(mesh.vertices[vertexIndex])) {
-      if (error) {
-        *error = "Mesh vertex " + std::to_string(vertexIndex) +
-                 " contains a non-finite coordinate.";
-      }
-      return false;
+    if (!validateMeshIndices(mesh, error)) {
+        return false;
     }
-  }
-  for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
-    const Face& face = mesh.faces[faceIndex];
-    if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
-      if (error) {
-        *error = "Mesh face " + std::to_string(faceIndex) + " is degenerate.";
-      }
-      return false;
+    for (std::size_t vertexIndex = 0; vertexIndex < mesh.vertices.size(); ++vertexIndex) {
+        if (!finitePoint(mesh.vertices[vertexIndex])) {
+            if (error) {
+                *error = "Mesh vertex " + std::to_string(vertexIndex) + " contains a non-finite coordinate.";
+            }
+            return false;
+        }
     }
-    const Vec3& a = mesh.vertices[face.v[0]];
-    const Vec3& b = mesh.vertices[face.v[1]];
-    const Vec3& c = mesh.vertices[face.v[2]];
-    if ((b - a).cross(c - a).squaredNorm() <= 0.0) {
-      if (error) {
-        *error = "Mesh face " + std::to_string(faceIndex) + " has zero area.";
-      }
-      return false;
+    for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
+        const Face& face = mesh.faces[faceIndex];
+        if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
+            if (error) {
+                *error = "Mesh face " + std::to_string(faceIndex) + " is degenerate.";
+            }
+            return false;
+        }
+        const Vec3& a = mesh.vertices[face.v[0]];
+        const Vec3& b = mesh.vertices[face.v[1]];
+        const Vec3& c = mesh.vertices[face.v[2]];
+        if ((b - a).cross(c - a).squaredNorm() <= 0.0) {
+            if (error) {
+                *error = "Mesh face " + std::to_string(faceIndex) + " has zero area.";
+            }
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 }
 
-double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c) {
-  return 0.5 * (b - a).cross(c - a).norm();
-}
+double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c) { return 0.5 * (b - a).cross(c - a).norm(); }
 
 Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c) {
-  Vec3 n = (b - a).cross(c - a);
-  const double len = n.norm();
-  if (len <= 1e-30) {
-    return Vec3(0.0, 0.0, 0.0);
-  }
-  return n / len;
+    Vec3 n = (b - a).cross(c - a);
+    const double len = n.norm();
+    if (len <= 1e-30) {
+        return Vec3(0.0, 0.0, 0.0);
+    }
+    return n / len;
 }
 
 std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh) {
-  std::unordered_set<std::uint64_t> seen;
-  std::vector<std::pair<int, int>> edges;
-  edges.reserve(mesh.faces.size() * 3 / 2);
+    std::unordered_set<std::uint64_t> seen;
+    std::vector<std::pair<int, int>> edges;
+    edges.reserve(mesh.faces.size() * 3 / 2);
 
-  auto pack = [](int a, int b) {
-    if (a > b) std::swap(a, b);
-    return (static_cast<std::uint64_t>(static_cast<uint32_t>(a)) << 32u) |
-           static_cast<uint32_t>(b);
-  };
+    auto pack = [](int a, int b) {
+        if (a > b)
+            std::swap(a, b);
+        return (static_cast<std::uint64_t>(static_cast<uint32_t>(a)) << 32u) | static_cast<uint32_t>(b);
+    };
 
-  for (const Face& face : mesh.faces) {
-    for (int e = 0; e < 3; ++e) {
-      int a = face.v[e];
-      int b = face.v[(e + 1) % 3];
-      if (a == b) continue;
-      const auto key = pack(a, b);
-      if (seen.insert(key).second) {
-        if (a > b) std::swap(a, b);
-        edges.emplace_back(a, b);
-      }
+    for (const Face& face : mesh.faces) {
+        for (int e = 0; e < 3; ++e) {
+            int a = face.v[e];
+            int b = face.v[(e + 1) % 3];
+            if (a == b)
+                continue;
+            const auto key = pack(a, b);
+            if (seen.insert(key).second) {
+                if (a > b)
+                    std::swap(a, b);
+                edges.emplace_back(a, b);
+            }
+        }
     }
-  }
-  return edges;
+    return edges;
 }
 
 } // namespace manumesh

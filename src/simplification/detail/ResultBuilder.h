@@ -7,7 +7,6 @@
 
 namespace manumesh::simplification {
 
-Mesh compactResult(const std::vector<VertexState>& vertices,
-                   const std::vector<FaceState>& faces);
+Mesh compactResult(const std::vector<VertexState>& vertices, const std::vector<FaceState>& faces);
 
 } // namespace manumesh::simplification

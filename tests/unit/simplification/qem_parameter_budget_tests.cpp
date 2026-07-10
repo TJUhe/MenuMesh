@@ -21,42 +21,41 @@ using manumesh::test::simplifyWithReport;
 using manumesh::test::standardOptions;
 using manumesh::test::qem_parameters::innerEllipseLoops;
 TEST(ManuMeshParameters, TargetFacesOverridesRatioOnRealStlFixtures) {
-  for (const CaseLine& testCase : readCaseLines("parameter_sensitivity/cases.txt")) {
-    SCOPED_TRACE(testCase.relativePath.generic_string());
-    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
-    ASSERT_FALSE(input.empty());
+    for (const CaseLine& testCase : readCaseLines("parameter_sensitivity/cases.txt")) {
+        SCOPED_TRACE(testCase.relativePath.generic_string());
+        const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
+        ASSERT_FALSE(input.empty());
 
-    manumesh::simplification::SimplifyOptions options = lineOptions(0.98);
-    options.targetFaces = std::max(4, static_cast<int>(input.faces.size() * 0.82));
+        manumesh::simplification::SimplifyOptions options = lineOptions(0.98);
+        options.targetFaces = std::max(4, static_cast<int>(input.faces.size() * 0.82));
 
-    const SimplifiedMesh result = simplifyWithReport(input, options);
-    EXPECT_FALSE(result.mesh.empty());
-    EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
-    EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
-    EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-    EXPECT_LE(result.report.finalFaces, options.targetFaces + 2);
-  }
+        const SimplifiedMesh result = simplifyWithReport(input, options);
+        EXPECT_FALSE(result.mesh.empty());
+        EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
+        EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
+        EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+        EXPECT_LE(result.report.finalFaces, options.targetFaces + 2);
+    }
 }
 
 TEST(ManuMeshParameters, LineQuadricsExposeWeightDiagnosticsOnRealStlFixtures) {
-  bool sawSpatiallyVaryingLineWeight = false;
-  for (const CaseLine& testCase : readCaseLines("parameter_sensitivity/cases.txt")) {
-    SCOPED_TRACE(testCase.relativePath.generic_string());
-    const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
-    ASSERT_FALSE(input.empty());
+    bool sawSpatiallyVaryingLineWeight = false;
+    for (const CaseLine& testCase : readCaseLines("parameter_sensitivity/cases.txt")) {
+        SCOPED_TRACE(testCase.relativePath.generic_string());
+        const manumesh::Mesh input = loadCaseMesh(testCase.relativePath);
+        ASSERT_FALSE(input.empty());
 
-    const SimplifiedMesh standard = simplifyWithReport(input, standardOptions(0.85));
-    const SimplifiedMesh line = simplifyWithReport(input, lineOptions(0.85));
+        const SimplifiedMesh standard = simplifyWithReport(input, standardOptions(0.85));
+        const SimplifiedMesh line = simplifyWithReport(input, lineOptions(0.85));
 
-    expectBudget(standard, input, 0.85);
-    expectBudget(line, input, 0.85);
-    EXPECT_EQ(0.0, standard.report.minAppliedLineWeight);
-    EXPECT_EQ(0.0, standard.report.maxAppliedLineWeight);
-    EXPECT_GE(line.report.minAppliedLineWeight, 1e-3);
-    EXPECT_GE(line.report.maxAppliedLineWeight, line.report.minAppliedLineWeight);
-    sawSpatiallyVaryingLineWeight =
-        sawSpatiallyVaryingLineWeight ||
-        line.report.maxAppliedLineWeight > line.report.minAppliedLineWeight;
-  }
-  EXPECT_TRUE(sawSpatiallyVaryingLineWeight);
+        expectBudget(standard, input, 0.85);
+        expectBudget(line, input, 0.85);
+        EXPECT_EQ(0.0, standard.report.minAppliedLineWeight);
+        EXPECT_EQ(0.0, standard.report.maxAppliedLineWeight);
+        EXPECT_GE(line.report.minAppliedLineWeight, 1e-3);
+        EXPECT_GE(line.report.maxAppliedLineWeight, line.report.minAppliedLineWeight);
+        sawSpatiallyVaryingLineWeight =
+            sawSpatiallyVaryingLineWeight || line.report.maxAppliedLineWeight > line.report.minAppliedLineWeight;
+    }
+    EXPECT_TRUE(sawSpatiallyVaryingLineWeight);
 }

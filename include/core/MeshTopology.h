@@ -14,19 +14,19 @@ namespace manumesh {
 
 /// Undirected edge with adjacent face and local-corner records.
 struct TopologyEdge {
-  std::array<int, 2> vertices{{-1, -1}};
-  std::vector<int> faces;
-  std::vector<int> faceCorners;
+    std::array<int, 2> vertices{{-1, -1}};
+    std::vector<int> faces;
+    std::vector<int> faceCorners;
 
-  MANUMESH_API bool boundary() const;
-  MANUMESH_API bool manifoldInterior() const;
-  MANUMESH_API bool nonManifold() const;
+    MANUMESH_API bool boundary() const;
+    MANUMESH_API bool manifoldInterior() const;
+    MANUMESH_API bool nonManifold() const;
 };
 
 /// Per-vertex incident edge/face lists built once and reused by algorithms.
 struct VertexTopology {
-  std::vector<int> edges;
-  std::vector<int> faces;
+    std::vector<int> edges;
+    std::vector<int> faces;
 };
 
 /// Immutable topology cache for triangle meshes.
@@ -37,30 +37,35 @@ struct VertexTopology {
 /// preflight.
 class MeshTopology {
 public:
-  MANUMESH_API MeshTopology();
-  MANUMESH_API ~MeshTopology();
+    MANUMESH_API MeshTopology();
+    MANUMESH_API ~MeshTopology();
 
-  MANUMESH_API MeshTopology(const MeshTopology& other);
-  MANUMESH_API MeshTopology& operator=(const MeshTopology& other);
-  MANUMESH_API MeshTopology(MeshTopology&& other) noexcept;
-  MANUMESH_API MeshTopology& operator=(MeshTopology&& other) noexcept;
+    MANUMESH_API MeshTopology(const MeshTopology& other);
+    MANUMESH_API MeshTopology& operator=(const MeshTopology& other);
+    MANUMESH_API MeshTopology(MeshTopology&& other) noexcept;
+    MANUMESH_API MeshTopology& operator=(MeshTopology&& other) noexcept;
 
-  static MANUMESH_API Result<MeshTopology> build(const Mesh& mesh,
-                                                 bool validate = true);
+    static MANUMESH_API Result<MeshTopology> build(const Mesh& mesh, bool validate = true);
 
-  MANUMESH_API int vertexCount() const;
-  MANUMESH_API int faceCount() const;
-  MANUMESH_API int edgeCount() const;
-  MANUMESH_API int boundaryEdgeCount() const;
-  MANUMESH_API int nonManifoldEdgeCount() const;
+    MANUMESH_API int vertexCount() const;
+    MANUMESH_API int faceCount() const;
+    MANUMESH_API int edgeCount() const;
+    MANUMESH_API int boundaryEdgeCount() const;
+    MANUMESH_API int nonManifoldEdgeCount() const;
 
-  MANUMESH_API const std::vector<TopologyEdge>& edges() const;
-  MANUMESH_API const TopologyEdge& edge(EdgeId id) const;
-  MANUMESH_API const VertexTopology& vertex(VertexId id) const;
+    MANUMESH_API const std::vector<TopologyEdge>& edges() const;
+    /// Returns true when id names an edge in this topology.
+    MANUMESH_API bool hasEdge(EdgeId id) const;
+    /// Returns true when id names a vertex in this topology.
+    MANUMESH_API bool hasVertex(VertexId id) const;
+    /// Returns the requested edge or throws std::out_of_range for an invalid id.
+    MANUMESH_API const TopologyEdge& edge(EdgeId id) const;
+    /// Returns the requested vertex topology or throws std::out_of_range.
+    MANUMESH_API const VertexTopology& vertex(VertexId id) const;
 
 private:
-  struct Impl;
-  std::unique_ptr<Impl> impl_;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 /// Returns a packed key for an undirected vertex pair.

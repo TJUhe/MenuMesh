@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ManuMesh 程序流程图与分支处理说明</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  securityLevel: "loose",
+  theme: "base",
+  themeVariables: {
+    primaryColor: "#eef6ef",
+    primaryTextColor: "#18261c",
+    primaryBorderColor: "#6aa47b",
+    lineColor: "#466957",
+    secondaryColor: "#f7f2e6",
+    tertiaryColor: "#edf3f8",
+    noteBkgColor: "#fff8dd",
+    noteTextColor: "#2b2b2b",
+    fontFamily: "Segoe UI, Noto Sans SC, Microsoft YaHei, sans-serif"
+  }
+});
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #edf7ef;
+  --paper: #fbfcf5;
+  --panel: #f4f8ee;
+  --panel-2: #e4f0e7;
+  --text: #18231b;
+  --dim: #526257;
+  --border: #bfd3c3;
+  --accent: #25734b;
+  --accent-2: #8b5d21;
+  --danger: #b44242;
+  --code: #e1ecdf;
+}
+* { box-sizing: border-box; }
+html { background: #cedbd1; }
+body {
+  margin: 0 auto;
+  max-width: 1180px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.76;
+}
+header {
+  padding: 42px 42px 30px;
+  background: linear-gradient(135deg, #284934, #25734b);
+  color: #fbfcf5;
+}
+h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.25; }
+.subtitle { color: #e4f0e7; max-width: 880px; }
+.tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.tag {
+  border: 1px solid rgba(255,255,255,.3);
+  background: rgba(255,255,255,.14);
+  border-radius: 4px;
+  padding: 3px 9px;
+  color: #f7fbf0;
+  font-size: 12px;
+}
+main { padding: 30px 42px 64px; }
+h2 {
+  margin: 42px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent);
+  font-size: 22px;
+}
+h3 {
+  margin: 28px 0 10px;
+  color: var(--accent);
+  font-size: 17px;
+}
+p { margin: 0 0 12px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: #0b6334;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: .92em;
+}
+pre {
+  overflow-x: auto;
+  background: #d5e3d8;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 14px;
+}
+.toc, .callout, .source-map {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin: 16px 0;
+}
+.callout strong { color: #21462d; }
+.warn { background: #fbf2dc; border-color: #d5b274; }
+.danger { background: #f9e5e3; border-color: #d6a2a0; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.card h3 { margin-top: 0; }
+.diagram-wrap {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 14px 0 22px;
+  overflow-x: auto;
+}
+.mermaid { min-width: 760px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 24px;
+  font-size: 14px;
+  background: var(--paper);
+}
+th, td {
+  border-bottom: 1px solid var(--border);
+  padding: 9px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--panel-2);
+  border-bottom: 2px solid var(--accent);
+  color: #203b29;
+}
+tr:nth-child(even) td { background: #f1f8f0; }
+ul, ol { margin-top: 0; padding-left: 22px; }
+li { margin: 4px 0; }
+.small { color: var(--dim); font-size: 13px; }
+footer {
+  border-top: 1px solid var(--border);
+  padding: 18px 42px 26px;
+  color: var(--dim);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  header { padding: 28px 20px 24px; }
+  main { padding: 22px 18px 42px; }
+  h1 { font-size: 24px; }
+  .mermaid { min-width: 680px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>ManuMesh 程序流程图与分支处理说明</h1>
+  <div class="subtitle">
+    基于当前源码阅读整理，覆盖 CLI、C++ SDK、C ABI、网格 I/O、特征检测、QEM/line-quadrics 简化、度量输出和验证命令。重点说明“什么情况怎么处理”。
+  </div>
+  <div class="tags">
+    <span class="tag">源码日期：2026-07-10</span>
+    <span class="tag">入口：apps/manumesh/main.cpp</span>
+    <span class="tag">核心：feature_detection + simplification</span>
+    <span class="tag">格式：HTML + Mermaid</span>
+  </div>
+</header>
+
+<main>
+  <section class="toc">
+    <strong>目录</strong>
+    <ol>
+      <li><a href="#scope">阅读范围和总览</a></li>
+      <li><a href="#entry">程序入口与命令分发</a></li>
+      <li><a href="#commands">CLI 命令级流程</a></li>
+      <li><a href="#io">网格 I/O 流程</a></li>
+      <li><a href="#feature">特征检测流程</a></li>
+      <li><a href="#simplification">QEM 简化流程</a></li>
+      <li><a href="#collapse">单次边折叠判定流程</a></li>
+      <li><a href="#capi">C ABI 流程与错误处理</a></li>
+      <li><a href="#failure">统一失败处理索引</a></li>
+    </ol>
+  </section>
+
+  <section id="scope">
+    <h2>1. 阅读范围和总览</h2>
+    <p>
+      ManuMesh 当前是一个 C++17 三角网格处理内核。可执行程序 <code>manumesh</code> 只是应用层消费者；真正的算法入口在
+      <code>include/algorithms/feature_detection</code>、<code>include/algorithms/simplification</code> 和 <code>src/</code> 对应实现中。
+    </p>
+    <div class="source-map">
+      <strong>主要源码阅读范围：</strong>
+      <ul>
+        <li><code>apps/manumesh/main.cpp</code>、<code>ManuMeshCli.cpp</code>、<code>ManuMeshCommands.cpp</code>：CLI 入口、参数校验、命令注册和命令处理。</li>
+        <li><code>src/io/MeshIo.cpp</code>：STL/OBJ 读取和 ASCII STL 写出。</li>
+        <li><code>src/feature_detection/*.cpp</code>：特征边证据、trace graph、cleanup、loop/primitive 恢复、component 置信度。</li>
+        <li><code>src/simplification/*.cpp</code>：QEM/line-quadrics 初始化、候选队列、动态拓扑、折叠合法性、结果 compact。</li>
+        <li><code>src/api/CApi.cpp</code>、<code>src/api/CApiConverters.cpp</code>：C ABI 句柄、结构体 ABI 校验、异常到状态码转换。</li>
+      </ul>
+    </div>
+
+    <h3>模块关系总览</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  User["用户 / 下游程序"] --> CLI["CLI: manumesh.exe"]
+  User --> CPP["C++ SDK: Mesh / FeatureDetector / QEMSimplifier"]
+  User --> CAPI["C ABI: api/CApi.h"]
+
+  CLI --> Commands["ManuMeshCommands.cpp<br/>命令 handler"]
+  CAPI --> Handles["Context + MeshHandle<br/>状态码 + lastError"]
+  CPP --> CoreAPI["公共 C++ API"]
+  Handles --> CoreAPI
+  Commands --> CoreAPI
+
+  CoreAPI --> IO["io/MeshIo<br/>STL/OBJ 读写"]
+  CoreAPI --> Generators["core/MeshGenerators<br/>内置测试模型"]
+  CoreAPI --> Feature["feature_detection<br/>FeatureAnalysis"]
+  CoreAPI --> Simplify["simplification<br/>QEM / line quadrics"]
+  CoreAPI --> Metrics["Metrics<br/>质量和距离评估"]
+
+  Simplify --> Feature
+  Simplify --> Common["common/detail<br/>边、面、邻接、法向等查询"]
+  Feature --> Common
+  IO --> Core["core/Mesh<br/>vertices + triangle faces"]
+  Generators --> Core
+  Feature --> Core
+  Simplify --> Core
+  Metrics --> Core
+      </pre>
+    </div>
+
+    <div class="callout">
+      <strong>关键边界：</strong>特征检测和简化是平级算法模块。简化可以消费 <code>FeatureAnalysis</code>，但特征检测不反向依赖简化。CLI 和 C ABI 都是外层包装，最终进入同一套 C++ 内核。
+    </div>
+  </section>
+
+  <section id="entry">
+    <h2>2. 程序入口与命令分发</h2>
+    <p>
+      <code>main()</code> 只调用 <code>manumesh::cli::run(argc, argv)</code>。所有 CLI 异常在 <code>run()</code> 顶层捕获：打印 <code>error: ...</code> 和 usage，返回 1。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["main(argc, argv)"] --> B["manumesh::cli::run(argc, argv)"]
+  B --> C{argc < 2 ?}
+  C -- 是 --> D["printUsage()"] --> E["return 0"]
+  C -- 否 --> F["command = argv[1]<br/>args = argv[2..]"]
+  F --> G["validateArgs(args)"]
+  G --> H{validateArgs 抛异常?}
+  H -- 是 --> Z["catch std::exception<br/>打印 error + usage"] --> Z1["return 1"]
+  H -- 否 --> I{command 是 help/-h/--help ?}
+  I -- 是 --> D
+  I -- 否 --> J["commandRegistry().find(command)"]
+  J --> K{找到 handler ?}
+  K -- 否 --> L["throw invalid_argument<br/>Unknown command"] --> Z
+  K -- 是 --> M["执行 handler(args)"]
+  M --> N{handler 正常返回?}
+  N -- 是 --> O["返回 handler 的 int"]
+  N -- 否，抛异常 --> Z
+      </pre>
+    </div>
+
+    <h3>参数校验规则</h3>
+    <table>
+      <thead>
+        <tr><th>情况</th><th>处理</th><th>结果</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>参数不是以 <code>-</code> 开头</td><td>视为 positional argument，不在 <code>validateArgs</code> 中校验。</td><td>后续 handler 用 <code>positionalArgs()</code> 取出。</td></tr>
+        <tr><td>以 <code>-</code> 开头但不在已知 flag 集合</td><td><code>validateArgs()</code> 抛 <code>invalid_argument("Unknown option")</code>。</td><td>顶层 catch，打印 usage，返回 1。</td></tr>
+        <tr><td>需要值的 flag 缺少值，或后面直接跟另一个已知 flag</td><td>抛 <code>invalid_argument("&lt;flag&gt; requires a value.")</code>。</td><td>返回 1。</td></tr>
+        <tr><td>数值参数解析失败或不是有限数</td><td><code>parseIntStrict</code>/<code>parseDoubleStrict</code> 抛异常。</td><td>返回 1。</td></tr>
+        <tr><td><code>--industrial-safe</code></td><td>在 <code>parseSimplifyOptions()</code> 中自动打开保守 guard：保边界、最小质量下限、法向偏转上限、本地误差比例下限、自交检查。</td><td>参数被转换为更保守的简化策略。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="commands">
+    <h2>3. CLI 命令级流程</h2>
+
+    <h3>命令注册</h3>
+    <p><code>registeredCommands()</code> 注册 13 个命令：<code>generate</code>、<code>simplify</code>、<code>compare</code>、<code>feature-report</code>、<code>feature-benchmark</code>、<code>feature-compare</code>、<code>sweep</code>、<code>ratio-sweep</code>、<code>face-sweep</code>、<code>demo</code>、<code>summarize-metrics</code>、<code>validate-features</code>、<code>validate-external</code>。</p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  C["命令 handler(args)"] --> P["检查 positional / 必需选项"]
+  P --> Bad{缺少必需参数?}
+  Bad -- 是 --> Throw["throw invalid_argument"] --> Catch["run() catch<br/>打印 error + usage<br/>return 1"]
+  Bad -- 否 --> Parse["解析命令专属选项"]
+  Parse --> Load{"需要输入 mesh?"}
+  Load -- 是 --> LM["loadMesh(input)"]
+  LM --> LOK{读取成功?}
+  LOK -- 否 --> RT["throw runtime_error(error)"] --> Catch
+  LOK -- 是 --> Work["调用算法 / 生成 / 比较 / 批处理"]
+  Load -- 否 --> Work
+  Work --> Save{"需要写文件?"}
+  Save -- 是 --> SW["create_directories + save/write csv"]
+  SW --> SOK{写出成功?}
+  SOK -- 否 --> RT
+  SOK -- 是 --> Done["打印统计或输出路径<br/>return 0"]
+  Save -- 否 --> Done
+      </pre>
+    </div>
+
+    <h3>每个命令的分支处理</h3>
+    <table>
+      <thead>
+        <tr><th>命令</th><th>主要流程</th><th>特殊情况 / 失败处理</th><th>输出</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>generate</code></td>
+          <td>读取 <code>--type</code>、<code>--n</code>、必需 <code>--out</code>；调用 <code>generateMeshByName</code>；保存 ASCII STL；打印 stats。</td>
+          <td>缺 <code>--out</code> 抛 <code>invalid_argument</code>；未知 generator type 返回 false 后转 <code>runtime_error</code>；保存失败也转 <code>runtime_error</code>。</td>
+          <td>一个 STL 文件。</td>
+        </tr>
+        <tr>
+          <td><code>simplify</code></td>
+          <td>要求 <code>input output</code>；解析 <code>SimplifyOptions</code>；读取 mesh；执行 <code>QEMSimplifier::simplify</code>；保存 STL；计算输入/输出 stats 和采样距离；可写 metrics CSV。</td>
+          <td>输入读取失败、简化参数非法、输入几何非法、输出保存失败都会抛出并由 CLI 顶层返回 1。</td>
+          <td>简化后 STL；可选 metrics CSV；stdout 打印 report 计数器。</td>
+        </tr>
+        <tr>
+          <td><code>compare</code></td>
+          <td>要求 <code>original simplified</code>；读取两个 mesh；计算简化 mesh stats；做双向采样距离。</td>
+          <td>任一 mesh 读取失败即失败。采样数 <code>--samples</code> 默认 3000。</td>
+          <td>stdout 距离和质量统计。</td>
+        </tr>
+        <tr>
+          <td><code>feature-report</code></td>
+          <td>要求输入 mesh；解析 <code>FeatureOptions</code>；执行 <code>detectFeatureCurves</code>；打印 feature counters 和每个 loop 的 CSV 行。</td>
+          <td>可选 <code>--csv</code> 时先创建父目录；检测参数非法会抛异常。</td>
+          <td>stdout 报告；可选 CSV。</td>
+        </tr>
+        <tr>
+          <td><code>feature-benchmark</code></td>
+          <td>要求 <code>input labels.csv</code>；读取 ground-truth edge/junction；检测特征；计算 precision/recall/F1。</td>
+          <td>label 文件打不开抛 <code>runtime_error</code>；CSV 中非整数行会被忽略，<code>junction</code>/<code>junction_vertex</code> 行作为 junction 标签。</td>
+          <td>stdout benchmark；可选 CSV。</td>
+        </tr>
+        <tr>
+          <td><code>feature-compare</code></td>
+          <td>检测 original 和 simplified 的 circular loops；对 original loop 逐个找 simplified 中未用的最佳 circular loop；按中心、半径、法向角判断匹配。</td>
+          <td>可疑匹配阈值：center ≤ 0.08*bboxDiag，radiusRel ≤ 0.20，normal ≤ 30°；更严格时标 <code>matched</code>，否则 <code>weak_match</code>；不满足则 <code>missing</code>。</td>
+          <td>stdout/CSV 的 loop 匹配表。</td>
+        </tr>
+        <tr>
+          <td><code>sweep</code></td>
+          <td>读取一次输入；解析 <code>--weights</code>；每个 weight 复制 base options，设置 lineWeight/useLineQuadrics，简化、保存 STL、写 metrics。</td>
+          <td>weight ≤ 0 且 mode 为 uniform 时关闭 line quadrics；否则开启。任一保存失败会中断整个 sweep。</td>
+          <td>多个 STL + <code>metrics.csv</code>。</td>
+        </tr>
+        <tr>
+          <td><code>ratio-sweep</code></td>
+          <td>读取输入；解析 <code>--ratios</code>；每个 ratio 设置 <code>targetFaces=-1</code> 和 <code>targetRatio</code> 后简化。</td>
+          <td>ratio ≤ 0 或 ≥ 1 不抛异常，只打印 <code>skip invalid ratio</code> 并继续。</td>
+          <td>多个 STL + <code>metrics.csv</code>。</td>
+        </tr>
+        <tr>
+          <td><code>face-sweep</code></td>
+          <td>读取输入；解析 <code>--faces</code>；每个目标面数设置 <code>targetFaces</code> 后简化。</td>
+          <td>targetFaces ≤ 0 不抛异常，只打印 skip 并继续。</td>
+          <td>多个 STL + <code>metrics.csv</code>。</td>
+        </tr>
+        <tr>
+          <td><code>demo</code></td>
+          <td>创建 demo 输入/输出目录；quick 模式只处理外部 flange；完整模式生成多种内置网格并运行多个 sweep/ratio/face sweep；最后汇总 metrics。</td>
+          <td>外部 flange 不存在或复制失败会抛异常；quick 默认 samples=500，完整默认 samples=1000。</td>
+          <td><code>output/demo_input</code>、<code>output/demo</code> 下 STL/CSV。</td>
+        </tr>
+        <tr>
+          <td><code>validate-features</code></td>
+          <td>复制 spindle/ring/pulley/flange 四个外部 STL；每个 case 先 feature-report，再 line simplify、curve-preserving simplify，再 feature-compare。</td>
+          <td>任一外部输入不存在时失败；curve 版本会打开 <code>--preserve-feature-curves</code> 和 curve weight。</td>
+          <td>每个 case 的 feature CSV、两份 STL、metrics、feature compare CSV。</td>
+        </tr>
+        <tr>
+          <td><code>validate-external</code></td>
+          <td>在输入目录寻找 fandisk/rocker_arm/beetle/cow/suzanne OBJ；存在则逐个 report、line simplify、curve simplify、compare，并写 summary。</td>
+          <td>单个模型不存在只 skip；如果一个都没处理，最终抛 <code>runtime_error</code>。</td>
+          <td><code>external_summary.csv</code> 和每个模型的输出。</td>
+        </tr>
+        <tr>
+          <td><code>summarize-metrics</code></td>
+          <td>递归找 <code>metrics.csv</code>，合并列集合和数据行。</td>
+          <td>输出根目录不存在时抛异常；空 metrics 文件会跳过。</td>
+          <td>默认 <code>output/demo/demo_summary.csv</code>。</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="io">
+    <h2>4. 网格 I/O 流程</h2>
+    <p>所有 CLI、C API 和 SDK 示例最终都使用 <code>loadMesh</code>/<code>saveAsciiStl</code>。当前支持输入 <code>.stl</code> 和 <code>.obj</code>，输出为 ASCII STL。</p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["loadMesh(path)"] --> B["取扩展名并转小写"]
+  B --> C{扩展名}
+  C -- ".stl" --> STL["loadStl(path, eps)"]
+  C -- ".obj" --> OBJ["loadObj(path)"]
+  C -- 其他 --> UE["error = Unsupported mesh extension<br/>return false"]
+
+  STL --> S0{eps 有限且 >=0 ?}
+  S0 -- 否 --> SE0["error = mergeRelativeEpsilon 非法<br/>return false"]
+  S0 -- 是 --> SB["尝试 readBinaryTriangles"]
+  SB --> SBOK{二进制 STL 成功?}
+  SBOK -- 是 --> M["mergeDuplicateTriangleVertices"]
+  SBOK -- 否 --> SA["尝试 readAsciiTriangles"]
+  SA --> SAOK{ASCII STL 成功?}
+  SAOK -- 否 --> SE["error = localError<br/>return false"]
+  SAOK -- 是 --> M
+  M --> RU["removeUnusedVertices"]
+  RU --> Empty{mesh.empty()?}
+  Empty -- 是 --> EEmpty["error = 无非退化三角形<br/>return false"]
+  Empty -- 否 --> OK["return true"]
+
+  OBJ --> O0["逐行读 v/f"]
+  O0 --> O1{v 坐标非有限?}
+  O1 -- 是 --> OE1["error = non-finite coordinate<br/>return false"]
+  O1 -- 否 --> O2{f 引用非法索引?}
+  O2 -- 是 --> OE2["error = invalid vertex index<br/>return false"]
+  O2 -- 否 --> O3["多边形 fan triangulation<br/>过滤重复顶点三角形"]
+  O3 --> O4["removeUnusedVertices"]
+  O4 --> O5{empty?}
+  O5 -- 是 --> OE5["error = No triangles found<br/>return false"]
+  O5 -- 否 --> OK
+      </pre>
+    </div>
+
+    <h3>保存 STL 的处理</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["saveAsciiStl(path, mesh, solidName)"] --> B["validateMeshGeometry(mesh)"]
+  B --> C{几何有效?}
+  C -- 否 --> R0["return false + error"]
+  C -- 是 --> D{path 有父目录?}
+  D -- 是 --> E["create_directories(parent)"]
+  E --> F{创建成功?}
+  F -- 否 --> R1["error = Failed to create output directory<br/>return false"]
+  F -- 是 --> G["open output file"]
+  D -- 否 --> G
+  G --> H{open 成功?}
+  H -- 否 --> R2["error = Failed to open output STL<br/>return false"]
+  H -- 是 --> I["逐 face 计算 triangleNormal<br/>写 facet normal + 3 vertices"]
+  I --> J["return true"]
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th>校验点</th><th>失败时怎么处理</th></tr></thead>
+      <tbody>
+        <tr><td>mesh face index 越界</td><td><code>validateMeshIndices</code> 返回 false，错误信息指出具体 face。</td></tr>
+        <tr><td>顶点坐标不是有限数</td><td><code>validateMeshGeometry</code> 返回 false。</td></tr>
+        <tr><td>face 三个索引重复或面积为 0</td><td>保存前拒绝，避免写出退化 STL。</td></tr>
+        <tr><td>STL 顶点重复</td><td>读入时按 bbox 对角线比例量化合并，合并后退化三角形会被过滤。</td></tr>
+        <tr><td>OBJ 负索引</td><td>按 OBJ 规则转成 <code>vertexCount + raw</code>；结果越界则失败。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="feature">
+    <h2>5. 特征检测流程</h2>
+    <p>
+      特征检测入口是 <code>FeatureDetector::analyze()</code> 或 <code>detectFeatureCurves()</code>。输出 <code>FeatureAnalysis</code>，其中包含 vertex feature ownership、feature graph、loop/primitive、component confidence 和各种计数器。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["detectFeatureCurves(mesh, options)"] --> B["validateFeatureOptions"]
+  B --> C["validateFeatureInput"]
+  C --> D{mesh.empty()?}
+  D -- 是 --> E["返回空 FeatureAnalysis<br/>vertices 数组已按输入顶点数初始化"]
+  D -- 否 --> F["EdgeEvidenceStage<br/>collectFeatureEdges"]
+  F --> G["FeatureGraphStage<br/>initialize graph + build trace graph"]
+  G --> H["FeatureGraphCleanupStage<br/>remove spurs / bridge gaps / merge close junctions"]
+  H --> I["LoopRecoveryStage"]
+  I --> I1["recoverCircularCyclesThroughJunctions"]
+  I1 --> I2["recoverSmallCycleBasis"]
+  I2 --> I3["traceRemainingFeatureLoops"]
+  I3 --> I4["recoverPrimitiveComponents"]
+  I4 --> I5["recoverCircularVertexClusters"]
+  I5 --> J["FeatureComponentSummaryStage<br/>BFS components + confidence"]
+  J --> K["FeatureGraphFinalizeStage<br/>junction/shared markers"]
+  K --> L["builder.build()"]
+      </pre>
+    </div>
+
+    <h3>特征边证据收集</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["collectFeatureEdges"] --> B["计算 face normals + edge incidence"]
+  B --> C{useNormalTensorFeatures?}
+  C -- 是 --> T["computeNormalTensorFeatures<br/>统计 tensor score / persistence"]
+  C -- 否 --> NT["tensor 为空"]
+  T --> D["markDiscreteFeatureVertices"]
+  NT --> D
+  D --> E["遍历每条 undirected edge"]
+  E --> F["BoundaryEvidence:<br/>faces.size == 1"]
+  F --> G["DihedralEvidence:<br/>faces.size == 2 且 angle >= threshold"]
+  G --> H["NonManifoldEvidence:<br/>faces.size > 2"]
+  H --> I["NormalTensorEvidence:<br/>仅非 boundary/dihedral/non-manifold 边"]
+  I --> J{任一证据成立?}
+  J -- 是 --> K["push CandidateEdge<br/>record counters"]
+  J -- 否 --> L["忽略该边"]
+  K --> E
+  L --> E
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th>证据类型</th><th>判定条件</th><th>处理结果</th></tr></thead>
+      <tbody>
+        <tr><td>Boundary</td><td>一条边只属于 1 个 face。</td><td>标记 <code>boundary=true</code>，计入 boundary feature edges。</td></tr>
+        <tr><td>Non-manifold</td><td>一条边属于超过 2 个 face。</td><td>标记 <code>nonManifold=true</code>，后续 trace graph 会直接纳入。</td></tr>
+        <tr><td>Dihedral</td><td>两个相邻 face 法向夹角达到 <code>featureAngleDeg</code>。</td><td>标记 <code>dihedral=true</code>，并尝试判断 convex/concave/unknown。</td></tr>
+        <tr><td>Normal tensor</td><td>不是已有离散特征边；两端 persistent score 达阈值；crease saliency 不弱于 corner；边方向与 crease tangent 对齐。</td><td>作为弱特征候选，计入 normal tensor counters。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>trace graph 和 cleanup</h3>
+    <table>
+      <thead><tr><th>阶段</th><th>分支规则</th><th>记录/输出</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>buildTraceGraph</td>
+          <td>boundary、non-manifold、normal-tensor 边直接进入 trace graph；dihedral 边还必须满足 <code>loopTraceAngleDeg</code>，若该参数为负则复用 <code>featureAngleDeg</code>。</td>
+          <td>进入的边计 <code>tracedFeatureEdges</code>；未进入的 dihedral 证据计 <code>untracedFeatureEdges</code>。</td>
+        </tr>
+        <tr>
+          <td>removeWeakSpurs</td>
+          <td>如果 <code>cleanupFeatureGraph=false</code> 或 <code>featureGraphMaxWeakSpurEdges<=0</code>，跳过；否则最多 8 轮删除短的 tensor-only 端点 spur。</td>
+          <td>被删边在 graph edge 上标 <code>removedByCleanup</code>，计 <code>graphCleanupRemovedSpurs</code>。</td>
+        </tr>
+        <tr>
+          <td>bridgeCloseJunctions</td>
+          <td>如果 gap ratio ≤ 0 跳过；junction 数少于 2 或超过 256 跳过；距离在局部尺度阈值内则加 cleanup bridge。</td>
+          <td>计 <code>graphCleanupMergedJunctions</code>。</td>
+        </tr>
+        <tr>
+          <td>bridgeEndpointGaps</td>
+          <td>端点数少于 2 或超过 512 跳过；端点距离和方向兼容才桥接；每个端点最多被用一次。</td>
+          <td>计 <code>graphCleanupBridgedGaps</code>。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>loop 恢复和 primitive 拟合</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["recoverFeatureLoops"] --> B["junction 间双链组合<br/>尝试恢复 circular cycles"]
+  B --> C["small cycle basis<br/>仅小组件、无 tensor 边、cycle rank 合理"]
+  C --> D["traceRemainingFeatureLoops"]
+  D --> D1{从 junction/endpoint 出发?}
+  D1 -- 是 --> D2["traceOpenChain"]
+  D1 -- 否 --> D3["剩余边 traceClosedLoop"]
+  D2 --> E["addTracedLoop"]
+  D3 --> E
+  E --> F{闭合且顶点数达标?}
+  F -- 是 --> Fit["fitPrimitive<br/>circle / near-circle / ellipse / polygonal"]
+  F -- 否 --> Assign["assignLoopToVertices<br/>切线 fallback"]
+  Fit --> Assign
+  Assign --> G["recoverPrimitiveComponents<br/>组件整体拟合 primitive"]
+  G --> H["recoverCircularVertexClusters<br/>三点圆 fallback，有扫描上限"]
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th>情况</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>loop 顶点少于 <code>minFeatureLoopVertices</code></td><td>很多闭环恢复和 primitive fallback 会跳过，避免把短碎片当成制造特征。</td></tr>
+        <tr><td>primitive fit 失败</td><td><code>applyPrimitiveFit</code> 不写入 primitive 数据，loop 保持 unknown/polygonal 状态，仍可作为普通 trace loop 存在。</td></tr>
+        <tr><td>圆拟合 RMS/最大误差过大</td><td>不标为 circle/near-circle；可能落为 ellipse 或 polygonal loop。</td></tr>
+        <tr><td>组件已存在 circular loop</td><td><code>recoverPrimitiveComponents</code> 和 circular cluster fallback 会跳过，避免重复 loop。</td></tr>
+        <tr><td>circular cluster fallback 过大</td><td>组件顶点数超过 120 或三点扫描超过 32768 次时停止，保证最坏情况可控。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="simplification">
+    <h2>6. QEM 简化流程</h2>
+    <p>
+      公共入口是 <code>QEMSimplifier::simplify</code> 或 <code>simplifyMesh</code>。它先校验选项和输入，然后创建 <code>SimplificationRun</code> 执行一次完整简化。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["QEMSimplifier::simplify(input, report)"] --> B["validateSimplifyOptions(options)"]
+  B --> C["validateSimplifierInput(input)"]
+  C --> D["SimplificationRun(input, options, optional features)"]
+  D --> E["execute()"]
+  E --> R["initializeReport"]
+  R --> F["analyzeFeatures<br/>仅 preserveFeatureCurves 时启用"]
+  F --> V["initializeVertices<br/>initial quadrics + boundary flags + feature ownership"]
+  V --> FS["initializeFaces<br/>DynamicTopology + optional SpatialFaceIndex"]
+  FS --> Budget["initializeBudget<br/>targetFaces / areaEps / normalDot / localError / rejection limit"]
+  Budget --> Q["rebuildQueue<br/>collectActiveEdges + pushEdge"]
+  Q --> Loop["collapseUntilTarget"]
+  Loop --> Compact["compactResult"]
+  Compact --> Out["填 finalVertices/finalFaces<br/>复制 report<br/>返回 Mesh"]
+      </pre>
+    </div>
+
+    <h3>简化选项校验</h3>
+    <table>
+      <thead><tr><th>选项</th><th>合法范围 / 处理</th></tr></thead>
+      <tbody>
+        <tr><td><code>targetFaces</code></td><td>必须为 -1 或正数；为正时覆盖 <code>targetRatio</code>。</td></tr>
+        <tr><td><code>targetRatio</code></td><td>当 <code>targetFaces&lt;0</code> 时必须在 (0, 1]。</td></tr>
+        <tr><td>权重类数值</td><td><code>lineWeight</code>、<code>featureBoost</code>、<code>boundaryWeight</code>、<code>featureCurveWeight</code> 等必须有限且非负。</td></tr>
+        <tr><td>特征检测参数</td><td>通过 <code>featureOptionsFromSimplifyOptions</code> 转成 <code>FeatureOptions</code> 后复用特征检测校验。</td></tr>
+        <tr><td><code>minTriangleQuality</code></td><td>必须在 [0, 1]；0 表示关闭三角形质量硬过滤。</td></tr>
+        <tr><td><code>maxNormalDeviationDeg</code></td><td>必须在 [0, 180]；180 等价于关闭法向偏转过滤。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>初始二次误差和 line quadrics</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["computeInitialQuadrics"] --> B["每个 face 计算 normal + area"]
+  B --> C{face 退化?}
+  C -- 是 --> P["给 face 顶点加 tiny point quadric"]
+  C -- 否 --> Q["area/3 * planeQuadric<br/>累加到三个顶点"]
+  P --> B
+  Q --> B
+  B --> D["addBoundaryQuadrics<br/>仅 boundaryWeight > 0"]
+  D --> E{useLineQuadrics && lineWeight > 0 ?}
+  E -- 否 --> F["minAppliedLineWeight = 0"]
+  E -- 是 --> W["computeFeatureWeightScores<br/>按 weightMode 计算顶点 score"]
+  W --> L["为每个顶点加 lineQuadric"]
+  L --> M{adaptiveScale?}
+  M -- 是 --> AD["加 adaptiveBaseLineWeight*area*line<br/>再按 feature score 缩放 Q"]
+  M -- 否 --> NW["加 appliedWeight*area*line"]
+  AD --> R["记录 min/max applied line weight"]
+  NW --> R
+  R --> G{preserveFeatureCurves && featureGuidance && featureCurveWeight > 0 ?}
+  F --> G
+  G -- 是 --> FC["按 feature tangent 加 feature-curve line quadric<br/>confidence 调权"]
+  G -- 否 --> Done["返回 vertex quadrics"]
+  FC --> Done
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th><code>WeightMode</code></th><th>score 来源</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>uniform</code></td><td>不计算局部特征 score。</td><td>line weight 全局一致。</td></tr>
+        <tr><td><code>dihedral</code></td><td>根据边二面角超过阈值的程度给两端顶点加分。</td><td>硬边附近 line quadrics 更强。</td></tr>
+        <tr><td><code>normal-tensor</code></td><td>多尺度 normal tensor persistent score。</td><td>弱 crease 附近加权。</td></tr>
+        <tr><td><code>height</code></td><td>顶点 z 在 bbox z 范围中的归一化高度。</td><td>演示/实验型空间变权。</td></tr>
+        <tr><td><code>xband</code></td><td>x 方向中带高斯权重。</td><td>演示/实验型空间变权。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>候选队列和终止条件</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["collapseUntilTarget"] --> B{activeFaceCount <= targetFaces?}
+  B -- 是 --> B1{collapsedEdges > 0?}
+  B1 -- 是 --> TR["termination = ReachedTarget"]
+  B1 -- 否 --> TA["termination = AlreadyAtOrBelowTarget"]
+  B -- 否 --> C["while activeFaceCount > targetFaces"]
+  C --> D["ensureQueueHasCandidates"]
+  D --> E{queue empty after rebuild?}
+  E -- 是 --> TN["termination = NoCandidates<br/>break"]
+  E -- 否 --> Pop["pop lowest-cost candidate"]
+  Pop --> Cur{isCurrentCandidate?}
+  Cur -- 否 --> Stale["stalePops++<br/>超过 10000 则 rebuildQueue"] --> C
+  Cur -- 是 --> Try["tryCollapse(a,b)"]
+  Try --> OK{accepted?}
+  OK -- 是 --> Apply["applyCollapse<br/>activeFaceCount 下降<br/>push neighbor edges"] --> Reset["attemptsWithoutCollapse = 0"] --> C
+  OK -- 否 --> Reject["recordRejectedCollapse<br/>attemptsWithoutCollapse++"]
+  Reject --> Limit{attempts > maxAttemptsWithoutCollapse?}
+  Limit -- 是 --> TL["termination = RejectionLimit<br/>break"]
+  Limit -- 否 --> C
+  C --> End{循环结束后 faces <= target?}
+  End -- 是 --> TR
+  End -- 否且未设置 --> TN
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th>终止原因</th><th>触发条件</th></tr></thead>
+      <tbody>
+        <tr><td><code>AlreadyAtOrBelowTarget</code></td><td>一开始 active face count 已经小于等于目标，且没有发生折叠。</td></tr>
+        <tr><td><code>ReachedTarget</code></td><td>折叠后达到目标；或一开始已达目标但此前 report 中已有折叠记录。</td></tr>
+        <tr><td><code>NoCandidates</code></td><td>队列为空，重建后仍无候选边。</td></tr>
+        <tr><td><code>RejectionLimit</code></td><td>连续拒绝次数超过 <code>max(1000, activeEdgeCount*6)</code>。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="collapse">
+    <h2>7. 单次边折叠判定流程</h2>
+    <p>
+      <code>evaluateCollapseAttempt</code> 是最重要的分支点。它先做硬约束，再尝试一个或多个 placement，最后通过拓扑和几何合法性过滤。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["tryCollapse(keep, remove)"] --> B["mergedQ = q_keep + q_remove"]
+  B --> C["solvePlacementCandidates<br/>端点、 midpoint、可解时加最优解"]
+  C --> D{front.usedFallback?}
+  D -- 是 --> SF["report.solverFallbacks++"]
+  D -- 否 --> E
+  SF --> E["evaluateCollapseAttempt"]
+
+  E --> F["featurePolicy.collapseRejectKind"]
+  F --> FR{特征硬约束拒绝?}
+  FR -- 是 --> R1["FeatureRejected<br/>Primitive 或 Generic"]
+  FR -- 否 --> G["boundaryCollapseDecision"]
+  G --> BR{边界策略拒绝?}
+  BR -- 是 --> R2["BoundaryRejected"]
+  BR -- 否 --> H{placements empty?}
+  H -- 是 --> R3["LegalityRejected: Topology"]
+  H -- 否 --> I["决定 placementCount<br/>普通 collapse 可尝试 fallback placements<br/>硬保护 feature collapse 通常只试最佳 placement"]
+  I --> J["遍历 placement"]
+  J --> K["projectBoundaryPlacement<br/>如果当前是 boundary edge"]
+  K --> L{curveBudgetAllows?}
+  L -- 否 --> CB["记录 sawCurveBudgetReject<br/>试下一个 placement"]
+  L -- 是 --> M["featurePolicy.projectPlacement<br/>圆/椭圆/多段线/线段/切线投影"]
+  M --> N["collapseRejectReason"]
+  N --> O{rejectReason == None?}
+  O -- 是 --> OK["Accepted<br/>返回 acceptedPosition + projected"]
+  O -- 否 --> LR["记录第一个 legalityReason<br/>试下一个 placement"]
+  CB --> J
+  LR --> J
+  J --> Done{所有 placement 都失败}
+  Done --> HasLegality{有 legalityReason?}
+  HasLegality -- 是 --> R4["LegalityRejected<br/>Topology / NormalFlip / TriangleQuality / SelfIntersection / LocalError"]
+  HasLegality -- 否 --> HasBudget{见过 curve budget 拒绝?}
+  HasBudget -- 是 --> R5["CurveBudgetRejected"]
+  HasBudget -- 否 --> R6["LegalityRejected: Topology"]
+      </pre>
+    </div>
+
+    <h3>特征保护模式</h3>
+    <table>
+      <thead><tr><th>模式</th><th>硬保护对象</th><th>拒绝场景</th></tr></thead>
+      <tbody>
+        <tr><td><code>None</code></td><td>没有硬特征保护。</td><td>特征不会单独拒绝 collapse，但 line/feature quadrics 仍可能改变排序。</td></tr>
+        <tr><td><code>CircularOnly</code></td><td>圆和近圆 loop。</td><td>一个端点受保护另一个不受保护、不同 loop、junction、loop 顶点数不足等。</td></tr>
+        <tr><td><code>PrimitiveCurves</code> 默认</td><td>圆、近圆、椭圆。</td><td>普通 crease 不被硬锁；primitive curve 会按 loop ownership 和最小顶点数保护。</td></tr>
+        <tr><td><code>AllFeatureEdges</code></td><td>所有检测到的 feature edge。</td><td>更严格；generic feature 拒绝会计入 <code>genericFeatureRejectedCollapses</code>。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>边界策略</h3>
+    <table>
+      <thead><tr><th>情况</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td><code>preserveBoundary=false</code></td><td>边界策略不拦截，返回 allowed。</td></tr>
+        <tr><td>两个端点都不是 boundary vertex</td><td>允许。</td></tr>
+        <tr><td>一个端点是 boundary，另一个不是</td><td>拒绝，避免边界并入内部。</td></tr>
+        <tr><td>两个端点都是 boundary，但当前边不是 boundary edge</td><td>拒绝，避免跨边界结构折叠。</td></tr>
+        <tr><td>两个端点都是 boundary，且该边只有 1 个 incident active face</td><td>允许，并将 placement 投影回该边段。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>几何合法性过滤</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["collapseRejectReason"] --> B["collapseWouldPreserveLinkCondition"]
+  B --> C{link condition OK?}
+  C -- 否 --> Topo["Topology"]
+  C -- 是 --> D["collectTouchedFaces<br/>keep/remove incident faces"]
+  D --> E["collectNewTriangles"]
+  E --> F{新三角形退化/重复/面积太小?}
+  F -- 是 --> Topo
+  F -- 否 --> Q{minTriangleQuality > 0 且质量不足?}
+  Q -- 是 --> Quality["TriangleQuality"]
+  Q -- 否 --> N{maxNormalDeviationDeg 启用且法向偏转过大?}
+  N -- 是 --> Flip["NormalFlip"]
+  N -- 否 --> LE{maxLocalError > 0?}
+  LE -- 是 --> LEC["旧局部采样点到新三角形距离检查"]
+  LEC --> LER{超预算?}
+  LER -- 是 --> Local["LocalError"]
+  LER -- 否 --> SI
+  LE -- 否 --> SI{preventLocalIntersections?}
+  SI -- 是 --> SIC["用 SpatialFaceIndex 或全量 face 查自交"]
+  SIC --> SIR{发现相交?}
+  SIR -- 是 --> Inter["SelfIntersection"]
+  SIR -- 否 --> OK["None"]
+  SI -- 否 --> OK
+      </pre>
+    </div>
+
+    <h3>接受 collapse 后的状态更新</h3>
+    <table>
+      <thead><tr><th>步骤</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>收集 affected faces</td><td>keep/remove 两端 incident faces；如果开启自交检查，先从空间索引移除这些 face。</td></tr>
+        <tr><td>更新 keep 顶点</td><td>写入新 position、mergedQ；刷新圆/椭圆切线；remove 顶点标 inactive。</td></tr>
+        <tr><td>更新 feature loop 计数</td><td>如果两个端点属于同一 feature loop，activeLoopCounts 对应 loop 减 1。</td></tr>
+        <tr><td>version++</td><td>keep/remove 的 version 增加，使旧队列候选变 stale。</td></tr>
+        <tr><td>rewriteIncidentFaces</td><td>remove 端 incident faces 中把 remove 改成 keep；如果变退化或重复 face，则 deactivate 并减少 activeFaceCount；否则更新动态拓扑。</td></tr>
+        <tr><td>更新 spatial index 和 queue</td><td>重新插入受影响 active faces；把 keep 与所有 active neighbors 的边重新入队。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="capi">
+    <h2>8. C ABI 流程与错误处理</h2>
+    <p>
+      C API 使用 <code>ManuMeshContext</code> 保存 <code>lastError</code>，使用 <code>ManuMeshMeshHandle</code> 持有 C++ <code>Mesh</code>。所有公开 C 结构体都要求先调用对应 init，以保证 <code>struct_size</code> 和 <code>abi_version</code> 正确。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["C 调用方"] --> B["manumesh_context_create"]
+  A --> C["manumesh_mesh_create"]
+  C --> D{分配成功?}
+  D -- 否 --> E["返回 NULL<br/>context.lastError = out of memory"]
+  D -- 是 --> F["load/generate/set_data"]
+  F --> G{输入指针/计数/几何有效?}
+  G -- 否 --> IA["INVALID_ARGUMENT + lastError"]
+  G -- 是 --> H["调用 C++ core"]
+  H --> I{C++ 返回 false 或抛异常?}
+  I -- false I/O --> IO["IO_ERROR + error"]
+  I -- invalid_argument --> IA
+  I -- bad_alloc --> OOM["OUT_OF_MEMORY"]
+  I -- 其他异常 --> ALG["ALGORITHM_ERROR"]
+  I -- 成功 --> OK["MANUMESH_STATUS_OK"]
+      </pre>
+    </div>
+
+    <h3><code>manumesh_simplify_mesh</code> 详细流程</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["manumesh_simplify_mesh(context, input, options, output, report)"] --> B["clearError(context)"]
+  B --> C{input/output handle 有效?}
+  C -- 否 --> R0["INVALID_ARGUMENT"]
+  C -- 是 --> D["cppOptions = 默认 SimplifyOptions"]
+  D --> E{options != NULL?}
+  E -- 是 --> F["readSimplifyOptions<br/>检查 struct_size + abi_version<br/>逐字段按存在性复制"]
+  F --> FOK{转换成功?}
+  FOK -- 否 --> R0
+  E -- 否 --> G
+  FOK -- 是 --> G{report != NULL?}
+  G -- 是 --> H["validateSimplifyReportOutput<br/>允许当前或旧尾部较短 struct_size"]
+  H --> HOK{report 初始化有效?}
+  HOK -- 否 --> R0
+  G -- 否 --> I
+  HOK -- 是 --> I["QEMSimplifier(cppOptions).simplify(input->mesh, &cppReport)"]
+  I --> J["output->mesh = result"]
+  J --> K{report != NULL?}
+  K -- 是 --> L["fillSimplifyReport<br/>只写目标 struct_size 中存在的字段"]
+  K -- 否 --> OK["OK"]
+  L --> OK
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th>C API 场景</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>copy vertices/faces 时 buffer 太小</td><td>返回 <code>MANUMESH_STATUS_BUFFER_TOO_SMALL</code>，同时写出 required count 到 <code>*vertices_written</code>/<code>*faces_written</code>。</td></tr>
+        <tr><td>options/report/stats 未初始化</td><td>输入 options 会被拒绝；输出 report/stats 也会被拒绝，提示必须调用 init 或提供兼容旧 struct size。</td></tr>
+        <tr><td>较旧 ABI 尾部结构体</td><td>同一 <code>MANUMESH_ABI_VERSION</code> 内允许尾部较短；读 options 时只读存在字段，写 report/stats 时只写目标容量内字段。</td></tr>
+        <tr><td>C++ <code>std::invalid_argument</code></td><td>转换为 <code>MANUMESH_STATUS_INVALID_ARGUMENT</code>。</td></tr>
+        <tr><td>C++ 其他异常</td><td>转换为 <code>MANUMESH_STATUS_ALGORITHM_ERROR</code>；未知异常写 <code>Unknown C++ exception.</code>。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="failure">
+    <h2>9. 统一失败处理索引</h2>
+    <table>
+      <thead><tr><th>层级</th><th>失败类型</th><th>程序处理方式</th><th>用户看到什么</th></tr></thead>
+      <tbody>
+        <tr><td>CLI 参数层</td><td>未知命令、未知选项、缺少必需值、数值解析失败。</td><td>抛 <code>invalid_argument</code>；<code>run()</code> catch。</td><td>stderr 显示 <code>error: ...</code> 和 usage，进程返回 1。</td></tr>
+        <tr><td>CLI 文件层</td><td>输入文件打不开、格式错误、输出目录创建失败、输出 STL 打不开。</td><td>I/O 函数返回 false + error；handler 转 <code>runtime_error</code>。</td><td>stderr 显示具体 error，返回 1。</td></tr>
+        <tr><td>mesh 校验</td><td>索引越界、非有限顶点、退化 face、零面积 face。</td><td><code>validateMeshGeometry</code> false 或 simplifier 抛 <code>invalid_argument</code>。</td><td>CLI 返回 1；C API 返回 <code>INVALID_ARGUMENT</code>。</td></tr>
+        <tr><td>特征检测</td><td>阈值非法、min loop vertices 过小、tensor 参数非法。</td><td><code>validateFeatureOptions</code> 抛异常。</td><td>CLI 返回 1；简化入口中也会拒绝非法 feature 相关选项。</td></tr>
+        <tr><td>简化初始化</td><td>targetFace/ratio 非法、质量/误差/法向参数非法、拓扑构建失败。</td><td><code>validateSimplifyOptions</code> 或 <code>validateSimplifierInput</code> 抛异常。</td><td>CLI 返回 1；C API 返回 <code>INVALID_ARGUMENT</code>。</td></tr>
+        <tr><td>简化运行</td><td>候选全部耗尽。</td><td>不抛异常；report.terminationReason = <code>NoCandidates</code>。</td><td>输出当前可达简化结果和 report。</td></tr>
+        <tr><td>简化运行</td><td>连续候选被硬约束拒绝太多。</td><td>不抛异常；report.terminationReason = <code>RejectionLimit</code>。</td><td>输出当前结果；report 中有各类 rejected counter。</td></tr>
+        <tr><td>批处理命令</td><td><code>ratio-sweep</code> 中 ratio 非法，或 <code>face-sweep</code> 中目标面数非法。</td><td>打印 skip，不抛异常，继续处理其他值。</td><td>该条没有输出 STL/CSV 行；命令仍可能成功。</td></tr>
+        <tr><td>validate-external</td><td>单个候选 OBJ 不存在。</td><td>打印 skip 并继续。</td><td>如果至少处理一个模型，命令成功；如果一个都没有，最终抛异常返回 1。</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>读 report 的要点：</strong>简化失败不一定是程序错误。<code>NoCandidates</code> 和 <code>RejectionLimit</code> 都是“当前参数和约束下无法继续折叠”的正常诊断状态，应结合 <code>featureRejectedCollapses</code>、<code>boundaryRejectedCollapses</code>、<code>topologyRejectedCollapses</code>、<code>qualityRejectedCollapses</code>、<code>errorRejectedCollapses</code> 等计数判断是哪类约束过强。
+    </div>
+  </section>
+</main>
+
+<footer>
+  生成位置：<code>docs/generated/notes/manumesh-program-flowcharts.html</code>。本文件为源码阅读文档，不改变程序行为。
+</footer>
+</body>
+</html>

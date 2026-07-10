@@ -39,6 +39,18 @@
 - `ctest --test-dir build\mingw-ninja-release-sdk --output-on-failure -R '^sdk_consumer_examples$'`：1/1 passed
 - `git diff --check`
 
+### Remeshing 与表面网格特征论文补充
+
+- 新增 `docs/papers/remeshing/`，归档局部参数化、split/collapse/flip/smooth、
+  metric-dependent Voronoi、自适应实时和 field-aligned 表面重网格化论文 M037-M041。
+- 为 `feature_detection/` 补充光滑特征线、polygonal-surface ridge/ravine 和 quadric
+  surface fitting 特征曲线网络论文 M042-M044。
+- 新增 2026-07-11 OpenAlex 补充索引、公开下载来源与 SHA-256 记录，以及 OpenMesh、CGAL、
+  pmp-library、libigl、geometry-central、Geogram、VCGlib、MMG 和 Instant Meshes 的表面网格
+  能力对照。
+- 明确论文和开源实现地图只服务三角/多边形表面网格算法测试，不扩展到 B-Rep、实体建模或
+  CAD feature-tree。
+
 ## 2026-07-10
 
 ### 架构边界修复

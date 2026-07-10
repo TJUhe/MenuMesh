@@ -2,7 +2,8 @@
 
 本目录保存 ManuMesh 的论文 PDF 归档。PDF 按算法或研究方向分组，文件名保留英文，便于和 DOI、论文标题及外部引用链接对应。
 
-引用数量来自 OpenAlex `cited_by_count` 快照，查询日期为 2026-07-09。该数值可能与 Google Scholar、出版商统计或后续查询结果不同。
+M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照；M037-M044
+来自 2026-07-11 的补充查询。该数值可能与 Google Scholar、出版商统计或后续查询结果不同。
 
 如需理解当前实现和路线图，请先读 [`../design/algorithm_essence.md`](../design/algorithm_essence.md)，再按本文分组选择论文。
 
@@ -19,6 +20,7 @@
 | `edge_collapse/` | 边折叠框架、progressive mesh、局部 placement 和大模型简化 | 支撑 collapse workflow、队列和合法性检查。 |
 | `neural_and_temporal_qem/` | 神经 QEM 表示和时间一致性 QEM | 后续研究参考，当前未实现。 |
 | `mesh_generation/` | QEM 风格网格生成 | 后续生成式网格任务参考，当前未实现。 |
+| `remeshing/` | 三角表面网格的各向同性、自适应、Voronoi/CVT 和方向场重网格化 | 支撑未来 remesh 算法和 `mesh_edit` 扩展。 |
 
 ## QEM 基础与变体
 
@@ -101,11 +103,29 @@
 | --- | --- | --- | --- | --- |
 | M036 | QEMesh: Employing A Quadric Error Metrics-Based Representation for 3D Mesh Generation (OpenAlex citations: 0) | `mesh_generation/li_2025_qemesh_qem_based_mesh_generation.pdf` | `10.48550/arXiv.2504.05720` | QEM 风格表示在生成任务中的参考，ManuMesh 当前未实现生成模型。 |
 
+## 三角表面重网格化
+
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M037 | Isotropic Remeshing of Surfaces: a Local Parameterization Approach (OpenAlex citations: 127) | `remeshing/surazhsky_2003_isotropic_remeshing_local_parameterization.pdf` | `inria-00071612` | 局部参数化各向同性 remeshing 基线，强调采样、投影和局部三角化。 |
+| M038 | A Remeshing Approach to Multiresolution Modeling (OpenAlex citations: 260) | `remeshing/botsch_kobbelt_2004_remeshing_multiresolution_modeling.pdf` | `10.1145/1057432.1057457` | split/collapse/flip/smooth 局部操作和特征约束的核心工程参考。 |
+| M039 | Generic Remeshing of 3D Triangular Meshes with Metric-Dependent Discrete Voronoi Diagrams (OpenAlex citations: 218) | `remeshing/valette_2008_generic_metric_voronoi_remeshing.pdf` | `10.1109/TVCG.2007.70430` | metric-dependent discrete Voronoi remeshing，用于理解各向异性度量和采样密度控制。 |
+| M040 | Adaptive Remeshing for Real-Time Mesh Deformation (OpenAlex citations: 40) | `remeshing/dunyach_2013_adaptive_remeshing_realtime_deformation.pdf` | `10.2312/conf/eg2013/short/029-032` | 实时局部自适应 remeshing，适合设计增量更新、长度场和局部操作调度。 |
+| M041 | Instant Field-Aligned Meshes (OpenAlex citations: 335) | `remeshing/jakob_2015_instant_field_aligned_meshes.pdf` | `10.1145/2816795.2818078` | 方向场对齐的三角/四边网格生成参考；当前只作为远期方向场路线，不属于 B-Rep 重建。 |
+
+## 表面网格特征检测补充
+
+| ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
+| --- | --- | --- | --- | --- |
+| M042 | Smooth Feature Lines on Surface Meshes (OpenAlex citations: 122) | `feature_detection/hildebrandt_2005_smooth_feature_lines_surface_meshes.pdf` | `10.2312/SGP.SGP05.085-090` | 光滑曲率特征线参考，用于补足二面角之外的 ridge/valley/crest 路线。 |
+| M043 | An Image Processing Approach to Detection of Ridges and Ravines on Polygonal Surfaces (OpenAlex citations: 15) | `feature_detection/belyaev_ohtake_2000_ridges_ravines_polygonal_surfaces.pdf` | `10.2312/egs.20001016` | 直接面向 polygonal surface 的 ridge/ravine 检测参考。 |
+| M044 | Feature Curve Network Extraction via Quadric Surface Fitting (OpenAlex citations: 14) | `feature_detection/lu_2019_feature_curve_network_quadric_surface_fitting.pdf` | `10.2312/pg.20191338` | quadric surface fitting、曲线连续性和 junction/network 组织参考。 |
+
 ## 与当前实现的关系
 
 ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-tensor 特征证据、独立 loop trace 阈值、traced/untraced 诊断、局部尺度归一化、多尺度 persistence、圆/近圆/椭圆 loop 拟合、component-level fallback、特征曲线保护、边界/拓扑/质量/局部误差/自交过滤。2026-07-09 的特征识别升级见 [`../design/feature_detection_upgrade_2026_07_09.md`](../design/feature_detection_upgrade_2026_07_09.md)。
 
-当前没有落地：论文中的完整 edge dihedral plane quadrics、通用扫描去噪、曲率导数 ridge/valley 管线、学习式特征评分、时间一致性简化、神经 QEM 表示、工程对象分割和通用 CAD/B-Rep 特征恢复。
+当前没有落地：论文中的完整 edge dihedral plane quadrics、通用扫描去噪、曲率导数 ridge/valley 管线、学习式特征评分、时间一致性简化、神经 QEM 表示和完整 remeshing 算法。ManuMesh 的目标是三角表面网格处理，不把 B-Rep/CAD feature-tree 重建作为本库范围。
 
 ## 按问题阅读
 
@@ -120,6 +140,10 @@ ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-te
 | 如果要补 ridge/valley/crest line 应看什么？ | M005、M011、M014、M021。 | 未来独立 curvature/feature-line 模块 |
 | 为什么需要 topology/quality/error/self-intersection filters？ | M031、M032、M033。 | `CollapseLegality.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/SpatialIndex.cpp` |
 | 下一步如果做全局误差 envelope 应看什么？ | M030、M033、M026。 | 未来 `validation` 或 `simplification/detail` 中独立 envelope filter |
+| remesh 的局部编辑循环如何组织？ | M038、M040，然后对照 OpenMesh 和 pmp-library。 | `src/mesh_edit/` 与未来 `src/remeshing/` |
+| 如何设计各向同性或度量驱动的目标长度场？ | M037、M039。 | 未来 remeshing sampling/metric policy |
+| 如何让重网格化保留当前 feature graph？ | M038、M042-M044。 | `feature::FeatureAnalysis`、未来 remeshing constraints |
+| 方向场重网格化是否属于当前近期目标？ | M041。 | 远期独立 field-aligned pipeline，不进入基础 remesh MVP |
 
 ## 下载状态
 
@@ -127,3 +151,6 @@ ManuMesh 当前实现已经落地：QEM、line quadrics、二面角和 normal-te
 
 - [`feature_recognition_download_status.md`](feature_recognition_download_status.md)
 - [`paper_index_openalex_2026-07-09.json`](paper_index_openalex_2026-07-09.json)
+- [`remeshing_feature_download_status_2026-07-11.md`](remeshing_feature_download_status_2026-07-11.md)
+- [`paper_index_supplement_2026-07-11.json`](paper_index_supplement_2026-07-11.json)
+- [`open_source_mesh_libraries.md`](open_source_mesh_libraries.md)

@@ -1,0 +1,91 @@
+[
+  {
+    "id": "M037",
+    "path": "remeshing/surazhsky_2003_isotropic_remeshing_local_parameterization.pdf",
+    "area": "remeshing",
+    "title": "Isotropic Remeshing of Surfaces: a Local Parameterization Approach",
+    "doi": null,
+    "repository_id": "inria-00071612",
+    "openalex_id": "https://openalex.org/W2134770338",
+    "citations": 127,
+    "source_url": "https://inria.hal.science/inria-00071612/document",
+    "tags": ["triangle-mesh", "isotropic-remeshing", "local-parameterization"]
+  },
+  {
+    "id": "M038",
+    "path": "remeshing/botsch_kobbelt_2004_remeshing_multiresolution_modeling.pdf",
+    "area": "remeshing",
+    "title": "A Remeshing Approach to Multiresolution Modeling",
+    "doi": "10.1145/1057432.1057457",
+    "openalex_id": "https://openalex.org/W2121934905",
+    "citations": 260,
+    "source_url": "https://www.graphics.rwth-aachen.de/media/papers/remeshing1.pdf",
+    "tags": ["triangle-mesh", "edge-split", "edge-collapse", "edge-flip", "smoothing"]
+  },
+  {
+    "id": "M039",
+    "path": "remeshing/valette_2008_generic_metric_voronoi_remeshing.pdf",
+    "area": "remeshing",
+    "title": "Generic Remeshing of 3D Triangular Meshes with Metric-Dependent Discrete Voronoi Diagrams",
+    "doi": "10.1109/TVCG.2007.70430",
+    "openalex_id": "https://openalex.org/W2129460996",
+    "citations": 218,
+    "source_url": "https://hal.science/hal-00537025/document",
+    "tags": ["triangle-mesh", "voronoi", "metric-field", "anisotropic-remeshing"]
+  },
+  {
+    "id": "M040",
+    "path": "remeshing/dunyach_2013_adaptive_remeshing_realtime_deformation.pdf",
+    "area": "remeshing",
+    "title": "Adaptive Remeshing for Real-Time Mesh Deformation",
+    "doi": "10.2312/conf/eg2013/short/029-032",
+    "openalex_id": "https://openalex.org/W2153014314",
+    "citations": 40,
+    "source_url": "https://hal.science/hal-01295339/document",
+    "tags": ["triangle-mesh", "adaptive-remeshing", "incremental", "realtime"]
+  },
+  {
+    "id": "M041",
+    "path": "remeshing/jakob_2015_instant_field_aligned_meshes.pdf",
+    "area": "remeshing",
+    "title": "Instant Field-Aligned Meshes",
+    "doi": "10.1145/2816795.2818078",
+    "openalex_id": "https://openalex.org/W1973730326",
+    "citations": 335,
+    "source_url": "https://igl.ethz.ch/projects/instant-meshes/instant-meshes-SA-2015-jakob-et-al-compressed.pdf",
+    "tags": ["surface-mesh", "direction-field", "field-aligned", "quad-mesh"]
+  },
+  {
+    "id": "M042",
+    "path": "feature_detection/hildebrandt_2005_smooth_feature_lines_surface_meshes.pdf",
+    "area": "feature_detection",
+    "title": "Smooth Feature Lines on Surface Meshes",
+    "doi": "10.2312/SGP.SGP05.085-090",
+    "openalex_id": "https://openalex.org/W2167832640",
+    "citations": 122,
+    "source_url": "https://diglib.eg.org/server/api/core/bitstreams/7aba3571-6d99-4adf-8410-b5252897b0d8/content",
+    "tags": ["surface-mesh", "smooth-feature-lines", "curvature", "ridge-valley"]
+  },
+  {
+    "id": "M043",
+    "path": "feature_detection/belyaev_ohtake_2000_ridges_ravines_polygonal_surfaces.pdf",
+    "area": "feature_detection",
+    "title": "An Image Processing Approach to Detection of Ridges and Ravines on Polygonal Surfaces",
+    "doi": "10.2312/egs.20001016",
+    "openalex_id": "https://openalex.org/W37404038",
+    "citations": 15,
+    "source_url": "https://diglib.eg.org/server/api/core/bitstreams/e0baae2c-c3ca-4510-83be-1e364f802948/content",
+    "tags": ["polygonal-surface", "ridge", "ravine", "feature-lines"]
+  },
+  {
+    "id": "M044",
+    "path": "feature_detection/lu_2019_feature_curve_network_quadric_surface_fitting.pdf",
+    "area": "feature_detection",
+    "title": "Feature Curve Network Extraction via Quadric Surface Fitting",
+    "doi": "10.2312/pg.20191338",
+    "openalex_id": "https://openalex.org/W2989351068",
+    "citations": 14,
+    "source_url": "https://diglib.eg.org/server/api/core/bitstreams/6bd087bc-3a67-4837-852f-fd9384dffac0/content",
+    "tags": ["triangle-mesh", "feature-curve-network", "quadric-fitting", "junction"]
+  }
+]

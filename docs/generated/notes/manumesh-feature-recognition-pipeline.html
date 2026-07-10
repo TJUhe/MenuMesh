@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ManuMesh 特征识别路线、源码与论文对照说明</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  securityLevel: "loose",
+  theme: "base",
+  themeVariables: {
+    primaryColor: "#eef7ef",
+    primaryTextColor: "#172119",
+    primaryBorderColor: "#61946e",
+    lineColor: "#4e6a58",
+    secondaryColor: "#f8f1de",
+    tertiaryColor: "#eef3f8",
+    noteBkgColor: "#fff8d8",
+    noteTextColor: "#252525",
+    fontFamily: "Segoe UI, Noto Sans SC, Microsoft YaHei, sans-serif"
+  }
+});
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #edf7ef;
+  --paper: #fbfcf4;
+  --panel: #f3f8ef;
+  --panel-2: #e2efe5;
+  --text: #172119;
+  --dim: #556259;
+  --border: #bdd3c2;
+  --accent: #237348;
+  --accent-2: #8f621f;
+  --red: #a94442;
+  --blue: #2d5f8a;
+  --code: #dfebde;
+}
+* { box-sizing: border-box; }
+html { background: #cedbd1; }
+body {
+  margin: 0 auto;
+  max-width: 1220px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.78;
+}
+header {
+  padding: 44px 44px 32px;
+  background: linear-gradient(135deg, #284a34, #237348);
+  color: #fbfcf4;
+}
+h1 { margin: 0 0 8px; font-size: 31px; line-height: 1.24; }
+.subtitle { color: #e4f0e7; max-width: 960px; }
+.tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.tag {
+  border: 1px solid rgba(255,255,255,.3);
+  background: rgba(255,255,255,.14);
+  border-radius: 4px;
+  padding: 3px 9px;
+  color: #f7fbf0;
+  font-size: 12px;
+}
+main { padding: 30px 44px 68px; }
+h2 {
+  margin: 44px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent);
+  font-size: 23px;
+}
+h3 {
+  margin: 30px 0 10px;
+  color: var(--accent);
+  font-size: 18px;
+}
+h4 {
+  margin: 22px 0 8px;
+  color: #27472f;
+  font-size: 15px;
+}
+p { margin: 0 0 12px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: #0c6335;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: .92em;
+}
+pre {
+  overflow-x: auto;
+  background: #d6e4d8;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 14px;
+}
+.toc, .callout, .source-map {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin: 16px 0;
+}
+.callout strong { color: #21462d; }
+.warn { background: #fbf2dc; border-color: #d8b872; }
+.danger { background: #f8e5e2; border-color: #d7a3a0; }
+.success { background: #e2f2e4; border-color: #8fbf97; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.card h3 { margin-top: 0; }
+.diagram-wrap {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 14px 0 22px;
+  overflow-x: auto;
+}
+.mermaid { min-width: 800px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 24px;
+  font-size: 14px;
+  background: var(--paper);
+}
+th, td {
+  border-bottom: 1px solid var(--border);
+  padding: 9px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--panel-2);
+  border-bottom: 2px solid var(--accent);
+  color: #203b29;
+}
+tr:nth-child(even) td { background: #f1f8f0; }
+ul, ol { margin-top: 0; padding-left: 22px; }
+li { margin: 4px 0; }
+.small { color: var(--dim); font-size: 13px; }
+.ref {
+  display: inline-block;
+  color: #1e5f3b;
+  background: #e4f1e5;
+  border: 1px solid #bdd3c2;
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: nowrap;
+}
+.paper {
+  color: #704b16;
+  background: #f8efdb;
+  border-color: #ddc79c;
+}
+.two-col {
+  columns: 2 360px;
+  column-gap: 28px;
+}
+footer {
+  border-top: 1px solid var(--border);
+  padding: 18px 44px 28px;
+  color: var(--dim);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  header { padding: 28px 20px 24px; }
+  main { padding: 22px 18px 42px; }
+  h1 { font-size: 24px; }
+  .mermaid { min-width: 700px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>ManuMesh 特征识别路线、源码与论文对照说明</h1>
+  <div class="subtitle">
+    当前实现面向 CAD/STL 风格三角网格：先找离散硬证据，再用 normal tensor 补弱特征，随后把边集合组织成可用的 trace graph、loop、primitive 和 component confidence，最后供报告、benchmark、feature compare 与 QEM 特征保护消费。
+  </div>
+  <div class="tags">
+    <span class="tag">源码基线：2026-07-10</span>
+    <span class="tag">主入口：FeatureDetector / detectFeatureCurves</span>
+    <span class="tag">文献锚点：docs/papers + mesh-feature-literature</span>
+    <span class="tag">输出：HTML + Mermaid</span>
+  </div>
+</header>
+
+<main>
+  <section class="toc">
+    <strong>目录</strong>
+    <ol>
+      <li><a href="#answer">一句话路线</a></li>
+      <li><a href="#architecture">总体架构图</a></li>
+      <li><a href="#data">数据结构和输出语义</a></li>
+      <li><a href="#options">参数和数据适用范围</a></li>
+      <li><a href="#pipeline">检测 pipeline 详解</a></li>
+      <li><a href="#evidence">候选特征边证据</a></li>
+      <li><a href="#tensor">Normal tensor 弱特征分支</a></li>
+      <li><a href="#graph">Feature graph / trace graph / cleanup</a></li>
+      <li><a href="#loops">Loop 恢复与 primitive 拟合</a></li>
+      <li><a href="#components">Component 置信度与诊断指标</a></li>
+      <li><a href="#cli">CLI 报告、benchmark、compare</a></li>
+      <li><a href="#simplification">与 QEM 特征保护的关系</a></li>
+      <li><a href="#papers">论文路线对照</a></li>
+      <li><a href="#limits">边界、风险和后续方向</a></li>
+      <li><a href="#refs">引用索引</a></li>
+    </ol>
+  </section>
+
+  <section id="answer">
+    <h2>1. 一句话路线</h2>
+    <div class="callout success">
+      <strong>当前特征识别不是“单阈值二面角提边”。</strong>
+      它是一条 CAD/STL 优先的图恢复路线：<code>boundary / non-manifold / dihedral</code> 提供强离散证据，<code>normal tensor</code> 提供弱特征补充，之后构建 <code>FeatureGraph</code> 和 <code>TraceGraph</code>，通过 cleanup 修补/清理局部碎片，再恢复 open chain、closed loop、circle、near-circle、ellipse、polygonal loop，最后计算 component confidence，并把结果交给 CLI 报告和 QEM 简化保护使用。
+    </div>
+    <p>
+      这条路线与文献图谱的判断一致：对于干净 CAD/STL，二面角、边界、facet 邻接和 loop construction 往往比直接估 curvature derivative 更稳；对于弱 crease 或噪声场景，则需要 normal/tensor voting 或多尺度证据来避免单阈值漏检。文献技能的 distilled corpus 明确把 CAD/STL hard boundary 抽取、normal/tensor voting、loop tracing 和 feature-preserving simplification 分成互补家族 <span class="ref paper">P00</span>。
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <h3>输入假设</h3>
+        <p>输入是三角网格 <code>Mesh</code>，通常来自 STL/OBJ 或生成器。没有 B-Rep 语义，因此“孔、倒角、圆环、patch 边界”都只能从三角面邻接、法向和采样点几何中推断。</p>
+      </div>
+      <div class="card">
+        <h3>识别目标</h3>
+        <p>不是完整 CAD 反求，而是为后续简化和验证提供足够稳定的特征图：edge evidence、loop、primitive、junction、component confidence。</p>
+      </div>
+      <div class="card">
+        <h3>核心取舍</h3>
+        <p>强证据优先、弱证据保守；先成图再恢复 loop；把可保护的 primitive curves 和普通 crease 区分开，避免所有 feature edge 都被硬锁导致简化质量恶化。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>2. 总体架构图</h2>
+    <p>
+      源码中真正的特征识别入口是 <code>FeatureDetector::analyze()</code> 和自由函数 <code>detectFeatureCurves()</code> <span class="ref">C01</span>。CLI 的 <code>feature-report</code>、<code>feature-benchmark</code>、<code>feature-compare</code> 都是应用层包装 <span class="ref">C21</span>；简化模块在打开 <code>preserveFeatureCurves</code> 时会把检测结果转换成 <code>FeatureGuidance</code> <span class="ref">C24</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  Input["Mesh<br/>vertices + triangle faces"] --> Validate["validateFeatureOptions<br/>validateFeatureInput"]
+  Validate --> Evidence["EdgeEvidenceStage<br/>boundary / dihedral / non-manifold / normal tensor"]
+  Evidence --> Graph["FeatureGraphStage<br/>FeatureGraph + TraceGraph"]
+  Graph --> Cleanup["FeatureGraphCleanupStage<br/>remove weak spurs<br/>bridge close junctions<br/>bridge endpoint gaps"]
+  Cleanup --> Recover["LoopRecoveryStage<br/>cycle recovery + trace chains + primitive fallback"]
+  Recover --> Component["FeatureComponentSummaryStage<br/>component confidence + weak/high confidence"]
+  Component --> Finalize["FeatureGraphFinalizeStage<br/>junction/shared markers"]
+  Finalize --> Analysis["FeatureAnalysis"]
+  Analysis --> CLI["CLI reports<br/>CSV / benchmark / compare"]
+  Analysis --> QEM["QEM feature guidance<br/>curve quadrics / hard policy / projection / budget"]
+      </pre>
+    </div>
+
+    <h3>阶段和源码位置</h3>
+    <table>
+      <thead><tr><th>阶段</th><th>源码位置</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td>Facade / pipeline 编排</td><td><a href="../../../src/feature_detection/FeatureDetector.cpp">src/feature_detection/FeatureDetector.cpp:28-169</a> <span class="ref">C01</span></td><td>定义检测上下文、六个 stage、空 mesh 处理和最终 build。</td></tr>
+        <tr><td>候选特征边证据</td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:13-249</a> <span class="ref">C05</span></td><td>收集 boundary、non-manifold、dihedral、normal tensor 候选边，并统计来源。</td></tr>
+        <tr><td>graph/trace graph</td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:57-96</a> <span class="ref">C10</span></td><td>把候选边写入 graph，并决定哪些边进入 trace graph。</td></tr>
+        <tr><td>cleanup</td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:102-372</a> <span class="ref">C11</span></td><td>删除短弱 spur，桥接近 junction 和端点 gap。</td></tr>
+        <tr><td>loop 恢复</td><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">src/feature_detection/FeatureLoopRecovery.cpp:10-17</a> <span class="ref">C15</span></td><td>调度五种恢复策略，从显式 cycle 到 primitive/component fallback。</td></tr>
+        <tr><td>primitive 拟合</td><td><a href="../../../src/feature_detection/PrimitiveFit.cpp">src/feature_detection/PrimitiveFit.cpp:150-229</a> <span class="ref">C18</span></td><td>把闭合 loop 分类为 circle、near-circle、ellipse 或 polygonal loop。</td></tr>
+        <tr><td>component 置信度</td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:375-474</a> <span class="ref">C12</span></td><td>BFS 连通分量，计算 closure、evidence ratio、tensor persistence、primitive residual 和 confidence。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="data">
+    <h2>3. 数据结构和输出语义</h2>
+    <p>
+      <code>FeatureAnalysis</code> 是识别模块的交付物，调用方不要只看 <code>featureEdges</code>。真正有语义的是 <code>vertices</code>、<code>loops</code>、<code>components</code> 和 <code>graph</code> 的组合 <span class="ref">C02</span>。
+    </p>
+
+    <table>
+      <thead><tr><th>结构</th><th>源码位置</th><th>含义</th><th>下游用途</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>FeatureOptions</code></td>
+          <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:26-79</a></td>
+          <td>控制二面角阈值、loop tracing 阈值、圆/椭圆拟合阈值、normal tensor 阈值、多尺度参数、graph cleanup 参数、component confidence 阈值。</td>
+          <td>CLI 参数、简化中的 featureOptionsFromSimplifyOptions。</td>
+        </tr>
+        <tr>
+          <td><code>FeatureLoop</code></td>
+          <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:83-118</a></td>
+          <td>一条恢复出的特征链/环，记录顶点序列、闭合性、primitive 类型、圆/椭圆参数、误差、convex/concave 统计。</td>
+          <td>报告 CSV、feature compare、QEM curve constraint。</td>
+        </tr>
+        <tr>
+          <td><code>VertexFeature</code></td>
+          <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:120-145</a></td>
+          <td>每个顶点的 feature ownership：是否特征点、是否 circular、是否 junction、所属 loop/component、切线、圆/椭圆投影数据。</td>
+          <td>简化中的 feature vertex guidance 和 projection。</td>
+        </tr>
+        <tr>
+          <td><code>FeatureGraph</code></td>
+          <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:147-178</a></td>
+          <td>显式特征边图，保留 evidence 来源、cleanup bridge、removedByCleanup、junction/shared vertices。</td>
+          <td>benchmark precision/recall、诊断 graph cleanup 效果。</td>
+        </tr>
+        <tr>
+          <td><code>FeatureComponent</code></td>
+          <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:180-205</a></td>
+          <td>trace graph 连通分量，记录强/弱证据比例、端点、junction、cycle rank、closure rate、primitive residual 和 confidence。</td>
+          <td>判断弱特征是否可靠；输出 weak/high confidence component 统计。</td>
+        </tr>
+        <tr>
+          <td><code>FeatureAnalysis</code></td>
+          <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:207-234</a></td>
+          <td>汇总结果和所有计数器：feature edges、traced/untraced、各证据来源、normal tensor scale 统计、component confidence。</td>
+          <td>整个模块的稳定数据交换格式。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>为什么要保留这么多诊断？</strong>
+      文献路线里，feature extraction 的风险不只是“漏边”，还包括边碎裂、loop 不闭合、junction 错误、弱特征噪声和简化后漂移。当前结构把这些风险拆成可观测字段，而不是只输出一个黑盒 edge set。
+    </div>
+  </section>
+
+  <section id="options">
+    <h2>4. 参数和数据适用范围</h2>
+    <p>
+      当前默认参数更偏向 CAD/STL：<code>featureAngleDeg=40</code> 用于强二面角，<code>useNormalTensorFeatures=true</code> 用于弱补充，<code>cleanupFeatureGraph=true</code> 用于修短断裂和弱 spur。参数校验集中在 <code>validateFeatureOptionsImpl</code> <span class="ref">C03</span>。
+    </p>
+
+    <table>
+      <thead><tr><th>参数族</th><th>默认值 / 范围</th><th>影响</th><th>代码位置</th></tr></thead>
+      <tbody>
+        <tr><td>二面角</td><td><code>featureAngleDeg=40</code>，必须 [0,180]</td><td>决定强 dihedral edge 候选；过小会过检，过大会漏浅 crease。</td><td><span class="ref">C02</span> <span class="ref">C03</span></td></tr>
+        <tr><td>loop trace 角</td><td><code>loopTraceAngleDeg=-1</code> 表示复用 feature angle</td><td>允许“检测到但不参与 tracing”的边，形成 <code>untracedFeatureEdges</code>。</td><td><span class="ref">C10</span></td></tr>
+        <tr><td>primitive 拟合阈值</td><td>circle/ellipse relative threshold 默认 0.05，near-circle axis tolerance 默认 0.08</td><td>决定 closed loop 是圆、近圆、椭圆还是 polygonal loop。</td><td><span class="ref">C18</span></td></tr>
+        <tr><td>loop 最小顶点数</td><td><code>minFeatureLoopVertices=8</code>，必须至少 3</td><td>阻止短碎片被报告成稳定 loop。</td><td><span class="ref">C02</span> <span class="ref">C03</span></td></tr>
+        <tr><td>normal tensor</td><td>threshold 0.16，edge alignment 0.45，scale count 至少 1</td><td>补弱 crease；scale 和 alignment 对噪声/采样很敏感。</td><td><span class="ref">C06</span> <span class="ref">C07</span></td></tr>
+        <tr><td>graph cleanup</td><td>gap ratio 1.25，max weak spur edges 2</td><td>删除 tensor-only 短 spur；按局部边长桥接端点或 junction gap。</td><td><span class="ref">C11</span></td></tr>
+        <tr><td>component confidence</td><td>threshold 0.35</td><td>报告 high-confidence component，辅助判断弱特征是否可信。</td><td><span class="ref">C12</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>数据 regime 说明：</strong>
+      当前实现没有先做 denoising，也没有完整 curvature derivative/ridge-valley 估计；所以它适合 CAD/STL 或相对干净的三角网格。对重噪扫描，应先考虑 normal voting / tensor-guided denoising / multiscale crease detection 的完整流程，再用本模块的 tensor 分支作边图补充 <span class="ref paper">P04</span> <span class="ref paper">P05</span> <span class="ref paper">P06</span>。
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <h2>5. 检测 pipeline 详解</h2>
+    <p>
+      <code>FeatureDetectionPipeline::run</code> 先校验参数和输入，空 mesh 直接返回空分析；非空 mesh 依次运行六个 stage <span class="ref">C01</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["detectFeatureCurves(mesh, options)"] --> B["validateFeatureOptionsImpl"]
+  B --> C["validateFeatureInput<br/>validateMeshGeometry"]
+  C --> D{mesh.empty()?}
+  D -- 是 --> E["return builder.build()<br/>空结果"]
+  D -- 否 --> F["EdgeEvidenceStage"]
+  F --> G["FeatureGraphStage"]
+  G --> H["FeatureGraphCleanupStage"]
+  H --> I["LoopRecoveryStage"]
+  I --> J["FeatureComponentSummaryStage"]
+  J --> K["FeatureGraphFinalizeStage"]
+  K --> L["return FeatureAnalysis"]
+      </pre>
+    </div>
+
+    <h3>失败和短路</h3>
+    <table>
+      <thead><tr><th>情况</th><th>处理</th><th>原因</th></tr></thead>
+      <tbody>
+        <tr><td>featureAngleDeg 非有限或不在 [0,180]</td><td>抛 <code>invalid_argument</code>。</td><td>避免阈值产生不可解释分类。</td></tr>
+        <tr><td>loopTraceAngleDeg 为非有限，或非负且大于 180</td><td>抛 <code>invalid_argument</code>。</td><td>负数被用作“复用 featureAngleDeg”的哨兵值。</td></tr>
+        <tr><td>normalTensorMinEdgeAlignment 不在 [0,1]</td><td>抛异常。</td><td>它代表方向余弦阈值。</td></tr>
+        <tr><td>normalTensorScaleCount &lt; 1</td><td>抛异常。</td><td>多尺度统计至少需要一个尺度。</td></tr>
+        <tr><td>mesh.faces 为空</td><td>输入校验允许，然后 pipeline 返回空分析。</td><td>空网格不是崩溃条件，但没有可检测特征。</td></tr>
+        <tr><td>mesh 几何非法</td><td><code>validateMeshGeometry</code> 抛出的错误上抛。</td><td>特征检测依赖 face 法向和边邻接。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="evidence">
+    <h2>6. 候选特征边证据</h2>
+    <p>
+      第一阶段不是直接恢复曲线，而是给每条无向 mesh edge 打 evidence 标签。这个阶段由 <code>EdgeEvidenceContext</code> 构建 face normals、edge incidence、dihedral threshold、可选 normal tensor 和离散特征顶点标记 <span class="ref">C05</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["buildMeshEdgeInfo + computeFaceNormals"] --> B["遍历每条 edge"]
+  B --> C{faces.size == 1?}
+  C -- 是 --> Boundary["boundary evidence"]
+  C -- 否 --> D{faces.size > 2?}
+  D -- 是 --> NonManifold["non-manifold evidence"]
+  D -- 否 --> E{faces.size == 2?}
+  E -- 是 --> Dihedral["计算二面角<br/>angle >= featureAngleDeg"]
+  E -- 否 --> None["无强证据"]
+  Boundary --> N["normal tensor 策略跳过<br/>强证据优先"]
+  NonManifold --> N
+  Dihedral --> N
+  None --> Tensor{useNormalTensorFeatures?}
+  Tensor -- 是 --> T["normalTensorEdgeCandidate"]
+  Tensor -- 否 --> Out
+  T --> Out{任一 evidence 成立?}
+  N --> Out
+  Out -- 是 --> Record["recordFeatureEdge<br/>加入 candidate edge"]
+  Out -- 否 --> Drop["忽略"]
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th>证据</th><th>当前实现</th><th>文献对应</th><th>主要风险</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Boundary</td>
+          <td>edge incident faces 数为 1 即边界。</td>
+          <td>STL/CAD 三角网格边界抽取和工程对象边界 segmentation 是经典硬特征起点 <span class="ref paper">P01</span> <span class="ref paper">P09</span>。</td>
+          <td>开放边界不一定是设计特征，也可能是破洞。</td>
+        </tr>
+        <tr>
+          <td>Non-manifold</td>
+          <td>edge incident faces 数大于 2。</td>
+          <td>作为拓扑异常/分支处处理，比直接归为普通 crease 更安全。</td>
+          <td>可能来自坏网格，需要结合 repair。</td>
+        </tr>
+        <tr>
+          <td>Dihedral</td>
+          <td>对两个相邻 face 的法向取绝对 dot，夹角超过阈值即候选；同时尝试 signed convex/concave 分类。</td>
+          <td>CAD/STL hard edge extraction 和 polygon crawling 家族的主要信号 <span class="ref paper">P02</span> <span class="ref paper">P03</span>。</td>
+          <td>浅 fillet transition 容易漏；噪声面片会制造假硬边。</td>
+        </tr>
+        <tr>
+          <td>Normal tensor</td>
+          <td>只在非 boundary/dihedral/non-manifold 边上尝试；要求 persistent score、crease saliency、edge/tangent alignment 达标。</td>
+          <td>normal voting / normal tensor 文献用于弱 crease、噪声 crease 和 junction 分类 <span class="ref paper">P04</span> <span class="ref paper">P05</span>。</td>
+          <td>尺度和局部采样密度决定成败，弱证据需要 cleanup 和 confidence。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>为什么强证据优先</h3>
+    <p>
+      <code>NormalTensorEvidenceStrategy</code> 如果发现边已经是 boundary、dihedral 或 non-manifold，就直接返回，不再把它重复标成 tensor edge <span class="ref">C05</span>。这让统计含义更清楚：normal tensor 主要表示“强离散规则没覆盖但局部法向张量支持”的弱特征，而不是所有特征的混合标签。
+    </p>
+  </section>
+
+  <section id="tensor">
+    <h2>7. Normal tensor 弱特征分支</h2>
+    <p>
+      当前 normal tensor 实现是一个轻量局部版本：先用面法向 outer product 按面积累加到顶点，再按一环邻接进行可选平滑和多尺度平滑，最后通过张量特征值分解得到 surface/crease/corner saliency、feature score 和 persistent score <span class="ref">C06</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["computeNormalTensorFeatures"] --> B{mesh.empty()?}
+  B -- 是 --> Empty["返回与顶点数相同的空结果"]
+  B -- 否 --> C["每个 face:<br/>normal * normal^T 按 area 加到三个顶点"]
+  C --> D["按顶点权重归一化 tensor"]
+  D --> E["buildVertexNeighbors<br/>computeVertexAverageEdgeLength"]
+  E --> F["base smoothing iterations<br/>0..8"]
+  F --> G["for each scale 0..scaleCount-1"]
+  G --> H["Eigen decomposition"]
+  H --> I["surfaceSaliency = l0-l1<br/>creaseSaliency = l1-l2<br/>cornerSaliency = l2"]
+  I --> J["featureScore = max(crease, corner)"]
+  J --> K["记录 averageFeatureScore<br/>persistentScales"]
+  K --> L{还有下一尺度?}
+  L -- 是 --> M["按更大 radius smoothOnce"] --> G
+  L -- 否 --> N["persistentFeatureScore = robustScore * persistenceRatio"]
+      </pre>
+    </div>
+
+    <h3>tensor edge candidate 的接受条件</h3>
+    <table>
+      <thead><tr><th>条件</th><th>源码逻辑</th><th>意义</th></tr></thead>
+      <tbody>
+        <tr><td>不能覆盖已有强离散顶点</td><td>若 edge 两端任一为 boundary/dihedral/non-manifold 的 discrete feature vertex，则跳过 tensor edge。</td><td>防止强边和弱边统计混淆。</td></tr>
+        <tr><td>多尺度持久性</td><td>两端点 persistent scales 的最小值必须达到 <code>normalTensorMinPersistentScales</code>。</td><td>过滤只在单尺度偶然出现的噪声。</td></tr>
+        <tr><td>端点 score 阈值</td><td>两端 persistent score 的较小值必须 ≥ <code>normalTensorFeatureThreshold</code>。</td><td>要求边两端都有支持。</td></tr>
+        <tr><td>crease 优先于 corner</td><td>任一端点若 crease saliency 小于 corner saliency，则拒绝。</td><td>减少把角点散射当作边线。</td></tr>
+        <tr><td>方向对齐</td><td>edge direction 与任一端 crease tangent 的绝对 dot 最大值 ≥ <code>normalTensorMinEdgeAlignment</code>。</td><td>要求候选边方向跟张量推断的 crease 方向一致。</td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      这一分支对应 normal tensor / normal voting 文献家族，但当前实现没有做完整全局投票，也没有 tensor-guided denoising；它更像是 CAD/STL 主线上的“弱证据补丁”。如果目标变成重噪扫描网格，文献建议应加入稳健法向、尺度选择、去噪后 trace 的完整流程 <span class="ref paper">P05</span> <span class="ref paper">P06</span>。
+    </p>
+  </section>
+
+  <section id="graph">
+    <h2>8. Feature graph / trace graph / cleanup</h2>
+    <p>
+      当前实现区分两个图：<code>FeatureGraph</code> 是完整证据图，保留候选边和 removedByCleanup 状态；<code>TraceGraph</code> 是用于追踪 loop 的活动图。这个分离允许“检测到但不参与 loop tracing”的边存在于报告中 <span class="ref">C10</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["CandidateEdge 列表"] --> B["initializeFeatureGraph<br/>所有 candidate 写入 analysis.graph"]
+  B --> C["buildTraceGraph"]
+  C --> D{edge 类型}
+  D -- "boundary / non-manifold / normal-tensor" --> Trace["进入 trace graph"]
+  D -- "dihedral" --> E{angle >= loopTraceAngle?}
+  E -- 是 --> Trace
+  E -- 否 --> Untraced["untracedFeatureEdges++"]
+  Trace --> F["tracedFeatureEdges++<br/>写 adjacency 和 edge metadata"]
+  F --> Cleanup["cleanupTraceGraph"]
+  Cleanup --> Spur["removeWeakSpurs"]
+  Spur --> Junction["bridgeCloseJunctions"]
+  Junction --> Gap["bridgeEndpointGaps"]
+      </pre>
+    </div>
+
+    <h3>cleanup 的三个动作</h3>
+    <table>
+      <thead><tr><th>动作</th><th>触发条件</th><th>保护措施</th><th>诊断字段</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>删除短弱 spur</td>
+          <td>端点 degree=1，路径长度不超过 <code>featureGraphMaxWeakSpurEdges</code>，且每条边都是 tensor-only，不是 boundary/dihedral/non-manifold/bridge。</td>
+          <td>最多 8 轮；删除后重建 trace graph edges；FeatureGraph 中原边标 <code>removedByCleanup</code>。</td>
+          <td><code>graphCleanupRemovedSpurs</code></td>
+        </tr>
+        <tr>
+          <td>桥接近 junction</td>
+          <td>degree &gt; 2 的 junction 两两距离小于局部尺度阈值。</td>
+          <td>junction 对数超过 256 时跳过；每个 junction 只用一次最近候选。</td>
+          <td><code>graphCleanupMergedJunctions</code></td>
+        </tr>
+        <tr>
+          <td>桥接端点 gap</td>
+          <td>degree=1 的端点距离小于阈值，且 outward 方向兼容。</td>
+          <td>端点数超过 512 时跳过；已相邻或 endpoint/neighbor 冲突时跳过。</td>
+          <td><code>graphCleanupBridgedGaps</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>为什么 cleanup 是 graph 级而不是 edge 级？</strong>
+      分割和简化真正需要的是连续、闭合、可归属的特征结构。文献中工程对象 segmentation 和 CAD feature extraction 都强调 boundary/feature loops 的闭合性；单独的 edge score 不足以支持 patch 边界和 feature-preserving simplification <span class="ref paper">P02</span> <span class="ref paper">P09</span>。
+    </div>
+  </section>
+
+  <section id="loops">
+    <h2>9. Loop 恢复与 primitive 拟合</h2>
+    <p>
+      <code>recoverFeatureLoops</code> 按固定顺序运行五个策略：junction 间圆形 cycle、小 cycle basis、剩余边追踪、primitive component、circular vertex cluster fallback <span class="ref">C15</span>。这个顺序体现了“先利用明确 graph 结构，再用 bounded fallback 补 CAD 圆/椭圆”的策略。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["TraceGraph"] --> B["recoverCircularCyclesThroughJunctions"]
+  B --> C["recoverSmallCycleBasis"]
+  C --> D["traceRemainingFeatureLoops"]
+  D --> E["recoverPrimitiveComponents"]
+  E --> F["recoverCircularVertexClusters"]
+  F --> G["FeatureAnalysis.loops + VertexFeature ownership"]
+
+  B --> B1["同一对 junction 间两条链组合成 cycle<br/>要求圆形 primitive 且边跟圆吻合"]
+  C --> C1["小组件生成 cycle basis<br/>跳过 tensor 组件和过大组件"]
+  D --> D1["从 degree != 2 的点追 open chain<br/>剩余未访问边追 closed loop"]
+  E --> E1["整组件拟合 circle / near-circle / ellipse<br/>避免重复 circular loop"]
+  F --> F1["三点圆扫描 bounded fallback<br/>顶点数、coverage、误差达标才接受"]
+      </pre>
+    </div>
+
+    <h3>各恢复策略的分支</h3>
+    <table>
+      <thead><tr><th>策略</th><th>接受条件</th><th>拒绝/跳过条件</th><th>源码</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Junction circular cycles</td>
+          <td>两条 feature chain 有相同 junction endpoints，组合后 <code>addRecoveredCycle(Circular)</code> 通过圆拟合和 <code>cycleEdgesFollowCircle</code>。</td>
+          <td>不是圆/近圆，或 cycle edge midpoint 偏离圆太大。</td>
+          <td><span class="ref">C16</span> <span class="ref">C19</span></td>
+        </tr>
+        <tr>
+          <td>Small cycle basis</td>
+          <td>连通分量大小、边数、cycle rank 在上限内；无 normal tensor edge；cycle 顶点数不超过 80；拟合为 polygonal loop。</td>
+          <td>组件太小/太大、cycle rank 非法、含 tensor edge、重复 cycle、非 polygonal。</td>
+          <td><span class="ref">C16</span> <span class="ref">C19</span></td>
+        </tr>
+        <tr>
+          <td>Trace remaining loops</td>
+          <td>从 degree != 2 顶点追 open chain；剩余未访问边按闭环追踪；非空且 edgeCount &gt; 0 就写 loop。</td>
+          <td>闭环不足最小顶点数时不做 primitive fit，但仍可作为 trace loop。</td>
+          <td><span class="ref">C17</span> <span class="ref">C19</span></td>
+        </tr>
+        <tr>
+          <td>Primitive components</td>
+          <td>组件整体闭合感强，edge count 与 vertex count 接近；拟合为 circle/near-circle/ellipse。</td>
+          <td>已有 circular loop、组件太小、edge count 不足或过密、拟合不是 primitive curve。</td>
+          <td><span class="ref">C20</span></td>
+        </tr>
+        <tr>
+          <td>Circular vertex clusters</td>
+          <td>组件无 tensor edge、无 circular loop、顶点数 8..120；三点圆拟合找到足够点，angular coverage ≥ 1.5π，最终 loop.circular。</td>
+          <td>triplet scan 超过 32768、拟合无效、coverage 不足、重复 cluster。</td>
+          <td><span class="ref">C21</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Primitive 拟合逻辑</h3>
+    <p>
+      primitive 拟合先用 PCA 得到 loop 平面 frame，再在平面内解圆，随后计算 radial、ellipse、plane RMS/Max error；分类规则优先判断 circle fit，再按 axis ratio 分成 circle、near-circle、ellipse，否则若 ellipse fit 成立则 ellipse/near-circle，最后落为 polygonal loop <span class="ref">C18</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["fitPrimitive(mesh, loop)"] --> B{loop.vertices.size < 5?}
+  B -- 是 --> Invalid["返回 invalid fit"]
+  B -- 否 --> C["fitLoopFrame<br/>PCA 平面和主轴"]
+  C --> D{frame valid?}
+  D -- 否 --> Invalid
+  D -- 是 --> E["solvePlaneCircle"]
+  E --> F{circle valid?}
+  F -- 否 --> Invalid
+  F -- 是 --> G["measurePrimitiveFitErrors"]
+  G --> H["classifyPrimitiveFit"]
+  H --> I{circleFit?}
+  I -- 是 --> J{axisRatio 接近 1?}
+  J -- 很近 --> Circle["Circle"]
+  J -- 容差内 --> Near["NearCircle"]
+  J -- 否 --> Ellipse1["Ellipse"]
+  I -- 否 --> K{ellipseFit?}
+  K -- 是 --> Ellipse2["NearCircle 或 Ellipse"]
+  K -- 否 --> Poly["PolygonalLoop"]
+      </pre>
+    </div>
+
+    <p>
+      这部分和 CAD 特征线抽取/工程分割文献的目标一致：不仅要知道“哪条边尖”，还要知道它是不是孔边、圆环、椭圆边界或可保护的 primitive curve <span class="ref paper">P01</span> <span class="ref paper">P02</span> <span class="ref paper">P09</span>。
+    </p>
+  </section>
+
+  <section id="components">
+    <h2>10. Component 置信度与诊断指标</h2>
+    <p>
+      component summary 对 trace graph 做 BFS，统计每个连通分量的 edge count、boundary/dihedral/tensor/non-manifold/cleanup edges、端点、junction、cycle rank、closure rate、strong evidence ratio、tensor persistence、primitive residual 和最终 confidence <span class="ref">C12</span>。
+    </p>
+
+    <table>
+      <thead><tr><th>指标</th><th>计算/语义</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td><code>strongEvidenceEdges</code></td><td>boundary + dihedral + non-manifold。</td><td>CAD/STL 离散证据强度。</td></tr>
+        <tr><td><code>weakEvidenceEdges</code></td><td>normal tensor + cleanup bridge。</td><td>弱特征或修补边占比。</td></tr>
+        <tr><td><code>cycleRank</code></td><td><code>edgeCount - vertexCount + 1</code>。</td><td>判断组件是否含环。</td></tr>
+        <tr><td><code>closureRate</code></td><td>无端点时为 1；有端点按数量惩罚，有 cycle rank 时保留一部分分数。</td><td>loop 闭合性诊断。</td></tr>
+        <tr><td><code>meanPrimitiveResidual</code></td><td>属于该 component 的 loop primitive residual 均值。</td><td>primitive 拟合可信度。</td></tr>
+        <tr><td><code>confidence</code></td><td>由 evidence score、closure rate、residual score、tensor score 和 junction penalty 组合。</td><td>报告 high-confidence/weak component，供调参和验证。</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>当前 confidence 是诊断，不是硬分类器。</strong>
+      QEM 简化的硬保护主要看 <code>VertexFeature</code> 和 <code>FeatureProtectionMode</code>，confidence 主要帮助用户判断当前检测是否稳定：例如 <code>weakFeatureComponents</code> 多、<code>minFeatureComponentConfidence</code> 低，说明 normal tensor 或 cleanup 产生的结构可能需要人工复核。
+    </div>
+  </section>
+
+  <section id="cli">
+    <h2>11. CLI 报告、benchmark、compare</h2>
+    <p>
+      CLI 把 <code>FeatureAnalysis</code> 暴露成三个主要用户命令：<code>feature-report</code> 看当前 mesh 的特征识别结果，<code>feature-benchmark</code> 对 ground-truth edge/junction CSV 做 precision/recall，<code>feature-compare</code> 比较简化前后的圆形特征保留情况 <span class="ref">C22</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["feature-report input"] --> B["loadMesh"]
+  B --> C["parseFeatureOptions"]
+  C --> D["detectFeatureCurves"]
+  D --> E["打印 feature counters"]
+  E --> F["输出 featureReportHeaderCsv + featureLoopRowCsv"]
+  F --> G{--csv?}
+  G -- 是 --> H["写 summary + loop rows"]
+  G -- 否 --> I["stdout only"]
+
+  J["feature-benchmark input labels.csv"] --> K["读取 edge/junction labels"]
+  K --> D
+  D --> L["benchmarkFeatureEdges<br/>precision / recall / F1"]
+
+  M["feature-compare original simplified"] --> N["分别 detectFeatureCurves"]
+  N --> O["只取 circular loops"]
+  O --> P["按 center/radius/normal score 匹配"]
+  P --> Q["matched / weak_match / missing"]
+      </pre>
+    </div>
+
+    <table>
+      <thead><tr><th>命令</th><th>最该看什么</th><th>源码位置</th></tr></thead>
+      <tbody>
+        <tr><td><code>feature-report</code></td><td><code>feature_edges</code>、<code>traced/untraced</code>、<code>normal_tensor_edges</code>、<code>loops</code>、<code>circle/near-circle/ellipse/polygonal_loops</code>、component confidence。</td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">ManuMeshCommands.cpp:309-395</a></td></tr>
+        <tr><td><code>feature-benchmark</code></td><td>edge precision/recall/F1，junction precision/recall/F1，loop closure rate，mean component confidence。</td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">ManuMeshCommands.cpp:443-489</a></td></tr>
+        <tr><td><code>feature-compare</code></td><td>original circular loops 是否在 simplified 中匹配；status 是 matched、weak_match 还是 missing。</td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">ManuMeshCommands.cpp:491-620</a></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="simplification">
+    <h2>12. 与 QEM 特征保护的关系</h2>
+    <p>
+      特征识别模块本身不做简化，但它的输出直接影响 QEM 简化。当用户打开 <code>--preserve-feature-curves</code>，简化模块会从 <code>SimplifyOptions</code> 派生 <code>FeatureOptions</code>，运行或消费预计算 <code>FeatureAnalysis</code>，再把 loop 和 vertex feature 写入 <code>FeatureGuidance</code> <span class="ref">C23</span> <span class="ref">C24</span>。
+    </p>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["SimplifyOptions.preserveFeatureCurves"] --> B{enabled?}
+  B -- 否 --> No["features policy disabled<br/>不构建 FeatureGuidance"]
+  B -- 是 --> C["featureOptionsFromSimplifyOptions"]
+  C --> D{precomputed FeatureAnalysis?}
+  D -- 是 --> E["buildFeatureGuidanceFromAnalysis"]
+  D -- 否 --> F["detectFeatureCurves(mesh, policy.options)"]
+  F --> E
+  E --> G["VertexFeature -> FeatureVertexGuidance"]
+  E --> H["FeatureLoop -> FeatureCurveConstraint samples"]
+  G --> I["initializeVertexFeature"]
+  H --> I
+  I --> J["initial quadrics 加 feature-curve tangent line quadrics"]
+  I --> K["FeatureConstraintPolicy<br/>hard reject / projection / curve budget"]
+      </pre>
+    </div>
+
+    <h3>简化中如何使用特征</h3>
+    <table>
+      <thead><tr><th>用法</th><th>说明</th><th>源码位置</th><th>文献关系</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>report summary</td>
+          <td>把 feature loops、vertices、traced/untraced、normal tensor、component confidence 写入 <code>SimplifyReport</code>。</td>
+          <td><span class="ref">C24</span></td>
+          <td>让 feature retention 可验，不只是视觉观察。</td>
+        </tr>
+        <tr>
+          <td>feature-curve line quadrics</td>
+          <td>对有 feature tangent 的顶点按 confidence 和 area scale 加 tangent line quadric。</td>
+          <td><span class="ref">C25</span></td>
+          <td>QEM/line-quadrics 家族：用额外 metric 控制切向漂移 <span class="ref paper">P12</span> <span class="ref paper">P13</span>。</td>
+        </tr>
+        <tr>
+          <td>hard collapse policy</td>
+          <td><code>FeatureProtectionMode</code> 决定 circle/near-circle/ellipse/all-feature-edges 的硬保护范围。</td>
+          <td><span class="ref">C26</span></td>
+          <td>feature-preserving simplification 文献常见“软代价 + 硬约束”组合 <span class="ref paper">P10</span> <span class="ref paper">P11</span>。</td>
+        </tr>
+        <tr>
+          <td>placement projection</td>
+          <td>受保护 collapse 接受前可投影到圆、椭圆、多段线、边段或切线。</td>
+          <td><span class="ref">C27</span></td>
+          <td>减少受保护特征线漂移，尤其是孔边和圆环。</td>
+        </tr>
+        <tr>
+          <td>curve deviation budget</td>
+          <td>raw placement 偏离 feature curve 超过 <code>maxFeatureCurveDeviationRatio*bboxDiag</code> 时拒绝。</td>
+          <td><span class="ref">C28</span></td>
+          <td>把 feature 保护从“加权偏好”升级为局部误差 guard。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>默认为什么不是保护所有 feature edge？</strong>
+      <code>FeatureProtectionMode::PrimitiveCurves</code> 默认保护圆、近圆和椭圆等 primitive curves，普通 crease 更多作为软成本和合法性信息。这样做是为了避免把所有检测到的弱边都硬锁，导致边折叠候选大量被拒、三角形质量下降或目标面数达不到。严格模式 <code>AllFeatureEdges</code> 仍保留给需要锁全部特征边的场景 <span class="ref">C26</span>。
+    </div>
+  </section>
+
+  <section id="papers">
+    <h2>13. 论文路线对照</h2>
+    <p>
+      按 mesh-feature-literature 技能的分类，当前 ManuMesh 选择的是“干净 CAD/STL hard boundary + normal/tensor weak feature + graph/loop recovery + feature-preserving simplification consumption”的组合路线，而不是完整曲率 ridge/valley、深度 wireframe 或扫描 mesh denoising pipeline <span class="ref paper">P00</span>。
+    </p>
+
+    <table>
+      <thead><tr><th>程序阶段</th><th>当前实现</th><th>论文锚点</th><th>为什么对应</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>CAD/STL 离散特征</td>
+          <td>boundary、non-manifold、dihedral evidence。</td>
+          <td><span class="ref paper">P01</span> <span class="ref paper">P02</span> <span class="ref paper">P03</span></td>
+          <td>这些文献关注 CAD/STL 三角面上的 C1/C2 discontinuity、feature edge extraction、polygon crawling 和 robust feature line extraction。</td>
+        </tr>
+        <tr>
+          <td>弱特征补充</td>
+          <td>normal tensor feature score、persistent score、edge/tangent alignment。</td>
+          <td><span class="ref paper">P04</span> <span class="ref paper">P05</span> <span class="ref paper">P06</span></td>
+          <td>normal tensor / normal voting / multiscale crease 文献都在处理“局部法向变化如何从噪声与采样中分离出来”。</td>
+        </tr>
+        <tr>
+          <td>不走完整 curvature ridge 主线</td>
+          <td>当前没有 principal curvature derivative、ridge/valley tracing 作为主检测。</td>
+          <td><span class="ref paper">P07</span> <span class="ref paper">P08</span></td>
+          <td>curvature/ridge 方法对 smooth shape interrogation 有价值，但在 CAD/STL faceted hard edges 上可能比二面角和 graph 规则更脆弱。</td>
+        </tr>
+        <tr>
+          <td>Graph / loop / segmentation 友好输出</td>
+          <td>trace graph cleanup、loop recovery、component closure/confidence。</td>
+          <td><span class="ref paper">P02</span> <span class="ref paper">P09</span> <span class="ref paper">P14</span></td>
+          <td>工程对象 segmentation 和 wireframe extraction 都要求 feature 不只是边分数，而是连通、闭合、junction 正确的图。</td>
+        </tr>
+        <tr>
+          <td>简化保护消费</td>
+          <td>feature curve quadrics、hard protection、projection、curve budget。</td>
+          <td><span class="ref paper">P10</span> <span class="ref paper">P11</span> <span class="ref paper">P12</span> <span class="ref paper">P13</span></td>
+          <td>feature-preserving simplification 文献共同强调：QEM 排序不够，必须结合特征权重、弱特征处理、边折叠约束和误差/质量 guard。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>当前实现与文献路线的差距</h3>
+    <ul>
+      <li>与 normal voting/tensor voting 全模型相比，当前 tensor 分支是局部轻量版，没有全局投票场和特征保持去噪 <span class="ref paper">P05</span>。</li>
+      <li>与 ridge/valley/crest line 文献相比，当前没有曲率导数和 smooth feature line tracing，因此对柔和脊线、自由曲面 crest 的识别不是强项 <span class="ref paper">P07</span> <span class="ref paper">P08</span>。</li>
+      <li>与 D-FRAME、PC2WF、NerVE 等 wireframe/神经方法相比，当前不学习方向场或隐式边场，不解决复杂 CAD wireframe 的全局图推断 <span class="ref paper">P14</span>。</li>
+      <li>与 CWF 弱特征 consolidation 相比，当前已有 weak component 和 cleanup，但还没有完整的弱特征 consolidation/重定位/优化闭环 <span class="ref paper">P10</span>。</li>
+    </ul>
+  </section>
+
+  <section id="limits">
+    <h2>14. 边界、风险和后续方向</h2>
+    <h3>当前边界</h3>
+    <ul>
+      <li>输入 STL/OBJ 没有 B-Rep 语义；圆孔、倒角、patch 边界均为从三角网格推断。</li>
+      <li>默认更适合干净 CAD/STL；强噪声扫描 mesh 需要先补 robust normal/denoising/scale selection。</li>
+      <li>normal tensor 是辅助证据，不应单独等价于真实 CAD feature。</li>
+      <li>feature graph cleanup 有保守上限：端点/junction 过多时跳过，以避免组合爆炸。</li>
+      <li>primitive fitting 的圆/椭圆判断依赖顶点采样质量、loop 闭合性和阈值。</li>
+    </ul>
+
+    <h3>调参建议</h3>
+    <table>
+      <thead><tr><th>现象</th><th>优先检查</th><th>可能调整</th></tr></thead>
+      <tbody>
+        <tr><td>硬边漏检</td><td><code>dihedral_edges</code> 很少，<code>untraced_edges</code> 低。</td><td>降低 <code>--feature-angle-deg</code>；对 loop tracing 可单独设置 <code>--loop-trace-angle-deg</code>。</td></tr>
+        <tr><td>feature graph 碎裂</td><td><code>graph_cleanup_bridged_gaps</code>、endpoint 多，closure 低。</td><td>适度提高 <code>--feature-graph-gap-ratio</code>，但观察 false bridge。</td></tr>
+        <tr><td>弱 spur 太多</td><td><code>normal_tensor_edges</code> 高，weak components 多。</td><td>提高 <code>--normal-tensor-threshold</code> 或 <code>--normal-tensor-edge-alignment</code>；提高/降低 <code>--feature-graph-max-weak-spur-edges</code> 观察。</td></tr>
+        <tr><td>圆孔没识别为 circular</td><td>loop closed 但 primitive 是 polygonal。</td><td>检查 loop 顶点数；放宽 <code>--circle-fit-threshold</code> 或 <code>--near-circle-axis-ratio-tolerance</code>。</td></tr>
+        <tr><td>简化时特征漂移</td><td><code>projected_feature_placements</code> 少，<code>curve_budget_rejected</code> 低但 compare missing。</td><td>打开 <code>--preserve-feature-curves</code>，设置 <code>--feature-curve-weight</code> 和 <code>--max-feature-curve-deviation-ratio</code>。</td></tr>
+        <tr><td>简化达不到目标</td><td><code>feature_rejected</code>、<code>boundary_rejected</code>、<code>quality_rejected</code> 很高，termination 是 rejection-limit。</td><td>避免一开始就用 <code>all-feature-edges</code>；先用默认 primitive-curves，再逐步加硬约束。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>后续可演进方向</h3>
+    <ol>
+      <li>把 feature graph cleanup 的 bridge 结果纳入更明确的 confidence/uncertainty 报告。</li>
+      <li>引入多尺度二面角或 normal tensor persistence 的可视化 CSV，帮助调参。</li>
+      <li>增加 ridge/valley 或 curvature derivative 分支，用于自由曲面和 smooth feature。</li>
+      <li>对 CAD 圆/椭圆 loop 增加局部重采样/重定位，减少由 tessellation 造成的 primitive residual。</li>
+      <li>参考 CWF/feature-sensitive simplification，把弱特征 consolidation 做成简化前的显式阶段。</li>
+      <li>为复杂 CAD wireframe 研究 direction field/junction solver，而不是继续只靠边级证据。</li>
+    </ol>
+  </section>
+
+  <section id="refs">
+    <h2>15. 引用索引</h2>
+
+    <h3>代码引用</h3>
+    <table>
+      <thead><tr><th>ID</th><th>位置</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ref">C01</span></td><td><a href="../../../src/feature_detection/FeatureDetector.cpp">src/feature_detection/FeatureDetector.cpp:28-223</a></td><td>FeatureDetectionContext、六阶段 pipeline、FeatureDetector facade、detectFeatureCurves。</td></tr>
+        <tr><td><span class="ref">C02</span></td><td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">include/algorithms/feature_detection/FeatureTypes.h:26-234</a></td><td>FeatureOptions、FeatureLoop、VertexFeature、FeatureGraph、FeatureComponent、FeatureAnalysis。</td></tr>
+        <tr><td><span class="ref">C03</span></td><td><a href="../../../src/feature_detection/FeatureDetector.cpp">src/feature_detection/FeatureDetector.cpp:49-85</a></td><td>FeatureOptions 合法性校验。</td></tr>
+        <tr><td><span class="ref">C04</span></td><td><a href="../../../src/feature_detection/FeatureDetector.cpp">src/feature_detection/FeatureDetector.cpp:87-95</a></td><td>输入 mesh 几何校验。</td></tr>
+        <tr><td><span class="ref">C05</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:13-249</a></td><td>候选特征边证据收集：boundary、dihedral、non-manifold、normal tensor。</td></tr>
+        <tr><td><span class="ref">C06</span></td><td><a href="../../../src/feature_detection/NormalTensor.cpp">src/feature_detection/NormalTensor.cpp:32-109</a></td><td>normal tensor 构造、平滑、多尺度和 persistent score。</td></tr>
+        <tr><td><span class="ref">C07</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:114-171</a></td><td>normalTensorEdgeCandidate 的接受条件。</td></tr>
+        <tr><td><span class="ref">C08</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:70-86</a></td><td>markDiscreteFeatureVertices，强离散特征顶点标记。</td></tr>
+        <tr><td><span class="ref">C09</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:88-112</a></td><td>signedDihedralKind，convex/concave/unknown 二面角符号估计。</td></tr>
+        <tr><td><span class="ref">C10</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:57-96</a></td><td>FeatureGraph 初始化和 TraceGraph 构建。</td></tr>
+        <tr><td><span class="ref">C11</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:102-372</a></td><td>removeWeakSpurs、bridgeCloseJunctions、bridgeEndpointGaps、cleanupTraceGraph。</td></tr>
+        <tr><td><span class="ref">C12</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:292-474</a></td><td>primitiveResidual、computeConfidence、summarizeFeatureComponents。</td></tr>
+        <tr><td><span class="ref">C13</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:192-209</a></td><td>finalizeFeatureGraphMarkers，junction/shared 顶点标记。</td></tr>
+        <tr><td><span class="ref">C14</span></td><td><a href="../../../src/feature_detection/detail/FeatureDetectionTypes.h">src/feature_detection/detail/FeatureDetectionTypes.h:13-77</a></td><td>CandidateEdge、TraceGraph、TraceLoopStats、FeatureAnalysisBuilder。</td></tr>
+        <tr><td><span class="ref">C15</span></td><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">src/feature_detection/FeatureLoopRecovery.cpp:10-17</a></td><td>五段 loop recovery 调度顺序。</td></tr>
+        <tr><td><span class="ref">C16</span></td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">src/feature_detection/FeatureCycleRecovery.cpp:119-220</a></td><td>junction circular cycle 和 small cycle basis 恢复。</td></tr>
+        <tr><td><span class="ref">C17</span></td><td><a href="../../../src/feature_detection/FeatureTraceRecovery.cpp">src/feature_detection/FeatureTraceRecovery.cpp:136-163</a></td><td>剩余 trace graph 的 open chain / closed loop 追踪。</td></tr>
+        <tr><td><span class="ref">C18</span></td><td><a href="../../../src/feature_detection/PrimitiveFit.cpp">src/feature_detection/PrimitiveFit.cpp:150-229</a></td><td>primitive fit 分类和写回 FeatureLoop。</td></tr>
+        <tr><td><span class="ref">C19</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:63-229</a></td><td>assignLoopToVertices、addTracedLoop、addRecoveredCycle。</td></tr>
+        <tr><td><span class="ref">C20</span></td><td><a href="../../../src/feature_detection/FeaturePrimitiveRecovery.cpp">src/feature_detection/FeaturePrimitiveRecovery.cpp:14-88</a></td><td>整 component 的 primitive fallback。</td></tr>
+        <tr><td><span class="ref">C21</span></td><td><a href="../../../src/feature_detection/FeatureCircularRecovery.cpp">src/feature_detection/FeatureCircularRecovery.cpp:144-211</a></td><td>circular vertex cluster bounded fallback。</td></tr>
+        <tr><td><span class="ref">C22</span></td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">apps/manumesh/ManuMeshCommands.cpp:309-620</a></td><td>feature-report、feature-benchmark、feature-compare 三个 CLI 命令。</td></tr>
+        <tr><td><span class="ref">C23</span></td><td><a href="../../../src/simplification/SimplificationPolicies.cpp">src/simplification/SimplificationPolicies.cpp:20-57</a></td><td>从 SimplifyOptions 派生 FeatureOptions，并按 preserveFeatureCurves 启用 feature policy。</td></tr>
+        <tr><td><span class="ref">C24</span></td><td><a href="../../../src/simplification/FeatureGuidance.cpp">src/simplification/FeatureGuidance.cpp:91-164</a></td><td>FeatureAnalysis 到 FeatureGuidance / FeatureCurveConstraint 的转换。</td></tr>
+        <tr><td><span class="ref">C25</span></td><td><a href="../../../src/simplification/Quadrics.cpp">src/simplification/Quadrics.cpp:160-181</a></td><td>feature curve tangent line quadrics。</td></tr>
+        <tr><td><span class="ref">C26</span></td><td><a href="../../../src/simplification/FeatureConstraints.cpp">src/simplification/FeatureConstraints.cpp:10-96</a></td><td>FeatureProtectionMode 和硬拒绝策略。</td></tr>
+        <tr><td><span class="ref">C27</span></td><td><a href="../../../src/simplification/FeatureConstraints.cpp">src/simplification/FeatureConstraints.cpp:98-176</a></td><td>feature placement 投影到圆、椭圆、多段线、边段或切线。</td></tr>
+        <tr><td><span class="ref">C28</span></td><td><a href="../../../src/simplification/CollapseAttempt.cpp">src/simplification/CollapseAttempt.cpp:10-125</a></td><td>curveBudgetAllows 和 evaluateCollapseAttempt 的特征约束入口。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>论文和文献引用</h3>
+    <table>
+      <thead><tr><th>ID</th><th>位置</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ref paper">P00</span></td><td><code>C:/Users/zh/.codex/skills/mesh-feature-literature/references/literature-map.md</code> 与 <code>decision-guide.md</code></td><td>本说明采用的文献路线总图：CAD/STL edge extraction、normal/tensor voting、loop tracing、feature-preserving simplification 等方法族。</td></tr>
+        <tr><td><span class="ref paper">P01</span></td><td><a href="../../papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</a></td><td>M007，CAD surface mesh C1/C2 discontinuity 检测参考。</td></tr>
+        <tr><td><span class="ref paper">P02</span></td><td><a href="../../papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</a></td><td>M016，CAD triangular mesh robust feature line extraction 参考。</td></tr>
+        <tr><td><span class="ref paper">P03</span></td><td><a href="../../papers/feature_detection/yamakawa_2005_polygon_crawling_feature_edge_extraction.pdf">docs/papers/feature_detection/yamakawa_2005_polygon_crawling_feature_edge_extraction.pdf</a>；<a href="../../papers/feature_detection/yamakawa_shimada_2009_polygon_crawling_feature_edge_extraction.pdf">docs/papers/feature_detection/yamakawa_shimada_2009_polygon_crawling_feature_edge_extraction.pdf</a></td><td>M018/M019，polygon crawling feature-edge extraction 参考。</td></tr>
+        <tr><td><span class="ref paper">P04</span></td><td><a href="../../papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf">docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</a></td><td>M015，normal tensor surface-feature line extraction 参考。</td></tr>
+        <tr><td><span class="ref paper">P05</span></td><td><a href="../../papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf">docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</a>；<a href="../../papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf">docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</a></td><td>M012/M013，normal voting crease detection 与 curvature estimation 参考。</td></tr>
+        <tr><td><span class="ref paper">P06</span></td><td><a href="../../papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf">docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</a></td><td>M009，多尺度 noisy mesh crease detection 参考。</td></tr>
+        <tr><td><span class="ref paper">P07</span></td><td><a href="../../papers/feature_detection/rusinkiewicz_2004_estimating_curvatures_derivatives_triangle_meshes.pdf">docs/papers/feature_detection/rusinkiewicz_2004_estimating_curvatures_derivatives_triangle_meshes.pdf</a></td><td>M014，triangle mesh curvature and derivative estimation 参考。</td></tr>
+        <tr><td><span class="ref paper">P08</span></td><td><a href="../../papers/feature_detection/ohtake_2004_ridge_valley_lines_implicit_surface_fitting.pdf">docs/papers/feature_detection/ohtake_2004_ridge_valley_lines_implicit_surface_fitting.pdf</a>；<a href="../../papers/feature_detection/yoshizawa_2005_fast_robust_detection_crest_lines.pdf">docs/papers/feature_detection/yoshizawa_2005_fast_robust_detection_crest_lines.pdf</a></td><td>M011/M021，ridge-valley / crest line 检测参考。</td></tr>
+        <tr><td><span class="ref paper">P09</span></td><td><a href="../../papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</a></td><td>M024，engineering object edge-based mesh segmentation 参考。</td></tr>
+        <tr><td><span class="ref paper">P10</span></td><td><a href="../../papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</a></td><td>M026，weak feature consolidation for high-quality simplification 参考。</td></tr>
+        <tr><td><span class="ref paper">P11</span></td><td><a href="../../papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</a>；<a href="../../papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</a></td><td>M029/M028，feature-sensitive metric 和 feature-vertex protection 参考。</td></tr>
+        <tr><td><span class="ref paper">P12</span></td><td><a href="../../papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf">docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</a></td><td>M004，line quadrics 控制 QEM 切向漂移参考。</td></tr>
+        <tr><td><span class="ref paper">P13</span></td><td><a href="../../papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf">docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</a></td><td>M002，QEM 基础参考。</td></tr>
+        <tr><td><span class="ref paper">P14</span></td><td><a href="../../papers/feature_detection/feng_2025_dframe_direction_field_wireframe_extraction_cad.pdf">docs/papers/feature_detection/feng_2025_dframe_direction_field_wireframe_extraction_cad.pdf</a>；<a href="../../papers/feature_detection/liu_2021_pc2wf_wireframe_reconstruction_raw_point_clouds.pdf">docs/papers/feature_detection/liu_2021_pc2wf_wireframe_reconstruction_raw_point_clouds.pdf</a>；<a href="../../papers/feature_detection/zhu_2023_nerve_neural_volumetric_edges.pdf">docs/papers/feature_detection/zhu_2023_nerve_neural_volumetric_edges.pdf</a></td><td>M006/M008/M023，复杂 CAD wireframe、point-cloud wireframe 和 neural edge graph 参考。</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<footer>
+  生成位置：<code>docs/generated/notes/manumesh-feature-recognition-pipeline.html</code>。本文件为源码阅读和文献对照文档，不改变程序行为。
+</footer>
+</body>
+</html>

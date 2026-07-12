@@ -219,11 +219,12 @@ MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`
 - `src/simplification/CollapseAttempt.cpp`：单个候选坍缩的接受/拒绝评估和过滤器组合。
 - `src/simplification/SimplificationPolicies.cpp`：公开 `SimplifyOptions` 到内部 target/features/legality policy 的转换。
 - `src/feature_detection/FeatureDetector.cpp`：FeatureDetector pimpl、公开入口和 feature detection pipeline 编排。
-- `src/feature_detection/FeatureEvidence.cpp`：boundary、dihedral、non-manifold 和 normal-tensor edge evidence。
+- `src/feature_detection/FeatureEvidence.cpp`：boundary、dihedral、non-manifold、normal-tensor 和 smooth-curvature edge evidence 组合。
 - `src/feature_detection/FeatureGraph.cpp`：feature graph、trace graph 和 junction/shared 标记。
 - `src/feature_detection/FeatureLoopRecovery.cpp`、`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`：loop 恢复调度、cycle 恢复、trace chain 追踪和 primitive component 兜底。
 - `src/feature_detection/PrimitiveFit.cpp`：圆、近圆和椭圆 primitive 拟合。
 - `src/feature_detection/NormalTensor.cpp`：normal-tensor 特征评分。
+- `src/feature_detection/SmoothCurvature.cpp`：opt-in 光滑曲率特征评分（多尺度 quadric 拟合、方向极值和 persistence，需 `--smooth-curvature-features`）。
 
 ## 常用命令示例
 

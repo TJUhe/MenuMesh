@@ -2,6 +2,8 @@
 
 本文记录 2026-07-09 针对特征识别、QEM 特征保护和 common 几何查询的联动改动。目标是先把 CAD/STL 三角网格上的确定性 feature graph、弱特征 tensor 证据和简化器可消费诊断做稳，再推进 neural/wireframe 或更重的全局优化路线。
 
+> 后续进展：2026-07-11 已在此基础上以 opt-in 形式落地确定性光滑曲率特征检测（多尺度鲁棒 quadric 拟合、带符号方向极值、跨尺度 persistence，`FeatureOptions::useSmoothCurvatureFeatures`），作为与 normal tensor 并列的第二条弱证据通道，见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
+
 ## 已完成改动
 
 - `loopTraceAngleDeg` 独立于 `featureAngleDeg`：默认 `-1` 表示复用用户的二面角阈值，不再把 loop tracing 阈值硬抬到 40 度。`feature-report` 和 `simplify` 都会报告 `tracedFeatureEdges` / `untracedFeatureEdges`。
@@ -52,4 +54,4 @@
 2. Benchmark 第二版：edge/junction 多类型真值和闭环指标已落地；下一步加入 weak feature group、简化前后 feature drift 和全局 Hausdorff 指标。
 3. QEM 二阶段优化：固定拓扑质量 refinement 已落地；下一步扩展到 high-confidence primitive/component 的受约束 feature relocation。
 4. Edge dihedral plane quadrics 与 line weight 调度：比较 component confidence、dihedral plane quadrics、line quadrics 在浅特征/平面漂移上的收益。
-5. Learned saliency / neural QEM：只在 deterministic baseline 对弱、浅、非均匀采样特征失效时作为对比项接入，且不得替代拓扑、法向、局部误差和 feature drift 硬过滤。
+5. Learned saliency / neural QEM：只在 deterministic baseline 对弱、浅、非均匀采样特征失效时作为对比项接入，且不得替代拓扑、法向、局部误差和 feature drift 硬过滤。2026-07-11 的 smooth-curvature 通道把 deterministic baseline 又推进了一步（多尺度曲率极值 + persistence），进一步压缩了需要学习方法介入的空间。

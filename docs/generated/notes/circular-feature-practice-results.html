@@ -259,6 +259,9 @@ img, svg, canvas, video {
 <div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #0b6b57;background:#f8fbfc;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
   <strong>ManuMesh 历史导出资料：</strong>本页保留为历史 HTML 导出，当前产品名为 <strong>ManuMesh</strong>；当前 C++ 命名空间为 <code>manumesh</code>；CMake 目标、include 路径和 CLI 名称仍沿用 <code>manumesh</code>、<code>manumesh</code>。当前源码结构以 <code>docs/design/source_organization.md</code> 为准；当前 STL/OBJ I/O 位于 <code>include/io</code> / <code>src/io</code>，Debug-only HTML wireframe 辅助工具位于默认关闭的 <code>src/debugUtil</code>。
 </div>
+<div style="margin:16px auto;max-width:1120px;padding:12px 16px;border:1px solid #cfd8dc;border-left:4px solid #285f9f;background:#f8faff;color:#172126;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;line-height:1.65">
+  <strong>现状注记（2026-07-12）：</strong>程序现已加入 opt-in 的 smooth-curvature 弱证据路径（<code>FeatureOptions::useSmoothCurvatureFeatures</code>，feature-analysis CLI 选项 <code>--smooth-curvature-features</code>），用确定性多尺度 quadric 曲率补充光滑 ridge/valley 特征，设计说明见 <code>docs/design/smooth_curvature_feature_detection_2026_07_11.md</code>。本页记录的实验结果基于当时的默认路线（硬证据 + normal tensor），历史数据保持原样。
+</div>
 <div class="page">
 <header class="hero">
   <div class="eyebrow">实践结果 / 外部工业模型</div>

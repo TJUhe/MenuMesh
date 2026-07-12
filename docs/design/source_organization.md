@@ -10,7 +10,7 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | --- | --- | --- |
 | `include/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
 | `include/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
-| `include/io/` | STL/OBJ 网格读写 API | 文件格式边界属于 io，不让 `core` 承担解析细节。 |
+| `include/io/` | STL/OBJ 网格读写 API | 文件格式边界属于 io，不让 `core` 承担解析细节。OBJ 读取支持多边形自动三角化并保留逐角 `vt` 纹理坐标。 |
 | `include/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
 | `include/algorithms/simplification/` | QEM 简化选项、报告、指标、对象入口 | 当前主要 decimation 模块。 |
 | `include/algorithms/<domain>/` | 未来平级算法 API，例如 `repair`、`remeshing` | 只放稳定 options/result/facade，不放 pipeline 私有状态。 |
@@ -62,8 +62,11 @@ src/simplification/CandidateQueue.cpp           折叠候选优先队列
 src/simplification/CollapseTopology.cpp         boundary policy、link condition 与通用动态拓扑的适配
 src/simplification/SimplificationValidation.cpp 选项和输入校验
 src/simplification/Metrics.cpp                  质量、采样和统计指标；距离查询复用 common MeshDistanceIndex
+src/simplification/QualityRefinement.cpp        可选固定拓扑质量精修轮（启用纹理保护时暂时跳过）
 src/simplification/CollapseLegality.cpp         拓扑、边界、质量、法线、自交过滤；几何谓词复用 common
 src/simplification/SpatialFaceIndex.cpp         面片 AABB 到 common UniformAabbCandidateGrid 的适配器
+src/simplification/TextureProtection.cpp        opt-in 纹理保护：局部 UV chart 配对、有符号 UV 面积检查和标量失真代价
+src/simplification/detail/TextureProtection.h   纹理保护私有接口，不安装
 ```
 
 ## 当前 mesh_edit 模块拆分
@@ -84,7 +87,8 @@ src/mesh_edit/detail/DynamicTopology.h        动态拓扑私有接口
 
 ```text
 src/feature_detection/FeatureDetector.cpp          FeatureDetector pimpl、公共入口、pipeline stage 编排和 CSV 小工具
-src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor 边证据策略
+src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor/smooth-curvature 边证据策略组合
+src/feature_detection/SmoothCurvature.cpp          opt-in 确定性光滑曲率证据：多尺度鲁棒 quadric 拟合、带符号主曲率、方向极值和 persistence
 src/feature_detection/FeatureGraph.cpp             FeatureGraph 初始化、trace graph 构建和 junction/shared 标记
 src/feature_detection/FeatureLoopRecovery.cpp      cycle/trace/primitive/circular recovery 编排
 src/feature_detection/FeatureCycleRecovery.cpp     junction cycle 和小 cycle basis 恢复

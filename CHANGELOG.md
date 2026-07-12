@@ -2,6 +2,33 @@
 
 ## 2026-07-11
 
+### Texture-aware 4x4 QEM
+
+- Added face-corner UV ownership to `Mesh` and `PlainMesh`, including OBJ `vt`
+  parsing, validation, compaction, conversion, and simplification output.
+- Kept the geometry quadric and placement solve at 4x4. Opt-in texture preservation is
+  implemented as a scale-normalized local scalar cost plus explicit UV-chart,
+  seam, signed-area, and degeneration checks.
+- Added deterministic seam-chart pairing so compatible collapses along a seam
+  remain possible while collapses that merge unrelated charts are filtered.
+- Added focused tests for matrix dimension, scalar weighting, UV-scale
+  invariance, seam compatibility, UV degeneration, OBJ corner ownership,
+  output propagation, and exact legacy geometry when protection is disabled.
+
+### Deterministic smooth feature detection
+
+- Added opt-in multiscale smooth ridge/valley evidence based on robust local
+  quadric fitting, generalized principal-curvature estimation, signed
+  directional extrema, tangent consistency, and scale persistence.
+- Kept smooth-curvature edges distinct from boundary, dihedral, non-manifold,
+  and normal-tensor evidence throughout `FeatureGraph`, component confidence,
+  cleanup, diagnostics, CSV output, and the feature CLI.
+- Added focused tests for exact-plane rejection, smooth-feature response,
+  scale invariance, persistence filtering, graph ownership, and invalid options.
+- Added recent 2017-2025 deterministic literature notes and a source-level map to
+  OpenMesh, CGAL PMP, pmp-library, libigl, and geometry-central. AI and learned
+  feature scoring remain explicitly outside this implementation.
+
 ### 可复用网格编辑基础层
 
 - 新增内部 `mesh_edit` 层，将活动面、增量 vertex-face incidence、邻接/重复面查询和

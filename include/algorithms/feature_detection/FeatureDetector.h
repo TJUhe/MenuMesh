@@ -36,7 +36,7 @@ public:
     /// Replaces the options used by subsequent analyses.
     void setOptions(FeatureOptions options);
 
-    /// Detects boundary, non-manifold, dihedral, tensor, and fitted primitive curves.
+    /// Detects hard evidence, optional tensor/curvature evidence, and fitted curves.
     FeatureAnalysis analyze(const Mesh& mesh) const;
 
 private:
@@ -56,10 +56,22 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options, double persistenceThreshold);
 
+/// Computes deterministic smooth ridge/valley evidence from robust local
+/// quadric fits, principal curvatures, directional extrema, and scale
+/// persistence. No learned model or training data is used.
+MANUMESH_API std::vector<SmoothCurvatureVertex>
+computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options = {});
+
+/// Counts a scale as persistent only when its normalized score reaches the
+/// supplied threshold.
+MANUMESH_API std::vector<SmoothCurvatureVertex>
+computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options, double persistenceThreshold);
+
 /// Throws std::invalid_argument when feature-detection options are inconsistent.
 MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 
-/// Detects boundary, non-manifold, dihedral, tensor, and fitted primitive curves.
+/// Detects boundary, non-manifold, dihedral, tensor, optional smooth-curvature,
+/// and fitted primitive curves.
 ///
 /// The implementation first traces graph-supported loops, then applies bounded
 /// CAD repair fallbacks for sparse circular loops. It is not a general

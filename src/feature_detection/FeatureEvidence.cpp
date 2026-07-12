@@ -29,8 +29,22 @@ struct EdgeEvidenceContext {
                                                 )
                                               : std::vector<NormalTensorVertex>()
           ),
+          curvature(
+              options.useSmoothCurvatureFeatures ? computeSmoothCurvatureFeatures(
+                                                       mesh,
+                                                       SmoothCurvatureOptions{
+                                                           options.smoothCurvatureBaseNeighborhoodRings,
+                                                           options.smoothCurvatureScaleCount,
+                                                           options.smoothCurvatureRobustFitIterations,
+                                                           options.smoothCurvatureMinTangentConsistency,
+                                                       },
+                                                       options.smoothCurvatureFeatureThreshold
+                                                   )
+                                                 : std::vector<SmoothCurvatureVertex>()
+          ),
           discreteFeatureVertex(mesh.vertices.size(), 0) {
         summarizeNormalTensorVertices();
+        summarizeSmoothCurvatureVertices();
         markDiscreteFeatureVertices();
     }
 
@@ -41,6 +55,7 @@ struct EdgeEvidenceContext {
     manumesh::detail::MeshEdgeInfoMap edges;
     double dihedralThreshold = 0.0;
     std::vector<NormalTensorVertex> tensor;
+    std::vector<SmoothCurvatureVertex> curvature;
     std::vector<char> discreteFeatureVertex;
 
 private:
@@ -84,6 +99,33 @@ private:
                 discreteFeatureVertex[a] = 1;
                 discreteFeatureVertex[b] = 1;
             }
+        }
+    }
+
+    void summarizeSmoothCurvatureVertices() {
+        if (curvature.empty()) {
+            return;
+        }
+
+        double localScaleSum = 0.0;
+        double persistenceSum = 0.0;
+        for (const SmoothCurvatureVertex& vertex : curvature) {
+            analysis.maxSmoothCurvatureFeatureScore =
+                std::max(analysis.maxSmoothCurvatureFeatureScore, vertex.featureScore);
+            analysis.maxSmoothCurvaturePersistentScore =
+                std::max(analysis.maxSmoothCurvaturePersistentScore, vertex.persistentFeatureScore);
+            if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
+                continue;
+            }
+            ++analysis.smoothCurvatureScoredVertices;
+            localScaleSum += vertex.localScale;
+            persistenceSum += static_cast<double>(vertex.persistentScales);
+        }
+
+        if (analysis.smoothCurvatureScoredVertices > 0) {
+            const double count = static_cast<double>(analysis.smoothCurvatureScoredVertices);
+            analysis.meanSmoothCurvatureLocalScale = localScaleSum / count;
+            analysis.meanSmoothCurvaturePersistence = persistenceSum / count;
         }
     }
 };
@@ -166,6 +208,57 @@ bool normalTensorEdgeCandidate(
     return std::max(alignA, alignB) >= options.normalTensorMinEdgeAlignment;
 }
 
+bool smoothCurvatureEdgeCandidate(
+    CandidateEdge& edge,
+    const std::vector<SmoothCurvatureVertex>& curvature,
+    const std::vector<char>& discreteFeatureVertex,
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    FeatureAnalysis& analysis
+) {
+    if (!options.useSmoothCurvatureFeatures || edge.a < 0 || edge.b < 0 ||
+        edge.a >= static_cast<int>(curvature.size()) || edge.b >= static_cast<int>(curvature.size())) {
+        return false;
+    }
+    if (edge.a < static_cast<int>(discreteFeatureVertex.size()) &&
+        edge.b < static_cast<int>(discreteFeatureVertex.size()) &&
+        (discreteFeatureVertex[edge.a] || discreteFeatureVertex[edge.b])) {
+        return false;
+    }
+
+    const SmoothCurvatureVertex& a = curvature[edge.a];
+    const SmoothCurvatureVertex& b = curvature[edge.b];
+    analysis.maxSmoothCurvatureFeatureScore =
+        std::max(analysis.maxSmoothCurvatureFeatureScore, 0.5 * (a.featureScore + b.featureScore));
+    const double persistentScore = 0.5 * (a.persistentFeatureScore + b.persistentFeatureScore);
+    analysis.maxSmoothCurvaturePersistentScore = std::max(analysis.maxSmoothCurvaturePersistentScore, persistentScore);
+    const int requiredPersistentScales =
+        std::clamp(options.smoothCurvatureMinPersistentScales, 1, std::max(1, options.smoothCurvatureScaleCount));
+    const int minPersistentScales = std::min(a.persistentScales, b.persistentScales);
+    edge.curvaturePersistentScore = persistentScore;
+    edge.curvaturePersistentScales = minPersistentScales;
+    if (minPersistentScales < requiredPersistentScales ||
+        std::min(a.persistentFeatureScore, b.persistentFeatureScore) < options.smoothCurvatureFeatureThreshold ||
+        a.signedKind == 0 || b.signedKind == 0 || a.signedKind != b.signedKind) {
+        return false;
+    }
+
+    Vec3 direction = mesh.vertices[edge.b] - mesh.vertices[edge.a];
+    if (direction.norm() <= 1e-20) {
+        return false;
+    }
+    direction.normalize();
+    const double alignA = std::abs(direction.dot(a.curveTangent));
+    const double alignB = std::abs(direction.dot(b.curveTangent));
+    const double tangentConsistency = std::abs(a.curveTangent.dot(b.curveTangent));
+    if (std::min(alignA, alignB) < options.smoothCurvatureMinEdgeAlignment ||
+        tangentConsistency < options.smoothCurvatureMinTangentConsistency) {
+        return false;
+    }
+    edge.signedKind = a.signedKind;
+    return true;
+}
+
 class EdgeEvidenceStrategy {
 public:
     virtual ~EdgeEvidenceStrategy() = default;
@@ -221,6 +314,19 @@ public:
     }
 };
 
+class SmoothCurvatureEvidenceStrategy final : public EdgeEvidenceStrategy {
+public:
+    void
+    classify(CandidateEdge& edge, const manumesh::detail::MeshEdgeInfo&, EdgeEvidenceContext& context) const override {
+        if (edge.boundary || edge.dihedral || edge.nonManifold) {
+            return;
+        }
+        edge.smoothCurvature = smoothCurvatureEdgeCandidate(
+            edge, context.curvature, context.discreteFeatureVertex, context.mesh, context.options, context.analysis
+        );
+    }
+};
+
 } // namespace
 
 std::vector<CandidateEdge>
@@ -231,8 +337,9 @@ collectFeatureEdges(const Mesh& mesh, const FeatureOptions& options, FeatureAnal
     const DihedralEvidenceStrategy dihedralEvidence;
     const NonManifoldEvidenceStrategy nonManifoldEvidence;
     const NormalTensorEvidenceStrategy normalTensorEvidence;
-    const std::array<const EdgeEvidenceStrategy*, 4> strategies = {
-        &boundaryEvidence, &dihedralEvidence, &nonManifoldEvidence, &normalTensorEvidence
+    const SmoothCurvatureEvidenceStrategy smoothCurvatureEvidence;
+    const std::array<const EdgeEvidenceStrategy*, 5> strategies = {
+        &boundaryEvidence, &dihedralEvidence, &nonManifoldEvidence, &normalTensorEvidence, &smoothCurvatureEvidence
     };
 
     for (const auto& [key, info] : context.edges) {
@@ -245,7 +352,7 @@ collectFeatureEdges(const Mesh& mesh, const FeatureOptions& options, FeatureAnal
             strategy->classify(edge, info, context);
         }
 
-        if (edge.boundary || edge.dihedral || edge.normalTensor || edge.nonManifold) {
+        if (edge.boundary || edge.dihedral || edge.normalTensor || edge.smoothCurvature || edge.nonManifold) {
             result.push_back(edge);
             builder.recordFeatureEdge(edge);
         }

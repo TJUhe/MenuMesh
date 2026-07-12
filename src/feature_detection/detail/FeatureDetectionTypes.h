@@ -18,12 +18,15 @@ struct CandidateEdge {
     bool boundary = false;
     bool dihedral = false;
     bool normalTensor = false;
+    bool smoothCurvature = false;
     bool nonManifold = false;
     bool cleanupBridge = false;
     int signedKind = 0;
     double angleRad = 0.0;
     double tensorPersistentScore = 0.0;
     int tensorPersistentScales = 0;
+    double curvaturePersistentScore = 0.0;
+    int curvaturePersistentScales = 0;
 };
 
 struct TraceGraph {
@@ -32,11 +35,14 @@ struct TraceGraph {
     std::unordered_map<std::uint64_t, bool> edgeIsBoundary;
     std::unordered_map<std::uint64_t, bool> edgeIsDihedral;
     std::unordered_map<std::uint64_t, bool> edgeIsNormalTensor;
+    std::unordered_map<std::uint64_t, bool> edgeIsSmoothCurvature;
     std::unordered_map<std::uint64_t, bool> edgeIsNonManifold;
     std::unordered_map<std::uint64_t, bool> edgeIsCleanupBridge;
     std::unordered_map<std::uint64_t, int> edgeSignedKind;
     std::unordered_map<std::uint64_t, double> edgeTensorPersistence;
     std::unordered_map<std::uint64_t, int> edgeTensorPersistentScales;
+    std::unordered_map<std::uint64_t, double> edgeCurvaturePersistence;
+    std::unordered_map<std::uint64_t, int> edgeCurvaturePersistentScales;
     std::vector<std::pair<int, int>> graphEdges;
 };
 
@@ -45,6 +51,7 @@ struct TraceLoopStats {
     int boundaryEdges = 0;
     int dihedralEdges = 0;
     int normalTensorEdges = 0;
+    int smoothCurvatureEdges = 0;
     int nonManifoldEdges = 0;
     int cleanupBridgeEdges = 0;
     int convexEdges = 0;
@@ -77,6 +84,8 @@ public:
             ++analysis_.dihedralFeatureEdges;
         if (edge.normalTensor)
             ++analysis_.normalTensorFeatureEdges;
+        if (edge.smoothCurvature)
+            ++analysis_.smoothCurvatureFeatureEdges;
         if (edge.nonManifold)
             ++analysis_.nonManifoldFeatureEdges;
         if (edge.signedKind > 0)

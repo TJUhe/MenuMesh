@@ -11,6 +11,8 @@ namespace {
 
 bool finitePoint(const Vec3& p) { return std::isfinite(p.x()) && std::isfinite(p.y()) && std::isfinite(p.z()); }
 
+bool finiteTexCoord(const Vec2& uv) { return std::isfinite(uv.x()) && std::isfinite(uv.y()); }
+
 } // namespace
 
 bool Mesh::empty() const { return vertices.empty() || faces.empty(); }
@@ -46,6 +48,12 @@ double Mesh::bboxDiag() const {
     return (bboxMax() - bboxMin()).norm();
 }
 
+bool Mesh::hasTextureCoordinates() const {
+    return std::any_of(faceTexCoords.begin(), faceTexCoords.end(), [](const FaceTexCoords& texcoords) {
+        return texcoords.valid;
+    });
+}
+
 void Mesh::removeUnusedVertices() {
     std::vector<int> remap(vertices.size(), -1);
     std::vector<Vec3> newVertices;
@@ -66,30 +74,32 @@ void Mesh::removeUnusedVertices() {
         }
     }
 
+    const bool alignedTexcoords = faceTexCoords.size() == faces.size();
+    std::vector<Face> newFaces;
+    std::vector<FaceTexCoords> newTexcoords;
+    newFaces.reserve(faces.size());
+    if (alignedTexcoords) {
+        newTexcoords.reserve(faceTexCoords.size());
+    }
     for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
         if (!validFace[faceIndex]) {
             continue;
         }
-        Face& face = faces[faceIndex];
+        Face face = faces[faceIndex];
         for (int& id : face.v) {
             id = remap[id];
         }
+        newFaces.push_back(face);
+        if (alignedTexcoords) {
+            newTexcoords.push_back(faceTexCoords[faceIndex]);
+        }
     }
-    faces.erase(
-        std::remove_if(
-            faces.begin(),
-            faces.end(),
-            [&](const Face& face) {
-                for (int id : face.v) {
-                    if (id < 0 || id >= static_cast<int>(remap.size())) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        ),
-        faces.end()
-    );
+    faces.swap(newFaces);
+    if (alignedTexcoords) {
+        faceTexCoords.swap(newTexcoords);
+    } else {
+        faceTexCoords.clear();
+    }
     vertices.swap(newVertices);
 }
 
@@ -123,6 +133,26 @@ bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
                 *error = "Mesh vertex " + std::to_string(vertexIndex) + " contains a non-finite coordinate.";
             }
             return false;
+        }
+    }
+    if (!mesh.faceTexCoords.empty() && mesh.faceTexCoords.size() != mesh.faces.size()) {
+        if (error) {
+            *error = "Per-corner texture coordinates must be empty or aligned with mesh faces.";
+        }
+        return false;
+    }
+    for (std::size_t faceIndex = 0; faceIndex < mesh.faceTexCoords.size(); ++faceIndex) {
+        const FaceTexCoords& texcoords = mesh.faceTexCoords[faceIndex];
+        if (!texcoords.valid) {
+            continue;
+        }
+        for (const Vec2& uv : texcoords.uv) {
+            if (!finiteTexCoord(uv)) {
+                if (error) {
+                    *error = "Mesh face " + std::to_string(faceIndex) + " contains a non-finite texture coordinate.";
+                }
+                return false;
+            }
         }
     }
     for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {

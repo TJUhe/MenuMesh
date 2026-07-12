@@ -12,7 +12,7 @@ public:
     void clear();
     bool empty() const;
     Candidate pop();
-    void pushEdge(int a, int b, const std::vector<VertexState>& vertices);
+    void pushEdge(int a, int b, const std::vector<VertexState>& vertices, double additionalCost = 0.0);
 
 private:
     std::priority_queue<Candidate> queue_;

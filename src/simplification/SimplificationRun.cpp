@@ -28,7 +28,8 @@ SimplificationRun::SimplificationRun(
       precomputedFeatures_(features),
       policies_(SimplificationPolicies::fromOptions(options)),
       quadrics_(options),
-      featurePolicy_(options) {}
+      featurePolicy_(options),
+      textureProtection_(input, options) {}
 
 Mesh SimplificationRun::execute(SimplifyReport* outReport) {
     initializeReport();
@@ -48,7 +49,17 @@ Mesh SimplificationRun::execute(SimplifyReport* outReport) {
         positions.push_back(vertex.p);
         activeVertices.push_back(vertex.active ? 1 : 0);
     }
-    Mesh result = std::move(mesh_edit::compactActiveMesh(positions, activeVertices, faces_).mesh);
+    mesh_edit::MeshCompactionResult compacted = mesh_edit::compactActiveMesh(positions, activeVertices, faces_);
+    if (!faceTexCoords_.empty()) {
+        compacted.mesh.faceTexCoords.resize(compacted.mesh.faces.size());
+        for (int oldFace = 0; oldFace < static_cast<int>(compacted.oldToNewFaces.size()); ++oldFace) {
+            const int newFace = compacted.oldToNewFaces[oldFace];
+            if (newFace >= 0 && oldFace < static_cast<int>(faceTexCoords_.size())) {
+                compacted.mesh.faceTexCoords[newFace] = faceTexCoords_[oldFace];
+            }
+        }
+    }
+    Mesh result = std::move(compacted.mesh);
     report_.finalVertices = static_cast<int>(result.vertices.size());
     report_.finalFaces = static_cast<int>(result.faces.size());
     if (outReport) {
@@ -58,7 +69,7 @@ Mesh SimplificationRun::execute(SimplifyReport* outReport) {
 }
 
 void SimplificationRun::refineQuality() {
-    if (options_.qualityRefinementIterations <= 0) {
+    if (options_.qualityRefinementIterations <= 0 || textureProtection_.active()) {
         return;
     }
     runQualityRefinement(
@@ -148,8 +159,11 @@ void SimplificationRun::initializeFaces() {
     for (int i = 0; i < static_cast<int>(input_.faces.size()); ++i) {
         faces_[i].v = input_.faces[i].v;
     }
+    faceTexCoords_ = input_.faceTexCoords;
     topology_ = std::make_unique<DynamicTopology>(faces_, static_cast<int>(vertices_.size()));
     activeFaceCount_ = static_cast<int>(faces_.size());
+    report_.textureProtectedEdges =
+        textureProtection_.countProtectedEdges(faces_, vertices_, *topology_, faceTexCoords_);
     if (policies_.legality.preventLocalIntersections) {
         spatialIndex_.rebuild(faces_, vertices_);
     }
@@ -174,9 +188,31 @@ void SimplificationRun::initializeBudget() {
 void SimplificationRun::rebuildQueue() {
     queue_.clear();
     for (const auto& [a, b] : collectActiveEdges(faces_)) {
-        queue_.pushEdge(a, b, vertices_);
+        pushEdgeCandidate(a, b);
     }
     ++report_.queueRebuilds;
+}
+
+void SimplificationRun::pushEdgeCandidate(int a, int b) {
+    double textureCost = 0.0;
+    if (textureProtection_.active()) {
+        const Mat4 q = vertices_[a].q + vertices_[b].q;
+        const std::vector<SolveResult> placements = solvePlacementCandidates(q, vertices_[a].p, vertices_[b].p);
+        double bestCombinedCost = std::numeric_limits<double>::infinity();
+        for (const SolveResult& placement : placements) {
+            const TextureCollapseEvaluation textureEvaluation =
+                textureProtection_.evaluate({a, b}, placement.position, faces_, vertices_, *topology_, faceTexCoords_);
+            if (textureEvaluation.allowed()) {
+                bestCombinedCost = std::min(bestCombinedCost, placement.cost + textureEvaluation.cost);
+            }
+        }
+        if (!std::isfinite(bestCombinedCost)) {
+            textureCost = std::numeric_limits<double>::infinity();
+        } else {
+            textureCost = std::max(0.0, bestCombinedCost - placements.front().cost);
+        }
+    }
+    queue_.pushEdge(a, b, vertices_, textureCost);
 }
 
 void SimplificationRun::collapseUntilTarget() {
@@ -265,6 +301,8 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
          activeLoopCounts_,
          featureGuidance_.curves,
          featurePolicy_,
+         textureProtection_,
+         faceTexCoords_,
          policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
          referenceSurface_.get(),
          input_.bboxDiag(),
@@ -308,6 +346,10 @@ void SimplificationRun::recordRejectedCollapse(const CollapseAttemptResult& resu
         ++report_.curveBudgetRejectedCollapses;
         message = "feature curve budgets leave no valid collapses";
         break;
+    case CollapseAttemptStatus::TextureRejected:
+        ++report_.textureRejectedCollapses;
+        message = "texture constraints leave no valid collapses";
+        break;
     case CollapseAttemptStatus::LegalityRejected:
         switch (result.legalityReason) {
         case CollapseRejectReason::Topology:
@@ -348,6 +390,7 @@ void SimplificationRun::applyCollapse(int keep, int remove, const Vec3& position
                                    vertices_[keep].featureLoopId < static_cast<int>(activeLoopCounts_.size());
 
     const std::unordered_set<int> affectedFaces = collectAffectedFacesForCollapse(keep, remove);
+    textureProtection_.apply({keep, remove}, position, faces_, vertices_, *topology_, faceTexCoords_);
     if (policies_.legality.preventLocalIntersections) {
         for (int faceId : affectedFaces) {
             spatialIndex_.removeFace(faceId);
@@ -375,7 +418,7 @@ void SimplificationRun::applyCollapse(int keep, int remove, const Vec3& position
     ++report_.collapsedEdges;
 
     for (int neighbor : activeNeighborsOf(keep, faces_, vertices_, *topology_)) {
-        queue_.pushEdge(keep, neighbor, vertices_);
+        pushEdgeCandidate(keep, neighbor);
     }
 }
 

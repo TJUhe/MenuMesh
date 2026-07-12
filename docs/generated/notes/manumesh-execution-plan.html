@@ -264,7 +264,7 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureEdges()</code> 输出 edge precision/recall、junction F1、loop closure、component confidence 与 feature drift。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 feature-preserving simplification 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
-    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>曲率 ridge/valley、wireframe/neural edge、learned QEM 目前作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
+    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>确定性曲率 ridge/valley 已于 2026-07 落地为 opt-in 的 smooth-curvature 弱证据路径（<code>SmoothCurvature.cpp</code>，默认关闭）；wireframe/neural edge、learned QEM 仍作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
   </div>
   <p>一句话总览：ManuMesh 当前默认路线是 <strong>CAD/STL 离散证据 + normal-tensor 弱特征 + feature graph cleanup + component confidence + QEM/line-quadrics edge collapse + hard legality guards</strong>；neural/wireframe 是后续 benchmark 与增强方向。</p>
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
@@ -386,6 +386,7 @@ img, svg, canvas, video {
 </ol></div>
 </li>
 <li><a href="#s9">引用与开源资源</a></li>
+<li><a href="#progress-2026-07">进展纪要：2026-07-11/12 两项新能力落地</a></li>
 </ol>
 </div>
 
@@ -409,11 +410,11 @@ img, svg, canvas, video {
 
 <h3 id="p1-1">1.1 获取源码</h3>
 <pre><code># 方式一：git clone
-git clone <ManuMesh 仓库地址> ManuMesh
+git clone &lt;ManuMesh 仓库地址&gt; ManuMesh
 cd ManuMesh
 
 # 方式二：zip 下载（git 克隆失败时）
-curl -L -o manumesh.zip <ManuMesh ZIP 地址>
+curl -L -o manumesh.zip &lt;ManuMesh ZIP 地址&gt;
 mkdir ManuMesh
 tar -xf manumesh.zip --strip-components=1 -C ManuMesh
 cd ManuMesh</code></pre>
@@ -2290,6 +2291,29 @@ ctest -T coverage --output-on-failure</code></pre>
 <li><strong>面向对象重构</strong>：<code>QEMSimplifier</code> 类、<code>SimplificationRun</code> 类</li>
 </ol>
 </div>
+
+<!-- ===== 进展纪要 2026-07-11/12 ===== -->
+<h2 id="progress-2026-07"><span class="num">+</span>进展纪要：2026-07-11/12 两项新能力落地</h2>
+<p class="dim">本页以上内容保留为历史执行方案原文；本节只补记该方案完成之后、2026-07-11/12 这一轮在工作区落地的新能力，不改写历史计划。</p>
+
+<div class="callout success">
+<div class="callout-title">新能力一：纹理感知 4×4 QEM（opt-in，仅 C++ API）</div>
+<p><code>Mesh</code> 增加了逐面逐角（corner-owned）UV 存储 <code>faceTexCoords</code>，OBJ 读取升级为多边形网格自动三角化并保留每个角点的 <code>vt</code> 索引。简化侧保持几何 quadric 为 4×4 齐次矩阵、不做属性扩维：排序代价改为 <code>E_total(p) = E_geometry_4x4(p) + textureWeight * E_uv_local(p)</code>，其中 <code>E_uv_local</code> 是只在坍缩触及的面上求值的标量失真项；placement 候选仍是端点、中点、稳定 3D QEM 最优点。局部 chart 策略用容差网格哈希对坍缩两端点的入射角 UV 分组并一一配对，拒绝 chart 无对应/配对歧义/合并不相关 chart、UV 定向翻转和低于 <code>minTextureAreaRatio</code> 的面积退化。<code>SimplifyOptions</code> 新增 <code>preserveTexture</code>（默认 <code>false</code>，关闭时几何输出与旧无纹理路径 bit-exact 一致）、<code>textureWeight</code>、<code>textureSeamTolerance</code>、<code>minTextureAreaRatio</code>；报告新增 <code>textureProtectedEdges</code>、<code>textureRejectedCollapses</code> 诊断。设计文档：<code>docs/design/texture_aware_qem.md</code>；实现：<code>src/simplification/TextureProtection.cpp</code> + <code>detail/TextureProtection.h</code>。</p>
+</div>
+
+<div class="callout success">
+<div class="callout-title">新能力二：确定性光滑曲率特征检测（opt-in，无 AI/学习成分）</div>
+<p>特征检测在 boundary/non-manifold/dihedral 硬证据与 normal-tensor 弱证据之外，新增第二条弱证据路径 <code>src/feature_detection/SmoothCurvature.cpp</code>：逐顶点、逐拓扑尺度构建 k-ring 邻域，坐标经局部平均边长归一化后做确定性 Huber 重加权 Monge patch 拟合，由第一/第二基本形式解广义自伴特征问题得到带符号主曲率与方向，仅当中心是带符号方向极值时接受 ridge/valley，最后用跨尺度 persistence 与切向/符号一致性过滤，把顶点证据转成 mesh-edge 证据。分数无量纲，网格均匀缩放不需要重调阈值；两路证据只在显式 <code>FeatureGraph</code> 汇合，硬证据始终占主导。<code>FeatureOptions</code> 新增 8 个 <code>smoothCurvature*</code> 字段（<code>useSmoothCurvatureFeatures</code> 默认 <code>false</code>）。设计文档：<code>docs/design/smooth_curvature_feature_detection_2026_07_11.md</code>；文献综述：<code>docs/papers/recent_deterministic_feature_detection_2026-07-11.md</code>。</p>
+</div>
+
+<table>
+<tr><th>方面</th><th>纹理感知 QEM</th><th>光滑曲率特征检测</th></tr>
+<tr><td>测试覆盖</td><td><code>tests/unit/simplification/simplification_texture_tests.cpp</code>：矩阵维度不变、标量加权、UV atlas 缩放不变性、seam 兼容性、UV 退化、OBJ 角点归属、输出 UV 传播、关闭保护时与 legacy 几何完全一致。</td><td><code>tests/unit/feature_detection/feature_detection_smooth_curvature_tests.cpp</code>：精确平面零响应、光滑凸起响应、均匀缩放不变性、多尺度 persistence、最终 graph 阶段噪声抑制、graph 来源归属、参数校验，以及带标注 Gaussian ridge/valley fixture 上的 precision / segment recall。</td></tr>
+<tr><td>CLI 暴露</td><td>未暴露。<code>preserveTexture</code> 等只在 C++ <code>SimplifyOptions</code> 上可用，CLI <code>simplify</code> 没有对应选项。</td><td><code>feature-report</code> / <code>feature-benchmark</code> / <code>feature-compare</code> 新增 8 个 <code>--smooth-curvature-*</code> 选项，报告与 CSV 新增 <code>smooth_curvature_*</code> 字段；<code>simplify</code> 显式拒绝这些选项（C++ 简化可消费预计算的 <code>FeatureAnalysis</code>）。</td></tr>
+<tr><td>默认行为</td><td>默认关闭；不启用时候选排序与几何输出和旧路径 bit-exact 一致，UV 仍传播。</td><td>默认关闭；不启用时既有硬特征检测与简化行为完全不变。</td></tr>
+</table>
+
+<p>同期基础设施：上一轮已合入的 <code>mesh_edit</code> 内部编辑层（动态拓扑、compact/remap，见 <code>docs/design/mesh_edit_foundation.md</code>）为这两项能力提供了统一的局部编辑与重映射基础。交付边界不变：仍无 B-Rep kernel、通用 Boolean/offset/healing、CAD feature tree 恢复、全局 Hausdorff 认证或制造公差合规保证。</p>
 
 </div>
 

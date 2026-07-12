@@ -8,6 +8,7 @@
 #include <limits>
 #include <numeric>
 #include <queue>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace manumesh::feature::detector_detail {
@@ -47,19 +48,9 @@ double vertexScale(const std::vector<double>& scales, int vertex, double fallbac
 }
 
 bool isWeakCleanupSpurEdge(const TraceGraph& trace, int a, int b) {
-    return traceEdgeNormalTensor(trace, a, b) && !traceEdgeBoundary(trace, a, b) && !traceEdgeDihedral(trace, a, b) &&
+    const bool weakEvidence = traceEdgeNormalTensor(trace, a, b) || traceEdgeSmoothCurvature(trace, a, b);
+    return weakEvidence && !traceEdgeBoundary(trace, a, b) && !traceEdgeDihedral(trace, a, b) &&
            !traceEdgeNonManifold(trace, a, b) && !traceEdgeCleanupBridge(trace, a, b);
-}
-
-void markFeatureGraphEdgeRemoved(FeatureAnalysis& analysis, int a, int b) {
-    for (FeatureGraphEdge& edge : analysis.graph.edges) {
-        const bool sameDirection = edge.a == a && edge.b == b;
-        const bool reverseDirection = edge.a == b && edge.b == a;
-        if ((sameDirection || reverseDirection) && !edge.removedByCleanup) {
-            edge.removedByCleanup = true;
-            return;
-        }
-    }
 }
 
 std::vector<std::pair<int, int>> traceShortWeakSpur(const TraceGraph& trace, int seed, int maxEdges) {
@@ -105,6 +96,13 @@ void removeWeakSpurs(const FeatureOptions& options, TraceGraph& trace, FeatureAn
         return;
     }
 
+    std::unordered_map<std::uint64_t, int> graphEdgeIndex;
+    graphEdgeIndex.reserve(analysis.graph.edges.size());
+    for (int edgeId = 0; edgeId < static_cast<int>(analysis.graph.edges.size()); ++edgeId) {
+        const FeatureGraphEdge& edge = analysis.graph.edges[edgeId];
+        graphEdgeIndex[manumesh::detail::meshEdgeKey(edge.a, edge.b)] = edgeId;
+    }
+
     bool changed = true;
     int passes = 0;
     while (changed && passes++ < 8) {
@@ -132,7 +130,10 @@ void removeWeakSpurs(const FeatureOptions& options, TraceGraph& trace, FeatureAn
                 continue;
             }
             removeTraceGraphEdge(trace, a, b);
-            markFeatureGraphEdgeRemoved(analysis, a, b);
+            const auto graphEdge = graphEdgeIndex.find(manumesh::detail::meshEdgeKey(a, b));
+            if (graphEdge != graphEdgeIndex.end()) {
+                analysis.graph.edges[graphEdge->second].removedByCleanup = true;
+            }
             ++removedEdgeCount;
             changed = true;
         }
@@ -323,14 +324,18 @@ double computeConfidence(const FeatureComponent& component, const FeatureOptions
     }
     const double tensorScore =
         std::clamp(component.meanTensorPersistence / std::max(1e-12, options.normalTensorFeatureThreshold), 0.0, 1.0);
-    const double evidenceScore = std::max(component.strongEvidenceRatio, 0.75 * tensorScore);
+    const double curvatureScore = std::clamp(
+        component.meanCurvaturePersistence / std::max(1e-12, options.smoothCurvatureFeatureThreshold), 0.0, 1.0
+    );
+    const double weakSupportScore = std::max(tensorScore, curvatureScore);
+    const double evidenceScore = std::max(component.strongEvidenceRatio, 0.80 * weakSupportScore);
     const double residualScore =
         hasPrimitiveResidual ? std::clamp(1.0 - component.meanPrimitiveResidual / 0.12, 0.0, 1.0) : 0.5;
     const double junctionPenalty = component.junctionVertices > 2
                                        ? std::min(0.25, 0.04 * static_cast<double>(component.junctionVertices - 2))
                                        : 0.0;
     return std::clamp(
-        0.45 * evidenceScore + 0.25 * component.closureRate + 0.20 * residualScore + 0.10 * tensorScore -
+        0.45 * evidenceScore + 0.25 * component.closureRate + 0.20 * residualScore + 0.10 * weakSupportScore -
             junctionPenalty,
         0.0,
         1.0
@@ -409,6 +414,8 @@ void summarizeFeatureComponents(
                         ++component.dihedralEdges;
                     if (traceEdgeNormalTensor(trace, v, nb))
                         ++component.normalTensorEdges;
+                    if (traceEdgeSmoothCurvature(trace, v, nb))
+                        ++component.smoothCurvatureEdges;
                     if (traceEdgeNonManifold(trace, v, nb))
                         ++component.nonManifoldEdges;
                     if (traceEdgeCleanupBridge(trace, v, nb))
@@ -422,15 +429,20 @@ void summarizeFeatureComponents(
         }
 
         double tensorPersistenceSum = 0.0;
+        double curvaturePersistenceSum = 0.0;
         for (int v : component.vertices) {
             for (int nb : trace.adjacency[v]) {
                 if (v < nb && traceEdgeNormalTensor(trace, v, nb)) {
                     tensorPersistenceSum += traceEdgeTensorPersistence(trace, v, nb);
                 }
+                if (v < nb && traceEdgeSmoothCurvature(trace, v, nb)) {
+                    curvaturePersistenceSum += traceEdgeCurvaturePersistence(trace, v, nb);
+                }
             }
         }
         component.strongEvidenceEdges = component.boundaryEdges + component.dihedralEdges + component.nonManifoldEdges;
-        component.weakEvidenceEdges = component.normalTensorEdges + component.cleanupBridgeEdges;
+        component.weakEvidenceEdges =
+            component.normalTensorEdges + component.smoothCurvatureEdges + component.cleanupBridgeEdges;
         component.cycleRank = component.edgeCount - static_cast<int>(component.vertices.size()) + 1;
         component.closed = component.endpointVertices == 0 && component.edgeCount > 0 && component.cycleRank >= 0;
         component.closureRate = computeClosureRate(component.endpointVertices, component.cycleRank);
@@ -440,6 +452,10 @@ void summarizeFeatureComponents(
         component.meanTensorPersistence = component.normalTensorEdges > 0
                                               ? tensorPersistenceSum / static_cast<double>(component.normalTensorEdges)
                                               : 0.0;
+        component.meanCurvaturePersistence =
+            component.smoothCurvatureEdges > 0
+                ? curvaturePersistenceSum / static_cast<double>(component.smoothCurvatureEdges)
+                : 0.0;
         analysis.components.push_back(std::move(component));
     }
 

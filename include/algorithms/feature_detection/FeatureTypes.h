@@ -49,6 +49,24 @@ struct FeatureOptions {
     int normalTensorScaleCount = 1;
     /// Minimum scales that must support a tensor edge candidate.
     int normalTensorMinPersistentScales = 1;
+    /// Enables deterministic smooth ridge/valley evidence from local quadric fits.
+    /// Kept opt-in because CAD/STL hard-feature and scanned/free-form regimes need
+    /// different thresholds and validation data.
+    bool useSmoothCurvatureFeatures = false;
+    /// Minimum scale-normalized smooth-feature score.
+    double smoothCurvatureFeatureThreshold = 0.015;
+    /// Minimum alignment between a mesh edge and the recovered curve tangent.
+    double smoothCurvatureMinEdgeAlignment = 0.55;
+    /// Minimum cross-scale and endpoint tangent agreement.
+    double smoothCurvatureMinTangentConsistency = 0.65;
+    /// Base topological radius used by local quadric fitting.
+    int smoothCurvatureBaseNeighborhoodRings = 2;
+    /// Number of successively larger quadric-fit neighborhoods.
+    int smoothCurvatureScaleCount = 3;
+    /// Minimum scales that must support a smooth feature candidate.
+    int smoothCurvatureMinPersistentScales = 2;
+    /// Deterministic robust reweighting passes for local quadric fitting.
+    int smoothCurvatureRobustFitIterations = 2;
     /// Enables local feature-graph cleanup before loop recovery.
     bool cleanupFeatureGraph = true;
     /// Maximum endpoint gap, in local average-edge-length units, bridged by cleanup.
@@ -77,6 +95,36 @@ struct NormalTensorVertex {
     double persistentFeatureScore = 0.0;
     double localScale = 0.0;
     int persistentScales = 0;
+};
+
+/// Parameters for robust scale-normalized local quadric fitting.
+struct SmoothCurvatureOptions {
+    int baseNeighborhoodRings = 2;
+    int scaleCount = 3;
+    int robustFitIterations = 2;
+    double minTangentConsistency = 0.65;
+};
+
+/// Per-vertex smooth ridge/valley evidence from multiscale quadric fitting.
+///
+/// Curvatures and scores are normalized by the fitted neighborhood radius, so
+/// thresholds remain stable under uniform mesh scaling.
+struct SmoothCurvatureVertex {
+    Vec3 normal = Vec3(0.0, 0.0, 1.0);
+    Vec3 curveTangent = Vec3(1.0, 0.0, 0.0);
+    Vec3 extremumDirection = Vec3(0.0, 1.0, 0.0);
+    double principalCurvature = 0.0;
+    double secondaryCurvature = 0.0;
+    double anisotropy = 0.0;
+    double extremumStrength = 0.0;
+    double featureScore = 0.0;
+    double averageFeatureScore = 0.0;
+    double persistentFeatureScore = 0.0;
+    double fitResidual = 0.0;
+    double localScale = 0.0;
+    int persistentScales = 0;
+    /// Positive for a ridge, negative for a valley, zero when unclassified.
+    int signedKind = 0;
 };
 
 /// One connected feature curve or loop detected in the mesh.
@@ -150,6 +198,7 @@ struct FeatureGraphEdge {
     bool boundary = false;
     bool dihedral = false;
     bool normalTensor = false;
+    bool smoothCurvature = false;
     bool nonManifold = false;
     bool cleanupBridge = false;
     bool removedByCleanup = false;
@@ -176,7 +225,7 @@ struct FeatureGraph {
 ///
 /// These diagnostics make weak-feature decisions explicit: downstream
 /// simplification can distinguish a closed, strongly supported CAD loop from a
-/// sparse, tensor-only ridge fragment even when both produce feature vertices.
+/// sparse, weak-evidence ridge fragment even when both produce feature vertices.
 struct FeatureComponent {
     int id = -1;
     std::vector<int> vertices;
@@ -184,6 +233,7 @@ struct FeatureComponent {
     int boundaryEdges = 0;
     int dihedralEdges = 0;
     int normalTensorEdges = 0;
+    int smoothCurvatureEdges = 0;
     int nonManifoldEdges = 0;
     int cleanupBridgeEdges = 0;
     int strongEvidenceEdges = 0;
@@ -195,6 +245,7 @@ struct FeatureComponent {
     double closureRate = 0.0;
     double strongEvidenceRatio = 0.0;
     double meanTensorPersistence = 0.0;
+    double meanCurvaturePersistence = 0.0;
     double meanPrimitiveResidual = 0.0;
     double confidence = 0.0;
 };
@@ -218,8 +269,10 @@ struct FeatureAnalysis {
     int boundaryFeatureEdges = 0;
     int dihedralFeatureEdges = 0;
     int normalTensorFeatureEdges = 0;
+    int smoothCurvatureFeatureEdges = 0;
     int nonManifoldFeatureEdges = 0;
     int normalTensorScoredVertices = 0;
+    int smoothCurvatureScoredVertices = 0;
     int convexFeatureEdges = 0;
     int concaveFeatureEdges = 0;
     int unknownSignedFeatureEdges = 0;
@@ -229,6 +282,10 @@ struct FeatureAnalysis {
     double maxNormalTensorPersistentScore = 0.0;
     double meanNormalTensorLocalScale = 0.0;
     double meanNormalTensorPersistence = 0.0;
+    double maxSmoothCurvatureFeatureScore = 0.0;
+    double maxSmoothCurvaturePersistentScore = 0.0;
+    double meanSmoothCurvatureLocalScale = 0.0;
+    double meanSmoothCurvaturePersistence = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
 };

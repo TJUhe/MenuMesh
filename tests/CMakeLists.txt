@@ -291,6 +291,7 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/feature_detection/feature_detection_external_tests.cpp
   unit/feature_detection/feature_detection_fixture_tests.cpp
   unit/feature_detection/feature_detection_loop_tests.cpp
+  unit/feature_detection/feature_detection_smooth_curvature_tests.cpp
   unit/simplification/qem_parameter_budget_tests.cpp
   unit/simplification/qem_parameter_feature_tests.cpp
   unit/simplification/qem_parameter_industrial_tests.cpp
@@ -301,9 +302,16 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/simplification/simplification_legality_tests.cpp
   unit/simplification/simplification_normal_tensor_tests.cpp
   unit/simplification/simplification_quality_refinement_tests.cpp
+  unit/simplification/simplification_texture_tests.cpp
 )
 
 add_executable(manumesh_tests ${MANUMESH_UNIT_TEST_SOURCES})
+if(MANUMESH_BUILD_SHARED_LIBRARY)
+  target_sources(manumesh_tests
+    PRIVATE
+      "${PROJECT_SOURCE_DIR}/src/simplification/TextureProtection.cpp"
+  )
+endif()
 if(WIN32 AND MANUMESH_BUILD_SHARED_LIBRARY)
   target_sources(manumesh_tests
     PRIVATE
@@ -315,6 +323,7 @@ target_include_directories(manumesh_tests
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/support"
     "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/simplification"
 )
 target_link_libraries(manumesh_tests
   PRIVATE

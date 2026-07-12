@@ -154,10 +154,11 @@ cmake -S . -B $buildDir -G Ninja `
 | `src/simplification/SimplificationValidation.cpp` | 参数范围是否合法，例如角度、比例、质量阈值。 |
 | `src/simplification/SimplificationPolicies.cpp::makePolicies` | 公开 options 如何拆成 target、features、legality policy。 |
 | `src/feature_detection/FeatureDetector.cpp` | FeatureDetector 公开入口和 feature detection pipeline 编排。 |
-| `src/feature_detection/FeatureEvidence.cpp` | boundary、dihedral、non-manifold、normal-tensor edge 如何进入 feature graph。 |
+| `src/feature_detection/FeatureEvidence.cpp` | boundary、dihedral、non-manifold、normal-tensor、smooth-curvature edge 如何进入 feature graph。 |
 | `src/feature_detection/FeatureGraph.cpp`、`FeatureLoopRecovery.cpp`、`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp` | feature graph、trace graph、loop 恢复调度、cycle/trace/component 恢复和 junction 处理。 |
 | `src/feature_detection/PrimitiveFit.cpp` | 圆、近圆、椭圆、折线 loop 的拟合判定。 |
 | `src/feature_detection/NormalTensor.cpp` | normal tensor 多尺度和 smoothing 后的 feature score。 |
+| `src/feature_detection/SmoothCurvature.cpp` | opt-in 光滑曲率证据：多尺度 quadric 拟合、带符号方向极值和 persistence（`--smooth-curvature-features` 启用）。 |
 | `src/simplification/Quadrics.cpp` | plane quadrics、line quadrics、weight mode 和 feature boost 的实际权重。 |
 | `src/simplification/FeatureConstraints.cpp` | `FeatureProtectionMode` 如何产生硬拒绝。 |
 | `src/simplification/CollapseAttempt.cpp` | 单个候选坍缩如何组合 feature、boundary、curve budget 和 legality filters。 |
@@ -261,7 +262,7 @@ ManuMesh 当前简化管线可以看成四层：
 
 ### 特征检测参数
 
-这些参数同时影响 `feature-report` 和 `simplify --preserve-feature-curves`。如果只想验证识别结果，优先用 `(MinGW Ninja) Debug CLI Feature Report`，它不会引入 QEM 坍缩的干扰。
+这些参数同时影响 `feature-report` 和 `simplify --preserve-feature-curves`（`--smooth-curvature-*` 系列除外：它们是 feature-analysis 选项，只被 `feature-report` / `feature-benchmark` / `feature-compare` 接受）。如果只想验证识别结果，优先用 `(MinGW Ninja) Debug CLI Feature Report`，它不会引入 QEM 坍缩的干扰。
 
 | 参数 | 进入字段 | 数学/工程意义 | 断点 | 输出观察 |
 | --- | --- | --- | --- | --- |
@@ -278,6 +279,14 @@ ManuMesh 当前简化管线可以看成四层：
 | `--normal-tensor-scales N` | `normalTensorScaleCount` | tensor 多尺度数量。 | `NormalTensor.cpp` | 多尺度能提高稳定性，但耗时增加。 |
 | `--normal-tensor-min-persistent-scales N` | `normalTensorMinPersistentScales` | tensor 弱特征边至少需要 N 个尺度支持。默认 1，调试弱特征时建议从 2 开始。 | `FeatureEvidence.cpp`、`Quadrics.cpp` | `normal_tensor_edges`、`max_normal_tensor_persistent_score`、`mean_normal_tensor_persistence`。 |
 | `--no-normal-tensor-features` | `useNormalTensorFeatures=false` | 关闭 tensor 弱特征候选，只保留 boundary/dihedral/non-manifold 证据。 | `FeatureEvidence.cpp` | `normal_tensor_edges=0`。 |
+| `--smooth-curvature-features` | `useSmoothCurvatureFeatures=true` | 启用确定性光滑曲率 ridge/valley 证据（默认关闭）。只被 `feature-report` / `feature-benchmark` / `feature-compare` 接受，`simplify` 会显式拒绝。 | `SmoothCurvature.cpp`、`FeatureEvidence.cpp` | `smooth_curvature_edges`、`smooth_curvature_scored_vertices`。 |
+| `--smooth-curvature-threshold S` | `smoothCurvatureFeatureThreshold` | 尺度归一化的光滑特征分数阈值（默认 `0.015`）。分数无量纲，网格均匀缩放后不需要重调。 | `SmoothCurvature.cpp` | `max_smooth_curvature_score`、`max_smooth_curvature_persistent_score`。 |
+| `--smooth-curvature-edge-alignment A` | `smoothCurvatureMinEdgeAlignment` | mesh edge 与恢复曲线切向的最小对齐（默认 `0.55`）。 | `SmoothCurvature.cpp` | 变严格时 `smooth_curvature_edges` 减少。 |
+| `--smooth-curvature-tangent-consistency A` | `smoothCurvatureMinTangentConsistency` | 跨尺度与两端点切向一致性要求（默认 `0.65`）。 | `SmoothCurvature.cpp` | 噪声响应被抑制，稳定曲线保留。 |
+| `--smooth-curvature-base-rings N` | `smoothCurvatureBaseNeighborhoodRings` | 最小 quadric 拟合邻域 ring 数（默认 `2`；one-ring 拟合对噪声过敏）。 | `SmoothCurvature.cpp` | `mean_smooth_curvature_local_scale`。 |
+| `--smooth-curvature-scales N` | `smoothCurvatureScaleCount` | 逐次扩大的拟合邻域数量（默认 `3`）。 | `SmoothCurvature.cpp` | 多尺度提高稳定性，耗时增加。 |
+| `--smooth-curvature-min-persistent-scales N` | `smoothCurvatureMinPersistentScales` | 光滑特征候选至少需要 N 个尺度支持（默认 `2`）。 | `SmoothCurvature.cpp` | `mean_smooth_curvature_persistence`。 |
+| `--smooth-curvature-robust-iterations N` | `smoothCurvatureRobustFitIterations` | 确定性 Huber 重加权拟合轮数（默认 `2`）。 | `SmoothCurvature.cpp` | 拟合残差对离群三角形更稳健。 |
 | `--feature-graph-gap-ratio R` | `featureGraphGapLengthRatio` | cleanup 桥接 endpoint/junction gap 的局部边长倍数。 | `FeatureGraphCleanup.cpp` | `graph_cleanup_bridged_gaps`、`graph_cleanup_merged_junctions`。 |
 | `--feature-graph-max-weak-spur-edges N` | `featureGraphMaxWeakSpurEdges` | 删除最多 N 条边的 tensor-only 弱 spur。 | `FeatureGraphCleanup.cpp` | `graph_cleanup_removed_spurs`、`weak_feature_components`。 |
 | `--feature-component-min-confidence C` | `featureComponentMinConfidence` | 报告 high-confidence component 的阈值。 | `FeatureGraphCleanup.cpp::summarizeFeatureComponents` | `high_confidence_feature_components`。 |

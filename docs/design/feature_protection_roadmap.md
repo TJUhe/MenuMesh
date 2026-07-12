@@ -1,14 +1,15 @@
 # 特征保护路线图
 
-ManuMesh 当前特征保护已经能处理边界、二面角硬边、normal-tensor 弱特征、圆/近圆/椭圆 loop 和 primitive-based 硬保护。下一步重点不是“锁住更多边”，而是更准确地区分哪些特征必须硬保护，哪些只需要软成本。
+ManuMesh 当前特征保护已经能处理边界、二面角硬边、normal-tensor 弱特征、opt-in 的光滑曲率（smooth-curvature）弱特征、圆/近圆/椭圆 loop 和 primitive-based 硬保护。下一步重点不是“锁住更多边”，而是更准确地区分哪些特征必须硬保护，哪些只需要软成本。
 
 ## 当前能力
 
 - `detectFeatureCurves()` 输出 `FeatureAnalysis`，包含 feature graph、loop、vertex ownership 和边来源计数。
 - `FeatureOptions::loopTraceAngleDeg` 可独立控制 loop tracing 阈值；默认 `-1` 复用 `featureAngleDeg`。
+- `FeatureOptions::useSmoothCurvatureFeatures`（默认 `false`）可启用确定性光滑曲率证据：多尺度鲁棒 quadric 拟合、带符号方向极值和跨尺度 persistence，graph edge 与 component 分别记录 `smoothCurvature` 来源和 `smoothCurvatureEdges` / `meanCurvaturePersistence`，2026-07-11 以 opt-in 形式落地，见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
 - `FeaturePrimitiveType` 支持 `Circle`、`NearCircle`、`Ellipse`、`PolygonalLoop`。
 - `SimplifyOptions::featureProtectionMode` 支持四种硬保护策略。
-- `FeatureAnalysis` / `SimplifyReport` 区分 traced/untraced feature edges、primitive/generic feature rejections、curve budget rejections、projected placements，以及 normal-tensor local scale / persistence 诊断。
+- `FeatureAnalysis` / `SimplifyReport` 区分 traced/untraced feature edges、primitive/generic feature rejections、curve budget rejections、projected placements，以及 normal-tensor local scale / persistence 诊断；smooth-curvature 系列诊断位于 `FeatureAnalysis`。
 
 ## 近期改进
 
@@ -22,8 +23,8 @@ ManuMesh 当前特征保护已经能处理边界、二面角硬边、normal-tens
 ## 中期改进
 
 - 实现 edge dihedral plane quadrics，并和现有 feature curve quadric 对比。
-- 在已落地局部尺度归一化和多尺度 persistence 的基础上，引入 component-level confidence，提升 weak ridge / shallow feature 的可解释保护。
-- 增加带 ground-truth labels 的 precision/recall、loop closure rate、junction correctness、弱特征保留率和 feature drift benchmark。
+- component-level confidence 已落地（见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)）；smooth-curvature 弱证据也已于 2026-07-11 以 opt-in 落地。下一步是把两类弱证据（tensor、curvature）的 component 做跨 component consolidation，进一步提升 weak ridge / shallow feature 的可解释保护。
+- 增加带 ground-truth labels 的 precision/recall、loop closure rate、junction correctness、弱特征保留率和 feature drift benchmark（edge/junction 真值与 Gaussian ridge/valley fixture 已有第一版；扫描类标注 fixture 仍缺）。
 - 增加属性或 source region 信息，让用户可从外部标注必须保护的边/环。
 - 引入更严格的误差 envelope，而不是只看局部 drift。
 - 为 open boundary、多孔相邻、共享顶点 loop 增加更细的 ownership 策略。

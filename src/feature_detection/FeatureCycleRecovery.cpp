@@ -103,10 +103,10 @@ std::vector<int> treePathCycle(int u, int v, const std::vector<int>& parent, con
     return cycle;
 }
 
-bool componentHasNormalTensorEdge(const std::vector<int>& component, const TraceGraph& trace) {
+bool componentHasWeakEvidenceEdge(const std::vector<int>& component, const TraceGraph& trace) {
     for (int v : component) {
         for (int nb : trace.adjacency[v]) {
-            if (v < nb && traceEdgeNormalTensor(trace, v, nb)) {
+            if (v < nb && (traceEdgeNormalTensor(trace, v, nb) || traceEdgeSmoothCurvature(trace, v, nb))) {
                 return true;
             }
         }
@@ -186,7 +186,7 @@ void recoverSmallCycleBasis(
 
         const int edgeCount = edgeCount2x / 2;
         const int cycleRank = edgeCount - static_cast<int>(component.size()) + 1;
-        if (componentHasNormalTensorEdge(component, trace)) {
+        if (componentHasWeakEvidenceEdge(component, trace)) {
             continue;
         }
         if (static_cast<int>(component.size()) < options.minFeatureLoopVertices ||

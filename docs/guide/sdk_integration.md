@@ -80,6 +80,27 @@ manumesh::PlainMesh output =
 
 `SimplificationTypes.h` 包含 `SimplifyOptions`、`SimplifyReport` 和相关枚举，不依赖 Eigen；`QEMSimplifier.h` 仍包含 Eigen-backed `Mesh`。
 
+## 纹理网格与纹理感知简化（C++ API）
+
+带纹理的网格在 SDK 边界使用逐面逐角 UV：
+
+- Eigen-backed 侧：`manumesh::Vec2`（`Eigen::Vector2d`）、`FaceTexCoords`（每面三个 `Vec2` 加 `valid` 标记）、`Mesh::faceTexCoords`。
+- Eigen-free 侧：`PlainVec2 { double u, v; }`、`PlainFaceTexCoords`、`PlainMesh::faceTexCoords`；`Mesh` 与 `PlainMesh` 的双向转换以及 compaction/validation/remap 都会保留逐角 UV。
+
+`faceTexCoords` 为空表示无纹理；非空时必须与 `faces` 对齐，个别条目可以 invalid（例如 OBJ 中未贴图的面）。UV 是“角拥有”而不是“顶点拥有”，因为一个几何顶点可能属于多个 UV chart（纹理接缝）。`Mesh::hasTextureCoordinates()` 在至少一个面带有效逐角坐标时返回 true。IO 层的 `loadObj()` / `loadMesh()` 会读取多边形 OBJ、自动三角化并保留每个三角化后角点的 `vt` 索引。
+
+纹理保护是显式 opt-in 的 `SimplifyOptions` 能力：
+
+```cpp
+manumesh::simplification::SimplifyOptions options;
+options.preserveTexture = true;    // 默认 false，必须显式打开
+options.textureWeight = 1.0;       // 只缩放局部标量排序代价
+options.textureSeamTolerance = 1e-8;
+options.minTextureAreaRatio = 1e-8;
+```
+
+启用后，几何 quadric 仍保持 4×4，placement 求解不变；纹理只作为局部 UV 失真标量加入候选排序，并通过局部 chart 配对、UV 定向和有符号面积检查硬性拒绝会破坏接缝或压扁 UV 三角形的坍缩。`SimplifyReport` 返回 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）和 `textureRejectedCollapses`（placement 评估后被纹理检查否决的候选数）。注意两点：`preserveTexture = false` 时几何输出与旧无纹理路径完全一致，UV 仍会传播但没有失真/接缝保证；纹理保护启用时可选的固定拓扑质量精修轮（`qualityRefinementIterations`）会被暂时跳过。该能力当前只在 C++ API 提供，CLI `simplify` 与 C ABI 均未暴露纹理选项。设计细节见 [`../design/texture_aware_qem.md`](../design/texture_aware_qem.md)。
+
 独立特征检测入口：
 
 ```cpp
@@ -89,6 +110,26 @@ manumesh::feature::FeatureOptions featureOptions;
 manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
+
+需要检测光滑表面上的 ridge/valley（例如 fillet 中心线、扫描件平缓折痕）时，可以启用确定性 smooth-curvature 弱证据路径（默认关闭）：
+
+```cpp
+featureOptions.useSmoothCurvatureFeatures = true;          // 默认 false
+featureOptions.smoothCurvatureFeatureThreshold = 0.015;    // 尺度归一化分数阈值
+featureOptions.smoothCurvatureMinEdgeAlignment = 0.55;
+featureOptions.smoothCurvatureMinTangentConsistency = 0.65;
+featureOptions.smoothCurvatureBaseNeighborhoodRings = 2;   // one-ring 拟合对噪声过敏
+featureOptions.smoothCurvatureScaleCount = 3;
+featureOptions.smoothCurvatureMinPersistentScales = 2;
+featureOptions.smoothCurvatureRobustFitIterations = 2;
+```
+
+分数无量纲，网格均匀缩放后不需要重新调阈值。`FeatureAnalysis` 对应返回
+`smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、
+`maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、
+`meanSmoothCurvatureLocalScale` 和 `meanSmoothCurvaturePersistence`；graph edge 带
+`smoothCurvature` 来源标记，component 带 `smoothCurvatureEdges` 和
+`meanCurvaturePersistence`。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面场景需要不同阈值与验证集；不启用时既有硬特征检测和简化行为完全不变。简化侧的 `SimplifyOptions` 当前没有独立的 smooth-curvature 字段，需要时应先用上述 `FeatureOptions` 预计算带 smooth 特征的分析结果，再通过 `QEMSimplifier::simplify(input, features, &report)` 重载交给简化消费。设计细节见 [`../design/smooth_curvature_feature_detection_2026_07_11.md`](../design/smooth_curvature_feature_detection_2026_07_11.md)。
 
 如果有人工或 CAD 导出的 edge labels，可用
 `manumesh::feature::benchmarkFeatureEdges(features, labels, junctionLabels)` 计算 edge precision/recall/F1、junction correctness、loop closure rate 和平均 component confidence。
@@ -104,7 +145,7 @@ manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 7. 销毁 mesh handle 和 context。
 
 所有带 `struct_size` / `abi_version` 的结构体都必须先调用对应初始化函数。当前 `MANUMESH_ABI_VERSION` 为 `1`。同一 ABI 版本内，库接受尾部较短的旧 `struct_size`，只读取调用方结构体中实际存在的字段，缺失的新尾部字段使用库默认值；未初始化结构体或 ABI 版本不匹配仍会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。
-`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部，旧调用方保持默认行为。
+`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部，旧调用方保持默认行为。注意：本轮新增的纹理保护选项（`preserveTexture` 等）和 smooth-curvature 特征选项当前只在 C++ API 提供，C ABI 结构体尚未暴露对应字段；跨 ABI 场景暂时无法使用这两项能力。
 
 ## CMake config 与 Eigen
 
@@ -133,7 +174,7 @@ Windows + MinGW 使用共享库时，应用目录需要：
 
 | 示例 | 说明 |
 | --- | --- |
-| `examples/sdk_consumer/sdk_cpp_simplify.cpp` | 使用 C++ SDK 简化网格。 |
+| `examples/sdk_consumer/sdk_cpp_simplify.cpp` | 使用 C++ SDK 简化网格，包含一个带逐角 UV 平面网格 + `preserveTexture = true` 的纹理保护用例，并检查输出 `faceTexCoords` 与面对齐。 |
 | `examples/sdk_consumer/sdk_c_abi_basic.c` | 使用 C ABI 创建、简化和读取网格。 |
 
 启用安装目标后可运行：
@@ -149,4 +190,4 @@ cmake --build $buildDir --target sdk-consumer-test --parallel
 - 不要依赖 `src/simplification/detail/`，这些是私有实现。
 - 不要依赖 `src/feature_detection/detail/`，primitive fitting、trace/cycle 恢复等 helper 仍是私有实现。
 - 当前 ManuMesh SDK 不承诺通用布尔、offset、修复或去噪能力。
-- STL/OBJ 文件读写主要服务当前 CLI 和测试；生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。
+- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持多边形三角化并保留逐角 `vt`，STL 输出仍是 ASCII STL（不携带 UV）。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。

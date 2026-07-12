@@ -12,6 +12,7 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 - 非流形边。
 - 二面角超过 `featureAngleDeg` 的硬边。
 - normal-tensor 弱特征证据。
+- opt-in 的 smooth-curvature 弱特征证据（`useSmoothCurvatureFeatures`，默认关闭）：多尺度局部 quadric 拟合产生的确定性 ridge/valley 证据，2026-07-11 落地，设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
 - `loopTraceAngleDeg` 控制哪些已识别 edge 进入 loop tracing；默认 `-1` 表示复用 `featureAngleDeg`。
 - loop tracing 后的圆、近圆、椭圆和折线 primitive 拟合。
 
@@ -52,7 +53,7 @@ small cycle basis 和 circular fallback 现在按 trace connected component 运�
 
 ### component confidence 与 graph cleanup
 
-`FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、primitive residual 和 confidence。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
+`FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/smooth-curvature/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、curvature persistence、primitive residual 和 confidence。component confidence 把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据（boundary/dihedral/non-manifold）始终占主导。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
 
 Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 会被桥接，近 junction 会被桥接，短 tensor-only spur 会被删除。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。
 
@@ -100,6 +101,7 @@ QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。�
 - 浅二面角需要进入 loop：降低 `--feature-angle-deg`，并让 `--loop-trace-angle-deg -1` 复用同一阈值。
 - 只想观察浅边但暂不让它保护简化：把 `--loop-trace-angle-deg` 设得高于 `--feature-angle-deg`，再检查 `untraced_edges`。
 - 弱特征不明显：尝试 `--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2`。
+- 光滑 fillet 中心线或平缓 ridge/valley 完全不出现在 feature graph：在 `feature-report` / `feature-benchmark` / `feature-compare` 中启用 `--smooth-curvature-features`（这是 feature-analysis 选项，`simplify` 会显式拒绝；C++ 简化可消费预计算的 `FeatureAnalysis`）。
 - 输出偏离曲线：增大 `featureCurveWeight` 或减小 `maxFeatureCurveDeviationRatio`，同时检查拒绝计数是否过高。
 
 ## 相关算法出处

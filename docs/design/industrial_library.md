@@ -12,17 +12,17 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 - C ABI：`api/CApi.h`。
 - CLI：`manumesh.exe`，用于批处理、验证和示例。
 - 示例：C++ SDK 和 C ABI consumer。
-- 回归测试：80 个 CTest，另有 performance 构建路径。
+- 回归测试：142 个非性能 CTest，另有 performance 构建路径。
 
 ## 当前核心能力
 
 | 能力 | 当前状态 |
 | --- | --- |
-| 网格交换 | `Mesh`、`PlainMesh`、STL/OBJ 读写。 |
+| 网格交换 | `Mesh`、`PlainMesh`、STL/OBJ 读写；OBJ 读取支持多边形三角化并保留逐角 `vt`，`faceTexCoords` 携带角拥有的逐面 UV。 |
 | 拓扑分析 | boundary、non-manifold、edge/face/vertex 统计。 |
-| 特征检测 | boundary、dihedral、normal-tensor、loop、circle/ellipse fitting。 |
-| 简化 | standard QEM、line quadrics、ratio/face target、sweep。 |
-| 保护 | boundary、feature curves、topology link condition、triangle quality、normal deviation、local error、local intersections。 |
+| 特征检测 | boundary、dihedral、normal-tensor、opt-in smooth-curvature、loop、circle/ellipse fitting。 |
+| 简化 | standard QEM、line quadrics、ratio/face target、sweep；opt-in 纹理感知排序与 UV chart 保护（仅 C++ API）。 |
+| 保护 | boundary、feature curves、topology link condition、triangle quality、normal deviation、local error、local intersections；opt-in UV chart/有符号 UV 面积保护。 |
 | 集成 | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口、C ABI、SDK 安装、示例工程。 |
 | 内部诊断 | 可选 Debug-only HTML wireframe 辅助工具；仅用于开发排查，不属于 SDK 合约。 |
 
@@ -31,7 +31,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 还缺少：
 
 - 半边/可编辑拓扑内核。
-- 属性传播和源面/区域映射。
+- 完整属性传播和源面/区域映射（UV 已通过 `faceTexCoords` 与 opt-in 纹理保护落地第一步；法线、颜色、source face id 仍缺）。
 - 修复、补洞、定向、make-manifold。
 - 布尔、切割、offset/thickening。
 - 严格全局误差 envelope。

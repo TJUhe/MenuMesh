@@ -74,6 +74,27 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
     if (options.normalTensorMinPersistentScales < 1) {
         throw std::invalid_argument("normalTensorMinPersistentScales must be positive.");
     }
+    requireFiniteNonNegative(options.smoothCurvatureFeatureThreshold, "smoothCurvatureFeatureThreshold");
+    if (!std::isfinite(options.smoothCurvatureMinEdgeAlignment) || options.smoothCurvatureMinEdgeAlignment < 0.0 ||
+        options.smoothCurvatureMinEdgeAlignment > 1.0) {
+        throw std::invalid_argument("smoothCurvatureMinEdgeAlignment must be finite and in [0, 1].");
+    }
+    if (!std::isfinite(options.smoothCurvatureMinTangentConsistency) ||
+        options.smoothCurvatureMinTangentConsistency < 0.0 || options.smoothCurvatureMinTangentConsistency > 1.0) {
+        throw std::invalid_argument("smoothCurvatureMinTangentConsistency must be finite and in [0, 1].");
+    }
+    if (options.smoothCurvatureBaseNeighborhoodRings < 1) {
+        throw std::invalid_argument("smoothCurvatureBaseNeighborhoodRings must be positive.");
+    }
+    if (options.smoothCurvatureScaleCount < 1) {
+        throw std::invalid_argument("smoothCurvatureScaleCount must be positive.");
+    }
+    if (options.smoothCurvatureMinPersistentScales < 1) {
+        throw std::invalid_argument("smoothCurvatureMinPersistentScales must be positive.");
+    }
+    if (options.smoothCurvatureRobustFitIterations < 0) {
+        throw std::invalid_argument("smoothCurvatureRobustFitIterations must be non-negative.");
+    }
     requireFiniteNonNegative(options.featureGraphGapLengthRatio, "featureGraphGapLengthRatio");
     if (options.featureGraphMaxWeakSpurEdges < 0) {
         throw std::invalid_argument("featureGraphMaxWeakSpurEdges must be non-negative.");

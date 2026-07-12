@@ -18,6 +18,7 @@ $exe = "$buildDir/bin/manumesh.exe"
 | 开边界被吃掉或合并 | boundary 只作为软成本，不足以阻止拓扑改变。 | `--preserve-boundary`，以及 `boundary_rejected_collapses`。 |
 | 达不到目标面数，提前停止 | 目标比例和硬过滤器冲突，候选被大量拒绝。 | `termination_reason`、最高的 `*_rejected_collapses`。 |
 | normal tensor 结果不稳定 | 张量特征受邻域、尺度、噪声和采样影响。 | `--normal-tensor-threshold`、`--normal-tensor-edge-alignment`、`--normal-tensor-scales`、`--normal-tensor-min-persistent-scales`、是否需要预处理。 |
+| 光滑 fillet 中心线或平缓 ridge/valley 不出现在特征报告 | 二面角和 normal tensor 依赖离散法向差异，对光滑微分事件响应弱。 | 在 `feature-report` / `feature-benchmark` / `feature-compare` 中启用 `--smooth-curvature-features`，并检查 `smooth_curvature_edges`、`smooth_curvature_scored_vertices`。 |
 
 这个阅读顺序比单纯调大某个权重更安全。QEM 和 line quadrics 是排序成本；feature graph 是曲线支撑；legality filters 才是硬安全闸。
 
@@ -64,6 +65,20 @@ line quadrics 对照：
 - `--weight-mode dihedral`：用二面角硬边提高附近顶点 line weight，是软成本。
 - `--weight-mode normal-tensor`：用带局部尺度和多尺度 persistence 的 normal tensor 给弱特征提供附加证据，是软成本。
 - `--preserve-feature-curves`：启用特征环检测、曲线 quadric、placement 投影和硬保护策略。
+
+特征分析命令另有一条 opt-in 的确定性光滑曲率证据路径（2026-07-11 落地，无任何学习成分）：
+
+```powershell
+& $exe feature-report input.stl `
+  --smooth-curvature-features `
+  --smooth-curvature-threshold 0.015 `
+  --smooth-curvature-base-rings 2 `
+  --smooth-curvature-scales 3 `
+  --smooth-curvature-min-persistent-scales 2 `
+  --csv features.csv
+```
+
+`--smooth-curvature-*` 选项族只被 `feature-report`、`feature-benchmark`、`feature-compare` 接受；`simplify` 会显式拒绝并提示它们属于 feature-analysis 选项（C++ 简化可消费预计算的 `FeatureAnalysis`）。分数尺度归一化，网格均匀缩放后不需要重调 `--smooth-curvature-threshold`。报告 stdout 与 CSV 会输出 `smooth_curvature_*` 系列诊断字段。另注意：本轮新增的纹理感知简化（`preserveTexture`）是 C++ `SimplifyOptions` 能力，CLI `simplify` 没有对应选项。
 
 曲线特征保护的推荐起点：
 
@@ -116,6 +131,8 @@ line quadrics 和 normal tensor 都不是去噪器。扫描噪声应先做稳健
 | --- | --- |
 | plane quadric / edge contraction cost | Garland-Heckbert 1997，`docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf` |
 | point-to-line quadrics | Liu-Rahimzadeh-Zordan 2025，`docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` |
+| 纹理感知简化（`preserveTexture`，C++ API） | Garland-Heckbert 1998 属性 QEM（M003，`docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf`）为历史参照；当前实现按现代 edge-collapse 管线文献（M033）的工程拆分：4×4 几何 quadric 排序固定 3D placement，UV chart/面积合法性为显式局部策略，实现在 `src/simplification/TextureProtection.cpp`，设计见 `docs/design/texture_aware_qem.md` |
+| smooth-curvature 特征证据（`--smooth-curvature-features`） | 2017–2025 确定性文献：Yamakawa-Shimada 2017/2018、Lu 2019（M044）、Romanengo 2020、Xu 2024 CWF（M026）、Cai 2025，索引见 `docs/papers/recent_deterministic_feature_detection_2026-07-11.md`；实现在 `src/feature_detection/SmoothCurvature.cpp`，设计见 `docs/design/smooth_curvature_feature_detection_2026_07_11.md` |
 | edge-collapse 工程细节 | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025，位于 `docs/papers/edge_collapse/` |
 | CAD/STL 特征线 | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008，位于 `docs/papers/feature_detection/` |
 | normal tensor 特征评分 | Tsuchie-Higashi 2014，`docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` |

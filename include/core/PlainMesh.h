@@ -16,9 +16,21 @@ struct PlainVec3 {
     double z = 0.0;
 };
 
+/// Eigen-free texture coordinate used at SDK boundaries.
+struct PlainVec2 {
+    double u = 0.0;
+    double v = 0.0;
+};
+
 /// Eigen-free triangle face storing three zero-based vertex indices.
 struct PlainFace {
     std::array<int, 3> v{};
+};
+
+/// Eigen-free per-corner texture coordinates for one triangle.
+struct PlainFaceTexCoords {
+    std::array<PlainVec2, 3> uv{};
+    bool valid = false;
 };
 
 /// Eigen-free triangle mesh exchange container.
@@ -28,6 +40,7 @@ struct PlainFace {
 struct PlainMesh {
     std::vector<PlainVec3> vertices;
     std::vector<PlainFace> faces;
+    std::vector<PlainFaceTexCoords> faceTexCoords;
 };
 
 /// Converts a plain SDK mesh into the internal Eigen-backed mesh type.

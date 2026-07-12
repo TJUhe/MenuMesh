@@ -7,12 +7,12 @@
 ManuMesh 当前核心管线可以读成：
 
 ```text
-三角网格 Mesh
+三角网格 Mesh（可携带逐角 UV faceTexCoords）
   -> 构建局部几何与邻接
   -> 识别三角网格层的特征证据 FeatureAnalysis
   -> 累加 plane QEM / line quadrics / boundary quadrics / feature-curve quadrics
-  -> 用优先队列按 quadric cost 选择候选边坍缩
-  -> 对候选 placement 执行特征、边界、拓扑、法线、质量、局部误差、自交过滤
+  -> 用优先队列按 quadric cost 选择候选边坍缩（opt-in：叠加局部 UV 失真标量代价）
+  -> 对候选 placement 执行特征、边界、拓扑、法线、质量、局部误差、自交过滤（opt-in：UV chart 与有符号 UV 面积过滤）
   -> 接受坍缩、更新动态拓扑、继续迭代
   -> 输出 Mesh / PlainMesh / C ABI 结果与 SimplifyReport、CSV 指标
 ```
@@ -21,11 +21,12 @@ ManuMesh 当前核心管线可以读成：
 
 | 步骤 | 源码 |
 | --- | --- |
-| 特征识别 | `src/feature_detection/FeatureDetector.cpp`、`FeatureEvidence.cpp`、`FeatureGraph.cpp`、`FeatureLoopRecovery.cpp`、`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`、`FeatureLoopBuilder.cpp`、`FeatureCircularRecovery.cpp`、`NormalTensor.cpp`、`PrimitiveFit.cpp` |
+| 特征识别 | `src/feature_detection/FeatureDetector.cpp`、`FeatureEvidence.cpp`、`SmoothCurvature.cpp`、`FeatureGraph.cpp`、`FeatureLoopRecovery.cpp`、`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`、`FeatureLoopBuilder.cpp`、`FeatureCircularRecovery.cpp`、`NormalTensor.cpp`、`PrimitiveFit.cpp` |
 | quadric 构造与 placement | `src/simplification/Quadrics.cpp` |
 | 策略转换 | `src/simplification/SimplificationPolicies.cpp` |
 | collapse 主循环 | `src/simplification/SimplificationRun.cpp`、`CollapseAttempt.cpp` |
 | 特征约束、曲线投影 | `src/simplification/FeatureConstraints.cpp` |
+| 纹理感知排序与 UV chart 保护 | `src/simplification/TextureProtection.cpp`、`detail/TextureProtection.h` |
 | 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseLegality.cpp`、`SpatialFaceIndex.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/MeshDistanceIndex.cpp`、`src/common/SpatialIndex.cpp` |
 | 结果压缩与报告 | `src/mesh_edit/MeshCompaction.cpp`、`include/algorithms/simplification/SimplificationTypes.h` |
 
@@ -115,6 +116,9 @@ E_total = E_plane + lambda * E_line
 2. non-manifold edge：多于两个相邻面。
 3. dihedral edge：两个相邻面法向夹角超过阈值。
 4. normal-tensor edge：张量 persistent feature score、最小支持尺度数和边方向对齐满足阈值。
+5. smooth-curvature edge（opt-in，`useSmoothCurvatureFeatures`）：多尺度局部 quadric 拟合产生的确定性 ridge/valley 证据，两端点在符号、切向、尺度支持和边对齐上一致时才转成 edge 证据（见现象四之二）。
+
+其中 1–3 是离散网格上的“硬证据”（不连续现象），4–5 是光滑表面上的“弱证据”（微分现象）。两路只在显式 `FeatureGraph` 汇合；component 置信度把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据始终占主导。
 
 内部实现按职责拆成小 pipeline：`FeatureEvidence.cpp` 组合多种 edge evidence strategy 并维护来源计数；`FeatureGraph.cpp` 构建 `FeatureGraph` 和 trace graph；`FeatureLoopRecovery.cpp` 只编排恢复顺序；`FeatureCycleRecovery.cpp` 恢复 junction cycle 和小 cycle basis；`FeatureTraceRecovery.cpp` 追踪图上的 open chain / closed loop；`FeaturePrimitiveRecovery.cpp` 处理 primitive component 兜底；`FeatureLoopBuilder.cpp` 负责 loop id、vertex ownership、切向和圆/椭圆投影数据写回；`FeatureCircularRecovery.cpp` 只处理有界三点圆扫描 fallback。随后程序恢复 junction 处可能断裂的 cycle，对闭合 loop 做 primitive fitting。圆、近圆、椭圆和折线 loop 会被写入 `FeatureLoop::primitive`。
 
@@ -153,6 +157,23 @@ persistentFeatureScore = f(featureScore, averageFeatureScore, persistentScales)
 - 在 `Quadrics.cpp` 中，`weightMode=normal-tensor` 把 `persistentFeatureScore` 作为 line weight 的空间权重来源，并受 `normalTensorMinPersistentScales` 约束。
 
 这解释了为什么 normal tensor 不应该被文档写成“完整特征恢复算法”。它当前更像一个弱证据通道。
+
+## 现象四之二：光滑曲率证据在表达什么
+
+二面角和 normal tensor 都依赖相邻面法向的离散差异，对光滑过渡的 ridge/valley（例如 fillet 中心线、扫描件上的平缓折痕）响应很弱。2026-07-11 落地的确定性光滑曲率通道（`src/feature_detection/SmoothCurvature.cpp`，设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)）把这类微分事件补成独立弱证据，opt-in 开关是 `FeatureOptions::useSmoothCurvatureFeatures`（默认 `false`）。
+
+对每个顶点、每个拓扑尺度，算法执行：
+
+1. 构建 k-ring 邻域和面积加权局部法线；
+2. 用局部平均边长 × ring 数做坐标归一化；
+3. 带距离权与确定性 Huber 重加权拟合 Monge patch `w = a u² + b uv + c v² + d u + e v`；
+4. 由第一/第二基本形式解广义自伴特征问题，得到两条带符号主曲率和方向；
+5. 沿每个主方向双侧采样法曲率，仅当中心是带符号方向极值时接受 ridge/valley；
+6. 打分融合尺度归一化曲率幅值、各向异性、极值对比度和拟合残差质量；
+7. 跨相邻尺度符号与曲线切向一致且响应存活到最粗尺度才保留（persistence）；
+8. 两端点在符号、切向、尺度支持和边对齐上一致时，才把顶点证据转成 mesh-edge 证据。
+
+分数无量纲，网格均匀缩放不需要重新调曲率阈值。默认 `smoothCurvatureBaseNeighborhoodRings = 2`，因为 one-ring 拟合对噪声过敏。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面两种场景需要不同阈值和验证集；不启用时既有硬特征行为完全不变。诊断字段包括 `FeatureAnalysis::smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、`maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、`meanSmoothCurvatureLocalScale`、`meanSmoothCurvaturePersistence`，graph edge 与 component 分别记录 `smoothCurvature` 来源和 `smoothCurvatureEdges`、`meanCurvaturePersistence`。整条链路是确定性数值几何，不含任何神经/学习成分。
 
 ## 现象五：primitive fitting 为什么重要
 
@@ -209,6 +230,7 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | triangle quality | `quality_rejected_collapses` | 新三角形质量是否低于 `minTriangleQuality`。 |
 | local error | `error_rejected_collapses` | 旧局部采样点到新局部三角形集合的最大距离。 |
 | local intersection | `self_intersection_rejected_collapses` | 新局部三角形是否和远处活动三角形相交。 |
+| texture policy（opt-in） | `SimplifyReport::textureRejectedCollapses`、`textureProtectedEdges`（仅 C++ 报告，CLI metrics CSV 未包含） | 坍缩两端点的局部 UV chart 能否一一配对、存活 UV 三角形是否翻转定向或有符号面积低于 `minTextureAreaRatio`。仅在 `preserveTexture=true` 且输入带 UV 时生效。 |
 
 这也解释了为什么 `SimplifyReport` 的拒绝计数很重要。它不是“失败日志”，而是参数反馈：如果 `generic_feature_rejected_collapses` 很高，说明可能锁边过度；如果 `quality_rejected_collapses` 很高，说明目标比例、质量阈值或输入三角形状态冲突；如果 `error_rejected_collapses` 很高，说明局部误差预算比目标面数更强。
 
@@ -220,14 +242,26 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 - 特征保持简化和 feature-sensitive metric 可参考 `docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf`、`hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf`。
 - 弱特征保护和先形成 feature support 的思路可参考文献库 source 088 `CWF: Consolidating Weak Features in High-quality Mesh Simplification`。
 
+## 现象七之二：纹理感知简化为什么不给 quadric 扩维
+
+Garland-Heckbert 1998 的属性 QEM 把颜色/UV 追加进齐次向量，让 quadric 矩阵随属性维度增长。ManuMesh 采用现代 edge-collapse 管线文献（M033）建议的工程拆分：几何 quadric 保持 `Mat4`（齐次 `(x, y, z, 1)`），placement 候选仍是端点、中点和稳定 3D QEM 最优点；纹理只以两种显式局部策略参与（实现在 `src/simplification/TextureProtection.cpp`，权威设计见 [`texture_aware_qem.md`](texture_aware_qem.md)）：
+
+1. **排序代价**：`E_total(p) = E_geometry_4x4(p) + textureWeight * E_uv_local(p)`。其中 `E_uv_local = edgeLength² * Σ(faceArea * cornerUvDisplacement²) / meanLocalUvEdgeLength²` 只在坍缩触及的面上计算，与面积加权几何 QEM 同长度量纲，并对 UV atlas 均匀缩放不变。`textureWeight` 只缩放这个标量，绝不改变 quadric 维度或 placement 求解。
+2. **硬过滤**：对坍缩两端点用容差网格哈希（`textureSeamTolerance`）把入射角 UV 分组成局部 chart，由坍缩边入射面建立两端 chart 的一一配对。chart 无对应、配对歧义、合并不相关 chart、存活 UV 三角形定向翻转或有符号面积低于 `minTextureAreaRatio` 时拒绝坍缩。双侧 seam 上两侧 chart 都一致配对时允许坍缩；跨 seam 合并 chart 归属的坍缩被过滤。
+
+数据模型上，UV 存储为 `Mesh::faceTexCoords` 的“角拥有”逐面逐角坐标（一个几何顶点可属于多个 UV chart，接缝才可表达），OBJ 读取按逐角 `vt` 索引保留。整套检查是局部 O(k)（k 为 one-ring 规模），无全局参数化或属性空间矩阵分解，edge-collapse 渐近复杂度不变。
+
+`preserveTexture` 默认 `false`：关闭时几何输出与旧无纹理路径完全一致（bit-exact），UV 仍会传播但无失真/接缝保证。启用纹理保护时，可选的固定拓扑质量精修轮会被暂时跳过，因为该顶点重定位阶段尚未约束 UV 失真。诊断字段为 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）和 `textureRejectedCollapses`（placement 评估后被纹理检查否决的队列候选数）。该能力目前只在 C++ `SimplifyOptions` 暴露，CLI `simplify` 未提供纹理选项。
+
 ## 当前算法和论文的对应关系
 
 | 论文/方向 | 文档位置 | 当前落地状态 |
 | --- | --- | --- |
 | Garland-Heckbert QEM 1997 | `docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf` | 已实现 plane quadric、vertex quadric 累加、edge collapse cost、placement solve/fallback。 |
-| Garland-Heckbert 属性扩展 1998 | `docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf` | 作为“约束可并入 quadric”的思想参考；当前未实现颜色/UV 属性传播。 |
+| Garland-Heckbert 属性扩展 1998 | `docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf`（M003） | 作为历史参照保留。ManuMesh 未采用属性扩维路线，而是按 M033 的工程拆分实现了 opt-in 纹理感知简化：4×4 几何 quadric + 局部标量 UV 失真代价 + chart/面积硬过滤，见 [`texture_aware_qem.md`](texture_aware_qem.md)。 |
 | Line Quadrics 2025 | `docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | 已实现普通 line quadric，并扩展到空间变权和 feature curve tangent quadric。 |
 | CAD/STL feature line extraction | `docs/papers/feature_detection/*.pdf` | 已实现 boundary/dihedral/non-manifold/normal-tensor feature graph、loop tracing、primitive fitting 的工程子集。 |
+| 确定性光滑曲率特征检测（2017–2025） | `docs/papers/recent_deterministic_feature_detection_2026-07-11.md`（Yamakawa-Shimada 2017/2018、Lu 2019/M044、Romanengo 2020、Xu 2024 CWF/M026、Cai 2025） | 已实现 opt-in 多尺度鲁棒 quadric 拟合、带符号方向极值和 persistence 的 smooth-curvature 证据通道（`src/feature_detection/SmoothCurvature.cpp`），见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；全局 Hough/winding-number 曲线恢复仍是路线图项。 |
 | Feature-sensitive simplification | `docs/papers/feature_preserving_simplification/*.pdf` | 已实现特征软成本、primitive 硬保护、投影和拒绝计数；未实现完整 feature-sensitive metric 系列。 |
 | Edge-collapse engineering | `docs/papers/edge_collapse/*.pdf` | 已实现队列、动态拓扑、placement fallback、若干 legality filters。 |
 | Two-round QEM / post optimization | `docs/papers/qem/chang_2025_two_round_optimization_qem.pdf` | 已实现可选的固定拓扑切向 refinement：回溯线搜索只接受局部最差质量提升且平均质量不下降的移动，并复用边界、硬特征、法向、误差包络和自交约束。 |
@@ -245,8 +279,9 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 5. `featureProtectionMode`：哪些 feature 从软成本升级为硬拒绝。
 6. `featureCurveWeight` / `maxFeatureCurveDeviationRatio`：曲线靠附和漂移预算。
 7. `preserveBoundary` / `minTriangleQuality` / `maxNormalDeviationDeg` / `maxLocalErrorRatio` / `preventLocalIntersections`：几何安全闸。
-8. `qualityRefinementIterations`：edge collapse 后的固定拓扑质量优化轮数；默认 `0` 保持单轮行为。
-9. `SimplifyReport` / metrics CSV：解释运行结果，而不是只看最后面数。
+8. `qualityRefinementIterations`：edge collapse 后的固定拓扑质量优化轮数；默认 `0` 保持单轮行为。启用纹理保护时该阶段暂时跳过。
+9. `preserveTexture` / `textureWeight` / `textureSeamTolerance` / `minTextureAreaRatio`：输入带 UV 时的纹理排序权重和 chart/面积硬保护；默认关闭，关闭时几何结果与旧路径完全一致。
+10. `SimplifyReport` / metrics CSV：解释运行结果，而不是只看最后面数。
 
 一个结果没有达到目标面数时，第一反应不应是“QEM 坏了”，而要看：
 
@@ -261,7 +296,7 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 当前没有承诺：
 
 - 从任意 STL 自动恢复完整 CAD feature tree。
-- 对高噪扫描输入自动完成去噪、法线重估和曲率 ridge 提取。
+- 对高噪扫描输入自动完成去噪和法线重估（opt-in 的 smooth-curvature 通道提供确定性 ridge/valley 证据，但不承担去噪预处理）。
 - 提供全局 Hausdorff/envelope 证明。
 - 保证输出直接满足制造公差。
 - 提供布尔、offset/thickening、修复、补洞或完整 manifold repair。
@@ -281,5 +316,7 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 - 讲特征识别时必须区分“三角网格 feature graph”与“完整 CAD/B-Rep 语义”。
 - 讲 line quadrics 时不要说它能去噪；它当前解决的是平坦区切向欠约束和候选排序退化。
 - 讲 normal tensor 时不要写成万能特征恢复；它是弱特征证据和空间变权来源，受邻域、尺度和噪声影响。
+- 讲 smooth-curvature 时必须写明它是 opt-in、确定性、无学习成分的弱证据通道，只在显式 `FeatureGraph` 与硬证据汇合，不改变默认检测行为。
+- 讲纹理感知简化时必须区分“标量排序代价”和“chart/有符号面积硬过滤”，不得说几何 quadric 被扩维，也不得在 CLI 文档里描述不存在的纹理选项。
 - 讲工业安全时必须绑定具体过滤器、测试数据和报告字段。
 - 新增能力应进入 `include/algorithms/<domain>/` 下的平级模块，而不是反向塞进 simplification。

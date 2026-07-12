@@ -31,6 +31,12 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
     requireFiniteNonNegative(options.featureBoost, "featureBoost");
     requireFiniteNonNegative(options.adaptiveBaseLineWeight, "adaptiveBaseLineWeight");
     requireFiniteNonNegative(options.boundaryWeight, "boundaryWeight");
+    requireFiniteNonNegative(options.textureWeight, "textureWeight");
+    requireFiniteNonNegative(options.textureSeamTolerance, "textureSeamTolerance");
+    requireFiniteNonNegative(options.minTextureAreaRatio, "minTextureAreaRatio");
+    if (options.minTextureAreaRatio > 1.0) {
+        throw std::invalid_argument("minTextureAreaRatio must be in [0, 1].");
+    }
     requireFiniteNonNegative(options.featureCurveWeight, "featureCurveWeight");
     requireFiniteNonNegative(options.maxFeatureCurveDeviationRatio, "maxFeatureCurveDeviationRatio");
     feature::validateFeatureOptions(featureOptionsFromSimplifyOptions(options));

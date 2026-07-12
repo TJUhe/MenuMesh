@@ -229,9 +229,7 @@ void mergeDuplicateTriangleVertices(
     }
 }
 
-int parseObjVertexIndex(const std::string& token, int vertexCount) {
-    const std::size_t slash = token.find('/');
-    const std::string indexText = slash == std::string::npos ? token : token.substr(0, slash);
+int parseObjIndex(const std::string& indexText, int valueCount) {
     if (indexText.empty()) {
         return -1;
     }
@@ -245,9 +243,35 @@ int parseObjVertexIndex(const std::string& token, int vertexCount) {
         return raw - 1;
     }
     if (raw < 0) {
-        return vertexCount + raw;
+        return valueCount + raw;
     }
     return -1;
+}
+
+struct ObjCorner {
+    int vertex = -1;
+    int texcoord = -1;
+};
+
+bool parseObjCorner(const std::string& token, int vertexCount, int texcoordCount, ObjCorner& corner) {
+    const std::size_t firstSlash = token.find('/');
+    const std::string vertexText = firstSlash == std::string::npos ? token : token.substr(0, firstSlash);
+    corner.vertex = parseObjIndex(vertexText, vertexCount);
+    if (corner.vertex < 0 || corner.vertex >= vertexCount) {
+        return false;
+    }
+    if (firstSlash == std::string::npos) {
+        return true;
+    }
+    const std::size_t secondSlash = token.find('/', firstSlash + 1);
+    const std::string texcoordText = secondSlash == std::string::npos
+                                         ? token.substr(firstSlash + 1)
+                                         : token.substr(firstSlash + 1, secondSlash - firstSlash - 1);
+    if (texcoordText.empty()) {
+        return true;
+    }
+    corner.texcoord = parseObjIndex(texcoordText, texcoordCount);
+    return corner.texcoord >= 0 && corner.texcoord < texcoordCount;
 }
 
 } // namespace
@@ -289,8 +313,11 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
     }
 
     std::vector<Vec3> positions;
+    std::vector<Vec2> texcoords;
     mesh.vertices.clear();
     mesh.faces.clear();
+    mesh.faceTexCoords.clear();
+    bool sawTextureReference = false;
 
     std::string line;
     while (std::getline(in, line)) {
@@ -312,29 +339,62 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
                 }
                 positions.emplace_back(x, y, z);
             }
+        } else if (tag == "vt") {
+            double u = 0.0;
+            double v = 0.0;
+            if (!(ss >> u >> v) || !std::isfinite(u) || !std::isfinite(v)) {
+                if (error)
+                    *error = "OBJ contains a malformed or non-finite texture coordinate.";
+                return false;
+            }
+            texcoords.emplace_back(u, v);
         } else if (tag == "f") {
-            std::vector<int> ids;
+            std::vector<ObjCorner> corners;
             std::string token;
             while (ss >> token) {
-                const int id = parseObjVertexIndex(token, static_cast<int>(positions.size()));
-                if (id < 0 || id >= static_cast<int>(positions.size())) {
+                ObjCorner corner;
+                if (!parseObjCorner(
+                        token, static_cast<int>(positions.size()), static_cast<int>(texcoords.size()), corner
+                    )) {
                     if (error)
-                        *error = "OBJ face references an invalid vertex index.";
+                        *error = "OBJ face references an invalid vertex or texture-coordinate index.";
                     return false;
                 }
-                ids.push_back(id);
+                sawTextureReference = sawTextureReference || corner.texcoord >= 0;
+                corners.push_back(corner);
             }
-            for (int i = 1; i + 1 < static_cast<int>(ids.size()); ++i) {
+            for (int i = 1; i + 1 < static_cast<int>(corners.size()); ++i) {
                 Face face;
-                face.v = {ids[0], ids[i], ids[i + 1]};
+                face.v = {corners[0].vertex, corners[i].vertex, corners[i + 1].vertex};
                 if (face.v[0] != face.v[1] && face.v[1] != face.v[2] && face.v[0] != face.v[2]) {
                     mesh.faces.push_back(face);
+                    FaceTexCoords faceUv;
+                    const std::array<int, 3> textureIds{
+                        corners[0].texcoord, corners[i].texcoord, corners[i + 1].texcoord
+                    };
+                    const bool allTextured = textureIds[0] >= 0 && textureIds[1] >= 0 && textureIds[2] >= 0;
+                    const bool noneTextured = textureIds[0] < 0 && textureIds[1] < 0 && textureIds[2] < 0;
+                    if (!allTextured && !noneTextured) {
+                        if (error)
+                            *error = "OBJ face mixes textured and untextured corners.";
+                        return false;
+                    }
+                    faceUv.valid = allTextured;
+                    if (allTextured) {
+                        for (int corner = 0; corner < 3; ++corner) {
+                            faceUv.uv[corner] = texcoords[textureIds[corner]];
+                        }
+                    }
+                    mesh.faceTexCoords.push_back(faceUv);
                 }
             }
         }
     }
 
     mesh.vertices = std::move(positions);
+    if (!sawTextureReference) {
+        mesh.faceTexCoords.clear();
+    }
     mesh.removeUnusedVertices();
     if (mesh.empty()) {
         if (error)

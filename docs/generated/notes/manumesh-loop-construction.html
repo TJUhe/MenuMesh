@@ -204,6 +204,7 @@ footer {
   </div>
   <div class="tags">
     <span class="tag">生成日期：2026-07-10</span>
+    <span class="tag">更新：2026-07-12（smooth curvature 弱证据）</span>
     <span class="tag">主入口：recoverFeatureLoops</span>
     <span class="tag">核心文件：FeatureLoopBuilder / FeatureCycleRecovery / FeatureTraceRecovery</span>
     <span class="tag">输出：HTML + Mermaid</span>
@@ -289,15 +290,15 @@ footer {
   <section id="inputs">
     <h2>3. 进入 loop 构造前已经有什么</h2>
     <p>
-      loop recovery 接收的不是原始网格边，而是 `TraceGraph`。这个图来自候选特征边 `CandidateEdge`，每条边带着 boundary、dihedral、normalTensor、nonManifold、cleanupBridge、signedKind 和 tensor persistence 等证据。<span class="ref">C10</span>
+      loop recovery 接收的不是原始网格边，而是 `TraceGraph`。这个图来自候选特征边 `CandidateEdge`，每条边带着 boundary、dihedral、normalTensor、smoothCurvature（opt-in 的确定性光滑曲率弱证据，本轮新增）、nonManifold、cleanupBridge、signedKind 以及 tensor/curvature persistence 等证据。<span class="ref">C10</span>
     </p>
     <div class="diagram-wrap">
       <pre class="mermaid">
 flowchart TD
-  A["CandidateEdge 候选边<br/>boundary / dihedral / tensor / non-manifold"] --> B["initializeFeatureGraph<br/>完整记录所有 feature evidence"]
+  A["CandidateEdge 候选边<br/>boundary / dihedral / tensor /<br/>smooth curvature / non-manifold"] --> B["initializeFeatureGraph<br/>完整记录所有 feature evidence"]
   A --> C["buildTraceGraph<br/>筛出可以参与 loop trace 的边"]
   C --> D{"traceEdge?"}
-  D -->|"boundary / nonManifold / normalTensor"| E["加入 TraceGraph"]
+  D -->|"boundary / nonManifold /<br/>normalTensor / smoothCurvature"| E["加入 TraceGraph"]
   D -->|"dihedral 且 angle >= loopTraceAngle"| E
   D -->|"dihedral 但角度不够"| F["untracedFeatureEdges++"]
   E --> G["可选 cleanupTraceGraph<br/>删弱 spur / 桥接近 junction / 桥接 endpoint gap"]
@@ -306,15 +307,19 @@ flowchart TD
     </div>
     <h3>TraceGraph 的过滤规则</h3>
     <p>
-      `buildTraceGraph` 里有一个关键选择：所有 boundary、non-manifold、normal tensor 边都直接可追踪；dihedral 边必须满足 `angleRad >= loopTraceAngle`。如果 `loopTraceAngleDeg < 0`，就复用 `featureAngleDeg`；否则用更严格或更宽松的单独追踪阈值。没有进入 `TraceGraph` 的候选边仍然算 feature evidence，但不会构造 loop ownership。<span class="ref">C02</span>
+      `buildTraceGraph` 里有一个关键选择：所有 boundary、non-manifold、normal tensor 和 smooth curvature 边都直接可追踪；dihedral 边必须满足 `angleRad >= loopTraceAngle`。如果 `loopTraceAngleDeg < 0`，就复用 `featureAngleDeg`；否则用更严格或更宽松的单独追踪阈值。没有进入 `TraceGraph` 的候选边仍然算 feature evidence，但不会构造 loop ownership。<span class="ref">C02</span>
     </p>
+    <div class="note">
+      <strong>smoothCurvature 是新的弱证据来源（opt-in）。</strong>
+      打开 `FeatureOptions::useSmoothCurvatureFeatures`（CLI 为 `--smooth-curvature-features`，默认关闭）后，确定性多尺度 quadric 曲率检测会把光滑 ridge/valley 的顶点证据转成 `smoothCurvature` 标记的候选边。它与 boundary/dihedral/nonManifold/normalTensor 并列进入 feature graph；一旦进图，就与其他来源在 loop 追踪与 cleanup 中同等参与——只在“弱证据”相关的保守规则（删短 spur、跳过弱证据分量的闭合 fallback）里与 normalTensor 受到相同对待。设计细节见 <code>docs/design/smooth_curvature_feature_detection_2026_07_11.md</code>。
+    </div>
     <div class="decision">
       <strong>这就是为什么同样检测到了 dihedral feature edge，却可能没有 loop。</strong>
       测试 `ReportsUntracedDihedralEdgesWhenTraceAngleIsStricter` 把 `loopTraceAngleDeg` 设为 179 度，结果 `featureEdges == untracedFeatureEdges`，`tracedFeatureEdges == 0`，`loops.empty()`。<span class="ref">T04</span>
     </div>
     <h3>cleanup 对 loop 的影响</h3>
     <p>
-      loop recovery 之前，`cleanupTraceGraph` 会按顺序删弱 tensor spur、桥接近 junction、桥接 endpoint gap。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
+      loop recovery 之前，`cleanupTraceGraph` 会按顺序删弱证据 spur（tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
     </p>
   </section>
 
@@ -334,7 +339,7 @@ flowchart TD
   E --> R["analysis.loops + vertices feature ownership"]
 
   A -. "目标：分叉图中两条链围成的圆环" .-> A1["addRecoveredCycle(Circular)"]
-  B -. "目标：小型无 tensor 分量中的多边形 cycle" .-> B1["addRecoveredCycle(Polygonal)"]
+  B -. "目标：小型无弱证据分量中的多边形 cycle" .-> B1["addRecoveredCycle(Polygonal)"]
   C -. "目标：还没用过的开链 / 闭合 2-valence 环" .-> C1["addTracedLoop"]
   D -. "目标：整 component 可拟合 circle / near-circle / ellipse" .-> D1["assignLoopToVertices"]
   E -. "目标：碎片化 CAD 圆孔顶点簇" .-> E1["三点圆搜索 + sortAroundCircle"]
@@ -479,7 +484,7 @@ flowchart TD
   A["TraceGraph component"] --> B["BFS 建 spanning tree"]
   B --> C["edgeCount / vertexCount / cycleRank"]
   C --> D{"是否跳过"}
-  D -->|"有 normal tensor 边"| X["跳过：避免弱特征误闭合"]
+  D -->|"有 normal tensor /<br/>smooth curvature 弱证据边"| X["跳过：避免弱特征误闭合"]
   D -->|"太小 / 太大 / cycleRank 异常"| X
   D -->|"通过"| E["枚举非树边"]
   E --> F["treePathCycle(u, v)"]
@@ -498,9 +503,9 @@ flowchart TD
         <tr><td>单个 cycle 顶点上限</td><td>80</td><td>只恢复小环，长环交给普通 trace 或 fallback。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:154</a></td></tr>
       </tbody>
     </table>
-    <h3>为什么跳过 normal tensor 分量</h3>
+    <h3>为什么跳过弱证据分量</h3>
     <p>
-      normal tensor 边代表弱特征/软特征证据，可能来自局部法向变化而不是硬边界。这个阶段要从图论上“补闭合多边形环”，如果把 tensor ridge 也拿来闭合，容易把噪声或浅 ridge 误当成分割边界。所以 `componentHasNormalTensorEdge` 为真时直接跳过。<span class="ref">C09</span><span class="ref paper">P05</span>
+      normal tensor 与 smooth curvature 边代表弱特征/软特征证据，可能来自局部法向变化或光滑曲率极值，而不是硬边界。这个阶段要从图论上“补闭合多边形环”，如果把弱 ridge 也拿来闭合，容易把噪声或浅 ridge 误当成分割边界。所以 `componentHasWeakEvidenceEdge`（覆盖 normalTensor 和 smoothCurvature 两种来源）为真时直接跳过。<span class="ref">C09</span><span class="ref paper">P05</span>
     </p>
     <h3>Polygonal 的接受条件</h3>
     <p>
@@ -547,7 +552,7 @@ flowchart TD
     </table>
     <h3>trace 过程中会累计哪些统计</h3>
     <p>
-      每走过一条边，`accumulateTraceEdgeStats` 会累计 edgeCount、boundary、dihedral、normalTensor、nonManifold、cleanupBridge，以及 convex/concave/unknown signed edge。这些统计进入 `FeatureLoop`，也帮助后续报告解释这个 loop 是由什么证据支撑的。<span class="ref">C04</span><span class="ref">C06</span>
+      每走过一条边，`accumulateTraceEdgeStats` 会累计 edgeCount、boundary、dihedral、normalTensor、smoothCurvature、nonManifold、cleanupBridge，以及 convex/concave/unknown signed edge。这些统计进入 `FeatureLoop`，也帮助后续报告解释这个 loop 是由什么证据支撑的。<span class="ref">C04</span><span class="ref">C06</span>
     </p>
     <div class="callout warn">
       <strong>这一步不是“只要闭合才生成”。</strong>
@@ -600,7 +605,7 @@ flowchart TD
       <pre class="mermaid">
 flowchart TD
   A["collectTraceComponents"] --> B{"component 可尝试?"}
-  B -->|"有 normal tensor 边"| X["跳过"]
+  B -->|"有 normal tensor /<br/>smooth curvature 弱证据边"| X["跳过"]
   B -->|"已有 circular loop"| X
   B -->|"太小或 >120 顶点"| X
   B -->|"通过"| C["枚举顶点三元组"]
@@ -618,7 +623,7 @@ flowchart TD
     </div>
     <h3>为什么这个阶段放最后</h3>
     <p>
-      三点圆搜索比普通追踪更像“猜一个圆”。为了减少误判，它有几层保险：跳过 normal tensor 分量、跳过已有 circular loop 的分量、component 顶点数必须在合理范围内、三元组扫描最多 32768 次、cluster 至少覆盖 270 度、最终还要 `fitPrimitive` 分类为 circular。<span class="ref">C13</span>
+      三点圆搜索比普通追踪更像“猜一个圆”。为了减少误判，它有几层保险：跳过含弱证据边（normal tensor 或 smooth curvature）的分量、跳过已有 circular loop 的分量、component 顶点数必须在合理范围内、三元组扫描最多 32768 次、cluster 至少覆盖 270 度、最终还要 `fitPrimitive` 分类为 circular。<span class="ref">C13</span>
     </p>
     <table>
       <thead><tr><th>保护阈值</th><th>代码值</th><th>意义</th></tr></thead>
@@ -758,8 +763,8 @@ flowchart TD
           <td><span class="ref">C02</span><span class="ref">T04</span></td>
         </tr>
         <tr>
-          <td>normal tensor 弱特征分量看起来有 cycle</td>
-          <td>small cycle basis 和 circular cluster fallback 都跳过含 normal tensor edge 的 component。</td>
+          <td>normal tensor / smooth curvature 弱特征分量看起来有 cycle</td>
+          <td>small cycle basis 和 circular cluster fallback 都跳过含弱证据边（normalTensor 或 smoothCurvature）的 component。</td>
           <td>避免把弱 ridge/noise 强行补成闭合 CAD 边界；普通 trace 仍可记录曲线。</td>
           <td><span class="ref">C09</span><span class="ref">C13</span><span class="ref paper">P05</span></td>
         </tr>
@@ -860,9 +865,9 @@ flowchart TD
           <td><span class="ref paper">P03</span></td>
         </tr>
         <tr>
-          <td>normal tensor 作为弱特征证据，但不强行补闭合</td>
-          <td>normal voting/tensor 方法适合 noisy crease 和 weak feature，但尺度和邻域会影响结果。</td>
-          <td>tensor edge 可进 trace graph；small cycle/circular fallback 跳过 tensor component，避免假闭环。</td>
+          <td>normal tensor / smooth curvature 作为弱特征证据，但不强行补闭合</td>
+          <td>normal voting/tensor 方法适合 noisy crease 和 weak feature，确定性曲率 ridge/valley 方法适合光滑表面，但尺度和邻域都会影响结果。</td>
+          <td>tensor 与 smooth-curvature 边都可进 trace graph；small cycle/circular fallback 跳过弱证据 component，避免假闭环。</td>
           <td><span class="ref paper">P04</span><span class="ref paper">P05</span></td>
         </tr>
         <tr>

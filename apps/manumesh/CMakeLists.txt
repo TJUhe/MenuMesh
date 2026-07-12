@@ -33,6 +33,10 @@ if(BUILD_TESTING)
   add_test(NAME manumesh_cli_feature_report
     COMMAND manumesh feature-report
       "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
+      --smooth-curvature-features
+      --smooth-curvature-base-rings 2
+      --smooth-curvature-scales 3
+      --smooth-curvature-min-persistent-scales 2
   )
   add_test(NAME manumesh_cli_feature_benchmark
     COMMAND manumesh feature-benchmark

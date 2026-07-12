@@ -26,6 +26,24 @@ License notes are factual repository metadata; algorithm comparison is the main 
 4. Geogram and M039 for Voronoi/CVT or metric-driven sampling.
 5. MMG for anisotropic metric fields and Instant Meshes for field-aligned topology generation.
 
+## Feature Detection Patterns Applied in ManuMesh
+
+- OpenMesh: keep feature policy out of the topology kernel and store the result
+  as explicit edge/vertex properties or an analysis object.
+- CGAL PMP: treat detected sharp or smooth curves as constrained edge maps before
+  segmentation or remeshing consumes them.
+- pmp-library: compute curvature with explicit neighborhood, boundary, and
+  smoothing choices; test known analytic shapes instead of only visual output.
+- libigl: use tangent-frame quadric fitting with k-ring/radius neighborhoods and
+  expose both principal values and directions.
+- geometry-central: attach differential quantities to the mesh element that owns
+  them and invalidate/recompute them deliberately after topology edits.
+
+ManuMesh follows these patterns without importing an external mesh kernel. The
+current smooth path adds robust reweighting, dimensionless local-scale
+normalization, signed directional extrema, cross-scale persistence, and explicit
+feature-graph ownership.
+
 ## Boundary for ManuMesh
 
 - Reuse concepts and validate behavior against these libraries; do not mirror their public APIs.

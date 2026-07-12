@@ -80,11 +80,13 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
 
     const bool featureCurveCollapse = input.featurePolicy.isHardProtectedCollapse(input.edge, input.vertices);
     const bool tryFallbackPlacements =
-        !featureCurveCollapse && (input.policies.legality.minTriangleQuality > 0.0 || input.maxLocalError > 0.0 ||
-                                  input.policies.legality.preventLocalIntersections);
+        !featureCurveCollapse &&
+        (input.policies.legality.minTriangleQuality > 0.0 || input.maxLocalError > 0.0 ||
+         input.policies.legality.preventLocalIntersections || input.textureProtection.active());
     const int placementCount = tryFallbackPlacements ? static_cast<int>(input.placements.size()) : 1;
 
     bool sawCurveBudgetReject = false;
+    TextureCollapseRejectReason textureRejectReason = TextureCollapseRejectReason::None;
     for (int placementIndex = 0; placementIndex < placementCount; ++placementIndex) {
         Vec3 collapsePosition = input.placements[placementIndex].position;
         projectBoundaryPlacement({input.edge, boundaryDecision, input.vertices}, collapsePosition);
@@ -95,6 +97,15 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
 
         const bool projected =
             input.featurePolicy.projectPlacement({input.edge, input.vertices, input.featureCurves}, collapsePosition);
+        const TextureCollapseEvaluation textureEvaluation = input.textureProtection.evaluate(
+            input.edge, collapsePosition, input.faces, input.vertices, input.topology, input.faceTexCoords
+        );
+        if (!textureEvaluation.allowed()) {
+            if (textureRejectReason == TextureCollapseRejectReason::None) {
+                textureRejectReason = textureEvaluation.rejectReason;
+            }
+            continue;
+        }
         const CollapseRejectReason rejectReason = collapseRejectReason(
             {input.edge,
              collapsePosition,
@@ -124,6 +135,11 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
     }
     if (sawCurveBudgetReject) {
         result.status = CollapseAttemptStatus::CurveBudgetRejected;
+        return result;
+    }
+    if (textureRejectReason != TextureCollapseRejectReason::None) {
+        result.status = CollapseAttemptStatus::TextureRejected;
+        result.textureRejectReason = textureRejectReason;
         return result;
     }
     result.status = CollapseAttemptStatus::LegalityRejected;

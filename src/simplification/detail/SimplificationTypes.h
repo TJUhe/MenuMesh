@@ -93,6 +93,12 @@ enum class CollapseRejectReason {
     LocalError,
 };
 
+enum class TextureCollapseRejectReason {
+    None,
+    ChartMismatch,
+    TriangleFlip,
+};
+
 struct BoundaryCollapseDecision {
     bool allowed = true;
     bool boundaryEdge = false;

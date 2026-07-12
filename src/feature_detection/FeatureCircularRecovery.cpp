@@ -104,7 +104,7 @@ double angularCoverage(const std::vector<int>& ids, const Mesh& mesh, const Vec3
 
 struct TraceComponent {
     std::vector<int> vertices;
-    bool hasNormalTensorEdge = false;
+    bool hasWeakEvidenceEdge = false;
     bool alreadyHasCircularLoop = false;
 };
 
@@ -127,7 +127,8 @@ std::vector<TraceComponent> collectTraceComponents(const TraceGraph& trace, cons
                 component.alreadyHasCircularLoop = component.alreadyHasCircularLoop || analysis.vertices[v].circular;
             }
             for (int nb : trace.adjacency[v]) {
-                component.hasNormalTensorEdge = component.hasNormalTensorEdge || traceEdgeNormalTensor(trace, v, nb);
+                component.hasWeakEvidenceEdge = component.hasWeakEvidenceEdge || traceEdgeNormalTensor(trace, v, nb) ||
+                                                traceEdgeSmoothCurvature(trace, v, nb);
                 if (!visited[nb]) {
                     visited[nb] = 1;
                     queue.push(nb);
@@ -146,7 +147,7 @@ void recoverCircularVertexClusters(
 ) {
     std::unordered_set<std::string> seenClusters;
     for (const TraceComponent& component : collectTraceComponents(trace, analysis)) {
-        if (component.hasNormalTensorEdge || component.alreadyHasCircularLoop ||
+        if (component.hasWeakEvidenceEdge || component.alreadyHasCircularLoop ||
             static_cast<int>(component.vertices.size()) < options.minFeatureLoopVertices ||
             component.vertices.size() > 120) {
             continue;

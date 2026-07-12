@@ -120,6 +120,17 @@ struct SimplifyOptions {
     /// Fixed-topology, tangential quality-improvement passes after edge collapse.
     /// Zero preserves the one-round simplification behavior exactly.
     int qualityRefinementIterations = 0;
+
+    // Texture-aware ranking and hard UV-chart constraints.
+    /// Enables per-corner UV protection when the input mesh carries texture coordinates.
+    bool preserveTexture = false;
+    /// Scalar local UV-distortion weight added to the 4x4 geometry-QEM cost.
+    /// This never changes the geometry quadric dimension or placement solve.
+    double textureWeight = 1.0;
+    /// Relative tolerance used to group equal per-corner UVs into local charts.
+    double textureSeamTolerance = 1e-8;
+    /// Minimum allowed signed UV-area ratio for each surviving triangle.
+    double minTextureAreaRatio = 1e-8;
 };
 
 /// Diagnostics collected during simplification.
@@ -184,6 +195,10 @@ struct SimplifyReport {
     int qualityRefinementIterationsCompleted = 0;
     int qualityRefinementAttemptedMoves = 0;
     int qualityRefinementAcceptedMoves = 0;
+
+    // Texture-aware collapse diagnostics.
+    int textureRejectedCollapses = 0;
+    int textureProtectedEdges = 0;
 };
 
 /// Parses a command/user string into a weight mode.

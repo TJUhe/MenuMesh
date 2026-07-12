@@ -11,6 +11,7 @@
 #include "detail/Quadrics.h"
 #include "detail/SimplificationPolicies.h"
 #include "detail/SpatialFaceIndex.h"
+#include "detail/TextureProtection.h"
 
 #include <memory>
 #include <unordered_set>
@@ -37,6 +38,7 @@ private:
     void initializeFaces();
     void initializeBudget();
     void rebuildQueue();
+    void pushEdgeCandidate(int a, int b);
     void collapseUntilTarget();
     void refineQuality();
     bool ensureQueueHasCandidates();
@@ -58,6 +60,7 @@ private:
     std::vector<char> boundaryVertices_;
     std::vector<VertexState> vertices_;
     std::vector<FaceState> faces_;
+    std::vector<FaceTexCoords> faceTexCoords_;
     std::unique_ptr<DynamicTopology> topology_;
     SpatialFaceIndex spatialIndex_;
     std::unique_ptr<manumesh::detail::MeshDistanceIndex> referenceSurface_;
@@ -65,6 +68,7 @@ private:
     CandidateQueue queue_;
     InitialQuadricBuilder quadrics_;
     FeatureConstraintPolicy featurePolicy_;
+    TextureProtection textureProtection_;
     int activeFaceCount_ = 0;
     int targetFaces_ = 0;
     double areaEps_ = 0.0;

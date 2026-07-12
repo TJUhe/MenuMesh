@@ -193,10 +193,10 @@ footer {
 <header>
   <h1>ManuMesh 特征识别路线、源码与论文对照说明</h1>
   <div class="subtitle">
-    当前实现面向 CAD/STL 风格三角网格：先找离散硬证据，再用 normal tensor 补弱特征，随后把边集合组织成可用的 trace graph、loop、primitive 和 component confidence，最后供报告、benchmark、feature compare 与 QEM 特征保护消费。
+    当前实现面向 CAD/STL 风格三角网格：先找离散硬证据，再用 normal tensor 与 opt-in 的 smooth curvature（多尺度 quadric 曲率）补弱特征，随后把边集合组织成可用的 trace graph、loop、primitive 和 component confidence，最后供报告、benchmark、feature compare 与 QEM 特征保护消费。
   </div>
   <div class="tags">
-    <span class="tag">源码基线：2026-07-10</span>
+    <span class="tag">源码基线：2026-07-12</span>
     <span class="tag">主入口：FeatureDetector / detectFeatureCurves</span>
     <span class="tag">文献锚点：docs/papers + mesh-feature-literature</span>
     <span class="tag">输出：HTML + Mermaid</span>
@@ -214,6 +214,7 @@ footer {
       <li><a href="#pipeline">检测 pipeline 详解</a></li>
       <li><a href="#evidence">候选特征边证据</a></li>
       <li><a href="#tensor">Normal tensor 弱特征分支</a></li>
+      <li><a href="#smooth-curvature">Smooth curvature 弱特征分支（opt-in）</a></li>
       <li><a href="#graph">Feature graph / trace graph / cleanup</a></li>
       <li><a href="#loops">Loop 恢复与 primitive 拟合</a></li>
       <li><a href="#components">Component 置信度与诊断指标</a></li>
@@ -229,7 +230,7 @@ footer {
     <h2>1. 一句话路线</h2>
     <div class="callout success">
       <strong>当前特征识别不是“单阈值二面角提边”。</strong>
-      它是一条 CAD/STL 优先的图恢复路线：<code>boundary / non-manifold / dihedral</code> 提供强离散证据，<code>normal tensor</code> 提供弱特征补充，之后构建 <code>FeatureGraph</code> 和 <code>TraceGraph</code>，通过 cleanup 修补/清理局部碎片，再恢复 open chain、closed loop、circle、near-circle、ellipse、polygonal loop，最后计算 component confidence，并把结果交给 CLI 报告和 QEM 简化保护使用。
+      它是一条 CAD/STL 优先的图恢复路线：<code>boundary / non-manifold / dihedral</code> 提供强离散证据，<code>normal tensor</code> 与 opt-in 的 <code>smooth curvature</code>（确定性多尺度 quadric 曲率）提供弱特征补充，之后构建 <code>FeatureGraph</code> 和 <code>TraceGraph</code>，通过 cleanup 修补/清理局部碎片，再恢复 open chain、closed loop、circle、near-circle、ellipse、polygonal loop，最后计算 component confidence，并把结果交给 CLI 报告和 QEM 简化保护使用。
     </div>
     <p>
       这条路线与文献图谱的判断一致：对于干净 CAD/STL，二面角、边界、facet 邻接和 loop construction 往往比直接估 curvature derivative 更稳；对于弱 crease 或噪声场景，则需要 normal/tensor voting 或多尺度证据来避免单阈值漏检。文献技能的 distilled corpus 明确把 CAD/STL hard boundary 抽取、normal/tensor voting、loop tracing 和 feature-preserving simplification 分成互补家族 <span class="ref paper">P00</span>。
@@ -261,7 +262,7 @@ footer {
       <pre class="mermaid">
 flowchart TD
   Input["Mesh<br/>vertices + triangle faces"] --> Validate["validateFeatureOptions<br/>validateFeatureInput"]
-  Validate --> Evidence["EdgeEvidenceStage<br/>boundary / dihedral / non-manifold / normal tensor"]
+  Validate --> Evidence["EdgeEvidenceStage<br/>boundary / dihedral / non-manifold<br/>normal tensor / smooth curvature (opt-in)"]
   Evidence --> Graph["FeatureGraphStage<br/>FeatureGraph + TraceGraph"]
   Graph --> Cleanup["FeatureGraphCleanupStage<br/>remove weak spurs<br/>bridge close junctions<br/>bridge endpoint gaps"]
   Cleanup --> Recover["LoopRecoveryStage<br/>cycle recovery + trace chains + primitive fallback"]
@@ -278,7 +279,8 @@ flowchart TD
       <thead><tr><th>阶段</th><th>源码位置</th><th>作用</th></tr></thead>
       <tbody>
         <tr><td>Facade / pipeline 编排</td><td><a href="../../../src/feature_detection/FeatureDetector.cpp">src/feature_detection/FeatureDetector.cpp:28-169</a> <span class="ref">C01</span></td><td>定义检测上下文、六个 stage、空 mesh 处理和最终 build。</td></tr>
-        <tr><td>候选特征边证据</td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:13-249</a> <span class="ref">C05</span></td><td>收集 boundary、non-manifold、dihedral、normal tensor 候选边，并统计来源。</td></tr>
+        <tr><td>候选特征边证据</td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:13-249</a> <span class="ref">C05</span></td><td>收集 boundary、non-manifold、dihedral、normal tensor 与 opt-in smooth curvature 候选边，并统计来源。</td></tr>
+        <tr><td>smooth curvature 打分</td><td><a href="../../../src/feature_detection/SmoothCurvature.cpp">src/feature_detection/SmoothCurvature.cpp</a> <span class="ref">C29</span></td><td>逐顶点、逐拓扑尺度做鲁棒 Monge patch 拟合，输出带符号主曲率、方向极值与 persistence 分数。</td></tr>
         <tr><td>graph/trace graph</td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:57-96</a> <span class="ref">C10</span></td><td>把候选边写入 graph，并决定哪些边进入 trace graph。</td></tr>
         <tr><td>cleanup</td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:102-372</a> <span class="ref">C11</span></td><td>删除短弱 spur，桥接近 junction 和端点 gap。</td></tr>
         <tr><td>loop 恢复</td><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">src/feature_detection/FeatureLoopRecovery.cpp:10-17</a> <span class="ref">C15</span></td><td>调度五种恢复策略，从显式 cycle 到 primitive/component fallback。</td></tr>
@@ -300,7 +302,7 @@ flowchart TD
         <tr>
           <td><code>FeatureOptions</code></td>
           <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:26-79</a></td>
-          <td>控制二面角阈值、loop tracing 阈值、圆/椭圆拟合阈值、normal tensor 阈值、多尺度参数、graph cleanup 参数、component confidence 阈值。</td>
+          <td>控制二面角阈值、loop tracing 阈值、圆/椭圆拟合阈值、normal tensor 阈值、smooth curvature 阈值（opt-in）、多尺度参数、graph cleanup 参数、component confidence 阈值。</td>
           <td>CLI 参数、简化中的 featureOptionsFromSimplifyOptions。</td>
         </tr>
         <tr>
@@ -330,7 +332,7 @@ flowchart TD
         <tr>
           <td><code>FeatureAnalysis</code></td>
           <td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h:207-234</a></td>
-          <td>汇总结果和所有计数器：feature edges、traced/untraced、各证据来源、normal tensor scale 统计、component confidence。</td>
+          <td>汇总结果和所有计数器：feature edges、traced/untraced、各证据来源、normal tensor 与 smooth curvature 的 scale/persistence 统计、component confidence。</td>
           <td>整个模块的稳定数据交换格式。</td>
         </tr>
       </tbody>
@@ -345,7 +347,7 @@ flowchart TD
   <section id="options">
     <h2>4. 参数和数据适用范围</h2>
     <p>
-      当前默认参数更偏向 CAD/STL：<code>featureAngleDeg=40</code> 用于强二面角，<code>useNormalTensorFeatures=true</code> 用于弱补充，<code>cleanupFeatureGraph=true</code> 用于修短断裂和弱 spur。参数校验集中在 <code>validateFeatureOptionsImpl</code> <span class="ref">C03</span>。
+      当前默认参数更偏向 CAD/STL：<code>featureAngleDeg=40</code> 用于强二面角，<code>useNormalTensorFeatures=true</code> 用于弱补充，<code>cleanupFeatureGraph=true</code> 用于修短断裂和弱 spur；面向光滑脊/谷的 <code>useSmoothCurvatureFeatures</code> 默认为 <code>false</code>，需要显式 opt-in。参数校验集中在 <code>validateFeatureOptionsImpl</code> <span class="ref">C03</span>。
     </p>
 
     <table>
@@ -356,6 +358,7 @@ flowchart TD
         <tr><td>primitive 拟合阈值</td><td>circle/ellipse relative threshold 默认 0.05，near-circle axis tolerance 默认 0.08</td><td>决定 closed loop 是圆、近圆、椭圆还是 polygonal loop。</td><td><span class="ref">C18</span></td></tr>
         <tr><td>loop 最小顶点数</td><td><code>minFeatureLoopVertices=8</code>，必须至少 3</td><td>阻止短碎片被报告成稳定 loop。</td><td><span class="ref">C02</span> <span class="ref">C03</span></td></tr>
         <tr><td>normal tensor</td><td>threshold 0.16，edge alignment 0.45，scale count 至少 1</td><td>补弱 crease；scale 和 alignment 对噪声/采样很敏感。</td><td><span class="ref">C06</span> <span class="ref">C07</span></td></tr>
+        <tr><td>smooth curvature</td><td><code>useSmoothCurvatureFeatures=false</code>（opt-in）；threshold 0.015，edge alignment 0.55，tangent consistency 0.65，base rings 2，scales 3，min persistent scales 2，robust iterations 2</td><td>面向光滑表面的 ridge/valley 弱证据；分数经过尺度归一化，网格均匀缩放不需要重调阈值。详见第 8 节。</td><td><span class="ref">C29</span> <span class="ref">C30</span> <span class="ref">C31</span></td></tr>
         <tr><td>graph cleanup</td><td>gap ratio 1.25，max weak spur edges 2</td><td>删除 tensor-only 短 spur；按局部边长桥接端点或 junction gap。</td><td><span class="ref">C11</span></td></tr>
         <tr><td>component confidence</td><td>threshold 0.35</td><td>报告 high-confidence component，辅助判断弱特征是否可信。</td><td><span class="ref">C12</span></td></tr>
       </tbody>
@@ -363,7 +366,7 @@ flowchart TD
 
     <div class="callout warn">
       <strong>数据 regime 说明：</strong>
-      当前实现没有先做 denoising，也没有完整 curvature derivative/ridge-valley 估计；所以它适合 CAD/STL 或相对干净的三角网格。对重噪扫描，应先考虑 normal voting / tensor-guided denoising / multiscale crease detection 的完整流程，再用本模块的 tensor 分支作边图补充 <span class="ref paper">P04</span> <span class="ref paper">P05</span> <span class="ref paper">P06</span>。
+      当前实现没有先做 denoising；曲率 ridge/valley 估计已经以 opt-in 的 smooth-curvature 分支落地（第 8 节），但默认关闭。所以默认配置适合 CAD/STL 或相对干净的三角网格。对重噪扫描，应先考虑 normal voting / tensor-guided denoising / multiscale crease detection 的完整流程，再用本模块的 tensor 与 smooth-curvature 分支作边图补充 <span class="ref paper">P04</span> <span class="ref paper">P05</span> <span class="ref paper">P06</span>。
     </div>
   </section>
 
@@ -398,6 +401,7 @@ flowchart TD
         <tr><td>loopTraceAngleDeg 为非有限，或非负且大于 180</td><td>抛 <code>invalid_argument</code>。</td><td>负数被用作“复用 featureAngleDeg”的哨兵值。</td></tr>
         <tr><td>normalTensorMinEdgeAlignment 不在 [0,1]</td><td>抛异常。</td><td>它代表方向余弦阈值。</td></tr>
         <tr><td>normalTensorScaleCount &lt; 1</td><td>抛异常。</td><td>多尺度统计至少需要一个尺度。</td></tr>
+        <tr><td>smooth curvature 参数非法</td><td><code>smoothCurvatureMinEdgeAlignment</code>/<code>smoothCurvatureMinTangentConsistency</code> 不在 [0,1]、<code>smoothCurvatureBaseNeighborhoodRings</code>/<code>smoothCurvatureScaleCount</code>/<code>smoothCurvatureMinPersistentScales</code> &lt; 1、<code>smoothCurvatureRobustFitIterations</code> &lt; 0 或阈值非有限时抛 <code>invalid_argument</code>。</td><td>即使该路径没有 opt-in，非法参数也被拒绝，保证配置可解释。</td></tr>
         <tr><td>mesh.faces 为空</td><td>输入校验允许，然后 pipeline 返回空分析。</td><td>空网格不是崩溃条件，但没有可检测特征。</td></tr>
         <tr><td>mesh 几何非法</td><td><code>validateMeshGeometry</code> 抛出的错误上抛。</td><td>特征检测依赖 face 法向和边邻接。</td></tr>
       </tbody>
@@ -421,13 +425,16 @@ flowchart TD
   D -- 否 --> E{faces.size == 2?}
   E -- 是 --> Dihedral["计算二面角<br/>angle >= featureAngleDeg"]
   E -- 否 --> None["无强证据"]
-  Boundary --> N["normal tensor 策略跳过<br/>强证据优先"]
+  Boundary --> N["normal tensor / smooth curvature<br/>策略跳过：强证据优先"]
   NonManifold --> N
   Dihedral --> N
   None --> Tensor{useNormalTensorFeatures?}
   Tensor -- 是 --> T["normalTensorEdgeCandidate"]
-  Tensor -- 否 --> Out
-  T --> Out{任一 evidence 成立?}
+  Tensor -- 否 --> SC
+  T --> SC{useSmoothCurvatureFeatures?}
+  SC -- 是 --> S["smoothCurvatureEdgeCandidate"]
+  SC -- 否 --> Out
+  S --> Out{任一 evidence 成立?}
   N --> Out
   Out -- 是 --> Record["recordFeatureEdge<br/>加入 candidate edge"]
   Out -- 否 --> Drop["忽略"]
@@ -461,12 +468,18 @@ flowchart TD
           <td>normal voting / normal tensor 文献用于弱 crease、噪声 crease 和 junction 分类 <span class="ref paper">P04</span> <span class="ref paper">P05</span>。</td>
           <td>尺度和局部采样密度决定成败，弱证据需要 cleanup 和 confidence。</td>
         </tr>
+        <tr>
+          <td>Smooth curvature（opt-in）</td>
+          <td>只在非 boundary/dihedral/non-manifold、且两端都不是离散特征顶点的边上尝试；要求两端 persistent score、persistent scales、符号一致、切向一致性与边对齐同时达标。</td>
+          <td>确定性 ridge/valley 检测家族：局部 quadric 拟合 + 主曲率方向极值 + 多尺度 persistence <span class="ref paper">P07</span> <span class="ref paper">P08</span> <span class="ref paper">P15</span>。</td>
+          <td>光滑证据天然弱于离散证据，默认关闭；启用后仍由 graph 约束和 confidence 决定最终归属。详见第 8 节。</td>
+        </tr>
       </tbody>
     </table>
 
     <h3>为什么强证据优先</h3>
     <p>
-      <code>NormalTensorEvidenceStrategy</code> 如果发现边已经是 boundary、dihedral 或 non-manifold，就直接返回，不再把它重复标成 tensor edge <span class="ref">C05</span>。这让统计含义更清楚：normal tensor 主要表示“强离散规则没覆盖但局部法向张量支持”的弱特征，而不是所有特征的混合标签。
+      <code>NormalTensorEvidenceStrategy</code> 和 <code>SmoothCurvatureEvidenceStrategy</code> 如果发现边已经是 boundary、dihedral 或 non-manifold，就直接返回，不再把它重复标成弱证据边；smooth curvature 额外要求两端点都不是离散特征顶点 <span class="ref">C05</span> <span class="ref">C30</span>。这让统计含义更清楚：normal tensor 和 smooth curvature 都表示“强离散规则没覆盖但局部微分证据支持”的弱特征，而不是所有特征的混合标签。两条弱路径彼此也互不覆盖——tensor 针对法向张量意义上的弱 crease，smooth curvature 针对光滑表面上的 ridge/valley 极值线，同一条边可以同时携带两种标记。
     </p>
   </section>
 
@@ -513,10 +526,94 @@ flowchart TD
     </p>
   </section>
 
-  <section id="graph">
-    <h2>8. Feature graph / trace graph / cleanup</h2>
+  <section id="smooth-curvature">
+    <h2>8. Smooth curvature 弱特征分支（opt-in）</h2>
     <p>
-      当前实现区分两个图：<code>FeatureGraph</code> 是完整证据图，保留候选边和 removedByCleanup 状态；<code>TraceGraph</code> 是用于追踪 loop 的活动图。这个分离允许“检测到但不参与 loop tracing”的边存在于报告中 <span class="ref">C10</span>。
+      本轮新增的第二条弱证据路径是<strong>确定性光滑曲率特征检测</strong>：用多尺度局部 quadric（Monge patch）拟合在光滑表面上找 ridge/valley 极值线。它没有任何 AI/学习成分，权威设计文档是 <a href="../../design/smooth_curvature_feature_detection_2026_07_11.md">docs/design/smooth_curvature_feature_detection_2026_07_11.md</a>，实现在 <a href="../../../src/feature_detection/SmoothCurvature.cpp">src/feature_detection/SmoothCurvature.cpp</a> <span class="ref">C29</span>。
+    </p>
+
+    <div class="callout success">
+      <strong>双路径理念：硬证据与弱光滑证据分开走，只在 FeatureGraph 汇合。</strong>
+      boundary、non-manifold、dihedral 是<em>离散网格上的不连续</em>；光滑 ridge/valley 是<em>局部光滑表面上的微分事件</em>。如果把两类原始分数直接混在一起，阈值会变得难以解释，噪声也会直接和强拓扑证据竞争。所以 ManuMesh 让硬证据（boundary / non-manifold / dihedral）和弱光滑证据（normal tensor / smooth curvature）各自打分、各自过滤，只在显式 <code>FeatureGraph</code> 上汇合——那里才有来源归属、连续性、junction、cleanup、component 和 confidence 可用。component 置信度把 normal-tensor 与 smooth-curvature 视为<strong>相互独立的弱支持</strong>（取两者中较强者作为 weak support），硬证据始终占主导 <span class="ref">C12</span>。
+    </div>
+
+    <h3>算法：逐顶点、逐拓扑尺度的八个步骤</h3>
+    <ol>
+      <li>构建 k-ring 邻域与面积加权局部法线；</li>
+      <li>用局部平均边长 × ring 数做坐标归一化；</li>
+      <li>带距离权与确定性 Huber 重加权拟合 Monge patch <code>w = a·u² + b·uv + c·v² + d·u + e·v</code>；</li>
+      <li>由第一/第二基本形式解广义自伴特征问题，得到两条带符号主曲率与方向；</li>
+      <li>沿每个主方向双侧采样法曲率，仅当中心是带符号方向极值时才接受 ridge/valley 候选；</li>
+      <li>打分融合尺度归一化曲率幅值、各向异性、极值对比度、拟合残差质量；</li>
+      <li>跨相邻尺度符号与曲线切向一致、且响应存活到最粗尺度才保留（persistence）；</li>
+      <li>两端点在符号、切向、尺度支持、边对齐上都一致时，才把顶点证据转成 mesh-edge 证据。</li>
+    </ol>
+
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+flowchart TD
+  A["每个顶点 x 每个尺度"] --> B["k-ring 邻域<br/>面积加权局部法线"]
+  B --> C["局部平均边长 x ring 数<br/>坐标归一化"]
+  C --> D["Monge patch 拟合<br/>距离权 + 确定性 Huber 重加权"]
+  D --> E["第一/第二基本形式<br/>广义自伴特征问题<br/>带符号主曲率 + 方向"]
+  E --> F["沿主方向双侧采样法曲率<br/>中心必须是带符号方向极值"]
+  F --> G["打分：尺度归一化幅值<br/>各向异性 / 极值对比度 / 残差质量"]
+  G --> H["persistence：跨尺度符号与切向一致<br/>且存活到最粗尺度"]
+  H --> I["顶点证据 -> 边证据<br/>两端符号/切向/尺度支持/边对齐一致"]
+  I --> J["CandidateEdge.smoothCurvature = true<br/>进入 FeatureGraph"]
+      </pre>
+    </div>
+
+    <p>
+      最终分数是<strong>无量纲</strong>的：曲率与打分都按拟合邻域半径归一化，网格均匀缩放不需要重新调曲率阈值（测试中有专门的均匀缩放不变性用例）。
+    </p>
+
+    <h3>FeatureOptions 的 8 个新字段与默认值</h3>
+    <table>
+      <thead><tr><th>字段</th><th>默认值</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><code>useSmoothCurvatureFeatures</code></td><td><code>false</code></td><td>总开关，opt-in。</td></tr>
+        <tr><td><code>smoothCurvatureFeatureThreshold</code></td><td><code>0.015</code></td><td>尺度归一化 smooth-feature 分数下限，两端 persistent score 都必须达到。</td></tr>
+        <tr><td><code>smoothCurvatureMinEdgeAlignment</code></td><td><code>0.55</code></td><td>mesh edge 方向与恢复出的曲线切向的最小对齐度（两端取较小值）。</td></tr>
+        <tr><td><code>smoothCurvatureMinTangentConsistency</code></td><td><code>0.65</code></td><td>跨尺度与两端点之间的切向一致性下限。</td></tr>
+        <tr><td><code>smoothCurvatureBaseNeighborhoodRings</code></td><td><code>2</code></td><td>quadric 拟合的基础拓扑半径；one-ring 拟合对噪声过敏，故默认 2。</td></tr>
+        <tr><td><code>smoothCurvatureScaleCount</code></td><td><code>3</code></td><td>逐级放大的拟合邻域数量。</td></tr>
+        <tr><td><code>smoothCurvatureMinPersistentScales</code></td><td><code>2</code></td><td>候选必须获得支持的最少尺度数。</td></tr>
+        <tr><td><code>smoothCurvatureRobustFitIterations</code></td><td><code>2</code></td><td>确定性鲁棒重加权（Huber）迭代次数。</td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      配套新类型：<code>SmoothCurvatureOptions{ baseNeighborhoodRings, scaleCount, robustFitIterations, minTangentConsistency }</code> 与逐顶点结果 <code>SmoothCurvatureVertex</code>（法线、曲线切向、极值方向、带符号主/次曲率、anisotropy、extremumStrength、feature/average/persistent 分数、拟合残差、localScale、persistentScales，以及 <code>signedKind</code>：+1 为 ridge、-1 为 valley、0 为未分类）<span class="ref">C31</span>。
+    </p>
+
+    <h3>顶点证据转成边证据的条件</h3>
+    <table>
+      <thead><tr><th>条件</th><th>源码逻辑</th><th>意义</th></tr></thead>
+      <tbody>
+        <tr><td>不覆盖强离散证据</td><td>边已是 boundary/dihedral/non-manifold，或任一端点是离散特征顶点，直接跳过。</td><td>保持弱证据统计纯净，与 tensor 路径同一原则。</td></tr>
+        <tr><td>多尺度持久性</td><td>两端 <code>persistentScales</code> 的较小值必须达到 <code>smoothCurvatureMinPersistentScales</code>。</td><td>过滤只在单尺度偶然出现的噪声响应。</td></tr>
+        <tr><td>两端分数达标</td><td>两端 persistent score 的较小值必须 ≥ <code>smoothCurvatureFeatureThreshold</code>。</td><td>要求边两端都有支持。</td></tr>
+        <tr><td>符号一致</td><td>两端 <code>signedKind</code> 都非 0 且相同（同为 ridge 或同为 valley）。</td><td>ridge 与 valley 不会被误接成一条曲线。</td></tr>
+        <tr><td>边对齐</td><td>边方向与两端曲线切向的绝对 dot 的<strong>较小值</strong> ≥ <code>smoothCurvatureMinEdgeAlignment</code>。</td><td>比 tensor 路径（取较大值）更严格，弱光滑证据必须顺着曲线走。</td></tr>
+        <tr><td>切向一致</td><td>两端曲线切向之间的绝对 dot ≥ <code>smoothCurvatureMinTangentConsistency</code>。</td><td>避免两端各自“看见”不同方向的曲线。</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <strong>为什么是 opt-in？</strong>
+      干净 CAD/STL 硬边检测与扫描/自由曲面光滑特征检测是两种数据 regime，需要不同的阈值和验证集；在带标注的扫描基准补齐之前，默认打开会让默认参数对两类输入都不可靠。opt-in 同时保证：不启用时既有硬特征与简化行为完全不变，简化侧只有在调用方显式提供含 smooth feature 的预计算 <code>FeatureAnalysis</code> 时才会受影响。
+    </div>
+
+    <p>
+      测试覆盖（<a href="../../../tests/unit/feature_detection/feature_detection_smooth_curvature_tests.cpp">tests/unit/feature_detection/feature_detection_smooth_curvature_tests.cpp</a>）：精确平面零响应、光滑凸起响应、均匀缩放不变性、多尺度 persistence 过滤、最终 graph 阶段的噪声抑制、graph 来源归属、非法参数校验，以及既有硬特征回归套件；带标注的 Gaussian ridge/valley fixture 以“一条局部边”的曲线漂移容差衡量 precision 与 segment recall。
+    </p>
+  </section>
+
+  <section id="graph">
+    <h2>9. Feature graph / trace graph / cleanup</h2>
+    <p>
+      当前实现区分两个图：<code>FeatureGraph</code> 是完整证据图，保留候选边和 removedByCleanup 状态；<code>TraceGraph</code> 是用于追踪 loop 的活动图。这个分离允许“检测到但不参与 loop tracing”的边存在于报告中 <span class="ref">C10</span>。每条 graph edge 都携带来源标记：<code>boundary</code>、<code>dihedral</code>、<code>normalTensor</code>、<code>smoothCurvature</code>（本轮新增，与前四者并列）、<code>nonManifold</code>、<code>cleanupBridge</code>，因此报告和 benchmark 能精确回答“这条特征边是谁贡献的”。
     </p>
 
     <div class="diagram-wrap">
@@ -525,7 +622,7 @@ flowchart TD
   A["CandidateEdge 列表"] --> B["initializeFeatureGraph<br/>所有 candidate 写入 analysis.graph"]
   B --> C["buildTraceGraph"]
   C --> D{edge 类型}
-  D -- "boundary / non-manifold / normal-tensor" --> Trace["进入 trace graph"]
+  D -- "boundary / non-manifold /<br/>normal-tensor / smooth-curvature" --> Trace["进入 trace graph"]
   D -- "dihedral" --> E{angle >= loopTraceAngle?}
   E -- 是 --> Trace
   E -- 否 --> Untraced["untracedFeatureEdges++"]
@@ -543,7 +640,7 @@ flowchart TD
       <tbody>
         <tr>
           <td>删除短弱 spur</td>
-          <td>端点 degree=1，路径长度不超过 <code>featureGraphMaxWeakSpurEdges</code>，且每条边都是 tensor-only，不是 boundary/dihedral/non-manifold/bridge。</td>
+          <td>端点 degree=1，路径长度不超过 <code>featureGraphMaxWeakSpurEdges</code>，且每条边都只有弱证据（normal tensor 或 smooth curvature），不是 boundary/dihedral/non-manifold/bridge。</td>
           <td>最多 8 轮；删除后重建 trace graph edges；FeatureGraph 中原边标 <code>removedByCleanup</code>。</td>
           <td><code>graphCleanupRemovedSpurs</code></td>
         </tr>
@@ -569,7 +666,7 @@ flowchart TD
   </section>
 
   <section id="loops">
-    <h2>9. Loop 恢复与 primitive 拟合</h2>
+    <h2>10. Loop 恢复与 primitive 拟合</h2>
     <p>
       <code>recoverFeatureLoops</code> 按固定顺序运行五个策略：junction 间圆形 cycle、小 cycle basis、剩余边追踪、primitive component、circular vertex cluster fallback <span class="ref">C15</span>。这个顺序体现了“先利用明确 graph 结构，再用 bounded fallback 补 CAD 圆/椭圆”的策略。
     </p>
@@ -664,20 +761,22 @@ flowchart TD
   </section>
 
   <section id="components">
-    <h2>10. Component 置信度与诊断指标</h2>
+    <h2>11. Component 置信度与诊断指标</h2>
     <p>
-      component summary 对 trace graph 做 BFS，统计每个连通分量的 edge count、boundary/dihedral/tensor/non-manifold/cleanup edges、端点、junction、cycle rank、closure rate、strong evidence ratio、tensor persistence、primitive residual 和最终 confidence <span class="ref">C12</span>。
+      component summary 对 trace graph 做 BFS，统计每个连通分量的 edge count、boundary/dihedral/tensor/smooth-curvature/non-manifold/cleanup edges、端点、junction、cycle rank、closure rate、strong evidence ratio、tensor 与 curvature persistence、primitive residual 和最终 confidence <span class="ref">C12</span>。
     </p>
 
     <table>
       <thead><tr><th>指标</th><th>计算/语义</th><th>用途</th></tr></thead>
       <tbody>
         <tr><td><code>strongEvidenceEdges</code></td><td>boundary + dihedral + non-manifold。</td><td>CAD/STL 离散证据强度。</td></tr>
-        <tr><td><code>weakEvidenceEdges</code></td><td>normal tensor + cleanup bridge。</td><td>弱特征或修补边占比。</td></tr>
+        <tr><td><code>weakEvidenceEdges</code></td><td>normal tensor + smooth curvature + cleanup bridge。</td><td>弱特征或修补边占比。</td></tr>
+        <tr><td><code>smoothCurvatureEdges</code></td><td>该分量中来源为 smooth curvature 的边数（本轮新增）。</td><td>区分光滑曲率证据与 tensor 证据的贡献。</td></tr>
+        <tr><td><code>meanCurvaturePersistence</code></td><td>smooth curvature 边的平均 persistence 分数（本轮新增）。</td><td>衡量光滑证据的跨尺度稳定性。</td></tr>
         <tr><td><code>cycleRank</code></td><td><code>edgeCount - vertexCount + 1</code>。</td><td>判断组件是否含环。</td></tr>
         <tr><td><code>closureRate</code></td><td>无端点时为 1；有端点按数量惩罚，有 cycle rank 时保留一部分分数。</td><td>loop 闭合性诊断。</td></tr>
         <tr><td><code>meanPrimitiveResidual</code></td><td>属于该 component 的 loop primitive residual 均值。</td><td>primitive 拟合可信度。</td></tr>
-        <tr><td><code>confidence</code></td><td>由 evidence score、closure rate、residual score、tensor score 和 junction penalty 组合。</td><td>报告 high-confidence/weak component，供调参和验证。</td></tr>
+        <tr><td><code>confidence</code></td><td>由 evidence score、closure rate、residual score、weak support score 和 junction penalty 组合；其中 weak support 把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持（各自按阈值归一后取较强者），硬证据比例始终占主导。</td><td>报告 high-confidence/weak component，供调参和验证。</td></tr>
       </tbody>
     </table>
 
@@ -688,7 +787,7 @@ flowchart TD
   </section>
 
   <section id="cli">
-    <h2>11. CLI 报告、benchmark、compare</h2>
+    <h2>12. CLI 报告、benchmark、compare</h2>
     <p>
       CLI 把 <code>FeatureAnalysis</code> 暴露成三个主要用户命令：<code>feature-report</code> 看当前 mesh 的特征识别结果，<code>feature-benchmark</code> 对 ground-truth edge/junction CSV 做 precision/recall，<code>feature-compare</code> 比较简化前后的圆形特征保留情况 <span class="ref">C22</span>。
     </p>
@@ -719,15 +818,40 @@ flowchart TD
     <table>
       <thead><tr><th>命令</th><th>最该看什么</th><th>源码位置</th></tr></thead>
       <tbody>
-        <tr><td><code>feature-report</code></td><td><code>feature_edges</code>、<code>traced/untraced</code>、<code>normal_tensor_edges</code>、<code>loops</code>、<code>circle/near-circle/ellipse/polygonal_loops</code>、component confidence。</td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">ManuMeshCommands.cpp:309-395</a></td></tr>
+        <tr><td><code>feature-report</code></td><td><code>feature_edges</code>、<code>traced/untraced</code>、<code>normal_tensor_edges</code>、<code>smooth_curvature_edges</code>、<code>loops</code>、<code>circle/near-circle/ellipse/polygonal_loops</code>、component confidence。</td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">ManuMeshCommands.cpp:309-395</a></td></tr>
         <tr><td><code>feature-benchmark</code></td><td>edge precision/recall/F1，junction precision/recall/F1，loop closure rate，mean component confidence。</td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">ManuMeshCommands.cpp:443-489</a></td></tr>
         <tr><td><code>feature-compare</code></td><td>original circular loops 是否在 simplified 中匹配；status 是 matched、weak_match 还是 missing。</td><td><a href="../../../apps/manumesh/ManuMeshCommands.cpp">ManuMeshCommands.cpp:491-620</a></td></tr>
       </tbody>
     </table>
+
+    <h3>smooth-curvature 相关的 CLI 选项与输出（本轮新增）</h3>
+    <p>
+      <code>feature-report</code>、<code>feature-benchmark</code>、<code>feature-compare</code> 三个 feature-analysis 命令新增八个选项，一一映射到 <code>FeatureOptions</code> 的新字段 <span class="ref">C32</span>：
+    </p>
+    <table>
+      <thead><tr><th>CLI 选项</th><th>映射字段</th></tr></thead>
+      <tbody>
+        <tr><td><code>--smooth-curvature-features</code></td><td><code>useSmoothCurvatureFeatures</code>（flag，出现即为 true）</td></tr>
+        <tr><td><code>--smooth-curvature-threshold</code></td><td><code>smoothCurvatureFeatureThreshold</code></td></tr>
+        <tr><td><code>--smooth-curvature-edge-alignment</code></td><td><code>smoothCurvatureMinEdgeAlignment</code></td></tr>
+        <tr><td><code>--smooth-curvature-tangent-consistency</code></td><td><code>smoothCurvatureMinTangentConsistency</code></td></tr>
+        <tr><td><code>--smooth-curvature-base-rings</code></td><td><code>smoothCurvatureBaseNeighborhoodRings</code></td></tr>
+        <tr><td><code>--smooth-curvature-scales</code></td><td><code>smoothCurvatureScaleCount</code></td></tr>
+        <tr><td><code>--smooth-curvature-min-persistent-scales</code></td><td><code>smoothCurvatureMinPersistentScales</code></td></tr>
+        <tr><td><code>--smooth-curvature-robust-iterations</code></td><td><code>smoothCurvatureRobustFitIterations</code></td></tr>
+      </tbody>
+    </table>
+    <p>
+      报告 stdout 与 CSV 同步新增 <code>smooth_curvature_*</code> 系列字段：<code>smooth_curvature_edges</code>、<code>smooth_curvature_scored_vertices</code>、<code>max_smooth_curvature_score</code>、<code>max_smooth_curvature_persistent_score</code>、<code>mean_smooth_curvature_local_scale</code>、<code>mean_smooth_curvature_persistence</code>，与既有 <code>normal_tensor_*</code> 字段并列。
+    </p>
+    <div class="callout warn">
+      <strong><code>simplify</code> 命令显式拒绝这些选项。</strong>
+      在 <code>parseSimplifyOptions</code> 中，任何 <code>--smooth-curvature-*</code> 选项都会触发 <code>invalid_argument</code>，错误信息说明它们是 feature-analysis 选项，应使用 <code>feature-report</code> / <code>feature-benchmark</code> / <code>feature-compare</code>；如果简化需要消费 smooth 特征，应通过 C++ API 传入预计算好的 <code>FeatureAnalysis</code>，而不是在 CLI simplify 上直接开启检测。
+    </div>
   </section>
 
   <section id="simplification">
-    <h2>12. 与 QEM 特征保护的关系</h2>
+    <h2>13. 与 QEM 特征保护的关系</h2>
     <p>
       特征识别模块本身不做简化，但它的输出直接影响 QEM 简化。当用户打开 <code>--preserve-feature-curves</code>，简化模块会从 <code>SimplifyOptions</code> 派生 <code>FeatureOptions</code>，运行或消费预计算 <code>FeatureAnalysis</code>，再把 loop 和 vertex feature 写入 <code>FeatureGuidance</code> <span class="ref">C23</span> <span class="ref">C24</span>。
     </p>
@@ -795,9 +919,9 @@ flowchart TD
   </section>
 
   <section id="papers">
-    <h2>13. 论文路线对照</h2>
+    <h2>14. 论文路线对照</h2>
     <p>
-      按 mesh-feature-literature 技能的分类，当前 ManuMesh 选择的是“干净 CAD/STL hard boundary + normal/tensor weak feature + graph/loop recovery + feature-preserving simplification consumption”的组合路线，而不是完整曲率 ridge/valley、深度 wireframe 或扫描 mesh denoising pipeline <span class="ref paper">P00</span>。
+      按 mesh-feature-literature 技能的分类，当前 ManuMesh 选择的是“干净 CAD/STL hard boundary + normal/tensor weak feature + graph/loop recovery + feature-preserving simplification consumption”的组合路线，并在其上叠加了一条 opt-in 的确定性 smooth-curvature（多尺度 quadric ridge/valley）弱证据分支；仍然不是深度 wireframe 或扫描 mesh denoising pipeline <span class="ref paper">P00</span>。
     </p>
 
     <table>
@@ -811,15 +935,15 @@ flowchart TD
         </tr>
         <tr>
           <td>弱特征补充</td>
-          <td>normal tensor feature score、persistent score、edge/tangent alignment。</td>
+          <td>normal tensor feature score、persistent score、edge/tangent alignment；opt-in smooth curvature 走并列的第二条弱路径。</td>
           <td><span class="ref paper">P04</span> <span class="ref paper">P05</span> <span class="ref paper">P06</span></td>
           <td>normal tensor / normal voting / multiscale crease 文献都在处理“局部法向变化如何从噪声与采样中分离出来”。</td>
         </tr>
         <tr>
-          <td>不走完整 curvature ridge 主线</td>
-          <td>当前没有 principal curvature derivative、ridge/valley tracing 作为主检测。</td>
-          <td><span class="ref paper">P07</span> <span class="ref paper">P08</span></td>
-          <td>curvature/ridge 方法对 smooth shape interrogation 有价值，但在 CAD/STL faceted hard edges 上可能比二面角和 graph 规则更脆弱。</td>
+          <td>确定性曲率 ridge/valley 分支（opt-in）</td>
+          <td>多尺度 Monge patch 拟合 + 广义特征问题 + 方向极值 + persistence，顶点证据在两端一致时转为边证据（第 8 节）。</td>
+          <td><span class="ref paper">P07</span> <span class="ref paper">P08</span> <span class="ref paper">P15</span></td>
+          <td>curvature/ridge 方法对光滑表面 interrogation 有价值；ManuMesh 把它作为默认关闭的弱证据分支引入，而不是替代 CAD/STL 上更稳的二面角与 graph 规则。</td>
         </tr>
         <tr>
           <td>Graph / loop / segmentation 友好输出</td>
@@ -836,22 +960,45 @@ flowchart TD
       </tbody>
     </table>
 
+    <h3>2017–2025 确定性文献锚点（smooth curvature 分支）</h3>
+    <p>
+      smooth-curvature 分支在本地 M014/M042–M044 曲率与 quadric 参考之外，还对照了近年不含学习成分的工作（综述见 <a href="../../papers/recent_deterministic_feature_detection_2026-07-11.md">docs/papers/recent_deterministic_feature_detection_2026-07-11.md</a> <span class="ref paper">P15</span>）。当前实现明确不使用、也不推荐任何神经/学习方法。
+    </p>
+    <table>
+      <thead><tr><th>年份</th><th>工作</th><th>用到的工程结论</th></tr></thead>
+      <tbody>
+        <tr><td>2017/2018</td><td>Yamakawa &amp; Shimada，<em>Feature Edge Extraction via Angle-Based Edge Collapsing and Recovery</em></td><td>单一局部角度阈值不够；多尺度简化会暴露小 fillet 中心——支撑多尺度邻域设计。</td></tr>
+        <tr><td>2019</td><td>Lu 等，<em>Feature Curve Network Extraction via Quadric Surface Fitting</em>（M044）</td><td>quadric 拟合必须接入曲线连续性与 junction/网络推理——对应“只在 FeatureGraph 汇合”。</td></tr>
+        <tr><td>2020</td><td>Romanengo 等，<em>HT-Based Identification of 3D Feature Curves and Their Insertion into 3D Meshes</em></td><td>检测出的曲线应成为显式网格约束，而不是游离采样点——对应边证据与 loop ownership。</td></tr>
+        <tr><td>2024</td><td>Xu 等，<em>CWF: Consolidating Weak Features in High-quality Mesh Simplification</em>（M026）</td><td>弱证据需要 consolidation 与 confidence，之后才能进入硬保护——对应 component confidence 的独立弱支持设计。</td></tr>
+        <tr><td>2025</td><td>Cai 等，<em>Feature Line Extraction Based on Winding Number</em></td><td>局部微分证据碎裂时，全局曲线证据是有用的未来补充——列为后续方向而非当前实现。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>开源库实现经验对照（smooth curvature 分支）</h3>
+    <ul>
+      <li><strong>libigl</strong>：局部切平面 + k-ring/半径邻域 + quadric 拟合 + 显式主方向；ManuMesh 在此之上增加鲁棒重加权、尺度归一化、方向极值和 persistence。</li>
+      <li><strong>pmp-library</strong>：曲率作为 mesh property，配显式边界与平滑策略；ManuMesh 保持“打分”与“graph 归属”分离。</li>
+      <li><strong>CGAL PMP</strong>：在 patch/remeshing 操作前先物化显式约束边图；<code>FeatureGraphEdge</code> 就是 ManuMesh 的对应物。</li>
+      <li><strong>OpenMesh</strong>：拓扑/状态/属性存储与特征策略分离；检测器只依赖核心 mesh 查询，不拥有编辑操作。</li>
+    </ul>
+
     <h3>当前实现与文献路线的差距</h3>
     <ul>
       <li>与 normal voting/tensor voting 全模型相比，当前 tensor 分支是局部轻量版，没有全局投票场和特征保持去噪 <span class="ref paper">P05</span>。</li>
-      <li>与 ridge/valley/crest line 文献相比，当前没有曲率导数和 smooth feature line tracing，因此对柔和脊线、自由曲面 crest 的识别不是强项 <span class="ref paper">P07</span> <span class="ref paper">P08</span>。</li>
+      <li>与 ridge/valley/crest line 文献相比，opt-in 的 smooth-curvature 分支已经覆盖了曲率极值线检测的主干，但每个顶点只保存一条主导光滑切向（极紧的光滑多分支 junction 仍困难），也尚未实现全局 Hough/winding-number 曲线恢复和 split/collapse 后的增量邻域更新 <span class="ref paper">P07</span> <span class="ref paper">P08</span> <span class="ref paper">P15</span>。</li>
       <li>与 D-FRAME、PC2WF、NerVE 等 wireframe/神经方法相比，当前不学习方向场或隐式边场，不解决复杂 CAD wireframe 的全局图推断 <span class="ref paper">P14</span>。</li>
       <li>与 CWF 弱特征 consolidation 相比，当前已有 weak component 和 cleanup，但还没有完整的弱特征 consolidation/重定位/优化闭环 <span class="ref paper">P10</span>。</li>
     </ul>
   </section>
 
   <section id="limits">
-    <h2>14. 边界、风险和后续方向</h2>
+    <h2>15. 边界、风险和后续方向</h2>
     <h3>当前边界</h3>
     <ul>
       <li>输入 STL/OBJ 没有 B-Rep 语义；圆孔、倒角、patch 边界均为从三角网格推断。</li>
-      <li>默认更适合干净 CAD/STL；强噪声扫描 mesh 需要先补 robust normal/denoising/scale selection。</li>
-      <li>normal tensor 是辅助证据，不应单独等价于真实 CAD feature。</li>
+      <li>默认更适合干净 CAD/STL；强噪声扫描 mesh 需要先补 robust normal/denoising/scale selection。opt-in 的 smooth-curvature 分支为光滑 ridge/valley 提供了确定性起点，但在带标注的扫描基准补齐之前不会默认开启。</li>
+      <li>normal tensor 与 smooth curvature 都是辅助弱证据，不应单独等价于真实 CAD feature。</li>
       <li>feature graph cleanup 有保守上限：端点/junction 过多时跳过，以避免组合爆炸。</li>
       <li>primitive fitting 的圆/椭圆判断依赖顶点采样质量、loop 闭合性和阈值。</li>
     </ul>
@@ -864,6 +1011,8 @@ flowchart TD
         <tr><td>feature graph 碎裂</td><td><code>graph_cleanup_bridged_gaps</code>、endpoint 多，closure 低。</td><td>适度提高 <code>--feature-graph-gap-ratio</code>，但观察 false bridge。</td></tr>
         <tr><td>弱 spur 太多</td><td><code>normal_tensor_edges</code> 高，weak components 多。</td><td>提高 <code>--normal-tensor-threshold</code> 或 <code>--normal-tensor-edge-alignment</code>；提高/降低 <code>--feature-graph-max-weak-spur-edges</code> 观察。</td></tr>
         <tr><td>圆孔没识别为 circular</td><td>loop closed 但 primitive 是 polygonal。</td><td>检查 loop 顶点数；放宽 <code>--circle-fit-threshold</code> 或 <code>--near-circle-axis-ratio-tolerance</code>。</td></tr>
+        <tr><td>光滑脊/谷完全没被报告</td><td><code>smooth_curvature_edges=0</code> 且 <code>smooth_curvature_scored_vertices=0</code>。</td><td>确认加了 <code>--smooth-curvature-features</code>（默认关闭）；再考虑降低 <code>--smooth-curvature-threshold</code> 或 <code>--smooth-curvature-min-persistent-scales</code>。</td></tr>
+        <tr><td>smooth curvature 证据碎裂或误检</td><td><code>smooth_curvature_scored_vertices</code> 高但 <code>smooth_curvature_edges</code> 低，或 weak components 增多。</td><td>提高 <code>--smooth-curvature-edge-alignment</code> / <code>--smooth-curvature-tangent-consistency</code>；增大 <code>--smooth-curvature-base-rings</code> 或 <code>--smooth-curvature-scales</code> 换取更稳的多尺度支持。</td></tr>
         <tr><td>简化时特征漂移</td><td><code>projected_feature_placements</code> 少，<code>curve_budget_rejected</code> 低但 compare missing。</td><td>打开 <code>--preserve-feature-curves</code>，设置 <code>--feature-curve-weight</code> 和 <code>--max-feature-curve-deviation-ratio</code>。</td></tr>
         <tr><td>简化达不到目标</td><td><code>feature_rejected</code>、<code>boundary_rejected</code>、<code>quality_rejected</code> 很高，termination 是 rejection-limit。</td><td>避免一开始就用 <code>all-feature-edges</code>；先用默认 primitive-curves，再逐步加硬约束。</td></tr>
       </tbody>
@@ -873,7 +1022,7 @@ flowchart TD
     <ol>
       <li>把 feature graph cleanup 的 bridge 结果纳入更明确的 confidence/uncertainty 报告。</li>
       <li>引入多尺度二面角或 normal tensor persistence 的可视化 CSV，帮助调参。</li>
-      <li>增加 ridge/valley 或 curvature derivative 分支，用于自由曲面和 smooth feature。</li>
+      <li>为 smooth-curvature 分支补齐带标注 ridge/valley 曲线的扫描基准 fixture，评估后再考虑默认开启；并研究全局 Hough/winding-number 曲线恢复与 split/collapse 后的增量邻域更新。</li>
       <li>对 CAD 圆/椭圆 loop 增加局部重采样/重定位，减少由 tessellation 造成的 primitive residual。</li>
       <li>参考 CWF/feature-sensitive simplification，把弱特征 consolidation 做成简化前的显式阶段。</li>
       <li>为复杂 CAD wireframe 研究 direction field/junction solver，而不是继续只靠边级证据。</li>
@@ -881,7 +1030,7 @@ flowchart TD
   </section>
 
   <section id="refs">
-    <h2>15. 引用索引</h2>
+    <h2>16. 引用索引</h2>
 
     <h3>代码引用</h3>
     <table>
@@ -915,6 +1064,10 @@ flowchart TD
         <tr><td><span class="ref">C26</span></td><td><a href="../../../src/simplification/FeatureConstraints.cpp">src/simplification/FeatureConstraints.cpp:10-96</a></td><td>FeatureProtectionMode 和硬拒绝策略。</td></tr>
         <tr><td><span class="ref">C27</span></td><td><a href="../../../src/simplification/FeatureConstraints.cpp">src/simplification/FeatureConstraints.cpp:98-176</a></td><td>feature placement 投影到圆、椭圆、多段线、边段或切线。</td></tr>
         <tr><td><span class="ref">C28</span></td><td><a href="../../../src/simplification/CollapseAttempt.cpp">src/simplification/CollapseAttempt.cpp:10-125</a></td><td>curveBudgetAllows 和 evaluateCollapseAttempt 的特征约束入口。</td></tr>
+        <tr><td><span class="ref">C29</span></td><td><a href="../../../src/feature_detection/SmoothCurvature.cpp">src/feature_detection/SmoothCurvature.cpp</a></td><td>computeSmoothCurvatureFeatures：多尺度 Monge patch 拟合、广义特征问题、方向极值、尺度归一化打分与 persistence。</td></tr>
+        <tr><td><span class="ref">C30</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:211-328</a></td><td>smoothCurvatureEdgeCandidate 与 SmoothCurvatureEvidenceStrategy：顶点证据转边证据的全部条件。</td></tr>
+        <tr><td><span class="ref">C31</span></td><td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">include/algorithms/feature_detection/FeatureTypes.h:52-128</a></td><td>FeatureOptions 的 8 个 smoothCurvature 字段、SmoothCurvatureOptions、SmoothCurvatureVertex，以及 FeatureGraphEdge/FeatureComponent/FeatureAnalysis 的 smoothCurvature 统计。</td></tr>
+        <tr><td><span class="ref">C32</span></td><td><a href="../../../apps/manumesh/CliOptionBinding.cpp">apps/manumesh/CliOptionBinding.cpp:9-138</a>；<a href="../../../apps/manumesh/ManuMeshFeatureCommands.cpp">apps/manumesh/ManuMeshFeatureCommands.cpp</a></td><td>--smooth-curvature-* 选项绑定、simplify 命令的显式拒绝、报告与 CSV 的 smooth_curvature_* 字段。</td></tr>
       </tbody>
     </table>
 
@@ -937,6 +1090,7 @@ flowchart TD
         <tr><td><span class="ref paper">P12</span></td><td><a href="../../papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf">docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</a></td><td>M004，line quadrics 控制 QEM 切向漂移参考。</td></tr>
         <tr><td><span class="ref paper">P13</span></td><td><a href="../../papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf">docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</a></td><td>M002，QEM 基础参考。</td></tr>
         <tr><td><span class="ref paper">P14</span></td><td><a href="../../papers/feature_detection/feng_2025_dframe_direction_field_wireframe_extraction_cad.pdf">docs/papers/feature_detection/feng_2025_dframe_direction_field_wireframe_extraction_cad.pdf</a>；<a href="../../papers/feature_detection/liu_2021_pc2wf_wireframe_reconstruction_raw_point_clouds.pdf">docs/papers/feature_detection/liu_2021_pc2wf_wireframe_reconstruction_raw_point_clouds.pdf</a>；<a href="../../papers/feature_detection/zhu_2023_nerve_neural_volumetric_edges.pdf">docs/papers/feature_detection/zhu_2023_nerve_neural_volumetric_edges.pdf</a></td><td>M006/M008/M023，复杂 CAD wireframe、point-cloud wireframe 和 neural edge graph 参考。</td></tr>
+        <tr><td><span class="ref paper">P15</span></td><td><a href="../../papers/recent_deterministic_feature_detection_2026-07-11.md">docs/papers/recent_deterministic_feature_detection_2026-07-11.md</a>；<a href="../../design/smooth_curvature_feature_detection_2026_07_11.md">docs/design/smooth_curvature_feature_detection_2026_07_11.md</a></td><td>2017–2025 确定性特征检测文献综述（Yamakawa/Shimada 2017/2018、Lu 2019、Romanengo 2020、Xu 2024 CWF、Cai 2025 winding number）与 smooth-curvature 分支的权威设计文档。</td></tr>
       </tbody>
     </table>
   </section>

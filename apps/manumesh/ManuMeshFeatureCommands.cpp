@@ -71,6 +71,7 @@ int report(const Args& args) {
               << " boundary_edges=" << analysis.boundaryFeatureEdges
               << " dihedral_edges=" << analysis.dihedralFeatureEdges
               << " normal_tensor_edges=" << analysis.normalTensorFeatureEdges
+              << " smooth_curvature_edges=" << analysis.smoothCurvatureFeatureEdges
               << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
               << " feature_components=" << analysis.components.size()
               << " weak_feature_components=" << analysis.weakFeatureComponents
@@ -79,12 +80,17 @@ int report(const Args& args) {
               << " graph_cleanup_removed_spurs=" << analysis.graphCleanupRemovedSpurs
               << " graph_cleanup_merged_junctions=" << analysis.graphCleanupMergedJunctions
               << " normal_tensor_scored_vertices=" << analysis.normalTensorScoredVertices
+              << " smooth_curvature_scored_vertices=" << analysis.smoothCurvatureScoredVertices
               << " convex_edges=" << analysis.convexFeatureEdges << " concave_edges=" << analysis.concaveFeatureEdges
               << " unknown_signed_edges=" << analysis.unknownSignedFeatureEdges
               << " max_normal_tensor_score=" << analysis.maxNormalTensorFeatureScore
               << " max_normal_tensor_persistent_score=" << analysis.maxNormalTensorPersistentScore
               << " mean_normal_tensor_local_scale=" << analysis.meanNormalTensorLocalScale
               << " mean_normal_tensor_persistence=" << analysis.meanNormalTensorPersistence
+              << " max_smooth_curvature_score=" << analysis.maxSmoothCurvatureFeatureScore
+              << " max_smooth_curvature_persistent_score=" << analysis.maxSmoothCurvaturePersistentScore
+              << " mean_smooth_curvature_local_scale=" << analysis.meanSmoothCurvatureLocalScale
+              << " mean_smooth_curvature_persistence=" << analysis.meanSmoothCurvaturePersistence
               << " mean_feature_component_confidence=" << analysis.meanFeatureComponentConfidence
               << " min_feature_component_confidence=" << analysis.minFeatureComponentConfidence
               << " loops=" << analysis.loops.size() << " circular_loops=" << circularLoops
@@ -103,27 +109,32 @@ int report(const Args& args) {
         }
         std::ofstream csv(csvPath);
         csv << "feature_edges,traced_edges,untraced_edges,boundary_edges,"
-               "dihedral_edges,normal_tensor_edges,non_manifold_edges,"
+               "dihedral_edges,normal_tensor_edges,smooth_curvature_edges,non_manifold_edges,"
                "feature_components,weak_feature_components,"
                "high_confidence_feature_components,graph_cleanup_bridged_gaps,"
                "graph_cleanup_removed_spurs,graph_cleanup_merged_junctions,"
-               "normal_tensor_scored_vertices,convex_edges,"
+               "normal_tensor_scored_vertices,smooth_curvature_scored_vertices,convex_edges,"
                "concave_edges,unknown_signed_edges,"
                "max_normal_tensor_score,max_normal_tensor_persistent_score,"
                "mean_normal_tensor_local_scale,mean_normal_tensor_persistence,"
+               "max_smooth_curvature_score,max_smooth_curvature_persistent_score,"
+               "mean_smooth_curvature_local_scale,mean_smooth_curvature_persistence,"
                "mean_feature_component_confidence,min_feature_component_confidence,"
                "loops,circular_loops,circle_loops,"
                "near_circle_loops,ellipse_loops,polygonal_loops\n";
         csv << analysis.featureEdges << "," << analysis.tracedFeatureEdges << "," << analysis.untracedFeatureEdges
             << "," << analysis.boundaryFeatureEdges << "," << analysis.dihedralFeatureEdges << ","
-            << analysis.normalTensorFeatureEdges << "," << analysis.nonManifoldFeatureEdges << ","
-            << analysis.components.size() << "," << analysis.weakFeatureComponents << ","
-            << analysis.highConfidenceFeatureComponents << "," << analysis.graphCleanupBridgedGaps << ","
-            << analysis.graphCleanupRemovedSpurs << "," << analysis.graphCleanupMergedJunctions << ","
-            << analysis.normalTensorScoredVertices << "," << analysis.convexFeatureEdges << ","
+            << analysis.normalTensorFeatureEdges << "," << analysis.smoothCurvatureFeatureEdges << ","
+            << analysis.nonManifoldFeatureEdges << "," << analysis.components.size() << ","
+            << analysis.weakFeatureComponents << "," << analysis.highConfidenceFeatureComponents << ","
+            << analysis.graphCleanupBridgedGaps << "," << analysis.graphCleanupRemovedSpurs << ","
+            << analysis.graphCleanupMergedJunctions << "," << analysis.normalTensorScoredVertices << ","
+            << analysis.smoothCurvatureScoredVertices << "," << analysis.convexFeatureEdges << ","
             << analysis.concaveFeatureEdges << "," << analysis.unknownSignedFeatureEdges << ","
             << analysis.maxNormalTensorFeatureScore << "," << analysis.maxNormalTensorPersistentScore << ","
             << analysis.meanNormalTensorLocalScale << "," << analysis.meanNormalTensorPersistence << ","
+            << analysis.maxSmoothCurvatureFeatureScore << "," << analysis.maxSmoothCurvaturePersistentScore << ","
+            << analysis.meanSmoothCurvatureLocalScale << "," << analysis.meanSmoothCurvaturePersistence << ","
             << analysis.meanFeatureComponentConfidence << "," << analysis.minFeatureComponentConfidence << ","
             << analysis.loops.size() << "," << circularLoops << "," << circleLoops << "," << nearCircleLoops << ","
             << ellipseLoops << "," << polygonalLoops << "\n\n";

@@ -68,7 +68,15 @@ set(MANUMESH_FEATURE_DETECTION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureTraceRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/NormalTensor.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
 )
+
+if(MINGW)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
+    PROPERTIES COMPILE_OPTIONS "-Wa,-mbig-obj"
+  )
+endif()
 
 set(MANUMESH_SIMPLIFICATION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CandidateQueue.cpp"
@@ -85,6 +93,7 @@ set(MANUMESH_SIMPLIFICATION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SimplificationRun.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SimplificationValidation.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/SpatialFaceIndex.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/TextureProtection.cpp"
 )
 
 set(MANUMESH_LIBRARY_SOURCES
@@ -140,6 +149,7 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/SimplificationTypes.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/SimplificationValidation.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/SpatialFaceIndex.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/TextureProtection.h"
 )
 
 set(MANUMESH_PRIVATE_HEADERS

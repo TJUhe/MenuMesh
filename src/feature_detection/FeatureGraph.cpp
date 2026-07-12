@@ -18,6 +18,7 @@ void appendFeatureGraphEdge(FeatureAnalysis& analysis, const CandidateEdge& edge
     graphEdge.boundary = edge.boundary;
     graphEdge.dihedral = edge.dihedral;
     graphEdge.normalTensor = edge.normalTensor;
+    graphEdge.smoothCurvature = edge.smoothCurvature;
     graphEdge.nonManifold = edge.nonManifold;
     graphEdge.cleanupBridge = edge.cleanupBridge;
     graphEdge.signedKind = edge.signedKind;
@@ -44,11 +45,14 @@ void addTraceGraphStorage(TraceGraph& trace, const CandidateEdge& edge) {
     trace.edgeIsBoundary[key] = edge.boundary;
     trace.edgeIsDihedral[key] = edge.dihedral;
     trace.edgeIsNormalTensor[key] = edge.normalTensor;
+    trace.edgeIsSmoothCurvature[key] = edge.smoothCurvature;
     trace.edgeIsNonManifold[key] = edge.nonManifold;
     trace.edgeIsCleanupBridge[key] = edge.cleanupBridge;
     trace.edgeSignedKind[key] = edge.signedKind;
     trace.edgeTensorPersistence[key] = edge.tensorPersistentScore;
     trace.edgeTensorPersistentScales[key] = edge.tensorPersistentScales;
+    trace.edgeCurvaturePersistence[key] = edge.curvaturePersistentScore;
+    trace.edgeCurvaturePersistentScales[key] = edge.curvaturePersistentScales;
     trace.graphEdges.emplace_back(edge.a, edge.b);
 }
 
@@ -74,17 +78,20 @@ TraceGraph buildTraceGraph(
     trace.edgeIsBoundary.reserve(featureEdges.size());
     trace.edgeIsDihedral.reserve(featureEdges.size());
     trace.edgeIsNormalTensor.reserve(featureEdges.size());
+    trace.edgeIsSmoothCurvature.reserve(featureEdges.size());
     trace.edgeIsNonManifold.reserve(featureEdges.size());
     trace.edgeIsCleanupBridge.reserve(featureEdges.size());
     trace.edgeSignedKind.reserve(featureEdges.size());
     trace.edgeTensorPersistence.reserve(featureEdges.size());
     trace.edgeTensorPersistentScales.reserve(featureEdges.size());
+    trace.edgeCurvaturePersistence.reserve(featureEdges.size());
+    trace.edgeCurvaturePersistentScales.reserve(featureEdges.size());
     trace.graphEdges.reserve(featureEdges.size());
 
     const double traceAngleDeg = options.loopTraceAngleDeg < 0.0 ? options.featureAngleDeg : options.loopTraceAngleDeg;
     const double loopTraceAngle = traceAngleDeg * kPi / 180.0;
     for (const CandidateEdge& edge : featureEdges) {
-        const bool traceEdge = edge.boundary || edge.nonManifold || edge.normalTensor ||
+        const bool traceEdge = edge.boundary || edge.nonManifold || edge.normalTensor || edge.smoothCurvature ||
                                (edge.dihedral && edge.angleRad >= loopTraceAngle);
         if (!traceEdge) {
             ++analysis.untracedFeatureEdges;
@@ -111,6 +118,11 @@ bool traceEdgeNormalTensor(const TraceGraph& trace, int a, int b) {
     return it != trace.edgeIsNormalTensor.end() && it->second;
 }
 
+bool traceEdgeSmoothCurvature(const TraceGraph& trace, int a, int b) {
+    const auto it = trace.edgeIsSmoothCurvature.find(manumesh::detail::meshEdgeKey(a, b));
+    return it != trace.edgeIsSmoothCurvature.end() && it->second;
+}
+
 bool traceEdgeNonManifold(const TraceGraph& trace, int a, int b) {
     const auto it = trace.edgeIsNonManifold.find(manumesh::detail::meshEdgeKey(a, b));
     return it != trace.edgeIsNonManifold.end() && it->second;
@@ -134,6 +146,16 @@ double traceEdgeTensorPersistence(const TraceGraph& trace, int a, int b) {
 int traceEdgeTensorPersistentScales(const TraceGraph& trace, int a, int b) {
     const auto it = trace.edgeTensorPersistentScales.find(manumesh::detail::meshEdgeKey(a, b));
     return it == trace.edgeTensorPersistentScales.end() ? 0 : it->second;
+}
+
+double traceEdgeCurvaturePersistence(const TraceGraph& trace, int a, int b) {
+    const auto it = trace.edgeCurvaturePersistence.find(manumesh::detail::meshEdgeKey(a, b));
+    return it == trace.edgeCurvaturePersistence.end() ? 0.0 : it->second;
+}
+
+int traceEdgeCurvaturePersistentScales(const TraceGraph& trace, int a, int b) {
+    const auto it = trace.edgeCurvaturePersistentScales.find(manumesh::detail::meshEdgeKey(a, b));
+    return it == trace.edgeCurvaturePersistentScales.end() ? 0 : it->second;
 }
 
 bool traceGraphHasEdge(const TraceGraph& trace, int a, int b) {
@@ -166,11 +188,14 @@ void removeTraceGraphEdge(TraceGraph& trace, int a, int b) {
     trace.edgeIsBoundary.erase(key);
     trace.edgeIsDihedral.erase(key);
     trace.edgeIsNormalTensor.erase(key);
+    trace.edgeIsSmoothCurvature.erase(key);
     trace.edgeIsNonManifold.erase(key);
     trace.edgeIsCleanupBridge.erase(key);
     trace.edgeSignedKind.erase(key);
     trace.edgeTensorPersistence.erase(key);
     trace.edgeTensorPersistentScales.erase(key);
+    trace.edgeCurvaturePersistence.erase(key);
+    trace.edgeCurvaturePersistentScales.erase(key);
 }
 
 void rebuildTraceGraphEdges(TraceGraph& trace) {

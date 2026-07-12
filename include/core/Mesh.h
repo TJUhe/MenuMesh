@@ -12,6 +12,8 @@ namespace manumesh {
 
 /// Double precision 3D vector used throughout the public geometry API.
 using Vec3 = Eigen::Vector3d;
+/// Double precision 2D vector used for texture coordinates.
+using Vec2 = Eigen::Vector2d;
 /// Homogeneous 4x4 quadric matrix.
 using Mat4 = Eigen::Matrix4d;
 
@@ -20,10 +22,22 @@ struct Face {
     std::array<int, 3> v{};
 };
 
+/// Per-corner texture coordinates for one triangle.
+///
+/// Texture coordinates are corner-owned rather than vertex-owned so one
+/// geometric vertex can retain different coordinates on adjacent UV charts.
+struct FaceTexCoords {
+    std::array<Vec2, 3> uv{};
+    bool valid = false;
+};
+
 /// Minimal triangle mesh container used by the simplifier and utilities.
 struct Mesh {
     std::vector<Vec3> vertices;
     std::vector<Face> faces;
+    /// Empty when the mesh has no texture coordinates. Otherwise this vector
+    /// is face-aligned; individual entries may be invalid for untextured faces.
+    std::vector<FaceTexCoords> faceTexCoords;
 
     /// Returns true when either vertex or face storage is empty.
     MANUMESH_API bool empty() const;
@@ -33,6 +47,8 @@ struct Mesh {
     MANUMESH_API Vec3 bboxMax() const;
     /// Length of the axis-aligned bounding-box diagonal.
     MANUMESH_API double bboxDiag() const;
+    /// Returns true when at least one face has valid per-corner coordinates.
+    MANUMESH_API bool hasTextureCoordinates() const;
     /// Compacts vertex storage and rewrites face indices after deletions.
     MANUMESH_API void removeUnusedVertices();
 };

@@ -246,7 +246,7 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureEdges()</code> 输出 edge precision/recall、junction F1、loop closure、component confidence 与 feature drift。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 feature-preserving simplification 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
-    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>曲率 ridge/valley、wireframe/neural edge、learned QEM 目前作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
+    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>确定性曲率 ridge/valley 已于 2026-07 落地为 opt-in 的 smooth-curvature 弱证据路径（<code>SmoothCurvature.cpp</code>，默认关闭）；wireframe/neural edge、learned QEM 仍作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
   </div>
   <p>一句话总览：ManuMesh 当前默认路线是 <strong>CAD/STL 离散证据 + normal-tensor 弱特征 + feature graph cleanup + component confidence + QEM/line-quadrics edge collapse + hard legality guards</strong>；neural/wireframe 是后续 benchmark 与增强方向。</p>
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
@@ -327,6 +327,7 @@ img, svg, canvas, video {
 <li><a href="#s8">权重项的数学意义</a></li>
 <li><a href="#s9">边界与特征曲线的二次型解释</a></li>
 <li><a href="#s10">圆形特征拟合的最小二乘推导</a></li>
+<li><a href="#s10b">光滑曲率特征检测的数学</a></li>
 <li><a href="#s11">还有没有更强的理论路线</a></li>
 <li><a href="#s12">从能量函数看当前程序</a></li>
 </ol>
@@ -811,6 +812,54 @@ $$x_{proj}=center+r\frac{(I-n_cn_c^\top)(x-center)}{\|(I-n_cn_c^\top)(x-center)\
 </table>
 </section>
 
+<h2 id="s10b"><span class="num">10B</span>光滑曲率特征检测的数学</h2>
+
+<p>前面几节讨论的特征证据都来自离散网格上的不连续：开边界、非流形边、超过阈值的二面角。这些是"硬证据"，因为不连续在网格上有明确定义。但很多设计曲线并不表现为不连续——扫描件或自由曲面上的光滑 ridge/valley 处，网格局部完全光滑，二面角处处很小。要检测它们，必须回到微分几何：ridge/valley 是<strong>光滑表面上主曲率沿自身主方向取极值的位置</strong>，是一个微分事件而不是拓扑事件。这就是 2026-07 新增的 opt-in 光滑曲率证据路径（<code>SmoothCurvature.cpp</code>，设计文档 <code>docs/design/smooth_curvature_feature_detection_2026_07_11.md</code>）背后的数学。整条路径是确定性的最小二乘与特征值计算，没有任何学习成分。</p>
+
+<h3>10B.1 局部 Monge patch 拟合</h3>
+
+<p>在顶点 $v$ 处建立局部坐标系：以面积加权的局部法线 $n$ 为 $w$ 轴，切平面内取正交基 $(u,v)$。把 k-ring 邻域顶点变换到这个坐标系后，表面在原点附近可以写成高度场（Monge patch）：</p>
+
+<div class="formula">
+$$w(u,v)=a\,u^2+b\,uv+c\,v^2+d\,u+e\,v$$
+<span class="label">(C1)</span>
+</div>
+
+<p>五个系数用带距离权重的最小二乘拟合。为什么保留一次项 $d,e$：初始估计的局部法线不一定精确，$d,e$ 吸收了法线的小偏差，等价于允许拟合过程自行校正切平面方向。拟合再叠加确定性 Huber 重加权（迭代次数由 <code>smoothCurvatureRobustFitIterations</code> 控制，默认 2）：残差大的邻域点权重按 Huber 函数衰减后重解，这样个别噪声点不会把二次曲面拉歪，而整个过程仍是确定性的——同一输入永远得到同一输出。</p>
+
+<h3>10B.2 尺度归一化：为什么分数无量纲</h3>
+
+<p>拟合前，所有局部坐标先除以归一化尺度 $h$（局部平均边长 × ring 数）。曲率的量纲是 $1/\text{长度}$；在缩放后的坐标系里解出的曲率相当于 $\hat{\kappa}=\kappa\,h$，长度量纲互相抵消，是一个无量纲数。这一步的直接后果是：把网格整体放大 1000 倍（比如单位从 m 换成 mm），$\kappa$ 缩小 1000 倍而 $h$ 放大 1000 倍，$\hat{\kappa}$ 不变，因此 <code>smoothCurvatureFeatureThreshold</code>（默认 0.015）不需要随模型尺度重新调参。这与 normal tensor 路径用局部边长归一化的动机一致。</p>
+
+<h3>10B.3 第一/第二基本形式与广义自伴特征问题</h3>
+
+<p>对高度场 $r(u,v)=(u,v,w(u,v))$，在原点处 $w_u=d$，$w_v=e$，$w_{uu}=2a$，$w_{uv}=b$，$w_{vv}=2c$，第一、第二基本形式为：</p>
+
+<div class="formula">
+$$
+I=\begin{bmatrix}1+d^2 & de\\ de & 1+e^2\end{bmatrix},\qquad
+I\!I=\frac{1}{\sqrt{1+d^2+e^2}}\begin{bmatrix}2a & b\\ b & 2c\end{bmatrix}
+$$
+<span class="label">(C2)</span>
+</div>
+
+<p>主曲率与主方向由广义特征问题给出：</p>
+
+<div class="formula">
+$$I\!I\,t=\kappa\,I\,t$$
+<span class="label">(C3)</span>
+</div>
+
+<p>因为 $I$ 对称正定、$I\!I$ 对称，这是一个广义<strong>自伴</strong>特征问题：两个特征值 $\kappa_1,\kappa_2$ 保证为实数（带符号的主曲率），两个特征向量在 $I$ 度量下正交（主方向）。等价的说法是求 shape operator $S=I^{-1}I\!I$ 的特征分解，但直接解自伴形式在数值上更稳。保留符号很重要：$\kappa>0$ 与 $\kappa<0$ 区分了 ridge（凸脊）和 valley（凹谷），后续 persistence 检查也要求符号跨尺度一致。</p>
+
+<h3>10B.4 方向极值判据：曲率大不等于特征</h3>
+
+<p>只看曲率幅值会把圆柱侧壁、球面这类均匀弯曲区域全部误判成特征。经典 ridge/crest line 理论的定义是：ridge 点是主曲率 $\kappa_1$ 沿自己的主方向 $t_1$ 取<strong>方向极值</strong>的点。离散化的做法是：沿每个主方向向两侧采样法曲率，仅当中心值相对两侧都是带符号极值（ridge 要求极大、valley 要求极小）时才接受候选。圆柱侧壁上沿环向走曲率处处相同，没有极值，因此被正确排除；真正的脊线横跨方向上曲率先升后降，中心是极值，被保留。候选分数再融合四个量：尺度归一化曲率幅值、各向异性（$|\kappa_1|$ 与 $|\kappa_2|$ 的分离度，曲线状特征要求单方向弯曲）、极值对比度、拟合残差质量（残差大说明局部不像光滑二次曲面，证据不可信）。</p>
+
+<h3>10B.5 persistence：跨尺度存活才算数</h3>
+
+<p>单一邻域尺度上的响应无法区分"真实设计曲线"和"一格噪声"。真实的 ridge/valley 有物理宽度，在 2-ring、3-ring、4-ring 邻域下都会给出符号一致、切向一致的响应；而噪声通常只在最细尺度出现，邻域一变大就被平均掉。因此检测对每个顶点在 <code>smoothCurvatureScaleCount</code>（默认 3）个拓扑尺度上重复拟合，只有当响应在至少 <code>smoothCurvatureMinPersistentScales</code>（默认 2）个相邻尺度上符号与曲线切向一致、且存活到最粗尺度时才保留。这就是 persistence 的意义：它把"尺度稳定性"变成一个可计算的过滤器，替代任何针对单尺度噪声的手工阈值技巧。最后一步把顶点证据转成 mesh-edge 证据：仅当边两端顶点在符号、切向、尺度支持上一致，且边方向与曲线切向的对齐度超过 <code>smoothCurvatureMinEdgeAlignment</code> 时，这条网格边才进入 <code>FeatureGraph</code>，与硬证据在同一张图上接受 cleanup、component confidence 等后续处理——弱证据只提供支持，硬证据始终占主导。</p>
+
 <h2 id="s11"><span class="num">11</span>还有没有更强的理论路线</h2>
 
 <p>有。当前程序把所有软约束都塞进同一个 quadric，优点是简单、快、和 QEM 框架兼容；缺点是它仍然是局部二次近似，不能天然保证拓扑、Hausdorff 误差或特征图结构。更强方法通常把“代价函数”和“硬约束/验收条件”分开。</p>
@@ -1127,9 +1176,29 @@ $$
 <li>第四项是当前程序为 CAD/STL 特征曲线实验加入的 tangent-line 约束。它不是某篇论文的逐字实现，而是把 Liu-Rahimzadeh-Zordan 2025 的 line quadric 控制思想，用在 Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008 这类 CAD 特征线检测得到的曲线切线方向上，并结合特征保持简化文献中的 collapse 约束策略。</li>
 </ul>
 
+<h3>12.1 纹理感知代价的量纲分析</h3>
+
+<p>2026-07 起，当网格带逐角 UV 且调用方显式开启 <code>preserveTexture</code> 时，排序代价在 (76) 之外再加一个<strong>标量</strong>项（设计文档 <code>docs/design/texture_aware_qem.md</code>）：</p>
+
+<div class="formula">
+$$E_{total}(p)=E_{geometry}^{4\times4}(p)+w_{tex}\cdot E_{uv}^{local}(p)$$
+<span class="label">(U1)</span>
+</div>
+
+<p>注意它<strong>不是</strong>一个新的二次型项：几何 quadric 保持 4×4 齐次矩阵，placement 仍解同一个 3D 线性系统，候选点仍是端点、中点和稳定 QEM 最优点。这与 Garland-Heckbert 1998 把颜色/纹理并入高维属性 quadric（矩阵扩到 $(3+m+1)$ 维）的路线不同：属性扩维会改变求解维度和数值条件，而这里 UV 只影响排序和局部合法性检查。$E_{uv}^{local}$ 的定义是：</p>
+
+<div class="formula">
+$$E_{uv}^{local}=\ell^2\cdot\frac{\sum_{f}A_f\,\|\Delta uv_f\|^2}{\bar{s}_{uv}^{\,2}}$$
+<span class="label">(U2)</span>
+</div>
+
+<p>其中 $\ell$ 是被坍缩边的 3D 长度，$A_f$ 是坍缩触及面的 3D 面积，$\Delta uv_f$ 是该面角点 UV 的位移，$\bar{s}_{uv}$ 是局部 UV 边的平均长度。做量纲分析：设 3D 长度量纲为 $L$，UV 长度量纲为 $U$。面积加权几何 QEM 的量纲是 $A_f\times\text{距离}^2=L^2\cdot L^2=L^4$。而 (U2) 中 $\|\Delta uv_f\|^2/\bar{s}_{uv}^2$ 的量纲是 $U^2/U^2=1$（无量纲），剩下 $\ell^2\cdot A_f=L^2\cdot L^2=L^4$。两项<strong>同为 $L^4$ 量纲</strong>，所以 $w_{tex}$（<code>textureWeight</code>，默认 1.0）是一个无量纲旋钮：默认值 1 表示"一份归一化的 UV 失真与一份同尺度的几何误差同等重要"，且这个解读不随模型物理尺寸变化。</p>
+
+<p>对 $\bar{s}_{uv}^2$ 的除法还带来第二个不变性：把整个 UV atlas 均匀缩放 $s$ 倍（重新打包贴图、换分辨率时常见），$\|\Delta uv_f\|^2$ 放大 $s^2$，$\bar{s}_{uv}^2$ 同样放大 $s^2$，两者相消，$E_{uv}^{local}$ 不变。因此 <code>textureWeight</code> 不需要随 atlas 缩放重调。这两条不变性合起来，就是"标量失真项"设计的理论理由：用 $O(k)$ 的局部计算（$k$ 为 one-ring 规模）获得与几何 QEM 可直接相加的、量纲一致且缩放不变的排序代价，而把接缝与翻转这类离散约束交给显式的局部 chart 配对、UV 定向和有符号面积下限检查（作为硬合法性过滤，不进入代价函数）。<code>preserveTexture=false</code>（默认）时该项不存在，几何输出与旧无纹理路径逐位一致。</p>
+
 <div class="callout">
 <div class="callout-title">总括</div>
-<p>标准 QEM 的本质是“保持到原始局部平面的距离”；Line Quadrics 的本质是“在标准 QEM 的零空间里加入可控正则”；特征曲线项的本质是“让特征点继续贴近曲线的一维局部模型”。当前程序把这些二次型全部加到同一个 4×4 quadric 中，再用边坍缩优先队列逐步最小化局部代价。</p>
+<p>标准 QEM 的本质是“保持到原始局部平面的距离”；Line Quadrics 的本质是“在标准 QEM 的零空间里加入可控正则”；特征曲线项的本质是“让特征点继续贴近曲线的一维局部模型”。当前程序把这些二次型全部加到同一个 4×4 quadric 中，再用边坍缩优先队列逐步最小化局部代价。开启 <code>preserveTexture</code> 时，排序层再叠加一个与几何项量纲一致的标量 UV 失真项（见 12.1），quadric 本身保持 4×4 不变。</p>
 </div>
 
 </div>

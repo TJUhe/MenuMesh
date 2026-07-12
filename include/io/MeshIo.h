@@ -10,7 +10,7 @@ namespace manumesh {
 /// Loads an STL file, automatically handling ASCII and binary encodings.
 MANUMESH_API bool
 loadStl(const std::string& path, Mesh& mesh, std::string* error = nullptr, double mergeRelativeEpsilon = 1e-9);
-/// Loads a simple OBJ triangle mesh.
+/// Loads an OBJ polygon mesh, triangulating faces and preserving per-corner `vt` coordinates.
 MANUMESH_API bool loadObj(const std::string& path, Mesh& mesh, std::string* error = nullptr);
 /// Loads a mesh by file extension. Supported formats are STL and OBJ.
 MANUMESH_API bool

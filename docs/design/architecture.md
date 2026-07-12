@@ -9,6 +9,7 @@ ManuMesh 是面向增材制造的 C++ 多边形网格几何内核。当前稳定
 ```text
 include/      安装级公共 SDK 头文件
   core/                         Mesh、PlainMesh、MeshTopology、Status、typed handles
+  io/                           STL/OBJ 网格读写 API
   algorithms/feature_detection/ 特征检测模块入口、选项和结果类型
   algorithms/simplification/    QEM/line quadrics 简化入口、选项、报告和指标
   algorithms/<domain>/          未来平级算法模块，例如 repair/remeshing
@@ -18,6 +19,7 @@ src/common/detail/              跨算法私有工具，不安装
 src/mesh_edit/                  可编辑 mesh 状态、动态邻接和 compact/remap
 src/mesh_edit/detail/           mesh edit 私有类型和 helper，不安装
 src/core/                       公共 core 类型的实现
+src/io/                         STL/OBJ 读写实现；OBJ 读取支持多边形三角化并保留逐角 vt
 src/feature_detection/          特征检测实现，只依赖 core 和私有 common
 src/feature_detection/detail/   特征检测私有类型、策略接口和 helper
 src/simplification/             简化实现，可消费 FeatureAnalysis
@@ -40,9 +42,9 @@ docs/                           当前设计、指南、论文索引和历史生
 
 `SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；真实功能命名空间按模块拆开：特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。功能模块类型不再回灌到根命名空间。其中简化选项、报告和枚举集中在 `SimplificationTypes.h`，不依赖 Eigen 或 `Mesh`。更细的运行时类型，例如候选边、活动面、动态拓扑、空间索引、feature graph 追踪辅助结构、edge evidence strategy 和 loop recovery helper，留在 `src/.../detail/` 或 `.cpp` 匿名命名空间中。
 
-特征检测内部按 pipeline 组织：`FeatureDetector.cpp` 只负责 public facade 和阶段编排；`FeatureEvidence.cpp` 负责 boundary、dihedral、non-manifold、normal-tensor 等证据来源；`FeatureGraph.cpp` 负责显式 graph 和 trace graph；`FeatureLoopRecovery.cpp` 只负责恢复阶段调度；`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp` 和 `FeaturePrimitiveRecovery.cpp` 分别承载 cycle、trace chain 和 primitive component 恢复；`FeatureLoopBuilder.cpp` 负责把 loop 写回 `FeatureAnalysis::vertices`；`FeatureCircularRecovery.cpp` 保留有界圆形 fallback。新增识别能力应优先加入对应私有阶段，而不是继续扩张 `FeatureDetector.cpp`。
+特征检测内部按 pipeline 组织：`FeatureDetector.cpp` 只负责 public facade 和阶段编排；`FeatureEvidence.cpp` 负责 boundary、dihedral、non-manifold、normal-tensor、smooth-curvature 等证据来源的组合与来源计数；`SmoothCurvature.cpp` 承载确定性光滑曲率证据（多尺度局部 quadric 拟合、带符号主曲率、方向极值和跨尺度 persistence，经 `FeatureOptions::useSmoothCurvatureFeatures` opt-in 启用）；`FeatureGraph.cpp` 负责显式 graph 和 trace graph；`FeatureLoopRecovery.cpp` 只负责恢复阶段调度；`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp` 和 `FeaturePrimitiveRecovery.cpp` 分别承载 cycle、trace chain 和 primitive component 恢复；`FeatureLoopBuilder.cpp` 负责把 loop 写回 `FeatureAnalysis::vertices`；`FeatureCircularRecovery.cpp` 保留有界圆形 fallback。硬证据（boundary/non-manifold/dihedral）与弱光滑证据（normal tensor、smooth curvature）只在显式 `FeatureGraph` 汇合，component 置信度把两类弱证据视为相互独立的弱支持。新增识别能力应优先加入对应私有阶段，而不是继续扩张 `FeatureDetector.cpp`。
 
-简化内部也按 pipeline/strategy 分层：`QEMSimplifier.cpp` 是 public facade；`SimplificationRun.cpp` 负责编排单次运行、队列和状态应用；`SimplificationPolicies.cpp` 把扁平 options 转成内部 policy；`CollapseAttempt.cpp` 负责把 feature、boundary、curve budget 和 legality filters 组合成一次候选坍缩的接受/拒绝结果；`Quadrics.cpp`、`FeatureConstraints.cpp`、`CollapseLegality.cpp` 等模块只表达各自策略。新增 collapse 过滤器优先进入对应 policy/evaluator，而不是继续扩张 `SimplificationRun.cpp`。
+简化内部也按 pipeline/strategy 分层：`QEMSimplifier.cpp` 是 public facade；`SimplificationRun.cpp` 负责编排单次运行、队列和状态应用；`SimplificationPolicies.cpp` 把扁平 options 转成内部 policy；`CollapseAttempt.cpp` 负责把 feature、boundary、curve budget 和 legality filters 组合成一次候选坍缩的接受/拒绝结果；`Quadrics.cpp`、`FeatureConstraints.cpp`、`CollapseLegality.cpp` 等模块只表达各自策略；`TextureProtection.cpp`（配套 `detail/TextureProtection.h`）承载 opt-in 的纹理感知策略——局部 UV chart 配对、有符号 UV 面积检查和标量失真代价，几何 quadric 保持 4×4，不做属性扩维。新增 collapse 过滤器优先进入对应 policy/evaluator，而不是继续扩张 `SimplificationRun.cpp`。
 
 CLI 是应用层消费者，不承载算法状态。`apps/manumesh/main.cpp` 只调用 `manumesh::cli::run()`；`CliArguments.cpp` 负责通用参数解析；`ManuMeshCli.cpp` 负责帮助输出和 `run()` 派发；`ManuMeshCommands.cpp` 承载命令 handler 与 command registry。新增 CLI 命令应新增 handler 并注册到 registry，公共算法能力仍优先进入 SDK 层。
 
@@ -69,7 +71,7 @@ CLI 是应用层消费者，不承载算法状态。`apps/manumesh/main.cpp` 只
 
 特征检测是与简化平级的算法模块。它只依赖 core 和私有 common，不依赖 QEM。简化模块可以消费 `FeatureAnalysis`，用于 feature quadrics、placement 投影、曲线预算和硬保护策略。
 
-QEM/line quadrics 只负责候选折叠排序和局部几何优化，工业级安全性由显式过滤器补足：拓扑 link condition、边界策略、法线偏转、三角形质量、局部误差和自交检查。特征图应先成为独立结果，再由简化、验证、修复或未来重网格模块消费。
+QEM/line quadrics 只负责候选折叠排序和局部几何优化，工业级安全性由显式过滤器补足：拓扑 link condition、边界策略、法线偏转、三角形质量、局部误差和自交检查；输入带 UV 且显式打开 `preserveTexture` 时，还会加入局部 chart 配对和有符号 UV 面积过滤。特征图应先成为独立结果，再由简化、验证、修复或未来重网格模块消费。
 
 这个边界来自当前算法本质：标准 QEM 在平坦区域存在切向零空间，line quadrics 补的是候选排序和 placement 正则；特征图补的是制造语义支撑；硬过滤器补的是拓扑和几何安全。把这三件事合在一个类里会让新增模块无法复用 feature graph，也会让后续 envelope、repair、remesh 等能力只能绕着 QEM 转。
 
@@ -90,12 +92,13 @@ feature_detection 不能反向 include simplification；
 
 ## 数据策略
 
-`Mesh` 仍是轻量交换格式：稠密顶点数组加三角面索引数组。需要重复邻接查询时，算法应构建 `MeshTopology`、私有 common 查询结果，或运行时动态拓扑，而不是在每个模块里重复扫描并复制一套局部工具。
+`Mesh` 仍是轻量交换格式：稠密顶点数组加三角面索引数组。带纹理的输入额外携带 `Mesh::faceTexCoords`（`FaceTexCoords`，每面三个 `Vec2` 逐角 UV 加 `valid` 标记）：为空表示无纹理，非空时与 `Mesh::faces` 对齐，个别条目可以 invalid（例如 OBJ 中未贴图的面）。UV 采用“角拥有”而不是“顶点拥有”，因为一个几何顶点可能属于多个 UV chart（纹理接缝）；`Mesh::hasTextureCoordinates()` 在至少一个面带有效逐角坐标时为 true。需要重复邻接查询时，算法应构建 `MeshTopology`、私有 common 查询结果，或运行时动态拓扑，而不是在每个模块里重复扫描并复制一套局部工具。
 
 `Mesh` 是 Eigen-backed 便利类型，适合同编译器、同 C++ ABI 的 SDK 消费方。
-`PlainMesh` 是 Eigen-free C++ 交换类型；`PlainSimplifier.h` 提供
+`PlainMesh` 是 Eigen-free C++ 交换类型，提供对应的 `PlainVec2`、`PlainFaceTexCoords` 和
+`PlainMesh::faceTexCoords` 字段，与 `Mesh` 的双向转换、compaction/validation/remap 都会保留逐角 UV；`PlainSimplifier.h` 提供
 `simplifyPlainMesh()`，内部转换为 `Mesh` 后复用同一套简化实现。真正跨语言或
-严格 ABI 边界仍优先使用 `api/CApi.h`。
+严格 ABI 边界仍优先使用 `api/CApi.h`（当前 C ABI 尚未暴露纹理字段和纹理选项）。
 
 当前 `mesh_edit` 仍是稳定索引的最小编辑层。未来升级为可编辑半边拓扑时，应使用 `VertexId`、`EdgeId`、`HalfedgeId`、`FaceId` 等 typed handle，配合 generation-aware free list 和显式 compaction。属性不要塞进基础顶点结构，应以类型化数组挂在拓扑旁边，方便重映射、导出和 ABI 隔离。
 

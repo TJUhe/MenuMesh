@@ -16,6 +16,11 @@ TraceGraph buildTraceGraph(
     FeatureAnalysis& analysis
 );
 
+/// Returns the attribute record for edge (a, b), or nullptr when the trace
+/// graph does not contain that edge. Hot loops should fetch this once instead
+/// of calling several single-attribute helpers.
+const TraceEdgeAttrs* traceEdgeAttrs(const TraceGraph& trace, int a, int b);
+
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b);
 bool traceEdgeDihedral(const TraceGraph& trace, int a, int b);
 bool traceEdgeNormalTensor(const TraceGraph& trace, int a, int b);

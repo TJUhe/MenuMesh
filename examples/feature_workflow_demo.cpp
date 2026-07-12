@@ -1,5 +1,5 @@
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
-#include "algorithms/simplification/Metrics.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"
 
@@ -52,13 +52,16 @@ QualityGateResult runManufacturingQualityGate(const manumesh::Mesh& input, const
     simplifyOptions.boundaryWeight = 1.0;
 
     manumesh::simplification::SimplifyReport simplifyReport;
+    // Reuse the FeatureAnalysis computed above instead of letting the
+    // simplifier re-detect features internally: the (input, features, report)
+    // overload avoids running feature analysis twice on the same mesh.
     const manumesh::Mesh output =
-        manumesh::simplification::QEMSimplifier(simplifyOptions).simplify(input, &simplifyReport);
+        manumesh::simplification::QEMSimplifier(simplifyOptions).simplify(input, features, &simplifyReport);
 
-    const manumesh::simplification::MeshStats inputStats = manumesh::simplification::computeMeshStats(input);
-    const manumesh::simplification::MeshStats outputStats = manumesh::simplification::computeMeshStats(output);
-    const manumesh::simplification::DistanceStats distance =
-        manumesh::simplification::compareMeshesBySampledDistance(input, output, gateOptions.distanceSamples);
+    const manumesh::analysis::MeshStats inputStats = manumesh::analysis::computeMeshStats(input);
+    const manumesh::analysis::MeshStats outputStats = manumesh::analysis::computeMeshStats(output);
+    const manumesh::analysis::DistanceStats distance =
+        manumesh::analysis::compareMeshesBySampledDistance(input, output, gateOptions.distanceSamples);
 
     QualityGateResult result;
     result.mesh = output;

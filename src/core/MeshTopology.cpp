@@ -97,16 +97,14 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
         }
 
         for (int corner = 0; corner < 3; ++corner) {
-            int a = face.v[corner];
-            int b = face.v[(corner + 1) % 3];
-            if (a > b)
-                std::swap(a, b);
+            const int a = face.v[corner];
+            const int b = face.v[(corner + 1) % 3];
             const std::uint64_t key = topologyEdgeKey(a, b);
             auto [it, inserted] =
                 edgeByKey.emplace(key, EdgeBuildRecord{static_cast<int>(topology.impl_->edges.size())});
             if (inserted) {
                 TopologyEdge edge;
-                edge.vertices = {a, b};
+                edge.vertices = {std::min(a, b), std::max(a, b)};
                 topology.impl_->edges.push_back(std::move(edge));
             }
 

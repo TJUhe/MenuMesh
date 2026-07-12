@@ -65,6 +65,25 @@ After an accepted collapse, only affected surviving face corners are updated.
 Different paired charts retain different merged UVs at the same geometric
 vertex.
 
+## Plan/apply split
+
+Texture work is split into three explicit stages
+(`src/simplification/detail/TextureProtection.h`):
+
+- `evaluate()` scores one collapse placement for ranking and rejection without
+  materializing any UV rewrites; the queue and the candidate filters only pay
+  for the scalar cost.
+- `buildPlan()` runs the same evaluation for the accepted placement and, when
+  allowed, returns a `TextureUpdatePlan` — the concrete per-face corner UV
+  rewrites (`TextureFaceUpdate` entries) needed to apply the collapse.
+- `apply()` writes a previously built plan into `Mesh::faceTexCoords`.
+
+Because the plan is built once for the accepted placement and applied directly,
+`applyCollapse` no longer rebuilds the same chart pairing and interpolation a
+second time. The `textureApplyFailures` report counter tracks accepted
+collapses whose plan could not be re-applied; it indicates an internal
+inconsistency and should stay zero.
+
 ## Complexity
 
 The geometry solve remains a fixed 3D solve backed by a 4x4 homogeneous
@@ -84,6 +103,8 @@ matrix factorization, so the edge-collapse asymptotic complexity is unchanged.
   collapse.
 - `textureRejectedCollapses`: current queue candidates rejected by texture
   checks after placement evaluation.
+- `textureApplyFailures`: accepted collapses whose prebuilt UV update plan
+  could not be re-applied (internal consistency check, expected to stay zero).
 
 The default `preserveTexture = false` leaves candidate ranking and geometry
 output identical to the legacy untextured path. Face-corner UVs are still

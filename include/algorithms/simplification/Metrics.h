@@ -1,42 +1,36 @@
 #pragma once
 
-#include "Export.h"
-#include "core/Mesh.h"
+// DEPRECATED forwarding header.
+//
+// The generic mesh statistics moved to the cross-algorithm analysis module:
+// use "algorithms/analysis/MeshAnalysis.h" and manumesh::analysis instead.
+// The CSV helpers (statsHeaderCsv/statsRowCsv) were presentation-layer code
+// and moved into the manumesh CLI (apps/manumesh/CliCsv.h). Deprecated
+// compatibility wrappers remain here for one migration cycle.
+//
+// New code should include MeshAnalysis.h directly. These aliases and wrappers
+// are source-compatibility aids for the pre-1.0 C++ SDK; applications must
+// still rebuild when changing ManuMesh C++ SDK versions. The stable binary
+// boundary is the C ABI in api/CApi.h.
+#include "algorithms/analysis/MeshAnalysis.h"
 
 #include <string>
 
 namespace manumesh::simplification {
 
-/// Basic geometric and topological mesh quality metrics.
-struct MeshStats {
-    int vertices = 0;
-    int faces = 0;
-    int edges = 0;
-    int boundaryEdges = 0;
-    int nonManifoldEdges = 0;
-    double area = 0.0;
-    double meanTriangleQuality = 0.0;
-    double minTriangleQuality = 0.0;
-    double meanEdgeLength = 0.0;
-    double edgeLengthCv = 0.0;
-};
+using MeshStats = manumesh::analysis::MeshStats;
+using DistanceStats = manumesh::analysis::DistanceStats;
 
-/// Symmetric sampled distance summary between two meshes.
-struct DistanceStats {
-    double meanOriginalToSimplified = 0.0;
-    double maxOriginalToSimplified = 0.0;
-    double meanSimplifiedToOriginal = 0.0;
-    double maxSimplifiedToOriginal = 0.0;
-};
-
-/// Computes mesh quality and topology statistics.
+/// Deprecated compatibility wrapper; use manumesh::analysis::computeMeshStats.
 MANUMESH_API MeshStats computeMeshStats(const Mesh& mesh);
-/// Estimates bidirectional mesh distance using deterministic vertex samples.
-MANUMESH_API DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& simplified, int maxSamples);
+/// Deprecated compatibility wrapper; use
+/// manumesh::analysis::compareMeshesBySampledDistance.
+MANUMESH_API DistanceStats
+compareMeshesBySampledDistance(const Mesh& original, const Mesh& simplified, int maxSamples);
 
-/// CSV header for mesh statistics rows.
+/// Deprecated compatibility wrapper for the historical CSV presentation API.
 MANUMESH_API std::string statsHeaderCsv();
-/// CSV row for a labeled mesh-statistics record.
+/// Deprecated compatibility wrapper for the historical CSV presentation API.
 MANUMESH_API std::string
 statsRowCsv(const std::string& label, const MeshStats& stats, const DistanceStats* distance = nullptr);
 

@@ -1,21 +1,30 @@
 #include "common/detail/MeshDistanceIndex.h"
 
 #include "common/detail/GeometryPredicates.h"
+#include "core/Tolerances.h"
 
 #include <algorithm>
 #include <limits>
 
-namespace manumesh::detail {
+namespace manumesh::common {
 
 MeshDistanceIndex::MeshDistanceIndex(const Mesh& mesh)
     : mesh_(mesh) {
+    const int vertexCount = static_cast<int>(mesh.vertices.size());
     triangles_.reserve(mesh.faces.size());
     for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
         const Face& face = mesh.faces[fi];
+        const bool validIndices = face.v[0] >= 0 && face.v[0] < vertexCount && face.v[1] >= 0 &&
+                                  face.v[1] < vertexCount && face.v[2] >= 0 && face.v[2] < vertexCount;
+        if (!validIndices) {
+            ++skippedFaceCount_;
+            continue;
+        }
         const Vec3& a = mesh.vertices[face.v[0]];
         const Vec3& b = mesh.vertices[face.v[1]];
         const Vec3& c = mesh.vertices[face.v[2]];
-        if (triangleArea(a, b, c) <= 1e-24) {
+        if (triangleArea(a, b, c) <= kMinTriangleArea) {
+            ++skippedFaceCount_;
             continue;
         }
 
@@ -120,4 +129,4 @@ void MeshDistanceIndex::queryRecursive(int nodeId, const Vec3& point, double& be
     }
 }
 
-} // namespace manumesh::detail
+} // namespace manumesh::common

@@ -82,9 +82,24 @@ TEST(ManuMesh, ReportsFeatureLoopsOnCylinderCreases) {
 
     const manumesh::feature::FeatureAnalysis features = manumesh::feature::detectFeatureCurves(input, options);
 
-    EXPECT_GT(features.featureEdges, 0);
-    EXPECT_GT(features.dihedralFeatureEdges, 0);
-    EXPECT_FALSE(features.loops.empty());
+    // The only dihedral angles above 30 degrees are at the two cap rims,
+    // where wall and cap faces meet at 90 degrees: 32 radial segments per rim
+    // gives exactly 2 * 32 = 64 dihedral feature edges. Wall edges bend by at
+    // most 360/32 = 11.25 degrees and cap-fan edges are coplanar, so neither
+    // contributes; the closed cylinder also has no boundary edges.
+    EXPECT_EQ(64, features.featureEdges);
+    EXPECT_EQ(64, features.dihedralFeatureEdges);
+    EXPECT_EQ(0, features.boundaryFeatureEdges);
+    // Each rim traces into one closed circular loop of the 32 rim vertices at
+    // the exact analytic rim circle (radius 1.0, z = +/- height/2 = +/- 1.0).
+    ASSERT_EQ(2u, features.loops.size());
+    for (const manumesh::feature::FeatureLoop& loop : features.loops) {
+        EXPECT_TRUE(loop.closed);
+        EXPECT_TRUE(loop.circular);
+        EXPECT_EQ(32u, loop.vertices.size());
+        EXPECT_NEAR(1.0, loop.radius, 1e-9);
+        EXPECT_NEAR(1.0, std::abs(loop.center.z()), 1e-9);
+    }
 }
 
 TEST(ManuMesh, MeasuresCircularFeatureLoopAgainstDetectedCircle) {

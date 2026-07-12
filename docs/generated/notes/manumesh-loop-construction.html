@@ -204,7 +204,7 @@ footer {
   </div>
   <div class="tags">
     <span class="tag">生成日期：2026-07-10</span>
-    <span class="tag">更新：2026-07-12（smooth curvature 弱证据）</span>
+    <span class="tag">更新：2026-07-12（smooth curvature 弱证据；Taubin/Halíř-Flusser primitive 拟合）</span>
     <span class="tag">主入口：recoverFeatureLoops</span>
     <span class="tag">核心文件：FeatureLoopBuilder / FeatureCycleRecovery / FeatureTraceRecovery</span>
     <span class="tag">输出：HTML + Mermaid</span>
@@ -238,7 +238,7 @@ footer {
     <h2>1. 一句话先讲明白</h2>
     <div class="callout success">
       <strong>当前程序里的 loop 构造不是“看到一圈边就直接闭合”。</strong>
-      它先把可追踪的特征边做成一个无向 `TraceGraph`，再按五个优先级恢复曲线：先抢救分叉图里的圆环，再找小型多边形 cycle，然后追踪剩余边，最后用 primitive 拟合和三点圆搜索补救碎片化 CAD 环。真正落地的数据结构统一由 `FeatureLoopBuilder.cpp` 创建并写回到 `FeatureAnalysis.loops` 和 `FeatureAnalysis.vertices`。<span class="ref">C01</span><span class="ref">C05</span>
+      它先把可追踪的特征边做成一个无向 `TraceGraph`，再按五个优先级恢复曲线：先抢救分叉图里的圆环，再找小型多边形 cycle，然后追踪剩余边，最后用 primitive 拟合和三点圆搜索（种子来自 trace 图长度 2 路径，并要求 cluster 由特征边基本连通）补救碎片化 CAD 环。真正落地的数据结构统一由 `FeatureLoopBuilder.cpp` 创建并写回到 `FeatureAnalysis.loops` 和 `FeatureAnalysis.vertices`。<span class="ref">C01</span><span class="ref">C05</span>
     </div>
     <p>
       如果只看名字，`FeatureLoop` 很容易误解成“必须闭合的环”。但代码实际更宽：它可以是闭合环，也可以是开链；可以是有真实边顺序的 trace 结果，也可以是一个被 circle/ellipse 拟合成功的顶点集合 fallback。这个设计服务于后续简化保护：只要能给顶点提供特征归属、primitive、切向方向，就能被 QEM 特征保护消费。<span class="ref">C07</span><span class="ref">C14</span>
@@ -319,7 +319,7 @@ flowchart TD
     </div>
     <h3>cleanup 对 loop 的影响</h3>
     <p>
-      loop recovery 之前，`cleanupTraceGraph` 会按顺序删弱证据 spur（tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
+      loop recovery 之前，`cleanupTraceGraph` 会按顺序删弱证据 spur（tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。删 spur 默认按边数裁决（`featureGraphMaxWeakSpurEdges`）；当 `FeatureOptions::featureGraphMinWeakSpurStrength` 设为正值（仅 C++ API，默认 0.0 即保留旧行为）时，改用 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。endpoint gap 桥接采用 Yoshizawa 角度规则：连接段须近似延续两条链的切向，避免焊接平行链；端点/junction 数超过硬上限时整个 pass 被跳过并计入 `graphCleanupSkippedByCap`。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
     </p>
   </section>
 
@@ -464,7 +464,7 @@ flowchart LR
           <td>两链合环</td>
           <td>枚举 chain pair，如果两个 endpoint 相同，就把一条正向加另一条反向中间点拼成 cycle。</td>
           <td>交给 `addRecoveredCycle(Circular)`，失败就不写入。</td>
-          <td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:119-138</a></td>
+          <td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:122-141</a></td>
         </tr>
       </tbody>
     </table>
@@ -497,10 +497,10 @@ flowchart TD
     <table>
       <thead><tr><th>限制</th><th>值</th><th>作用</th><th>代码位置</th></tr></thead>
       <tbody>
-        <tr><td>component 顶点数上限</td><td>160</td><td>避免在大图中枚举过多 cycle。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:151</a></td></tr>
-        <tr><td>component 边数上限</td><td>240</td><td>控制复杂度。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:152</a></td></tr>
-        <tr><td>cycle rank 上限</td><td>32</td><td>避免高环秩复杂分量生成大量候选。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:153</a></td></tr>
-        <tr><td>单个 cycle 顶点上限</td><td>80</td><td>只恢复小环，长环交给普通 trace 或 fallback。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:154</a></td></tr>
+        <tr><td>component 顶点数上限</td><td>160</td><td>避免在大图中枚举过多 cycle。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:155</a></td></tr>
+        <tr><td>component 边数上限</td><td>240</td><td>控制复杂度。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:156</a></td></tr>
+        <tr><td>cycle rank 上限</td><td>32</td><td>避免高环秩复杂分量生成大量候选。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:157</a></td></tr>
+        <tr><td>单个 cycle 顶点上限</td><td>80</td><td>只恢复小环，长环交给普通 trace 或 fallback。</td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:158</a></td></tr>
       </tbody>
     </table>
     <h3>为什么跳过弱证据分量</h3>
@@ -599,7 +599,7 @@ flowchart TD
   <section id="stage5">
     <h2>10. 阶段五：circular vertex cluster fallback</h2>
     <p>
-      最后一段是专门给“小型碎片化 CAD 圆孔”准备的。它不只看边，而是从一个 trace component 的候选顶点里枚举三点圆，用圆的平面误差和径向误差收集 cluster，再检查角覆盖范围，最后按圆周角排序并做正式 primitive fit。<span class="ref">C13</span>
+      最后一段是专门给“小型碎片化 CAD 圆孔”准备的。它从一个 trace component 里找“a - b - c 两条边都存在”的长度 2 路径作为三点圆种子，用圆的平面误差和径向误差收集 cluster，检查角覆盖范围，按圆周角排序后再验证“证据连通性”——cluster 相邻顶点对若没有特征边支撑，其角跨度累计不得超过整圈的 25%——最后做正式 primitive fit。<span class="ref">C13</span>
     </p>
     <div class="diagram-wrap">
       <pre class="mermaid">
@@ -608,30 +608,36 @@ flowchart TD
   B -->|"有 normal tensor /<br/>smooth curvature 弱证据边"| X["跳过"]
   B -->|"已有 circular loop"| X
   B -->|"太小或 >120 顶点"| X
-  B -->|"通过"| C["枚举顶点三元组"]
+  B -->|"通过"| C["枚举 trace 图长度 2 路径<br/>a - b - c 两条边都存在"]
   C --> D["fitCircleFromThree"]
   D --> E{"圆有效?"}
   E -->|"否"| C
   E -->|"是"| F["收集 max(plane, radial) <= allowed 的 cluster"]
   F --> G{"cluster 足够大且角覆盖 >= 1.5π?"}
   G -->|"否"| C
-  G -->|"是"| H["vertexSetSignature 去重"]
-  H --> I["sortAroundCircle"]
-  I --> J["fitPrimitive + loop.circular 必须为真"]
+  G -->|"是"| I["sortAroundCircle"]
+  I --> S{"clusterSupportedByTraceEdges?<br/>无特征边支撑的角跨度累计 <= 25%"}
+  S -->|"否"| C
+  S -->|"是"| H["vertexSetSignature 去重"]
+  H --> J["fitPrimitive + loop.circular 必须为真"]
   J --> K["assignLoopToVertices + push"]
       </pre>
     </div>
     <h3>为什么这个阶段放最后</h3>
     <p>
-      三点圆搜索比普通追踪更像“猜一个圆”。为了减少误判，它有几层保险：跳过含弱证据边（normal tensor 或 smooth curvature）的分量、跳过已有 circular loop 的分量、component 顶点数必须在合理范围内、三元组扫描最多 32768 次、cluster 至少覆盖 270 度、最终还要 `fitPrimitive` 分类为 circular。<span class="ref">C13</span>
+      三点圆搜索比普通追踪更像“猜一个圆”。为了减少误判，它有几层保险：跳过含弱证据边（normal tensor 或 smooth curvature）的分量、跳过已有 circular loop 的分量、component 顶点数必须在合理范围内、种子路径扫描最多 32768 次、cluster 至少覆盖 270 度、cluster 必须由 trace 图特征边基本连通、最终还要 `fitPrimitive` 分类为 circular。<span class="ref">C13</span>
+    </p>
+    <p>
+      种子枚举本身也经过一次关键收紧：早期实现盲目枚举 component 内所有顶点三元组（O(n³)），既会把互不相连、只是恰好共圆的顶点（例如倒角棱柱不同竖直折痕上的同排角点）缝合成假圆，也会在只有 58 个顶点的网格上烧掉数秒。现在种子只来自 trace 图的长度 2 路径（复杂度 O(Σdeg²)），任何有证据的 ≥3 顶点圆弧必然包含这样的路径，所以不会漏掉真实圆；配合证据连通性门控，chamfer box 上的 detect 从 1735 ms 降到约 7 ms，恢复出的 loop 从 116 个降到 31 个，junction precision 从 0.29 恢复到 1.0（见 <code>FeatureDetectionAnalytic.ChamferBoxJunctionPrecisionIsNotFloodedByCircularRecovery</code>）。<span class="ref">C13</span>
     </p>
     <table>
       <thead><tr><th>保护阈值</th><th>代码值</th><th>意义</th></tr></thead>
       <tbody>
         <tr><td>component 顶点上限</td><td>120</td><td>只处理小型 CAD 孔洞，避免大图搜索。</td></tr>
-        <tr><td>三元组扫描上限</td><td>32768</td><td>确定性复杂度上限。</td></tr>
+        <tr><td>种子路径扫描上限</td><td>32768</td><td>确定性复杂度上限；达到上限说明穷举被截断，计入 <code>circularRecoveryTruncated</code> 诊断。</td></tr>
         <tr><td>cluster 允许误差</td><td>`max(3 * circleFitRelativeThreshold, 0.08) * radius`</td><td>允许轻微碎片和不均匀采样。</td></tr>
         <tr><td>角覆盖</td><td>`>= 1.5 * pi`</td><td>至少覆盖 270 度，避免一段弧误判成整圆。</td></tr>
+        <tr><td>证据连通性 gap 上限</td><td>`kMaxCircularRecoveryGapFraction = 0.25`</td><td>相邻候选对无特征边支撑的角跨度累计不超过四分之一圈；纯几何共圆不算证据，恢复只补小缺口、不发明圆。与 1.5π 角覆盖要求（最多缺四分之一圈）一致。</td></tr>
       </tbody>
     </table>
   </section>
@@ -639,7 +645,7 @@ flowchart TD
   <section id="primitive">
     <h2>11. primitive 拟合如何决定 circle / ellipse / polygonal</h2>
     <p>
-      primitive fit 在 `PrimitiveFit.cpp`。它先用 loop 顶点的协方差求局部平面和主轴，再在平面内解圆，并同时估计 major/minor radius；随后计算 radial、plane、ellipse 三类误差，根据相对 RMS/Max 误差和轴比分类。<span class="ref">C15</span>
+      primitive fit 在 `PrimitiveFit.cpp`。它先用 loop 顶点的协方差求局部平面（PCA 仍负责平面法向估计），再在平面内做圆与椭圆拟合：圆用 Taubin 代数拟合（Taubin 1991，一阶无偏，短弧/噪声/非均匀采样下不再系统性低估半径），Kåsa 最小二乘保留为确定性回退；椭圆用 Halíř-Flusser 直接最小二乘拟合（Fitzgibbon 约束 4ac−b²=1，3×3 缩减系统，保证输出真椭圆），major/minor 轴向来自 conic 转角而非旧的 PCA 二阶矩（后者仅作回退）；随后计算 radial、plane、ellipse 三类误差，根据相对 RMS/Max 误差和轴比分类。<span class="ref">C15</span>
     </p>
     <div class="diagram-wrap">
       <pre class="mermaid">
@@ -649,7 +655,7 @@ flowchart TD
   B -->|"是"| C["fitLoopFrame<br/>均值 + covariance eigenvectors"]
   C --> D{"frame valid?"}
   D -->|"否"| X
-  D -->|"是"| E["solvePlaneCircle<br/>平面内最小二乘圆"]
+  D -->|"是"| E["solvePlaneCircle<br/>Taubin 圆拟合，Kåsa 回退<br/>+ Halíř-Flusser 椭圆"]
   E --> F{"circle valid?"}
   F -->|"否"| X
   F -->|"是"| G["measurePrimitiveFitErrors"]
@@ -668,25 +674,25 @@ flowchart TD
           <td>Circle</td>
           <td>圆误差小，且轴比几乎等于 1。</td>
           <td>`circular=true`，写入 center/normal/radius。</td>
-          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:143-148, 211-232</a></td>
+          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:463-499, 531-552</a></td>
         </tr>
         <tr>
           <td>NearCircle</td>
           <td>圆误差小或椭圆误差小，轴比在 `nearCircleAxisRatioTolerance` 内。</td>
           <td>`circular=true`，但 primitive 区分为 near-circle。</td>
-          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:149-157</a></td>
+          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:463-499</a></td>
         </tr>
         <tr>
           <td>Ellipse</td>
           <td>椭圆误差小，轴比明显偏离 1；或者圆误差小但轴比超出 near-circle 容差。</td>
           <td>写入 major/minor axis/radius，`circular=false`。</td>
-          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:151-160, 211-232</a></td>
+          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:463-499, 531-552</a></td>
         </tr>
         <tr>
           <td>PolygonalLoop</td>
           <td>circle 和 ellipse 都不满足误差阈值，但 fit 框架有效。</td>
           <td>作为闭合多边形特征保护。</td>
-          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:159-161</a></td>
+          <td><a href="../../../src/feature_detection/PrimitiveFit.cpp">PrimitiveFit.cpp:463-499</a></td>
         </tr>
       </tbody>
     </table>
@@ -708,8 +714,8 @@ flowchart TD
   C --> D{"顶点之前已经是 feature?"}
   D -->|"否"| E["isFeature=true<br/>loopId / circular / primitive"]
   D -->|"是"| F["保留已有 ownership"]
-  E --> G["junction = adjacency[id].size != 2"]
-  F --> H["junction = true 或保持 true"]
+  E --> G["保护 flag：junction |= adjacency[id].size > 2"]
+  F --> H["保护 flag：junction = true（loop 共享顶点被钉住）"]
   G --> I{"loop primitive"}
   H --> I
   I -->|"Circle / NearCircle"| J["写 circle 参数 + 圆切线"]
@@ -717,9 +723,9 @@ flowchart TD
   I -->|"Unknown / Polygonal"| L["邻边 fallback tangent"]
       </pre>
     </div>
-    <h3>junction 和 shared 的来源</h3>
+    <h3>junction 和 shared 的来源：保护 flag 与图级 junction 是两个语义</h3>
     <p>
-      顶点如果被多个 loop 使用，或 incident edge 数不是 2，就会成为 junction/shared 语义的一部分。最后 `finalizeFeatureGraphMarkers` 会统计 active incident edges 和 loopIds，把 junctionVertices、sharedVertices 写到 feature graph 里。<span class="ref">C16</span>
+      这里要区分两层。<strong>逐顶点保护 flag</strong>（`VertexFeature::junction`，`assignLoopToVertices` 写入）偏保守：真实分支点（邻接度 &gt; 2）和被多个 recovered loop 共享的顶点都会被钉住——简化层不能塌掉多条恢复曲线共同依赖的顶点。<strong>图级 junction 报告</strong>（`finalizeFeatureGraphMarkers` 写入 `graph.junctionVertices`）则严格得多：按 M007 的判据，junction 就是 feature graph 的分支点，即 active valence &gt; 2 的顶点；loop 成员关系和保护 flag 都不算分支证据——recovered loop 经常沿整段 2-valence 链重叠，而真正相交的 loop 必然在某个 incident 特征边数 &gt; 2 的顶点相遇。早期实现把“被多个 loop 共享”也算进图级 junction，circular recovery 一旦多恢复几个重叠圆，junction 集就被洪泛（chamfer box 上 precision 0.29）；改为纯 valence 判据后，junction 集恰好就是 16 个八边形角点（precision 1.0）。`shared`（loopIds 多于 1）与 `endpoint`（valence 恰为 1）单独报告。<span class="ref">C16</span>
     </p>
     <h3>为什么要写 tangent</h3>
     <p>
@@ -808,7 +814,7 @@ flowchart TD
           <td><code>DetectsCircularCylinderBoundaryLoops</code></td>
           <td>普通圆柱边界闭环 + primitive fit。</td>
           <td>至少 2 个 circular loop，radius 接近 1，plane/radial error 很小。</td>
-          <td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">feature_detection_loop_tests.cpp:27-45</a></td>
+          <td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">feature_detection_loop_tests.cpp:28-45</a></td>
         </tr>
         <tr>
           <td><code>RecoversCircularLoopFromBranchedFeatureGraph</code></td>
@@ -838,7 +844,7 @@ flowchart TD
           <td><code>TensorComponentDoesNotBlockSeparateCircularFallback</code></td>
           <td>normal tensor 分量与 circular fallback 的边界。</td>
           <td>存在 tensor feature edges，同时仍能恢复 circular loop，loop id 连续。</td>
-          <td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">feature_detection_loop_tests.cpp:116-132</a></td>
+          <td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">feature_detection_loop_tests.cpp:116-133</a></td>
         </tr>
       </tbody>
     </table>
@@ -897,21 +903,21 @@ flowchart TD
       <thead><tr><th>ID</th><th>位置</th><th>说明</th></tr></thead>
       <tbody>
         <tr><td><span class="ref">C01</span></td><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">src/feature_detection/FeatureLoopRecovery.cpp:10-17</a></td><td>loop recovery 五段调度入口。</td></tr>
-        <tr><td><span class="ref">C02</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:65-96</a></td><td>从 candidate feature edges 构造 TraceGraph，决定 traced/untraced。</td></tr>
-        <tr><td><span class="ref">C03</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:102-372</a></td><td>removeWeakSpurs、bridgeCloseJunctions、bridgeEndpointGaps、cleanupTraceGraph。</td></tr>
-        <tr><td><span class="ref">C04</span></td><td><a href="../../../src/feature_detection/FeatureTraceRecovery.cpp">src/feature_detection/FeatureTraceRecovery.cpp:13-163</a></td><td>traceOpenChain、traceClosedLoop、traceRemainingFeatureLoops。</td></tr>
-        <tr><td><span class="ref">C05</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:49-127</a></td><td>cycleSignature、assignLoopToVertices。</td></tr>
-        <tr><td><span class="ref">C06</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:129-163</a></td><td>makeLoopFromStats、addTracedLoop。</td></tr>
-        <tr><td><span class="ref">C07</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:165-229</a></td><td>addRecoveredCycle 的去重、统计、primitive 验证和写回。</td></tr>
-        <tr><td><span class="ref">C08</span></td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">src/feature_detection/FeatureCycleRecovery.cpp:20-138</a></td><td>traceJunctionChains 与 recoverCircularCyclesThroughJunctions。</td></tr>
-        <tr><td><span class="ref">C09</span></td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">src/feature_detection/FeatureCycleRecovery.cpp:140-220</a></td><td>recoverSmallCycleBasis，包括 component 限制、cycle rank、treePathCycle。</td></tr>
-        <tr><td><span class="ref">C10</span></td><td><a href="../../../src/feature_detection/detail/FeatureDetectionTypes.h">src/feature_detection/detail/FeatureDetectionTypes.h:13-58</a></td><td>CandidateEdge、TraceGraph、TraceLoopStats、RecoveredCycleKind。</td></tr>
-        <tr><td><span class="ref">C11</span></td><td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">include/algorithms/feature_detection/FeatureTypes.h:26-120</a></td><td>FeatureOptions、FeatureLoop、VertexFeature 的语义。</td></tr>
-        <tr><td><span class="ref">C12</span></td><td><a href="../../../src/feature_detection/FeaturePrimitiveRecovery.cpp">src/feature_detection/FeaturePrimitiveRecovery.cpp:14-88</a></td><td>recoverPrimitiveComponents，整 component 的 primitive fallback。</td></tr>
-        <tr><td><span class="ref">C13</span></td><td><a href="../../../src/feature_detection/FeatureCircularRecovery.cpp">src/feature_detection/FeatureCircularRecovery.cpp:37-211</a></td><td>三点圆、角覆盖、component 收集、circular vertex cluster fallback。</td></tr>
+        <tr><td><span class="ref">C02</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:70-184</a></td><td>从 candidate feature edges 构造 TraceGraph，决定 traced/untraced。</td></tr>
+        <tr><td><span class="ref">C03</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:99-506</a></td><td>removeWeakSpurs、bridgeCloseJunctions、bridgeEndpointGaps、cleanupTraceGraph。</td></tr>
+        <tr><td><span class="ref">C04</span></td><td><a href="../../../src/feature_detection/FeatureTraceRecovery.cpp">src/feature_detection/FeatureTraceRecovery.cpp:13-173</a></td><td>traceOpenChain、traceClosedLoop、traceRemainingFeatureLoops。</td></tr>
+        <tr><td><span class="ref">C05</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:62-142</a></td><td>cycleSignature、assignLoopToVertices。</td></tr>
+        <tr><td><span class="ref">C06</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:144-178</a></td><td>makeLoopFromStats、addTracedLoop。</td></tr>
+        <tr><td><span class="ref">C07</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:180-251</a></td><td>addRecoveredCycle 的去重、统计、primitive 验证和写回。</td></tr>
+        <tr><td><span class="ref">C08</span></td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">src/feature_detection/FeatureCycleRecovery.cpp:20-141</a></td><td>traceJunctionChains 与 recoverCircularCyclesThroughJunctions。</td></tr>
+        <tr><td><span class="ref">C09</span></td><td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">src/feature_detection/FeatureCycleRecovery.cpp:143-232</a></td><td>recoverSmallCycleBasis，包括 component 限制、cycle rank、treePathCycle。</td></tr>
+        <tr><td><span class="ref">C10</span></td><td><a href="../../../src/feature_detection/detail/FeatureDetectionTypes.h">src/feature_detection/detail/FeatureDetectionTypes.h</a></td><td>CandidateEdge、TraceGraph、TraceEdgeAttrs（逐边属性单表，traceEdgeAttrs() 访问）、TraceLoopStats、RecoveredCycleKind。</td></tr>
+        <tr><td><span class="ref">C11</span></td><td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">include/algorithms/feature_detection/FeatureTypes.h</a></td><td>FeatureOptions、FeatureLoop、VertexFeature 的语义。</td></tr>
+        <tr><td><span class="ref">C12</span></td><td><a href="../../../src/feature_detection/FeaturePrimitiveRecovery.cpp">src/feature_detection/FeaturePrimitiveRecovery.cpp:14-93</a></td><td>recoverPrimitiveComponents，整 component 的 primitive fallback。</td></tr>
+        <tr><td><span class="ref">C13</span></td><td><a href="../../../src/feature_detection/FeatureCircularRecovery.cpp">src/feature_detection/FeatureCircularRecovery.cpp:37-282</a></td><td>三点圆、角覆盖、证据连通性门控（clusterSupportedByTraceEdges）、component 收集、circular vertex cluster fallback。</td></tr>
         <tr><td><span class="ref">C14</span></td><td><a href="../../../src/simplification/FeatureGuidance.cpp">src/simplification/FeatureGuidance.cpp:91-164</a></td><td>FeatureAnalysis loops/vertices 如何被转成简化阶段的 feature guidance。</td></tr>
-        <tr><td><span class="ref">C15</span></td><td><a href="../../../src/feature_detection/PrimitiveFit.cpp">src/feature_detection/PrimitiveFit.cpp:14-266</a></td><td>primitive fit、classification、applyPrimitiveFit、cycleEdgesFollowCircle。</td></tr>
-        <tr><td><span class="ref">C16</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:192-209</a></td><td>finalizeFeatureGraphMarkers，junction/shared 顶点最终标记。</td></tr>
+        <tr><td><span class="ref">C15</span></td><td><a href="../../../src/feature_detection/PrimitiveFit.cpp">src/feature_detection/PrimitiveFit.cpp:42-608</a></td><td>primitive fit（Taubin 圆 + Halíř-Flusser 椭圆，Kåsa/二阶矩为回退）、classification、applyPrimitiveFit、cycleEdgesFollowCircle。</td></tr>
+        <tr><td><span class="ref">C16</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:202-235</a></td><td>finalizeFeatureGraphMarkers，junction/shared 顶点最终标记。</td></tr>
       </tbody>
     </table>
 
@@ -923,7 +929,7 @@ flowchart TD
         <tr><td><span class="ref">T02</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:47-62</a></td><td>分叉图恢复圆环。</td></tr>
         <tr><td><span class="ref">T03</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:64-77</a></td><td>多 junction 多边形 cycle 恢复。</td></tr>
         <tr><td><span class="ref">T04</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:97-114</a></td><td>trace threshold 过严导致 untraced edges 和 no loops。</td></tr>
-        <tr><td><span class="ref">T05</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:116-132</a></td><td>tensor component 不阻断独立 circular fallback。</td></tr>
+        <tr><td><span class="ref">T05</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:116-133</a></td><td>tensor component 不阻断独立 circular fallback。</td></tr>
       </tbody>
     </table>
 

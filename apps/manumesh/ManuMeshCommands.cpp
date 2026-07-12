@@ -4,7 +4,7 @@
 #include "CliOptionBinding.h"
 #include "ManuMeshFeatureCommands.h"
 #include "ManuMeshWorkflowCommands.h"
-#include "algorithms/simplification/Metrics.h"
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/Mesh.h"
 #include "core/MeshGenerators.h"
@@ -77,7 +77,7 @@ std::string sanitizeRatio(double value) {
     return text;
 }
 
-void printStats(const std::string& label, const manumesh::simplification::MeshStats& stats) {
+void printStats(const std::string& label, const manumesh::analysis::MeshStats& stats) {
     std::cout << label << ": vertices=" << stats.vertices << " faces=" << stats.faces
               << " mean_quality=" << stats.meanTriangleQuality << " min_quality=" << stats.minTriangleQuality
               << " edge_cv=" << stats.edgeLengthCv << "\n";
@@ -162,7 +162,7 @@ int commandGenerate(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    printStats(type, manumesh::simplification::computeMeshStats(mesh));
+    printStats(type, manumesh::analysis::computeMeshStats(mesh));
     std::cout << "Wrote " << outPath << "\n";
     return 0;
 }
@@ -183,9 +183,9 @@ int commandCompare(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const manumesh::simplification::MeshStats stats = manumesh::simplification::computeMeshStats(simplified);
-    const manumesh::simplification::DistanceStats distance =
-        manumesh::simplification::compareMeshesBySampledDistance(original, simplified, samples);
+    const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(simplified);
+    const manumesh::analysis::DistanceStats distance =
+        manumesh::analysis::compareMeshesBySampledDistance(original, simplified, samples);
     printStats("simplified", stats);
     std::cout << "distance mean original->simplified=" << distance.meanOriginalToSimplified
               << " max=" << distance.maxOriginalToSimplified << "\n";
@@ -217,10 +217,10 @@ int commandSimplify(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const manumesh::simplification::MeshStats inStats = manumesh::simplification::computeMeshStats(input);
-    const manumesh::simplification::MeshStats outStats = manumesh::simplification::computeMeshStats(output);
-    const manumesh::simplification::DistanceStats distance =
-        manumesh::simplification::compareMeshesBySampledDistance(input, output, samples);
+    const manumesh::analysis::MeshStats inStats = manumesh::analysis::computeMeshStats(input);
+    const manumesh::analysis::MeshStats outStats = manumesh::analysis::computeMeshStats(output);
+    const manumesh::analysis::DistanceStats distance =
+        manumesh::analysis::compareMeshesBySampledDistance(input, output, samples);
 
     printStats("input", inStats);
     printStats("output", outStats);
@@ -273,7 +273,7 @@ int commandSimplify(const Args& args) {
             fs::create_directories(metricsPath.parent_path());
         }
         std::ofstream csv(metricsCsv);
-        csv << manumesh::simplification::statsHeaderCsv()
+        csv << manumesh::cli::statsHeaderCsv()
             << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
                "feature_loops,circular_feature_loops,feature_vertices,"
                "traced_feature_edges,untraced_feature_edges,"
@@ -294,8 +294,8 @@ int commandSimplify(const Args& args) {
                "quality_refinement_attempted_moves,quality_refinement_accepted_moves,"
                "termination_reason,"
                "min_line_weight,max_line_weight\n";
-        csv << manumesh::simplification::statsRowCsv("output", outStats, &distance) << "," << report.collapsedEdges
-            << "," << report.rejectedCollapses << "," << report.solverFallbacks << "," << report.featureLoops << ","
+        csv << manumesh::cli::statsRowCsv("output", outStats, &distance) << "," << report.collapsedEdges << ","
+            << report.rejectedCollapses << "," << report.solverFallbacks << "," << report.featureLoops << ","
             << report.circularFeatureLoops << "," << report.featureVertices << "," << report.tracedFeatureEdges << ","
             << report.untracedFeatureEdges << "," << report.featureComponents << "," << report.weakFeatureComponents
             << "," << report.highConfidenceFeatureComponents << "," << report.graphCleanupBridgedGaps << ","
@@ -339,7 +339,7 @@ int commandSweep(const Args& args) {
     manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
     std::ofstream csv(outDir / "metrics.csv");
-    csv << "method,line_weight,weight_mode," << manumesh::simplification::statsHeaderCsv()
+    csv << "method,line_weight,weight_mode," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
 
@@ -347,9 +347,6 @@ int commandSweep(const Args& args) {
         manumesh::simplification::SimplifyOptions options = base;
         options.lineWeight = weight;
         options.useLineQuadrics = weight > 0.0 || options.weightMode != manumesh::simplification::WeightMode::Uniform;
-        if (weight <= 0.0 && options.weightMode == manumesh::simplification::WeightMode::Uniform) {
-            options.useLineQuadrics = false;
-        }
 
         manumesh::simplification::SimplifyReport report;
         manumesh::simplification::QEMSimplifier simplifier(options);
@@ -361,11 +358,11 @@ int commandSweep(const Args& args) {
             throw std::runtime_error(error);
         }
 
-        const manumesh::simplification::MeshStats stats = manumesh::simplification::computeMeshStats(output);
-        const manumesh::simplification::DistanceStats distance =
-            manumesh::simplification::compareMeshesBySampledDistance(input, output, samples);
+        const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
+        const manumesh::analysis::DistanceStats distance =
+            manumesh::analysis::compareMeshesBySampledDistance(input, output, samples);
         csv << method << "," << weight << "," << manumesh::simplification::toString(options.weightMode) << ","
-            << manumesh::simplification::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges << ","
+            << manumesh::cli::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges << ","
             << report.rejectedCollapses << "," << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
             << report.maxAppliedLineWeight << "\n";
         printStats(label, stats);
@@ -394,7 +391,7 @@ int commandRatioSweep(const Args& args) {
     manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
     std::ofstream csv(outDir / "metrics.csv");
-    csv << "method,line_weight,weight_mode,ratio," << manumesh::simplification::statsHeaderCsv()
+    csv << "method,line_weight,weight_mode,ratio," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
 
@@ -417,11 +414,11 @@ int commandRatioSweep(const Args& args) {
             throw std::runtime_error(error);
         }
 
-        const manumesh::simplification::MeshStats stats = manumesh::simplification::computeMeshStats(output);
-        const manumesh::simplification::DistanceStats distance =
-            manumesh::simplification::compareMeshesBySampledDistance(input, output, samples);
+        const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
+        const manumesh::analysis::DistanceStats distance =
+            manumesh::analysis::compareMeshesBySampledDistance(input, output, samples);
         csv << method << "," << options.lineWeight << "," << manumesh::simplification::toString(options.weightMode)
-            << "," << ratio << "," << manumesh::simplification::statsRowCsv(label, stats, &distance) << ","
+            << "," << ratio << "," << manumesh::cli::statsRowCsv(label, stats, &distance) << ","
             << report.collapsedEdges << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
             << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
         printStats(label, stats);
@@ -451,7 +448,7 @@ int commandFaceSweep(const Args& args) {
     manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
     std::ofstream csv(outDir / "metrics.csv");
-    csv << "method,line_weight,weight_mode,target_faces," << manumesh::simplification::statsHeaderCsv()
+    csv << "method,line_weight,weight_mode,target_faces," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
 
@@ -474,11 +471,11 @@ int commandFaceSweep(const Args& args) {
             throw std::runtime_error(error);
         }
 
-        const manumesh::simplification::MeshStats stats = manumesh::simplification::computeMeshStats(output);
-        const manumesh::simplification::DistanceStats distance =
-            manumesh::simplification::compareMeshesBySampledDistance(input, output, samples);
+        const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
+        const manumesh::analysis::DistanceStats distance =
+            manumesh::analysis::compareMeshesBySampledDistance(input, output, samples);
         csv << method << "," << options.lineWeight << "," << manumesh::simplification::toString(options.weightMode)
-            << "," << targetFaces << "," << manumesh::simplification::statsRowCsv(label, stats, &distance) << ","
+            << "," << targetFaces << "," << manumesh::cli::statsRowCsv(label, stats, &distance) << ","
             << report.collapsedEdges << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
             << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
         printStats(label, stats);

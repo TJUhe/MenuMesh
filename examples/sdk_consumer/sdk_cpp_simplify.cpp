@@ -1,9 +1,12 @@
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/Metrics.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"
 
 #include <algorithm>
+#include <cmath>
+#include <string>
 
 int main() {
     manumesh::Mesh input = manumesh::generateCylinderGrid(32, 8, 1.0, 2.0);
@@ -23,9 +26,25 @@ int main() {
     if (report.finalFaces >= report.initialFaces) {
         return 2;
     }
-    const manumesh::simplification::MeshStats stats = manumesh::simplification::computeMeshStats(output);
+    const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
     if (stats.faces != static_cast<int>(output.faces.size())) {
         return 3;
+    }
+    const manumesh::simplification::MeshStats legacyStats =
+        manumesh::simplification::computeMeshStats(output);
+    const manumesh::simplification::DistanceStats legacyDistance =
+        manumesh::simplification::compareMeshesBySampledDistance(output, output, 16);
+    const double distanceTolerance = 1e-9 * std::max(1.0, output.bboxDiag());
+    if (legacyStats.faces != stats.faces || !std::isfinite(legacyDistance.maxOriginalToSimplified) ||
+        !std::isfinite(legacyDistance.maxSimplifiedToOriginal) ||
+        legacyDistance.maxOriginalToSimplified > distanceTolerance ||
+        legacyDistance.maxSimplifiedToOriginal > distanceTolerance) {
+        return 4;
+    }
+    const std::string legacyHeader = manumesh::simplification::statsHeaderCsv();
+    const std::string legacyRow = manumesh::simplification::statsRowCsv("sdk", legacyStats, &legacyDistance);
+    if (legacyHeader.rfind("label,", 0) != 0 || legacyRow.rfind("sdk,", 0) != 0) {
+        return 5;
     }
 
     manumesh::Mesh textured = manumesh::generatePlaneGrid(4, 1.0, false);
@@ -41,7 +60,7 @@ int main() {
     options.preserveTexture = true;
     const manumesh::Mesh texturedOutput = manumesh::simplification::simplifyMesh(textured, options);
     if (!texturedOutput.hasTextureCoordinates() || texturedOutput.faceTexCoords.size() != texturedOutput.faces.size()) {
-        return 4;
+        return 6;
     }
 
     const manumesh::Mesh bump = manumesh::generateBumpGrid(24, 2.0);
@@ -52,5 +71,5 @@ int main() {
         std::any_of(curvature.begin(), curvature.end(), [](const manumesh::feature::SmoothCurvatureVertex& vertex) {
             return vertex.persistentScales >= 2 && vertex.persistentFeatureScore > 0.01;
         });
-    return hasPersistentFeature ? 0 : 5;
+    return hasPersistentFeature ? 0 : 7;
 }

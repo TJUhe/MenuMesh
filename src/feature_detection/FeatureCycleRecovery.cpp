@@ -24,7 +24,7 @@ std::vector<FeatureChain> traceJunctionChains(const std::vector<std::vector<int>
         isJunction[i] = !adjacency[i].empty() && adjacency[i].size() != 2;
     }
 
-    std::unordered_set<std::string> seenChains;
+    CycleSignatureSet seenChains;
     for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
         if (!isJunction[seed]) {
             continue;
@@ -60,8 +60,7 @@ std::vector<FeatureChain> traceJunctionChains(const std::vector<std::vector<int>
             if (end == seed || !isJunction[end]) {
                 continue;
             }
-            const std::string signature = cycleSignature(chain);
-            if (!seenChains.insert(signature).second) {
+            if (!seenChains.insert(cycleSignature(chain)).second) {
                 continue;
             }
             FeatureChain featureChain;
@@ -106,7 +105,11 @@ std::vector<int> treePathCycle(int u, int v, const std::vector<int>& parent, con
 bool componentHasWeakEvidenceEdge(const std::vector<int>& component, const TraceGraph& trace) {
     for (int v : component) {
         for (int nb : trace.adjacency[v]) {
-            if (v < nb && (traceEdgeNormalTensor(trace, v, nb) || traceEdgeSmoothCurvature(trace, v, nb))) {
+            if (v >= nb) {
+                continue;
+            }
+            const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, v, nb);
+            if (attrs != nullptr && (attrs->normalTensor || attrs->smoothCurvature)) {
                 return true;
             }
         }
@@ -120,7 +123,7 @@ void recoverCircularCyclesThroughJunctions(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 ) {
     const std::vector<FeatureChain> chains = traceJunctionChains(trace.adjacency);
-    std::unordered_set<std::string> seenCycles;
+    CycleSignatureSet seenCycles;
     for (int i = 0; i < static_cast<int>(chains.size()); ++i) {
         for (int j = i + 1; j < static_cast<int>(chains.size()); ++j) {
             if (chains[i].loEndpoint != chains[j].loEndpoint || chains[i].hiEndpoint != chains[j].hiEndpoint) {
@@ -142,7 +145,7 @@ void recoverSmallCycleBasis(
 ) {
     const std::vector<std::vector<int>>& adjacency = trace.adjacency;
     std::vector<char> componentVisited(mesh.vertices.size(), 0);
-    std::unordered_set<std::string> seenCycles;
+    CycleSignatureSet seenCycles;
     for (const FeatureLoop& loop : analysis.loops) {
         if (loop.closed) {
             seenCycles.insert(cycleSignature(loop.vertices));
@@ -173,12 +176,17 @@ void recoverSmallCycleBasis(
             queue.pop();
             component.push_back(v);
             edgeCount2x += static_cast<int>(adjacency[v].size());
-            for (int nb : adjacency[v]) {
+            // Visit neighbors in sorted order so the BFS tree (and therefore
+            // every recovered fundamental cycle) does not depend on adjacency
+            // insertion order.
+            std::vector<int> neighbors = adjacency[v];
+            std::sort(neighbors.begin(), neighbors.end());
+            for (int nb : neighbors) {
                 if (!componentVisited[nb]) {
                     componentVisited[nb] = 1;
                     parent[nb] = v;
                     depth[nb] = depth[v] + 1;
-                    treeEdges.insert(manumesh::detail::meshEdgeKey(v, nb));
+                    treeEdges.insert(manumesh::common::meshEdgeKey(v, nb));
                     queue.push(nb);
                 }
             }
@@ -200,7 +208,7 @@ void recoverSmallCycleBasis(
             std::vector<int> neighbors = adjacency[v];
             std::sort(neighbors.begin(), neighbors.end());
             for (int nb : neighbors) {
-                if (v >= nb || treeEdges.find(manumesh::detail::meshEdgeKey(v, nb)) != treeEdges.end()) {
+                if (v >= nb || treeEdges.find(manumesh::common::meshEdgeKey(v, nb)) != treeEdges.end()) {
                     continue;
                 }
                 std::vector<int> cycle = treePathCycle(v, nb, parent, depth);

@@ -1,6 +1,6 @@
 # ManuMesh SDK 集成指南
 
-ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；C ABI 适合插件、宿主程序、跨语言绑定或 ABI 边界更严格的场景。C++ API 命名空间已统一为 `manumesh`：核心网格类型位于根命名空间，功能入口使用 `manumesh::simplification` 和 `manumesh::feature` 两个功能命名空间，不再提供旧根命名空间别名。当前二进制、include 路径和 C ABI 名称沿用 ManuMesh SDK 约定。
+ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同编译器、同 ABI 的消费工程；pre-1.0 阶段保证源码迁移路径，但不承诺不同 SDK 版本间直接复用旧 C++ 二进制，升级后必须重新编译。C ABI v1 才是插件、宿主程序、跨语言绑定与跨版本场景的稳定二进制边界。C++ API 命名空间已统一为 `manumesh`：核心网格类型位于根命名空间，功能入口使用 `manumesh::simplification`、`manumesh::feature` 和 `manumesh::analysis` 三个功能命名空间，不再提供旧根命名空间别名。当前二进制、include 路径和 C ABI 名称沿用 ManuMesh SDK 约定。
 
 算法和报告字段的理解见 [`../design/algorithm_essence.md`](../design/algorithm_essence.md)。SDK 集成时尤其要注意：QEM/line quadrics 是候选排序，`SimplifyReport` 的拒绝计数来自硬过滤器，不是普通日志噪声。
 
@@ -80,6 +80,39 @@ manumesh::PlainMesh output =
 
 `SimplificationTypes.h` 包含 `SimplifyOptions`、`SimplifyReport` 和相关枚举，不依赖 Eigen；`QEMSimplifier.h` 仍包含 Eigen-backed `Mesh`。
 
+## 网格统计与比较（manumesh::analysis）
+
+通用网格统计已从 simplification 提升为跨算法公共模块 `manumesh::analysis`：
+
+```cpp
+#include "algorithms/analysis/MeshAnalysis.h"
+
+manumesh::analysis::MeshStats stats =
+    manumesh::analysis::computeMeshStats(output);
+manumesh::analysis::DistanceStats distance =
+    manumesh::analysis::compareMeshesBySampledDistance(input, output, 800);
+```
+
+- `MeshStats` 提供顶点/面/边计数、边界与非流形边、面积、三角形质量、边长统计；`DistanceStats` 是确定性采样的双向距离摘要。
+- 旧头 `algorithms/simplification/Metrics.h` 保留类型别名和旧函数符号作为一个迁移周期的兼容包装；新代码请直接 include `algorithms/analysis/MeshAnalysis.h`。
+- CSV 拼装函数 `statsHeaderCsv` / `statsRowCsv` 属表现层，主实现已移入 CLI（`apps/manumesh/CliCsv.h`）；旧库函数只为迁移保留，宿主程序的新代码应自行格式化 `MeshStats`。
+- 两个入口对空 mesh 或拓扑破损输入退化为零值字段而不抛异常，且为纯函数、可并发调用（见 `docs/design/error_handling_policy.md`）。
+
+## 特征 loop 匹配（FeatureComparison.h）
+
+需要比较简化前后圆形特征保留情况时，使用新公共头 `algorithms/feature_detection/FeatureComparison.h`：
+
+```cpp
+#include "algorithms/feature_detection/FeatureComparison.h"
+
+manumesh::feature::LoopMatchOptions matchOptions; // 默认阈值 = 原 feature-compare CLI 硬编码值
+manumesh::feature::LoopMatchReport loopReport =
+    manumesh::feature::matchCircularLoops(
+        originalFeatures, simplifiedFeatures, simplifiedMesh, matchOptions);
+```
+
+每个原始圆环被分类为 `Matched` / `WeakMatch` / `Missing`（三级中心距/半径/法向阈值，`referenceDiagonal` 用于归一化中心误差）。CLI 的 `feature-compare` 命令现在只是这个 API 的薄封装（load → detect → match → 格式化）。
+
 ## 纹理网格与纹理感知简化（C++ API）
 
 带纹理的网格在 SDK 边界使用逐面逐角 UV：
@@ -145,7 +178,9 @@ featureOptions.smoothCurvatureRobustFitIterations = 2;
 7. 销毁 mesh handle 和 context。
 
 所有带 `struct_size` / `abi_version` 的结构体都必须先调用对应初始化函数。当前 `MANUMESH_ABI_VERSION` 为 `1`。同一 ABI 版本内，库接受尾部较短的旧 `struct_size`，只读取调用方结构体中实际存在的字段，缺失的新尾部字段使用库默认值；未初始化结构体或 ABI 版本不匹配仍会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。
-`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部，旧调用方保持默认行为。注意：本轮新增的纹理保护选项（`preserveTexture` 等）和 smooth-curvature 特征选项当前只在 C++ API 提供，C ABI 结构体尚未暴露对应字段；跨 ABI 场景暂时无法使用这两项能力。
+`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部，旧调用方保持默认行为。注意：本轮新增的纹理保护选项（`preserveTexture` 等）和 smooth-curvature 特征选项当前只在 C++ API 提供，C ABI 结构体尚未暴露对应字段；跨 ABI 场景暂时无法使用这两项能力。`include/api/CApi.h` 顶部已明确声明 v1 ABI 不携带逐角纹理坐标——需要保纹理时必须使用 C++ `Mesh` / `PlainMesh` 边界。
+
+错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM 与参数错误作为可区分的状态处理。
 
 ## CMake config 与 Eigen
 
@@ -186,8 +221,9 @@ cmake --build $buildDir --target sdk-consumer-test --parallel
 
 ## 集成边界
 
-- 公共头只从 `include/` 引入；新代码优先使用 `algorithms/feature_detection` 和 `algorithms/simplification`。
+- 公共头只从 `include/` 引入；新代码优先使用 `algorithms/feature_detection`、`algorithms/simplification` 和 `algorithms/analysis`。公共工具头还包括 `core/Tolerances.h`（统一退化三角形容差族）与 `core/MathConstants.h`（`kPi`）；`core/MeshGenerators.h` 提供闭流形焊接立方体 `generateWeldedCubeGrid(n, size)` 等测试/演示网格生成器。
 - 不要依赖 `src/simplification/detail/`，这些是私有实现。
 - 不要依赖 `src/feature_detection/detail/`，primitive fitting、trace/cycle 恢复等 helper 仍是私有实现。
+- 内部实现命名空间已由 `manumesh::detail` 改名为 `manumesh::common`（保留 `namespace detail = common` 过渡别名一个 minor 版本）；这是内部层调整，不影响任何公共 API。
 - 当前 ManuMesh SDK 不承诺通用布尔、offset、修复或去噪能力。
-- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持多边形三角化并保留逐角 `vt`，STL 输出仍是 ASCII STL（不携带 UV）。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。
+- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持多边形三角化并保留逐角 `vt`，STL 输出仍是 ASCII STL（不携带 UV）。STL/OBJ 解析器本轮重写为 `std::from_chars` 数值解析加缓冲扫描，内部自动探测 ASCII/二进制 STL 并预读三角形数，解析失败的错误信息更明确。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。

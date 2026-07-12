@@ -1,5 +1,233 @@
 # 更新日志
 
+## 2026-07-13
+
+### 合并前收口
+
+- `MeshAnalysis` 对损坏输入改为逐面筛选：非法索引、非有限坐标、重复索引、
+  零面积及数值不安全面不进入统计或 BVH；无可用曲面时返回零测量值，原始
+  container 数量仍保留。新增统计与双向距离的 4 个损坏输入回归。
+- STL 顶点焊接改用相对 `bboxMin` 的局部量化，并在量化桶内复核真实欧氏距离；
+  避免大平移或极端坐标饱和后把不同顶点静默合并。新增 `1e12` 平移不变性与
+  `1e30` 饱和碰撞测试。
+- 圆环比较先应用 center/radius/normal 三项 plausible 硬门控，再在合法候选中按
+  综合分排序，避免分数更低但越界的候选遮住真实匹配；新增对应竞争候选回归。
+- `algorithms/simplification/Metrics.h` 恢复旧统计与 CSV 函数符号作为一个迁移
+  周期的薄包装，内部统一转调 `manumesh::analysis`；新代码仍使用
+  `MeshAnalysis.h`。文档明确 pre-1.0 C++ SDK 升级后必须重新编译，跨版本稳定
+  二进制边界由 C ABI v1 承担。
+- 安装型构建默认启用 `MANUMESH_INSTALL_CMAKE_CONFIG`，使已注册的
+  `sdk_consumer_examples` 能从全新 SDK 目录通过 `find_package(ManuMesh)` 构建；
+  显式关闭 package config 时不再注册依赖 `find_package` 的 consumer target/test，
+  兼容旧 CMake cache。安装消费者同时覆盖旧 `Metrics.h` 的四个兼容导出符号。
+- STL 焊接对溢出的 bbox 范数保持有限容差，并搜索相邻量化桶；圆环匹配 options
+  增加 finite、范围及 matched 不宽于 plausible 的公共校验，非法阈值不能绕过 hard gate。
+- 测试策略中的套件规模同步为当前实际发现结果：快速套件 225 个启用用例、
+  external 11 个、全量非性能套件 236 个；墙钟 perf-guard 按设计继续属于快速
+  `unit` 套件。
+
+### 算法修复：签名二面角凸凹判决 + 绕向一致化（P0-1 / P1-4）
+
+- 凸凹分类谓词修复（P0-1）：`FeatureEvidence.cpp` 原 `signedDihedralKind`
+  用规范化端点序（a<b）的边方向配质心叉积判凸凹——绕向一致网格上两侧
+  side 项恒一正一负，判决与几何完全无关（90° 凹谷判凸、L 形棱柱与楼梯
+  真值凹边全部误判凸）。改为 Jiao 2008 配方：取 face 0 自身遍历共享边的
+  方向 d，`sign((n0×n1)·d)` 正=凸、负=凹（数学推导与 90° 凸脊/凹谷手算例
+  见 `orientedDihedralAngle` 注释），去掉质心法与其 epsilon 死区，凸凹与
+  角度在同一次边遍历中一并算出。boss_pocket 夹具凸/凹从 53/7（凹边任意
+  误标）修正为 48/12（凹边恰为 boss 底座圈 4 + pocket 底圈 4 + pocket
+  竖直墙角 4，逐边真值断言）。
+- 绕向一致化（P1-4）：检测入口新增一次 O(F) 确定性 BFS 面绕向一致化
+  （`harmonizeFaceWindings`，按面索引播种、边按顶点序展开、多数派归一化，
+  只建内部翻转标记视图、不改输入网格）。此前绕向不一致的边直接降级为
+  `|dot|`，翻转 patch 边界上 150°-175° 刀口边被读成 5°-30° 而漏检；现在
+  可定向网格上翻转任意连通 patch 得到与原网格完全相同的特征边集合
+  （含凸凹符号），`inconsistentWindingEdges` 归零。不可定向局部
+  （Möbius 类）仍回退无符号角并保留计数（恰好闭合缝一条边）。
+- 新增测试：90° 凸脊/凹谷最小折边逐边真值 ×2、L 形棱柱 18 边逐边真值、
+  楼梯 4 折边逐边真值（`feature_detection_discrete_tests.cpp`）；
+  boss_pocket 凸凹精确计数 + 逐边几何真值断言（弱断言
+  `EXPECT_GT(concave, 0)` 升级，`feature_detection_fixture_tests.cpp`）；
+  翻转 patch 集合相等性、翻转绕向刀口边检出、Möbius 诊断保留
+  （`feature_detection_robustness_tests.cpp`，原
+  `InconsistentWindingFallsBackToUnsignedDihedral` 按新语义改为
+  `HarmonizesInconsistentWindingOnFlatSurface`：平面翻转对现在被一致化
+  修复而非仅诊断）。
+
+### 测试体系重构
+
+- 新增解析真值 fixture 库 `tests/support/AnalyticFixtures.{h,cpp}`：
+  `makeUvSphere` / `makeCylinder`（可带盖）/ `makeTorus` / `makeChamferBox` /
+  `makeGaussianRidgeSheet`，全部携带解析曲率、真值特征边、真值圆访问器；
+  `withDeterministicNoise` 用 Knuth MMIX 线性同余发生器加有界扰动，同一 seed
+  跨平台可复现。设计理念是"断言界由被测几何的闭式解推导，而不是抄录历史输出"。
+- 新增测试文件：`feature_detection_analytic_tests.cpp`（8 个，含 Dupin cyclide
+  光滑曲率精确沉默、高斯脊 crest 曲率界、倒角盒硬边 precision/recall 与 junction
+  precision）、`simplification_analytic_tests.cpp`（5 个：球弦高误差界、柱面 rim 圆
+  1e-6 保真、带 UV 圆柱解析参数化偏差界、环面双向 Hausdorff、detect+simplify
+  字节级确定性）、`tests/unit/perf/pipeline_perf_guard_tests.cpp`（2 个墙钟性能
+  护栏，注释含机器基准与 3×/10× 上限设计依据）。
+- 测试组织：通用 core/io 用例从 `simplification_core_tests.cpp` 迁出到
+  `tests/unit/core/core_tests.cpp` 与 `tests/unit/io/mesh_io_tests.cpp`；快速套件
+  `ctest -LE "performance|external"` 共 225 个启用用例，全量非性能套件
+  `-LE performance` 共 236 个启用用例。新增测试策略文档
+  `docs/design/testing_strategy.md`（五层划分、fixture 设计、确定性测试、套件命令
+  与规模、新增测试的注册方式）。
+
+### 性能修复
+
+- `simplify` 主循环原先每次 collapse 尝试都重算输入包围盒对角线
+  （`bboxDiag`，O(V) 扫描），使整体劣化到近似 O(n²)；现在对角线在
+  `initializeBudget` 缓存为 `meshDiagonal_` 一次性计算并向下传递
+  （`src/simplification/SimplificationRun.cpp`）。16k 面解析球 `simplify`
+  从约 15 秒降到约 2.0 秒。
+
+### 算法修复：解析测试暴露的两个缺陷
+
+- 环面内侧伪 valley：`SmoothCurvature.cpp` 增加 Yoshizawa M021 Eq.5-6
+  cyclideness 门控——零交叉处插值 cyclideness `0.5(|e_center|+|e_neighbor|)`
+  必须 ≥ `kMinCrossingCyclidenessRatio·κ²`（阈值 0.15，无量纲、均匀缩放不变）。
+  Dupin cyclide（球/柱/锥/环面）上 extremality 恒为零，符号变化只是离散化噪声。
+  真 crest 比值 p10 ≥ 0.38、环面伪交叉最大 0.06（阈值两侧各留约 2.5 倍裕量）；
+  环面 24-48 段 max persistent 从 0.097 降到 0.0，高斯脊响应逐位不变。
+- 圆恢复编造圆 + junction 洪泛：`FeatureCircularRecovery.cpp` 三点圆种子从
+  O(n³) 顶点三元组盲扫改为 trace 图长度-2 路径（O(Σdeg²)），并增加证据连通性
+  门控（相邻候选对无特征边支撑的角跨度累计 ≤ 整圈 25%，纯几何共圆不算证据）；
+  `FeatureGraph.cpp` 图级 junction 报告改为纯 valence>2 判据（M007），
+  `FeatureLoopBuilder` 的逐顶点保护 flag 语义不变（真实分支点与被多 loop 共享的
+  顶点仍钉住）。倒角盒 detect 从 1735 ms 降到约 7 ms，恢复 loop 从 116 降到 31，
+  junction precision 从 0.29 恢复到 1.0。
+
+### CLI
+
+- `apps/manumesh/CliArguments.cpp` 的 `--adaptive-scale` 帮助文本更正为
+  "Scale queue priority by local curvature (placement unchanged)"，与其当前
+  优先级/placement 解耦语义一致（不再描述为面积自适应权重）。
+
+## 2026-07-12
+
+### 算法强化：简化（QEM / edge collapse）
+
+- 扩展 link condition：在既有顶点 link 交集判定之上加入"虚拟顶点"边界扩展判据
+  ——当一条内部边（两关联面）的两个端点都是边界顶点时（边界弦 boundary chord），
+  折叠会把开边界捏合成非流形 pinch 点，现在**无论 `preserveBoundary` 是否开启**
+  一律拒绝（`src/simplification/CollapseTopology.cpp`）。`preserveBoundary`
+  继续只控制"边界结构不收缩"的更严格策略。
+- 边界边折叠 placement 升级为 Lindstrom-Turk 边界守恒约束（M032 §4.2.2）：
+  新顶点投影到"最小化关联边界链有向面积变化"的直线上并夹取到折叠边投影区间，
+  局部边界链退化时回退为线段夹取；实现从 `FeatureConstraints.*` 迁至新的
+  placement 策略单元 `src/simplification/detail/Placement.{h,cpp}`。
+- 补齐 GH97 三级 placement 回退链的第 2 级：全空间最优解被谱条件检查拒绝后，
+  先尝试**沿折叠边的一维最优**（rank-2 quadric——直棱、边界折痕——的良定情形），
+  仍失败才落回端点/中点；一维分母判据使用尺度不变的相对阈值
+  （`src/simplification/Quadrics.cpp`）。
+- Wang 2008 优先级解耦（`adaptiveScale` 模式）：`featureBoost` 不再放大 quadric
+  本身（旧行为会扭曲 placement 并抬高边界项），改为逐顶点队列优先级因子
+  `priorityScale = 1 + featureBoost * score`，只乘候选排序代价（取两端点最大值），
+  placement 用干净的 `adaptiveBaseLineWeight` 基础 line quadric 求解；折叠时
+  keep 端按 max 传播该因子。
+- 几何相交谓词尺度不变化：三角形相交测试统一使用无量纲相对容差
+  `kRelativeIntersectionEps = 1e-9`（Möller-Trumbore 行列式与其尺度上界比较；
+  2D 谓词区分 `epsLen = eps*scale` 与 `epsArea = eps*scale^2`），网格均匀缩放
+  不再改变自交拒绝决策（`src/common/GeometryPredicates.cpp`、
+  `CollapseLegality.cpp`、`QualityRefinement.cpp`）。
+
+### 算法强化：特征检测
+
+- 有向二面角替代 `|dot|`：按共享边在两面中的遍历方向做绕向一致性判断，一致时用
+  带符号法向点积区分浅折痕与 >90° 的反折刀边（旧的绝对值会把 120° 法向夹角读成
+  60°、把薄片折边读成平面而漏检）；绕向不一致的边回退无符号角并计入新诊断
+  `FeatureAnalysis::inconsistentWindingEdges`（`src/feature_detection/FeatureEvidence.cpp`）。
+- 圆拟合从 Kåsa 正规方程升级为 Taubin 代数拟合（一阶无偏，短弧/噪声下不再系统性
+  低估半径），Taubin 特征分解失败时保留 Kåsa 作确定性回退；椭圆估计从 PCA 轴向 +
+  二阶矩轴长升级为 Halíř-Flusser 数值稳定的直接最小二乘拟合（Fitzgibbon 约束
+  `4ac - b^2 = 1`，3x3 缩减系统，保证输出为椭圆，轴向来自 conic 而非 PCA）
+  （`src/feature_detection/PrimitiveFit.cpp`）。
+- 光滑曲率路径升级为三次 Monge patch 拟合（9 系数：二次块给主曲率，三次块给
+  曲率导数），逐顶点解析求出 extremality `e_i = grad(kappa_i) . t_i`；边证据判据
+  从"邻居法曲率对比"替换为 Ohtake 边零交叉极值判据（主方向与 extremality 符号
+  同步翻转后检测符号变化，含 ridge/valley 支配性测试与子顶点反比插值归属）
+  （`src/feature_detection/SmoothCurvature.cpp`）。
+- 弱毛刺清理增加 Yoshizawa 组件级无量纲强度过滤：新增
+  `FeatureOptions::featureGraphMinWeakSpurStrength`（默认 0.0 = 完全保留旧的
+  按边数剪枝行为）；为正时按曲线强度 `T = (∫ds) * (∫strength ds)`（ds 以局部
+  平均边长为单位，strength 为 persistence 分数除以对应通道阈值）裁决——长而弱的
+  真实圆角线存活、短而强的噪声刺被剪除，追踪上限同时扩展到 64 条边。该选项目前
+  仅在 C++ `FeatureOptions` 层暴露，未加入 CLI/C ABI。端点 gap 桥接同步引入
+  Yoshizawa 角度三条件（连接段须近似延续两条线的切向）。
+- 新增诊断计数：`inconsistentWindingEdges`、`graphCleanupSkippedByCap`
+  （端点/junction 硬上限触发时跳过的清理 pass）、`circularRecoveryTruncated`
+  （圆形恢复三点扫描被截断的组件数）。
+
+### 性能（Release 构建实测：bump64 特征分析 71.8 ms；简化端到端提速约 30%，逐用例验证 collapse 计数不变）
+
+- 新增 `FeatureDetectionCache`（`src/feature_detection/detail/FeatureDetectionCache.h`）：
+  面法向、边信息、顶点邻接、顶点平均边长等全网格辅助结构只构建一次，证据、清理、
+  recovery 各阶段传引用复用，消除跨阶段重复构建。
+- 特征追踪图合并为单表 `TraceGraph`：边属性（signed kind、persistence 等）统一存
+  `TraceEdgeAttrs` 一张按边键哈希的表（`traceEdgeAttrs()` 访问器），替代多张平行 map。
+- 消除简化主循环的三重 placement 求解：`SolveResult` 候选
+  （`std::array<SolveResult, 4>`）随队列 Candidate 携带，push/pop/tryCollapse
+  复用同一次求解结果（版本戳保证 quadric 未变则解未变）。
+- `TextureProtection` 拆分 `evaluate` / `buildPlan` / `apply`：排序阶段只评估
+  不物化 UV 重写；被接受的 placement 构建一次 `TextureUpdatePlan` 并直接应用，
+  避免 `applyCollapse` 内重建同一计划（`textureApplyFailures` 诊断应保持为零）。
+- 特征曲线投影增加 `PolylineSegmentIndex` AABB 树：不少于 64 段
+  （`kPolylineIndexMinSegments`）的 loop 最近点查询从线性扫描降为 O(log L)，
+  短 loop 保留常数更小的线性扫描。
+- `VertexState` 热路径瘦身：圆/椭圆拟合参数移出为紧凑 side table
+  `FeaturePrimitiveFit`（经 `primitiveFitId` 引用），非特征顶点不再携带拟合负载。
+
+### 工程加固（CLI / C API / IO / 基础工具）
+
+- CLI：`OptionSpec` 表驱动的 help 生成与逐命令参数校验（`apps/manumesh/
+  CliArguments.cpp`），未知/拼错选项在命令入口统一报错而不是被静默忽略。
+- C API：异常映射增加 `std::bad_alloc` → OOM 状态码 guard；数值参数增加 finite
+  校验（如 `merge_relative_epsilon` 必须有限且非负）；`CApi.h` 顶部明确 v1 ABI
+  不携带逐角纹理坐标，需要保纹理时应使用 C++ API。
+- IO：`MeshIo` 解析器重写——数值解析改 `std::from_chars`、缓冲扫描替代逐行
+  stringstream、新增 `probeStlFormat()`（ASCII/二进制探测 + 三角形数预读）、
+  解析失败路径错误信息加固。
+- 新增共享基础工具：`include/core/Tolerances.h`（统一退化三角形容差族，各检查
+  共享同一最小面积尺度）、`include/core/MathConstants.h`（`kPi`）、
+  `generateWeldedCubeGrid()`（闭流形焊接立方体网格生成器，供测试与验证使用）。
+
+### 架构升级 v2（R1–R7 第一至三批）
+
+- 测试链接安全网（R4）：新增内部 STATIC 聚合库 `manumesh_internal`（复用既有
+  object libraries，源码只编译一次），`manumesh_tests` 改为只链接它，删除 shared
+  build 下对 `src/*.cpp` 的重编与 `$<TARGET_OBJECTS>` 拼接，消除 ODR 风险；
+  `gtest_add_tests` 全部替换为 `gtest_discover_tests(DISCOVERY_MODE PRE_TEST)`；
+  外部大模型用例拆入新目标 `manumesh_external_tests` 并打 `external` 标签，
+  `ctest -LE "performance|external"` 成为秒级快速套件（另有 `external-tests`
+  构建目标）。C ABI/DLL 边界的黑盒验证仍由 CLI 冒烟测试与 SDK consumer 承担。
+- 通用统计上浮（R1）：新增 `analysis` 模块（`include/algorithms/analysis/
+  MeshAnalysis.h`、`manumesh::analysis`），承载 `MeshStats`/`DistanceStats`/
+  `computeMeshStats`/`compareMeshesBySampledDistance`；CSV 拼装
+  （`statsHeaderCsv`/`statsRowCsv`）移入 CLI（`apps/manumesh/CliCsv.*`）；旧
+  `algorithms/simplification/Metrics.h` 保留为带弃用注释的转发头，下一个 minor
+  版本删除；boundary checker 登记 `analysis -> {common, core}`。
+- placement 归位（R2）：`projectBoundaryPlacement`/`BoundaryProjectionInput` 从
+  `FeatureConstraints.*` 迁入新的 `src/simplification/detail/Placement.{h,cpp}`
+  （placement 策略单元，为过滤器/放置策略列表化做物理准备）。
+- 圆环 loop 匹配下沉（R3）：CLI `feature-compare` 内嵌的贪心
+  center/radius/normal 匹配算法下沉为库函数
+  `manumesh::feature::matchCircularLoops()`（新公共头
+  `algorithms/feature_detection/FeatureComparison.h`；三级阈值成为
+  `LoopMatchOptions` 的带默认值字段，默认值等于原硬编码值），CLI 只做
+  load→detect→match→格式化；新增完全匹配/半径漂移/缺失 loop 单测。
+- 错误处理统一（R5）：新增 `docs/design/error_handling_policy.md` 一页决策表
+  （数据错误→Status/Result、编程错误→异常、C 边界→状态码、IO 渐进迁移到
+  `Result<Mesh>`），`include/core/Status.h` 顶部注释引用该策略。
+- 命名空间对齐（R6）：`src/common` 由 `manumesh::detail` 改名为
+  `manumesh::common`（全部调用点更新，保留 `namespace manumesh::detail = common;`
+  过渡别名一个 minor 版本）；`src/mesh_edit` 已为 `manumesh::mesh_edit`；
+  `manumesh::feature` 与公共头 `algorithms/` 前缀两处"接受现状"连同
+  "目录名 = 模块名 = 命名空间"约定登记进 `architecture.md` 命名空间约定表。
+- 扩展点协议（R7）：新增 `docs/design/algorithm_extension_protocol.md`，固化
+  新增算法的 7 步机械化路径、`validateOptions` 统一校验协议、诊断字段命名规范
+  （"诊断跟着分支走"），并记录 mesh_edit 公共化的三条判据与时机（不实施）。
+
 ## 2026-07-11
 
 ### Texture-aware 4x4 QEM

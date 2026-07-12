@@ -6,9 +6,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <queue>
-#include <sstream>
-#include <unordered_set>
 #include <utility>
 
 namespace manumesh::feature::detector_detail {
@@ -18,13 +17,14 @@ using primitive_fit_detail::applyPrimitiveFit;
 using primitive_fit_detail::fitPrimitive;
 using primitive_fit_detail::PrimitiveFit;
 
-std::string vertexSetSignature(std::vector<int> ids) {
-    std::sort(ids.begin(), ids.end());
-    std::ostringstream out;
+CycleSignature vertexSetSignature(const std::vector<int>& ids) {
+    CycleSignature signature;
+    signature.reserve(ids.size());
     for (int id : ids) {
-        out << id << ';';
+        signature.push_back(static_cast<std::uint64_t>(id));
     }
-    return out.str();
+    std::sort(signature.begin(), signature.end());
+    return signature;
 }
 
 struct ThreePointCircle {
@@ -102,6 +102,61 @@ double angularCoverage(const std::vector<int>& ids, const Mesh& mesh, const Vec3
     return 2.0 * kPi - maxGap;
 }
 
+/// Maximum fraction of the full turn that may be spanned by consecutive
+/// cluster vertices without a supporting feature edge between them. The
+/// recovery exists to close small evidence gaps (arc segments dropped by
+/// thresholding), not to invent circles, so most of the circle must already
+/// be linked by trace-graph edges. Angles make the bound dimensionless and
+/// invariant under uniform scaling; 0.25 matches the pre-existing 1.5*pi
+/// angular-coverage requirement (at most a quarter turn missing).
+constexpr double kMaxCircularRecoveryGapFraction = 0.25;
+
+/// Evidence-connectivity gate for a recovered circle: walking the cluster in
+/// circular order (the caller passes it already sorted around the fitted
+/// circle), every consecutive pair should be a feature edge of the trace
+/// graph; the angular extents of the unsupported pairs are summed and bounded
+/// by kMaxCircularRecoveryGapFraction of the full turn. Purely geometric
+/// concyclicity is not evidence: vertex sets whose members are not linked by
+/// feature edges (e.g. the coplanar corner rows of a chamfered prism) must
+/// not be stitched into a circle.
+bool clusterSupportedByTraceEdges(
+    const std::vector<int>& sortedCluster,
+    const Mesh& mesh,
+    const TraceGraph& trace,
+    const Vec3& center,
+    const Vec3& normal
+) {
+    Vec3 axisX = mesh.vertices[sortedCluster.front()] - center;
+    axisX -= normal * axisX.dot(normal);
+    if (axisX.norm() <= 1e-20) {
+        return false;
+    }
+    axisX.normalize();
+    const Vec3 axisY = normal.cross(axisX).normalized();
+    const auto angleOf = [&](int id) {
+        const Vec3 d = mesh.vertices[id] - center;
+        return std::atan2(d.dot(axisY), d.dot(axisX));
+    };
+    double unsupportedAngle = 0.0;
+    const int count = static_cast<int>(sortedCluster.size());
+    for (int i = 0; i < count; ++i) {
+        const int a = sortedCluster[i];
+        const int b = sortedCluster[(i + 1) % count];
+        if (traceGraphHasEdge(trace, a, b)) {
+            continue;
+        }
+        double gap = angleOf(b) - angleOf(a);
+        if (gap < 0.0) {
+            gap += 2.0 * kPi;
+        }
+        unsupportedAngle += gap;
+        if (unsupportedAngle > kMaxCircularRecoveryGapFraction * 2.0 * kPi) {
+            return false;
+        }
+    }
+    return true;
+}
+
 struct TraceComponent {
     std::vector<int> vertices;
     bool hasWeakEvidenceEdge = false;
@@ -127,8 +182,10 @@ std::vector<TraceComponent> collectTraceComponents(const TraceGraph& trace, cons
                 component.alreadyHasCircularLoop = component.alreadyHasCircularLoop || analysis.vertices[v].circular;
             }
             for (int nb : trace.adjacency[v]) {
-                component.hasWeakEvidenceEdge = component.hasWeakEvidenceEdge || traceEdgeNormalTensor(trace, v, nb) ||
-                                                traceEdgeSmoothCurvature(trace, v, nb);
+                if (!component.hasWeakEvidenceEdge) {
+                    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, v, nb);
+                    component.hasWeakEvidenceEdge = attrs != nullptr && (attrs->normalTensor || attrs->smoothCurvature);
+                }
                 if (!visited[nb]) {
                     visited[nb] = 1;
                     queue.push(nb);
@@ -145,7 +202,7 @@ std::vector<TraceComponent> collectTraceComponents(const TraceGraph& trace, cons
 void recoverCircularVertexClusters(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 ) {
-    std::unordered_set<std::string> seenClusters;
+    CycleSignatureSet seenClusters;
     for (const TraceComponent& component : collectTraceComponents(trace, analysis)) {
         if (component.hasWeakEvidenceEdge || component.alreadyHasCircularLoop ||
             static_cast<int>(component.vertices.size()) < options.minFeatureLoopVertices ||
@@ -153,23 +210,27 @@ void recoverCircularVertexClusters(
             continue;
         }
 
-        // Keep the fallback bounded on fragmented CAD/STL feature graphs. The
-        // deterministic cap makes the worst case predictable while still covering
-        // small exported holes, which are the only intended input for this repair.
-        constexpr int kMaxCircularClusterTripletScans = 32768;
-        int tripletScans = 0;
-        const std::vector<int>& candidates = component.vertices;
-        for (int i = 0; i < static_cast<int>(candidates.size()) && tripletScans < kMaxCircularClusterTripletScans;
-             ++i) {
-            for (int j = i + 1;
-                 j < static_cast<int>(candidates.size()) && tripletScans < kMaxCircularClusterTripletScans;
-                 ++j) {
-                for (int k = j + 1;
-                     k < static_cast<int>(candidates.size()) && tripletScans < kMaxCircularClusterTripletScans;
-                     ++k) {
-                    ++tripletScans;
-                    const ThreePointCircle circle =
-                        fitCircleFromThree(mesh, candidates[i], candidates[j], candidates[k]);
+        // Seed circles only from length-2 paths of the trace graph (a - b - c
+        // with both edges present). The fallback repairs circles that already
+        // carry partial edge evidence, and any evidenced arc of >= 3 vertices
+        // contains such a path, so no legitimate circle is lost. This replaces
+        // the earlier blind O(n^3) triplet scan, which both fabricated circles
+        // through mutually unconnected (merely concyclic) vertices and burned
+        // seconds on meshes as small as 58 vertices.
+        constexpr int kMaxCircularClusterSeedScans = 32768;
+        int seedScans = 0;
+        std::vector<int> candidates = component.vertices;
+        std::sort(candidates.begin(), candidates.end());
+        for (int middle : candidates) {
+            // Sorted neighbor enumeration keeps the recovery independent of
+            // adjacency insertion order.
+            std::vector<int> around = trace.adjacency[middle];
+            std::sort(around.begin(), around.end());
+            for (int i = 0; i < static_cast<int>(around.size()) && seedScans < kMaxCircularClusterSeedScans; ++i) {
+                for (int j = i + 1; j < static_cast<int>(around.size()) && seedScans < kMaxCircularClusterSeedScans;
+                     ++j) {
+                    ++seedScans;
+                    const ThreePointCircle circle = fitCircleFromThree(mesh, around[i], middle, around[j]);
                     if (!circle.valid) {
                         continue;
                     }
@@ -188,12 +249,14 @@ void recoverCircularVertexClusters(
                         angularCoverage(cluster, mesh, circle.center, circle.normal) < 1.5 * kPi) {
                         continue;
                     }
-                    const std::string signature = vertexSetSignature(cluster);
-                    if (!seenClusters.insert(signature).second) {
+                    cluster = sortAroundCircle(std::move(cluster), mesh, circle.center, circle.normal);
+                    if (!clusterSupportedByTraceEdges(cluster, mesh, trace, circle.center, circle.normal)) {
+                        continue;
+                    }
+                    if (!seenClusters.insert(vertexSetSignature(cluster)).second) {
                         continue;
                     }
 
-                    cluster = sortAroundCircle(std::move(cluster), mesh, circle.center, circle.normal);
                     FeatureLoop loop;
                     loop.id = loopId;
                     loop.vertices = std::move(cluster);
@@ -209,6 +272,11 @@ void recoverCircularVertexClusters(
                     analysis.loops.push_back(std::move(loop));
                 }
             }
+        }
+        // Reaching the cap means the exhaustive path scan was cut short (the
+        // per-seed loops stop enumerating exactly at the cap).
+        if (seedScans >= kMaxCircularClusterSeedScans) {
+            ++analysis.circularRecoveryTruncated;
         }
     }
 }

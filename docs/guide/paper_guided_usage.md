@@ -15,7 +15,7 @@ $exe = "$buildDir/bin/manumesh.exe"
 | --- | --- | --- |
 | 大平面区域顶点分布漂移或不均匀 | 标准 QEM 在切平面方向缺约束，候选代价大量接近零。 | `--method line`、`--line-weight`、`edge_length_cv`、`solver_fallbacks`。 |
 | 圆孔简化后变椭圆或顶点太少 | 特征 loop 没有形成硬保护，或最低 loop 顶点数太低。 | `--preserve-feature-curves`、`--feature-protection-mode primitive-curves`、`--min-circular-feature-loop-vertices`。 |
-| 开边界被吃掉或合并 | boundary 只作为软成本，不足以阻止拓扑改变。 | `--preserve-boundary`，以及 `boundary_rejected_collapses`。 |
+| 开边界被吃掉或合并 | boundary weight 只作为软成本，不足以阻止拓扑改变。当前扩展 link condition 已始终拒绝"边界弦"折叠（两端点均为边界顶点的内部边），防止非流形 pinch 点；边界边自身的折叠仍需硬策略控制。 | `--preserve-boundary`，以及 `boundary_rejected_collapses`、`topology_rejected_collapses`。 |
 | 达不到目标面数，提前停止 | 目标比例和硬过滤器冲突，候选被大量拒绝。 | `termination_reason`、最高的 `*_rejected_collapses`。 |
 | normal tensor 结果不稳定 | 张量特征受邻域、尺度、噪声和采样影响。 | `--normal-tensor-threshold`、`--normal-tensor-edge-alignment`、`--normal-tensor-scales`、`--normal-tensor-min-persistent-scales`、是否需要预处理。 |
 | 光滑 fillet 中心线或平缓 ridge/valley 不出现在特征报告 | 二面角和 normal tensor 依赖离散法向差异，对光滑微分事件响应弱。 | 在 `feature-report` / `feature-benchmark` / `feature-compare` 中启用 `--smooth-curvature-features`，并检查 `smooth_curvature_edges`、`smooth_curvature_scored_vertices`。 |
@@ -57,6 +57,15 @@ line quadrics 对照：
 ```
 
 `--line-weight` 建议从 `1e-3` 级别开始。权重过大会让均匀化压过几何保真，尤其在尖锐边、薄片、孔洞和高曲率区域要同时看 STL 外观、`edge_length_cv`、`min_triangle_quality` 和距离误差。
+
+## placement 求解与 adaptive-scale 的当前实现
+
+论文映射时注意两处与旧文档不同的实现事实：
+
+- **三级 placement 回退链（GH97）**：全空间最优 `A x = -b` → 沿折叠边的一维最优（rank-2 直棱/边界折痕的良定情形，尺度不变相对阈值）→ 端点/中点。`solver_fallbacks` 统计的是最终落到端点/中点候选的次数。边界边折叠的 placement 采用 Lindstrom-Turk 边界守恒约束投影（`src/simplification/Placement.cpp`）。
+- **`--adaptive-scale`（Wang 2008 优先级解耦）**：开启后 `--feature-boost` 不再放大 quadric，而是作为逐顶点队列优先级因子 `priorityScale = 1 + featureBoost * score` 只乘候选排序代价（取两端点 max）；placement 使用干净的 `--adaptive-base-line-weight`（默认 `1e-2`）line quadric。不开启时保持旧行为。
+
+另外，二面角证据现在是**有向**的：两邻面绕向一致时用带符号 dot，可识别超过 90° 的反折边；绕向不一致时回退无符号角，并计入 C++ `FeatureAnalysis::inconsistentWindingEdges` 诊断（CLI 报告暂未输出该字段）。
 
 ## 特征权重和特征保护
 
@@ -130,6 +139,10 @@ line quadrics 和 normal tensor 都不是去噪器。扫描噪声应先做稳健
 | 程序概念 | 论文来源 |
 | --- | --- |
 | plane quadric / edge contraction cost | Garland-Heckbert 1997，`docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf` |
+| placement 三级回退链（全空间 → 沿边一维 → 端点/中点） | Garland-Heckbert 1997 的求解与回退框架；实现在 `src/simplification/Quadrics.cpp` |
+| 边界边 placement（边界守恒约束） | Lindstrom-Turk 1998，`docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf`；实现在 `src/simplification/Placement.cpp` |
+| `--adaptive-scale` 下 featureBoost 的队列优先级解耦 | Wang 2008 feature-sensitive metric，`docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf` |
+| 圆拟合（Taubin，一阶无偏；Kåsa 保留为回退）与椭圆拟合（Halíř-Flusser 直接最小二乘，保证椭圆输出） | Taubin 1991、Halíř-Flusser 1998；实现在 `src/feature_detection/PrimitiveFit.cpp` |
 | point-to-line quadrics | Liu-Rahimzadeh-Zordan 2025，`docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` |
 | 纹理感知简化（`preserveTexture`，C++ API） | Garland-Heckbert 1998 属性 QEM（M003，`docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf`）为历史参照；当前实现按现代 edge-collapse 管线文献（M033）的工程拆分：4×4 几何 quadric 排序固定 3D placement，UV chart/面积合法性为显式局部策略，实现在 `src/simplification/TextureProtection.cpp`，设计见 `docs/design/texture_aware_qem.md` |
 | smooth-curvature 特征证据（`--smooth-curvature-features`） | 2017–2025 确定性文献：Yamakawa-Shimada 2017/2018、Lu 2019（M044）、Romanengo 2020、Xu 2024 CWF（M026）、Cai 2025，索引见 `docs/papers/recent_deterministic_feature_detection_2026-07-11.md`；实现在 `src/feature_detection/SmoothCurvature.cpp`，设计见 `docs/design/smooth_curvature_feature_detection_2026_07_11.md` |
@@ -137,3 +150,4 @@ line quadrics 和 normal tensor 都不是去噪器。扫描噪声应先做稳健
 | CAD/STL 特征线 | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008，位于 `docs/papers/feature_detection/` |
 | normal tensor 特征评分 | Tsuchie-Higashi 2014，`docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` |
 | 特征敏感简化 | Wang 2008、Hussain-Grahn-Persson 2008，位于 `docs/papers/feature_preserving_simplification/` |
+| feature graph 弱 spur 强度裁决 T=(∫ds)·(∫strength ds) 与 gap 桥接角度规则 | Yoshizawa（M021）；`FeatureOptions::featureGraphMinWeakSpurStrength`（默认 `0.0` 即旧行为，仅 C++ API，无 CLI/C ABI 绑定），实现在 `src/feature_detection/FeatureGraphCleanup.cpp` |

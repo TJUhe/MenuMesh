@@ -12,7 +12,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 - C ABI：`api/CApi.h`。
 - CLI：`manumesh.exe`，用于批处理、验证和示例。
 - 示例：C++ SDK 和 C ABI consumer。
-- 回归测试：142 个非性能 CTest，另有 performance 构建路径。
+- 回归测试：236 个启用的非性能 CTest（其中 `ctest -LE "performance|external"` 快速套件 225 个，external 大网格用例 11 个），另有 performance 构建路径。分层与命令见 [`testing_strategy.md`](testing_strategy.md)。
 
 ## 当前核心能力
 

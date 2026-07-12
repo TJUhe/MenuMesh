@@ -1,10 +1,12 @@
 #include "common/detail/GeometryPredicates.h"
 
+#include "core/Tolerances.h"
+
 #include <Eigen/Core>
 #include <algorithm>
 #include <cmath>
 
-namespace manumesh::detail {
+namespace manumesh::common {
 namespace {
 
 bool aabbOverlap(const Vec3& aLo, const Vec3& aHi, const Vec3& bLo, const Vec3& bHi, double eps) {
@@ -19,12 +21,17 @@ bool aabbOverlap(const Vec3& aLo, const Vec3& aHi, const Vec3& bLo, const Vec3& 
 bool segmentIntersectsTriangle(
     const Vec3& p0, const Vec3& p1, const Vec3& a, const Vec3& b, const Vec3& c, double eps
 ) {
+    // eps is dimensionless. The Moller-Trumbore determinant dir.(e1 x e2) is
+    // normalized by the norms of its own factors, and u, v, t are barycentric
+    // / parametric (dimensionless) quantities compared against eps directly,
+    // so the decision does not change under uniform scaling.
     const Vec3 dir = p1 - p0;
     const Vec3 e1 = b - a;
     const Vec3 e2 = c - a;
     const Vec3 h = dir.cross(e2);
     const double det = e1.dot(h);
-    if (std::abs(det) <= eps) {
+    const double detScale = e1.norm() * h.norm();
+    if (detScale <= 0.0 || std::abs(det) <= eps * detScale) {
         return false;
     }
     const double invDet = 1.0 / det;
@@ -57,20 +64,27 @@ double orient2d(const Eigen::Vector2d& a, const Eigen::Vector2d& b, const Eigen:
     return (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());
 }
 
-bool intervalsOverlapWithLength(double a0, double a1, double b0, double b1, double eps) {
+// The 2D helpers take two tolerances with explicit dimensions derived from
+// one relative eps: epsLen (eps * scale) for coordinate/interval comparisons
+// and epsArea (eps * scale^2) for orient2d signed-area comparisons. Mixing a
+// single absolute eps across both dimensions made the predicates change their
+// decisions under uniform mesh scaling.
+bool intervalsOverlapWithLength(double a0, double a1, double b0, double b1, double epsLen) {
     if (a0 > a1)
         std::swap(a0, a1);
     if (b0 > b1)
         std::swap(b0, b1);
-    return std::min(a1, b1) - std::max(a0, b0) > eps;
+    return std::min(a1, b1) - std::max(a0, b0) > epsLen;
 }
 
-bool pointOnSegment2d(const Eigen::Vector2d& p, const Eigen::Vector2d& a, const Eigen::Vector2d& b, double eps) {
-    if (std::abs(orient2d(a, b, p)) > eps) {
+bool pointOnSegment2d(
+    const Eigen::Vector2d& p, const Eigen::Vector2d& a, const Eigen::Vector2d& b, double epsLen, double epsArea
+) {
+    if (std::abs(orient2d(a, b, p)) > epsArea) {
         return false;
     }
-    return p.x() >= std::min(a.x(), b.x()) - eps && p.x() <= std::max(a.x(), b.x()) + eps &&
-           p.y() >= std::min(a.y(), b.y()) - eps && p.y() <= std::max(a.y(), b.y()) + eps;
+    return p.x() >= std::min(a.x(), b.x()) - epsLen && p.x() <= std::max(a.x(), b.x()) + epsLen &&
+           p.y() >= std::min(a.y(), b.y()) - epsLen && p.y() <= std::max(a.y(), b.y()) + epsLen;
 }
 
 bool segmentsIntersect2d(
@@ -78,16 +92,17 @@ bool segmentsIntersect2d(
     const Eigen::Vector2d& a1,
     const Eigen::Vector2d& b0,
     const Eigen::Vector2d& b1,
-    double eps
+    double epsLen,
+    double epsArea
 ) {
     const double o1 = orient2d(a0, a1, b0);
     const double o2 = orient2d(a0, a1, b1);
     const double o3 = orient2d(b0, b1, a0);
     const double o4 = orient2d(b0, b1, a1);
-    const auto sign = [eps](double value) {
-        if (value > eps)
+    const auto sign = [epsArea](double value) {
+        if (value > epsArea)
             return 1;
-        if (value < -eps)
+        if (value < -epsArea)
             return -1;
         return 0;
     };
@@ -100,28 +115,32 @@ bool segmentsIntersect2d(
         return true;
     }
 
-    const bool collinear = std::abs(o1) <= eps && std::abs(o2) <= eps && std::abs(o3) <= eps && std::abs(o4) <= eps;
+    const bool collinear =
+        std::abs(o1) <= epsArea && std::abs(o2) <= epsArea && std::abs(o3) <= epsArea && std::abs(o4) <= epsArea;
     if (collinear) {
         const bool useX = std::abs(a1.x() - a0.x()) >= std::abs(a1.y() - a0.y());
-        return useX ? intervalsOverlapWithLength(a0.x(), a1.x(), b0.x(), b1.x(), eps)
-                    : intervalsOverlapWithLength(a0.y(), a1.y(), b0.y(), b1.y(), eps);
+        return useX ? intervalsOverlapWithLength(a0.x(), a1.x(), b0.x(), b1.x(), epsLen)
+                    : intervalsOverlapWithLength(a0.y(), a1.y(), b0.y(), b1.y(), epsLen);
     }
 
-    const bool endpointTouch =
-        (s1 == 0 && pointOnSegment2d(b0, a0, a1, eps)) || (s2 == 0 && pointOnSegment2d(b1, a0, a1, eps)) ||
-        (s3 == 0 && pointOnSegment2d(a0, b0, b1, eps)) || (s4 == 0 && pointOnSegment2d(a1, b0, b1, eps));
+    const bool endpointTouch = (s1 == 0 && pointOnSegment2d(b0, a0, a1, epsLen, epsArea)) ||
+                               (s2 == 0 && pointOnSegment2d(b1, a0, a1, epsLen, epsArea)) ||
+                               (s3 == 0 && pointOnSegment2d(a0, b0, b1, epsLen, epsArea)) ||
+                               (s4 == 0 && pointOnSegment2d(a1, b0, b1, epsLen, epsArea));
     return endpointTouch && (s1 * s2 < 0 || s3 * s4 < 0);
 }
 
-bool pointStrictlyInsideTriangle2d(const Eigen::Vector2d& p, const std::array<Eigen::Vector2d, 3>& tri, double eps) {
+bool pointStrictlyInsideTriangle2d(
+    const Eigen::Vector2d& p, const std::array<Eigen::Vector2d, 3>& tri, double epsArea
+) {
     const double o0 = orient2d(tri[0], tri[1], p);
     const double o1 = orient2d(tri[1], tri[2], p);
     const double o2 = orient2d(tri[2], tri[0], p);
-    return (o0 > eps && o1 > eps && o2 > eps) || (o0 < -eps && o1 < -eps && o2 < -eps);
+    return (o0 > epsArea && o1 > epsArea && o2 > epsArea) || (o0 < -epsArea && o1 < -epsArea && o2 < -epsArea);
 }
 
 bool coplanarTrianglesOverlap(
-    const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3>& rhs, const Vec3& normal, double eps
+    const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3>& rhs, const Vec3& normal, double epsLen, double epsArea
 ) {
     int dropAxis = 0;
     if (std::abs(normal.y()) > std::abs(normal[dropAxis])) {
@@ -140,13 +159,13 @@ bool coplanarTrianglesOverlap(
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            if (segmentsIntersect2d(a[i], a[(i + 1) % 3], b[j], b[(j + 1) % 3], eps)) {
+            if (segmentsIntersect2d(a[i], a[(i + 1) % 3], b[j], b[(j + 1) % 3], epsLen, epsArea)) {
                 return true;
             }
         }
     }
     for (int i = 0; i < 3; ++i) {
-        if (pointStrictlyInsideTriangle2d(a[i], b, eps) || pointStrictlyInsideTriangle2d(b[i], a, eps)) {
+        if (pointStrictlyInsideTriangle2d(a[i], b, epsArea) || pointStrictlyInsideTriangle2d(b[i], a, epsArea)) {
             return true;
         }
     }
@@ -160,7 +179,7 @@ double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
     const double l1 = (c - b).squaredNorm();
     const double l2 = (a - c).squaredNorm();
     const double denom = l0 + l1 + l2;
-    if (denom <= 1e-30) {
+    if (denom <= kMinSquaredEdgeLengthSum) {
         return 0.0;
     }
     return 4.0 * std::sqrt(3.0) * triangleArea(a, b, c) / denom;
@@ -207,7 +226,9 @@ double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b,
 
     const Vec3 n = ab.cross(ac);
     const double nn = n.squaredNorm();
-    if (nn <= 1e-30) {
+    // Relative degeneracy check: |ab x ac|^2 <= tol * (|ab| |ac|)^2 means the
+    // spanned angle is numerically zero regardless of the absolute scale.
+    if (nn <= 1e-24 * ab.squaredNorm() * ac.squaredNorm()) {
         return std::min({(p - a).squaredNorm(), (p - b).squaredNorm(), (p - c).squaredNorm()});
     }
     const double distance = n.dot(ap);
@@ -241,7 +262,13 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     Vec3 lhsHi = lhs[0].cwiseMax(lhs[1]).cwiseMax(lhs[2]);
     Vec3 rhsLo = rhs[0].cwiseMin(rhs[1]).cwiseMin(rhs[2]);
     Vec3 rhsHi = rhs[0].cwiseMax(rhs[1]).cwiseMax(rhs[2]);
-    if (!aabbOverlap(lhsLo, lhsHi, rhsLo, rhsHi, eps)) {
+    // eps is relative; derive the absolute tolerances from the local pair
+    // scale so lengths use eps*scale and areas use eps*scale^2. This keeps
+    // the predicate's decisions invariant under uniform scaling of the mesh.
+    const double scale = std::max((lhsHi - lhsLo).maxCoeff(), (rhsHi - rhsLo).maxCoeff());
+    const double epsLen = eps * scale;
+    const double epsArea = eps * scale * scale;
+    if (!aabbOverlap(lhsLo, lhsHi, rhsLo, rhsHi, epsLen)) {
         return false;
     }
 
@@ -249,7 +276,9 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     const Vec3 rhsNormal = (rhs[1] - rhs[0]).cross(rhs[2] - rhs[0]);
     const double lhsNorm = lhsNormal.norm();
     const double rhsNorm = rhsNormal.norm();
-    if (lhsNorm <= eps || rhsNorm <= eps) {
+    // Normal magnitudes are twice the triangle area, so they compare against
+    // the area-dimensioned tolerance.
+    if (lhsNorm <= epsArea || rhsNorm <= epsArea) {
         return false;
     }
     const Vec3 lhsUnit = lhsNormal / lhsNorm;
@@ -259,8 +288,8 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     for (const Vec3& p : rhs) {
         maxPlaneDistance = std::max(maxPlaneDistance, std::abs((p - lhs[0]).dot(lhsUnit)));
     }
-    if (parallelError <= 1e-8 && maxPlaneDistance <= eps) {
-        return coplanarTrianglesOverlap(lhs, rhs, lhsUnit, eps);
+    if (parallelError <= 1e-8 && maxPlaneDistance <= epsLen) {
+        return coplanarTrianglesOverlap(lhs, rhs, lhsUnit, epsLen, epsArea);
     }
 
     for (int i = 0; i < 3; ++i) {
@@ -274,4 +303,4 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     return false;
 }
 
-} // namespace manumesh::detail
+} // namespace manumesh::common

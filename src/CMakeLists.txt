@@ -1,6 +1,8 @@
 set(MANUMESH_PUBLIC_HEADERS
   "${PROJECT_SOURCE_DIR}/include/Export.h"
   "${PROJECT_SOURCE_DIR}/include/api/CApi.h"
+  "${PROJECT_SOURCE_DIR}/include/algorithms/analysis/MeshAnalysis.h"
+  "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureComparison.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureDetector.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureTypes.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/simplification/Metrics.h"
@@ -33,6 +35,10 @@ set(MANUMESH_MESH_EDIT_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/MeshCompaction.cpp"
 )
 
+set(MANUMESH_ANALYSIS_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/analysis/MeshAnalysis.cpp"
+)
+
 set(MANUMESH_GEOMETRY_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/core/Mesh.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/core/MeshGenerators.cpp"
@@ -57,6 +63,7 @@ endif()
 
 set(MANUMESH_FEATURE_DETECTION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCircularRecovery.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureComparison.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCycleRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureDetector.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureEvidence.cpp"
@@ -73,6 +80,7 @@ set(MANUMESH_FEATURE_DETECTION_SOURCES
 
 if(MINGW)
   set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
     PROPERTIES COMPILE_OPTIONS "-Wa,-mbig-obj"
   )
@@ -86,6 +94,7 @@ set(MANUMESH_SIMPLIFICATION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureConstraints.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureGuidance.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/Metrics.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/Placement.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/QEMSimplifier.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/Quadrics.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/QualityRefinement.cpp"
@@ -100,6 +109,7 @@ set(MANUMESH_LIBRARY_SOURCES
   ${MANUMESH_API_SOURCES}
   ${MANUMESH_COMMON_SOURCES}
   ${MANUMESH_MESH_EDIT_SOURCES}
+  ${MANUMESH_ANALYSIS_SOURCES}
   ${MANUMESH_GEOMETRY_SOURCES}
   ${MANUMESH_IO_SOURCES}
   ${MANUMESH_DEBUG_UTIL_SOURCES}
@@ -142,6 +152,7 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CollapseTopology.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureConstraints.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureGuidance.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/Placement.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/Quadrics.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/QualityRefinement.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/SimplificationPolicies.h"
@@ -167,6 +178,9 @@ add_library(manumesh_common_objects OBJECT
 add_library(manumesh_mesh_edit_objects OBJECT
   ${MANUMESH_MESH_EDIT_SOURCES}
   ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
+)
+add_library(manumesh_analysis_objects OBJECT
+  ${MANUMESH_ANALYSIS_SOURCES}
 )
 add_library(manumesh_geometry_objects OBJECT
   ${MANUMESH_GEOMETRY_SOURCES}
@@ -200,6 +214,11 @@ target_link_libraries(manumesh_mesh_edit_objects
     manumesh_common_objects
     manumesh_geometry_objects
 )
+target_link_libraries(manumesh_analysis_objects
+  PRIVATE
+    manumesh_common_objects
+    manumesh_geometry_objects
+)
 target_link_libraries(manumesh_io_objects
   PRIVATE manumesh_geometry_objects
 )
@@ -217,6 +236,7 @@ target_link_libraries(manumesh_simplification_objects
 )
 target_link_libraries(manumesh_c_api_objects
   PRIVATE
+    manumesh_analysis_objects
     manumesh_geometry_objects
     manumesh_io_objects
     manumesh_simplification_objects
@@ -232,6 +252,7 @@ endif()
 set(MANUMESH_INTERNAL_OBJECT_TARGETS
   manumesh_common_objects
   manumesh_mesh_edit_objects
+  manumesh_analysis_objects
   manumesh_geometry_objects
   manumesh_io_objects
   manumesh_feature_detection_objects
@@ -245,6 +266,7 @@ endif()
 set(MANUMESH_LIBRARY_OBJECTS
   $<TARGET_OBJECTS:manumesh_common_objects>
   $<TARGET_OBJECTS:manumesh_mesh_edit_objects>
+  $<TARGET_OBJECTS:manumesh_analysis_objects>
   $<TARGET_OBJECTS:manumesh_geometry_objects>
   $<TARGET_OBJECTS:manumesh_io_objects>
   $<TARGET_OBJECTS:manumesh_feature_detection_objects>
@@ -383,6 +405,29 @@ endif()
 target_compile_definitions(manumesh_core
   PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
 )
+
+# Internal STATIC aggregate for white-box tests. It reuses the object
+# libraries above (every source still compiles exactly once), so tests link
+# one single definition of each internal symbol instead of recompiling
+# src/*.cpp next to the DLL (ODR safety). Never exported or installed;
+# consumers do not get MANUMESH_USING_DLL, so MANUMESH_API expands to nothing
+# in their translation units and symbols resolve statically.
+add_library(manumesh_internal STATIC ${MANUMESH_LIBRARY_OBJECTS})
+add_library(ManuMesh::internal ALIAS manumesh_internal)
+target_compile_features(manumesh_internal PUBLIC cxx_std_17)
+target_include_directories(manumesh_internal
+  PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+)
+if(TARGET Eigen3::Eigen)
+  target_link_libraries(manumesh_internal PUBLIC Eigen3::Eigen)
+elseif(DEFINED eigen_SOURCE_DIR)
+  target_include_directories(manumesh_internal PUBLIC "${eigen_SOURCE_DIR}")
+endif()
+if(MANUMESH_RESOLVED_EIGEN_PROVIDER STREQUAL "vendored")
+  target_include_directories(manumesh_internal
+    PUBLIC "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
+  )
+endif()
 
 if(MANUMESH_BUILD_SHARED_LIBRARY)
   target_compile_definitions(manumesh_core PRIVATE MANUMESH_BUILDING_DLL)

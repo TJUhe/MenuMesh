@@ -34,6 +34,15 @@ TEST(ManuMeshParameters, TargetFacesOverridesRatioOnRealStlFixtures) {
         EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
         EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
         EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
+        // Slack derivation: collapseUntilTarget stops at the first
+        // activeFaceCount <= targetFaces, and one collapse removes 2 faces
+        // (interior edge) or 1 face (boundary edge), so a reached-target run
+        // always ends in [targetFaces - 1, targetFaces] (measured on these
+        // fixtures: deltas of -1, 0, -1). The +2 headroom only matters when
+        // the queue is exhausted or the rejection limit fires just above the
+        // target, allowing the run to stop within one interior collapse
+        // (2 faces) above targetFaces instead of failing the suite on a
+        // legitimate no-candidates termination.
         EXPECT_LE(result.report.finalFaces, options.targetFaces + 2);
     }
 }

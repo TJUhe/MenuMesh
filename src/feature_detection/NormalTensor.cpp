@@ -1,5 +1,7 @@
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
+#include "detail/FeatureDetectionCache.h"
+#include "detail/FeatureInputValidation.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>
@@ -29,9 +31,15 @@ NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
 
 } // namespace
 
-std::vector<NormalTensorVertex> computeNormalTensorFeatures(
-    const Mesh& mesh, const NormalTensorOptions& options, double requestedPersistenceThreshold
+namespace detector_detail {
+
+std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
+    const Mesh& mesh,
+    FeatureDetectionCache& cache,
+    const NormalTensorOptions& options,
+    double requestedPersistenceThreshold
 ) {
+    detector_detail::validateFeatureMeshInput(mesh);
     std::vector<NormalTensorVertex> result(mesh.vertices.size());
     if (mesh.empty()) {
         return result;
@@ -61,17 +69,21 @@ std::vector<NormalTensorVertex> computeNormalTensorFeatures(
         }
     }
 
-    const std::vector<std::vector<int>> neighbors = manumesh::detail::buildVertexNeighbors(mesh);
-    const std::vector<double> localScale = manumesh::detail::computeVertexAverageEdgeLength(mesh);
-    const int baseIterations = std::clamp(options.smoothingIterations, 0, 8);
-    const int scaleCount = std::clamp(options.scaleCount, 1, 8);
+    const std::vector<std::vector<int>>& neighbors = cache.vertexNeighbors();
+    const std::vector<double>& localScale = cache.vertexAverageEdgeLength();
+    const int baseIterations = std::clamp(options.smoothingIterations, 0, kMaxNormalTensorSmoothingIterations);
+    const int scaleCount = std::clamp(options.scaleCount, 1, kMaxNormalTensorScaleCount);
     const double persistenceThreshold =
         std::isfinite(requestedPersistenceThreshold) ? std::max(1e-12, requestedPersistenceThreshold) : 1e-12;
 
+    // Ping-pong buffer: reuse one scratch vector across smoothing passes
+    // instead of copying the full tensor array every call.
+    std::vector<Eigen::Matrix3d> smoothScratch(tensors.size(), Eigen::Matrix3d::Zero());
     auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current, double radiusMultiplier) {
-        std::vector<Eigen::Matrix3d> next = current;
+        std::vector<Eigen::Matrix3d>& next = smoothScratch;
         for (int i = 0; i < static_cast<int>(current.size()); ++i) {
             if (neighbors[i].empty()) {
+                next[i] = current[i];
                 continue;
             }
             const double radius = std::max(1e-12, localScale[i] * std::max(0.25, radiusMultiplier));
@@ -124,6 +136,15 @@ std::vector<NormalTensorVertex> computeNormalTensorFeatures(
         vertex.persistentFeatureScore = robustScore * persistenceRatio;
     }
     return result;
+}
+
+} // namespace detector_detail
+
+std::vector<NormalTensorVertex> computeNormalTensorFeatures(
+    const Mesh& mesh, const NormalTensorOptions& options, double requestedPersistenceThreshold
+) {
+    detector_detail::FeatureDetectionCache cache(mesh);
+    return detector_detail::computeNormalTensorFeaturesCached(mesh, cache, options, requestedPersistenceThreshold);
 }
 
 std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options) {

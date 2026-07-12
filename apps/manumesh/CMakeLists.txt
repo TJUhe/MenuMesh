@@ -30,6 +30,17 @@ if(BUILD_TESTING)
   add_test(NAME manumesh_cli_rejects_malformed_number
     COMMAND manumesh generate --type plane --n 12x --out bad.stl
   )
+  add_test(NAME manumesh_cli_rejects_cross_command_option
+    COMMAND manumesh generate --type plane --n 12
+      --out "${CMAKE_CURRENT_BINARY_DIR}/cli_cross_command_option.stl"
+      --ratio 0.5
+  )
+  add_test(NAME manumesh_cli_simplify_rejects_smooth_curvature
+    COMMAND manumesh simplify
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/boss_pocket_plate.obj"
+      "${CMAKE_CURRENT_BINARY_DIR}/cli_smooth_curvature_rejected.stl"
+      --smooth-curvature-features
+  )
   add_test(NAME manumesh_cli_feature_report
     COMMAND manumesh feature-report
       "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
@@ -59,12 +70,16 @@ if(BUILD_TESTING)
   set_tests_properties(manumesh_cli_rejects_unknown_option
     manumesh_cli_rejects_missing_option_value
     manumesh_cli_rejects_malformed_number
+    manumesh_cli_rejects_cross_command_option
+    manumesh_cli_simplify_rejects_smooth_curvature
       PROPERTIES WILL_FAIL TRUE
   )
   set_tests_properties(manumesh_cli_feature_report
     manumesh_cli_feature_benchmark
     manumesh_cli_feature_compare
     manumesh_cli_quality_refinement
+    manumesh_cli_rejects_cross_command_option
+    manumesh_cli_simplify_rejects_smooth_curvature
     PROPERTIES LABELS cli
   )
 endif()

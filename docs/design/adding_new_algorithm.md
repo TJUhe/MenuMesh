@@ -3,6 +3,13 @@
 本文说明后续如何给 ManuMesh 增加新的稳定功能模块。示例以 `repair`
 为主，但同一套规则也适用于 `remeshing`、`validation`、`offset` 等模块。
 
+> 2026-07-12 起，新增算法的权威机械化路径（7 步清单、`validateOptions` 统一校验
+> 协议、诊断字段命名规范）固化在
+> [`algorithm_extension_protocol.md`](algorithm_extension_protocol.md)；本文提供
+> 展开的背景说明与示例，两者冲突时以协议文档为准。2026-07 落地的 `analysis`
+> 模块（`include/algorithms/analysis/` + `src/analysis/`）就是按这条路径新增的
+> 最新样例。
+
 ManuMesh 的扩展原则是：新能力作为平级算法加入，不反向塞进
 `simplification` 或 `feature_detection`。公共 API 先定义清楚，内部实现再按
 pipeline 拆分；能复用的底层 mesh 查询进入 `src/common/detail/`，可变拓扑和
@@ -156,17 +163,24 @@ core
 
 ## CMake 接入
 
-新增模块时同步更新根 `CMakeLists.txt`：
+库的构建组织在 `src/CMakeLists.txt`（不在根 `CMakeLists.txt`）。新增模块时同步更新：
 
 - `MANUMESH_PUBLIC_HEADERS` 加入公共头。
 - `MANUMESH_LIBRARY_SOURCES` 加入 `.cpp`。
 - 新建 `MANUMESH_REPAIR_PRIVATE_HEADERS`，再加入 `MANUMESH_PRIVATE_HEADERS`。
+- 按现有模式新建 object library `manumesh_repair_objects`（参考
+  `manumesh_analysis_objects`），用 `target_link_libraries` 声明它对
+  `manumesh_common_objects`/`manumesh_geometry_objects` 等的依赖；聚合目标
+  （`manumesh_core` 与测试用 `manumesh_internal` STATIC 库）会复用同一批 objects。
+- 在 `tests/support/check_include_boundaries.py` 的 `MODULE_DEPENDENCIES` 与
+  `INCLUDE_MODULE_PREFIXES` 登记新模块的允许依赖方向——新模块是显式架构决策，
+  不登记会被 `include_boundaries` CTest 直接拒绝。
 - 增加对应 `source_group()`，保持 IDE 分组清楚。
 - 如公共头依赖 Eigen，确认这是有意的；能放在 `RepairTypes.h` 的扁平结构尽量
   不依赖 Eigen。
 
-测试文件加入 `tests/CMakeLists.txt` 的 `MANUMESH_UNIT_TEST_SOURCES`。测试数量一
-开始就按功能拆，不要先堆一个 `repair_tests.cpp`。
+测试文件加入 `tests/CMakeLists.txt`。测试数量一开始就按功能拆，不要先堆一个
+`repair_tests.cpp`。
 
 ## 测试规划
 
@@ -187,8 +201,11 @@ core
 
 - `apps/manumesh/ManuMeshCommands.cpp` 新增 `commandRepair()`。
 - 在 `commandRegistry()` 注册 `repair`。
+- 在 `apps/manumesh/CliArguments.cpp` 的共享 `OptionSpec` 选项表中登记新命令的
+  选项（help 文本由表生成，`validateArgsForCommand()` 会据此做逐命令参数校验，
+  拼错或属于其他命令的选项在入口统一报错）。
 - CLI 参数只表达公共 `RepairOptions`，不要暴露内部 stage 开关。
-- 若需要 CSV，字段对应 `RepairReport`。
+- 若需要 CSV，字段对应 `RepairReport`，写出走 `CliCsv.cpp`。
 
 C API 更晚加入。加入时要：
 

@@ -25,7 +25,7 @@ struct CollapseLegalityInput {
     double maxLocalError = 0.0;
     bool preventLocalIntersections = false;
     const SpatialFaceIndex* spatialIndex = nullptr;
-    const manumesh::detail::MeshDistanceIndex* referenceSurface = nullptr;
+    const manumesh::common::MeshDistanceIndex* referenceSurface = nullptr;
 };
 
 CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input);

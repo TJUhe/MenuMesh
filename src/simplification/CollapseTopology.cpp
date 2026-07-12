@@ -1,5 +1,7 @@
 #include "detail/CollapseTopology.h"
 
+#include <algorithm>
+
 namespace manumesh::simplification {
 
 BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input) {
@@ -43,7 +45,11 @@ std::vector<int> activeNeighborsOf(
             }
         }
     }
-    return std::vector<int>(seen.begin(), seen.end());
+    // Sort so downstream queue updates and centroid sums are deterministic
+    // regardless of the unordered_set iteration order.
+    std::vector<int> neighbors(seen.begin(), seen.end());
+    std::sort(neighbors.begin(), neighbors.end());
+    return neighbors;
 }
 
 std::unordered_set<int> activeLinkOf(
@@ -102,6 +108,16 @@ bool collapseWouldPreserveLinkCondition(
 
     if (incidentFaceCount <= 0 || incidentFaceCount > 2 ||
         edgeLink.size() != static_cast<std::size_t>(incidentFaceCount)) {
+        return false;
+    }
+
+    // Extended link condition for meshes with open boundary (Hoppe et al.,
+    // Progressive Meshes): close the surface with a virtual vertex joined to
+    // every boundary vertex. If both endpoints lie on the boundary but the
+    // edge itself is interior (two incident faces), the virtual vertex is in
+    // both vertex links yet not in the edge link, so collapsing this boundary
+    // chord would pinch the surface into a non-manifold vertex.
+    if (incidentFaceCount == 2 && vertices[keep].isBoundary && vertices[remove].isBoundary) {
         return false;
     }
 

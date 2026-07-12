@@ -201,11 +201,12 @@ footer {
     <div class="source-map">
       <strong>主要源码阅读范围：</strong>
       <ul>
-        <li><code>apps/manumesh/main.cpp</code>、<code>ManuMeshCli.cpp</code>、<code>ManuMeshCommands.cpp</code>：CLI 入口、参数校验、命令注册和命令处理。</li>
-        <li><code>src/io/MeshIo.cpp</code>：STL/OBJ 读取和 ASCII STL 写出。</li>
-        <li><code>src/feature_detection/*.cpp</code>：特征边证据、trace graph、cleanup、loop/primitive 恢复、component 置信度。</li>
-        <li><code>src/simplification/*.cpp</code>：QEM/line-quadrics 初始化、候选队列、动态拓扑、折叠合法性、结果 compact。</li>
-        <li><code>src/api/CApi.cpp</code>、<code>src/api/CApiConverters.cpp</code>：C ABI 句柄、结构体 ABI 校验、异常到状态码转换。</li>
+        <li><code>apps/manumesh/main.cpp</code>、<code>ManuMeshCli.cpp</code>、<code>CliArguments.cpp</code>、<code>ManuMeshCommands.cpp</code>、<code>ManuMeshFeatureCommands.cpp</code>：CLI 入口、共享 <code>OptionSpec</code> 选项表（<code>optionsHelpText()</code> 生成 help、<code>validateArgsForCommand()</code> 逐命令校验）、命令注册和命令处理；CSV 拼装在 <code>CliCsv.cpp</code>。</li>
+        <li><code>src/io/MeshIo.cpp</code>：STL/OBJ 读取和 ASCII STL 写出；<code>probeStlFormat</code> 探测 ASCII/二进制，数值解析用 <code>std::from_chars</code>。</li>
+        <li><code>src/feature_detection/*.cpp</code>：特征边证据、trace graph、cleanup、loop/primitive 恢复、component 置信度；全网格辅助结构由 <code>detail/FeatureDetectionCache.h</code> 一次构建、全管线复用。</li>
+        <li><code>src/simplification/*.cpp</code>：QEM/line-quadrics 初始化、候选队列、动态拓扑、折叠合法性、placement 与边界投影（<code>Placement.cpp</code>）、结果 compact。</li>
+        <li><code>src/analysis/MeshAnalysis.cpp</code>：<code>manumesh::analysis</code> 的网格统计与采样距离；<code>src/simplification/Metrics.cpp</code> 仅保留弃用 API 的兼容转发实现。</li>
+        <li><code>src/api/CApi.cpp</code>、<code>src/api/CApiConverters.cpp</code>：C ABI 句柄、结构体 ABI 校验、异常到状态码转换（含 <code>std::bad_alloc</code> → OOM 状态码、数值参数 finite 校验）。</li>
       </ul>
     </div>
 
@@ -227,10 +228,10 @@ flowchart TD
   CoreAPI --> Generators["core/MeshGenerators<br/>内置测试模型"]
   CoreAPI --> Feature["feature_detection<br/>FeatureAnalysis"]
   CoreAPI --> Simplify["simplification<br/>QEM / line quadrics"]
-  CoreAPI --> Metrics["Metrics<br/>质量和距离评估"]
+  CoreAPI --> Metrics["analysis/MeshAnalysis<br/>质量和距离评估"]
 
   Simplify --> Feature
-  Simplify --> Common["common/detail<br/>边、面、邻接、法向等查询"]
+  Simplify --> Common["src/common (manumesh::common)<br/>边、面、邻接、法向等查询"]
   Feature --> Common
   IO --> Core["core/Mesh<br/>vertices + triangle faces"]
   Generators --> Core
@@ -258,15 +259,15 @@ flowchart TD
   B --> C{argc < 2 ?}
   C -- 是 --> D["printUsage()"] --> E["return 0"]
   C -- 否 --> F["command = argv[1]<br/>args = argv[2..]"]
-  F --> G["validateArgs(args)"]
-  G --> H{validateArgs 抛异常?}
-  H -- 是 --> Z["catch std::exception<br/>打印 error + usage"] --> Z1["return 1"]
-  H -- 否 --> I{command 是 help/-h/--help ?}
+  F --> I{command 是 help/-h/--help ?}
   I -- 是 --> D
   I -- 否 --> J["commandRegistry().find(command)"]
   J --> K{找到 handler ?}
-  K -- 否 --> L["throw invalid_argument<br/>Unknown command"] --> Z
-  K -- 是 --> M["执行 handler(args)"]
+  K -- 否 --> L["throw invalid_argument<br/>Unknown command"] --> Z["catch std::exception<br/>打印 error + usage"] --> Z1["return 1"]
+  K -- 是 --> G["validateArgsForCommand(command, args)<br/>共享 OptionSpec 选项表驱动"]
+  G --> H{校验抛异常?}
+  H -- 是 --> Z
+  H -- 否 --> M["执行 handler(args)"]
   M --> N{handler 正常返回?}
   N -- 是 --> O["返回 handler 的 int"]
   N -- 否，抛异常 --> Z
@@ -279,8 +280,8 @@ flowchart TD
         <tr><th>情况</th><th>处理</th><th>结果</th></tr>
       </thead>
       <tbody>
-        <tr><td>参数不是以 <code>-</code> 开头</td><td>视为 positional argument，不在 <code>validateArgs</code> 中校验。</td><td>后续 handler 用 <code>positionalArgs()</code> 取出。</td></tr>
-        <tr><td>以 <code>-</code> 开头但不在已知 flag 集合</td><td><code>validateArgs()</code> 抛 <code>invalid_argument("Unknown option")</code>。</td><td>顶层 catch，打印 usage，返回 1。</td></tr>
+        <tr><td>参数不是以 <code>-</code> 开头</td><td>视为 positional argument，不在 <code>validateArgsForCommand</code> 中校验。</td><td>后续 handler 用 <code>positionalArgs()</code> 取出。</td></tr>
+        <tr><td>以 <code>-</code> 开头但不是该命令的选项</td><td><code>validateArgsForCommand()</code> 按共享 <code>OptionSpec</code> 选项表逐命令校验：完全未知的选项抛 <code>invalid_argument("Unknown option")</code>；拼写正确但属于其他命令的选项，会抛出说明该选项属于哪些命令的错误。help 文本由同一张表经 <code>optionsHelpText()</code> 生成。</td><td>顶层 catch，打印 usage，返回 1。</td></tr>
         <tr><td>需要值的 flag 缺少值，或后面直接跟另一个已知 flag</td><td>抛 <code>invalid_argument("&lt;flag&gt; requires a value.")</code>。</td><td>返回 1。</td></tr>
         <tr><td>数值参数解析失败或不是有限数</td><td><code>parseIntStrict</code>/<code>parseDoubleStrict</code> 抛异常。</td><td>返回 1。</td></tr>
         <tr><td><code>--industrial-safe</code></td><td>在 <code>parseSimplifyOptions()</code> 中自动打开保守 guard：保边界、最小质量下限、法向偏转上限、本地误差比例下限、自交检查。</td><td>参数被转换为更保守的简化策略。</td></tr>
@@ -354,8 +355,8 @@ flowchart TD
         </tr>
         <tr>
           <td><code>feature-compare</code></td>
-          <td>检测 original 和 simplified 的 circular loops；对 original loop 逐个找 simplified 中未用的最佳 circular loop；按中心、半径、法向角判断匹配。</td>
-          <td>可疑匹配阈值：center ≤ 0.08*bboxDiag，radiusRel ≤ 0.20，normal ≤ 30°；更严格时标 <code>matched</code>，否则 <code>weak_match</code>；不满足则 <code>missing</code>。</td>
+          <td>检测 original 和 simplified 的 circular loops；匹配逻辑已下沉为库函数 <code>manumesh::feature::matchCircularLoops</code>（<code>src/feature_detection/FeatureComparison.cpp</code>），CLI 只剩 load→detect→match→格式化。贪心匹配按中心、半径、法向角组合评分，对 original loop 逐个找 simplified 中未用的最佳 circular loop。</td>
+          <td>阈值来自 <code>LoopMatchOptions</code> 默认值（=原硬编码值）：plausible 匹配 center ≤ 0.08*bboxDiag、radiusRel ≤ 0.20、normal ≤ 30°；更严格的 matched 档为 0.04 / 0.08 / 15°，否则 <code>weak_match</code>；不满足则 <code>missing</code>。</td>
           <td>stdout/CSV 的 loop 匹配表。</td>
         </tr>
         <tr>
@@ -406,7 +407,7 @@ flowchart TD
 
   <section id="io">
     <h2>4. 网格 I/O 流程</h2>
-    <p>所有 CLI、C API 和 SDK 示例最终都使用 <code>loadMesh</code>/<code>saveAsciiStl</code>。当前支持输入 <code>.stl</code> 和 <code>.obj</code>，输出为 ASCII STL。</p>
+    <p>所有 CLI、C API 和 SDK 示例最终都使用 <code>loadMesh</code>/<code>saveAsciiStl</code>。当前支持输入 <code>.stl</code> 和 <code>.obj</code>，输出为 ASCII STL。解析器已重写：先由 <code>probeStlFormat</code> 探测 ASCII/二进制，再按缓冲扫描解析，数值解析统一用 <code>std::from_chars</code>，错误路径（截断、非法计数、非有限坐标）逐条返回具体 error。</p>
 
     <div class="diagram-wrap">
       <pre class="mermaid">
@@ -419,13 +420,15 @@ flowchart TD
 
   STL --> S0{eps 有限且 >=0 ?}
   S0 -- 否 --> SE0["error = mergeRelativeEpsilon 非法<br/>return false"]
-  S0 -- 是 --> SB["尝试 readBinaryTriangles"]
-  SB --> SBOK{二进制 STL 成功?}
+  S0 -- 是 --> SP["probeStlFormat(path, triangleCount, error)<br/>按文件大小 84+50n 与 solid 前缀判定"]
+  SP --> SPF{探测结果}
+  SPF -- Binary --> SB["readBinaryTriangles"]
+  SPF -- Ascii --> SA["readAsciiTriangles<br/>缓冲扫描 + std::from_chars 数值解析"]
+  SPF -- Invalid --> SE["error = localError<br/>return false"]
+  SB --> SBOK{解析成功?}
+  SA --> SBOK
+  SBOK -- 否 --> SE
   SBOK -- 是 --> M["mergeDuplicateTriangleVertices"]
-  SBOK -- 否 --> SA["尝试 readAsciiTriangles"]
-  SA --> SAOK{ASCII STL 成功?}
-  SAOK -- 否 --> SE["error = localError<br/>return false"]
-  SAOK -- 是 --> M
   M --> RU["removeUnusedVertices"]
   RU --> Empty{mesh.empty()?}
   Empty -- 是 --> EEmpty["error = 无非退化三角形<br/>return false"]
@@ -508,7 +511,7 @@ flowchart TD
     <div class="diagram-wrap">
       <pre class="mermaid">
 flowchart TD
-  A["collectFeatureEdges"] --> B["计算 face normals + edge incidence"]
+  A["collectFeatureEdges"] --> B["构建 FeatureDetectionCache<br/>面法向 + 边信息 + 顶点邻接 + 局部平均边长<br/>（一次构建，证据/清理/recovery 全管线传引用复用）"]
   B --> C{useNormalTensorFeatures?}
   C -- 是 --> T["computeNormalTensorFeatures<br/>统计 tensor score / persistence"]
   C -- 否 --> NT["tensor 为空"]
@@ -537,7 +540,7 @@ flowchart TD
       <tbody>
         <tr><td>Boundary</td><td>一条边只属于 1 个 face。</td><td>标记 <code>boundary=true</code>，计入 boundary feature edges。</td></tr>
         <tr><td>Non-manifold</td><td>一条边属于超过 2 个 face。</td><td>标记 <code>nonManifold=true</code>，后续 trace graph 会直接纳入。</td></tr>
-        <tr><td>Dihedral</td><td>两个相邻 face 法向夹角达到 <code>featureAngleDeg</code>。</td><td>标记 <code>dihedral=true</code>，并尝试判断 convex/concave/unknown。</td></tr>
+        <tr><td>Dihedral</td><td>两个相邻 face 法向夹角达到 <code>featureAngleDeg</code>；角度由 <code>orientedDihedralAngle</code> 计算——绕向一致时用带符号 dot（能识别 &gt;90° 的反折边），绕向不一致时回退无符号角并计入诊断 <code>inconsistentWindingEdges</code>。</td><td>标记 <code>dihedral=true</code>，并尝试判断 convex/concave/unknown。</td></tr>
         <tr><td>Normal tensor</td><td>不是已有离散特征边；两端 persistent score 达阈值；crease saliency 不弱于 corner；边方向与 crease tangent 对齐。</td><td>作为弱特征候选，计入 normal tensor counters。</td></tr>
         <tr><td>Smooth curvature（opt-in）</td><td>需 <code>useSmoothCurvatureFeatures=true</code>（默认关闭）；不是已有离散特征边且两端非离散特征顶点；两端 persistent score 与 persistent scales 达标（<code>smoothCurvatureFeatureThreshold</code>、<code>smoothCurvatureMinPersistentScales</code>）；两端 ridge/valley 符号一致；边方向与曲线切向对齐（<code>smoothCurvatureMinEdgeAlignment</code>）且两端切向一致（<code>smoothCurvatureMinTangentConsistency</code>）。</td><td>作为第二类弱特征候选，标记 <code>smoothCurvature=true</code>，计入 smooth curvature counters。</td></tr>
       </tbody>
@@ -554,17 +557,17 @@ flowchart TD
         </tr>
         <tr>
           <td>removeWeakSpurs</td>
-          <td>如果 <code>cleanupFeatureGraph=false</code> 或 <code>featureGraphMaxWeakSpurEdges<=0</code>，跳过；否则最多 8 轮删除短的、仅含弱证据（normal tensor 或 smooth curvature）的端点 spur。</td>
+          <td>如果 <code>cleanupFeatureGraph=false</code> 或 <code>featureGraphMaxWeakSpurEdges<=0</code>，跳过；否则最多 8 轮删除短的、仅含弱证据（normal tensor 或 smooth curvature）的端点 spur。新增 <code>FeatureOptions::featureGraphMinWeakSpurStrength</code>（默认 0.0 = 旧的按边数剪枝行为）；为正时按 Yoshizawa 组件强度 T=(∫ds)·(∫strength ds) 裁决是否删除。该选项仅在 C++ <code>FeatureOptions</code> 上，无 CLI/C ABI 暴露。</td>
           <td>被删边在 graph edge 上标 <code>removedByCleanup</code>，计 <code>graphCleanupRemovedSpurs</code>。</td>
         </tr>
         <tr>
           <td>bridgeCloseJunctions</td>
-          <td>如果 gap ratio ≤ 0 跳过；junction 数少于 2 或超过 256 跳过；距离在局部尺度阈值内则加 cleanup bridge。</td>
+          <td>如果 gap ratio ≤ 0 跳过；junction 数少于 2 或超过 256 时跳过并计入诊断 <code>graphCleanupSkippedByCap</code>；距离在局部尺度阈值内则加 cleanup bridge。</td>
           <td>计 <code>graphCleanupMergedJunctions</code>。</td>
         </tr>
         <tr>
           <td>bridgeEndpointGaps</td>
-          <td>端点数少于 2 或超过 512 跳过；端点距离和方向兼容才桥接；每个端点最多被用一次。</td>
+          <td>端点数少于 2 或超过 512 时跳过并计入 <code>graphCleanupSkippedByCap</code>；端点距离和方向兼容才桥接（方向兼容按 Yoshizawa 的 gap 跳接角度规则判定），每个端点最多被用一次。</td>
           <td>计 <code>graphCleanupBridgedGaps</code>。</td>
         </tr>
       </tbody>
@@ -596,9 +599,9 @@ flowchart TD
       <tbody>
         <tr><td>loop 顶点少于 <code>minFeatureLoopVertices</code></td><td>很多闭环恢复和 primitive fallback 会跳过，避免把短碎片当成制造特征。</td></tr>
         <tr><td>primitive fit 失败</td><td><code>applyPrimitiveFit</code> 不写入 primitive 数据，loop 保持 unknown/polygonal 状态，仍可作为普通 trace loop 存在。</td></tr>
-        <tr><td>圆拟合 RMS/最大误差过大</td><td>不标为 circle/near-circle；可能落为 ellipse 或 polygonal loop。</td></tr>
+        <tr><td>圆拟合 RMS/最大误差过大</td><td>不标为 circle/near-circle；可能落为 ellipse 或 polygonal loop。圆拟合默认用 Taubin 代数拟合（Kåsa 保留为确定性回退）；椭圆用 Halíř-Flusser 直接拟合，轴向来自 conic 系数而非 PCA。</td></tr>
         <tr><td>组件已存在 circular loop</td><td><code>recoverPrimitiveComponents</code> 和 circular cluster fallback 会跳过，避免重复 loop。</td></tr>
-        <tr><td>circular cluster fallback 过大</td><td>组件顶点数超过 120 或三点扫描超过 32768 次时停止，保证最坏情况可控。</td></tr>
+        <tr><td>circular cluster fallback 过大</td><td>组件顶点数超过 120 或三点扫描超过 32768 次时停止（计入诊断 <code>circularRecoveryTruncated</code>），保证最坏情况可控。</td></tr>
       </tbody>
     </table>
   </section>
@@ -664,7 +667,7 @@ flowchart TD
   E -- 是 --> W["computeFeatureWeightScores<br/>按 weightMode 计算顶点 score"]
   W --> L["为每个顶点加 lineQuadric"]
   L --> M{adaptiveScale?}
-  M -- 是 --> AD["加 adaptiveBaseLineWeight*area*line<br/>再按 feature score 缩放 Q"]
+  M -- 是 --> AD["placement 只加干净的<br/>adaptiveBaseLineWeight*area*line<br/>featureBoost 记为逐顶点队列优先级因子 priorityScale"]
   M -- 否 --> NW["加 appliedWeight*area*line"]
   AD --> R["记录 min/max applied line weight"]
   NW --> R
@@ -736,7 +739,7 @@ flowchart TD
       <pre class="mermaid">
 flowchart TD
   A["tryCollapse(keep, remove)"] --> B["mergedQ = q_keep + q_remove"]
-  B --> C["solvePlacementCandidates<br/>端点、 midpoint、可解时加最优解"]
+  B --> C["solvePlacementCandidates（Placement.cpp）<br/>三级回退：全空间最优 → 沿折叠边一维最优（rank-2 良定情形）→ 端点/中点<br/>结果随队列 Candidate 携带（placements 数组），避免重复求解"]
   C --> D{front.usedFallback?}
   D -- 是 --> SF["report.solverFallbacks++"]
   D -- 否 --> E
@@ -752,7 +755,7 @@ flowchart TD
   H -- 是 --> R3["LegalityRejected: Topology"]
   H -- 否 --> I["决定 placementCount<br/>普通 collapse 可尝试 fallback placements<br/>硬保护 feature collapse 通常只试最佳 placement"]
   I --> J["遍历 placement"]
-  J --> K["projectBoundaryPlacement<br/>如果当前是 boundary edge"]
+  J --> K["projectBoundaryPlacement（Placement.cpp）<br/>如果当前是 boundary edge：Lindstrom-Turk 边界守恒——<br/>投影到最小化边界有向面积变化的直线，夹取到折叠边投影区间，退化时回退线段夹取"]
   K --> L{curveBudgetAllows?}
   L -- 否 --> CB["记录 sawCurveBudgetReject<br/>试下一个 placement"]
   L -- 是 --> M["featurePolicy.projectPlacement<br/>圆/椭圆/多段线/线段/切线投影"]
@@ -790,20 +793,21 @@ flowchart TD
         <tr><td>两个端点都不是 boundary vertex</td><td>允许。</td></tr>
         <tr><td>一个端点是 boundary，另一个不是</td><td>拒绝，避免边界并入内部。</td></tr>
         <tr><td>两个端点都是 boundary，但当前边不是 boundary edge</td><td>拒绝，避免跨边界结构折叠。</td></tr>
-        <tr><td>两个端点都是 boundary，且该边只有 1 个 incident active face</td><td>允许，并将 placement 投影回该边段。</td></tr>
+        <tr><td>两个端点都是 boundary，且该边只有 1 个 incident active face</td><td>允许，并由 <code>projectBoundaryPlacement</code>（<code>Placement.cpp</code>）做 Lindstrom-Turk 边界守恒投影：投影到最小化边界有向面积变化的直线并夹取到折叠边投影区间，退化时回退线段夹取。</td></tr>
       </tbody>
     </table>
+    <p>注意：无论 <code>preserveBoundary</code>（默认 <code>false</code>）是否开启，link condition 的“边界弦”扩展检查都始终生效——内部边（有 2 个相邻面）但两端点均为边界顶点时一律拒绝坍缩，防止边界被 pinch 成非流形点（<code>CollapseTopology.cpp</code>）。</p>
 
     <h3>纹理保护检查（opt-in，仅 C++ API）</h3>
     <p>
-      启用 <code>preserveTexture</code> 且网格带逐面逐角 UV（<code>Mesh::faceTexCoords</code>）时，候选 placement 评估后还要通过局部纹理检查：用 <code>textureSeamTolerance</code> 容差网格哈希把坍缩两端点的入射角 UV 分组为 chart，并由坍缩边入射面建立两端 chart 的一一配对。chart 无对应、配对歧义、合并不相关 chart、存活 UV 三角形有符号定向翻转、或有符号 UV 面积低于 <code>minTextureAreaRatio</code> 时拒绝该坍缩；双侧 seam 上两侧 chart 都一致配对时允许，跨 seam 合并 chart 归属的坍缩被过滤。检查是局部 O(k) 的（k 为 one-ring 规模），不做全局参数化或属性空间矩阵分解。被否决候选计入 <code>textureRejectedCollapses</code>，初始即无合法中点纹理坍缩的边计入 <code>textureProtectedEdges</code>。
+      启用 <code>preserveTexture</code> 且网格带逐面逐角 UV（<code>Mesh::faceTexCoords</code>）时，候选 placement 评估后还要通过局部纹理检查：用 <code>textureSeamTolerance</code> 容差网格哈希把坍缩两端点的入射角 UV 分组为 chart，并由坍缩边入射面建立两端 chart 的一一配对。chart 无对应、配对歧义、合并不相关 chart、存活 UV 三角形有符号定向翻转、或有符号 UV 面积低于 <code>minTextureAreaRatio</code> 时拒绝该坍缩；双侧 seam 上两侧 chart 都一致配对时允许，跨 seam 合并 chart 归属的坍缩被过滤。检查是局部 O(k) 的（k 为 one-ring 规模），不做全局参数化或属性空间矩阵分解。被否决候选计入 <code>textureRejectedCollapses</code>，初始即无合法中点纹理坍缩的边计入 <code>textureProtectedEdges</code>。实现已拆分为 evaluate / buildPlan / apply 三阶段，apply 阶段失败计入新诊断 <code>textureApplyFailures</code>（预期恒为 0）。
     </p>
 
     <h3>几何合法性过滤</h3>
     <div class="diagram-wrap">
       <pre class="mermaid">
 flowchart TD
-  A["collapseRejectReason"] --> B["collapseWouldPreserveLinkCondition"]
+  A["collapseRejectReason"] --> B["collapseWouldPreserveLinkCondition<br/>含扩展检查：内部边但两端点均为边界顶点（边界弦）一律拒绝，防边界 pinch 成非流形点"]
   B --> C{link condition OK?}
   C -- 否 --> Topo["Topology"]
   C -- 是 --> D["collectTouchedFaces<br/>keep/remove incident faces"]
@@ -820,7 +824,7 @@ flowchart TD
   LER -- 是 --> Local["LocalError"]
   LER -- 否 --> SI
   LE -- 否 --> SI{preventLocalIntersections?}
-  SI -- 是 --> SIC["用 SpatialFaceIndex 候选集或全量 face 查自交"]
+  SI -- 是 --> SIC["用 SpatialFaceIndex 候选集或全量 face 查自交<br/>谓词用尺度不变相对容差 kRelativeIntersectionEps=1e-9"]
   SIC --> SIR{发现相交?}
   SIR -- 是 --> Inter["SelfIntersection"]
   SIR -- 否 --> OK["None"]
@@ -901,6 +905,8 @@ flowchart TD
         <tr><td>copy vertices/faces 时 buffer 太小</td><td>返回 <code>MANUMESH_STATUS_BUFFER_TOO_SMALL</code>，同时写出 required count 到 <code>*vertices_written</code>/<code>*faces_written</code>。</td></tr>
         <tr><td>options/report/stats 未初始化</td><td>输入 options 会被拒绝；输出 report/stats 也会被拒绝，提示必须调用 init 或提供兼容旧 struct size。</td></tr>
         <tr><td>较旧 ABI 尾部结构体</td><td>同一 <code>MANUMESH_ABI_VERSION</code> 内允许尾部较短；读 options 时只读存在字段，写 report/stats 时只写目标容量内字段。</td></tr>
+        <tr><td>数值参数非有限或非法</td><td>C 入口做 finite 校验（如 <code>merge_relative_epsilon</code> 须有限且非负），返回 <code>INVALID_ARGUMENT</code>。<code>include/api/CApi.h</code> 顶部声明 v1 ABI 不携带逐角纹理坐标。</td></tr>
+        <tr><td>C++ <code>std::bad_alloc</code></td><td>统一 guard 转换为 <code>MANUMESH_STATUS_OUT_OF_MEMORY</code>。</td></tr>
         <tr><td>C++ <code>std::invalid_argument</code></td><td>转换为 <code>MANUMESH_STATUS_INVALID_ARGUMENT</code>。</td></tr>
         <tr><td>C++ 其他异常</td><td>转换为 <code>MANUMESH_STATUS_ALGORITHM_ERROR</code>；未知异常写 <code>Unknown C++ exception.</code>。</td></tr>
       </tbody>

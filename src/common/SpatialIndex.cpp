@@ -4,7 +4,7 @@
 #include <cmath>
 #include <limits>
 
-namespace manumesh::detail {
+namespace manumesh::common {
 
 void UniformAabbCandidateGrid::clear() {
     enabled_ = false;
@@ -14,6 +14,9 @@ void UniformAabbCandidateGrid::clear() {
     overflowItems_.clear();
     activeItems_.clear();
     itemCells_.clear();
+    queryCellsScratch_.clear();
+    candidateStamps_.clear();
+    queryStamp_ = 0;
 }
 
 void UniformAabbCandidateGrid::reset(const Vec3& lo, const Vec3& hi, int expectedItems) {
@@ -32,6 +35,9 @@ void UniformAabbCandidateGrid::insert(int itemId, const Vec3& lo, const Vec3& hi
     if (!enabled_ || itemId < 0) {
         return;
     }
+    // Idempotent re-insert: drop any stale registration first so no cell or
+    // overflow set keeps an outdated entry for this item.
+    remove(itemId);
     if (itemId >= static_cast<int>(itemCells_.size())) {
         itemCells_.resize(static_cast<std::size_t>(itemId) + 1u);
     }
@@ -75,25 +81,58 @@ void UniformAabbCandidateGrid::update(int itemId, const Vec3& lo, const Vec3& hi
 }
 
 std::vector<int> UniformAabbCandidateGrid::queryCandidates(const Vec3& lo, const Vec3& hi) const {
-    std::unordered_set<int> result;
+    std::vector<int> result;
+    queryCandidates(lo, hi, result);
+    return result;
+}
+
+void UniformAabbCandidateGrid::queryCandidates(const Vec3& lo, const Vec3& hi, std::vector<int>& outCandidates) const {
+    outCandidates.clear();
     if (!enabled_) {
-        return {};
+        return;
     }
 
-    const std::vector<CellCoord> queryCells = cellsForAabb(lo, hi);
-    if (queryCells.empty()) {
-        return std::vector<int>(activeItems_.begin(), activeItems_.end());
+    cellsForAabb(lo, hi, queryCellsScratch_);
+    if (queryCellsScratch_.empty()) {
+        outCandidates.assign(activeItems_.begin(), activeItems_.end());
+        return;
     }
 
-    for (const CellCoord& cell : queryCells) {
+    if (candidateStamps_.size() < itemCells_.size()) {
+        candidateStamps_.resize(itemCells_.size(), 0u);
+    }
+    ++queryStamp_;
+    if (queryStamp_ == 0u) {
+        // Stamp counter wrapped; reset all stamps so stale marks cannot alias.
+        std::fill(candidateStamps_.begin(), candidateStamps_.end(), 0u);
+        ++queryStamp_;
+    }
+    const auto pushUnique = [&](int itemId) {
+        if (itemId < 0) {
+            return;
+        }
+        if (itemId >= static_cast<int>(candidateStamps_.size())) {
+            candidateStamps_.resize(static_cast<std::size_t>(itemId) + 1u, 0u);
+        }
+        if (candidateStamps_[itemId] == queryStamp_) {
+            return;
+        }
+        candidateStamps_[itemId] = queryStamp_;
+        outCandidates.push_back(itemId);
+    };
+
+    for (const CellCoord& cell : queryCellsScratch_) {
         const auto it = cells_.find(cell);
         if (it == cells_.end()) {
             continue;
         }
-        result.insert(it->second.begin(), it->second.end());
+        for (int itemId : it->second) {
+            pushUnique(itemId);
+        }
     }
-    result.insert(overflowItems_.begin(), overflowItems_.end());
-    return std::vector<int>(result.begin(), result.end());
+    for (int itemId : overflowItems_) {
+        pushUnique(itemId);
+    }
 }
 
 CellCoord UniformAabbCandidateGrid::coordFor(const Vec3& p) const {
@@ -105,8 +144,15 @@ CellCoord UniformAabbCandidateGrid::coordFor(const Vec3& p) const {
 }
 
 std::vector<CellCoord> UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, const Vec3& hi) const {
+    std::vector<CellCoord> result;
+    cellsForAabb(lo, hi, result);
+    return result;
+}
+
+void UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, const Vec3& hi, std::vector<CellCoord>& outCells) const {
+    outCells.clear();
     if (!enabled_ || !lo.allFinite() || !hi.allFinite()) {
-        return {};
+        return;
     }
 
     const CellCoord c0 = coordFor(lo);
@@ -121,19 +167,17 @@ std::vector<CellCoord> UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, co
                             static_cast<long long>(maxZ - minZ + 1);
     constexpr long long kMaxCellsPerItem = 512;
     if (count <= 0 || count > kMaxCellsPerItem) {
-        return {};
+        return;
     }
 
-    std::vector<CellCoord> result;
-    result.reserve(static_cast<std::size_t>(count));
+    outCells.reserve(static_cast<std::size_t>(count));
     for (int x = minX; x <= maxX; ++x) {
         for (int y = minY; y <= maxY; ++y) {
             for (int z = minZ; z <= maxZ; ++z) {
-                result.push_back(CellCoord{x, y, z});
+                outCells.push_back(CellCoord{x, y, z});
             }
         }
     }
-    return result;
 }
 
-} // namespace manumesh::detail
+} // namespace manumesh::common

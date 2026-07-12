@@ -12,7 +12,15 @@ public:
     void clear();
     bool empty() const;
     Candidate pop();
-    void pushEdge(int a, int b, const std::vector<VertexState>& vertices, double additionalCost = 0.0);
+    /// Pushes an edge candidate that reuses placements already solved by the
+    /// caller (sorted by ascending cost). No quadric solve happens here.
+    void pushEdge(
+        int a,
+        int b,
+        const std::vector<VertexState>& vertices,
+        const std::vector<SolveResult>& placements,
+        double additionalCost = 0.0
+    );
 
 private:
     std::priority_queue<Candidate> queue_;

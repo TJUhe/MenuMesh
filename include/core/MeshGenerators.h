@@ -26,7 +26,15 @@ MANUMESH_API Mesh generateCylinderGrid(int radialSegments, int heightSegments, d
 /// Generates a torus grid.
 MANUMESH_API Mesh generateTorusGrid(int majorSegments, int minorSegments, double majorRadius, double minorRadius);
 /// Generates a subdivided cube shell.
+///
+/// The six faces are generated as independent patches whose edges are not
+/// welded: every cube edge appears as two coincident boundary edges. Use
+/// generateWeldedCubeGrid for a closed-manifold cube.
 MANUMESH_API Mesh generateCubeGrid(int n, double size);
+/// Generates a subdivided cube with the same patch layout as generateCubeGrid
+/// but with coincident vertices welded (merged via a quantized position key),
+/// producing a closed two-manifold shell with boundaryEdgeCount() == 0.
+MANUMESH_API Mesh generateWeldedCubeGrid(int n, double size);
 /// Generates a thin-fin stress case.
 MANUMESH_API Mesh generateThinFinGrid(int n, double size);
 /// Generates a stepped-shaft industrial test case.

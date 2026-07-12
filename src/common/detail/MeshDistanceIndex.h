@@ -4,14 +4,25 @@
 
 #include <vector>
 
-namespace manumesh::detail {
+namespace manumesh::common {
 
+/// BVH-backed point-to-surface distance queries against a reference mesh.
+///
+/// Contract: the index holds a const Mesh& reference and does not own or copy
+/// the mesh data. The referenced mesh must outlive the index and must not be
+/// modified or moved after construction; otherwise queries read stale or
+/// dangling data. Construction validates face vertex indices: faces that
+/// reference an out-of-range vertex (and degenerate, near-zero-area faces)
+/// are skipped and counted instead of causing undefined behavior.
 class MeshDistanceIndex {
 public:
     explicit MeshDistanceIndex(const Mesh& mesh);
 
     bool empty() const;
     double distanceSquared(const Vec3& point) const;
+    /// Number of faces skipped during construction because they referenced an
+    /// out-of-range vertex index or were degenerate.
+    int skippedFaceCount() const { return skippedFaceCount_; }
 
 private:
     struct TriangleRef {
@@ -37,6 +48,14 @@ private:
     std::vector<TriangleRef> triangles_;
     std::vector<int> order_;
     std::vector<BvhNode> nodes_;
+    int skippedFaceCount_ = 0;
 };
 
-} // namespace manumesh::detail
+} // namespace manumesh::common
+
+namespace manumesh {
+// Transitional alias: manumesh::detail was renamed to manumesh::common
+// (architecture v2, R6). New code must use manumesh::common; this alias is
+// removed after one minor version.
+namespace detail = common;
+} // namespace manumesh

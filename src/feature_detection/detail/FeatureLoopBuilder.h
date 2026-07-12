@@ -3,13 +3,25 @@
 #include "FeatureDetectionTypes.h"
 #include "algorithms/feature_detection/FeatureTypes.h"
 
-#include <string>
+#include <cstddef>
+#include <cstdint>
 #include <unordered_set>
 #include <vector>
 
 namespace manumesh::feature::detector_detail {
 
-std::string cycleSignature(const std::vector<int>& vertices);
+/// Order-independent identity of a traced cycle: its sorted undirected edge
+/// keys. Replaces the earlier string concatenation, which allocated and
+/// formatted one text buffer per candidate cycle.
+using CycleSignature = std::vector<std::uint64_t>;
+
+struct CycleSignatureHash {
+    std::size_t operator()(const CycleSignature& signature) const;
+};
+
+using CycleSignatureSet = std::unordered_set<CycleSignature, CycleSignatureHash>;
+
+CycleSignature cycleSignature(const std::vector<int>& vertices);
 
 void assignLoopToVertices(
     const FeatureLoop& loop, const Mesh& mesh, const std::vector<std::vector<int>>& adjacency, FeatureAnalysis& analysis
@@ -30,7 +42,7 @@ void addTracedLoop(
 bool addRecoveredCycle(
     RecoveredCycleKind kind,
     std::vector<int> vertices,
-    std::unordered_set<std::string>& seenCycles,
+    CycleSignatureSet& seenCycles,
     const Mesh& mesh,
     const FeatureOptions& options,
     const TraceGraph& trace,

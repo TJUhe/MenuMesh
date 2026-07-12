@@ -123,7 +123,7 @@ CollapseRejectReason collectNewTriangles(
         if (area <= input.areaEps) {
             return CollapseRejectReason::Topology;
         }
-        if (input.minTriangleQuality > 0.0 && manumesh::detail::triangleQuality(a, b, c) < input.minTriangleQuality) {
+        if (input.minTriangleQuality > 0.0 && manumesh::common::triangleQuality(a, b, c) < input.minTriangleQuality) {
             return CollapseRejectReason::TriangleQuality;
         }
         if (input.minNormalDot > -1.0 && oldNormal.norm() > 1e-20) {
@@ -154,7 +154,7 @@ CollapseRejectReason checkLocalError(
             double best = std::numeric_limits<double>::infinity();
             for (const NewTriangle& tri : newTriangles) {
                 best =
-                    std::min(best, manumesh::detail::pointTriangleDistanceSquared(point, tri.p[0], tri.p[1], tri.p[2]));
+                    std::min(best, manumesh::common::pointTriangleDistanceSquared(point, tri.p[0], tri.p[1], tri.p[2]));
             }
             if (!std::isfinite(best) || best > maxError2) {
                 return CollapseRejectReason::LocalError;
@@ -171,7 +171,7 @@ CollapseRejectReason checkLocalError(
             for (const OldTriangle& triangle : oldTriangles) {
                 bestOld = std::min(
                     bestOld,
-                    manumesh::detail::pointTriangleDistanceSquared(point, triangle.p[0], triangle.p[1], triangle.p[2])
+                    manumesh::common::pointTriangleDistanceSquared(point, triangle.p[0], triangle.p[1], triangle.p[2])
                 );
             }
             if (!std::isfinite(bestOld) || bestOld > maxError2) {
@@ -208,12 +208,24 @@ CollapseRejectReason checkLocalIntersections(
         return CollapseRejectReason::None;
     }
 
-    const double eps = std::sqrt(std::max(input.areaEps, 1e-30));
+    // Dimension chain: input.areaEps is an absolute AREA threshold
+    // (bboxDiag^2 * 1e-18, see SimplificationRun::initializeBudget) used for
+    // degenerate-face rejection. trianglesIntersect instead takes a
+    // dimensionless RELATIVE tolerance and normalizes by the local triangle
+    // scale internally, so the same constant is valid at any mesh scale.
+    // 1e-9 = sqrt(1e-18) keeps the effective slack at the same order the old
+    // diagonal-derived absolute epsilon had for diagonal-sized geometry.
+    constexpr double kRelativeIntersectionEps = 1e-9;
     const std::vector<FaceState>& faces = input.mesh.faces;
     const std::vector<VertexState>& vertices = input.mesh.vertices;
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const NewTriangle& tri : newTriangles) {
-        const auto [triLo, triHi] = manumesh::detail::triangleAabb(tri.p, eps);
+        auto [triLo, triHi] = manumesh::common::triangleAabb(tri.p, 0.0);
+        // Pad the spatial query window by the same relative slack the
+        // predicate uses (length dimension: eps * local extent).
+        const double pad = kRelativeIntersectionEps * (triHi - triLo).maxCoeff();
+        triLo -= Vec3::Constant(pad);
+        triHi += Vec3::Constant(pad);
         const std::vector<int> spatialCandidates =
             useSpatialCandidates ? input.spatialIndex->query(triLo, triHi) : std::vector<int>();
         const int candidateCount =
@@ -232,7 +244,7 @@ CollapseRejectReason checkLocalIntersections(
                 vertices[face.v[1]].p,
                 vertices[face.v[2]].p,
             };
-            if (manumesh::detail::trianglesIntersect(tri.p, other, eps)) {
+            if (manumesh::common::trianglesIntersect(tri.p, other, kRelativeIntersectionEps)) {
                 return CollapseRejectReason::SelfIntersection;
             }
         }

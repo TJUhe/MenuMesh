@@ -10,6 +10,9 @@ struct PrimitiveFit {
     bool valid = false;
     FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
     Vec3 center = Vec3::Zero();
+    /// Center of the directly fitted ellipse (Halir-Flusser); coincides with
+    /// `center` for symmetric loops but not for asymmetric vertex sampling.
+    Vec3 ellipseCenter = Vec3::Zero();
     Vec3 normal = Vec3(0.0, 0.0, 1.0);
     Vec3 majorAxis = Vec3(1.0, 0.0, 0.0);
     Vec3 minorAxis = Vec3(0.0, 1.0, 0.0);

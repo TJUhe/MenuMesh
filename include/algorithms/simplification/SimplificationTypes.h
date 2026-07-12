@@ -135,15 +135,23 @@ struct SimplifyOptions {
 
 /// Diagnostics collected during simplification.
 ///
-/// Rejection counters describe the first hard filter that rejected a current
-/// collapse candidate. They are intended for parameter tuning and regression
-/// tests, not as independent totals of every failed subcheck.
+/// Rejection counters attribute each rejected collapse attempt to the first
+/// hard filter that rejected its first rejected placement candidate
+/// (placements are tried in cost order). They are intended for parameter
+/// tuning and regression tests, not as independent totals of every failed
+/// subcheck.
 struct SimplifyReport {
     // Mesh-size summary.
     int initialVertices = 0;
     int initialFaces = 0;
     int finalVertices = 0;
     int finalFaces = 0;
+    /// Input faces tolerated as degenerate (repeated vertex position or
+    /// numerically zero area). They contribute only the small point-quadric
+    /// fallback instead of a face quadric, and collapses that would keep a
+    /// degenerate face alive are rejected by the legality filters; the count
+    /// makes tolerated dirty input visible instead of failing the run.
+    int degenerateInputFaces = 0;
 
     // Queue and solve progress.
     int collapsedEdges = 0;
@@ -151,6 +159,8 @@ struct SimplifyReport {
     /// Number of current collapse candidates whose placement solve used fallback
     /// endpoint/midpoint candidates instead of a stable linear-system optimum.
     int solverFallbacks = 0;
+    /// Queue rebuilds triggered during the run by refills or stale-candidate
+    /// recovery. The initial queue construction is not counted.
     int queueRebuilds = 0;
 
     // Feature-analysis summary captured at run start.
@@ -199,6 +209,9 @@ struct SimplifyReport {
     // Texture-aware collapse diagnostics.
     int textureRejectedCollapses = 0;
     int textureProtectedEdges = 0;
+    /// Accepted collapses whose texture update plan could not be re-applied.
+    /// This indicates an internal inconsistency and should stay zero.
+    int textureApplyFailures = 0;
 };
 
 /// Parses a command/user string into a weight mode.

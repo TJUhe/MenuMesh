@@ -1,7 +1,14 @@
 #pragma once
 
+// Status/Result are the "data error" track of the ManuMesh error-handling
+// policy: valid calls on non-conforming input return a Status (or Result<T>)
+// instead of throwing; exceptions are reserved for API-contract violations
+// and never cross the C ABI. The full one-page decision table lives in
+// docs/design/error_handling_policy.md - consult it before adding any new
+// public entry point.
 #include "Export.h"
 
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -38,40 +45,39 @@ private:
 };
 
 /// Minimal value-or-status carrier for future APIs that avoid exceptions.
+///
+/// Values are stored in std::optional, so T is only constructed for success
+/// results and does not need to be default constructible.
 template <typename T> class Result {
 public:
     Result(const T& value)
         : value_(value),
-          status_(Status::success()),
-          hasValue_(true) {}
+          status_(Status::success()) {}
     Result(T&& value)
         : value_(std::move(value)),
-          status_(Status::success()),
-          hasValue_(true) {}
+          status_(Status::success()) {}
     Result(Status status)
-        : status_(std::move(status)),
-          hasValue_(false) {}
+        : status_(std::move(status)) {}
 
     bool ok() const { return status_.ok(); }
-    bool hasValue() const { return hasValue_; }
+    bool hasValue() const { return value_.has_value(); }
     const Status& status() const { return status_; }
     const T& value() const {
-        if (!hasValue_) {
+        if (!value_.has_value()) {
             throw std::logic_error(status_.message().empty() ? "Result has no value." : status_.message());
         }
-        return value_;
+        return *value_;
     }
     T& value() {
-        if (!hasValue_) {
+        if (!value_.has_value()) {
             throw std::logic_error(status_.message().empty() ? "Result has no value." : status_.message());
         }
-        return value_;
+        return *value_;
     }
 
 private:
-    T value_{};
+    std::optional<T> value_;
     Status status_;
-    bool hasValue_ = false;
 };
 
 } // namespace manumesh

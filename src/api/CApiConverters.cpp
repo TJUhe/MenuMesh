@@ -1,5 +1,6 @@
 #include "api/detail/CApiConverters.h"
 
+#include <cmath>
 #include <cstddef>
 #include <cstring>
 #include <limits>
@@ -8,6 +9,17 @@ namespace manumesh::api {
 namespace {
 
 bool boolFromInt(int value) { return value != 0; }
+
+// Copies a double option field after rejecting NaN/Inf, mirroring the CLI's
+// parseDoubleStrict behavior so both entry points accept the same inputs.
+bool readFiniteDouble(double value, const char* fieldName, double& target, std::string& error) {
+    if (!std::isfinite(value)) {
+        error = std::string("ManuMeshSimplifyOptions.") + fieldName + " must be a finite number.";
+        return false;
+    }
+    target = value;
+    return true;
+}
 
 template <typename T> void initializeAbiStruct(T& value) {
     value = T{};
@@ -204,37 +216,46 @@ bool readSimplifyOptions(
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, target_faces)) {
         target.targetFaces = source.target_faces;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, target_ratio)) {
-        target.targetRatio = source.target_ratio;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, target_ratio) &&
+        !readFiniteDouble(source.target_ratio, "target_ratio", target.targetRatio, error)) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, use_line_quadrics)) {
         target.useLineQuadrics = boolFromInt(source.use_line_quadrics);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, line_weight)) {
-        target.lineWeight = source.line_weight;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, line_weight) &&
+        !readFiniteDouble(source.line_weight, "line_weight", target.lineWeight, error)) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, weight_mode) &&
         !convertWeightMode(source.weight_mode, target.weightMode)) {
         error = "Unknown simplification weight mode.";
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_boost)) {
-        target.featureBoost = source.feature_boost;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_boost) &&
+        !readFiniteDouble(source.feature_boost, "feature_boost", target.featureBoost, error)) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_angle_deg)) {
-        target.featureAngleDeg = source.feature_angle_deg;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_angle_deg) &&
+        !readFiniteDouble(source.feature_angle_deg, "feature_angle_deg", target.featureAngleDeg, error)) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, loop_trace_angle_deg)) {
-        target.loopTraceAngleDeg = source.loop_trace_angle_deg;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, loop_trace_angle_deg) &&
+        !readFiniteDouble(source.loop_trace_angle_deg, "loop_trace_angle_deg", target.loopTraceAngleDeg, error)) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, adaptive_scale)) {
         target.adaptiveScale = boolFromInt(source.adaptive_scale);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, adaptive_base_line_weight)) {
-        target.adaptiveBaseLineWeight = source.adaptive_base_line_weight;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, adaptive_base_line_weight) &&
+        !readFiniteDouble(
+            source.adaptive_base_line_weight, "adaptive_base_line_weight", target.adaptiveBaseLineWeight, error
+        )) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, boundary_weight)) {
-        target.boundaryWeight = source.boundary_weight;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, boundary_weight) &&
+        !readFiniteDouble(source.boundary_weight, "boundary_weight", target.boundaryWeight, error)) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, preserve_boundary)) {
         target.preserveBoundary = boolFromInt(source.preserve_boundary);
@@ -247,20 +268,45 @@ bool readSimplifyOptions(
         error = "Unknown feature protection mode.";
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_curve_weight)) {
-        target.featureCurveWeight = source.feature_curve_weight;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_curve_weight) &&
+        !readFiniteDouble(source.feature_curve_weight, "feature_curve_weight", target.featureCurveWeight, error)) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_feature_curve_deviation_ratio)) {
-        target.maxFeatureCurveDeviationRatio = source.max_feature_curve_deviation_ratio;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_feature_curve_deviation_ratio) &&
+        !readFiniteDouble(
+            source.max_feature_curve_deviation_ratio,
+            "max_feature_curve_deviation_ratio",
+            target.maxFeatureCurveDeviationRatio,
+            error
+        )) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, circle_fit_relative_threshold)) {
-        target.circleFitRelativeThreshold = source.circle_fit_relative_threshold;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, circle_fit_relative_threshold) &&
+        !readFiniteDouble(
+            source.circle_fit_relative_threshold,
+            "circle_fit_relative_threshold",
+            target.circleFitRelativeThreshold,
+            error
+        )) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, ellipse_fit_relative_threshold)) {
-        target.ellipseFitRelativeThreshold = source.ellipse_fit_relative_threshold;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, ellipse_fit_relative_threshold) &&
+        !readFiniteDouble(
+            source.ellipse_fit_relative_threshold,
+            "ellipse_fit_relative_threshold",
+            target.ellipseFitRelativeThreshold,
+            error
+        )) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, near_circle_axis_ratio_tolerance)) {
-        target.nearCircleAxisRatioTolerance = source.near_circle_axis_ratio_tolerance;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, near_circle_axis_ratio_tolerance) &&
+        !readFiniteDouble(
+            source.near_circle_axis_ratio_tolerance,
+            "near_circle_axis_ratio_tolerance",
+            target.nearCircleAxisRatioTolerance,
+            error
+        )) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, min_feature_loop_vertices)) {
         target.minFeatureLoopVertices = source.min_feature_loop_vertices;
@@ -271,11 +317,23 @@ bool readSimplifyOptions(
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, use_normal_tensor_features)) {
         target.useNormalTensorFeatures = boolFromInt(source.use_normal_tensor_features);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_feature_threshold)) {
-        target.normalTensorFeatureThreshold = source.normal_tensor_feature_threshold;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_feature_threshold) &&
+        !readFiniteDouble(
+            source.normal_tensor_feature_threshold,
+            "normal_tensor_feature_threshold",
+            target.normalTensorFeatureThreshold,
+            error
+        )) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_min_edge_alignment)) {
-        target.normalTensorMinEdgeAlignment = source.normal_tensor_min_edge_alignment;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_min_edge_alignment) &&
+        !readFiniteDouble(
+            source.normal_tensor_min_edge_alignment,
+            "normal_tensor_min_edge_alignment",
+            target.normalTensorMinEdgeAlignment,
+            error
+        )) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_smoothing_iterations)) {
         target.normalTensorSmoothingIterations = source.normal_tensor_smoothing_iterations;
@@ -289,29 +347,47 @@ bool readSimplifyOptions(
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, cleanup_feature_graph)) {
         target.cleanupFeatureGraph = boolFromInt(source.cleanup_feature_graph);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_gap_length_ratio)) {
-        target.featureGraphGapLengthRatio = source.feature_graph_gap_length_ratio;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_gap_length_ratio) &&
+        !readFiniteDouble(
+            source.feature_graph_gap_length_ratio,
+            "feature_graph_gap_length_ratio",
+            target.featureGraphGapLengthRatio,
+            error
+        )) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_max_weak_spur_edges)) {
         target.featureGraphMaxWeakSpurEdges = source.feature_graph_max_weak_spur_edges;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_component_min_confidence)) {
-        target.featureComponentMinConfidence = source.feature_component_min_confidence;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_component_min_confidence) &&
+        !readFiniteDouble(
+            source.feature_component_min_confidence,
+            "feature_component_min_confidence",
+            target.featureComponentMinConfidence,
+            error
+        )) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, quality_refinement_iterations)) {
         target.qualityRefinementIterations = source.quality_refinement_iterations;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, min_triangle_quality)) {
-        target.minTriangleQuality = source.min_triangle_quality;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, min_triangle_quality) &&
+        !readFiniteDouble(source.min_triangle_quality, "min_triangle_quality", target.minTriangleQuality, error)) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_normal_deviation_deg)) {
-        target.maxNormalDeviationDeg = source.max_normal_deviation_deg;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_normal_deviation_deg) &&
+        !readFiniteDouble(
+            source.max_normal_deviation_deg, "max_normal_deviation_deg", target.maxNormalDeviationDeg, error
+        )) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_local_error)) {
-        target.maxLocalError = source.max_local_error;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_local_error) &&
+        !readFiniteDouble(source.max_local_error, "max_local_error", target.maxLocalError, error)) {
+        return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_local_error_ratio)) {
-        target.maxLocalErrorRatio = source.max_local_error_ratio;
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, max_local_error_ratio) &&
+        !readFiniteDouble(source.max_local_error_ratio, "max_local_error_ratio", target.maxLocalErrorRatio, error)) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, prevent_local_intersections)) {
         target.preventLocalIntersections = boolFromInt(source.prevent_local_intersections);
@@ -398,9 +474,10 @@ void fillSimplifyReport(const simplification::SimplifyReport& source, ManuMeshSi
     MANUMESH_SET_REPORT_FIELD(
         target, writeSize, quality_refinement_accepted_moves, source.qualityRefinementAcceptedMoves
     );
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, degenerate_input_faces, source.degenerateInputFaces);
 }
 
-void fillMeshStats(const simplification::MeshStats& source, ManuMeshMeshStats& target) {
+void fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStats& target) {
     const std::size_t writeSize = outputWriteSizeOrCurrent(target);
     initializeOutputAbiStruct(target, writeSize);
     MANUMESH_SET_STATS_FIELD(target, writeSize, vertices, source.vertices);

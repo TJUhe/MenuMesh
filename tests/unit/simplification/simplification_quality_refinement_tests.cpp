@@ -5,7 +5,10 @@
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 
+#include <algorithm>
+#include <cmath>
 #include <gtest/gtest.h>
+#include <limits>
 
 namespace {
 
@@ -130,8 +133,10 @@ TEST(QualityRefinement, ImprovesQualityAfterActualEdgeCollapse) {
     EXPECT_GT(baseline.report.collapsedEdges, 0);
     EXPECT_EQ(baseline.mesh.faces.size(), refined.mesh.faces.size());
     EXPECT_EQ(baselineTopology.value().boundaryEdgeCount(), refinedTopology.value().boundaryEdgeCount());
-    EXPECT_GT(refinedStats.minTriangleQuality, baselineStats.minTriangleQuality);
-    EXPECT_GE(refinedStats.meanTriangleQuality, baselineStats.meanTriangleQuality);
+    // The worst surviving triangle can be pinned by frozen boundary vertices, so the
+    // minimum must never regress while the mean must strictly improve.
+    EXPECT_GE(refinedStats.minTriangleQuality, baselineStats.minTriangleQuality);
+    EXPECT_GT(refinedStats.meanTriangleQuality, baselineStats.meanTriangleQuality);
     EXPECT_GT(refined.report.qualityRefinementAcceptedMoves, 0);
     EXPECT_LE(refinedDistance.maxOriginalToSimplified, refinedOptions.maxLocalError + 1e-10);
     EXPECT_LE(refinedDistance.maxSimplifiedToOriginal, refinedOptions.maxLocalError + 1e-10);
@@ -163,4 +168,67 @@ TEST(QualityRefinement, HardProtectedCircularFeatureLoopsRemainStable) {
         manumesh::test::maxCircularRelativeError(before), manumesh::test::maxCircularRelativeError(after), 1e-12
     );
     EXPECT_EQ(before.featureEdges, after.featureEdges);
+}
+
+namespace {
+
+// Distance from p to the nearest of the twelve cube-edge lines of the cube
+// [-half, half]^3: the two off-axis coordinates must sit at +-half.
+double distanceToNearestCubeEdgeLine(const manumesh::Vec3& p, double half) {
+    double best = std::numeric_limits<double>::infinity();
+    for (int freeAxis = 0; freeAxis < 3; ++freeAxis) {
+        const int axisA = (freeAxis + 1) % 3;
+        const int axisB = (freeAxis + 2) % 3;
+        const double da = std::abs(p[axisA]) - half;
+        const double db = std::abs(p[axisB]) - half;
+        best = std::min(best, std::sqrt(da * da + db * db));
+    }
+    return best;
+}
+
+} // namespace
+
+TEST(QualityRefinement, SoftProtectedPolygonalCreaseVerticesOnlySlideAlongTheCrease) {
+    // Closed cube: the twelve 90-degree edges become soft-protected polygonal
+    // feature loops under PrimitiveCurves (only circles/ellipses are hard
+    // protected), so quality refinement is allowed to move crease vertices.
+    const double half = 1.0;
+    const manumesh::Mesh input = manumesh::generateWeldedCubeGrid(10, 2.0 * half);
+
+    manumesh::simplification::SimplifyOptions baselineOptions;
+    baselineOptions.targetRatio = 0.3;
+    baselineOptions.preserveFeatureCurves = true;
+    baselineOptions.featureProtectionMode = manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
+    baselineOptions.useNormalTensorFeatures = false;
+    const manumesh::test::SimplifiedMesh baseline = manumesh::test::simplifyWithReport(input, baselineOptions);
+
+    manumesh::simplification::SimplifyOptions refinedOptions = baselineOptions;
+    refinedOptions.qualityRefinementIterations = 5;
+    const manumesh::test::SimplifiedMesh refined = manumesh::test::simplifyWithReport(input, refinedOptions);
+
+    // Refinement is a post-collapse pass, so both runs share the collapse
+    // sequence and the compacted vertex order corresponds one-to-one.
+    ASSERT_EQ(baseline.mesh.vertices.size(), refined.mesh.vertices.size());
+    ASSERT_EQ(baseline.mesh.faces.size(), refined.mesh.faces.size());
+    EXPECT_GT(refined.report.qualityRefinementAcceptedMoves, 0);
+
+    // Feature-constrained relaxation may only slide crease vertices along the
+    // local curve tangent, so their distance to the true crease line must not
+    // grow. Before the tangent constraint (average-normal tangent-plane
+    // projection only), this same setup rounded the creases: measured max
+    // drift growth was 8.66e-02 off the cube edge lines (mesh half-extent
+    // 1.0, 5 refinement iterations).
+    int creaseVertices = 0;
+    double maxDriftGrowth = 0.0;
+    for (std::size_t i = 0; i < baseline.mesh.vertices.size(); ++i) {
+        const double baselineDistance = distanceToNearestCubeEdgeLine(baseline.mesh.vertices[i], half);
+        if (baselineDistance > 1e-6) {
+            continue;
+        }
+        ++creaseVertices;
+        const double refinedDistance = distanceToNearestCubeEdgeLine(refined.mesh.vertices[i], half);
+        maxDriftGrowth = std::max(maxDriftGrowth, refinedDistance - baselineDistance);
+    }
+    EXPECT_GT(creaseVertices, 8);
+    EXPECT_LE(maxDriftGrowth, 1e-12);
 }

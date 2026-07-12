@@ -17,7 +17,7 @@ src/common/detail/SpatialIndex.h        CellCoord、hash、UniformAabbCandidateG
 src/common/SpatialIndex.cpp             SpatialIndex 实现
 ```
 
-这些能力已经被 feature detection 和 simplification 共享，或已经从 simplification 的私有实现迁入 common。`SpatialFaceIndex` 现在只负责把 simplification 的 `FaceState`/`VertexState` 转成 AABB，真正的候选网格由 `UniformAabbCandidateGrid` 维护。`Metrics.cpp` 只负责采样和指标汇总，点到 mesh 表面的 BVH 距离查询由 `MeshDistanceIndex` 承担。
+这些能力已经被 feature detection 和 simplification 共享，或已经从 simplification 的私有实现迁入 common。`SpatialFaceIndex` 现在只负责把 simplification 的 `FaceState`/`VertexState` 转成 AABB，真正的候选网格由 `UniformAabbCandidateGrid` 维护。通用网格统计与双 mesh 采样距离比较已上浮为 `manumesh::analysis` 模块（`src/analysis/MeshAnalysis.cpp`），点到 mesh 表面的 BVH 距离查询由 `MeshDistanceIndex` 承担。数学常量的正典位置是 `include/core/MathConstants.h`（`kPi`），`src/common/detail/MathConstants.h` 只保留转发别名。common 的命名空间是 `manumesh::common`（由 `manumesh::detail` 改名，过渡别名保留一个 minor 版本）。
 
 后续新增模块应优先检查 common 是否已有能力，再决定是否新增私有 helper。common 测试越扎实，算法模块越容易只测试策略行为。
 
@@ -43,7 +43,7 @@ src/common/SpatialIndex.cpp             SpatialIndex 实现
 common 头文件偏向小函数、小结构、无隐藏全局状态：
 
 ```cpp
-namespace manumesh::detail {
+namespace manumesh::common {
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c);
 std::pair<Vec3, Vec3> triangleAabb(const std::array<Vec3, 3>& tri, double padding = 0.0);
@@ -63,7 +63,7 @@ public:
     std::vector<int> queryCandidates(const Vec3& lo, const Vec3& hi) const;
 };
 
-} // namespace manumesh::detail
+} // namespace manumesh::common
 ```
 
 不要把 `SimplifyOptions`、`RepairOptions` 或其他算法 options 传进 common。common 只处理通用数据；阈值、策略和报告解释留在调用模块。
@@ -92,7 +92,7 @@ public:
 
 ## 自动化守卫
 
-`tests/support/check_include_boundaries.py` 会作为 CTest 的 `include_boundaries` 运行。脚本用一张集中定义的模块依赖表约束 `core`、`common`、`io`、`feature_detection`、`simplification`、`api` 和 `debugUtil`，并守住这些底线：
+`tests/support/check_include_boundaries.py` 会作为 CTest 的 `include_boundaries` 运行。脚本用一张集中定义的模块依赖表约束 `core`、`common`、`io`、`mesh_edit`、`analysis`、`feature_detection`、`simplification`、`api` 和 `debugUtil`，并守住这些底线：
 
 - `include/`、`apps/`、`examples/` 不能 include 私有 `src/.../detail` 或 `common/detail`。
 - `src/common/` 不能依赖 feature detection 或 simplification。

@@ -19,7 +19,7 @@ public:
 private:
     void insertFace(int faceId, const FaceState& face, const std::vector<VertexState>& vertices);
 
-    manumesh::detail::UniformAabbCandidateGrid grid_;
+    manumesh::common::UniformAabbCandidateGrid grid_;
 };
 
 } // namespace manumesh::simplification

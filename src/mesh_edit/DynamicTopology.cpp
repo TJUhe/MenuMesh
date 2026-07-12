@@ -19,12 +19,17 @@ DynamicTopology::DynamicTopology(const std::vector<EditableFace>& faces, int ver
 }
 
 void DynamicTopology::addFace(int faceId, const EditableFace& face) {
+    // Reject faces with any out-of-range vertex entirely so vertexFaces and
+    // facesByKey never disagree about which faces are registered.
     for (int vertex : face.v) {
-        if (vertex >= 0 && vertex < static_cast<int>(vertexFaces.size())) {
-            vertexFaces[vertex].insert(faceId);
+        if (vertex < 0 || vertex >= static_cast<int>(vertexFaces.size())) {
+            return;
         }
     }
-    facesByKey[detail::sortedFaceKey(face.v)].insert(faceId);
+    for (int vertex : face.v) {
+        vertexFaces[vertex].insert(faceId);
+    }
+    facesByKey[common::sortedFaceKey(face.v)].insert(faceId);
 }
 
 void DynamicTopology::removeFace(int faceId, const EditableFace& face) {
@@ -33,7 +38,7 @@ void DynamicTopology::removeFace(int faceId, const EditableFace& face) {
             vertexFaces[vertex].erase(faceId);
         }
     }
-    const auto key = detail::sortedFaceKey(face.v);
+    const auto key = common::sortedFaceKey(face.v);
     auto it = facesByKey.find(key);
     if (it == facesByKey.end()) {
         return;
@@ -45,7 +50,7 @@ void DynamicTopology::removeFace(int faceId, const EditableFace& face) {
 }
 
 bool DynamicTopology::hasDuplicateFace(int faceId, const EditableFace& face) const {
-    const auto it = facesByKey.find(detail::sortedFaceKey(face.v));
+    const auto it = facesByKey.find(common::sortedFaceKey(face.v));
     if (it == facesByKey.end()) {
         return false;
     }
@@ -70,7 +75,7 @@ std::vector<std::pair<int, int>> collectActiveEdges(const std::vector<EditableFa
             if (a == b) {
                 continue;
             }
-            const std::uint64_t key = detail::meshEdgeKey(a, b);
+            const std::uint64_t key = common::meshEdgeKey(a, b);
             if (seen.insert(key).second) {
                 if (a > b) {
                     std::swap(a, b);

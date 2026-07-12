@@ -2,7 +2,6 @@
 
 #include "CliCommands.h"
 #include "CliCsv.h"
-#include "ManuMeshFeatureCommands.h"
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
 
@@ -23,7 +22,16 @@ void runRegisteredCommand(const std::string& name, const Args& args) {
     const auto handler = commandRegistry().find(name);
     if (handler == commandRegistry().end())
         throw std::logic_error("CLI workflow references unregistered command: " + name);
-    handler->second(args);
+    // Internally constructed Args must pass the same per-command option
+    // validation as user input so option typos in workflows are not silently
+    // ignored.
+    validateArgsForCommand(name, args);
+    const int code = handler->second(args);
+    if (code != 0) {
+        throw std::runtime_error(
+            "CLI workflow subcommand '" + name + "' failed with exit code " + std::to_string(code)
+        );
+    }
 }
 
 Args makeArgs(std::initializer_list<std::string> values) {
@@ -96,7 +104,7 @@ void runFeatureReport(const fs::path& input, std::initializer_list<std::string> 
     Args args;
     args.values.push_back(pathString(input));
     args.values.insert(args.values.end(), options.begin(), options.end());
-    manumesh::cli::feature_commands::report(args);
+    runRegisteredCommand("feature-report", args);
 }
 
 void runFeatureCompare(
@@ -106,7 +114,7 @@ void runFeatureCompare(
     args.values.push_back(pathString(original));
     args.values.push_back(pathString(simplified));
     args.values.insert(args.values.end(), options.begin(), options.end());
-    manumesh::cli::feature_commands::compare(args);
+    runRegisteredCommand("feature-compare", args);
 }
 
 void runSummarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {

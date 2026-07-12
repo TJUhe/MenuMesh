@@ -8,7 +8,7 @@ option(MANUMESH_DOXYGEN_ENABLE_GRAPHS
 )
 option(MANUMESH_INSTALL_CMAKE_CONFIG
   "Install optional CMake config files for CMake consumers"
-  OFF
+  ON
 )
 
 find_program(CLANG_FORMAT_EXE NAMES clang-format)
@@ -189,45 +189,47 @@ if(MANUMESH_ENABLE_INSTALL)
     VERBATIM
   )
 
-  set(MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS
-    "-S" "${PROJECT_SOURCE_DIR}/examples/sdk_consumer"
-    "-B" "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
-    "-G" "${CMAKE_GENERATOR}"
-    "-DMANUMESH_SDK_ROOT=${MANUMESH_LOCAL_SDK_PREFIX}"
-    "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
-    "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-  )
-  if(CMAKE_GENERATOR_PLATFORM)
-    list(APPEND MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS "-A" "${CMAKE_GENERATOR_PLATFORM}")
-  endif()
-  if(CMAKE_GENERATOR_TOOLSET)
-    list(APPEND MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS "-T" "${CMAKE_GENERATOR_TOOLSET}")
-  endif()
-  if(NOT CMAKE_CONFIGURATION_TYPES)
-    list(APPEND MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS
-      "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+  if(MANUMESH_INSTALL_CMAKE_CONFIG)
+    set(MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS
+      "-S" "${PROJECT_SOURCE_DIR}/examples/sdk_consumer"
+      "-B" "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
+      "-G" "${CMAKE_GENERATOR}"
+      "-DMANUMESH_SDK_ROOT=${MANUMESH_LOCAL_SDK_PREFIX}"
+      "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+      "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
     )
-  endif()
+    if(CMAKE_GENERATOR_PLATFORM)
+      list(APPEND MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS "-A" "${CMAKE_GENERATOR_PLATFORM}")
+    endif()
+    if(CMAKE_GENERATOR_TOOLSET)
+      list(APPEND MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS "-T" "${CMAKE_GENERATOR_TOOLSET}")
+    endif()
+    if(NOT CMAKE_CONFIGURATION_TYPES)
+      list(APPEND MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS
+        "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+      )
+    endif()
 
-  add_custom_target(sdk-consumer-test
-    COMMAND "${CMAKE_COMMAND}" -E remove_directory "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
-    COMMAND "${CMAKE_COMMAND}" ${MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS}
-    COMMAND "${CMAKE_COMMAND}" --build "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
-      --config "$<CONFIG>"
-      --parallel
-    COMMAND "${CMAKE_COMMAND}" -E chdir "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
-      "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
-      --output-on-failure
-    DEPENDS sdk-install-local
-    COMMENT "Building and running examples against the installed SDK"
-    VERBATIM
-  )
-
-  if(BUILD_TESTING)
-    add_test(NAME sdk_consumer_examples
-      COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}"
+    add_custom_target(sdk-consumer-test
+      COMMAND "${CMAKE_COMMAND}" -E remove_directory "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
+      COMMAND "${CMAKE_COMMAND}" ${MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS}
+      COMMAND "${CMAKE_COMMAND}" --build "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
         --config "$<CONFIG>"
-        --target sdk-consumer-test
+        --parallel
+      COMMAND "${CMAKE_COMMAND}" -E chdir "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
+        "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
+        --output-on-failure
+      DEPENDS sdk-install-local
+      COMMENT "Building and running examples against the installed SDK"
+      VERBATIM
     )
+
+    if(BUILD_TESTING)
+      add_test(NAME sdk_consumer_examples
+        COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}"
+          --config "$<CONFIG>"
+          --target sdk-consumer-test
+      )
+    endif()
   endif()
 endif()

@@ -7,7 +7,7 @@
 
 namespace manumesh::simplification {
 
-using manumesh::detail::kPi;
+using manumesh::common::kPi;
 
 int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
     if (targetFaces > 0) {

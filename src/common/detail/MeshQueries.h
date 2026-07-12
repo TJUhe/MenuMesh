@@ -1,14 +1,16 @@
 #pragma once
 
 #include "core/Mesh.h"
+#include "core/MeshTopology.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-namespace manumesh::detail {
+namespace manumesh::common {
 
 /// Adjacent face list for one undirected mesh edge.
 struct MeshEdgeInfo {
@@ -18,7 +20,11 @@ struct MeshEdgeInfo {
 using MeshEdgeInfoMap = std::unordered_map<std::uint64_t, MeshEdgeInfo>;
 
 /// Packs an undirected vertex pair into a stable integer key.
-std::uint64_t meshEdgeKey(int a, int b);
+///
+/// Kept as an inline forwarder to the core topologyEdgeKey so every module
+/// shares one packing scheme; existing common::meshEdgeKey callers keep
+/// working unchanged.
+inline std::uint64_t meshEdgeKey(int a, int b) { return topologyEdgeKey(a, b); }
 
 /// Unpacks a key created by meshEdgeKey.
 std::pair<int, int> unpackMeshEdgeKey(std::uint64_t key);
@@ -40,6 +46,10 @@ std::vector<Vec3> computeFaceNormals(const Mesh& mesh);
 Vec3 faceCentroid(const Mesh& mesh, const Face& face);
 
 /// Builds deduplicated one-ring vertex adjacency.
+///
+/// Each per-vertex neighbor list is sorted ascending, which keeps iteration
+/// order (and therefore floating-point reduction order) deterministic across
+/// platforms and standard-library implementations.
 std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh);
 
 /// Computes the average incident edge length per vertex.
@@ -51,4 +61,11 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh);
 /// Marks vertices incident to boundary edges.
 std::vector<char> computeBoundaryVertices(const Mesh& mesh);
 
-} // namespace manumesh::detail
+} // namespace manumesh::common
+
+namespace manumesh {
+// Transitional alias: manumesh::detail was renamed to manumesh::common
+// (architecture v2, R6). New code must use manumesh::common; this alias is
+// removed after one minor version.
+namespace detail = common;
+} // namespace manumesh

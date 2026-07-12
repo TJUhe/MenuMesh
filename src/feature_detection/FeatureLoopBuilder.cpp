@@ -6,7 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <sstream>
+#include <unordered_set>
 
 namespace manumesh::feature::detector_detail {
 namespace {
@@ -46,18 +46,27 @@ bool cycleHasUniqueVertices(const std::vector<int>& vertices) {
 
 } // namespace
 
-std::string cycleSignature(const std::vector<int>& vertices) {
-    std::vector<std::uint64_t> keys;
+std::size_t CycleSignatureHash::operator()(const CycleSignature& signature) const {
+    // FNV-1a over the sorted edge keys; the vector itself is the exact
+    // identity, the hash only spreads buckets.
+    std::uint64_t hash = 1469598103934665603ull;
+    for (std::uint64_t key : signature) {
+        for (int shift = 0; shift < 64; shift += 8) {
+            hash ^= (key >> shift) & 0xffull;
+            hash *= 1099511628211ull;
+        }
+    }
+    return static_cast<std::size_t>(hash);
+}
+
+CycleSignature cycleSignature(const std::vector<int>& vertices) {
+    CycleSignature keys;
     keys.reserve(vertices.size());
     for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
-        keys.push_back(manumesh::detail::meshEdgeKey(vertices[i], vertices[(i + 1) % vertices.size()]));
+        keys.push_back(manumesh::common::meshEdgeKey(vertices[i], vertices[(i + 1) % vertices.size()]));
     }
     std::sort(keys.begin(), keys.end());
-    std::ostringstream out;
-    for (std::uint64_t key : keys) {
-        out << key << ';';
-    }
-    return out.str();
+    return keys;
 }
 
 void assignLoopToVertices(
@@ -78,7 +87,13 @@ void assignLoopToVertices(
             vf.circular = loop.circular;
             vf.primitive = loop.primitive;
         }
-        vf.junction = vf.junction || alreadyFeature || adjacency[id].size() != 2;
+        // Per-vertex protection flag: true branch points (degree > 2) and
+        // vertices shared between recovered loops are pinned; a degree-1
+        // chain endpoint is not. Loop sharing stays in this flag because the
+        // simplification layer must not collapse a curve that several
+        // recovered loops depend on. Topological junction reporting is
+        // stricter (graph valence only) -- see finalizeFeatureGraphMarkers.
+        vf.junction = vf.junction || alreadyFeature || adjacency[id].size() > 2;
         if (loop.circular && (!alreadyFeature || !vf.circular)) {
             vf.loopId = loop.id;
             vf.circular = true;
@@ -165,7 +180,7 @@ void addTracedLoop(
 bool addRecoveredCycle(
     RecoveredCycleKind kind,
     std::vector<int> vertices,
-    std::unordered_set<std::string>& seenCycles,
+    CycleSignatureSet& seenCycles,
     const Mesh& mesh,
     const FeatureOptions& options,
     const TraceGraph& trace,
@@ -175,8 +190,7 @@ bool addRecoveredCycle(
     if (static_cast<int>(vertices.size()) < options.minFeatureLoopVertices || !cycleHasUniqueVertices(vertices)) {
         return false;
     }
-    const std::string signature = cycleSignature(vertices);
-    if (!seenCycles.insert(signature).second) {
+    if (!seenCycles.insert(cycleSignature(vertices)).second) {
         return false;
     }
 
@@ -186,30 +200,34 @@ bool addRecoveredCycle(
     for (int i = 0; i < static_cast<int>(vertices.size()); ++i) {
         const int a = vertices[i];
         const int b = vertices[(i + 1) % vertices.size()];
-        if (traceEdgeBoundary(trace, a, b)) {
+        const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+        if (attrs == nullptr) {
+            ++stats.unknownSignedEdges;
+            continue;
+        }
+        if (attrs->boundary) {
             ++stats.boundaryEdges;
         }
-        if (traceEdgeDihedral(trace, a, b)) {
+        if (attrs->dihedral) {
             ++stats.dihedralEdges;
         }
-        if (traceEdgeNormalTensor(trace, a, b)) {
+        if (attrs->normalTensor) {
             ++stats.normalTensorEdges;
         }
-        if (traceEdgeSmoothCurvature(trace, a, b)) {
+        if (attrs->smoothCurvature) {
             ++stats.smoothCurvatureEdges;
         }
-        if (traceEdgeNonManifold(trace, a, b)) {
+        if (attrs->nonManifold) {
             ++stats.nonManifoldEdges;
         }
-        if (traceEdgeCleanupBridge(trace, a, b)) {
+        if (attrs->cleanupBridge) {
             ++stats.cleanupBridgeEdges;
         }
-        const int sign = traceEdgeSign(trace, a, b);
-        if (sign > 0)
+        if (attrs->signedKind > 0)
             ++stats.convexEdges;
-        if (sign < 0)
+        if (attrs->signedKind < 0)
             ++stats.concaveEdges;
-        if (sign == 0 && !traceEdgeBoundary(trace, a, b)) {
+        if (attrs->signedKind == 0 && !attrs->boundary) {
             ++stats.unknownSignedEdges;
         }
     }

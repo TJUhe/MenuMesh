@@ -15,10 +15,22 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace manumesh::debugUtil {
 namespace {
@@ -129,6 +141,18 @@ void writeJsonString(std::ostream& out, const std::string& value) {
         case '\t':
             out << "\\t";
             break;
+        // The JSON is embedded in an inline <script> block, so escape HTML
+        // metacharacters too; a raw "</script>" inside a label would otherwise
+        // terminate the script element early.
+        case '<':
+            out << "\\u003c";
+            break;
+        case '>':
+            out << "\\u003e";
+            break;
+        case '&':
+            out << "\\u0026";
+            break;
         default:
             if (ch < 0x20) {
                 out << "\\u" << std::hex << std::setw(4) << std::setfill('0') << static_cast<int>(ch) << std::dec
@@ -164,8 +188,10 @@ void writeHtmlText(std::ostream& out, const std::string& value) {
     }
 }
 
-void appendBaseEdges(const Mesh& mesh, UseCase useCase, std::vector<RenderEdge>& edges) {
-    for (const auto& [a, b] : uniqueEdges(mesh)) {
+void appendBaseEdges(
+    const Mesh& mesh, const std::vector<std::pair<int, int>>& meshEdges, UseCase useCase, std::vector<RenderEdge>& edges
+) {
+    for (const auto& [a, b] : meshEdges) {
         if (validEdge(mesh, a, b)) {
             const PaletteEntry& entry = palette(useCase);
             edges.push_back({a, b, useCase, {}, entry.width});
@@ -209,13 +235,14 @@ void appendTranslatedMesh(Mesh& combined, const Mesh& source, const Vec3& center
 
 void appendMeshEdges(
     const Mesh& mesh,
+    const std::vector<std::pair<int, int>>& meshEdges,
     int vertexOffset,
     UseCase useCase,
     std::vector<RenderEdge>& edges,
     const char* firstLabel = nullptr
 ) {
     bool labeled = false;
-    for (const auto& [a, b] : uniqueEdges(mesh)) {
+    for (const auto& [a, b] : meshEdges) {
         if (!validEdge(mesh, a, b)) {
             continue;
         }
@@ -435,32 +462,130 @@ bool envFlagEnabled(const char* name, bool defaultValue) {
     return value != "0" && value != "false" && value != "off" && value != "no";
 }
 
+#if !defined(_WIN32)
+// Conservative allow-list for paths interpolated into a quoted shell command.
+// Rejects anything that could expand or terminate the quoting ($, backticks,
+// ;, quotes, backslashes, ...).
+bool shellSafePath(const std::string& path) {
+    for (char ch : path) {
+        const auto uch = static_cast<unsigned char>(ch);
+        if (std::isalnum(uch)) {
+            continue;
+        }
+        switch (ch) {
+        case '/':
+        case '.':
+        case '-':
+        case '_':
+        case '+':
+        case ',':
+        case '~':
+        case ':':
+        case '@':
+        case ' ':
+            continue;
+        default:
+            return false;
+        }
+    }
+    return true;
+}
+#endif
+
+// Maximum number of lines written into one HTML snapshot. Large meshes are
+// uniformly sampled down to this cap so debug output stays loadable. Override
+// with MANUMESH_DEBUG_UTIL_MAX_EDGES; values <= 0 disable the cap.
+std::size_t maxRenderEdges() {
+    constexpr long kDefaultMaxEdges = 200000;
+    long limit = kDefaultMaxEdges;
+    if (const char* raw = std::getenv("MANUMESH_DEBUG_UTIL_MAX_EDGES")) {
+        if (raw[0] != '\0') {
+            char* end = nullptr;
+            const long parsed = std::strtol(raw, &end, 10);
+            if (end != raw && *end == '\0') {
+                limit = parsed;
+            }
+        }
+    }
+    if (limit <= 0) {
+        return std::numeric_limits<std::size_t>::max();
+    }
+    return static_cast<std::size_t>(limit);
+}
+
+void capEdgesForOutput(std::vector<RenderEdge>& edges, std::vector<std::string>& summaryLines) {
+    const std::size_t limit = maxRenderEdges();
+    if (edges.size() <= limit) {
+        return;
+    }
+    const std::size_t total = edges.size();
+    std::vector<RenderEdge> sampled;
+    sampled.reserve(limit);
+    for (std::size_t i = 0; i < limit; ++i) {
+        const auto index = static_cast<std::size_t>(static_cast<unsigned long long>(i) * total / limit);
+        sampled.push_back(std::move(edges[index]));
+    }
+    edges = std::move(sampled);
+    summaryLines.push_back(
+        "sampled " + std::to_string(limit) + " of " + std::to_string(total) +
+        " edges (override with MANUMESH_DEBUG_UTIL_MAX_EDGES)"
+    );
+}
+
 void openBrowser(const std::filesystem::path& path) {
     if (!envFlagEnabled("MANUMESH_DEBUG_UTIL_OPEN", true)) {
         return;
     }
 
-    std::string pathString = path.string();
-    pathString.erase(std::remove(pathString.begin(), pathString.end(), '"'), pathString.end());
-
 #if defined(_WIN32)
-    const std::string command = "start \"\" \"" + pathString + "\"";
-#elif defined(__APPLE__)
+    // ShellExecuteW takes the document path verbatim, so no shell command line
+    // is built and the path cannot inject commands. shell32 is loaded lazily to
+    // avoid a hard link dependency for this debug-only utility.
+    using ShellExecuteWFn = HINSTANCE(WINAPI*)(HWND, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, INT);
+    const HMODULE shell32 = ::LoadLibraryW(L"shell32.dll");
+    if (!shell32) {
+        std::cerr << "manumesh debugUtil: cannot load shell32.dll to open the browser; open " << path.string()
+                  << " manually\n";
+        return;
+    }
+    const auto shellExecuteW =
+        reinterpret_cast<ShellExecuteWFn>(reinterpret_cast<void*>(::GetProcAddress(shell32, "ShellExecuteW")));
+    if (shellExecuteW) {
+        (void)shellExecuteW(nullptr, L"open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    } else {
+        std::cerr << "manumesh debugUtil: ShellExecuteW unavailable; open " << path.string() << " manually\n";
+    }
+    ::FreeLibrary(shell32);
+#else
+    const std::string pathString = path.string();
+    // The command below goes through std::system, so only allow paths made of
+    // characters that cannot break out of the double quotes or expand.
+    if (!shellSafePath(pathString)) {
+        std::cerr << "manumesh debugUtil: output path contains shell metacharacters; open " << pathString
+                  << " manually\n";
+        return;
+    }
+#if defined(__APPLE__)
     const std::string command = "open \"" + pathString + "\"";
 #else
     const std::string command = "xdg-open \"" + pathString + "\"";
 #endif
     (void)std::system(command.c_str());
+#endif
 }
 
 void render(const char* tag, const Mesh& mesh, const std::vector<EdgeOverlay>& overlays, UseCase baseUseCase) {
+    const std::vector<std::pair<int, int>> meshEdges = uniqueEdges(mesh);
     std::vector<RenderEdge> edges;
-    edges.reserve(uniqueEdges(mesh).size() + overlays.size());
-    appendBaseEdges(mesh, baseUseCase, edges);
+    edges.reserve(meshEdges.size() + overlays.size());
+    appendBaseEdges(mesh, meshEdges, baseUseCase, edges);
     appendOverlays(mesh, overlays, edges);
 
+    std::vector<std::string> summaryLines;
+    capEdgesForOutput(edges, summaryLines);
+
     const std::filesystem::path path = makeOutputPath(tag);
-    writeHtml(path, tag, mesh, edges);
+    writeHtml(path, tag, mesh, edges, summaryLines);
     std::cerr << "manumesh debugUtil: " << path.string() << "\n";
     openBrowser(path);
 }
@@ -483,8 +608,8 @@ void renderBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) {
     const std::vector<std::pair<int, int>> beforeEdges = uniqueEdges(before);
     const std::vector<std::pair<int, int>> afterEdges = uniqueEdges(after);
     edges.reserve(beforeEdges.size() + afterEdges.size());
-    appendMeshEdges(before, 0, UseCase::Mesh, edges, "before");
-    appendMeshEdges(after, afterVertexOffset, UseCase::Accepted, edges, "after");
+    appendMeshEdges(before, beforeEdges, 0, UseCase::Mesh, edges, "before");
+    appendMeshEdges(after, afterEdges, afterVertexOffset, UseCase::Accepted, edges, "after");
 
     std::vector<std::string> summaryLines;
     summaryLines.push_back(
@@ -495,6 +620,7 @@ void renderBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) {
         "after: vertices=" + std::to_string(after.vertices.size()) + " faces=" + std::to_string(after.faces.size()) +
         " edges=" + std::to_string(afterEdges.size())
     );
+    capEdgesForOutput(edges, summaryLines);
 
     const std::filesystem::path path = makeOutputPath(tag);
     writeHtml(path, tag, combined, edges, summaryLines);

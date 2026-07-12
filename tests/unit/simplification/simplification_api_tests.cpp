@@ -64,6 +64,30 @@ TEST(ManuMesh, SimplificationNamespaceApiIsProjectScoped) {
     EXPECT_EQ(output.faces.size(), plainOutput.faces.size());
 }
 
+TEST(ManuMesh, LegacyMetricsApiForwardsToAnalysisDuringMigration) {
+    const manumesh::Mesh mesh = manumesh::generatePlaneGrid(2, 1.0, false);
+
+    const simplification::MeshStats legacy = simplification::computeMeshStats(mesh);
+    const manumesh::analysis::MeshStats current = manumesh::analysis::computeMeshStats(mesh);
+    EXPECT_EQ(current.vertices, legacy.vertices);
+    EXPECT_EQ(current.faces, legacy.faces);
+    EXPECT_EQ(current.edges, legacy.edges);
+    EXPECT_DOUBLE_EQ(current.area, legacy.area);
+
+    const simplification::DistanceStats distance =
+        simplification::compareMeshesBySampledDistance(mesh, mesh, 16);
+    EXPECT_DOUBLE_EQ(0.0, distance.maxOriginalToSimplified);
+    EXPECT_EQ(
+        "label,vertices,faces,edges,boundary_edges,non_manifold_edges,area,"
+        "mean_triangle_quality,min_triangle_quality,mean_edge_length,"
+        "edge_length_cv,mean_orig_to_simp,max_orig_to_simp,"
+        "mean_simp_to_orig,max_simp_to_orig",
+        simplification::statsHeaderCsv()
+    );
+    const std::string row = simplification::statsRowCsv("plane", legacy, &distance);
+    EXPECT_EQ(15u, static_cast<std::size_t>(std::count(row.begin(), row.end(), ',') + 1));
+}
+
 TEST(ManuMesh, PlainMeshRoundTripsWithoutEigenInExchangeType) {
     manumesh::PlainMesh plain;
     plain.vertices = {

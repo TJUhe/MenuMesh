@@ -1,10 +1,12 @@
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"
+#include "detail/FeatureDetectionCache.h"
 #include "detail/FeatureDetectionTypes.h"
 #include "detail/FeatureEvidence.h"
 #include "detail/FeatureGraph.h"
 #include "detail/FeatureGraphCleanup.h"
+#include "detail/FeatureInputValidation.h"
 #include "detail/FeatureLoopRecovery.h"
 #include "detail/PrimitiveFit.h"
 
@@ -23,18 +25,21 @@ namespace {
 
 using detector_detail::CandidateEdge;
 using detector_detail::FeatureAnalysisBuilder;
+using detector_detail::FeatureDetectionCache;
 using detector_detail::TraceGraph;
 
 struct FeatureDetectionContext {
     FeatureDetectionContext(const Mesh& inputMesh, const FeatureOptions& inputOptions)
         : mesh(inputMesh),
           options(inputOptions),
+          cache(inputMesh),
           builder(static_cast<int>(inputMesh.vertices.size())) {}
 
     FeatureAnalysis& analysis() { return builder.analysis(); }
 
     const Mesh& mesh;
     const FeatureOptions& options;
+    FeatureDetectionCache cache;
     FeatureAnalysisBuilder builder;
     std::vector<CandidateEdge> featureEdges;
     TraceGraph trace;
@@ -65,14 +70,21 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
     if (options.minFeatureLoopVertices < 3) {
         throw std::invalid_argument("minFeatureLoopVertices must be at least 3.");
     }
-    if (options.normalTensorSmoothingIterations < 0) {
-        throw std::invalid_argument("normalTensorSmoothingIterations must be non-negative.");
+    if (options.normalTensorSmoothingIterations < 0 ||
+        options.normalTensorSmoothingIterations > kMaxNormalTensorSmoothingIterations) {
+        throw std::invalid_argument(
+            "normalTensorSmoothingIterations must be in [0, " + std::to_string(kMaxNormalTensorSmoothingIterations) +
+            "]."
+        );
     }
-    if (options.normalTensorScaleCount < 1) {
-        throw std::invalid_argument("normalTensorScaleCount must be positive.");
+    if (options.normalTensorScaleCount < 1 || options.normalTensorScaleCount > kMaxNormalTensorScaleCount) {
+        throw std::invalid_argument(
+            "normalTensorScaleCount must be in [1, " + std::to_string(kMaxNormalTensorScaleCount) + "]."
+        );
     }
-    if (options.normalTensorMinPersistentScales < 1) {
-        throw std::invalid_argument("normalTensorMinPersistentScales must be positive.");
+    if (options.normalTensorMinPersistentScales < 1 ||
+        options.normalTensorMinPersistentScales > options.normalTensorScaleCount) {
+        throw std::invalid_argument("normalTensorMinPersistentScales must be in [1, normalTensorScaleCount].");
     }
     requireFiniteNonNegative(options.smoothCurvatureFeatureThreshold, "smoothCurvatureFeatureThreshold");
     if (!std::isfinite(options.smoothCurvatureMinEdgeAlignment) || options.smoothCurvatureMinEdgeAlignment < 0.0 ||
@@ -83,17 +95,28 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
         options.smoothCurvatureMinTangentConsistency < 0.0 || options.smoothCurvatureMinTangentConsistency > 1.0) {
         throw std::invalid_argument("smoothCurvatureMinTangentConsistency must be finite and in [0, 1].");
     }
-    if (options.smoothCurvatureBaseNeighborhoodRings < 1) {
-        throw std::invalid_argument("smoothCurvatureBaseNeighborhoodRings must be positive.");
+    if (options.smoothCurvatureBaseNeighborhoodRings < 1 ||
+        options.smoothCurvatureBaseNeighborhoodRings > kMaxSmoothCurvatureBaseNeighborhoodRings) {
+        throw std::invalid_argument(
+            "smoothCurvatureBaseNeighborhoodRings must be in [1, " +
+            std::to_string(kMaxSmoothCurvatureBaseNeighborhoodRings) + "]."
+        );
     }
-    if (options.smoothCurvatureScaleCount < 1) {
-        throw std::invalid_argument("smoothCurvatureScaleCount must be positive.");
+    if (options.smoothCurvatureScaleCount < 1 || options.smoothCurvatureScaleCount > kMaxSmoothCurvatureScaleCount) {
+        throw std::invalid_argument(
+            "smoothCurvatureScaleCount must be in [1, " + std::to_string(kMaxSmoothCurvatureScaleCount) + "]."
+        );
     }
-    if (options.smoothCurvatureMinPersistentScales < 1) {
-        throw std::invalid_argument("smoothCurvatureMinPersistentScales must be positive.");
+    if (options.smoothCurvatureMinPersistentScales < 1 ||
+        options.smoothCurvatureMinPersistentScales > options.smoothCurvatureScaleCount) {
+        throw std::invalid_argument("smoothCurvatureMinPersistentScales must be in [1, smoothCurvatureScaleCount].");
     }
-    if (options.smoothCurvatureRobustFitIterations < 0) {
-        throw std::invalid_argument("smoothCurvatureRobustFitIterations must be non-negative.");
+    if (options.smoothCurvatureRobustFitIterations < 0 ||
+        options.smoothCurvatureRobustFitIterations > kMaxSmoothCurvatureRobustFitIterations) {
+        throw std::invalid_argument(
+            "smoothCurvatureRobustFitIterations must be in [0, " +
+            std::to_string(kMaxSmoothCurvatureRobustFitIterations) + "]."
+        );
     }
     requireFiniteNonNegative(options.featureGraphGapLengthRatio, "featureGraphGapLengthRatio");
     if (options.featureGraphMaxWeakSpurEdges < 0) {
@@ -103,22 +126,84 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
         options.featureComponentMinConfidence > 1.0) {
         throw std::invalid_argument("featureComponentMinConfidence must be finite and in [0, 1].");
     }
+    requireFiniteNonNegative(options.featureGraphMinWeakSpurStrength, "featureGraphMinWeakSpurStrength");
 }
 
-void validateFeatureInput(const Mesh& mesh) {
-    if (mesh.faces.empty()) {
-        return;
-    }
-    std::string error;
-    if (!validateMeshGeometry(mesh, &error)) {
-        throw std::invalid_argument(error);
-    }
-}
+void validateFeatureInput(const Mesh& mesh) { detector_detail::validateFeatureMeshInput(mesh); }
 
 class EdgeEvidenceStage {
 public:
     void run(FeatureDetectionContext& context) const {
-        context.featureEdges = detector_detail::collectFeatureEdges(context.mesh, context.options, context.builder);
+        context.featureEdges =
+            detector_detail::collectFeatureEdges(context.mesh, context.options, context.cache, context.builder);
+    }
+};
+
+/// Downgrades evidence that depends on unusable face normals.
+///
+/// Zero-area faces are tolerated by the lenient input validation, but their
+/// normals are zero vectors, so any dihedral angle computed against them is
+/// meaningless (the zero dot product reads as a 90-degree pseudo-crease).
+/// This stage strips dihedral evidence from every interior edge incident to
+/// a degenerate face and drops candidates left without any evidence, keeping
+/// the analysis counters consistent. Normal-tensor and smooth-curvature
+/// scoring already skip degenerate faces during accumulation, and boundary /
+/// non-manifold evidence is purely topological, so only the dihedral channel
+/// needs the downgrade. The tolerated faces stay visible through
+/// FeatureAnalysis::degenerateFaces.
+class DegenerateEvidenceFilterStage {
+public:
+    void run(FeatureDetectionContext& context) const {
+        if (context.analysis().degenerateFaces == 0) {
+            return;
+        }
+        std::vector<char> degenerateFace(context.mesh.faces.size(), 0);
+        const std::vector<Vec3>& faceNormals = context.cache.faceNormals();
+        for (std::size_t faceIndex = 0; faceIndex < faceNormals.size(); ++faceIndex) {
+            // triangleNormal returns the exact zero vector for degenerate faces.
+            if (faceNormals[faceIndex].squaredNorm() <= 0.0) {
+                degenerateFace[faceIndex] = 1;
+            }
+        }
+
+        const manumesh::common::MeshEdgeInfoMap& edgeInfo = context.cache.edgeInfo();
+        FeatureAnalysis& analysis = context.analysis();
+        std::vector<CandidateEdge> kept;
+        kept.reserve(context.featureEdges.size());
+        for (CandidateEdge edge : context.featureEdges) {
+            if (edge.dihedral) {
+                const auto it = edgeInfo.find(manumesh::common::meshEdgeKey(edge.a, edge.b));
+                bool touchesDegenerate = false;
+                if (it != edgeInfo.end()) {
+                    for (int faceId : it->second.faces) {
+                        if (faceId >= 0 && faceId < static_cast<int>(degenerateFace.size()) &&
+                            degenerateFace[faceId]) {
+                            touchesDegenerate = true;
+                            break;
+                        }
+                    }
+                }
+                if (touchesDegenerate) {
+                    --analysis.dihedralFeatureEdges;
+                    if (edge.signedKind > 0) {
+                        --analysis.convexFeatureEdges;
+                    } else if (edge.signedKind < 0) {
+                        --analysis.concaveFeatureEdges;
+                    } else {
+                        --analysis.unknownSignedFeatureEdges;
+                    }
+                    edge.dihedral = false;
+                    edge.signedKind = 0;
+                    edge.angleRad = 0.0;
+                }
+            }
+            if (edge.boundary || edge.dihedral || edge.normalTensor || edge.smoothCurvature || edge.nonManifold) {
+                kept.push_back(edge);
+            } else {
+                --analysis.featureEdges;
+            }
+        }
+        context.featureEdges = std::move(kept);
     }
 };
 
@@ -134,7 +219,9 @@ public:
 class FeatureGraphCleanupStage {
 public:
     void run(FeatureDetectionContext& context) const {
-        detector_detail::cleanupTraceGraph(context.mesh, context.options, context.trace, context.analysis());
+        detector_detail::cleanupTraceGraph(
+            context.mesh, context.options, context.cache, context.trace, context.analysis()
+        );
     }
 };
 
@@ -168,11 +255,16 @@ public:
         validateFeatureInput(mesh);
 
         FeatureDetectionContext context(mesh, options);
+        // Degenerate (zero-area) faces are tolerated by the lenient input
+        // validation; their normals are unusable, so evidence stages skip
+        // them. Surface the count so callers see the degraded coverage.
+        context.analysis().degenerateFaces = countDegenerateFaces(mesh);
         if (mesh.empty()) {
             return context.builder.build();
         }
 
         edgeEvidence_.run(context);
+        degenerateFilter_.run(context);
         featureGraph_.run(context);
         cleanup_.run(context);
         loopRecovery_.run(context);
@@ -183,6 +275,7 @@ public:
 
 private:
     EdgeEvidenceStage edgeEvidence_;
+    DegenerateEvidenceFilterStage degenerateFilter_;
     FeatureGraphStage featureGraph_;
     FeatureGraphCleanupStage cleanup_;
     LoopRecoveryStage loopRecovery_;
@@ -301,7 +394,7 @@ FeatureEdgeBenchmark benchmarkFeatureEdges(
     truthEdges.reserve(groundTruthEdges.size());
     for (const auto& [a, b] : groundTruthEdges) {
         if (a >= 0 && b >= 0 && a != b) {
-            truthEdges.insert(manumesh::detail::meshEdgeKey(a, b));
+            truthEdges.insert(manumesh::common::meshEdgeKey(a, b));
         }
     }
 
@@ -311,7 +404,7 @@ FeatureEdgeBenchmark benchmarkFeatureEdges(
         if (edge.removedByCleanup || edge.a < 0 || edge.b < 0 || edge.a == edge.b) {
             continue;
         }
-        detectedEdges.insert(manumesh::detail::meshEdgeKey(edge.a, edge.b));
+        detectedEdges.insert(manumesh::common::meshEdgeKey(edge.a, edge.b));
     }
 
     result.groundTruthEdges = static_cast<int>(truthEdges.size());

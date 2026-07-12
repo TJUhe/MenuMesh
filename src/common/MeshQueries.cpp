@@ -2,15 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <unordered_set>
+#include <cstdint>
 
-namespace manumesh::detail {
-
-std::uint64_t meshEdgeKey(int a, int b) {
-    if (a > b)
-        std::swap(a, b);
-    return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(a)) << 32u) | static_cast<std::uint32_t>(b);
-}
+namespace manumesh::common {
 
 std::pair<int, int> unpackMeshEdgeKey(std::uint64_t key) {
     return {static_cast<int>(key >> 32u), static_cast<int>(key & 0xffffffffu)};
@@ -52,22 +46,24 @@ Vec3 faceCentroid(const Mesh& mesh, const Face& face) {
 }
 
 std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh) {
-    std::vector<std::unordered_set<int>> neighborSets(mesh.vertices.size());
+    std::vector<std::vector<int>> neighbors(mesh.vertices.size());
     for (const Face& face : mesh.faces) {
         for (int i = 0; i < 3; ++i) {
             const int a = face.v[i];
             const int b = face.v[(i + 1) % 3];
-            if (a >= 0 && b >= 0 && a < static_cast<int>(neighborSets.size()) &&
-                b < static_cast<int>(neighborSets.size()) && a != b) {
-                neighborSets[a].insert(b);
-                neighborSets[b].insert(a);
+            if (a >= 0 && b >= 0 && a < static_cast<int>(neighbors.size()) && b < static_cast<int>(neighbors.size()) &&
+                a != b) {
+                neighbors[a].push_back(b);
+                neighbors[b].push_back(a);
             }
         }
     }
 
-    std::vector<std::vector<int>> neighbors(mesh.vertices.size());
-    for (int i = 0; i < static_cast<int>(neighborSets.size()); ++i) {
-        neighbors[i].assign(neighborSets[i].begin(), neighborSets[i].end());
+    // Sort and deduplicate so each adjacency list is ascending; this keeps
+    // downstream iteration and floating-point reduction order deterministic.
+    for (std::vector<int>& list : neighbors) {
+        std::sort(list.begin(), list.end());
+        list.erase(std::unique(list.begin(), list.end()), list.end());
     }
     return neighbors;
 }
@@ -76,11 +72,20 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
     std::vector<double> sums(mesh.vertices.size(), 0.0);
     std::vector<int> counts(mesh.vertices.size(), 0);
 
-    double totalLength = 0.0;
-    int totalEdges = 0;
+    // Accumulate in ascending edge-key order so the floating-point reduction
+    // order is stable across platforms and hash-map implementations.
     const MeshEdgeInfoMap edgeInfo = buildMeshEdgeInfo(mesh);
+    std::vector<std::uint64_t> edgeKeys;
+    edgeKeys.reserve(edgeInfo.size());
     for (const auto& [key, info] : edgeInfo) {
         (void)info;
+        edgeKeys.push_back(key);
+    }
+    std::sort(edgeKeys.begin(), edgeKeys.end());
+
+    double totalLength = 0.0;
+    int totalEdges = 0;
+    for (const std::uint64_t key : edgeKeys) {
         const auto [a, b] = unpackMeshEdgeKey(key);
         if (a < 0 || b < 0 || a >= static_cast<int>(mesh.vertices.size()) ||
             b >= static_cast<int>(mesh.vertices.size()) || a == b) {
@@ -126,4 +131,4 @@ std::vector<char> computeBoundaryVertices(const Mesh& mesh) {
     return boundary;
 }
 
-} // namespace manumesh::detail
+} // namespace manumesh::common

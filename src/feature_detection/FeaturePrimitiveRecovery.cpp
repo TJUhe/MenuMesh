@@ -47,18 +47,21 @@ void recoverPrimitiveComponents(
             alreadyHasCircular = alreadyHasCircular || analysis.vertices[v].circular;
             edgeCount2x += static_cast<int>(adjacency[v].size());
             for (int nb : adjacency[v]) {
-                if (v < nb && traceEdgeBoundary(trace, v, nb)) {
+                if (v >= nb) {
+                    continue;
+                }
+                const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, v, nb);
+                const bool boundary = attrs != nullptr && attrs->boundary;
+                const int sign = attrs == nullptr ? 0 : attrs->signedKind;
+                if (boundary) {
                     ++boundaryEdges;
                 }
-                if (v < nb) {
-                    const int sign = traceEdgeSign(trace, v, nb);
-                    if (sign > 0)
-                        ++convexEdges;
-                    if (sign < 0)
-                        ++concaveEdges;
-                    if (sign == 0 && !traceEdgeBoundary(trace, v, nb))
-                        ++unknownSignedEdges;
-                }
+                if (sign > 0)
+                    ++convexEdges;
+                if (sign < 0)
+                    ++concaveEdges;
+                if (sign == 0 && !boundary)
+                    ++unknownSignedEdges;
             }
         }
         const int edgeCount = edgeCount2x / 2;

@@ -13,7 +13,7 @@ bool containsItem(const std::vector<int>& items, int itemId) {
 } // namespace
 
 TEST(ManuMesh, UniformAabbCandidateGridQueriesOverlappingItems) {
-    manumesh::detail::UniformAabbCandidateGrid grid;
+    manumesh::common::UniformAabbCandidateGrid grid;
     grid.reset(manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(10.0, 10.0, 10.0), 1000);
     ASSERT_TRUE(grid.enabled());
 
@@ -31,7 +31,7 @@ TEST(ManuMesh, UniformAabbCandidateGridQueriesOverlappingItems) {
 }
 
 TEST(ManuMesh, UniformAabbCandidateGridRemovesAndUpdatesItems) {
-    manumesh::detail::UniformAabbCandidateGrid grid;
+    manumesh::common::UniformAabbCandidateGrid grid;
     grid.reset(manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(10.0, 10.0, 10.0), 1000);
     ASSERT_TRUE(grid.enabled());
 
@@ -51,7 +51,7 @@ TEST(ManuMesh, UniformAabbCandidateGridRemovesAndUpdatesItems) {
 }
 
 TEST(ManuMesh, UniformAabbCandidateGridKeepsOversizedItemsAsConservativeCandidates) {
-    manumesh::detail::UniformAabbCandidateGrid grid;
+    manumesh::common::UniformAabbCandidateGrid grid;
     grid.reset(manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(10.0, 10.0, 10.0), 1000);
     ASSERT_TRUE(grid.enabled());
 
@@ -65,7 +65,7 @@ TEST(ManuMesh, UniformAabbCandidateGridKeepsOversizedItemsAsConservativeCandidat
 }
 
 TEST(ManuMesh, UniformAabbCandidateGridIgnoresOperationsWhenDisabled) {
-    manumesh::detail::UniformAabbCandidateGrid grid;
+    manumesh::common::UniformAabbCandidateGrid grid;
     grid.reset(manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(1.0, 1.0, 1.0), 0);
     EXPECT_FALSE(grid.enabled());
 

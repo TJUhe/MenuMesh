@@ -9,6 +9,7 @@
 #include "mesh_edit/detail/MeshCompaction.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -78,8 +79,11 @@ void SimplificationRun::refineQuality() {
          faces_,
          *topology_,
          featurePolicy_,
+         featureGuidance_.curves,
+         primitiveFits_,
          policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
          referenceSurface_.get(),
+         meshDiagonal_,
          areaEps_,
          minNormalDot_,
          maxLocalError_},
@@ -91,6 +95,11 @@ void SimplificationRun::initializeReport() {
     report_ = SimplifyReport{};
     report_.initialVertices = static_cast<int>(input_.vertices.size());
     report_.initialFaces = static_cast<int>(input_.faces.size());
+    // Zero-area input faces are tolerated (lenient input validation); they
+    // fall back to the small point quadric in computeInitialQuadrics and the
+    // legality area checks keep them from spreading. Surface the count so
+    // tolerated dirty input never goes unnoticed.
+    report_.degenerateInputFaces = countDegenerateFaces(input_);
 }
 
 void SimplificationRun::analyzeFeatures() {
@@ -104,13 +113,20 @@ void SimplificationRun::analyzeFeatures() {
 }
 
 void SimplificationRun::initializeVertices() {
-    const std::vector<Mat4> initialQuadrics = quadrics_.build(input_, featureGuidance_, report_);
-    boundaryVertices_ =
-        policies_.legality.preserveBoundary ? detail::computeBoundaryVertices(input_) : std::vector<char>();
+    const InitialQuadrics initialQuadrics = quadrics_.build(input_, featureGuidance_, report_);
+    // Boundary flags are always computed (one O(E) pass) because the extended
+    // link condition needs them to block boundary-chord pinches even when
+    // preserveBoundary is off. preserveBoundary keeps its original meaning:
+    // it only restricts how boundary vertices may move or merge.
+    boundaryVertices_ = common::computeBoundaryVertices(input_);
+    primitiveFits_.clear();
     vertices_.assign(input_.vertices.size(), VertexState{});
     for (int i = 0; i < static_cast<int>(input_.vertices.size()); ++i) {
         vertices_[i].p = input_.vertices[i];
-        vertices_[i].q = initialQuadrics[i];
+        vertices_[i].q = initialQuadrics.quadrics[i];
+        if (i < static_cast<int>(initialQuadrics.priorityScales.size())) {
+            vertices_[i].priorityScale = initialQuadrics.priorityScales[i];
+        }
         vertices_[i].isBoundary = i < static_cast<int>(boundaryVertices_.size()) && boundaryVertices_[i] != 0;
         initializeVertexFeature(i);
     }
@@ -143,15 +159,25 @@ void SimplificationRun::initializeVertexFeature(int vertexId) {
     vertex.featureComponentId = vf.componentId;
     vertex.featureConfidence = vf.confidence;
     vertex.curveTangent = vf.tangent;
-    vertex.circleCenter = vf.circleCenter;
-    vertex.circleNormal = vf.circleNormal;
-    vertex.circleRadius = vf.circleRadius;
-    vertex.ellipseCenter = vf.ellipseCenter;
-    vertex.ellipseNormal = vf.ellipseNormal;
-    vertex.ellipseMajorAxis = vf.ellipseMajorAxis;
-    vertex.ellipseMinorAxis = vf.ellipseMinorAxis;
-    vertex.ellipseMajorRadius = vf.ellipseMajorRadius;
-    vertex.ellipseMinorRadius = vf.ellipseMinorRadius;
+    // Circle/ellipse fit payloads go to the compact side table; vertices
+    // without a fitted primitive stay at primitiveFitId == -1 and cost zero
+    // extra memory.
+    const bool hasCircleFit = vf.circular || vf.circleRadius > 0.0;
+    const bool hasEllipseFit = vf.primitive == FeatureCurveKind::Ellipse || vf.ellipseMajorRadius > 0.0;
+    if (vf.isFeature && (hasCircleFit || hasEllipseFit)) {
+        FeaturePrimitiveFit fit;
+        fit.circleCenter = vf.circleCenter;
+        fit.circleNormal = vf.circleNormal;
+        fit.circleRadius = vf.circleRadius;
+        fit.ellipseCenter = vf.ellipseCenter;
+        fit.ellipseNormal = vf.ellipseNormal;
+        fit.ellipseMajorAxis = vf.ellipseMajorAxis;
+        fit.ellipseMinorAxis = vf.ellipseMinorAxis;
+        fit.ellipseMajorRadius = vf.ellipseMajorRadius;
+        fit.ellipseMinorRadius = vf.ellipseMinorRadius;
+        vertex.primitiveFitId = static_cast<int>(primitiveFits_.size());
+        primitiveFits_.push_back(fit);
+    }
 }
 
 void SimplificationRun::initializeFaces() {
@@ -162,8 +188,6 @@ void SimplificationRun::initializeFaces() {
     faceTexCoords_ = input_.faceTexCoords;
     topology_ = std::make_unique<DynamicTopology>(faces_, static_cast<int>(vertices_.size()));
     activeFaceCount_ = static_cast<int>(faces_.size());
-    report_.textureProtectedEdges =
-        textureProtection_.countProtectedEdges(faces_, vertices_, *topology_, faceTexCoords_);
     if (policies_.legality.preventLocalIntersections) {
         spatialIndex_.rebuild(faces_, vertices_);
     }
@@ -172,11 +196,12 @@ void SimplificationRun::initializeFaces() {
 void SimplificationRun::initializeBudget() {
     targetFaces_ = policies_.target.resolveTargetFaceCount(static_cast<int>(input_.faces.size()));
     const double diag = std::max(1e-12, input_.bboxDiag());
+    meshDiagonal_ = input_.bboxDiag();
     areaEps_ = diag * diag * 1e-18;
     minNormalDot_ = policies_.legality.resolveMinNormalDot();
     maxLocalError_ = policies_.legality.resolveMaxLocalError(diag);
     if (maxLocalError_ > 0.0) {
-        referenceSurface_ = std::make_unique<manumesh::detail::MeshDistanceIndex>(input_);
+        referenceSurface_ = std::make_unique<manumesh::common::MeshDistanceIndex>(input_);
     }
 
     const int initialActiveEdgeCount = static_cast<int>(collectActiveEdges(faces_).size());
@@ -187,21 +212,56 @@ void SimplificationRun::initializeBudget() {
 
 void SimplificationRun::rebuildQueue() {
     queue_.clear();
+    int textureProtectedEdges = 0;
     for (const auto& [a, b] : collectActiveEdges(faces_)) {
-        pushEdgeCandidate(a, b);
+        if (pushEdgeCandidate(a, b)) {
+            ++textureProtectedEdges;
+        }
     }
-    ++report_.queueRebuilds;
+    // The initial queue construction is not a rebuild; only count rebuilds
+    // triggered later by refills or stale-candidate recovery. The initial
+    // build also doubles as the textureProtectedEdges census: it reuses the
+    // per-placement texture evaluations instead of a separate O(E) pass.
+    if (queueBuiltOnce_) {
+        ++report_.queueRebuilds;
+    } else {
+        report_.textureProtectedEdges = textureProtectedEdges;
+    }
+    queueBuiltOnce_ = true;
 }
 
-void SimplificationRun::pushEdgeCandidate(int a, int b) {
+bool SimplificationRun::pushEdgeCandidate(int a, int b) {
+    if (a == b) {
+        return false;
+    }
+    // Canonical endpoint order keeps the cached placement list identical to
+    // what the collapse attempt would have solved at pop time.
+    const int first = std::min(a, b);
+    const int second = std::max(a, b);
+    if (!vertices_[first].active || !vertices_[second].active) {
+        return false;
+    }
+    const Mat4 q = vertices_[first].q + vertices_[second].q;
+    const std::vector<SolveResult> placements = solvePlacementCandidates(q, vertices_[first].p, vertices_[second].p);
+
     double textureCost = 0.0;
+    bool midpointProtected = false;
     if (textureProtection_.active()) {
-        const Mat4 q = vertices_[a].q + vertices_[b].q;
-        const std::vector<SolveResult> placements = solvePlacementCandidates(q, vertices_[a].p, vertices_[b].p);
+        const Vec3 midpoint = 0.5 * (vertices_[first].p + vertices_[second].p);
         double bestCombinedCost = std::numeric_limits<double>::infinity();
+        double bestMidpointDistance = std::numeric_limits<double>::infinity();
         for (const SolveResult& placement : placements) {
-            const TextureCollapseEvaluation textureEvaluation =
-                textureProtection_.evaluate({a, b}, placement.position, faces_, vertices_, *topology_, faceTexCoords_);
+            const TextureCollapseEvaluation textureEvaluation = textureProtection_.evaluate(
+                {first, second}, placement.position, faces_, vertices_, *topology_, faceTexCoords_
+            );
+            // The candidate list always contains the midpoint (or an endpoint
+            // coincident with it), so the placement nearest to the midpoint
+            // reproduces the previous midpoint-protection census exactly.
+            const double midpointDistance = (placement.position - midpoint).squaredNorm();
+            if (midpointDistance < bestMidpointDistance) {
+                bestMidpointDistance = midpointDistance;
+                midpointProtected = !textureEvaluation.allowed();
+            }
             if (textureEvaluation.allowed()) {
                 bestCombinedCost = std::min(bestCombinedCost, placement.cost + textureEvaluation.cost);
             }
@@ -212,7 +272,8 @@ void SimplificationRun::pushEdgeCandidate(int a, int b) {
             textureCost = std::max(0.0, bestCombinedCost - placements.front().cost);
         }
     }
-    queue_.pushEdge(a, b, vertices_, textureCost);
+    queue_.pushEdge(first, second, vertices_, placements, textureCost);
+    return midpointProtected;
 }
 
 void SimplificationRun::collapseUntilTarget() {
@@ -235,7 +296,7 @@ void SimplificationRun::collapseUntilTarget() {
         }
         stalePops_ = 0;
 
-        if (!tryCollapse(candidate.a, candidate.b)) {
+        if (!tryCollapse(candidate)) {
             if (attemptsWithoutCollapse_ > maxAttemptsWithoutCollapse_) {
                 report_.terminationReason = SimplifyTerminationReason::RejectionLimit;
                 break;
@@ -280,12 +341,16 @@ void SimplificationRun::handleStaleCandidate() {
     }
 }
 
-bool SimplificationRun::tryCollapse(int keep, int remove) {
+bool SimplificationRun::tryCollapse(const Candidate& candidate) {
+    const int keep = candidate.a;
+    const int remove = candidate.b;
     const CollapseEdge edge{keep, remove};
     const Mat4 mergedQ = vertices_[keep].q + vertices_[remove].q;
-    const std::vector<SolveResult> placements =
-        solvePlacementCandidates(mergedQ, vertices_[keep].p, vertices_[remove].p);
-    if (!placements.empty() && placements.front().usedFallback) {
+    // The version stamps validated by isCurrentCandidate guarantee the cached
+    // placement solve is still exact, so no re-solve happens here.
+    const SolveResult* placements = candidate.placements.data();
+    const int placementCount = candidate.placementCount;
+    if (placementCount > 0 && placements[0].usedFallback) {
         ++report_.solverFallbacks;
     }
 
@@ -293,6 +358,7 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
         {edge,
          mergedQ,
          placements,
+         placementCount,
          options_,
          policies_,
          vertices_,
@@ -300,18 +366,19 @@ bool SimplificationRun::tryCollapse(int keep, int remove) {
          *topology_,
          activeLoopCounts_,
          featureGuidance_.curves,
+         primitiveFits_,
          featurePolicy_,
          textureProtection_,
          faceTexCoords_,
          policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
          referenceSurface_.get(),
-         input_.bboxDiag(),
+         meshDiagonal_,
          areaEps_,
          minNormalDot_,
          maxLocalError_}
     );
     if (result.accepted()) {
-        applyCollapse(edge.keep, edge.remove, result.acceptedPosition, mergedQ);
+        applyCollapse(edge.keep, edge.remove, result.acceptedPosition, mergedQ, result.texturePlan);
         if (result.projected) {
             ++report_.projectedFeaturePlacements;
         }
@@ -383,28 +450,42 @@ void SimplificationRun::bumpVersions(int keep, int remove) {
     vertices_[remove].version++;
 }
 
-void SimplificationRun::applyCollapse(int keep, int remove, const Vec3& position, const Mat4& mergedQ) {
-    const bool mergedFeatureLoop = vertices_[keep].isFeature && vertices_[remove].isFeature &&
-                                   vertices_[keep].featureLoopId == vertices_[remove].featureLoopId &&
-                                   vertices_[keep].featureLoopId >= 0 &&
-                                   vertices_[keep].featureLoopId < static_cast<int>(activeLoopCounts_.size());
-
-    const std::unordered_set<int> affectedFaces = collectAffectedFacesForCollapse(keep, remove);
-    textureProtection_.apply({keep, remove}, position, faces_, vertices_, *topology_, faceTexCoords_);
+void SimplificationRun::applyCollapse(
+    int keep, int remove, const Vec3& position, const Mat4& mergedQ, const TextureUpdatePlan& texturePlan
+) {
+    std::unordered_set<int> affectedFaces;
     if (policies_.legality.preventLocalIntersections) {
+        affectedFaces = collectAffectedFacesForCollapse(keep, remove);
         for (int faceId : affectedFaces) {
             spatialIndex_.removeFace(faceId);
         }
     }
+    // The plan was built for the accepted placement during the attempt, so
+    // applying it is a straight replay without rebuilding chart pairings.
+    const bool textureApplied = textureProtection_.apply(texturePlan, faceTexCoords_);
+    assert(textureApplied && "accepted collapse must carry an applicable texture update plan");
+    if (!textureApplied) {
+        ++report_.textureApplyFailures;
+    }
 
+    // Any removed feature vertex leaves its loop, including cross-loop merges,
+    // so the per-loop active counts track the surviving vertices exactly.
+    const VertexState& removedVertex = vertices_[remove];
+    if (removedVertex.isFeature && removedVertex.featureLoopId >= 0 &&
+        removedVertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
+        --activeLoopCounts_[removedVertex.featureLoopId];
+    }
+
+    // A vertex merged with a boundary vertex lies on the open boundary
+    // afterwards; keep the flag current for the extended link condition.
+    vertices_[keep].isBoundary = vertices_[keep].isBoundary || vertices_[remove].isBoundary;
     vertices_[keep].p = position;
     vertices_[keep].q = mergedQ;
-    refreshCircularTangent(vertices_[keep]);
-    refreshEllipseTangent(vertices_[keep]);
+    // The queue-priority boost follows the surviving feature evidence.
+    vertices_[keep].priorityScale = std::max(vertices_[keep].priorityScale, vertices_[remove].priorityScale);
+    refreshCircularTangent(vertices_[keep], primitiveFitOf(vertices_[keep], primitiveFits_));
+    refreshEllipseTangent(vertices_[keep], primitiveFitOf(vertices_[keep], primitiveFits_));
     vertices_[remove].active = false;
-    if (mergedFeatureLoop) {
-        --activeLoopCounts_[vertices_[keep].featureLoopId];
-    }
     bumpVersions(keep, remove);
 
     rewriteIncidentFaces(keep, remove);

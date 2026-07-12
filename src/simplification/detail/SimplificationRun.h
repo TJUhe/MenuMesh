@@ -38,16 +38,22 @@ private:
     void initializeFaces();
     void initializeBudget();
     void rebuildQueue();
-    void pushEdgeCandidate(int a, int b);
+    /// Solves the edge's placements once, prices the texture protection from
+    /// the same solve, and pushes the candidate with the cached placements.
+    /// Returns true when the (near-)midpoint placement is texture-rejected,
+    /// which feeds the textureProtectedEdges diagnostic on the initial build.
+    bool pushEdgeCandidate(int a, int b);
     void collapseUntilTarget();
     void refineQuality();
     bool ensureQueueHasCandidates();
     bool isCurrentCandidate(const Candidate& candidate) const;
     void handleStaleCandidate();
-    bool tryCollapse(int keep, int remove);
+    bool tryCollapse(const Candidate& candidate);
     void recordRejectedCollapse(const CollapseAttemptResult& result);
     void bumpVersions(int keep, int remove);
-    void applyCollapse(int keep, int remove, const Vec3& position, const Mat4& mergedQ);
+    void applyCollapse(
+        int keep, int remove, const Vec3& position, const Mat4& mergedQ, const TextureUpdatePlan& texturePlan
+    );
     std::unordered_set<int> collectAffectedFacesForCollapse(int keep, int remove) const;
     void rewriteIncidentFaces(int keep, int remove);
 
@@ -63,8 +69,11 @@ private:
     std::vector<FaceTexCoords> faceTexCoords_;
     std::unique_ptr<DynamicTopology> topology_;
     SpatialFaceIndex spatialIndex_;
-    std::unique_ptr<manumesh::detail::MeshDistanceIndex> referenceSurface_;
+    std::unique_ptr<manumesh::common::MeshDistanceIndex> referenceSurface_;
     std::vector<int> activeLoopCounts_;
+    /// Compact side table of circle/ellipse fit data; only feature vertices on
+    /// fitted primitive loops own an entry (VertexState::primitiveFitId).
+    std::vector<FeaturePrimitiveFit> primitiveFits_;
     CandidateQueue queue_;
     InitialQuadricBuilder quadrics_;
     FeatureConstraintPolicy featurePolicy_;
@@ -72,11 +81,16 @@ private:
     int activeFaceCount_ = 0;
     int targetFaces_ = 0;
     double areaEps_ = 0.0;
+    /// Input bounding-box diagonal, computed once in initializeBudget.
+    /// tryCollapse runs per collapse attempt, so it must not recompute this
+    /// O(V) scan (doing so made the whole run quadratic in the mesh size).
+    double meshDiagonal_ = 0.0;
     double minNormalDot_ = 0.0;
     double maxLocalError_ = 0.0;
     int maxAttemptsWithoutCollapse_ = 0;
     int attemptsWithoutCollapse_ = 0;
     int stalePops_ = 0;
+    bool queueBuiltOnce_ = false;
 };
 
 } // namespace manumesh::simplification

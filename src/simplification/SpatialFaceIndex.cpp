@@ -54,7 +54,7 @@ std::vector<int> SpatialFaceIndex::query(const Vec3& lo, const Vec3& hi) const {
 
 void SpatialFaceIndex::insertFace(int faceId, const FaceState& face, const std::vector<VertexState>& vertices) {
     const std::array<Vec3, 3> tri = {vertices[face.v[0]].p, vertices[face.v[1]].p, vertices[face.v[2]].p};
-    const auto [lo, hi] = manumesh::detail::triangleAabb(tri);
+    const auto [lo, hi] = manumesh::common::triangleAabb(tri);
     grid_.insert(faceId, lo, hi);
 }
 

@@ -62,8 +62,12 @@ void validateSimplifierInput(const Mesh& input) {
     if (input.empty()) {
         return;
     }
+    // Lenient geometry validation: zero-area faces are tolerated (the QEM
+    // pipeline routes them through the degenerate-face quadric fallback and
+    // reports them via SimplifyReport::degenerateInputFaces); only inputs no
+    // algorithm can process are rejected here.
     std::string error;
-    if (!validateMeshGeometry(input, &error)) {
+    if (!validateMeshGeometryLenient(input, &error)) {
         throw std::invalid_argument(error);
     }
     const Result<MeshTopology> topology = MeshTopology::build(input);

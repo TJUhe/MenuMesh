@@ -1,6 +1,6 @@
 #pragma once
 
-#include "algorithms/simplification/Metrics.h"
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "api/CApi.h"
 
@@ -19,6 +19,6 @@ bool readSimplifyOptions(
 bool validateSimplifyReportOutput(const ManuMeshSimplifyReport& target, std::string& error);
 bool validateMeshStatsOutput(const ManuMeshMeshStats& target, std::string& error);
 void fillSimplifyReport(const simplification::SimplifyReport& source, ManuMeshSimplifyReport& target);
-void fillMeshStats(const simplification::MeshStats& source, ManuMeshMeshStats& target);
+void fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStats& target);
 
 } // namespace manumesh::api

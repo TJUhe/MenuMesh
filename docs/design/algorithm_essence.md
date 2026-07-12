@@ -22,12 +22,12 @@ ManuMesh 当前核心管线可以读成：
 | 步骤 | 源码 |
 | --- | --- |
 | 特征识别 | `src/feature_detection/FeatureDetector.cpp`、`FeatureEvidence.cpp`、`SmoothCurvature.cpp`、`FeatureGraph.cpp`、`FeatureLoopRecovery.cpp`、`FeatureCycleRecovery.cpp`、`FeatureTraceRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`、`FeatureLoopBuilder.cpp`、`FeatureCircularRecovery.cpp`、`NormalTensor.cpp`、`PrimitiveFit.cpp` |
-| quadric 构造与 placement | `src/simplification/Quadrics.cpp` |
+| quadric 构造与 placement | `src/simplification/Quadrics.cpp`、`Placement.cpp`（Lindstrom-Turk 边界守恒 placement） |
 | 策略转换 | `src/simplification/SimplificationPolicies.cpp` |
 | collapse 主循环 | `src/simplification/SimplificationRun.cpp`、`CollapseAttempt.cpp` |
 | 特征约束、曲线投影 | `src/simplification/FeatureConstraints.cpp` |
 | 纹理感知排序与 UV chart 保护 | `src/simplification/TextureProtection.cpp`、`detail/TextureProtection.h` |
-| 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseLegality.cpp`、`SpatialFaceIndex.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/MeshDistanceIndex.cpp`、`src/common/SpatialIndex.cpp` |
+| 拓扑/质量/误差/自交过滤 | `src/simplification/CollapseAttempt.cpp`、`CollapseTopology.cpp`、`CollapseLegality.cpp`、`SpatialFaceIndex.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/MeshDistanceIndex.cpp`、`src/common/SpatialIndex.cpp` |
 | 结果压缩与报告 | `src/mesh_edit/MeshCompaction.cpp`、`include/algorithms/simplification/SimplificationTypes.h` |
 
 从算法关系看，当前实现遵循的是“排序成本 + 语义支撑 + 硬过滤器”的工程结构。QEM 和 line quadrics 负责给候选排序；`FeatureAnalysis` 给出制造特征的三角网格支撑；硬过滤器负责阻止局部拓扑和几何灾难。三者不能互相替代。
@@ -60,7 +60,7 @@ E_plane(x) = (n^T x + d)^2
 
 - `planeQuadric()` 构造 `p p^T`。
 - `computeInitialQuadrics()` 按三角形面积把 plane quadric 分配给三个顶点。
-- `solvePlacementCandidates()` 先尝试解 `A x = -b`，若特征值条件太差，就保留端点/中点候选，并在 `solverFallbacks` 中记录退化现象。
+- `solvePlacementCandidates()` 实现 GH97 三级回退链：先尝试解 `A x = -b`；若特征值条件太差，退到**沿坍缩边的一维最优**（对 `h(t) = a + t(b-a)` 的标量二次问题，rank-2 quadric——直棱、边界折痕——的良定情形，分母判据用尺度不变的相对阈值）；一维也退化时才只保留端点/中点候选，并在 `solverFallbacks` 中记录退化现象。
 
 这解释了为什么 `solver_fallbacks` 不是坏事本身，而是提示“局部 quadric 缺约束或数值退化”。
 
@@ -88,7 +88,7 @@ E_total = E_plane + lambda * E_line
 
 - `lineQuadric(point, normal)` 用两个与 `normal` 垂直的平面 quadric 相加，等价表达点到直线距离。
 - `useLineQuadrics` 与 `lineWeight` 控制是否加入普通 line quadric。
-- `weightMode`、`featureBoost` 控制 line weight 的空间变化。
+- `weightMode`、`featureBoost` 控制 line weight 的空间变化。`adaptiveScale` 模式下采用 Wang 2008 的优先级解耦：`featureBoost` 不再放大 quadric 本身（旧行为会扭曲 placement 并抬高边界项），而是变成逐顶点队列优先级因子 `priorityScale = 1 + featureBoost * score`，只乘候选排序代价（`CandidateQueue` 取两端点最大值），placement 用干净的 `adaptiveBaseLineWeight` 基础 line quadric 求解。
 - `minAppliedLineWeight`、`maxAppliedLineWeight` 写入 `SimplifyReport`，用于判断实际权重范围。
 
 重要边界：
@@ -114,9 +114,9 @@ E_total = E_plane + lambda * E_line
 
 1. boundary edge：只有一个相邻面。
 2. non-manifold edge：多于两个相邻面。
-3. dihedral edge：两个相邻面法向夹角超过阈值。
+3. dihedral edge：两个相邻面的**有向二面角**超过阈值。检测器先按共享边在两面中的遍历方向做绕向一致性判断：绕向一致时用带符号法向点积（可区分浅折痕与 >90° 的反折刀边，旧的 `|dot|` 会把 120° 法向夹角读成 60° 而漏检）；绕向不一致的边回退无符号角，并计入 `FeatureAnalysis::inconsistentWindingEdges` 诊断。
 4. normal-tensor edge：张量 persistent feature score、最小支持尺度数和边方向对齐满足阈值。
-5. smooth-curvature edge（opt-in，`useSmoothCurvatureFeatures`）：多尺度局部 quadric 拟合产生的确定性 ridge/valley 证据，两端点在符号、切向、尺度支持和边对齐上一致时才转成 edge 证据（见现象四之二）。
+5. smooth-curvature edge（opt-in，`useSmoothCurvatureFeatures`）：多尺度三次 Monge 拟合产生的确定性 ridge/valley 证据，两端点在符号、切向、尺度支持和边对齐上一致时才转成 edge 证据（见现象四之二）。
 
 其中 1–3 是离散网格上的“硬证据”（不连续现象），4–5 是光滑表面上的“弱证据”（微分现象）。两路只在显式 `FeatureGraph` 汇合；component 置信度把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据始终占主导。
 
@@ -164,14 +164,15 @@ persistentFeatureScore = f(featureScore, averageFeatureScore, persistentScales)
 
 对每个顶点、每个拓扑尺度，算法执行：
 
-1. 构建 k-ring 邻域和面积加权局部法线；
+1. 构建 k-ring 邻域和面积加权局部法线（邻接、边信息、局部平均边长由 `FeatureDetectionCache` 全管线构建一次、传引用复用）；
 2. 用局部平均边长 × ring 数做坐标归一化；
-3. 带距离权与确定性 Huber 重加权拟合 Monge patch `w = a u² + b uv + c v² + d u + e v`；
-4. 由第一/第二基本形式解广义自伴特征问题，得到两条带符号主曲率和方向；
-5. 沿每个主方向双侧采样法曲率，仅当中心是带符号方向极值时接受 ridge/valley；
-6. 打分融合尺度归一化曲率幅值、各向异性、极值对比度和拟合残差质量；
-7. 跨相邻尺度符号与曲线切向一致且响应存活到最粗尺度才保留（persistence）；
-8. 两端点在符号、切向、尺度支持和边对齐上一致时，才把顶点证据转成 mesh-edge 证据。
+3. 带距离权与确定性 Huber 重加权拟合**三次 Monge patch** `w = a u² + b uv + c v² + d u + e v + c₀u³ + c₁u²v + c₂uv² + c₃v³`（9 未知量，增量累加加权正规方程求解，少于 9 个可用邻居判为欠定拒绝）；
+4. 由二次块的第一/第二基本形式解广义自伴特征问题，得到两条带符号主曲率和方向；
+5. 由三次块**解析求出 extremality** `e_i = ∇κ_i · t_i`（三阶方向型 `e ∝ c₀t₁³ + c₁t₁²t₂ + c₂t₁t₂² + c₃t₂³`），不再对邻居曲率做差分；
+6. 用 Ohtake 边零交叉判据分类 ridge/valley：主方向是 line field，先对邻居的切向与 extremality 做符号同步，再要求（a）边两端都通过曲率支配性测试（ridge 要求 `κ_max > |κ_min|`，valley 对偶），（b）extremality 沿近似跟随主方向的入射边变号，（c）两端一阶极大测试成立；零交叉点用反比插值归属到 |e| 较小的端点，使检测带保持一个顶点宽；
+7. 打分融合尺度归一化曲率幅值、各向异性、零交叉强度（|e| 均值乘切向边跨度）和拟合残差质量；
+8. 跨相邻尺度符号与曲线切向一致且响应存活到最粗尺度才保留（persistence）；
+9. 两端点在符号、切向、尺度支持和边对齐上一致时，才把顶点证据转成 mesh-edge 证据。
 
 分数无量纲，网格均匀缩放不需要重新调曲率阈值。默认 `smoothCurvatureBaseNeighborhoodRings = 2`，因为 one-ring 拟合对噪声过敏。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面两种场景需要不同阈值和验证集；不启用时既有硬特征行为完全不变。诊断字段包括 `FeatureAnalysis::smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、`maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、`meanSmoothCurvatureLocalScale`、`meanSmoothCurvaturePersistence`，graph edge 与 component 分别记录 `smoothCurvature` 来源和 `smoothCurvatureEdges`、`meanCurvaturePersistence`。整条链路是确定性数值几何，不含任何神经/学习成分。
 
@@ -189,9 +190,9 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 
 当前 `PrimitiveFit.cpp` 的步骤：
 
-1. 对 loop 顶点做 PCA，拟合局部平面。
-2. 在平面坐标里解最小二乘圆。
-3. 从协方差估计 major/minor 轴半径。
+1. 对 loop 顶点做 PCA，拟合局部平面（PCA 只用于平面法向估计，不再决定椭圆轴向）。
+2. 在平面坐标里用 **Taubin 代数拟合**解圆（一阶无偏，部分弧/噪声下不再像旧 Kåsa 正规方程那样系统性低估半径；Taubin 特征分解失败时回退 Kåsa 作确定性兜底）。
+3. 用 **Halíř-Flusser 直接最小二乘椭圆拟合**求 major/minor 轴（Fitzgibbon 约束 `4ac − b² = 1` 的 3×3 缩减系统，保证输出为椭圆；轴向来自 conic 转角而非 PCA/二阶矩）。
 4. 计算 radial、ellipse、plane 误差。
 5. 依据相对误差和轴比分类为圆、近圆、椭圆或折线。
 
@@ -224,12 +225,12 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | 过滤 | 报告字段 | 检查的数学/拓扑对象 |
 | --- | --- | --- |
 | feature policy | `feature_rejected_collapses` | feature ownership、loop id、junction、active loop vertex count。 |
-| boundary policy | `boundary_rejected_collapses` | open boundary 的局部邻接和投影。 |
-| link condition | `topology_rejected_collapses` | collapse 前后局部一环是否满足拓扑一致性。 |
+| boundary policy | `boundary_rejected_collapses` | open boundary 的局部邻接；边界边坍缩的 placement 使用 Lindstrom-Turk 边界守恒约束（投影到最小化边界有向面积变化的直线，见 `detail/Placement.{h,cpp}`）。 |
+| link condition | `topology_rejected_collapses` | collapse 前后局部一环是否满足拓扑一致性；含"虚拟顶点"边界扩展判据——两端点都在开边界上的内部边（边界弦）一律拒绝，避免把边界捏合成非流形 pinch 点，该判据与 `preserveBoundary` 无关、始终生效。 |
 | normal deviation | `normal_flip_rejected_collapses` | 旧三角形法向与新三角形法向点积是否低于阈值。 |
 | triangle quality | `quality_rejected_collapses` | 新三角形质量是否低于 `minTriangleQuality`。 |
 | local error | `error_rejected_collapses` | 旧局部采样点到新局部三角形集合的最大距离。 |
-| local intersection | `self_intersection_rejected_collapses` | 新局部三角形是否和远处活动三角形相交。 |
+| local intersection | `self_intersection_rejected_collapses` | 新局部三角形是否和远处活动三角形相交；相交谓词使用无量纲相对容差 `kRelativeIntersectionEps = 1e-9`，网格均匀缩放不改变判定。 |
 | texture policy（opt-in） | `SimplifyReport::textureRejectedCollapses`、`textureProtectedEdges`（仅 C++ 报告，CLI metrics CSV 未包含） | 坍缩两端点的局部 UV chart 能否一一配对、存活 UV 三角形是否翻转定向或有符号面积低于 `minTextureAreaRatio`。仅在 `preserveTexture=true` 且输入带 UV 时生效。 |
 
 这也解释了为什么 `SimplifyReport` 的拒绝计数很重要。它不是“失败日志”，而是参数反馈：如果 `generic_feature_rejected_collapses` 很高，说明可能锁边过度；如果 `quality_rejected_collapses` 很高，说明目标比例、质量阈值或输入三角形状态冲突；如果 `error_rejected_collapses` 很高，说明局部误差预算比目标面数更强。
@@ -251,7 +252,7 @@ Garland-Heckbert 1998 的属性 QEM 把颜色/UV 追加进齐次向量，让 qua
 
 数据模型上，UV 存储为 `Mesh::faceTexCoords` 的“角拥有”逐面逐角坐标（一个几何顶点可属于多个 UV chart，接缝才可表达），OBJ 读取按逐角 `vt` 索引保留。整套检查是局部 O(k)（k 为 one-ring 规模），无全局参数化或属性空间矩阵分解，edge-collapse 渐近复杂度不变。
 
-`preserveTexture` 默认 `false`：关闭时几何输出与旧无纹理路径完全一致（bit-exact），UV 仍会传播但无失真/接缝保证。启用纹理保护时，可选的固定拓扑质量精修轮会被暂时跳过，因为该顶点重定位阶段尚未约束 UV 失真。诊断字段为 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）和 `textureRejectedCollapses`（placement 评估后被纹理检查否决的队列候选数）。该能力目前只在 C++ `SimplifyOptions` 暴露，CLI `simplify` 未提供纹理选项。
+`preserveTexture` 默认 `false`：关闭时几何输出与旧无纹理路径完全一致（bit-exact），UV 仍会传播但无失真/接缝保证。启用纹理保护时，可选的固定拓扑质量精修轮会被暂时跳过，因为该顶点重定位阶段尚未约束 UV 失真。实现上纹理工作分三段：`evaluate()` 只为排序/否决打分、不物化 UV 重写；被接受的 placement 由 `buildPlan()` 构建一次 `TextureUpdatePlan`（具体的逐面角 UV 重写），`apply()` 直接应用，避免 `applyCollapse` 内重建同一计划。诊断字段为 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）、`textureRejectedCollapses`（placement 评估后被纹理检查否决的队列候选数）和 `textureApplyFailures`（已接受坍缩的预建计划无法重放的内部一致性计数，应保持为零）。该能力目前只在 C++ `SimplifyOptions` 暴露，CLI `simplify` 未提供纹理选项。
 
 ## 当前算法和论文的对应关系
 

@@ -6,6 +6,7 @@ Small examples for using the library.
 | --- | --- |
 | `basic_simplify.cpp` | Minimal C++ API example. |
 | `c_api_basic.c` | Minimal C API example. |
+| `feature_workflow_demo.cpp` | Feature-aware quality gate: run feature detection once and reuse the analysis via `QEMSimplifier::simplify(input, features, &report)`. |
 | `sdk_consumer/` | Independent downstream project that builds only against an installed SDK root. |
 | `CMakeLists.txt` | Example build integration. |
 

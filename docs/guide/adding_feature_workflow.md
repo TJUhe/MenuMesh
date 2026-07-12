@@ -69,6 +69,8 @@ docs/                             当前设计事实和使用指南
 
 判断标准是：它是否有自己的 `Options`、`Report`、`Result`，是否会被 CLI、SDK 示例、C API 或其他算法独立消费。如果是，就新建平级模块。
 
+现成范例是 `manumesh::analysis`（`include/algorithms/analysis/MeshAnalysis.h` + `src/analysis/`）：通用网格统计与采样距离比较原来住在 simplification 里，因为会被 CLI、示例和未来 repair/remeshing 独立消费，被提升为平级公共模块；CSV 拼装这类表现层代码则同步下放到 CLI（`apps/manumesh/CliCsv.{h,cpp}`），不进 SDK。
+
 ### 3. 它是否需要公开 API？
 
 公开 API 必须稳定。只有调用方确实需要直接读写的数据才放到公共头里：
@@ -94,7 +96,11 @@ docs/                             当前设计事实和使用指南
 
 ### 1. 先写设计落点
 
-在编码前写清楚功能边界。小功能可以写在 PR 描述里；中大型功能建议新增：
+在编码前写清楚功能边界。**新增算法模块前先读两份生效政策**：
+[`../design/algorithm_extension_protocol.md`](../design/algorithm_extension_protocol.md)
+给出 7 步机械化落地路径、`validateOptions` 协议和诊断字段命名规范；
+[`../design/error_handling_policy.md`](../design/error_handling_policy.md)
+的一页决策表决定新入口用 Status/Result 还是异常（数据错误→Status/Result、编程错误→异常、C 边界→状态码）。小功能可以写在 PR 描述里；中大型功能建议新增：
 
 ```text
 docs/design/<domain>_design.md
@@ -197,9 +203,10 @@ src/CMakeLists.txt
 ```text
 apps/manumesh/CMakeLists.txt
 apps/manumesh/ManuMeshCommands.cpp
+apps/manumesh/CliArguments.cpp
 ```
 
-一般不需要动 `main.cpp`。新增 handler 后注册到 command registry。
+一般不需要动 `main.cpp`。新增 handler 后注册到 command registry。CLI 选项现在由 `CliArguments.cpp` 中共享的 `OptionSpec` 选项表单一来源驱动：把新选项加进对应命令族的 spec 列表（或新建列表并挂到 `commandOptionSets()` / `helpGroups()`），help 文本（`optionsHelpText()`）与逐命令参数校验（`validateArgsForCommand()`，含"未知选项/属于其他命令的选项"报错）会自动跟随，不要在 handler 里手写选项校验。
 
 #### 新增示例
 
@@ -286,18 +293,20 @@ examples/feature_workflow_demo.cpp
 输入：内置 cylinder mesh
 阶段 1：检测 CAD feature loops
 阶段 2：启用 feature-preserving QEM 简化
-阶段 3：计算简化前后 MeshStats 和采样距离
+阶段 3：用 manumesh::analysis 计算简化前后 MeshStats 和采样距离
 输出：QualityGateResult，包含简化 mesh、报告和 accepted 标志
 ```
 
 它只 include 公共 SDK 头：
 
 ```cpp
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
-#include "algorithms/simplification/Metrics.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"
 ```
+
+（统计与采样距离比较来自跨算法公共模块 `manumesh::analysis`；旧的 `algorithms/simplification/Metrics.h` 已是弃用转发头，将在下一 minor 版本删除，新代码不要再 include。）
 
 这点很关键：示例必须像外部用户一样使用 ManuMesh。如果 demo 需要 include `src/.../detail/...`，说明这个能力还没有稳定的 SDK 边界，应该回到设计阶段。
 

@@ -7,6 +7,16 @@
 
 namespace manumesh::feature {
 
+/// Upper bounds accepted by validateFeatureOptions for iteration/scale
+/// parameters. The implementations never evaluate more rings, scales, or
+/// iterations than these limits, so out-of-range requests are rejected up
+/// front instead of being silently clamped.
+inline constexpr int kMaxNormalTensorSmoothingIterations = 8;
+inline constexpr int kMaxNormalTensorScaleCount = 8;
+inline constexpr int kMaxSmoothCurvatureBaseNeighborhoodRings = 4;
+inline constexpr int kMaxSmoothCurvatureScaleCount = 6;
+inline constexpr int kMaxSmoothCurvatureRobustFitIterations = 4;
+
 /// Fitted primitive type for one detected feature loop.
 enum class FeaturePrimitiveType {
     Unknown,
@@ -44,10 +54,13 @@ struct FeatureOptions {
     /// Minimum edge/tangent alignment for accepting tensor-derived edge evidence.
     double normalTensorMinEdgeAlignment = 0.45;
     /// One-ring normal smoothing passes before tensor scoring.
+    /// Valid range: [0, kMaxNormalTensorSmoothingIterations].
     int normalTensorSmoothingIterations = 0;
     /// Number of tensor scales sampled for weak feature scoring.
+    /// Valid range: [1, kMaxNormalTensorScaleCount].
     int normalTensorScaleCount = 1;
     /// Minimum scales that must support a tensor edge candidate.
+    /// Valid range: [1, normalTensorScaleCount].
     int normalTensorMinPersistentScales = 1;
     /// Enables deterministic smooth ridge/valley evidence from local quadric fits.
     /// Kept opt-in because CAD/STL hard-feature and scanned/free-form regimes need
@@ -60,12 +73,16 @@ struct FeatureOptions {
     /// Minimum cross-scale and endpoint tangent agreement.
     double smoothCurvatureMinTangentConsistency = 0.65;
     /// Base topological radius used by local quadric fitting.
+    /// Valid range: [1, kMaxSmoothCurvatureBaseNeighborhoodRings].
     int smoothCurvatureBaseNeighborhoodRings = 2;
     /// Number of successively larger quadric-fit neighborhoods.
+    /// Valid range: [1, kMaxSmoothCurvatureScaleCount].
     int smoothCurvatureScaleCount = 3;
     /// Minimum scales that must support a smooth feature candidate.
+    /// Valid range: [1, smoothCurvatureScaleCount].
     int smoothCurvatureMinPersistentScales = 2;
     /// Deterministic robust reweighting passes for local quadric fitting.
+    /// Valid range: [0, kMaxSmoothCurvatureRobustFitIterations].
     int smoothCurvatureRobustFitIterations = 2;
     /// Enables local feature-graph cleanup before loop recovery.
     bool cleanupFeatureGraph = true;
@@ -75,6 +92,18 @@ struct FeatureOptions {
     int featureGraphMaxWeakSpurEdges = 2;
     /// Confidence threshold used when reporting high-confidence components.
     double featureComponentMinConfidence = 0.35;
+    /// Dimensionless Yoshizawa-style strength threshold for weak spur removal.
+    ///
+    /// When positive, a dangling weak-evidence chain is removed only when its
+    /// curve strength T = (integral ds) * (integral strength ds) stays below
+    /// this value, where ds is measured in local average-edge-length units and
+    /// the per-edge strength is the persistence score divided by the matching
+    /// channel threshold. Long-but-faint chains then survive while
+    /// short-but-strong noise spikes are pruned, and chains longer than
+    /// featureGraphMaxWeakSpurEdges also become prunable. The default 0 keeps
+    /// the legacy behavior of removing every weak spur with at most
+    /// featureGraphMaxWeakSpurEdges edges.
+    double featureGraphMinWeakSpurStrength = 0.0;
 };
 
 /// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
@@ -91,6 +120,9 @@ struct NormalTensorVertex {
     double creaseSaliency = 0.0;
     double cornerSaliency = 0.0;
     double featureScore = 0.0;
+    /// Mean of the per-scale feature scores over all sampled scales, whether
+    /// or not a scale supported the winning candidate (sum of every scale's
+    /// score divided by the scale count).
     double averageFeatureScore = 0.0;
     double persistentFeatureScore = 0.0;
     double localScale = 0.0;
@@ -118,6 +150,11 @@ struct SmoothCurvatureVertex {
     double anisotropy = 0.0;
     double extremumStrength = 0.0;
     double featureScore = 0.0;
+    /// Mean over all sampled scales of the scores from scales that support
+    /// the winning candidate only (persistent sign and consistent tangent);
+    /// unsupported scales contribute zero. This intentionally differs from
+    /// NormalTensorVertex::averageFeatureScore, which averages every scale
+    /// unconditionally.
     double averageFeatureScore = 0.0;
     double persistentFeatureScore = 0.0;
     double fitResidual = 0.0;
@@ -206,11 +243,16 @@ struct FeatureGraphEdge {
 };
 
 /// Per-vertex ownership in the explicit feature graph.
+///
+/// A vertex is a junction only when more than two active edges meet there (or
+/// when it is shared between loops); a vertex with exactly one active edge is
+/// a chain endpoint, not a junction.
 struct FeatureGraphVertex {
     std::vector<int> incidentEdges;
     std::vector<int> loopIds;
     bool junction = false;
     bool shared = false;
+    bool endpoint = false;
 };
 
 /// Explicit graph view of detected feature edges and recovered loops.
@@ -219,6 +261,7 @@ struct FeatureGraph {
     std::vector<FeatureGraphVertex> vertices;
     std::vector<int> junctionVertices;
     std::vector<int> sharedVertices;
+    std::vector<int> endpointVertices;
 };
 
 /// One connected feature-graph component after trace cleanup.
@@ -255,6 +298,10 @@ struct FeatureComponent {
 /// Counts distinguish the evidence source used to build the explicit graph.
 /// Downstream algorithms should prefer `loops` and `vertices` for feature
 /// ownership, and use the counters for diagnostics and policy validation.
+///
+/// `featureEdges` counts evidence edges only. Bridge edges synthesized by
+/// graph cleanup are appended to `graph.edges` (flagged `cleanupBridge`) but
+/// are not evidence, so `graph.edges.size()` can exceed `featureEdges`.
 struct FeatureAnalysis {
     std::vector<VertexFeature> vertices;
     std::vector<FeatureLoop> loops;
@@ -288,6 +335,18 @@ struct FeatureAnalysis {
     double meanSmoothCurvaturePersistence = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
+    /// Interior edges whose two faces disagree on winding order; dihedral
+    /// scoring falls back to the unsigned normal angle for these edges.
+    int inconsistentWindingEdges = 0;
+    /// Cleanup passes skipped because an endpoint/junction hard cap was hit.
+    int graphCleanupSkippedByCap = 0;
+    /// Circular-cluster recovery components whose triplet scan was truncated.
+    int circularRecoveryTruncated = 0;
+    /// Input faces tolerated as degenerate (repeated vertex position or
+    /// numerically zero area). Their normals are unusable, so per-face
+    /// evidence skips their contribution; the count makes that degradation
+    /// visible instead of silently absorbing dirty input.
+    int degenerateFaces = 0;
 };
 
 /// Edge-label benchmark summary for one detected feature graph.

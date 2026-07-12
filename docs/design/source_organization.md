@@ -11,7 +11,8 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `include/` | 安装级 SDK 根目录 | 只放稳定公共头。 |
 | `include/core/` | Mesh、句柄、状态、拓扑缓存 | 外部应用可直接 include。 |
 | `include/io/` | STL/OBJ 网格读写 API | 文件格式边界属于 io，不让 `core` 承担解析细节。OBJ 读取支持多边形自动三角化并保留逐角 `vt` 纹理坐标。 |
-| `include/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。 |
+| `include/algorithms/feature_detection/` | 特征检测 API、结果类型和对象入口 | 与 QEM 简化平级，只依赖 core。`FeatureComparison.h` 提供简化前后圆环 loop 匹配（`matchCircularLoops`）。 |
+| `include/algorithms/analysis/` | 通用网格统计与双 mesh 比较 API | `MeshAnalysis.h`：`MeshStats`/`computeMeshStats`、`DistanceStats`/`compareMeshesBySampledDistance`；旧 `algorithms/simplification/Metrics.h` 只是弃用转发头。 |
 | `include/algorithms/simplification/` | QEM 简化选项、报告、指标、对象入口 | 当前主要 decimation 模块。 |
 | `include/algorithms/<domain>/` | 未来平级算法 API，例如 `repair`、`remeshing` | 只放稳定 options/result/facade，不放 pipeline 私有状态。 |
 | `include/api/` | C ABI | 不暴露 STL、Eigen 或 C++ 异常。 |
@@ -19,8 +20,9 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `src/common/detail/` | 私有公共头 | 放多个算法共享但尚不稳定的 mesh 查询、key/hash、几何谓词、空间索引、距离索引、边界 loop 等工具。 |
 | `src/mesh_edit/` | 跨算法私有编辑内核 | 活动面、动态邻接、compact/remap；供 simplification 和未来 remeshing/repair 复用。 |
 | `src/mesh_edit/detail/` | mesh edit 私有头 | 不安装，不包含 QEM 或具体算法策略。 |
-| `src/core/` | 基础数据结构实现 | 对应公共 core 头。 |
-| `src/io/` | 网格文件读写实现 | 对应 `include/io/`。 |
+| `src/core/` | 基础数据结构实现 | 对应公共 core 头（含 `Tolerances.h` 统一退化容差、`MathConstants.h`、`generateWeldedCubeGrid` 等生成器）。 |
+| `src/io/` | 网格文件读写实现 | 对应 `include/io/`；解析器基于 `std::from_chars` 与缓冲扫描，提供 `probeStlFormat()` ASCII/二进制探测。 |
+| `src/analysis/` | 通用统计与比较实现 | 对应 `include/algorithms/analysis/`，namespace `manumesh::analysis`，只依赖 core/common。 |
 | `src/feature_detection/` | 特征检测实现 | 对应 `FeatureDetector` 算法模块，不能依赖 simplification。 |
 | `src/feature_detection/detail/` | 特征检测私有 helper | primitive fitting、trace graph、loop recovery 等不稳定细节。 |
 | `src/simplification/` | 简化算法实现 | 可以消费 `FeatureAnalysis`，但不反向污染 feature detection。 |
@@ -36,7 +38,7 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 ## 当前公共私有层
 
 ```text
-src/common/GeometryPredicates.cpp          跨算法几何谓词实现
+src/common/GeometryPredicates.cpp          跨算法几何谓词实现（相对容差、尺度不变）
 src/common/detail/GeometryPredicates.h     三角形质量、点到三角形距离、AABB 距离、三角形包围盒、三角形相交
 src/common/MeshDistanceIndex.cpp           跨算法 mesh 表面 BVH 距离查询实现
 src/common/detail/MeshDistanceIndex.h      MeshDistanceIndex 私有声明
@@ -44,10 +46,11 @@ src/common/MeshQueries.cpp                 跨算法 mesh 查询实现
 src/common/detail/MeshQueries.h            无向边 key、面 key、边-面邻接、面法向、顶点邻接、边界顶点
 src/common/SpatialIndex.cpp                跨算法 AABB 候选 uniform grid 实现
 src/common/detail/SpatialIndex.h           CellCoord、hash、UniformAabbCandidateGrid、queryCandidates、overflow 管理
-src/common/detail/MathConstants.h          数学常量
+src/common/detail/MathConstants.h          kPi 转发别名；正典常量在 include/core/MathConstants.h
 ```
 
-这层不是 SDK 合约。外部代码不应 include `src/common/detail/...`；如果某个概念已经足够稳定，应提升到 `include/core/` 或新的公共算法模块。
+这层的命名空间是 `manumesh::common`（2026-07 由 `manumesh::detail` 改名，过渡别名
+`namespace manumesh::detail = common;` 保留一个 minor 版本）。这层不是 SDK 合约。外部代码不应 include `src/common/detail/...`；如果某个概念已经足够稳定，应提升到 `include/core/` 或新的公共算法模块。
 
 ## 当前简化模块拆分
 
@@ -56,18 +59,22 @@ src/simplification/QEMSimplifier.cpp            公共对象 API、pimpl 和 sim
 src/simplification/SimplificationRun.cpp        单次运行编排和 collapse loop
 src/simplification/SimplificationPolicies.cpp   公开 options 到内部 policy 的转换
 src/simplification/CollapseAttempt.cpp          单个候选坍缩的 feature/boundary/budget/legality 评估
-src/simplification/Quadrics.cpp                 面 quadric、line quadric、placement 求解
-src/simplification/FeatureConstraints.cpp       特征曲线策略、预算和投影
-src/simplification/CandidateQueue.cpp           折叠候选优先队列
-src/simplification/CollapseTopology.cpp         boundary policy、link condition 与通用动态拓扑的适配
+src/simplification/Quadrics.cpp                 面 quadric、line quadric、placement 求解（GH97 三级 fallback 链，含沿边一维最优）
+src/simplification/Placement.cpp                placement 策略单元：Lindstrom-Turk 边界守恒边界投影（配套 detail/Placement.h）
+src/simplification/FeatureConstraints.cpp       特征曲线策略、预算和投影（长 loop 走 PolylineSegmentIndex AABB 树）
+src/simplification/CandidateQueue.cpp           折叠候选优先队列（Candidate 携带已解 placement 与 priorityScale）
+src/simplification/CollapseTopology.cpp         boundary policy、扩展 link condition（含边界弦 pinch 拒绝）与通用动态拓扑的适配
 src/simplification/SimplificationValidation.cpp 选项和输入校验
-src/simplification/Metrics.cpp                  质量、采样和统计指标；距离查询复用 common MeshDistanceIndex
 src/simplification/QualityRefinement.cpp        可选固定拓扑质量精修轮（启用纹理保护时暂时跳过）
 src/simplification/CollapseLegality.cpp         拓扑、边界、质量、法线、自交过滤；几何谓词复用 common
 src/simplification/SpatialFaceIndex.cpp         面片 AABB 到 common UniformAabbCandidateGrid 的适配器
-src/simplification/TextureProtection.cpp        opt-in 纹理保护：局部 UV chart 配对、有符号 UV 面积检查和标量失真代价
+src/simplification/TextureProtection.cpp        opt-in 纹理保护：局部 UV chart 配对、有符号 UV 面积检查、标量失真代价和 buildPlan/apply 计划复用
 src/simplification/detail/TextureProtection.h   纹理保护私有接口，不安装
 ```
+
+通用网格统计（`MeshStats`）与双 mesh 采样距离比较此前在 `src/simplification/Metrics.cpp`，
+现已上浮到 `src/analysis/MeshAnalysis.cpp`（`manumesh::analysis` 模块）；
+CSV 拼装（`statsHeaderCsv`/`statsRowCsv`）属于表现层，移入 `apps/manumesh/CliCsv.cpp`。
 
 ## 当前 mesh_edit 模块拆分
 
@@ -87,18 +94,20 @@ src/mesh_edit/detail/DynamicTopology.h        动态拓扑私有接口
 
 ```text
 src/feature_detection/FeatureDetector.cpp          FeatureDetector pimpl、公共入口、pipeline stage 编排和 CSV 小工具
-src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor/smooth-curvature 边证据策略组合
-src/feature_detection/SmoothCurvature.cpp          opt-in 确定性光滑曲率证据：多尺度鲁棒 quadric 拟合、带符号主曲率、方向极值和 persistence
+src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor/smooth-curvature 边证据策略组合；有向（绕向感知）二面角与 inconsistentWindingEdges 诊断
+src/feature_detection/SmoothCurvature.cpp          opt-in 确定性光滑曲率证据：多尺度鲁棒三次 Monge 拟合、带符号主曲率、解析 extremality 和 Ohtake 边零交叉判据
 src/feature_detection/FeatureGraph.cpp             FeatureGraph 初始化、trace graph 构建和 junction/shared 标记
+src/feature_detection/FeatureGraphCleanup.cpp      gap 桥接、弱毛刺剪除（含 Yoshizawa 组件强度过滤）和 junction 合并
 src/feature_detection/FeatureLoopRecovery.cpp      cycle/trace/primitive/circular recovery 编排
 src/feature_detection/FeatureCycleRecovery.cpp     junction cycle 和小 cycle basis 恢复
 src/feature_detection/FeatureTraceRecovery.cpp     feature graph 上的 open chain / closed loop 追踪
 src/feature_detection/FeaturePrimitiveRecovery.cpp primitive component 兜底恢复
 src/feature_detection/FeatureLoopBuilder.cpp       loop 构造、vertex ownership、切向和 primitive 数据写回
 src/feature_detection/FeatureCircularRecovery.cpp  有界圆形顶点簇 fallback 恢复
+src/feature_detection/FeatureComparison.cpp        简化前后圆环 loop 匹配（matchCircularLoops，公共头 FeatureComparison.h）
 src/feature_detection/NormalTensor.cpp             normal-tensor 特征评分，复用 common 局部边长尺度
-src/feature_detection/PrimitiveFit.cpp             circle/near-circle/ellipse primitive 拟合和误差度量
-src/feature_detection/detail/*.h                   feature 检测私有类型、策略接口和 helper 声明
+src/feature_detection/PrimitiveFit.cpp             Taubin 圆拟合（Kåsa 回退）、Halíř-Flusser 椭圆拟合和误差度量
+src/feature_detection/detail/*.h                   feature 检测私有类型、策略接口和 helper 声明（含 FeatureDetectionCache：面法向/边信息/邻接/局部边长全管线一次构建）
 ```
 
 特征检测是与 QEM 简化平级的算法模块。它不能反向依赖 `src/simplification/`；简化、验证、修复或未来重网格模块可以消费 `FeatureAnalysis`。
@@ -107,12 +116,12 @@ src/feature_detection/detail/*.h                   feature 检测私有类型、
 
 ```text
 apps/manumesh/main.cpp             只保留进程入口，调用 manumesh::cli::run()
-apps/manumesh/CliArguments.cpp     通用 flag/value 解析和位置参数提取
+apps/manumesh/CliArguments.cpp     通用 flag/value 解析、OptionSpec 共享选项表（表驱动 help 与逐命令参数校验 validateArgsForCommand）
 apps/manumesh/ManuMeshCli.cpp      帮助输出和 run() 派发
 apps/manumesh/ManuMeshCommands.cpp 基础简化、参数扫描和 command registry
-apps/manumesh/ManuMeshFeatureCommands.cpp 特征报告、特征基准和简化前后特征对比命令
+apps/manumesh/ManuMeshFeatureCommands.cpp 特征报告、特征基准和简化前后特征对比命令（loop 匹配算法已下沉为库函数 matchCircularLoops）
 apps/manumesh/ManuMeshWorkflowCommands.cpp demo、特征验证和外部模型验证工作流
-apps/manumesh/CliCsv.cpp           CSV 文件写出辅助
+apps/manumesh/CliCsv.cpp           CSV 文件写出辅助与网格统计 CSV 拼装（statsHeaderCsv/statsRowCsv，自 simplification/Metrics 移入）
 apps/manumesh/CliOptionBinding.cpp CLI 参数到算法 options 的绑定
 ```
 

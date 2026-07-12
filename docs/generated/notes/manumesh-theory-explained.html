@@ -241,10 +241,10 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>Boundary / Attribute QEM</h3><p><strong>代码：</strong><code>addBoundaryQuadrics()</code> 给边界附加约束；属性 QEM 仍作为后续扩展方向。</p><p><strong>引用：</strong>M003 Garland-Heckbert 1998。</p><span class="doc-path">docs/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Line Quadrics</h3><p><strong>代码：</strong><code>lineQuadric()</code> 用切向正则化改善平坦区 QEM 排序退化；权重由 <code>lineWeight</code>、<code>featureBoost</code> 与 weight mode 调度。</p><p><strong>引用：</strong>M004 Liu-Rahimzadeh-Zordan 2025。</p><span class="doc-path">docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code>、<code>src/common/GeometryPredicates.cpp</code>、<code>src/common/SpatialIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
-    <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、dihedral、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、有向二面角（绕向一致时用带符号法向点积，可识别 &gt;90° 反折刀边；不一致回退无符号角并计入 <code>inconsistentWindingEdges</code>）、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Normal Tensor / Weak Feature Evidence</h3><p><strong>代码：</strong><code>NormalTensor.cpp</code> 使用局部边长归一化、多尺度 smoothing/persistence；<code>FeatureEvidence.cpp</code> 用 persistent score 和切线对齐接受弱边。</p><p><strong>引用：</strong>M015 normal tensor，M012/M013 normal voting，M009 multi-scale creases。</p><span class="doc-path">docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</span><span class="doc-path">docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</span><span class="doc-path">docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</span><span class="doc-path">docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</span></article>
-    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
-    <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接（Yoshizawa 角度规则）、弱 spur 删除（可选 <code>featureGraphMinWeakSpurStrength</code> 组件级强度裁决，默认 0.0 保留按边数剪枝）、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M021 crest-line strength/gap 规则，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop（圆用 Taubin 1991 代数拟合、Kåsa 为确定性回退；椭圆用 Halíř-Flusser 直接最小二乘）；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureEdges()</code> 输出 edge precision/recall、junction F1、loop closure、component confidence 与 feature drift。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 feature-preserving simplification 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
     <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>确定性曲率 ridge/valley 已于 2026-07 落地为 opt-in 的 smooth-curvature 弱证据路径（<code>SmoothCurvature.cpp</code>，默认关闭）；wireframe/neural edge、learned QEM 仍作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
   </div>
@@ -252,14 +252,14 @@ img, svg, canvas, video {
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
 <section class="feature-recognition-brief qem-quadrics-expansion">
   <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
-  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，再解 <code>A x=-b</code>；若矩阵病态则回退到端点/中点候选。</p>
+  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，再解 <code>A x=-b</code>；求解采用 GH97 三级回退链：全空间最优解被拒绝（病态）时，先退到沿折叠边的一维最优（对 rank-2 quadric——直折痕、边界折边——是良定的中间档），仍失败才退到端点/中点候选。边界边的 placement 另用 Lindstrom-Turk 边界守恒约束（<code>src/simplification/Placement.cpp</code>）。</p>
   <table>
     <thead><tr><th>二次型项</th><th>展开到 <code>A,b,c</code></th><th>参数与默认值</th><th>作用与引用</th></tr></thead>
     <tbody>
       <tr><td>面平面 QEM</td><td><code>pi=[n,-n.p]</code>，<code>Q += area/3 * pi*pi^T</code>。等价于 <code>E=a(n.x-n.p)^2</code>，所以 <code>A+=a nn^T</code>、<code>b+=-a(n.p)n</code>、<code>c+=a(n.p)^2</code>。</td><td>无独立开关；退化面用很小的 <code>1e-6 pointQuadric</code> 稳定。</td><td>主几何误差，来自 M002 Garland-Heckbert 1997。</td></tr>
       <tr><td>普通 Line Quadric</td><td><code>lineQuadric(p,n)</code> 取两个与局部法线 <code>n</code> 垂直的单位方向 <code>u,v</code>，加入 <code>Q_l=pi_u*pi_u^T+pi_v*pi_v^T</code>。展开为 <code>E_l=||(I-nn^T)(x-p)||^2</code>，即惩罚切向漂移。</td><td><code>useLineQuadrics=true</code>，<code>lineWeight=1e-3</code>。默认分支：<code>Q_i += w_i area_i Q_l</code>。</td><td>补平坦区 QEM 切向不满秩问题，来自 M004 Liu-Rahimzadeh-Zordan 2025。</td></tr>
       <tr><td>特征加权 Line Quadric</td><td>非 uniform 模式下 <code>w_i=lineWeight+featureBoost*s_i</code>；<code>s_i</code> 来自 dihedral、normal-tensor persistence、height 或 xband。normal-tensor 模式只给满足 <code>normalTensorMinPersistentScales</code> 的顶点写入 persistent score。</td><td><code>weightMode=uniform</code>，<code>featureBoost=0.05</code>；常用调试值 <code>dihedral/normal-tensor + 0.08</code>。<code>featureAngleDeg=40</code>，<code>normalTensorFeatureThreshold=0.16</code>，<code>normalTensorScaleCount=1</code>。</td><td>让硬边、弱 ridge 或指定区域获得更高排序成本；feature evidence 参考 M007/M012/M013/M015/M016，弱特征参考 M026。</td></tr>
-      <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，当前实现先加 <code>adaptiveBaseLineWeight*area_i*Q_l</code>，再整体缩放 <code>Q_i *= 1+max(0,featureBoost)*s_i</code>。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。这是实验性尺度归一化路径，不是默认推荐。</td><td>用于跨尺度模型的 line weight 可比性；需要结合 benchmark 校准。</td></tr>
+      <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，当前实现先加 <code>adaptiveBaseLineWeight*area_i*Q_l</code>；featureBoost 不再改写 quadric，而是按 Wang 2008 解耦成逐顶点队列优先级因子 <code>priorityScale = 1+max(0,featureBoost)*s_i</code>——它只缩放候选在优先队列里的排序代价，placement 求解用的是干净 quadric。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。这是实验性尺度归一化路径，不是默认推荐。</td><td>用于跨尺度模型的 line weight 可比性；排序/求解解耦参考 M029 Wang 2008。</td></tr>
       <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|*mm^T</code>，秩 1。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
       <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 影响诊断/策略判断。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
       <tr><td>Primitive 投影与硬过滤</td><td>圆/椭圆/多边形不是当前 <code>Quadrics.cpp</code> 里的单独径向二次型；当前代码用 tangent-line quadric 排序，再由 <code>projectToCircle/projectToEllipse/projectToPolygonal</code>、<code>maxFeatureCurveDeviationRatio</code> 和 <code>featureProtectionMode</code> 控制最终位置与是否拒绝折叠。</td><td><code>maxFeatureCurveDeviationRatio=0</code> 表示关闭曲线漂移预算；<code>featureProtectionMode=PrimitiveCurves</code>。圆/椭圆阈值默认均为 <code>0.05</code>。</td><td>把“软成本排序”和“硬合法性保护”分开，符合 M030-M033 edge-collapse 工程建议。</td></tr>
@@ -718,6 +718,11 @@ $$E_i^{curve}(x)=\eta a_i\,\operatorname{dist}^2(x,\{v_i+\alpha\tau_i\})$$
 
 <h2 id="s10"><span class="num">10</span>圆形特征拟合的最小二乘推导</h2>
 
+<div class="callout">
+<div class="callout-title">2026-07-12 起的实现现状</div>
+<p>本节先推导最直观的 Kåsa 线性最小二乘圆拟合。当前 <code>PrimitiveFit.cpp</code> 已把它降级为<strong>确定性回退</strong>：主拟合改用 Taubin 代数拟合（Taubin 1991），椭圆改用 Halíř-Flusser 直接最小二乘（Fitzgibbon 约束），见本节末尾的说明。</p>
+</div>
+
 <p>候选特征 loop 有点集 $\{p_i\}_{i=1}^N$。先求均值：</p>
 
 <div class="formula">
@@ -792,6 +797,14 @@ $$x_{proj}=center+r\frac{(I-n_cn_c^\top)(x-center)}{\|(I-n_cn_c^\top)(x-center)\
 <span class="label">(49)</span>
 </div>
 
+<h3>10.1 为什么主拟合换成 Taubin：Kåsa 的系统性偏差</h3>
+
+<p>上面的线性推导最小化的是代数残差 $(x_i^2+y_i^2-2c_xx_i-2c_yy_i-\rho)$ 的平方和，这就是 Kåsa 拟合。它在完整均匀采样的圆上是精确的，但在短弧、噪声或非均匀采样下有 $O(\sigma^2)$ 的本质偏差，会<strong>系统性低估半径</strong>（代数残差在圆内侧权重更大）。Taubin 1991 把同一代数残差按其梯度范数归一化后最小化，本质偏差降到 $O(\sigma^4)$（一阶无偏）。当前实现按 Chernov 的 Newton 形式解 Taubin 的特征三次方程（从 $\eta=0$ 起的受控 Newton 迭代）；任何退化（导数消失、中心系统行列式过小）都会回退到 Kåsa，因此病态输入上的行为与旧实现一致，而正常输入上短弧与噪声 loop 的半径估计不再塌缩。</p>
+
+<h3>10.2 椭圆：Halíř-Flusser 直接最小二乘</h3>
+
+<p>椭圆参数不再用 PCA/二阶矩近似，而是解 Fitzgibbon 约束最小二乘：在 conic 系数 $\theta=[a,b,c,d,e,f]$ 上最小化代数残差，同时施加 $4ac-b^2=1$——这个约束保证解一定是椭圆而不是双曲线/抛物线。Halíř-Flusser 的数值稳定版把 6×6 广义特征问题化简为 3×3 缩减系统（当前实现即此形式），再从 conic 系数解析出中心、长短半轴与<strong>轴向</strong>：轴向来自 conic 的转角（$Q=[[a,b/2],[b/2,c]]$ 的特征向量），对精确椭圆上的任意顶点分布都是精确的；旧的 PCA 二阶矩估计只保留为退化回退。分类阈值（<code>circleFitRelativeThreshold</code>、<code>ellipseFitRelativeThreshold</code> 均默认 0.05，<code>nearCircleAxisRatioTolerance</code> 默认 0.08）不变，仍作用于几何残差。</p>
+
 <section class="feature-recognition-brief" id="feature-theory-graph-confidence">
 <h2><span class="num">10A</span>为什么“特征边数量”不是理论上足够的指标</h2>
 <p>从数学上看，单条边的二面角或单个顶点的 normal tensor 分数只是局部证据。它们回答的是“这个局部是否不平滑”，不是“这里是否存在一条应该被 QEM 保护的设计曲线”。要成为可保护特征，还需要三个额外性质：</p>
@@ -814,18 +827,18 @@ $$x_{proj}=center+r\frac{(I-n_cn_c^\top)(x-center)}{\|(I-n_cn_c^\top)(x-center)\
 
 <h2 id="s10b"><span class="num">10B</span>光滑曲率特征检测的数学</h2>
 
-<p>前面几节讨论的特征证据都来自离散网格上的不连续：开边界、非流形边、超过阈值的二面角。这些是"硬证据"，因为不连续在网格上有明确定义。但很多设计曲线并不表现为不连续——扫描件或自由曲面上的光滑 ridge/valley 处，网格局部完全光滑，二面角处处很小。要检测它们，必须回到微分几何：ridge/valley 是<strong>光滑表面上主曲率沿自身主方向取极值的位置</strong>，是一个微分事件而不是拓扑事件。这就是 2026-07 新增的 opt-in 光滑曲率证据路径（<code>SmoothCurvature.cpp</code>，设计文档 <code>docs/design/smooth_curvature_feature_detection_2026_07_11.md</code>）背后的数学。整条路径是确定性的最小二乘与特征值计算，没有任何学习成分。</p>
+<p>前面几节讨论的特征证据都来自离散网格上的不连续：开边界、非流形边、超过阈值的二面角。这些是"硬证据"，因为不连续在网格上有明确定义。但很多设计曲线并不表现为不连续——扫描件或自由曲面上的光滑 ridge/valley 处，网格局部完全光滑，二面角处处很小。要检测它们，必须回到微分几何：ridge/valley 是<strong>光滑表面上主曲率沿自身主方向取极值的位置</strong>，是一个微分事件而不是拓扑事件。这就是 2026-07 新增的 opt-in 光滑曲率证据路径（<code>SmoothCurvature.cpp</code>，设计文档 <code>docs/design/smooth_curvature_feature_detection_2026_07_11.md</code>）背后的数学：多尺度局部<strong>三次</strong> Monge patch 拟合 + 解析 extremality + 边零交叉极值。整条路径是确定性的最小二乘与特征值计算，没有任何学习成分。</p>
 
-<h3>10B.1 局部 Monge patch 拟合</h3>
+<h3>10B.1 局部三次 Monge patch 拟合</h3>
 
-<p>在顶点 $v$ 处建立局部坐标系：以面积加权的局部法线 $n$ 为 $w$ 轴，切平面内取正交基 $(u,v)$。把 k-ring 邻域顶点变换到这个坐标系后，表面在原点附近可以写成高度场（Monge patch）：</p>
+<p>在顶点 $v$ 处建立局部坐标系：以面积加权的局部法线 $n$ 为 $w$ 轴，切平面内取正交基 $(u,v)$。把 k-ring 邻域顶点变换到这个坐标系后，表面在原点附近可以写成高度场（Monge patch）。2026-07-12 起拟合升级为<strong>三次</strong>基（Yoshizawa 路线）：</p>
 
 <div class="formula">
-$$w(u,v)=a\,u^2+b\,uv+c\,v^2+d\,u+e\,v$$
+$$w(u,v)=a\,u^2+b\,uv+c\,v^2+d\,u+e\,v+g_0\,u^3+g_1\,u^2v+g_2\,uv^2+g_3\,v^3$$
 <span class="label">(C1)</span>
 </div>
 
-<p>五个系数用带距离权重的最小二乘拟合。为什么保留一次项 $d,e$：初始估计的局部法线不一定精确，$d,e$ 吸收了法线的小偏差，等价于允许拟合过程自行校正切平面方向。拟合再叠加确定性 Huber 重加权（迭代次数由 <code>smoothCurvatureRobustFitIterations</code> 控制，默认 2）：残差大的邻域点权重按 Huber 函数衰减后重解，这样个别噪声点不会把二次曲面拉歪，而整个过程仍是确定性的——同一输入永远得到同一输出。</p>
+<p>九个系数用带距离权重的最小二乘拟合：二次块 $(a,b,c)$ 给出主曲率，三次块 $(g_0..g_3)$ 携带曲率的方向导数，可解析算出 extremality $e_i=\nabla\kappa_i\cdot t_i$（见 10B.4）。为什么保留一次项 $d,e$：初始估计的局部法线不一定精确，$d,e$ 吸收了法线的小偏差，等价于允许拟合过程自行校正切平面方向。拟合再叠加确定性 Huber 重加权（迭代次数由 <code>smoothCurvatureRobustFitIterations</code> 控制，默认 2）：残差大的邻域点权重按 Huber 函数衰减后重解，这样个别噪声点不会把曲面拉歪，而整个过程仍是确定性的——同一输入永远得到同一输出。数值实现上，9×9 加权正规方程按上三角增量累加后 LDLT 求解（坐标已按邻域半径预归一化，条件数可控），取代了每轮鲁棒迭代一次的稠密 QR；邻域点数不足 9 时判定为欠定并放弃该尺度。</p>
 
 <h3>10B.2 尺度归一化：为什么分数无量纲</h3>
 
@@ -852,9 +865,9 @@ $$I\!I\,t=\kappa\,I\,t$$
 
 <p>因为 $I$ 对称正定、$I\!I$ 对称，这是一个广义<strong>自伴</strong>特征问题：两个特征值 $\kappa_1,\kappa_2$ 保证为实数（带符号的主曲率），两个特征向量在 $I$ 度量下正交（主方向）。等价的说法是求 shape operator $S=I^{-1}I\!I$ 的特征分解，但直接解自伴形式在数值上更稳。保留符号很重要：$\kappa>0$ 与 $\kappa<0$ 区分了 ridge（凸脊）和 valley（凹谷），后续 persistence 检查也要求符号跨尺度一致。</p>
 
-<h3>10B.4 方向极值判据：曲率大不等于特征</h3>
+<h3>10B.4 边零交叉极值判据：曲率大不等于特征</h3>
 
-<p>只看曲率幅值会把圆柱侧壁、球面这类均匀弯曲区域全部误判成特征。经典 ridge/crest line 理论的定义是：ridge 点是主曲率 $\kappa_1$ 沿自己的主方向 $t_1$ 取<strong>方向极值</strong>的点。离散化的做法是：沿每个主方向向两侧采样法曲率，仅当中心值相对两侧都是带符号极值（ridge 要求极大、valley 要求极小）时才接受候选。圆柱侧壁上沿环向走曲率处处相同，没有极值，因此被正确排除；真正的脊线横跨方向上曲率先升后降，中心是极值，被保留。候选分数再融合四个量：尺度归一化曲率幅值、各向异性（$|\kappa_1|$ 与 $|\kappa_2|$ 的分离度，曲线状特征要求单方向弯曲）、极值对比度、拟合残差质量（残差大说明局部不像光滑二次曲面，证据不可信）。</p>
+<p>只看曲率幅值会把圆柱侧壁、球面这类均匀弯曲区域全部误判成特征。经典 ridge/crest line 理论的定义是：ridge 点是主曲率 $\kappa_1$ 沿自己的主方向 $t_1$ 取<strong>方向极值</strong>的点，即 extremality $e=\nabla\kappa_1\cdot t_1$ 的零点。三次拟合让 $e$ 可以从三次块解析算出（10B.1），离散判据因此升级为 Ohtake 的<strong>边零交叉</strong>形式：主方向只是一个 line field（$t$ 与 $-t$ 等价），所以先把邻居的切向与 extremality 做符号同步；边两端都要通过曲率支配性测试（ridge 要求 $\kappa_{max}&gt;|\kappa_{min}|$，valley 对偶）；$e$ 必须沿一条近似跟随主方向的边变号，并且两端通过一阶极大测试（极值点须落在各自切向的前方——用一阶条件替代不可行的二阶导数测试）；最后零交叉按 $|e|$ 反比插值归属 $|e|$ 较小的端点，使检测带保持<strong>一个顶点宽</strong>而不是两个。圆柱侧壁上沿环向走曲率处处相同，$e$ 不变号，因此被正确排除；真正的脊线横跨方向上曲率先升后降，$e$ 过零，被保留。候选分数再融合四个量：尺度归一化曲率幅值、各向异性（$|\kappa_1|$ 与 $|\kappa_2|$ 的分离度，曲线状特征要求单方向弯曲）、极值对比度、拟合残差质量（残差大说明局部不像光滑曲面，证据不可信）。</p>
 
 <h3>10B.5 persistence：跨尺度存活才算数</h3>
 
@@ -898,18 +911,18 @@ $$
 <span class="label">(53)</span>
 </div>
 
-<p>这对工业模型很有价值：如果边界或体积绝不能漂，硬约束往往比调一个很大的 quadric 权重更可靠。</p>
+<p>这对工业模型很有价值：如果边界或体积绝不能漂，硬约束往往比调一个很大的 quadric 权重更可靠。2026-07-12 起，ManuMesh 已把这条思路的第一步落地：边界边的 placement 改用 Lindstrom-Turk 边界守恒约束求解（<code>src/simplification/Placement.cpp</code>），不再只靠边界 plane quadric 的软惩罚；内部边则沿用 GH97 三级回退链（全空间最优 → 沿折叠边一维最优 → 端点/中点）。</p>
 
 <h3>11.3 从二面角检测升级到特征图检测</h3>
 
-<p>当前程序用二面角阈值：</p>
+<p>当前程序的二面角判据已是<strong>有向</strong>版本：先按共享边在两面中的遍历方向做绕向一致性判断，一致时用带符号法向点积求转角：</p>
 
 <div class="formula">
-$$\theta=\arccos(|n_1^\top n_2|)\ge\theta_0$$
+$$\theta=\arccos(n_1^\top n_2)\ge\theta_0\quad\text{（绕向一致时）}$$
 <span class="label">(54)</span>
 </div>
 
-<p>这个方法简单，但对噪声、圆角、弱特征、非均匀三角化不稳定。CAD/扫描模型中更强的路线是先提取 feature graph，例如 C0/C1/C2 discontinuity、normal tensor surface-feature line 或 robust CAD triangular mesh feature-line extraction。对应参考包括 Jiao-Bayyana 2008、Vidal-Wolf-Dupont 2011、Tsuchie-Higashi 2014。</p>
+<p>带符号 dot 能识别 $\theta&gt;90^\circ$ 的反折刀边——旧的 $|n_1^\top n_2|$ 会把 120° 的法向夹角读成 60°、把薄片折边读成平面而漏检。绕向不一致的边回退到无符号角（只会低报锐度），并计入 <code>FeatureAnalysis::inconsistentWindingEdges</code> 诊断。单阈值仍对噪声、圆角、弱特征、非均匀三角化不够稳。CAD/扫描模型中更强的路线是先提取 feature graph，例如 C0/C1/C2 discontinuity、normal tensor surface-feature line 或 robust CAD triangular mesh feature-line extraction。对应参考包括 Jiao-Bayyana 2008、Vidal-Wolf-Dupont 2011、Tsuchie-Higashi 2014。</p>
 
 <h3>11.4 从局部 QEM 升级到误差界过滤</h3>
 
@@ -1055,7 +1068,7 @@ $$
 <span class="label">(66)</span>
 </div>
 
-<p>当前程序使用代数圆拟合作初值：</p>
+<p>当前程序的圆拟合已升级为 Taubin 代数拟合（梯度归一化的代数残差，一阶无偏；见 10.1），Kåsa 线性最小二乘保留为确定性回退，其方程为：</p>
 
 <div class="formula">
 $$

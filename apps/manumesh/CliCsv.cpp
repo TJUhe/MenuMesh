@@ -1,6 +1,8 @@
 #include "CliCsv.h"
 
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 
 namespace manumesh::cli {
 
@@ -67,6 +69,32 @@ std::map<std::string, std::string> readFirstCsvRow(const std::filesystem::path& 
 std::string csvValue(const std::map<std::string, std::string>& row, const std::string& key) {
     const auto it = row.find(key);
     return it == row.end() ? "" : it->second;
+}
+
+std::string statsHeaderCsv() {
+    return "label,vertices,faces,edges,boundary_edges,non_manifold_edges,area,"
+           "mean_triangle_quality,min_triangle_quality,mean_edge_length,"
+           "edge_length_cv,mean_orig_to_simp,max_orig_to_simp,"
+           "mean_simp_to_orig,max_simp_to_orig";
+}
+
+std::string statsRowCsv(
+    const std::string& label,
+    const manumesh::analysis::MeshStats& stats,
+    const manumesh::analysis::DistanceStats* distance
+) {
+    std::ostringstream out;
+    out << std::setprecision(12);
+    out << label << "," << stats.vertices << "," << stats.faces << "," << stats.edges << "," << stats.boundaryEdges
+        << "," << stats.nonManifoldEdges << "," << stats.area << "," << stats.meanTriangleQuality << ","
+        << stats.minTriangleQuality << "," << stats.meanEdgeLength << "," << stats.edgeLengthCv;
+    if (distance) {
+        out << "," << distance->meanOriginalToSimplified << "," << distance->maxOriginalToSimplified << ","
+            << distance->meanSimplifiedToOriginal << "," << distance->maxSimplifiedToOriginal;
+    } else {
+        out << ",,,,";
+    }
+    return out.str();
 }
 
 } // namespace manumesh::cli

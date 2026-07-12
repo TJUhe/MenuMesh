@@ -10,39 +10,43 @@ namespace manumesh::feature::detector_detail {
 namespace {
 
 bool traceEdgeVisited(const std::unordered_set<std::uint64_t>& visitedEdges, int a, int b) {
-    return visitedEdges.find(manumesh::detail::meshEdgeKey(a, b)) != visitedEdges.end();
+    return visitedEdges.find(manumesh::common::meshEdgeKey(a, b)) != visitedEdges.end();
 }
 
 void markTraceEdge(std::unordered_set<std::uint64_t>& visitedEdges, int a, int b) {
-    visitedEdges.insert(manumesh::detail::meshEdgeKey(a, b));
+    visitedEdges.insert(manumesh::common::meshEdgeKey(a, b));
 }
 
 void accumulateTraceEdgeStats(const TraceGraph& trace, int a, int b, TraceLoopStats& stats) {
     ++stats.edgeCount;
-    if (traceEdgeBoundary(trace, a, b)) {
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    if (attrs == nullptr) {
+        ++stats.unknownSignedEdges;
+        return;
+    }
+    if (attrs->boundary) {
         ++stats.boundaryEdges;
     }
-    if (traceEdgeDihedral(trace, a, b)) {
+    if (attrs->dihedral) {
         ++stats.dihedralEdges;
     }
-    if (traceEdgeNormalTensor(trace, a, b)) {
+    if (attrs->normalTensor) {
         ++stats.normalTensorEdges;
     }
-    if (traceEdgeSmoothCurvature(trace, a, b)) {
+    if (attrs->smoothCurvature) {
         ++stats.smoothCurvatureEdges;
     }
-    if (traceEdgeNonManifold(trace, a, b)) {
+    if (attrs->nonManifold) {
         ++stats.nonManifoldEdges;
     }
-    if (traceEdgeCleanupBridge(trace, a, b)) {
+    if (attrs->cleanupBridge) {
         ++stats.cleanupBridgeEdges;
     }
-    const int sign = traceEdgeSign(trace, a, b);
-    if (sign > 0)
+    if (attrs->signedKind > 0)
         ++stats.convexEdges;
-    if (sign < 0)
+    if (attrs->signedKind < 0)
         ++stats.concaveEdges;
-    if (sign == 0 && !traceEdgeBoundary(trace, a, b)) {
+    if (attrs->signedKind == 0 && !attrs->boundary) {
         ++stats.unknownSignedEdges;
     }
 }

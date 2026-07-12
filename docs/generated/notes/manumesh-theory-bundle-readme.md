@@ -4,7 +4,7 @@
 
 ## 主笔记
 
-- `manumesh-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 ManuMesh 当前程序如何把这些项解释为候选折叠的能量。
+- `manumesh-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 ManuMesh 当前程序如何把这些项解释为候选折叠的能量。PDF 为历史导出，未随 2026-07-12 的算法更新重写；同名 HTML（`manumesh-theory-explained.html`）已同步当日源码基线：有向二面角证据、Taubin 圆拟合与 Halíř-Flusser 椭圆拟合（Kåsa 为回退）、smooth-curvature 分支的三次 Monge patch 与边零交叉极值数学、GH97 三级 placement 回退链、Lindstrom-Turk 边界 placement、adaptiveScale 模式下 featureBoost 的队列优先级解耦（Wang 2008）。以 HTML 版为准。
 
 ## 随包论文
 
@@ -24,4 +24,4 @@
 
 ## 未随包但常被提到的参考
 
-CGAL、OpenMesh、libigl、MeshLab/VCGLib、Yamakawa/Shimada 等在线文档或论文用于工程对照。ManuMesh 当前实现不逐字复刻这些库，而是借鉴它们的 cost/legality 分离、约束边和局部过滤思路。
+CGAL、OpenMesh、libigl、MeshLab/VCGLib、Yamakawa/Shimada 等在线文档或论文用于工程对照。ManuMesh 当前实现不逐字复刻这些库，而是借鉴它们的 cost/legality 分离、约束边和局部过滤思路。2026-07-12 起的 primitive 拟合还引用了三个未随包的方法锚点：Taubin 1991（代数圆拟合，一阶无偏，当前圆拟合主路径）、Halíř-Flusser 1998（Fitzgibbon 约束 4ac−b²=1 的数值稳定直接最小二乘椭圆拟合，当前椭圆拟合主路径）、Chernov《Circular and Linear Regression》2010（Taubin 特征方程的 Newton 求解形式）；Kåsa 最小二乘保留为确定性回退。

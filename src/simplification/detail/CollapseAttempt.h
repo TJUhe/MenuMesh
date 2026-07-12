@@ -20,7 +20,10 @@ enum class CollapseAttemptStatus {
 struct CollapseAttemptInput {
     CollapseEdge edge;
     const Mat4& mergedQ;
-    const std::vector<SolveResult>& placements;
+    /// Placement candidates sorted by ascending quadric cost. Usually these
+    /// come straight from the popped Candidate's cached solve.
+    const SolveResult* placements = nullptr;
+    int placementCount = 0;
     const SimplifyOptions& options;
     const SimplificationPolicies& policies;
     const std::vector<VertexState>& vertices;
@@ -28,11 +31,12 @@ struct CollapseAttemptInput {
     const DynamicTopology& topology;
     const std::vector<int>& activeLoopCounts;
     const std::vector<FeatureCurveConstraint>& featureCurves;
+    const std::vector<FeaturePrimitiveFit>& primitiveFits;
     const FeatureConstraintPolicy& featurePolicy;
     const TextureProtection& textureProtection;
     const std::vector<FaceTexCoords>& faceTexCoords;
     const SpatialFaceIndex* spatialIndex = nullptr;
-    const manumesh::detail::MeshDistanceIndex* referenceSurface = nullptr;
+    const manumesh::common::MeshDistanceIndex* referenceSurface = nullptr;
     double meshDiagonal = 0.0;
     double areaEps = 0.0;
     double minNormalDot = 0.0;
@@ -46,6 +50,9 @@ struct CollapseAttemptResult {
     FeatureCollapseRejectKind featureRejectKind = FeatureCollapseRejectKind::None;
     TextureCollapseRejectReason textureRejectReason = TextureCollapseRejectReason::None;
     CollapseRejectReason legalityReason = CollapseRejectReason::None;
+    /// Texture update plan built for the accepted placement, so applyCollapse
+    /// can reuse it instead of rebuilding the same plan.
+    TextureUpdatePlan texturePlan;
 
     bool accepted() const { return status == CollapseAttemptStatus::Accepted; }
 };

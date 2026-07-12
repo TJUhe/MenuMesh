@@ -354,14 +354,14 @@ img, svg, canvas, video {
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
 <section class="feature-recognition-brief qem-quadrics-expansion">
   <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
-  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，再解 <code>A x=-b</code>；若矩阵病态则回退到端点/中点候选。</p>
+  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，再解 <code>A x=-b</code>；若谱条件（<code>minEval/maxEval &gt; 1e-12</code>）拒绝全空间最优，先尝试沿折叠边的一维最优 <code>t* = (rhs·d − dᵀA a)/(dᵀA d)</code>（rank-2 quadric——直棱、边界折痕——的良定情形，分母用尺度不变相对阈值判定），仍失败才落回端点/中点候选；边界边坍缩的 placement 另按 Lindstrom-Turk 边界守恒约束投影（<code>src/simplification/Placement.cpp</code>）。</p>
   <table>
     <thead><tr><th>二次型项</th><th>展开到 <code>A,b,c</code></th><th>参数与默认值</th><th>作用与引用</th></tr></thead>
     <tbody>
       <tr><td>面平面 QEM</td><td><code>pi=[n,-n.p]</code>，<code>Q += area/3 * pi*pi^T</code>。等价于 <code>E=a(n.x-n.p)^2</code>，所以 <code>A+=a nn^T</code>、<code>b+=-a(n.p)n</code>、<code>c+=a(n.p)^2</code>。</td><td>无独立开关；退化面用很小的 <code>1e-6 pointQuadric</code> 稳定。</td><td>主几何误差，来自 M002 Garland-Heckbert 1997。</td></tr>
       <tr><td>普通 Line Quadric</td><td><code>lineQuadric(p,n)</code> 取两个与局部法线 <code>n</code> 垂直的单位方向 <code>u,v</code>，加入 <code>Q_l=pi_u*pi_u^T+pi_v*pi_v^T</code>。展开为 <code>E_l=||(I-nn^T)(x-p)||^2</code>，即惩罚切向漂移。</td><td><code>useLineQuadrics=true</code>，<code>lineWeight=1e-3</code>。默认分支：<code>Q_i += w_i area_i Q_l</code>。</td><td>补平坦区 QEM 切向不满秩问题，来自 M004 Liu-Rahimzadeh-Zordan 2025。</td></tr>
       <tr><td>特征加权 Line Quadric</td><td>非 uniform 模式下 <code>w_i=lineWeight+featureBoost*s_i</code>；<code>s_i</code> 来自 dihedral、normal-tensor persistence、height 或 xband。normal-tensor 模式只给满足 <code>normalTensorMinPersistentScales</code> 的顶点写入 persistent score。</td><td><code>weightMode=uniform</code>，<code>featureBoost=0.05</code>；常用调试值 <code>dihedral/normal-tensor + 0.08</code>。<code>featureAngleDeg=40</code>，<code>normalTensorFeatureThreshold=0.16</code>，<code>normalTensorScaleCount=1</code>。</td><td>让硬边、弱 ridge 或指定区域获得更高排序成本；feature evidence 参考 M007/M012/M013/M015/M016，弱特征参考 M026。</td></tr>
-      <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，当前实现先加 <code>adaptiveBaseLineWeight*area_i*Q_l</code>，再整体缩放 <code>Q_i *= 1+max(0,featureBoost)*s_i</code>。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。这是实验性尺度归一化路径，不是默认推荐。</td><td>用于跨尺度模型的 line weight 可比性；需要结合 benchmark 校准。</td></tr>
+      <tr><td>Adaptive Scale 分支（Wang 2008 解耦）</td><td>若 <code>adaptiveScale=true</code>，quadric 只加干净的 <code>adaptiveBaseLineWeight*area_i*Q_l</code> 基础项；featureBoost 不再放大 quadric（旧行为会扭曲 placement），改为逐顶点 <code>priorityScale = 1 + max(0,featureBoost)*s_i</code>，只乘候选队列的排序代价（取折叠边两端点最大值，折叠时按 max 传播到 keep 端）。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。非 adaptiveScale 路径 featureBoost 仍按旧行为加进 line weight。</td><td>Wang 2008 优先级/placement 解耦：排序看特征，placement 求解不受特征权重污染；实现见 <code>Quadrics.cpp</code> 与 <code>CandidateQueue.cpp</code>。</td></tr>
       <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|*mm^T</code>，秩 1。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
       <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 影响诊断/策略判断。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
       <tr><td>Primitive 投影与硬过滤</td><td>圆/椭圆/多边形不是当前 <code>Quadrics.cpp</code> 里的单独径向二次型；当前代码用 tangent-line quadric 排序，再由 <code>projectToCircle/projectToEllipse/projectToPolygonal</code>、<code>maxFeatureCurveDeviationRatio</code> 和 <code>featureProtectionMode</code> 控制最终位置与是否拒绝折叠。</td><td><code>maxFeatureCurveDeviationRatio=0</code> 表示关闭曲线漂移预算；<code>featureProtectionMode=PrimitiveCurves</code>。圆/椭圆阈值默认均为 <code>0.05</code>。</td><td>把“软成本排序”和“硬合法性保护”分开，符合 M030-M033 edge-collapse 工程建议。</td></tr>
@@ -468,7 +468,7 @@ img, svg, canvas, video {
         <td>基于半边网格的 decimater，支持连续 cost module 和二值 legality module 组合。</td>
         <td>一个队列优先级模块不应该吞掉所有逻辑；normal、aspect ratio、Hausdorff、topology 等检查应作为独立 veto。</td>
         <td>需要引入 OpenMesh 数据结构和模块体系；默认不提供ManuMesh 需要的 CAD primitive loop 保护、line-quadric 权重和 SDK 安装边界。</td>
-        <td>ManuMesh 当前暂用简单 <code>Mesh</code> exchange format + 私有 <code>DynamicTopology</code>，避免公共 API 直接绑定半边框架。</td>
+        <td>ManuMesh 当前暂用简单 <code>Mesh</code> exchange format + 可复用的 <code>mesh_edit::DynamicTopology</code>（已从简化器私有实现迁入 <code>src/mesh_edit</code> 基础模块），避免公共 API 直接绑定半边框架。</td>
       </tr>
       <tr>
         <td><a href="https://libigl.github.io/libigl-python-bindings/igl_docs/#qslim">libigl qslim / decimate</a></td>
@@ -500,7 +500,7 @@ img, svg, canvas, video {
       <div class="grid-card">
         <h3>3.1 QEM 是排序骨架，不是全部规则</h3>
         <p>
-          成熟库都没有把最小 quadric cost 当作唯一真理。CGAL/OpenMesh 的共同启发是：cost 负责“先试谁”，filter/module 负责“能不能做”。ManuMesh 因此把 <code>solvePlacementCandidates()</code> 的候选位置送入 feature、boundary、topology、normal、quality、intersection 和 local-error 检查。
+          成熟库都没有把最小 quadric cost 当作唯一真理。CGAL/OpenMesh 的共同启发是：cost 负责“先试谁”，filter/module 负责“能不能做”。ManuMesh 因此把 <code>solvePlacementCandidates()</code> 的候选位置送入 feature、boundary、topology、normal、quality、intersection 和 local-error 检查。placement 侧同样借鉴了成熟库：全空间最优被谱条件拒绝后先解沿折叠边的一维最优（GH97 三级回退链，rank-2 quadric 的良定情形），边界边坍缩采用 Lindstrom-Turk 边界守恒约束投影（与 CGAL SMS 默认 LindstromTurk placement 同源的思路，实现在 <code>src/simplification/Placement.cpp</code>）。
         </p>
       </div>
       <div class="grid-card">
@@ -575,13 +575,13 @@ img, svg, canvas, video {
       <tr>
         <td>鲁棒几何</td>
         <td>CGAL 在几何谓词、内核和鲁棒性方面积累深。</td>
-        <td>当前 self-intersection、coplanar overlap、local error 仍主要是 double + epsilon 策略。</td>
+        <td>本轮几何谓词已做成尺度不变的相对阈值策略：<code>kRelativeIntersectionEps=1e-9</code>，Möller-Trumbore 行列式与其尺度上界比较（无量纲 eps），2D 谓词区分 <code>epsLen=eps·scale</code> 与 <code>epsArea=eps·scale²</code>，网格均匀缩放不改变自交判定。但仍是 double 浮点近似，不是 CGAL 式精确算术/可证谓词。</td>
         <td>极端尺度、近退化三角形、几乎共面的工业 STL 仍可能出现误判。</td>
       </tr>
       <tr>
         <td>拓扑结构</td>
         <td>OpenMesh 半边结构天然适合局部编辑、属性绑定和邻接遍历。</td>
-        <td>当前可变拓扑是简化器私有实现，公共 <code>MeshTopology</code> 与内部 <code>DynamicTopology</code> 还没有统一。</td>
+        <td>本轮 <code>DynamicTopology</code> 已迁入可复用的 <code>src/mesh_edit</code> 基础模块，但与公共 <code>MeshTopology</code> 仍未统一成同一套结构。</td>
         <td>后续 repair/remesh/boolean 共享拓扑能力时需要一次结构升级。</td>
       </tr>
       <tr>
@@ -663,10 +663,10 @@ img, svg, canvas, video {
     <h2>6. 后续改进方向</h2>
     <ol>
       <li>把 legality policy 明确模块化，继续向 CGAL/OpenMesh 的 cost、placement、filter、stop 分离靠拢。</li>
-      <li>把当前 <code>DynamicTopology</code> 与公共 <code>MeshTopology</code> 演进成可复用 editable topology，供 repair/remesh/boolean 共享。</li>
+      <li>继续把 <code>DynamicTopology</code> 与公共 <code>MeshTopology</code> 演进成统一的 editable topology——第一步已完成：<code>DynamicTopology</code> 已迁入可复用的 <code>src/mesh_edit</code> 基础模块，供 repair/remesh/boolean 后续共享。</li>
       <li>引入更严格的 Hausdorff 或 envelope 误差过滤，替代当前局部采样误差的保守近似。</li>
       <li>增强 feature graph ownership：处理多环共享、junction、嵌套 loop、样条/多段线特征和 per-loop 预算。</li>
-      <li>让 normal tensor/normal voting 真正多尺度化，降低非均匀采样和噪声导致的误检。</li>
+      <li>继续校准弱证据通道：normal tensor 的多尺度 smoothing/persistence 与本轮新增的确定性 smooth-curvature 检测器（<code>SmoothCurvature.cpp</code>，opt-in、默认关闭）均已落地，后续重点是降低非均匀采样和噪声导致的误检。</li>
       <li>建立 labeled CAD/STL 验证集，报告 feature precision/recall、loop recall、normal error、topology delta、triangle quality 和运行时间。</li>
     </ol>
   </section>

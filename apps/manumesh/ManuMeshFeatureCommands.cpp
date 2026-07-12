@@ -2,17 +2,15 @@
 
 #include "CliCsv.h"
 #include "CliOptionBinding.h"
+#include "algorithms/feature_detection/FeatureComparison.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
 
-#include <algorithm>
-#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -22,8 +20,6 @@
 namespace fs = std::filesystem;
 
 namespace manumesh::cli::feature_commands {
-
-constexpr double kPi = 3.141592653589793238462643383279502884;
 
 static int countCircularLoops(const manumesh::feature::FeatureAnalysis& analysis) {
     int count = 0;
@@ -167,6 +163,7 @@ readFeatureBenchmarkLabels(const fs::path& path, std::vector<std::pair<int, int>
         throw std::runtime_error("Cannot open feature label CSV: " + path.string());
     }
 
+    int skippedRows = 0;
     std::string line;
     while (std::getline(in, line)) {
         if (line.empty()) {
@@ -180,6 +177,8 @@ readFeatureBenchmarkLabels(const fs::path& path, std::vector<std::pair<int, int>
             int id = -1;
             if (tryParseIntField(fields[1], id)) {
                 junctions.push_back(id);
+            } else {
+                ++skippedRows;
             }
             continue;
         }
@@ -187,7 +186,13 @@ readFeatureBenchmarkLabels(const fs::path& path, std::vector<std::pair<int, int>
         int b = -1;
         if (fields.size() >= 2 && tryParseIntField(fields[0], a) && tryParseIntField(fields[1], b)) {
             edges.emplace_back(a, b);
+        } else {
+            ++skippedRows;
         }
+    }
+    if (skippedRows > 0) {
+        std::cout << "feature-benchmark: skipped " << skippedRows << " unparsable label row"
+                  << (skippedRows == 1 ? "" : "s") << " in " << path.string() << "\n";
     }
 }
 
@@ -261,98 +266,27 @@ int compare(const Args& args) {
     const manumesh::feature::FeatureAnalysis simplifiedFeatures =
         manumesh::feature::detectFeatureCurves(simplified, options);
 
-    std::vector<int> originalCircular;
-    std::vector<int> simplifiedCircular;
-    for (int i = 0; i < static_cast<int>(originalFeatures.loops.size()); ++i) {
-        if (originalFeatures.loops[i].circular) {
-            originalCircular.push_back(i);
-        }
-    }
-    for (int i = 0; i < static_cast<int>(simplifiedFeatures.loops.size()); ++i) {
-        if (simplifiedFeatures.loops[i].circular) {
-            simplifiedCircular.push_back(i);
-        }
-    }
+    manumesh::feature::LoopMatchOptions matchOptions;
+    matchOptions.referenceDiagonal = original.bboxDiag();
+    const manumesh::feature::LoopMatchReport matchReport =
+        manumesh::feature::matchCircularLoops(originalFeatures, simplifiedFeatures, simplified, matchOptions);
 
-    const double diag = std::max(1e-12, original.bboxDiag());
-    std::vector<char> usedSimplified(simplifiedFeatures.loops.size(), 0);
     std::ostringstream rows;
     rows << std::setprecision(12);
-    int matched = 0;
-    int missing = 0;
-    for (int originalId : originalCircular) {
-        const manumesh::feature::FeatureLoop& origLoop = originalFeatures.loops[originalId];
-        int bestLoopId = -1;
-        double bestScore = std::numeric_limits<double>::infinity();
-        double bestCenterError = 0.0;
-        double bestRadiusError = 0.0;
-        double bestNormalAngleDeg = 0.0;
-
-        for (int simplifiedId : simplifiedCircular) {
-            if (usedSimplified[simplifiedId]) {
-                continue;
-            }
-            const manumesh::feature::FeatureLoop& simpLoop = simplifiedFeatures.loops[simplifiedId];
-            const double centerError = (origLoop.center - simpLoop.center).norm();
-            const double radiusError = std::abs(origLoop.radius - simpLoop.radius);
-            const double normalDot =
-                std::clamp(std::abs(origLoop.normal.normalized().dot(simpLoop.normal.normalized())), 0.0, 1.0);
-            const double normalAngle = std::acos(normalDot);
-            const double score =
-                centerError / diag + radiusError / std::max(1e-12, origLoop.radius) + normalAngle / kPi;
-            if (score < bestScore) {
-                bestScore = score;
-                bestLoopId = simplifiedId;
-                bestCenterError = centerError;
-                bestRadiusError = radiusError;
-                bestNormalAngleDeg = normalAngle * 180.0 / kPi;
-            }
-        }
-
-        std::string status = "missing";
-        manumesh::feature::DirectionalCurveError directional;
-        int simplifiedVertexCount = 0;
-        double simplifiedRadius = 0.0;
-        bool plausibleMatch = false;
-        if (bestLoopId >= 0) {
-            const manumesh::feature::FeatureLoop& simpLoop = simplifiedFeatures.loops[bestLoopId];
-            const double radiusRel = bestRadiusError / std::max(1e-12, origLoop.radius);
-            plausibleMatch = bestCenterError <= 0.08 * diag && radiusRel <= 0.20 && bestNormalAngleDeg <= 30.0;
-            if (plausibleMatch) {
-                usedSimplified[bestLoopId] = 1;
-                directional = manumesh::feature::measureLoopAgainstCircle(
-                    simplified, simpLoop, origLoop.center, origLoop.normal, origLoop.radius
-                );
-                simplifiedVertexCount = static_cast<int>(simpLoop.vertices.size());
-                simplifiedRadius = simpLoop.radius;
-            }
-        }
-
-        if (plausibleMatch) {
-            const double radiusRel = bestRadiusError / std::max(1e-12, origLoop.radius);
-            status = (bestCenterError <= 0.04 * diag && radiusRel <= 0.08 && bestNormalAngleDeg <= 15.0) ? "matched"
-                                                                                                         : "weak_match";
-            ++matched;
-        } else {
-            bestLoopId = -1;
-            bestCenterError = 0.0;
-            bestRadiusError = 0.0;
-            bestNormalAngleDeg = 0.0;
-            ++missing;
-        }
-
-        rows << origLoop.id << "," << bestLoopId << "," << origLoop.vertices.size() << "," << simplifiedVertexCount
-             << "," << origLoop.radius << "," << simplifiedRadius << "," << bestCenterError << "," << bestRadiusError
-             << "," << bestNormalAngleDeg << "," << directional.radialRms << "," << directional.radialMax << ","
-             << directional.planeRms << "," << directional.planeMax << "," << status << "\n";
+    for (const manumesh::feature::LoopMatch& match : matchReport.matches) {
+        rows << match.originalLoopId << "," << match.simplifiedLoopIndex << "," << match.originalVertices << ","
+             << match.simplifiedVertices << "," << match.originalRadius << "," << match.simplifiedRadius << ","
+             << match.centerError << "," << match.radiusError << "," << match.normalAngleDeg << ","
+             << match.directional.radialRms << "," << match.directional.radialMax << "," << match.directional.planeRms
+             << "," << match.directional.planeMax << "," << manumesh::feature::toString(match.status) << "\n";
     }
 
     const std::string header = "orig_loop,matched_loop,orig_vertices,simplified_vertices,orig_radius,"
                                "simplified_radius,center_error,radius_error,normal_angle_deg,"
                                "radial_rms,radial_max,plane_rms,plane_max,status";
-    std::cout << "original_circular_loops=" << originalCircular.size()
-              << " simplified_circular_loops=" << simplifiedCircular.size() << " matched=" << matched
-              << " missing=" << missing << "\n";
+    std::cout << "original_circular_loops=" << matchReport.originalCircularLoops
+              << " simplified_circular_loops=" << matchReport.simplifiedCircularLoops
+              << " matched=" << matchReport.matchedLoops << " missing=" << matchReport.missingLoops << "\n";
     std::cout << header << "\n" << rows.str();
 
     const std::string csvPath = getArg(args, "--csv");
@@ -363,8 +297,8 @@ int compare(const Args& args) {
         }
         std::ofstream csv(csvPath);
         csv << "original_circular_loops,simplified_circular_loops,matched,missing\n";
-        csv << originalCircular.size() << "," << simplifiedCircular.size() << "," << matched << "," << missing
-            << "\n\n";
+        csv << matchReport.originalCircularLoops << "," << matchReport.simplifiedCircularLoops << ","
+            << matchReport.matchedLoops << "," << matchReport.missingLoops << "\n\n";
         csv << header << "\n" << rows.str();
     }
     return 0;

@@ -55,14 +55,14 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight, std::vector<Ma
     if (boundaryWeight <= 0.0) {
         return;
     }
-    const std::vector<Vec3> faceNormals = detail::computeFaceNormals(mesh);
+    const std::vector<Vec3> faceNormals = common::computeFaceNormals(mesh);
 
-    const detail::MeshEdgeInfoMap edgeInfo = detail::buildMeshEdgeInfo(mesh);
+    const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
     for (const auto& [key, info] : edgeInfo) {
         if (info.faces.size() != 1) {
             continue;
         }
-        const auto [a, b] = detail::unpackMeshEdgeKey(key);
+        const auto [a, b] = common::unpackMeshEdgeKey(key);
         const Vec3 edge = mesh.vertices[b] - mesh.vertices[a];
         if (edge.norm() <= 1e-20) {
             continue;
@@ -72,7 +72,10 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight, std::vector<Ma
             continue;
         }
         n.normalize();
-        const Mat4 q = boundaryWeight * edge.norm() * planeQuadric(n, mesh.vertices[a]);
+        // edge.squaredNorm() keeps the boundary quadric at the same order in
+        // length as the area-weighted face quadrics, so the boundary soft
+        // constraint does not drift when the mesh is uniformly scaled.
+        const Mat4 q = boundaryWeight * edge.squaredNorm() * planeQuadric(n, mesh.vertices[a]);
         quadrics[a] += q;
         quadrics[b] += q;
     }
@@ -82,10 +85,12 @@ void computeInitialQuadrics(
     const Mesh& mesh,
     const SimplifyOptions& options,
     const FeatureGuidance& featureGuidance,
-    std::vector<Mat4>& quadrics,
+    InitialQuadrics& initial,
     SimplifyReport& report
 ) {
+    std::vector<Mat4>& quadrics = initial.quadrics;
     quadrics.assign(mesh.vertices.size(), Mat4::Zero());
+    initial.priorityScales.clear();
     std::vector<double> vertexArea(mesh.vertices.size(), 0.0);
     std::vector<Vec3> normalSum(mesh.vertices.size(), Vec3::Zero());
 
@@ -132,6 +137,9 @@ void computeInitialQuadrics(
     }
 
     if (useNormalLineQuadrics) {
+        if (options.adaptiveScale) {
+            initial.priorityScales.assign(mesh.vertices.size(), 1.0);
+        }
         for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
             Vec3 normal = normalSum[i];
             if (normal.norm() <= 1e-20 || vertexArea[i] <= 1e-24) {
@@ -147,8 +155,13 @@ void computeInitialQuadrics(
             }
 
             if (options.adaptiveScale) {
+                // Wang 2008 decoupling: the feature boost no longer multiplies
+                // the whole quadric (which distorted placements and inflated
+                // the boundary term). It becomes a per-vertex queue-priority
+                // factor; the quadric keeps only the clean base line term.
                 quadrics[i] += options.adaptiveBaseLineWeight * vertexArea[i] * ql;
-                quadrics[i] *= (1.0 + std::max(0.0, options.featureBoost) * featureScores.values[i]);
+                initial.priorityScales[i] = 1.0 + std::max(0.0, options.featureBoost) * featureScores.values[i];
+                appliedWeight = options.adaptiveBaseLineWeight;
             } else {
                 quadrics[i] += appliedWeight * vertexArea[i] * ql;
             }
@@ -210,6 +223,24 @@ std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a, 
                 solved = true;
             }
         }
+        if (!solved && maxEval > 1e-20) {
+            // GH97 fallback level 2: 1D optimum along the segment ab. For
+            // h(t) = a + t (b - a), f(t) = h^T Q h is a scalar quadratic with
+            // minimizer t* = (rhs.d - d^T A a) / (d^T A d). A is PSD, so the
+            // denominator is >= 0; the relative threshold (same dimensions as
+            // maxEval * |d|^2) keeps the division scale-invariant. This is the
+            // well-posed case for rank-2 quadrics (straight creases, boundary
+            // folds) where the full-rank solve was rejected above.
+            const Vec3 d = b - a;
+            const double denom = d.dot(A * d);
+            if (denom > 1e-12 * maxEval * d.squaredNorm()) {
+                const double t = std::clamp((rhs.dot(d) - d.dot(A * a)) / denom, 0.0, 1.0);
+                const Vec3 alongEdge = a + t * d;
+                if (alongEdge.allFinite()) {
+                    candidates.push_back(alongEdge);
+                }
+            }
+        }
     }
 
     std::vector<SolveResult> results;
@@ -231,7 +262,10 @@ std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a, 
         }
     }
     if (results.empty()) {
-        results.push_back(SolveResult{0.5 * (a + b), 0.0, true});
+        // All candidate costs were non-finite, so the merged quadric is
+        // corrupt. Rank this edge last instead of letting cost 0.0 push a bad
+        // collapse to the queue front.
+        results.push_back(SolveResult{0.5 * (a + b), std::numeric_limits<double>::max(), true});
     }
     std::stable_sort(results.begin(), results.end(), [](const SolveResult& lhs, const SolveResult& rhs) {
         return lhs.cost < rhs.cost;
@@ -246,11 +280,11 @@ SolveResult solveOptimal(const Mat4& q, const Vec3& a, const Vec3& b) {
 InitialQuadricBuilder::InitialQuadricBuilder(const SimplifyOptions& options)
     : options_(options) {}
 
-std::vector<Mat4>
+InitialQuadrics
 InitialQuadricBuilder::build(const Mesh& mesh, const FeatureGuidance& featureGuidance, SimplifyReport& report) const {
-    std::vector<Mat4> quadrics;
-    computeInitialQuadrics(mesh, options_, featureGuidance, quadrics, report);
-    return quadrics;
+    InitialQuadrics initial;
+    computeInitialQuadrics(mesh, options_, featureGuidance, initial, report);
+    return initial;
 }
 
 } // namespace manumesh::simplification

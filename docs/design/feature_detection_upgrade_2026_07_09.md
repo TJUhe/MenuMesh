@@ -2,7 +2,7 @@
 
 本文记录 2026-07-09 针对特征识别、QEM 特征保护和 common 几何查询的联动改动。目标是先把 CAD/STL 三角网格上的确定性 feature graph、弱特征 tensor 证据和简化器可消费诊断做稳，再推进 neural/wireframe 或更重的全局优化路线。
 
-> 后续进展：2026-07-11 已在此基础上以 opt-in 形式落地确定性光滑曲率特征检测（多尺度鲁棒 quadric 拟合、带符号方向极值、跨尺度 persistence，`FeatureOptions::useSmoothCurvatureFeatures`），作为与 normal tensor 并列的第二条弱证据通道，见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
+> 后续进展：2026-07-11 已在此基础上以 opt-in 形式落地确定性光滑曲率特征检测（多尺度鲁棒 quadric 拟合、带符号方向极值、跨尺度 persistence，`FeatureOptions::useSmoothCurvatureFeatures`），作为与 normal tensor 并列的第二条弱证据通道，见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。2026-07-12 又完成一轮算法强化：有向（绕向感知）二面角替代 `|dot|` 并新增 `inconsistentWindingEdges` 诊断、Taubin/Halíř-Flusser 替代 Kåsa/矩量法 primitive 拟合、光滑曲率升级为三次 Monge 拟合 + Ohtake 边零交叉判据、弱毛刺清理增加 Yoshizawa 组件强度过滤（`featureGraphMinWeakSpurStrength`），并引入 `FeatureDetectionCache` 消除跨阶段重复构建，详见 `CHANGELOG.md` 2026-07-12 小节。
 
 ## 已完成改动
 

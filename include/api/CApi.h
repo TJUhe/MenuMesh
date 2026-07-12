@@ -4,6 +4,21 @@
 
 #include <stddef.h>
 
+/*
+ * ManuMesh stable C ABI (v1).
+ *
+ * Threading: a ManuMeshContext is NOT thread-safe. Do not share a single
+ * context across threads without external synchronization; give each thread its
+ * own context instead.
+ *
+ * Texture coordinates: the v1 ABI does NOT carry per-corner texture
+ * coordinates. manumesh_mesh_set_data accepts only vertex positions and face
+ * indices, and manumesh_mesh_copy_* returns only positions and indices. UVs
+ * that exist on a C++ manumesh::Mesh / PlainMesh (Mesh::faceTexCoords) are not
+ * exposed here and are dropped when a mesh crosses this boundary. Use the C++
+ * API directly when texture coordinates must be preserved.
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -175,6 +190,9 @@ typedef struct ManuMeshSimplifyReport {
     int quality_refinement_iterations_completed;
     int quality_refinement_attempted_moves;
     int quality_refinement_accepted_moves;
+    /* Input faces tolerated as degenerate (zero area / repeated vertex).
+   * Added at the tail to preserve old field offsets. */
+    int degenerate_input_faces;
 } ManuMeshSimplifyReport;
 
 typedef struct ManuMeshMeshStats {
@@ -202,6 +220,15 @@ MANUMESH_API const char* manumesh_status_message(ManuMeshStatus status);
 
 MANUMESH_API ManuMeshContext* manumesh_context_create(void);
 MANUMESH_API void manumesh_context_destroy(ManuMeshContext* context);
+/*
+ * Returns the last error message recorded on this context, or an empty string.
+ *
+ * Lifetime: the returned pointer refers to storage owned by the context and is
+ * only guaranteed valid until the next ManuMesh API call made with the same
+ * context (any call may clear or replace the message) or until the context is
+ * destroyed. Copy the string if it must outlive that window. Contexts are not
+ * thread-safe; see the header comment.
+ */
 MANUMESH_API const char* manumesh_context_last_error(const ManuMeshContext* context);
 MANUMESH_API void manumesh_context_clear_error(ManuMeshContext* context);
 
@@ -216,6 +243,10 @@ MANUMESH_API ManuMeshStatus manumesh_mesh_set_data(
     const ManuMeshFace* faces,
     size_t face_count
 );
+/*
+ * Either vertex_count or face_count may be null to request just one count;
+ * passing both as null is an invalid argument.
+ */
 MANUMESH_API ManuMeshStatus manumesh_mesh_get_counts(
     ManuMeshContext* context, const ManuMeshMeshHandle* mesh, size_t* vertex_count, size_t* face_count
 );

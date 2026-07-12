@@ -12,6 +12,10 @@
 | [`design/mesh_edit_foundation.md`](design/mesh_edit_foundation.md) | 可供 simplification 与未来 remeshing/repair 复用的内部编辑层，说明动态拓扑、compact/remap 和扩展边界。 |
 | [`design/texture_aware_qem.md`](design/texture_aware_qem.md) | 纹理感知 4×4 QEM 的权威设计文档：逐角 UV 数据模型、局部 chart 配对与拒绝规则、标量失真代价 `E_uv_local`、选项与诊断、复杂度与文献定位。 |
 | [`design/smooth_curvature_feature_detection_2026_07_11.md`](design/smooth_curvature_feature_detection_2026_07_11.md) | 确定性光滑曲率特征检测的权威设计文档：双证据路径理念、多尺度 quadric 拟合算法八步、`FeatureOptions` 新参数与默认值、诊断字段和开源/文献对照。 |
+| [`design/architecture_v2_2026_07_12.md`](design/architecture_v2_2026_07_12.md) | 架构升级蓝图 v2：R1-R7 改进项与实施状态（第一至三批已落地），包含 `manumesh::analysis` 模块、CLI 选项表、C ABI 加固等本轮架构改动的立项论证。 |
+| [`design/error_handling_policy.md`](design/error_handling_policy.md) | 错误处理策略一页决策表：数据错误用 Status/Result、编程错误用异常、C 边界用状态码、IO 渐进迁移 `Result<Mesh>`；新增公共入口前先查本表。 |
+| [`design/algorithm_extension_protocol.md`](design/algorithm_extension_protocol.md) | 算法扩展协议：新增算法模块的 7 步机械化路径、`validateOptions` 协议与诊断字段命名规范。 |
+| [`design/testing_strategy.md`](design/testing_strategy.md) | 测试体系与策略：unit/analytic/perf-guard/external/performance 五层划分、解析真值 fixture 设计理念（真值访问器 + 推导断言界）、确定性测试、快速/全量套件命令与规模、新增测试的注册方式。 |
 | [`archive/prototype-docs-2026-07-09/`](archive/prototype-docs-2026-07-09/) | 2026-07-09 归档的阶段性设计、指南和生成笔记，用作历史备份。 |
 | [`papers/`](papers/) | 论文 PDF 资料库。该目录没有复制进归档目录，以避免重复大文件。 |
 
@@ -21,7 +25,7 @@
 - `archive/` 保存阶段性材料，不再作为当前产品能力说明的主入口。
 - `design/` 和 `guide/` 可继续作为研发工作区使用，但如果内容与交付文档冲突，以 `delivery/` 为准。
 - `generated/notes/` 属于历史导出资料，适合追溯思路，不适合作为商用交付主文档。
-- 交付文档本轮已同步纹理感知 QEM 与光滑曲率特征检测说明；`generated/notes/*.html` 此前补充的 `io/` 与 Debug-only `debugUtil/` 布局说明保持不变，PDF 二进制未重写。
+- 交付文档已同步纹理感知 QEM、光滑曲率特征检测，以及 2026-07-12 架构/算法批次（`manumesh::analysis` 模块、`FeatureComparison` loop 匹配、placement 三级回退链、扩展 link condition、有向二面角、Taubin/Halíř-Flusser 拟合、C ABI/IO 加固）；`generated/notes/*.html` 此前补充的 `io/` 与 Debug-only `debugUtil/` 布局说明保持不变，PDF 二进制未重写。
 - 新增商业能力时，应先更新交付文档的能力边界、API、验证方法和限制说明，再补充研发细节。
 
 ## 交付定位
@@ -29,6 +33,7 @@
 ManuMesh 当前定位为面向增材制造和三角网格处理的 C++17 mesh geometry kernel。现阶段核心交付能力包括：
 
 - triangle mesh 数据结构、基础拓扑查询和 SDK/C ABI 边界；
+- 跨算法网格分析模块 `manumesh::analysis`（`computeMeshStats` / `compareMeshesBySampledDistance`）与特征 loop 匹配公共入口 `manumesh::feature::matchCircularLoops`；
 - feature evidence、feature graph、loop recovery 和 primitive fitting；
 - QEM / line-quadrics edge-collapse simplification；
 - 纹理感知 4×4 QEM 简化（opt-in）：逐角 UV chart 保护与标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式，当前仅通过 C++ `SimplifyOptions` 暴露；

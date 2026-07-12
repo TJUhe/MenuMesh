@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 142 个非性能 CTest。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。2026-07-09 的特征识别升级记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)；2026-07-11 落地的确定性光滑曲率特征检测见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 236 个启用的非性能 CTest（快速套件 225 个 + external 11 个，2026-07-13 复核）。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。2026-07-09 的特征识别升级记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)；2026-07-11 落地的确定性光滑曲率特征检测见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
 
 ## 当前理解框架
 
@@ -17,17 +17,19 @@ ManuMesh 的简化器应按四层阅读：
 
 | 方向 | 当前状态 |
 | --- | --- |
-| 标准 QEM | 已实现面 plane quadric 面积加权累加、边折叠候选、placement 求解和 fallback。 |
-| line quadrics | 已实现 `--method line` 和 `lineWeight`，作为候选排序成本的切向正则项。 |
+| 标准 QEM | 已实现面 plane quadric 面积加权累加、边折叠候选、placement 求解和 GH97 三级 fallback 链（全空间最优 → 沿坍缩边一维最优（rank-2 情形）→ 端点/中点）；边界边坍缩使用 Lindstrom-Turk 边界守恒 placement（`detail/Placement.{h,cpp}`）。 |
+| line quadrics | 已实现 `--method line` 和 `lineWeight`，作为候选排序成本的切向正则项；`adaptiveScale` 模式下按 Wang 2008 解耦，`featureBoost` 只作为逐顶点队列优先级因子（`priorityScale`），不再进入 quadric 与 placement 求解。 |
 | 权重模式 | `uniform`、`dihedral`、`normal-tensor`、`height`、`xband`。 |
-| 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、cleanup、loop tracing，并用 `loopTraceAngleDeg` 区分 evidence 阈值和 loop ownership 阈值；normal tensor 已接入局部尺度归一化、多尺度 persistence 和 persistent score。 |
-| 光滑曲率特征检测 | 2026-07-11 已以 opt-in 落地（`FeatureOptions::useSmoothCurvatureFeatures`，默认 `false`）：多尺度鲁棒 quadric 拟合、带符号主曲率、方向极值、跨尺度 persistence，全程确定性、无学习成分；与硬证据只在显式 `FeatureGraph` 汇合。设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。 |
+| 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、cleanup、loop tracing，并用 `loopTraceAngleDeg` 区分 evidence 阈值和 loop ownership 阈值；二面角为绕向感知的有向角（可识别 >90° 反折边，绕向不一致时回退无符号角并计入 `inconsistentWindingEdges`）；normal tensor 已接入局部尺度归一化、多尺度 persistence 和 persistent score；全网格辅助结构（法向、边信息、邻接、局部边长）经 `FeatureDetectionCache` 构建一次全管线复用。 |
+| 光滑曲率特征检测 | 2026-07-11 已以 opt-in 落地并于 2026-07-12 升级（`FeatureOptions::useSmoothCurvatureFeatures`，默认 `false`）：多尺度鲁棒**三次 Monge** 拟合、带符号主曲率、解析 extremality（`e_i = ∇κ_i·t_i`）、Ohtake 边零交叉极值判据、跨尺度 persistence，全程确定性、无学习成分；与硬证据只在显式 `FeatureGraph` 汇合。设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。 |
+| 弱毛刺清理 | 除按边数剪枝外，新增 opt-in 的 Yoshizawa 组件级无量纲强度过滤 `featureGraphMinWeakSpurStrength`（`T = (∫ds)·(∫strength ds)`，默认 0 = 旧行为，仅 C++ `FeatureOptions` 暴露）；端点 gap 桥接采用 Yoshizawa 角度三条件。 |
 | 纹理感知简化 | 已以 opt-in 落地（`SimplifyOptions::preserveTexture`，默认 `false`，仅 C++ API，CLI 未暴露）：几何 quadric 保持 4×4，纹理只作为局部标量排序代价（`textureWeight`）加 UV chart 配对与有符号面积硬过滤（`textureSeamTolerance`、`minTextureAreaRatio`）；关闭时几何输出与旧路径 bit-exact。设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。 |
 | UV 数据模型与 IO | `Mesh::faceTexCoords` / `PlainMesh::faceTexCoords`（`PlainVec2`、`PlainFaceTexCoords`）存储角拥有的逐面逐角 UV；OBJ 读取升级为多边形网格自动三角化并保留逐角 `vt` 索引。 |
 | feature component | 已实现 component-level confidence，统计强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual，并把 confidence 写入 loop/vertex/QEM soft feature quadric。 |
-| primitive 拟合 | 支持圆、近圆、椭圆、折线 loop 的报告和保护策略。 |
+| primitive 拟合 | 支持圆、近圆、椭圆、折线 loop 的报告和保护策略；圆用 Taubin 代数拟合（一阶无偏，Kåsa 保留为确定性回退），椭圆用 Halíř-Flusser 直接最小二乘拟合（保证椭圆输出，轴向来自 conic 而非 PCA）。 |
 | 特征保护 | `none`、`circular-only`、`primitive-curves`、`all-feature-edges`。默认是 `primitive-curves`。 |
-| 合法性过滤 | 边界、拓扑、法线偏转、三角形质量、局部误差和局部自交过滤。 |
+| 合法性过滤 | 边界、拓扑（含与 `preserveBoundary` 无关、始终生效的边界弦 pinch 拒绝）、法线偏转、三角形质量、局部误差和局部自交过滤（相交谓词使用尺度不变相对容差 `kRelativeIntersectionEps = 1e-9`）。 |
+| 通用统计与比较 | 已拆出 `manumesh::analysis` 模块（`algorithms/analysis/MeshAnalysis.h`）：`MeshStats`/`computeMeshStats`、`DistanceStats`/`compareMeshesBySampledDistance`；圆环 loop 匹配 `matchCircularLoops`（`algorithms/feature_detection/FeatureComparison.h`）从 CLI 下沉为库函数。 |
 | 诊断报告 | `FeatureAnalysis`、`SimplifyReport` / `ManuMeshSimplifyReport` 输出终止原因、拒绝计数、特征计数、`tracedFeatureEdges` / `untracedFeatureEdges`、graph cleanup 计数、component confidence、normal-tensor scored vertices、local scale / persistence 和权重范围；`FeatureAnalysis` 另有 smooth-curvature 系列诊断（`smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、最大 raw/persistent 分数、平均 local scale / persistence），`SimplifyReport` 另有纹理诊断（`textureProtectedEdges`、`textureRejectedCollapses`）。 |
 | CLI | `generate`、`simplify`、`compare`、`feature-report`、`feature-benchmark`、`feature-compare`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`summarize-metrics`、`validate-features`、`validate-external`；feature 分析命令支持 `--smooth-curvature-*` 选项族并输出 smooth_curvature_* 报告/CSV 字段（`simplify` 显式拒绝这些 feature-analysis 选项）。 |
 | SDK | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口和 C ABI 均可用，示例位于 `examples/`。 |
@@ -83,8 +85,10 @@ ManuMesh 的长期目标是一个可嵌入的增材制造多边形网格 SDK。Q
 | --- | --- | --- |
 | 标准 QEM | Garland-Heckbert 1997，`docs/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf` | plane quadric、顶点 quadric、边坍缩代价。 |
 | Line quadrics | Liu-Rahimzadeh-Zordan 2025，`docs/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` | 平坦区切向正则和候选排序增强。 |
-| 边折叠工程 | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025 | 队列、placement、fallback、合法性过滤和大模型验证习惯。 |
-| CAD/STL 特征线 | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008、Tsuchie-Higashi 2014 | boundary/dihedral/normal-tensor 证据、feature graph 和 primitive loop。 |
+| 边折叠工程 | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025 | 队列、placement、GH97 三级 fallback（含沿边一维最优）、LT 边界守恒 placement、扩展 link condition（边界弦 pinch 拒绝）、合法性过滤和大模型验证习惯。 |
+| CAD/STL 特征线 | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008、Tsuchie-Higashi 2014 | boundary/dihedral/normal-tensor 证据、有向二面角（Jiao 的取向教训）、feature graph 和 primitive loop。 |
+| crest line / 光滑特征 | Ohtake 2004（M011）、Yoshizawa 2005（M021） | 三次拟合解析 extremality、边零交叉判据、组件级曲线强度 `T` 过滤与 gap 桥接角度规则。 |
+| 圆/椭圆拟合 | Taubin 1991、Halíř-Flusser 1998、Fitzgibbon 1999、Chernov 2010（经典文献，无本地 PDF） | Taubin 圆拟合替代 Kåsa 正规方程（保留回退），Halíř-Flusser 直接椭圆拟合替代 PCA/二阶矩轴长。 |
 | 确定性光滑特征（2017–2025） | Yamakawa-Shimada 2017/2018、Lu 2019（M044）、Romanengo 2020、Xu 2024 CWF（M026）、Cai 2025，索引见 `docs/papers/recent_deterministic_feature_detection_2026-07-11.md` | opt-in smooth-curvature 证据通道的多尺度、鲁棒拟合、consolidation/confidence 依据；全局曲线恢复仍是路线图。 |
 | 属性/纹理感知简化 | Garland-Heckbert 1998（M003，历史参照）、现代 edge-collapse 管线综述（M033）、4×4 line-quadric 主干（M004/085） | opt-in 纹理保护采用 M033 工程拆分：几何 QEM 排序固定 3D placement，chart/UV 面积合法性为显式局部策略，不做属性扩维。 |
-| 特征保持简化 | Wang 2008、Hussain-Grahn-Persson 2008、CWF 2024 | 软成本、硬保护、弱特征 support 和保护/质量冲突的理解。 |
+| 特征保持简化 | Wang 2008、Hussain-Grahn-Persson 2008、CWF 2024 | 软成本、硬保护、弱特征 support、保护/质量冲突的理解，以及 Wang 2008 的"blow-up 权重只进队列优先级、不进 placement 求解"解耦模式（`adaptiveScale` 下的 `priorityScale`）。 |

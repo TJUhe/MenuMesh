@@ -16,8 +16,11 @@ struct QualityRefinementInput {
     const std::vector<FaceState>& faces;
     const DynamicTopology& topology;
     const FeatureConstraintPolicy& featurePolicy;
+    const std::vector<FeatureCurveConstraint>& featureCurves;
+    const std::vector<FeaturePrimitiveFit>& primitiveFits;
     SpatialFaceIndex* spatialIndex = nullptr;
-    const manumesh::detail::MeshDistanceIndex* referenceSurface = nullptr;
+    const manumesh::common::MeshDistanceIndex* referenceSurface = nullptr;
+    double meshDiagonal = 0.0;
     double areaEps = 0.0;
     double minNormalDot = -1.0;
     double maxLocalError = 0.0;

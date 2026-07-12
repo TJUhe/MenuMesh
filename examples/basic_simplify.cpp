@@ -1,4 +1,4 @@
-#include "algorithms/simplification/Metrics.h"
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"
 
@@ -21,7 +21,7 @@ int main() {
         throw std::runtime_error("simplifier returned an empty mesh");
     }
 
-    const manumesh::simplification::MeshStats stats = manumesh::simplification::computeMeshStats(simplified);
+    const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(simplified);
     std::cout << "input_faces=" << input.faces.size() << " simplified_faces=" << stats.faces
               << " collapsed_edges=" << report.collapsedEdges << "\n";
     return stats.faces < static_cast<int>(input.faces.size()) ? 0 : 1;

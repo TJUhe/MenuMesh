@@ -41,18 +41,19 @@ void addTraceGraphStorage(TraceGraph& trace, const CandidateEdge& edge) {
     trace.adjacency[edge.b].push_back(edge.a);
     trace.traceVertex[edge.a] = 1;
     trace.traceVertex[edge.b] = 1;
-    const std::uint64_t key = manumesh::detail::meshEdgeKey(edge.a, edge.b);
-    trace.edgeIsBoundary[key] = edge.boundary;
-    trace.edgeIsDihedral[key] = edge.dihedral;
-    trace.edgeIsNormalTensor[key] = edge.normalTensor;
-    trace.edgeIsSmoothCurvature[key] = edge.smoothCurvature;
-    trace.edgeIsNonManifold[key] = edge.nonManifold;
-    trace.edgeIsCleanupBridge[key] = edge.cleanupBridge;
-    trace.edgeSignedKind[key] = edge.signedKind;
-    trace.edgeTensorPersistence[key] = edge.tensorPersistentScore;
-    trace.edgeTensorPersistentScales[key] = edge.tensorPersistentScales;
-    trace.edgeCurvaturePersistence[key] = edge.curvaturePersistentScore;
-    trace.edgeCurvaturePersistentScales[key] = edge.curvaturePersistentScales;
+    const std::uint64_t key = manumesh::common::meshEdgeKey(edge.a, edge.b);
+    TraceEdgeAttrs& attrs = trace.edgeAttrs[key];
+    attrs.boundary = edge.boundary;
+    attrs.dihedral = edge.dihedral;
+    attrs.normalTensor = edge.normalTensor;
+    attrs.smoothCurvature = edge.smoothCurvature;
+    attrs.nonManifold = edge.nonManifold;
+    attrs.cleanupBridge = edge.cleanupBridge;
+    attrs.signedKind = edge.signedKind;
+    attrs.tensorPersistence = edge.tensorPersistentScore;
+    attrs.tensorPersistentScales = edge.tensorPersistentScales;
+    attrs.curvaturePersistence = edge.curvaturePersistentScore;
+    attrs.curvaturePersistentScales = edge.curvaturePersistentScales;
     trace.graphEdges.emplace_back(edge.a, edge.b);
 }
 
@@ -75,17 +76,7 @@ TraceGraph buildTraceGraph(
     TraceGraph trace;
     trace.adjacency.resize(mesh.vertices.size());
     trace.traceVertex.assign(mesh.vertices.size(), 0);
-    trace.edgeIsBoundary.reserve(featureEdges.size());
-    trace.edgeIsDihedral.reserve(featureEdges.size());
-    trace.edgeIsNormalTensor.reserve(featureEdges.size());
-    trace.edgeIsSmoothCurvature.reserve(featureEdges.size());
-    trace.edgeIsNonManifold.reserve(featureEdges.size());
-    trace.edgeIsCleanupBridge.reserve(featureEdges.size());
-    trace.edgeSignedKind.reserve(featureEdges.size());
-    trace.edgeTensorPersistence.reserve(featureEdges.size());
-    trace.edgeTensorPersistentScales.reserve(featureEdges.size());
-    trace.edgeCurvaturePersistence.reserve(featureEdges.size());
-    trace.edgeCurvaturePersistentScales.reserve(featureEdges.size());
+    trace.edgeAttrs.reserve(featureEdges.size());
     trace.graphEdges.reserve(featureEdges.size());
 
     const double traceAngleDeg = options.loopTraceAngleDeg < 0.0 ? options.featureAngleDeg : options.loopTraceAngleDeg;
@@ -103,59 +94,64 @@ TraceGraph buildTraceGraph(
     return trace;
 }
 
+const TraceEdgeAttrs* traceEdgeAttrs(const TraceGraph& trace, int a, int b) {
+    const auto it = trace.edgeAttrs.find(manumesh::common::meshEdgeKey(a, b));
+    return it == trace.edgeAttrs.end() ? nullptr : &it->second;
+}
+
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeIsBoundary.find(manumesh::detail::meshEdgeKey(a, b));
-    return it != trace.edgeIsBoundary.end() && it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs != nullptr && attrs->boundary;
 }
 
 bool traceEdgeDihedral(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeIsDihedral.find(manumesh::detail::meshEdgeKey(a, b));
-    return it != trace.edgeIsDihedral.end() && it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs != nullptr && attrs->dihedral;
 }
 
 bool traceEdgeNormalTensor(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeIsNormalTensor.find(manumesh::detail::meshEdgeKey(a, b));
-    return it != trace.edgeIsNormalTensor.end() && it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs != nullptr && attrs->normalTensor;
 }
 
 bool traceEdgeSmoothCurvature(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeIsSmoothCurvature.find(manumesh::detail::meshEdgeKey(a, b));
-    return it != trace.edgeIsSmoothCurvature.end() && it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs != nullptr && attrs->smoothCurvature;
 }
 
 bool traceEdgeNonManifold(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeIsNonManifold.find(manumesh::detail::meshEdgeKey(a, b));
-    return it != trace.edgeIsNonManifold.end() && it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs != nullptr && attrs->nonManifold;
 }
 
 bool traceEdgeCleanupBridge(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeIsCleanupBridge.find(manumesh::detail::meshEdgeKey(a, b));
-    return it != trace.edgeIsCleanupBridge.end() && it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs != nullptr && attrs->cleanupBridge;
 }
 
 int traceEdgeSign(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeSignedKind.find(manumesh::detail::meshEdgeKey(a, b));
-    return it == trace.edgeSignedKind.end() ? 0 : it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs == nullptr ? 0 : attrs->signedKind;
 }
 
 double traceEdgeTensorPersistence(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeTensorPersistence.find(manumesh::detail::meshEdgeKey(a, b));
-    return it == trace.edgeTensorPersistence.end() ? 0.0 : it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs == nullptr ? 0.0 : attrs->tensorPersistence;
 }
 
 int traceEdgeTensorPersistentScales(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeTensorPersistentScales.find(manumesh::detail::meshEdgeKey(a, b));
-    return it == trace.edgeTensorPersistentScales.end() ? 0 : it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs == nullptr ? 0 : attrs->tensorPersistentScales;
 }
 
 double traceEdgeCurvaturePersistence(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeCurvaturePersistence.find(manumesh::detail::meshEdgeKey(a, b));
-    return it == trace.edgeCurvaturePersistence.end() ? 0.0 : it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs == nullptr ? 0.0 : attrs->curvaturePersistence;
 }
 
 int traceEdgeCurvaturePersistentScales(const TraceGraph& trace, int a, int b) {
-    const auto it = trace.edgeCurvaturePersistentScales.find(manumesh::detail::meshEdgeKey(a, b));
-    return it == trace.edgeCurvaturePersistentScales.end() ? 0 : it->second;
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs == nullptr ? 0 : attrs->curvaturePersistentScales;
 }
 
 bool traceGraphHasEdge(const TraceGraph& trace, int a, int b) {
@@ -184,18 +180,7 @@ void removeTraceGraphEdge(TraceGraph& trace, int a, int b) {
     removeNeighbor(trace.adjacency[b], a);
     trace.traceVertex[a] = trace.adjacency[a].empty() ? 0 : 1;
     trace.traceVertex[b] = trace.adjacency[b].empty() ? 0 : 1;
-    const std::uint64_t key = manumesh::detail::meshEdgeKey(a, b);
-    trace.edgeIsBoundary.erase(key);
-    trace.edgeIsDihedral.erase(key);
-    trace.edgeIsNormalTensor.erase(key);
-    trace.edgeIsSmoothCurvature.erase(key);
-    trace.edgeIsNonManifold.erase(key);
-    trace.edgeIsCleanupBridge.erase(key);
-    trace.edgeSignedKind.erase(key);
-    trace.edgeTensorPersistence.erase(key);
-    trace.edgeTensorPersistentScales.erase(key);
-    trace.edgeCurvaturePersistence.erase(key);
-    trace.edgeCurvaturePersistentScales.erase(key);
+    trace.edgeAttrs.erase(manumesh::common::meshEdgeKey(a, b));
 }
 
 void rebuildTraceGraphEdges(TraceGraph& trace) {
@@ -217,6 +202,7 @@ void rebuildTraceGraphEdges(TraceGraph& trace) {
 void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis) {
     analysis.graph.junctionVertices.clear();
     analysis.graph.sharedVertices.clear();
+    analysis.graph.endpointVertices.clear();
     for (int id = 0; id < static_cast<int>(analysis.graph.vertices.size()); ++id) {
         FeatureGraphVertex& vertex = analysis.graph.vertices[id];
         const int activeIncidentEdges =
@@ -224,14 +210,26 @@ void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis) {
                 return edgeId >= 0 && edgeId < static_cast<int>(analysis.graph.edges.size()) &&
                        !analysis.graph.edges[edgeId].removedByCleanup;
             }));
-        vertex.junction = activeIncidentEdges != 2 || vertex.loopIds.size() > 1 ||
-                          (id < static_cast<int>(analysis.vertices.size()) && analysis.vertices[id].junction);
+        // Topological junction = graph branch point (active valence > 2),
+        // following M007: a junction is identified by ridge valence >= 3,
+        // and its local differential quantities may be entirely trivial.
+        // Neither loop membership nor the per-vertex protection flag
+        // (VertexFeature::junction, which deliberately also pins vertices
+        // shared between overlapping recovered loops) is evidence of a
+        // branch: recovered loops routinely overlap along whole valence-2
+        // chains, while loops that genuinely cross always meet at a vertex
+        // with more than two incident feature edges.
+        vertex.junction = activeIncidentEdges > 2;
         vertex.shared = vertex.loopIds.size() > 1;
+        vertex.endpoint = activeIncidentEdges == 1;
         if (vertex.junction && activeIncidentEdges > 0) {
             analysis.graph.junctionVertices.push_back(id);
         }
         if (vertex.shared) {
             analysis.graph.sharedVertices.push_back(id);
+        }
+        if (vertex.endpoint) {
+            analysis.graph.endpointVertices.push_back(id);
         }
     }
 }

@@ -3,6 +3,7 @@
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MathConstants.h"
 #include "common/detail/MeshQueries.h"
+#include "detail/FeatureConstraints.h"
 #include "detail/SimplificationPolicies.h"
 
 #include <algorithm>
@@ -12,7 +13,7 @@
 namespace manumesh::simplification {
 namespace {
 
-using manumesh::detail::kPi;
+using manumesh::common::kPi;
 
 FeatureCurveKind toFeatureCurveKind(feature::FeaturePrimitiveType primitive) {
     switch (primitive) {
@@ -136,6 +137,11 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
             }
         }
         constraint.valid = constraint.valid && constraint.samples.size() >= 2;
+        // Long polylines get a one-time segment index so per-collapse
+        // closest-point queries drop from O(L) to O(log L).
+        if (constraint.valid && constraint.primitive == FeatureCurveKind::PolygonalLoop) {
+            buildPolylineSegmentIndex(constraint);
+        }
         guidance.curves[loop.id] = std::move(constraint);
     }
 
@@ -213,8 +219,8 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
         return result;
     }
 
-    const std::vector<Vec3> faceNormals = detail::computeFaceNormals(mesh);
-    const detail::MeshEdgeInfoMap edgeInfo = detail::buildMeshEdgeInfo(mesh);
+    const std::vector<Vec3> faceNormals = common::computeFaceNormals(mesh);
+    const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
     const double threshold = options.featureAngleDeg * kPi / 180.0;
     const double denom = std::max(1e-12, kPi - threshold);
     for (const auto& [key, info] : edgeInfo) {
@@ -222,13 +228,18 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
         if (info.faces.size() == 1) {
             edgeScore = 1.0;
         } else if (info.faces.size() == 2) {
-            const double dot =
-                std::clamp(std::abs(faceNormals[info.faces[0]].dot(faceNormals[info.faces[1]])), -1.0, 1.0);
-            const double angle = std::acos(dot);
-            edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
+            const Vec3& n0 = faceNormals[info.faces[0]];
+            const Vec3& n1 = faceNormals[info.faces[1]];
+            // Degenerate (zero-area) faces have zero normals; their dot reads
+            // as a fake 90-degree crease. Skip the edge instead of scoring it.
+            if (n0.squaredNorm() > 0.0 && n1.squaredNorm() > 0.0) {
+                const double dot = std::clamp(std::abs(n0.dot(n1)), -1.0, 1.0);
+                const double angle = std::acos(dot);
+                edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
+            }
         }
         if (edgeScore > 0.0) {
-            const auto [a, b] = detail::unpackMeshEdgeKey(key);
+            const auto [a, b] = common::unpackMeshEdgeKey(key);
             score[a] = std::max(score[a], edgeScore);
             score[b] = std::max(score[b], edgeScore);
         }

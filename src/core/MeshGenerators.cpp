@@ -1,8 +1,12 @@
 #include "core/MeshGenerators.h"
 
+#include "core/MathConstants.h"
+
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <random>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -116,7 +120,6 @@ void addQuad(Mesh& mesh, int a, int b, int c, int d) {
 }
 
 Mesh generateLatheProfile(const std::vector<std::pair<double, double>>& rz, int segments) {
-    constexpr double pi = 3.141592653589793238462643383279502884;
     Mesh mesh;
     if (rz.size() < 2) {
         return mesh;
@@ -128,7 +131,7 @@ Mesh generateLatheProfile(const std::vector<std::pair<double, double>>& rz, int 
         const double r = rz[j].first;
         const double z = rz[j].second;
         for (int i = 0; i < segments; ++i) {
-            const double t = 2.0 * pi * static_cast<double>(i) / segments;
+            const double t = 2.0 * kPi * static_cast<double>(i) / segments;
             index[j][i] = addVertex(mesh, Vec3(r * std::cos(t), r * std::sin(t), z));
         }
     }
@@ -229,7 +232,6 @@ Mesh generateSineTerrainGrid(int n, double size) {
     n = std::max(4, n);
     Mesh mesh;
     mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
-    constexpr double pi = 3.141592653589793238462643383279502884;
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
@@ -237,7 +239,7 @@ Mesh generateSineTerrainGrid(int n, double size) {
             const double py = (static_cast<double>(y) / n - 0.5) * size;
             const double u = px / size + 0.5;
             const double v = py / size + 0.5;
-            const double z = 0.18 * std::sin(4.0 * pi * u) * std::sin(3.0 * pi * v) + 0.05 * std::sin(11.0 * pi * u);
+            const double z = 0.18 * std::sin(4.0 * kPi * u) * std::sin(3.0 * kPi * v) + 0.05 * std::sin(11.0 * kPi * u);
             mesh.vertices.emplace_back(px, py, z);
         }
     }
@@ -286,12 +288,11 @@ Mesh generateCylinderGrid(int radialSegments, int heightSegments, double radius,
     radialSegments = std::max(8, radialSegments);
     heightSegments = std::max(2, heightSegments);
     Mesh mesh;
-    constexpr double pi = 3.141592653589793238462643383279502884;
 
     for (int z = 0; z <= heightSegments; ++z) {
         const double pz = (static_cast<double>(z) / heightSegments - 0.5) * height;
         for (int i = 0; i < radialSegments; ++i) {
-            const double theta = 2.0 * pi * static_cast<double>(i) / radialSegments;
+            const double theta = 2.0 * kPi * static_cast<double>(i) / radialSegments;
             mesh.vertices.emplace_back(radius * std::cos(theta), radius * std::sin(theta), pz);
         }
     }
@@ -324,12 +325,11 @@ Mesh generateTorusGrid(int majorSegments, int minorSegments, double majorRadius,
     majorSegments = std::max(8, majorSegments);
     minorSegments = std::max(6, minorSegments);
     Mesh mesh;
-    constexpr double pi = 3.141592653589793238462643383279502884;
 
     for (int i = 0; i < majorSegments; ++i) {
-        const double u = 2.0 * pi * static_cast<double>(i) / majorSegments;
+        const double u = 2.0 * kPi * static_cast<double>(i) / majorSegments;
         for (int j = 0; j < minorSegments; ++j) {
-            const double v = 2.0 * pi * static_cast<double>(j) / minorSegments;
+            const double v = 2.0 * kPi * static_cast<double>(j) / minorSegments;
             const double r = majorRadius + minorRadius * std::cos(v);
             mesh.vertices.emplace_back(r * std::cos(u), r * std::sin(u), minorRadius * std::sin(v));
         }
@@ -360,6 +360,65 @@ Mesh generateCubeGrid(int n, double size) {
     appendFaceGrid(mesh, GridPatch{n, size, Vec3(-half, 0, 0), Vec3(0, -1, 0), Vec3(0, 0, 1)});
     appendFaceGrid(mesh, GridPatch{n, size, Vec3(0, half, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1)});
     appendFaceGrid(mesh, GridPatch{n, size, Vec3(0, -half, 0), Vec3(1, 0, 0), Vec3(0, 0, 1)});
+    return mesh;
+}
+
+Mesh generateWeldedCubeGrid(int n, double size) {
+    n = std::max(1, n);
+    Mesh unwelded = generateCubeGrid(n, size);
+
+    struct QuantizedPoint {
+        long long x = 0;
+        long long y = 0;
+        long long z = 0;
+
+        bool operator==(const QuantizedPoint& other) const { return x == other.x && y == other.y && z == other.z; }
+    };
+    struct QuantizedPointHash {
+        std::size_t operator()(const QuantizedPoint& p) const {
+            std::size_t seed = 1469598103934665603ull;
+            auto mix = [&](long long value) {
+                seed ^= static_cast<std::size_t>(static_cast<std::uint64_t>(value));
+                seed *= 1099511628211ull;
+            };
+            mix(p.x);
+            mix(p.y);
+            mix(p.z);
+            return seed;
+        }
+    };
+
+    // Quantize at a quarter of the grid cell size: coincident patch-boundary
+    // vertices merge while distinct grid vertices stay at least four quanta
+    // apart.
+    const double extent = std::abs(size) > 0.0 ? std::abs(size) : 1.0;
+    const double invQuantum = 4.0 * static_cast<double>(n) / extent;
+    auto quantize = [&](const Vec3& p) {
+        return QuantizedPoint{
+            std::llround(p.x() * invQuantum), std::llround(p.y() * invQuantum), std::llround(p.z() * invQuantum)
+        };
+    };
+
+    Mesh mesh;
+    mesh.vertices.reserve(static_cast<std::size_t>(6 * n * n + 2));
+    mesh.faces.reserve(unwelded.faces.size());
+    std::unordered_map<QuantizedPoint, int, QuantizedPointHash> indexByPoint;
+    indexByPoint.reserve(unwelded.vertices.size());
+    std::vector<int> remap(unwelded.vertices.size(), -1);
+    for (std::size_t vi = 0; vi < unwelded.vertices.size(); ++vi) {
+        const auto [it, inserted] =
+            indexByPoint.emplace(quantize(unwelded.vertices[vi]), static_cast<int>(mesh.vertices.size()));
+        if (inserted) {
+            mesh.vertices.push_back(unwelded.vertices[vi]);
+        }
+        remap[vi] = it->second;
+    }
+    for (Face face : unwelded.faces) {
+        for (int& id : face.v) {
+            id = remap[id];
+        }
+        mesh.faces.push_back(face);
+    }
     return mesh;
 }
 

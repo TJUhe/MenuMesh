@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 namespace manumesh::simplification {
@@ -25,31 +23,6 @@ struct EndpointCharts {
     bool sawUntextured = false;
 };
 
-struct FaceUpdate {
-    int face = -1;
-    FaceTexCoords texcoords;
-};
-
-struct UpdatePlan {
-    TextureCollapseEvaluation evaluation;
-    std::vector<FaceUpdate> updates;
-};
-
-struct QuantizedUvKey {
-    long long u = 0;
-    long long v = 0;
-
-    bool operator==(const QuantizedUvKey& other) const { return u == other.u && v == other.v; }
-};
-
-struct QuantizedUvKeyHash {
-    std::size_t operator()(const QuantizedUvKey& key) const {
-        const std::size_t hu = std::hash<long long>{}(key.u);
-        const std::size_t hv = std::hash<long long>{}(key.v);
-        return hu ^ (hv + 0x9e3779b97f4a7c15ull + (hu << 6) + (hu >> 2));
-    }
-};
-
 double cross2(const Vec2& a, const Vec2& b) { return a.x() * b.y() - a.y() * b.x(); }
 
 int faceCorner(const FaceState& face, int vertex) {
@@ -65,13 +38,6 @@ bool faceContainsBoth(const FaceState& face, CollapseEdge edge) {
     return faceCorner(face, edge.keep) >= 0 && faceCorner(face, edge.remove) >= 0;
 }
 
-QuantizedUvKey quantizeUv(const Vec2& uv, const Vec2& origin, double tolerance) {
-    return {
-        static_cast<long long>(std::llround((uv.x() - origin.x()) / tolerance)),
-        static_cast<long long>(std::llround((uv.y() - origin.y()) / tolerance))
-    };
-}
-
 EndpointCharts collectEndpointCharts(
     int vertex,
     const std::vector<FaceState>& faces,
@@ -80,13 +46,15 @@ EndpointCharts collectEndpointCharts(
     double tolerance
 ) {
     EndpointCharts charts;
-    Vec2 origin = Vec2::Zero();
-    bool hasOrigin = false;
-    std::unordered_multimap<QuantizedUvKey, int, QuantizedUvKeyHash> clustersByCell;
     if (vertex < 0 || vertex >= static_cast<int>(topology.vertexFaces.size())) {
         return charts;
     }
-    for (int faceId : topology.vertexFaces[vertex]) {
+    const double tolerance2 = tolerance * tolerance;
+    // Visit corner samples in (faceId, corner) order so cluster ids do not
+    // depend on the unordered_set iteration order of the incident-face lists.
+    std::vector<int> incidentFaces(topology.vertexFaces[vertex].begin(), topology.vertexFaces[vertex].end());
+    std::sort(incidentFaces.begin(), incidentFaces.end());
+    for (int faceId : incidentFaces) {
         if (faceId < 0 || faceId >= static_cast<int>(faces.size()) || !faces[faceId].active) {
             continue;
         }
@@ -97,31 +65,19 @@ EndpointCharts collectEndpointCharts(
         }
         charts.sawTextured = true;
         const Vec2& uv = faceTexCoords[faceId].uv[corner];
-        if (!hasOrigin) {
-            origin = uv;
-            hasOrigin = true;
-        }
-        const QuantizedUvKey key = quantizeUv(uv, origin, tolerance);
+        // One-ring chart counts are tiny, so a direct scan over the chart
+        // representatives is cheaper than the previous hash-grid and does not
+        // allocate. Ties deterministically join the lowest-index cluster.
         int cluster = -1;
-        const double tolerance2 = tolerance * tolerance;
-        for (long long du = -1; du <= 1 && cluster < 0; ++du) {
-            for (long long dv = -1; dv <= 1; ++dv) {
-                const auto range = clustersByCell.equal_range({key.u + du, key.v + dv});
-                for (auto found = range.first; found != range.second; ++found) {
-                    if ((charts.representatives[found->second] - uv).squaredNorm() <= tolerance2) {
-                        cluster = found->second;
-                        break;
-                    }
-                }
-                if (cluster >= 0) {
-                    break;
-                }
+        for (int rep = 0; rep < static_cast<int>(charts.representatives.size()); ++rep) {
+            if ((charts.representatives[static_cast<std::size_t>(rep)] - uv).squaredNorm() <= tolerance2) {
+                cluster = rep;
+                break;
             }
         }
         if (cluster < 0) {
             cluster = static_cast<int>(charts.representatives.size());
             charts.representatives.push_back(uv);
-            clustersByCell.emplace(key, cluster);
         }
         charts.samples.push_back(CornerSample{faceId, corner, cluster});
     }
@@ -160,7 +116,7 @@ double triangleUvScaleSquared(const FaceTexCoords& texcoords) {
     return sum / 3.0;
 }
 
-UpdatePlan buildUpdatePlan(
+TextureUpdatePlan buildUpdatePlan(
     CollapseEdge edge,
     const Vec3& position,
     const std::vector<FaceState>& faces,
@@ -170,9 +126,10 @@ UpdatePlan buildUpdatePlan(
     double weight,
     double uvTolerance,
     double uvAreaEpsilon,
-    double minAreaRatio
+    double minAreaRatio,
+    bool collectUpdates
 ) {
-    UpdatePlan plan;
+    TextureUpdatePlan plan;
     const EndpointCharts keepCharts = collectEndpointCharts(edge.keep, faces, topology, faceTexCoords, uvTolerance);
     const EndpointCharts removeCharts = collectEndpointCharts(edge.remove, faces, topology, faceTexCoords, uvTolerance);
     if (!keepCharts.sawTextured && !removeCharts.sawTextured) {
@@ -228,9 +185,17 @@ UpdatePlan buildUpdatePlan(
             (1.0 - t) * keepCharts.representatives[cluster] + t * removeCharts.representatives[keepToRemove[cluster]];
     }
 
-    std::unordered_set<int> touchedFaces;
-    touchedFaces.insert(topology.vertexFaces[edge.keep].begin(), topology.vertexFaces[edge.keep].end());
-    touchedFaces.insert(topology.vertexFaces[edge.remove].begin(), topology.vertexFaces[edge.remove].end());
+    // Deterministic face order keeps the floating-point cost accumulation and
+    // the update-plan order independent of unordered_set iteration order.
+    std::vector<int> touchedFaces;
+    touchedFaces.insert(
+        touchedFaces.end(), topology.vertexFaces[edge.keep].begin(), topology.vertexFaces[edge.keep].end()
+    );
+    touchedFaces.insert(
+        touchedFaces.end(), topology.vertexFaces[edge.remove].begin(), topology.vertexFaces[edge.remove].end()
+    );
+    std::sort(touchedFaces.begin(), touchedFaces.end());
+    touchedFaces.erase(std::unique(touchedFaces.begin(), touchedFaces.end()), touchedFaces.end());
     double weightedDisplacement = 0.0;
     double weightedUvScale = 0.0;
     double localArea = 0.0;
@@ -261,8 +226,14 @@ UpdatePlan buildUpdatePlan(
 
         const double oldUvArea = triangleUvDoubleArea(faceTexCoords[faceId]);
         const double newUvArea = triangleUvDoubleArea(updated);
-        if (std::abs(oldUvArea) > uvAreaEpsilon &&
-            (oldUvArea * newUvArea <= 0.0 || std::abs(newUvArea) < minAreaRatio * std::abs(oldUvArea))) {
+        const bool oldUvDegenerate = std::abs(oldUvArea) <= uvAreaEpsilon;
+        const bool orientationFlip = !oldUvDegenerate && (oldUvArea * newUvArea <= 0.0 ||
+                                                          std::abs(newUvArea) < minAreaRatio * std::abs(oldUvArea));
+        // A UV-degenerate source triangle carries no reliable orientation, but
+        // a clearly negative new signed area still indicates a UV fold-over;
+        // use a larger tolerance so numeric noise around zero is not rejected.
+        const bool degenerateFoldover = oldUvDegenerate && newUvArea < -64.0 * uvAreaEpsilon;
+        if (orientationFlip || degenerateFoldover) {
             plan.evaluation.rejectReason = TextureCollapseRejectReason::TriangleFlip;
             plan.updates.clear();
             return plan;
@@ -278,7 +249,9 @@ UpdatePlan buildUpdatePlan(
         weightedDisplacement += areaWeight * displacement2;
         weightedUvScale += areaWeight * triangleUvScaleSquared(faceTexCoords[faceId]);
         localArea += areaWeight;
-        plan.updates.push_back(FaceUpdate{faceId, updated});
+        if (collectUpdates) {
+            plan.updates.push_back(TextureFaceUpdate{faceId, updated});
+        }
     }
 
     if (weightedUvScale > 1e-30 && localArea > 0.0) {
@@ -320,25 +293,6 @@ TextureProtection::TextureProtection(const Mesh& input, const SimplifyOptions& o
 
 bool TextureProtection::active() const { return enabled_; }
 
-int TextureProtection::countProtectedEdges(
-    const std::vector<FaceState>& faces,
-    const std::vector<VertexState>& vertices,
-    const DynamicTopology& topology,
-    const std::vector<FaceTexCoords>& faceTexCoords
-) const {
-    if (!enabled_) {
-        return 0;
-    }
-    int count = 0;
-    for (const auto& [a, b] : collectActiveEdges(faces)) {
-        const Vec3 midpoint = 0.5 * (vertices[a].p + vertices[b].p);
-        if (!evaluate({a, b}, midpoint, faces, vertices, topology, faceTexCoords).allowed()) {
-            ++count;
-        }
-    }
-    return count;
-}
-
 TextureCollapseEvaluation TextureProtection::evaluate(
     CollapseEdge edge,
     const Vec3& position,
@@ -360,30 +314,49 @@ TextureCollapseEvaluation TextureProtection::evaluate(
                weight_,
                uvTolerance_,
                uvAreaEpsilon_,
-               minAreaRatio_
+               minAreaRatio_,
+               false
     )
         .evaluation;
 }
 
-bool TextureProtection::apply(
+TextureUpdatePlan TextureProtection::buildPlan(
     CollapseEdge edge,
     const Vec3& position,
     const std::vector<FaceState>& faces,
     const std::vector<VertexState>& vertices,
     const DynamicTopology& topology,
-    std::vector<FaceTexCoords>& faceTexCoords
+    const std::vector<FaceTexCoords>& faceTexCoords
 ) const {
+    if (!enabled_) {
+        return {};
+    }
+    return buildUpdatePlan(
+        edge,
+        position,
+        faces,
+        vertices,
+        topology,
+        faceTexCoords,
+        weight_,
+        uvTolerance_,
+        uvAreaEpsilon_,
+        minAreaRatio_,
+        true
+    );
+}
+
+bool TextureProtection::apply(const TextureUpdatePlan& plan, std::vector<FaceTexCoords>& faceTexCoords) const {
     if (!enabled_) {
         return true;
     }
-    UpdatePlan plan = buildUpdatePlan(
-        edge, position, faces, vertices, topology, faceTexCoords, weight_, uvTolerance_, uvAreaEpsilon_, minAreaRatio_
-    );
     if (!plan.evaluation.allowed()) {
         return false;
     }
-    for (const FaceUpdate& update : plan.updates) {
-        faceTexCoords[update.face] = update.texcoords;
+    for (const TextureFaceUpdate& update : plan.updates) {
+        if (update.face >= 0 && update.face < static_cast<int>(faceTexCoords.size())) {
+            faceTexCoords[update.face] = update.texcoords;
+        }
     }
     return true;
 }

@@ -10,7 +10,7 @@
 
 namespace manumesh::feature::detector_detail {
 
-using manumesh::detail::kPi;
+using manumesh::common::kPi;
 
 struct CandidateEdge {
     int a = -1;
@@ -29,20 +29,29 @@ struct CandidateEdge {
     int curvaturePersistentScales = 0;
 };
 
+/// Per-edge evidence attributes stored once per trace-graph edge.
+///
+/// Earlier revisions kept eleven parallel hash maps with identical keys; one
+/// struct per key halves memory traffic and lets hot loops fetch every
+/// attribute with a single lookup.
+struct TraceEdgeAttrs {
+    bool boundary = false;
+    bool dihedral = false;
+    bool normalTensor = false;
+    bool smoothCurvature = false;
+    bool nonManifold = false;
+    bool cleanupBridge = false;
+    int signedKind = 0;
+    double tensorPersistence = 0.0;
+    int tensorPersistentScales = 0;
+    double curvaturePersistence = 0.0;
+    int curvaturePersistentScales = 0;
+};
+
 struct TraceGraph {
     std::vector<std::vector<int>> adjacency;
     std::vector<char> traceVertex;
-    std::unordered_map<std::uint64_t, bool> edgeIsBoundary;
-    std::unordered_map<std::uint64_t, bool> edgeIsDihedral;
-    std::unordered_map<std::uint64_t, bool> edgeIsNormalTensor;
-    std::unordered_map<std::uint64_t, bool> edgeIsSmoothCurvature;
-    std::unordered_map<std::uint64_t, bool> edgeIsNonManifold;
-    std::unordered_map<std::uint64_t, bool> edgeIsCleanupBridge;
-    std::unordered_map<std::uint64_t, int> edgeSignedKind;
-    std::unordered_map<std::uint64_t, double> edgeTensorPersistence;
-    std::unordered_map<std::uint64_t, int> edgeTensorPersistentScales;
-    std::unordered_map<std::uint64_t, double> edgeCurvaturePersistence;
-    std::unordered_map<std::uint64_t, int> edgeCurvaturePersistentScales;
+    std::unordered_map<std::uint64_t, TraceEdgeAttrs> edgeAttrs;
     std::vector<std::pair<int, int>> graphEdges;
 };
 

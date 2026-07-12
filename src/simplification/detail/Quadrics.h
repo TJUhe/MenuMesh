@@ -14,11 +14,21 @@ Mat4 planeQuadric(const Vec3& normal, const Vec3& point);
 Mat4 pointQuadric(const Vec3& point);
 Mat4 lineQuadric(const Vec3& point, const Vec3& normal);
 
+/// Initial per-vertex quadrics plus the queue-priority factors decoupled from
+/// them (Wang 2008): feature boosts in adaptiveScale mode only reorder the
+/// candidate queue and never distort the placement solve.
+struct InitialQuadrics {
+    std::vector<Mat4> quadrics;
+    /// Per-vertex multipliers (>= 1) for the queue ordering cost. Empty when
+    /// no decoupled boost applies; every vertex then uses 1.0.
+    std::vector<double> priorityScales;
+};
+
 void computeInitialQuadrics(
     const Mesh& mesh,
     const SimplifyOptions& options,
     const FeatureGuidance& featureGuidance,
-    std::vector<Mat4>& quadrics,
+    InitialQuadrics& initial,
     SimplifyReport& report
 );
 
@@ -29,7 +39,7 @@ class InitialQuadricBuilder {
 public:
     explicit InitialQuadricBuilder(const SimplifyOptions& options);
 
-    std::vector<Mat4> build(const Mesh& mesh, const FeatureGuidance& featureGuidance, SimplifyReport& report) const;
+    InitialQuadrics build(const Mesh& mesh, const FeatureGuidance& featureGuidance, SimplifyReport& report) const;
 
 private:
     const SimplifyOptions& options_;

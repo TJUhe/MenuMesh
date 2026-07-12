@@ -1,6 +1,6 @@
 #include "api/CApi.h"
 
-#include "algorithms/simplification/Metrics.h"
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "api/detail/CApiConverters.h"
 #include "core/MeshGenerators.h"
@@ -37,7 +37,14 @@ void clearError(ManuMeshContext* context) {
 
 ManuMeshStatus fail(ManuMeshContext* context, ManuMeshStatus status, const std::string& message) {
     if (context) {
-        context->lastError = message;
+        // The string assignment may allocate; never let an OOM (or any other)
+        // exception escape across the C ABI boundary. On failure, fall back to
+        // an empty message: clear() releases nothing and cannot throw.
+        try {
+            context->lastError = message;
+        } catch (...) {
+            context->lastError.clear();
+        }
     }
     return status;
 }
@@ -92,11 +99,19 @@ void manumesh_context_clear_error(ManuMeshContext* context) { clearError(context
 
 ManuMeshMeshHandle* manumesh_mesh_create(ManuMeshContext* context) {
     clearError(context);
-    ManuMeshMeshHandle* mesh = new (std::nothrow) ManuMeshMeshHandle();
-    if (!mesh) {
-        fail(context, MANUMESH_STATUS_OUT_OF_MEMORY, "Failed to allocate mesh handle.");
+    try {
+        ManuMeshMeshHandle* mesh = new (std::nothrow) ManuMeshMeshHandle();
+        if (!mesh) {
+            fail(context, MANUMESH_STATUS_OUT_OF_MEMORY, "Failed to allocate mesh handle.");
+        }
+        return mesh;
+    } catch (const std::exception& ex) {
+        translateException(context, ex);
+        return nullptr;
+    } catch (...) {
+        translateUnknownException(context);
+        return nullptr;
     }
-    return mesh;
 }
 
 void manumesh_mesh_destroy(ManuMeshMeshHandle* mesh) { delete mesh; }
@@ -150,7 +165,10 @@ ManuMeshStatus manumesh_mesh_set_data(
             next.faces.push_back(face);
         }
         std::string error;
-        if (!manumesh::validateMeshGeometry(next, &error)) {
+        // Lenient validation at the ABI boundary: zero-area faces are
+        // tolerated (analysis and simplification handle them and report the
+        // count); only inputs no algorithm can process are rejected.
+        if (!manumesh::validateMeshGeometryLenient(next, &error)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, error.empty() ? "Mesh geometry is invalid." : error);
         }
         mesh->mesh = std::move(next);
@@ -166,11 +184,21 @@ ManuMeshStatus manumesh_mesh_get_counts(
     ManuMeshContext* context, const ManuMeshMeshHandle* mesh, size_t* vertex_count, size_t* face_count
 ) {
     clearError(context);
-    if (!mesh || !vertex_count || !face_count) {
-        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and output count pointers must be valid.");
+    if (!mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle must be valid.");
     }
-    *vertex_count = mesh->mesh.vertices.size();
-    *face_count = mesh->mesh.faces.size();
+    // Either output may be null so callers can request just one count.
+    if (!vertex_count && !face_count) {
+        return fail(
+            context, MANUMESH_STATUS_INVALID_ARGUMENT, "At least one of vertex_count or face_count must be valid."
+        );
+    }
+    if (vertex_count) {
+        *vertex_count = mesh->mesh.vertices.size();
+    }
+    if (face_count) {
+        *face_count = mesh->mesh.faces.size();
+    }
     return MANUMESH_STATUS_OK;
 }
 
@@ -368,7 +396,7 @@ manumesh_compute_mesh_stats(ManuMeshContext* context, const ManuMeshMeshHandle* 
         if (!manumesh::api::validateMeshStatsOutput(*stats, outputError)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, outputError);
         }
-        manumesh::api::fillMeshStats(manumesh::simplification::computeMeshStats(mesh->mesh), *stats);
+        manumesh::api::fillMeshStats(manumesh::analysis::computeMeshStats(mesh->mesh), *stats);
         return MANUMESH_STATUS_OK;
     } catch (const std::exception& ex) {
         return translateException(context, ex);

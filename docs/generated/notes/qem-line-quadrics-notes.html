@@ -256,14 +256,14 @@ img, svg, canvas, video {
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
 <section class="feature-recognition-brief qem-quadrics-expansion">
   <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
-  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，再解 <code>A x=-b</code>；若矩阵病态则回退到端点/中点候选。</p>
+  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，再解 <code>A x=-b</code>；若谱条件（<code>minEval/maxEval &gt; 1e-12</code>）拒绝全空间最优，先尝试沿折叠边的一维最优 <code>t* = (rhs·d − dᵀA a)/(dᵀA d)</code>（rank-2 quadric——直棱、边界折痕——的良定情形，分母用尺度不变相对阈值判定），仍失败才落回端点/中点候选；边界边坍缩的 placement 另按 Lindstrom-Turk 边界守恒约束投影（<code>src/simplification/Placement.cpp</code>）。</p>
   <table>
     <thead><tr><th>二次型项</th><th>展开到 <code>A,b,c</code></th><th>参数与默认值</th><th>作用与引用</th></tr></thead>
     <tbody>
       <tr><td>面平面 QEM</td><td><code>pi=[n,-n.p]</code>，<code>Q += area/3 * pi*pi^T</code>。等价于 <code>E=a(n.x-n.p)^2</code>，所以 <code>A+=a nn^T</code>、<code>b+=-a(n.p)n</code>、<code>c+=a(n.p)^2</code>。</td><td>无独立开关；退化面用很小的 <code>1e-6 pointQuadric</code> 稳定。</td><td>主几何误差，来自 M002 Garland-Heckbert 1997。</td></tr>
       <tr><td>普通 Line Quadric</td><td><code>lineQuadric(p,n)</code> 取两个与局部法线 <code>n</code> 垂直的单位方向 <code>u,v</code>，加入 <code>Q_l=pi_u*pi_u^T+pi_v*pi_v^T</code>。展开为 <code>E_l=||(I-nn^T)(x-p)||^2</code>，即惩罚切向漂移。</td><td><code>useLineQuadrics=true</code>，<code>lineWeight=1e-3</code>。默认分支：<code>Q_i += w_i area_i Q_l</code>。</td><td>补平坦区 QEM 切向不满秩问题，来自 M004 Liu-Rahimzadeh-Zordan 2025。</td></tr>
       <tr><td>特征加权 Line Quadric</td><td>非 uniform 模式下 <code>w_i=lineWeight+featureBoost*s_i</code>；<code>s_i</code> 来自 dihedral、normal-tensor persistence、height 或 xband。normal-tensor 模式只给满足 <code>normalTensorMinPersistentScales</code> 的顶点写入 persistent score。</td><td><code>weightMode=uniform</code>，<code>featureBoost=0.05</code>；常用调试值 <code>dihedral/normal-tensor + 0.08</code>。<code>featureAngleDeg=40</code>，<code>normalTensorFeatureThreshold=0.16</code>，<code>normalTensorScaleCount=1</code>。</td><td>让硬边、弱 ridge 或指定区域获得更高排序成本；feature evidence 参考 M007/M012/M013/M015/M016，弱特征参考 M026。</td></tr>
-      <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，当前实现先加 <code>adaptiveBaseLineWeight*area_i*Q_l</code>，再整体缩放 <code>Q_i *= 1+max(0,featureBoost)*s_i</code>。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。这是实验性尺度归一化路径，不是默认推荐。</td><td>用于跨尺度模型的 line weight 可比性；需要结合 benchmark 校准。</td></tr>
+      <tr><td>Adaptive Scale 分支（Wang 2008 解耦）</td><td>若 <code>adaptiveScale=true</code>，quadric 只加干净的 <code>adaptiveBaseLineWeight*area_i*Q_l</code> 基础项；featureBoost 不再放大 quadric（旧行为会扭曲 placement），改为逐顶点 <code>priorityScale = 1 + max(0,featureBoost)*s_i</code>，只乘候选队列的排序代价（取折叠边两端点最大值，折叠时按 max 传播到 keep 端）。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。非 adaptiveScale 路径 featureBoost 仍按旧行为加进 line weight。</td><td>Wang 2008 优先级/placement 解耦：排序看特征，placement 求解不受特征权重污染；实现见 <code>Quadrics.cpp</code> 与 <code>CandidateQueue.cpp</code>。</td></tr>
       <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|*mm^T</code>，秩 1。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
       <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 影响诊断/策略判断。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
       <tr><td>Primitive 投影与硬过滤</td><td>圆/椭圆/多边形不是当前 <code>Quadrics.cpp</code> 里的单独径向二次型；当前代码用 tangent-line quadric 排序，再由 <code>projectToCircle/projectToEllipse/projectToPolygonal</code>、<code>maxFeatureCurveDeviationRatio</code> 和 <code>featureProtectionMode</code> 控制最终位置与是否拒绝折叠。</td><td><code>maxFeatureCurveDeviationRatio=0</code> 表示关闭曲线漂移预算；<code>featureProtectionMode=PrimitiveCurves</code>。圆/椭圆阈值默认均为 <code>0.05</code>。</td><td>把“软成本排序”和“硬合法性保护”分开，符合 M030-M033 edge-collapse 工程建议。</td></tr>
@@ -468,7 +468,7 @@ $\nabla E_{ij} = 2A_{ij}\, x + 2\mathbf{b}_{ij} = 0 \quad \Longrightarrow \quad 
 <div class="callout-title">求解的条件</div>
 <ul>
 <li>$A_{ij}$ <strong>可逆且条件良好</strong> → 直接 Cholesky 分解求解，$x^*$ 唯一且稳定</li>
-<li>$A_{ij}$ <strong>奇异</strong>（det = 0）→ 无唯一解，需要 SVD 或 fallback 启发式</li>
+<li>$A_{ij}$ <strong>奇异</strong>（det = 0）→ 无唯一解；ManuMesh 当前不做 SVD，而是先尝试沿折叠边的一维最优（rank-2 quadric 的良定情形），仍失败才落回端点/中点候选</li>
 <li>$A_{ij}$ <strong>可逆但病态</strong>（条件数很大）→ 解存在但被浮点噪声主导</li>
 </ul>
 </div>
@@ -531,7 +531,7 @@ $$A = \sum_k w_k \begin{pmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{pmatri
 $$\begin{cases} 0 \cdot x = 0 \\ 0 \cdot y = 0 \\ W \cdot z = -b_z \end{cases} \quad \Longrightarrow \quad z^* = -b_z/W, \;\; x^*, y^* \text{ 任意}$$
 </div>
 
-<p>$A$ 是奇异的，线性方程组没有唯一解。实际实现中必须用 SVD 或其他 fallback 启发式——<strong>这些方法给出的 $x, y$ 坐标本质上是随机的</strong>（如取端点中点、取 SVD 最小范数解等），不反映任何几何意义。</p>
+<p>$A$ 是奇异的，线性方程组没有唯一解。朴素实现必须用 SVD 或其他 fallback 启发式——<strong>这些方法给出的 $x, y$ 坐标本质上是随机的</strong>（如取端点中点、取 SVD 最小范数解等），不反映任何几何意义。（ManuMesh 当前用受约束的候选集回避这种任意性：端点/中点候选始终参与，谱条件拒绝全空间最优后先尝试沿折叠边的一维最优，最后按代价取最小者。）</p>
 
 <h3 id="s4-3">4.3 第二层：近平坦——解存在但被浮点噪声主导</h3>
 
@@ -897,6 +897,11 @@ $$\bar{x}^* = \frac{\sum_m w_m a_m \, x_m}{\sum_m w_m a_m}, \qquad \bar{y}^* = \
 
 <p>与硬约束的区别：硬约束"禁止删除某顶点"，可能导致拓扑问题；line quadric 的软约束允许特征顶点被坍缩，只是<strong>代价更高</strong>，在保持外观和保留特征之间自动平衡。</p>
 
+<div class="callout key">
+<div class="callout-title">ManuMesh 当前实现的两条加权路径</div>
+<p>非 adaptiveScale 路径（默认）沿用本章思路：<code>w_i = lineWeight + featureBoost·s_i</code> 直接加进 line quadric。<code>adaptiveScale=true</code> 时则按 Wang 2008 做优先级/placement 解耦：quadric 只保留干净的 <code>adaptiveBaseLineWeight</code>（默认 1e-2）基础 line 项，featureBoost 改为逐顶点 <code>priorityScale = 1 + featureBoost·s_i</code>，只乘候选队列的排序代价（取折叠边两端点的最大值，折叠时按 max 传播到 keep 端），不再改变 $\tilde{A}x=-\tilde{\mathbf{b}}$ 的解——特征加权只影响“先折叠谁”，不再扭曲“折到哪”。</p>
+</div>
+
 <!-- ===== 9 ===== -->
 <h2 id="s9"><span class="num">9</span>完整算法流程</h2>
 
@@ -977,7 +982,7 @@ $$\bar{x}^* = \frac{\sum_m w_m a_m \, x_m}{\sum_m w_m a_m}, \qquad \bar{y}^* = \
 
 <section class="feature-recognition-brief" id="s10b">
 <h2><span class="num">10B</span>纹理保护与 4×4 line-quadric 主干的兼容关系</h2>
-<p>本轮新增的纹理感知简化（<code>preserveTexture</code>，设计文档 <code>docs/design/texture_aware_qem.md</code>，实现 <code>src/simplification/TextureProtection.cpp</code>）刻意不进入本页推导的任何矩阵：几何 quadric 仍是 4×4 齐次 <code>Mat4</code>，坍缩仍解同一个 $\tilde{A}\,x^* = -\tilde{\mathbf{b}}$，候选仍是端点、中点和稳定 3D QEM 最优点。texture 只在两个位置介入：一是<strong>候选排序</strong>——把只在坍缩边一环上现算的标量 <code>E_uv_local</code> 乘 <code>textureWeight</code>（默认 1.0）加到几何代价上，即 <code>E_total(p)=E_geometry_4x4(p)+textureWeight*E_uv_local(p)</code>；二是<strong>合法性过滤</strong>——局部 UV chart 一一配对、存活 UV 三角形的有符号定向与最小面积比例（<code>minTextureAreaRatio</code>）检查，不满足就拒绝坍缩并计入 <code>textureRejectedCollapses</code>。</p>
+<p>本轮新增的纹理感知简化（<code>preserveTexture</code>，设计文档 <code>docs/design/texture_aware_qem.md</code>，实现 <code>src/simplification/TextureProtection.cpp</code>）刻意不进入本页推导的任何矩阵：几何 quadric 仍是 4×4 齐次 <code>Mat4</code>，坍缩仍解同一个 $\tilde{A}\,x^* = -\tilde{\mathbf{b}}$，候选仍是端点、中点、稳定 3D QEM 最优点，以及全空间最优被谱条件拒绝时新增的沿边一维最优。texture 只在两个位置介入：一是<strong>候选排序</strong>——把只在坍缩边一环上现算的标量 <code>E_uv_local</code> 乘 <code>textureWeight</code>（默认 1.0）加到几何代价上，即 <code>E_total(p)=E_geometry_4x4(p)+textureWeight*E_uv_local(p)</code>；二是<strong>合法性过滤</strong>——局部 UV chart 一一配对、存活 UV 三角形的有符号定向与最小面积比例（<code>minTextureAreaRatio</code>）检查，不满足就拒绝坍缩并计入 <code>textureRejectedCollapses</code>。</p>
 <p>因此本页关于 line quadrics 的全部结论——满秩保证、条件数 $\sim 1/w$、平坦区优先级恢复、Fréchet 均值效应——在纹理模式下逐字成立：纹理项既不改变 $\tilde{A}$ 的秩，也不移动线性系统的解，只可能改变“哪条边先被弹出队列”和“这次坍缩会不会被否决”。<code>preserveTexture=false</code>（默认）时几何输出与旧无纹理路径 bit-exact 一致。</p>
 <table>
 <tr><th>模块</th><th>是否被 texture 改变</th><th>说明</th></tr>

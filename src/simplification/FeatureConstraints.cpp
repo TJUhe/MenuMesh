@@ -1,11 +1,33 @@
 #include "detail/FeatureConstraints.h"
 
+#include "common/detail/GeometryPredicates.h"
+
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <functional>
 #include <limits>
+#include <numeric>
 
 namespace manumesh::simplification {
 namespace {
+
+int curveSegmentCount(const FeatureCurveConstraint& curve) {
+    return curve.closed ? static_cast<int>(curve.samples.size())
+                        : std::max(0, static_cast<int>(curve.samples.size()) - 1);
+}
+
+Vec3 closestPointOnCurveSegment(const FeatureCurveConstraint& curve, int segment, const Vec3& position) {
+    const Vec3& p0 = curve.samples[static_cast<std::size_t>(segment)];
+    const Vec3& p1 = curve.samples[static_cast<std::size_t>(segment + 1) % curve.samples.size()];
+    const Vec3 edge = p1 - p0;
+    const double len2 = edge.squaredNorm();
+    if (len2 > 1e-30) {
+        const double t = std::clamp((position - p0).dot(edge) / len2, 0.0, 1.0);
+        return p0 + t * edge;
+    }
+    return p0;
+}
 
 FeatureProtectionMode effectiveFeatureProtectionMode(const SimplifyOptions& options) {
     if (!options.preserveFeatureCurves) {
@@ -113,45 +135,26 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
         return false;
     }
     if (a.circularFeature) {
-        position = projectToCircle(position, a);
+        position = projectToCircle(position, a, primitiveFitOf(a, input.primitiveFits));
         return true;
     }
     if (b.circularFeature) {
-        position = projectToCircle(position, b);
+        position = projectToCircle(position, b, primitiveFitOf(b, input.primitiveFits));
         return true;
     }
     if (mode == FeatureProtectionMode::PrimitiveCurves && a.featurePrimitive == FeatureCurveKind::Ellipse) {
-        position = projectToEllipse(position, a);
+        position = projectToEllipse(position, a, primitiveFitOf(a, input.primitiveFits));
         return true;
     }
     if (mode == FeatureProtectionMode::PrimitiveCurves && b.featurePrimitive == FeatureCurveKind::Ellipse) {
-        position = projectToEllipse(position, b);
+        position = projectToEllipse(position, b, primitiveFitOf(b, input.primitiveFits));
         return true;
     }
     if (mode == FeatureProtectionMode::AllFeatureEdges && a.featureLoopId >= 0 &&
         a.featureLoopId < static_cast<int>(curves.size()) && curves[a.featureLoopId].valid &&
         curves[a.featureLoopId].primitive == FeatureCurveKind::PolygonalLoop) {
-        const FeatureCurveConstraint& curve = curves[a.featureLoopId];
         double bestDist2 = std::numeric_limits<double>::infinity();
-        Vec3 best = position;
-        const int segmentCount = curve.closed ? static_cast<int>(curve.samples.size())
-                                              : std::max(0, static_cast<int>(curve.samples.size()) - 1);
-        for (int i = 0; i < segmentCount; ++i) {
-            const Vec3& p0 = curve.samples[i];
-            const Vec3& p1 = curve.samples[(i + 1) % curve.samples.size()];
-            const Vec3 edge = p1 - p0;
-            const double len2 = edge.squaredNorm();
-            Vec3 candidate = p0;
-            if (len2 > 1e-30) {
-                const double t = std::clamp((position - p0).dot(edge) / len2, 0.0, 1.0);
-                candidate = p0 + t * edge;
-            }
-            const double dist2 = (position - candidate).squaredNorm();
-            if (dist2 < bestDist2) {
-                bestDist2 = dist2;
-                best = candidate;
-            }
-        }
+        const Vec3 best = closestPointOnFeatureCurve(curves[a.featureLoopId], position, bestDist2);
         if (std::isfinite(bestDist2)) {
             position = best;
             return true;
@@ -179,63 +182,63 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
 
 } // namespace
 
-Vec3 projectToCircle(const Vec3& p, const VertexState& feature) {
-    Vec3 normal = feature.circleNormal;
-    if (normal.norm() <= 1e-20 || feature.circleRadius <= 1e-20) {
+Vec3 projectToCircle(const Vec3& p, const VertexState& feature, const FeaturePrimitiveFit& fit) {
+    Vec3 normal = fit.circleNormal;
+    if (normal.norm() <= 1e-20 || fit.circleRadius <= 1e-20) {
         return p;
     }
     normal.normalize();
 
-    Vec3 radial = p - feature.circleCenter;
+    Vec3 radial = p - fit.circleCenter;
     radial -= normal * radial.dot(normal);
     if (radial.norm() <= 1e-20) {
-        radial = feature.p - feature.circleCenter;
+        radial = feature.p - fit.circleCenter;
         radial -= normal * radial.dot(normal);
     }
     if (radial.norm() <= 1e-20) {
-        return feature.circleCenter;
+        return fit.circleCenter;
     }
-    return feature.circleCenter + feature.circleRadius * radial.normalized();
+    return fit.circleCenter + fit.circleRadius * radial.normalized();
 }
 
-Vec3 projectToEllipse(const Vec3& p, const VertexState& feature) {
-    Vec3 major = feature.ellipseMajorAxis;
-    Vec3 minor = feature.ellipseMinorAxis;
-    Vec3 normal = feature.ellipseNormal;
-    if (major.norm() <= 1e-20 || minor.norm() <= 1e-20 || normal.norm() <= 1e-20 ||
-        feature.ellipseMajorRadius <= 1e-20 || feature.ellipseMinorRadius <= 1e-20) {
+Vec3 projectToEllipse(const Vec3& p, const VertexState& feature, const FeaturePrimitiveFit& fit) {
+    Vec3 major = fit.ellipseMajorAxis;
+    Vec3 minor = fit.ellipseMinorAxis;
+    Vec3 normal = fit.ellipseNormal;
+    if (major.norm() <= 1e-20 || minor.norm() <= 1e-20 || normal.norm() <= 1e-20 || fit.ellipseMajorRadius <= 1e-20 ||
+        fit.ellipseMinorRadius <= 1e-20) {
         return p;
     }
     major.normalize();
     minor.normalize();
     normal.normalize();
 
-    Vec3 delta = p - feature.ellipseCenter;
+    Vec3 delta = p - fit.ellipseCenter;
     delta -= normal * delta.dot(normal);
     if (delta.norm() <= 1e-20) {
-        delta = feature.p - feature.ellipseCenter;
+        delta = feature.p - fit.ellipseCenter;
         delta -= normal * delta.dot(normal);
     }
     if (delta.norm() <= 1e-20) {
-        return feature.ellipseCenter + feature.ellipseMajorRadius * major;
+        return fit.ellipseCenter + fit.ellipseMajorRadius * major;
     }
 
     const double theta =
-        std::atan2(delta.dot(minor) / feature.ellipseMinorRadius, delta.dot(major) / feature.ellipseMajorRadius);
-    return feature.ellipseCenter + feature.ellipseMajorRadius * std::cos(theta) * major +
-           feature.ellipseMinorRadius * std::sin(theta) * minor;
+        std::atan2(delta.dot(minor) / fit.ellipseMinorRadius, delta.dot(major) / fit.ellipseMajorRadius);
+    return fit.ellipseCenter + fit.ellipseMajorRadius * std::cos(theta) * major +
+           fit.ellipseMinorRadius * std::sin(theta) * minor;
 }
 
-void refreshCircularTangent(VertexState& vertex) {
+void refreshCircularTangent(VertexState& vertex, const FeaturePrimitiveFit& fit) {
     if (!vertex.circularFeature) {
         return;
     }
-    Vec3 normal = vertex.circleNormal;
+    Vec3 normal = fit.circleNormal;
     if (normal.norm() <= 1e-20) {
         return;
     }
     normal.normalize();
-    Vec3 radial = vertex.p - vertex.circleCenter;
+    Vec3 radial = vertex.p - fit.circleCenter;
     radial -= normal * radial.dot(normal);
     if (radial.norm() <= 1e-20) {
         return;
@@ -243,53 +246,210 @@ void refreshCircularTangent(VertexState& vertex) {
     vertex.curveTangent = normal.cross(radial).normalized();
 }
 
-void refreshEllipseTangent(VertexState& vertex) {
+void refreshEllipseTangent(VertexState& vertex, const FeaturePrimitiveFit& fit) {
     if (vertex.featurePrimitive != FeatureCurveKind::Ellipse) {
         return;
     }
-    Vec3 major = vertex.ellipseMajorAxis;
-    Vec3 minor = vertex.ellipseMinorAxis;
-    Vec3 normal = vertex.ellipseNormal;
-    if (major.norm() <= 1e-20 || minor.norm() <= 1e-20 || normal.norm() <= 1e-20 ||
-        vertex.ellipseMajorRadius <= 1e-20 || vertex.ellipseMinorRadius <= 1e-20) {
+    Vec3 major = fit.ellipseMajorAxis;
+    Vec3 minor = fit.ellipseMinorAxis;
+    Vec3 normal = fit.ellipseNormal;
+    if (major.norm() <= 1e-20 || minor.norm() <= 1e-20 || normal.norm() <= 1e-20 || fit.ellipseMajorRadius <= 1e-20 ||
+        fit.ellipseMinorRadius <= 1e-20) {
         return;
     }
     major.normalize();
     minor.normalize();
     normal.normalize();
-    Vec3 delta = vertex.p - vertex.ellipseCenter;
+    Vec3 delta = vertex.p - fit.ellipseCenter;
     delta -= normal * delta.dot(normal);
     if (delta.norm() <= 1e-20) {
         return;
     }
     const double theta =
-        std::atan2(delta.dot(minor) / vertex.ellipseMinorRadius, delta.dot(major) / vertex.ellipseMajorRadius);
-    Vec3 tangent =
-        -vertex.ellipseMajorRadius * std::sin(theta) * major + vertex.ellipseMinorRadius * std::cos(theta) * minor;
+        std::atan2(delta.dot(minor) / fit.ellipseMinorRadius, delta.dot(major) / fit.ellipseMajorRadius);
+    Vec3 tangent = -fit.ellipseMajorRadius * std::sin(theta) * major + fit.ellipseMinorRadius * std::cos(theta) * minor;
     if (tangent.norm() > 1e-20) {
         vertex.curveTangent = tangent.normalized();
     }
 }
 
-bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& position) {
-    if (!input.decision.boundaryEdge) {
-        return false;
-    }
-
-    const int keep = input.edge.keep;
-    const int remove = input.edge.remove;
-    const std::vector<VertexState>& vertices = input.vertices;
-    const Vec3& a = vertices[keep].p;
-    const Vec3& b = vertices[remove].p;
-    const Vec3 edge = b - a;
-    const double len2 = edge.squaredNorm();
-    if (len2 <= 1e-30) {
-        position = 0.5 * (a + b);
+bool featureCurveBudgetAllows(
+    const VertexState& a,
+    const VertexState& b,
+    const std::vector<FeatureCurveConstraint>& featureCurves,
+    const std::vector<FeaturePrimitiveFit>& primitiveFits,
+    const SimplifyOptions& options,
+    double meshDiagonal,
+    const Vec3& position
+) {
+    if (!options.preserveFeatureCurves || options.maxFeatureCurveDeviationRatio <= 0.0) {
         return true;
     }
-    const double t = std::clamp((position - a).dot(edge) / len2, 0.0, 1.0);
-    position = a + t * edge;
-    return true;
+    if (!a.isFeature || !b.isFeature || a.featureLoopId < 0 || a.featureLoopId != b.featureLoopId ||
+        a.featureLoopId >= static_cast<int>(featureCurves.size())) {
+        return true;
+    }
+    const FeatureCurveConstraint& curve = featureCurves[a.featureLoopId];
+    if (!curve.valid) {
+        return true;
+    }
+    const double maxDistance = options.maxFeatureCurveDeviationRatio * std::max(1e-12, meshDiagonal);
+    if (a.circularFeature || b.circularFeature) {
+        const VertexState& circleVertex = a.circularFeature ? a : b;
+        const Vec3 projected = projectToCircle(position, circleVertex, primitiveFitOf(circleVertex, primitiveFits));
+        return (position - projected).squaredNorm() <= maxDistance * maxDistance;
+    }
+    if (a.featurePrimitive == FeatureCurveKind::Ellipse || b.featurePrimitive == FeatureCurveKind::Ellipse) {
+        const VertexState& ellipseVertex = a.featurePrimitive == FeatureCurveKind::Ellipse ? a : b;
+        const Vec3 projected = projectToEllipse(position, ellipseVertex, primitiveFitOf(ellipseVertex, primitiveFits));
+        return (position - projected).squaredNorm() <= maxDistance * maxDistance;
+    }
+    if (curve.primitive != FeatureCurveKind::PolygonalLoop) {
+        return true;
+    }
+
+    double bestDist2 = std::numeric_limits<double>::infinity();
+    closestPointOnFeatureCurve(curve, position, bestDist2);
+    return std::isfinite(bestDist2) && bestDist2 <= maxDistance * maxDistance;
+}
+
+void buildPolylineSegmentIndex(FeatureCurveConstraint& curve) {
+    curve.segmentIndex = PolylineSegmentIndex{};
+    const int segmentCount = curveSegmentCount(curve);
+    if (segmentCount < kPolylineIndexMinSegments) {
+        return;
+    }
+    PolylineSegmentIndex& index = curve.segmentIndex;
+    index.segmentOrder.resize(static_cast<std::size_t>(segmentCount));
+    std::iota(index.segmentOrder.begin(), index.segmentOrder.end(), 0);
+
+    std::vector<Vec3> centroids(static_cast<std::size_t>(segmentCount));
+    for (int segment = 0; segment < segmentCount; ++segment) {
+        const Vec3& p0 = curve.samples[static_cast<std::size_t>(segment)];
+        const Vec3& p1 = curve.samples[static_cast<std::size_t>(segment + 1) % curve.samples.size()];
+        centroids[static_cast<std::size_t>(segment)] = 0.5 * (p0 + p1);
+    }
+
+    constexpr int kLeafSegments = 8;
+    index.nodes.reserve(static_cast<std::size_t>(2 * segmentCount / kLeafSegments + 2));
+    // Deterministic median-split build: nth_element with an index tie-break,
+    // split axis = largest centroid extent. Recursion depth is O(log L).
+    const std::function<int(int, int)> buildNode = [&](int begin, int end) -> int {
+        PolylineSegmentIndex::Node node;
+        node.begin = begin;
+        node.end = end;
+        Vec3 lo = Vec3::Constant(std::numeric_limits<double>::infinity());
+        Vec3 hi = Vec3::Constant(-std::numeric_limits<double>::infinity());
+        for (int i = begin; i < end; ++i) {
+            const int segment = index.segmentOrder[static_cast<std::size_t>(i)];
+            const Vec3& p0 = curve.samples[static_cast<std::size_t>(segment)];
+            const Vec3& p1 = curve.samples[static_cast<std::size_t>(segment + 1) % curve.samples.size()];
+            lo = lo.cwiseMin(p0).cwiseMin(p1);
+            hi = hi.cwiseMax(p0).cwiseMax(p1);
+        }
+        node.lo = lo;
+        node.hi = hi;
+        const int nodeId = static_cast<int>(index.nodes.size());
+        index.nodes.push_back(node);
+        if (end - begin > kLeafSegments) {
+            Vec3 centroidLo = Vec3::Constant(std::numeric_limits<double>::infinity());
+            Vec3 centroidHi = Vec3::Constant(-std::numeric_limits<double>::infinity());
+            for (int i = begin; i < end; ++i) {
+                const Vec3& c = centroids[static_cast<std::size_t>(index.segmentOrder[static_cast<std::size_t>(i)])];
+                centroidLo = centroidLo.cwiseMin(c);
+                centroidHi = centroidHi.cwiseMax(c);
+            }
+            const Vec3 extent = centroidHi - centroidLo;
+            int axis = 0;
+            if (extent.y() > extent[axis]) {
+                axis = 1;
+            }
+            if (extent.z() > extent[axis]) {
+                axis = 2;
+            }
+            const int mid = begin + (end - begin) / 2;
+            std::nth_element(
+                index.segmentOrder.begin() + begin,
+                index.segmentOrder.begin() + mid,
+                index.segmentOrder.begin() + end,
+                [&](int lhs, int rhs) {
+                    const double cl = centroids[static_cast<std::size_t>(lhs)][axis];
+                    const double cr = centroids[static_cast<std::size_t>(rhs)][axis];
+                    if (cl != cr) {
+                        return cl < cr;
+                    }
+                    return lhs < rhs;
+                }
+            );
+            const int left = buildNode(begin, mid);
+            const int right = buildNode(mid, end);
+            index.nodes[static_cast<std::size_t>(nodeId)].left = left;
+            index.nodes[static_cast<std::size_t>(nodeId)].right = right;
+        }
+        return nodeId;
+    };
+    buildNode(0, segmentCount);
+}
+
+Vec3 closestPointOnFeatureCurve(const FeatureCurveConstraint& curve, const Vec3& position, double& outDistanceSquared) {
+    outDistanceSquared = std::numeric_limits<double>::infinity();
+    Vec3 best = position;
+    const int segmentCount = curveSegmentCount(curve);
+    if (segmentCount <= 0) {
+        return best;
+    }
+    const PolylineSegmentIndex& index = curve.segmentIndex;
+    if (!index.built()) {
+        for (int segment = 0; segment < segmentCount; ++segment) {
+            const Vec3 candidate = closestPointOnCurveSegment(curve, segment, position);
+            const double dist2 = (position - candidate).squaredNorm();
+            if (dist2 < outDistanceSquared) {
+                outDistanceSquared = dist2;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    // Depth-first descent that visits the nearer child first and prunes with
+    // the current best distance; the balanced median-split tree bounds the
+    // stack by its depth (comfortably below 64 levels).
+    std::array<int, 64> stack{};
+    int stackSize = 0;
+    stack[static_cast<std::size_t>(stackSize++)] = 0;
+    while (stackSize > 0) {
+        const PolylineSegmentIndex::Node& node =
+            index.nodes[static_cast<std::size_t>(stack[static_cast<std::size_t>(--stackSize)])];
+        if (manumesh::common::pointAabbDistanceSquared(position, node.lo, node.hi) >= outDistanceSquared) {
+            continue;
+        }
+        if (node.leaf()) {
+            for (int i = node.begin; i < node.end; ++i) {
+                const int segment = index.segmentOrder[static_cast<std::size_t>(i)];
+                const Vec3 candidate = closestPointOnCurveSegment(curve, segment, position);
+                const double dist2 = (position - candidate).squaredNorm();
+                if (dist2 < outDistanceSquared) {
+                    outDistanceSquared = dist2;
+                    best = candidate;
+                }
+            }
+            continue;
+        }
+        const PolylineSegmentIndex::Node& leftNode = index.nodes[static_cast<std::size_t>(node.left)];
+        const PolylineSegmentIndex::Node& rightNode = index.nodes[static_cast<std::size_t>(node.right)];
+        const double leftDist = manumesh::common::pointAabbDistanceSquared(position, leftNode.lo, leftNode.hi);
+        const double rightDist = manumesh::common::pointAabbDistanceSquared(position, rightNode.lo, rightNode.hi);
+        if (stackSize + 2 <= static_cast<int>(stack.size())) {
+            if (leftDist <= rightDist) {
+                stack[static_cast<std::size_t>(stackSize++)] = node.right;
+                stack[static_cast<std::size_t>(stackSize++)] = node.left;
+            } else {
+                stack[static_cast<std::size_t>(stackSize++)] = node.left;
+                stack[static_cast<std::size_t>(stackSize++)] = node.right;
+            }
+        }
+    }
+    return best;
 }
 
 FeatureConstraintPolicy::FeatureConstraintPolicy(const SimplifyOptions& options)

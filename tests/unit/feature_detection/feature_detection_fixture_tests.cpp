@@ -91,6 +91,12 @@ TEST(FeatureDetection, FixtureBenchmarkUsesCoaxialHoleGroundTruthLabels) {
     EXPECT_EQ(24, benchmark.truePositiveEdges);
     EXPECT_EQ(0, benchmark.falseNegativeEdges);
     EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
+    // The label CSV covers only the inner-top hole ring (24 edges), while the
+    // detector legitimately reports every dihedral crease of the plate
+    // (measured: 96 detected edges, so precision = 24/96 = 0.25 with all 72
+    // "false positives" being real, just unlabeled, creases). Precision is
+    // therefore only sanity-bounded; recall against the labeled subset is
+    // the real benchmark here.
     EXPECT_GE(benchmark.edgePrecision, 0.20);
     EXPECT_GT(benchmark.loopClosureRate, 0.95);
 }
@@ -113,6 +119,11 @@ TEST(FeatureDetection, FixtureBenchmarkUsesEllipticalHoleGroundTruthLabels) {
     EXPECT_EQ(40, benchmark.truePositiveEdges);
     EXPECT_EQ(0, benchmark.falseNegativeEdges);
     EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
+    // As in the coaxial case, only the inner-top elliptical ring (40 edges)
+    // is labeled while the detector reports all plate creases (measured: 160
+    // detected edges, precision = 40/160 = 0.25, the remaining 120 are
+    // unlabeled real creases). Precision is sanity-bounded only; recall is
+    // the meaningful metric against this partial ground truth.
     EXPECT_GE(benchmark.edgePrecision, 0.20);
     EXPECT_GT(benchmark.loopClosureRate, 0.95);
 }
@@ -247,9 +258,19 @@ TEST(FeatureDetection, FixtureDetectsBossPocketPlanesAndHardEdges) {
     const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
 
     EXPECT_EQ(0, features.boundaryFeatureEdges);
-    EXPECT_GE(features.dihedralFeatureEdges, 20);
-    EXPECT_GT(features.convexFeatureEdges, 0);
-    EXPECT_GT(features.concaveFeatureEdges, 0);
+    EXPECT_EQ(0, features.inconsistentWindingEdges);
+    // Hand-derived truth for the 60 hard edges (all exact 90-degree
+    // dihedrals): an edge is concave exactly where the material wraps the
+    // crease over more than 180 degrees, which happens on three rings only -
+    // the 4-edge ring where the boss walls rise out of the plate top
+    // (z = 0.2), the 4-edge pocket floor ring (z = -0.25), and the 4
+    // vertical pocket wall-wall corners. Everything else (plate outline,
+    // boss top rim, boss vertical corners, pocket opening rim) is convex:
+    // 60 - 12 = 48.
+    EXPECT_EQ(60, features.dihedralFeatureEdges);
+    EXPECT_EQ(48, features.convexFeatureEdges);
+    EXPECT_EQ(12, features.concaveFeatureEdges);
+    EXPECT_EQ(0, features.unknownSignedFeatureEdges);
     EXPECT_GT(features.loops.size(), 0u);
     EXPECT_TRUE(std::any_of(features.loops.begin(), features.loops.end(), [](const FeatureLoop& loop) {
         return loop.convexEdges > 0;
@@ -257,6 +278,40 @@ TEST(FeatureDetection, FixtureDetectsBossPocketPlanesAndHardEdges) {
     EXPECT_TRUE(std::any_of(features.loops.begin(), features.loops.end(), [](const FeatureLoop& loop) {
         return loop.concaveEdges > 0;
     }));
+
+    // Per-edge truth, asserted geometrically so it is independent of vertex
+    // numbering. Fixture coordinates: boss footprint x in [-0.8, -0.2],
+    // pocket footprint x in [0.25, 0.85], both with y in [-0.35, 0.35];
+    // plate top z = 0.2, pocket floor z = -0.25.
+    const auto approx = [](double value, double target) { return std::abs(value - target) < 1e-9; };
+    const auto isConcaveTruthEdge = [&](const Vec3& pa, const Vec3& pb) {
+        // Pocket floor ring: both endpoints in the floor plane.
+        if (approx(pa.z(), -0.25) && approx(pb.z(), -0.25)) {
+            return true;
+        }
+        // Vertical pocket wall-wall corners at the four pocket footprint
+        // corners.
+        if (approx(pa.x(), pb.x()) && approx(pa.y(), pb.y()) && (approx(pa.x(), 0.25) || approx(pa.x(), 0.85)) &&
+            approx(std::abs(pa.y()), 0.35)) {
+            return true;
+        }
+        // Boss base ring: both endpoints in the plate top plane on the boss
+        // footprint outline.
+        if (approx(pa.z(), 0.2) && approx(pb.z(), 0.2) && pa.x() >= -0.8 - 1e-9 && pa.x() <= -0.2 + 1e-9 &&
+            pb.x() >= -0.8 - 1e-9 && pb.x() <= -0.2 + 1e-9 && std::abs(pa.y()) <= 0.35 + 1e-9 &&
+            std::abs(pb.y()) <= 0.35 + 1e-9) {
+            return true;
+        }
+        return false;
+    };
+    for (const feature::FeatureGraphEdge& edge : features.graph.edges) {
+        if (!edge.dihedral) {
+            continue;
+        }
+        const bool truthConcave = isConcaveTruthEdge(mesh.vertices[edge.a], mesh.vertices[edge.b]);
+        EXPECT_EQ(truthConcave ? -1 : 1, edge.signedKind)
+            << "edge (" << edge.a << ", " << edge.b << ") misclassified";
+    }
 
     const std::vector<PlaneCluster> planes = clusterCoplanarFaces(mesh, 1.0 - 1e-12, 1e-10);
     EXPECT_TRUE(hasPlaneCluster(planes, Vec3(0.0, 0.0, 1.0), 0.7, 0.35));

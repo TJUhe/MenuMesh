@@ -23,7 +23,7 @@ manumesh::Mesh twoTriangleMesh() {
 
 TEST(ManuMesh, MeshDistanceIndexFindsNearestTriangleDistance) {
     const manumesh::Mesh mesh = twoTriangleMesh();
-    const manumesh::detail::MeshDistanceIndex index(mesh);
+    const manumesh::common::MeshDistanceIndex index(mesh);
 
     ASSERT_FALSE(index.empty());
     EXPECT_NEAR(4.0, index.distanceSquared(manumesh::Vec3(0.25, 0.25, 2.0)), 1e-12);
@@ -39,7 +39,7 @@ TEST(ManuMesh, MeshDistanceIndexIgnoresDegenerateTriangles) {
     };
     mesh.faces = {manumesh::Face{{0, 1, 2}}};
 
-    const manumesh::detail::MeshDistanceIndex index(mesh);
+    const manumesh::common::MeshDistanceIndex index(mesh);
 
     EXPECT_TRUE(index.empty());
     EXPECT_TRUE(std::isinf(index.distanceSquared(manumesh::Vec3(0.0, 0.0, 1.0))));

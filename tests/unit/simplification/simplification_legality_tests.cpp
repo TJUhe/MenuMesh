@@ -68,7 +68,19 @@ TEST(ManuMesh, StrictNormalDeviationRejectsFoldoverRisk) {
     const SimplifiedMesh result = simplifyWithReport(input, options);
 
     EXPECT_FALSE(result.mesh.empty());
-    EXPECT_GT(result.report.normalFlipRejectedCollapses, 0);
+    EXPECT_GT(result.report.collapsedEdges, 0);
+    // With zero allowed deviation the guard must hold exactly: fallback placements
+    // (endpoint/midpoint) may satisfy it where the optimal point would flip, so the
+    // rejection counter can legitimately be zero. The hard guarantee is geometric:
+    // every surviving face normal of the axis-aligned cube shell stays axis-aligned.
+    for (const manumesh::Face& face : result.mesh.faces) {
+        const manumesh::Vec3 normal = manumesh::triangleNormal(
+            result.mesh.vertices[face.v[0]], result.mesh.vertices[face.v[1]], result.mesh.vertices[face.v[2]]
+        );
+        const double maxComponent = std::max({std::abs(normal.x()), std::abs(normal.y()), std::abs(normal.z())});
+        ASSERT_GT(maxComponent, 0.0);
+        EXPECT_NEAR(maxComponent, normal.norm(), 1e-9);
+    }
     EXPECT_EQ(
         result.report.rejectedCollapses,
         result.report.topologyRejectedCollapses + result.report.normalFlipRejectedCollapses +

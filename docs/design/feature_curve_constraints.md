@@ -10,11 +10,11 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 
 - 边界边。
 - 非流形边。
-- 二面角超过 `featureAngleDeg` 的硬边。
+- 有向二面角超过 `featureAngleDeg` 的硬边（绕向感知：绕向一致时用带符号法向点积，可识别 >90° 的反折边；绕向不一致的边回退无符号角并计入 `inconsistentWindingEdges` 诊断）。
 - normal-tensor 弱特征证据。
-- opt-in 的 smooth-curvature 弱特征证据（`useSmoothCurvatureFeatures`，默认关闭）：多尺度局部 quadric 拟合产生的确定性 ridge/valley 证据，2026-07-11 落地，设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
+- opt-in 的 smooth-curvature 弱特征证据（`useSmoothCurvatureFeatures`，默认关闭）：多尺度三次 Monge 拟合 + 解析 extremality + Ohtake 边零交叉判据产生的确定性 ridge/valley 证据，2026-07-11 落地、2026-07-12 升级，设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
 - `loopTraceAngleDeg` 控制哪些已识别 edge 进入 loop tracing；默认 `-1` 表示复用 `featureAngleDeg`。
-- loop tracing 后的圆、近圆、椭圆和折线 primitive 拟合。
+- loop tracing 后的圆、近圆、椭圆和折线 primitive 拟合（圆用 Taubin 代数拟合、椭圆用 Halíř-Flusser 直接拟合）。
 
 `featureAngleDeg` 决定“这条边是否进入 feature evidence”，`loopTraceAngleDeg` 决定“这条二面角边是否参与 loop ownership”。因此浅特征可以被用户显式保留下来；如果用户把 trace 阈值设得更严格，报告中的 `untracedFeatureEdges` 会提示这些 edge 没有被下游曲线保护消费。
 
@@ -55,7 +55,7 @@ small cycle basis 和 circular fallback 现在按 trace connected component 运�
 
 `FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/smooth-curvature/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、curvature persistence、primitive residual 和 confidence。component confidence 把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据（boundary/dihedral/non-manifold）始终占主导。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
 
-Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 会被桥接，近 junction 会被桥接，短 tensor-only spur 会被删除。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。
+Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 会被桥接（桥接方向须满足 Yoshizawa 角度规则——连接段须近似延续两条线的切向），近 junction 会被桥接，短 tensor-only spur 会被删除。除按边数剪枝（`featureGraphMaxWeakSpurEdges`）外，`featureGraphMinWeakSpurStrength`（默认 0 = 旧行为，仅 C++ `FeatureOptions` 暴露）为正时改按 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。
 
 QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。强 CAD loop 接近原始 `featureCurveWeight`，弱 tensor support 会先作为较软成本进入排序；是否硬保护仍由 `featureProtectionMode` 决定。
 
@@ -67,7 +67,7 @@ QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。�
 - 椭圆：固定中心、法向、主/次轴和主/次半径。
 - 折线：严格模式下投影到原始折线段或局部切线。
 
-投影的数学含义是把无约束局部最优点映射到低维曲线模型上。它改善特征形状，但仍要经过后续拓扑、质量、法线和自交过滤。
+投影的数学含义是把无约束局部最优点映射到低维曲线模型上。它改善特征形状，但仍要经过后续拓扑、质量、法线和自交过滤。实现上，不少于 64 段的折线 loop 使用 `PolylineSegmentIndex` AABB 树做最近段查询（O(log L)），短 loop 保留常数更小的线性扫描。
 
 ### 曲线预算
 

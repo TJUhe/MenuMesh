@@ -277,76 +277,111 @@ if(NOT TARGET GTest::gtest_main)
 endif()
 
 set(MANUMESH_UNIT_TEST_SOURCES
+  support/AnalyticFixtures.cpp
   support/TestSupport.cpp
   unit/common/geometry_predicates_tests.cpp
   unit/common/mesh_distance_index_tests.cpp
   unit/common/spatial_index_tests.cpp
+  unit/core/core_tests.cpp
   unit/mesh_edit/mesh_edit_tests.cpp
   unit/api/c_api_diagnostics_tests.cpp
   unit/api/c_api_mesh_tests.cpp
   unit/api/c_api_simplify_abi_tests.cpp
   unit/feature_detection/FeatureDetectionTestSupport.cpp
+  unit/feature_detection/feature_detection_analytic_tests.cpp
   unit/feature_detection/feature_detection_api_tests.cpp
+  unit/feature_detection/feature_comparison_tests.cpp
+  unit/feature_detection/feature_detection_cleanup_tests.cpp
   unit/feature_detection/feature_detection_discrete_tests.cpp
-  unit/feature_detection/feature_detection_external_tests.cpp
   unit/feature_detection/feature_detection_fixture_tests.cpp
   unit/feature_detection/feature_detection_loop_tests.cpp
+  unit/feature_detection/feature_detection_perf_tests.cpp
+  unit/feature_detection/feature_detection_primitive_fit_tests.cpp
+  unit/feature_detection/feature_detection_robustness_tests.cpp
   unit/feature_detection/feature_detection_smooth_curvature_tests.cpp
+  unit/io/mesh_io_tests.cpp
+  unit/perf/pipeline_perf_guard_tests.cpp
   unit/simplification/qem_parameter_budget_tests.cpp
   unit/simplification/qem_parameter_feature_tests.cpp
   unit/simplification/qem_parameter_industrial_tests.cpp
+  unit/simplification/simplification_analytic_tests.cpp
   unit/simplification/simplification_api_tests.cpp
+  unit/simplification/simplification_boundary_topology_tests.cpp
   unit/simplification/simplification_core_tests.cpp
-  unit/simplification/simplification_external_tests.cpp
   unit/simplification/simplification_feature_protection_tests.cpp
   unit/simplification/simplification_legality_tests.cpp
   unit/simplification/simplification_normal_tensor_tests.cpp
+  unit/simplification/simplification_placement_tests.cpp
   unit/simplification/simplification_quality_refinement_tests.cpp
   unit/simplification/simplification_texture_tests.cpp
 )
 
+# Test cases that need the large meshes under tests/data/external (or run for
+# tens of seconds) live in a separate executable labeled `external`, so
+# `ctest -LE "performance|external"` stays a fast suite.
+set(MANUMESH_EXTERNAL_TEST_SOURCES
+  support/TestSupport.cpp
+  unit/api/c_api_external_tests.cpp
+  unit/feature_detection/FeatureDetectionTestSupport.cpp
+  unit/feature_detection/feature_detection_external_tests.cpp
+  unit/simplification/qem_parameter_external_tests.cpp
+  unit/simplification/simplification_external_tests.cpp
+)
+
+# Both test executables link the internal STATIC aggregate (manumesh_internal)
+# instead of the DLL. The aggregate reuses the library object files, so no
+# internal source is compiled twice and white-box detail includes cannot
+# create a second symbol definition (no ODR risk). Black-box DLL-boundary
+# coverage stays with the CLI smoke tests and the SDK consumer examples,
+# which link the regular shared ManuMesh::manumesh.
+function(manumesh_configure_test_target target)
+  target_include_directories(${target}
+    PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/support"
+      "${PROJECT_SOURCE_DIR}/src"
+      "${PROJECT_SOURCE_DIR}/src/feature_detection"
+      "${PROJECT_SOURCE_DIR}/src/simplification"
+  )
+  target_link_libraries(${target}
+    PRIVATE
+      manumesh_internal
+      GTest::gtest_main
+  )
+  target_compile_definitions(${target}
+    PRIVATE
+      MANUMESH_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+      MANUMESH_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
+  )
+  manumesh_apply_warnings(${target})
+  manumesh_copy_mingw_runtime_dependencies(${target})
+  manumesh_copy_gtest_runtime_dependencies(${target})
+endfunction()
+
 add_executable(manumesh_tests ${MANUMESH_UNIT_TEST_SOURCES})
-if(MANUMESH_BUILD_SHARED_LIBRARY)
-  target_sources(manumesh_tests
-    PRIVATE
-      "${PROJECT_SOURCE_DIR}/src/simplification/TextureProtection.cpp"
+add_executable(manumesh_external_tests ${MANUMESH_EXTERNAL_TEST_SOURCES})
+if(MINGW)
+  set_source_files_properties(
+    unit/feature_detection/feature_detection_primitive_fit_tests.cpp
+    PROPERTIES COMPILE_OPTIONS "-Wa,-mbig-obj"
   )
 endif()
-if(WIN32 AND MANUMESH_BUILD_SHARED_LIBRARY)
-  target_sources(manumesh_tests
-    PRIVATE
-      $<TARGET_OBJECTS:manumesh_common_objects>
-      $<TARGET_OBJECTS:manumesh_mesh_edit_objects>
-  )
-endif()
-target_include_directories(manumesh_tests
-  PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/support"
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/simplification"
-)
-target_link_libraries(manumesh_tests
-  PRIVATE
-    ManuMesh::manumesh
-    GTest::gtest_main
-)
-target_compile_definitions(manumesh_tests
-  PRIVATE
-    MANUMESH_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
-    MANUMESH_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
-)
-manumesh_apply_warnings(manumesh_tests)
-manumesh_copy_runtime_dependencies(manumesh_tests)
-manumesh_copy_gtest_runtime_dependencies(manumesh_tests)
+manumesh_configure_test_target(manumesh_tests)
+manumesh_configure_test_target(manumesh_external_tests)
 
 include(GoogleTest)
-gtest_add_tests(TARGET manumesh_tests
-  SOURCES ${MANUMESH_UNIT_TEST_SOURCES}
-  TEST_LIST MANUMESH_UNIT_TESTS
+# PRE_TEST discovery: new TEST() cases are picked up at ctest time without
+# reconfiguring CMake, and the executable is not run at build time (which is
+# fragile under Windows + MinGW).
+gtest_discover_tests(manumesh_tests
+  DISCOVERY_MODE PRE_TEST
+  DISCOVERY_TIMEOUT 120
+  PROPERTIES LABELS unit
 )
-if(MANUMESH_UNIT_TESTS)
-  set_tests_properties(${MANUMESH_UNIT_TESTS} PROPERTIES LABELS unit)
-endif()
+gtest_discover_tests(manumesh_external_tests
+  DISCOVERY_MODE PRE_TEST
+  DISCOVERY_TIMEOUT 120
+  PROPERTIES LABELS external
+)
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
@@ -366,7 +401,7 @@ else()
   message(STATUS "Python3 not found; include boundary CTest disabled.")
 endif()
 
-set(MANUMESH_UNIT_TEST_DEPENDS manumesh_tests)
+set(MANUMESH_UNIT_TEST_DEPENDS manumesh_tests manumesh_external_tests)
 foreach(optional_target IN ITEMS
     manumesh
     manumesh_basic_simplify
@@ -379,9 +414,18 @@ endforeach()
 
 add_custom_target(unit-tests
   COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"
-    "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -LE performance --output-on-failure
+    "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -LE "performance|external"
+    --output-on-failure
   DEPENDS ${MANUMESH_UNIT_TEST_DEPENDS}
-  COMMENT "Running non-performance regression tests"
+  COMMENT "Running the fast regression suite (no performance/external tests)"
+  VERBATIM
+)
+
+add_custom_target(external-tests
+  COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"
+    "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -L external --output-on-failure
+  DEPENDS manumesh_external_tests
+  COMMENT "Running external large-mesh regression tests"
   VERBATIM
 )
 
@@ -410,17 +454,11 @@ if(MANUMESH_BUILD_PERFORMANCE_TESTS)
   manumesh_copy_runtime_dependencies(manumesh_performance_tests)
   manumesh_copy_gtest_runtime_dependencies(manumesh_performance_tests)
 
-  gtest_add_tests(TARGET manumesh_performance_tests
-    SOURCES ${MANUMESH_PERFORMANCE_TEST_SOURCES}
-    TEST_LIST MANUMESH_PERFORMANCE_TESTS
+  gtest_discover_tests(manumesh_performance_tests
+    DISCOVERY_MODE PRE_TEST
+    DISCOVERY_TIMEOUT 120
+    PROPERTIES LABELS performance RUN_SERIAL TRUE
   )
-  if(MANUMESH_PERFORMANCE_TESTS)
-    set_tests_properties(${MANUMESH_PERFORMANCE_TESTS}
-      PROPERTIES
-        LABELS performance
-        RUN_SERIAL TRUE
-    )
-  endif()
 
   add_custom_target(performance-tests
     COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"

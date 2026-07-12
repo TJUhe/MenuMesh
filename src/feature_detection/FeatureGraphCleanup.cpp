@@ -25,6 +25,9 @@ struct GapCandidate {
     int a = -1;
     int b = -1;
     double distance = 0.0;
+    /// Direction-aware ranking key: distance divided by the mean tangential
+    /// alignment of the two endpoint tangents with the connecting segment.
+    double score = 0.0;
 };
 
 double meanPositiveScale(const std::vector<double>& scales, double fallback) {
@@ -48,9 +51,12 @@ double vertexScale(const std::vector<double>& scales, int vertex, double fallbac
 }
 
 bool isWeakCleanupSpurEdge(const TraceGraph& trace, int a, int b) {
-    const bool weakEvidence = traceEdgeNormalTensor(trace, a, b) || traceEdgeSmoothCurvature(trace, a, b);
-    return weakEvidence && !traceEdgeBoundary(trace, a, b) && !traceEdgeDihedral(trace, a, b) &&
-           !traceEdgeNonManifold(trace, a, b) && !traceEdgeCleanupBridge(trace, a, b);
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    if (attrs == nullptr) {
+        return false;
+    }
+    return (attrs->normalTensor || attrs->smoothCurvature) && !attrs->boundary && !attrs->dihedral &&
+           !attrs->nonManifold && !attrs->cleanupBridge;
 }
 
 std::vector<std::pair<int, int>> traceShortWeakSpur(const TraceGraph& trace, int seed, int maxEdges) {
@@ -90,17 +96,77 @@ std::vector<std::pair<int, int>> traceShortWeakSpur(const TraceGraph& trace, int
     return path;
 }
 
-void removeWeakSpurs(const FeatureOptions& options, TraceGraph& trace, FeatureAnalysis& analysis) {
+/// Dimensionless Yoshizawa-style curve strength T = (integral ds) * (integral
+/// strength ds), with ds measured in local average-edge-length units and the
+/// per-edge strength taken as the persistence score relative to its channel
+/// threshold. Long-but-faint chains score high through the length factor while
+/// short-but-strong noise spikes stay low, matching the "long weak lines beat
+/// strong short spurs" design target (M021 Eq.5-6).
+double weakSpurStrength(
+    const std::vector<std::pair<int, int>>& path,
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    const TraceGraph& trace,
+    const std::vector<double>& localScale,
+    double fallbackScale
+) {
+    const double tensorThreshold = std::max(1e-12, options.normalTensorFeatureThreshold);
+    const double curvatureThreshold = std::max(1e-12, options.smoothCurvatureFeatureThreshold);
+    double lengthSum = 0.0;
+    double strengthSum = 0.0;
+    for (const auto& [a, b] : path) {
+        if (a < 0 || b < 0 || a >= static_cast<int>(mesh.vertices.size()) ||
+            b >= static_cast<int>(mesh.vertices.size())) {
+            continue;
+        }
+        const double scale = std::max(
+            1e-12, 0.5 * (vertexScale(localScale, a, fallbackScale) + vertexScale(localScale, b, fallbackScale))
+        );
+        const double lengthNorm = (mesh.vertices[a] - mesh.vertices[b]).norm() / scale;
+        const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+        double strength = 0.0;
+        if (attrs != nullptr) {
+            strength =
+                std::max(attrs->tensorPersistence / tensorThreshold, attrs->curvaturePersistence / curvatureThreshold);
+        }
+        lengthSum += lengthNorm;
+        strengthSum += strength * lengthNorm;
+    }
+    return lengthSum * strengthSum;
+}
+
+void removeWeakSpurs(
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    FeatureDetectionCache& cache,
+    TraceGraph& trace,
+    FeatureAnalysis& analysis
+) {
     const int maxEdges = std::max(0, options.featureGraphMaxWeakSpurEdges);
     if (maxEdges <= 0) {
         return;
+    }
+    const bool useStrength =
+        std::isfinite(options.featureGraphMinWeakSpurStrength) && options.featureGraphMinWeakSpurStrength > 0.0;
+    // With strength filtering enabled, spurs longer than the legacy edge cap
+    // are still examined (up to a fixed horizon) so that medium-length noise
+    // chains can be pruned, while any spur whose integrated strength clears
+    // the threshold is kept even when it is short.
+    constexpr int kStrengthTraceEdgeCap = 64;
+    const int traceCap = useStrength ? std::max(maxEdges, kStrengthTraceEdgeCap) : maxEdges;
+
+    const std::vector<double>* localScale = nullptr;
+    double fallbackScale = 0.0;
+    if (useStrength) {
+        localScale = &cache.vertexAverageEdgeLength();
+        fallbackScale = meanPositiveScale(*localScale, std::max(1e-12, mesh.bboxDiag() * 1e-3));
     }
 
     std::unordered_map<std::uint64_t, int> graphEdgeIndex;
     graphEdgeIndex.reserve(analysis.graph.edges.size());
     for (int edgeId = 0; edgeId < static_cast<int>(analysis.graph.edges.size()); ++edgeId) {
         const FeatureGraphEdge& edge = analysis.graph.edges[edgeId];
-        graphEdgeIndex[manumesh::detail::meshEdgeKey(edge.a, edge.b)] = edgeId;
+        graphEdgeIndex[manumesh::common::meshEdgeKey(edge.a, edge.b)] = edgeId;
     }
 
     bool changed = true;
@@ -113,8 +179,20 @@ void removeWeakSpurs(const FeatureOptions& options, TraceGraph& trace, FeatureAn
             if (trace.adjacency[seed].size() != 1) {
                 continue;
             }
-            for (const auto& edge : traceShortWeakSpur(trace, seed, maxEdges)) {
-                const std::uint64_t key = manumesh::detail::meshEdgeKey(edge.first, edge.second);
+            const std::vector<std::pair<int, int>> spur = traceShortWeakSpur(trace, seed, traceCap);
+            if (spur.empty()) {
+                continue;
+            }
+            if (useStrength) {
+                if (weakSpurStrength(spur, mesh, options, trace, *localScale, fallbackScale) >=
+                    options.featureGraphMinWeakSpurStrength) {
+                    continue;
+                }
+            } else if (static_cast<int>(spur.size()) > maxEdges) {
+                continue;
+            }
+            for (const auto& edge : spur) {
+                const std::uint64_t key = manumesh::common::meshEdgeKey(edge.first, edge.second);
                 if (removeKeys.insert(key).second) {
                     removeEdges.push_back(edge);
                 }
@@ -130,7 +208,7 @@ void removeWeakSpurs(const FeatureOptions& options, TraceGraph& trace, FeatureAn
                 continue;
             }
             removeTraceGraphEdge(trace, a, b);
-            const auto graphEdge = graphEdgeIndex.find(manumesh::detail::meshEdgeKey(a, b));
+            const auto graphEdge = graphEdgeIndex.find(manumesh::common::meshEdgeKey(a, b));
             if (graphEdge != graphEdgeIndex.end()) {
                 analysis.graph.edges[graphEdge->second].removedByCleanup = true;
             }
@@ -166,27 +244,49 @@ std::vector<EndpointCandidate> collectEndpoints(
     return endpoints;
 }
 
-bool endpointGapDirectionsCompatible(const EndpointCandidate& a, const EndpointCandidate& b, const Mesh& mesh) {
+struct GapAlignment {
+    bool compatible = false;
+    double meanAlignment = 0.0;
+};
+
+/// Yoshizawa gap-jumping angle rule (M021 p.3, Fig.4): the connecting segment
+/// must continue both chain tangents (each within 60 degrees) and the two
+/// outward tangents must point away from each other, so only breaks along one
+/// underlying curve are bridged and parallel chains are never welded together.
+GapAlignment endpointGapAlignment(const EndpointCandidate& a, const EndpointCandidate& b, const Mesh& mesh) {
+    GapAlignment result;
     Vec3 direction = mesh.vertices[b.vertex] - mesh.vertices[a.vertex];
     if (direction.norm() <= 1e-20) {
-        return false;
+        return result;
     }
     direction.normalize();
     const double alignA = a.outward.dot(direction);
     const double alignB = b.outward.dot(-direction);
-    return std::min(alignA, alignB) >= -0.15;
+    result.compatible = std::min(alignA, alignB) >= 0.5 && a.outward.dot(b.outward) <= 0.0;
+    result.meanAlignment = 0.5 * (alignA + alignB);
+    return result;
 }
 
-void bridgeEndpointGaps(const Mesh& mesh, const FeatureOptions& options, TraceGraph& trace, FeatureAnalysis& analysis) {
+void bridgeEndpointGaps(
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    FeatureDetectionCache& cache,
+    TraceGraph& trace,
+    FeatureAnalysis& analysis
+) {
     if (options.featureGraphGapLengthRatio <= 0.0) {
         return;
     }
 
-    const std::vector<double> localScale = manumesh::detail::computeVertexAverageEdgeLength(mesh);
+    const std::vector<double>& localScale = cache.vertexAverageEdgeLength();
     const double fallbackScale = meanPositiveScale(localScale, std::max(1e-12, mesh.bboxDiag() * 1e-3));
     const std::vector<EndpointCandidate> endpoints = collectEndpoints(mesh, trace, localScale, fallbackScale);
-    constexpr int kMaxEndpointPairs = 512;
-    if (endpoints.size() < 2 || endpoints.size() > kMaxEndpointPairs) {
+    constexpr int kMaxGapEndpoints = 512;
+    if (endpoints.size() < 2) {
+        return;
+    }
+    if (static_cast<int>(endpoints.size()) > kMaxGapEndpoints) {
+        ++analysis.graphCleanupSkippedByCap;
         return;
     }
 
@@ -201,15 +301,26 @@ void bridgeEndpointGaps(const Mesh& mesh, const FeatureOptions& options, TraceGr
             }
             const double distance = (mesh.vertices[a.vertex] - mesh.vertices[b.vertex]).norm();
             const double allowed = options.featureGraphGapLengthRatio * 0.5 * (a.scale + b.scale);
-            if (distance > allowed || !endpointGapDirectionsCompatible(a, b, mesh)) {
+            if (distance > allowed) {
                 continue;
             }
-            candidates.push_back(GapCandidate{a.vertex, b.vertex, distance});
+            const GapAlignment alignment = endpointGapAlignment(a, b, mesh);
+            if (!alignment.compatible) {
+                continue;
+            }
+            const double score = distance / std::max(0.5, alignment.meanAlignment);
+            candidates.push_back(GapCandidate{a.vertex, b.vertex, distance, score});
         }
     }
 
     std::sort(candidates.begin(), candidates.end(), [](const GapCandidate& lhs, const GapCandidate& rhs) {
-        return lhs.distance < rhs.distance;
+        if (lhs.score != rhs.score) {
+            return lhs.score < rhs.score;
+        }
+        if (lhs.distance != rhs.distance) {
+            return lhs.distance < rhs.distance;
+        }
+        return lhs.a != rhs.a ? lhs.a < rhs.a : lhs.b < rhs.b;
     });
     std::unordered_set<int> used;
     for (const GapCandidate& candidate : candidates) {
@@ -231,12 +342,16 @@ void bridgeEndpointGaps(const Mesh& mesh, const FeatureOptions& options, TraceGr
 }
 
 void bridgeCloseJunctions(
-    const Mesh& mesh, const FeatureOptions& options, TraceGraph& trace, FeatureAnalysis& analysis
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    FeatureDetectionCache& cache,
+    TraceGraph& trace,
+    FeatureAnalysis& analysis
 ) {
     if (options.featureGraphGapLengthRatio <= 0.0) {
         return;
     }
-    const std::vector<double> localScale = manumesh::detail::computeVertexAverageEdgeLength(mesh);
+    const std::vector<double>& localScale = cache.vertexAverageEdgeLength();
     const double fallbackScale = meanPositiveScale(localScale, std::max(1e-12, mesh.bboxDiag() * 1e-3));
 
     std::vector<int> junctions;
@@ -245,8 +360,12 @@ void bridgeCloseJunctions(
             junctions.push_back(id);
         }
     }
-    constexpr int kMaxJunctionPairs = 256;
-    if (junctions.size() < 2 || junctions.size() > kMaxJunctionPairs) {
+    constexpr int kMaxGapJunctions = 256;
+    if (junctions.size() < 2) {
+        return;
+    }
+    if (static_cast<int>(junctions.size()) > kMaxGapJunctions) {
+        ++analysis.graphCleanupSkippedByCap;
         return;
     }
 
@@ -263,13 +382,16 @@ void bridgeCloseJunctions(
                 0.5 * options.featureGraphGapLengthRatio *
                 (vertexScale(localScale, a, fallbackScale) + vertexScale(localScale, b, fallbackScale));
             if (distance <= allowed) {
-                candidates.push_back(GapCandidate{a, b, distance});
+                candidates.push_back(GapCandidate{a, b, distance, distance});
             }
         }
     }
 
     std::sort(candidates.begin(), candidates.end(), [](const GapCandidate& lhs, const GapCandidate& rhs) {
-        return lhs.distance < rhs.distance;
+        if (lhs.distance != rhs.distance) {
+            return lhs.distance < rhs.distance;
+        }
+        return lhs.a != rhs.a ? lhs.a < rhs.a : lhs.b < rhs.b;
     });
     std::unordered_set<int> used;
     for (const GapCandidate& candidate : candidates) {
@@ -368,13 +490,19 @@ int dominantComponentForLoop(const FeatureLoop& loop, const std::vector<int>& ve
 
 } // namespace
 
-void cleanupTraceGraph(const Mesh& mesh, const FeatureOptions& options, TraceGraph& trace, FeatureAnalysis& analysis) {
+void cleanupTraceGraph(
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    FeatureDetectionCache& cache,
+    TraceGraph& trace,
+    FeatureAnalysis& analysis
+) {
     if (!options.cleanupFeatureGraph || trace.graphEdges.empty()) {
         return;
     }
-    removeWeakSpurs(options, trace, analysis);
-    bridgeCloseJunctions(mesh, options, trace, analysis);
-    bridgeEndpointGaps(mesh, options, trace, analysis);
+    removeWeakSpurs(mesh, options, cache, trace, analysis);
+    bridgeCloseJunctions(mesh, options, cache, trace, analysis);
+    bridgeEndpointGaps(mesh, options, cache, trace, analysis);
 }
 
 void summarizeFeatureComponents(
@@ -391,6 +519,8 @@ void summarizeFeatureComponents(
 
         FeatureComponent component;
         component.id = static_cast<int>(analysis.components.size());
+        double tensorPersistenceSum = 0.0;
+        double curvaturePersistenceSum = 0.0;
         std::queue<int> queue;
         queue.push(seed);
         visited[seed] = 1;
@@ -402,24 +532,31 @@ void summarizeFeatureComponents(
             if (trace.adjacency[v].size() == 1) {
                 ++component.endpointVertices;
             }
-            if (trace.adjacency[v].size() != 2) {
+            if (trace.adjacency[v].size() > 2) {
                 ++component.junctionVertices;
             }
             for (int nb : trace.adjacency[v]) {
                 if (v < nb) {
                     ++component.edgeCount;
-                    if (traceEdgeBoundary(trace, v, nb))
-                        ++component.boundaryEdges;
-                    if (traceEdgeDihedral(trace, v, nb))
-                        ++component.dihedralEdges;
-                    if (traceEdgeNormalTensor(trace, v, nb))
-                        ++component.normalTensorEdges;
-                    if (traceEdgeSmoothCurvature(trace, v, nb))
-                        ++component.smoothCurvatureEdges;
-                    if (traceEdgeNonManifold(trace, v, nb))
-                        ++component.nonManifoldEdges;
-                    if (traceEdgeCleanupBridge(trace, v, nb))
-                        ++component.cleanupBridgeEdges;
+                    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, v, nb);
+                    if (attrs != nullptr) {
+                        if (attrs->boundary)
+                            ++component.boundaryEdges;
+                        if (attrs->dihedral)
+                            ++component.dihedralEdges;
+                        if (attrs->normalTensor) {
+                            ++component.normalTensorEdges;
+                            tensorPersistenceSum += attrs->tensorPersistence;
+                        }
+                        if (attrs->smoothCurvature) {
+                            ++component.smoothCurvatureEdges;
+                            curvaturePersistenceSum += attrs->curvaturePersistence;
+                        }
+                        if (attrs->nonManifold)
+                            ++component.nonManifoldEdges;
+                        if (attrs->cleanupBridge)
+                            ++component.cleanupBridgeEdges;
+                    }
                 }
                 if (!visited[nb]) {
                     visited[nb] = 1;
@@ -428,18 +565,6 @@ void summarizeFeatureComponents(
             }
         }
 
-        double tensorPersistenceSum = 0.0;
-        double curvaturePersistenceSum = 0.0;
-        for (int v : component.vertices) {
-            for (int nb : trace.adjacency[v]) {
-                if (v < nb && traceEdgeNormalTensor(trace, v, nb)) {
-                    tensorPersistenceSum += traceEdgeTensorPersistence(trace, v, nb);
-                }
-                if (v < nb && traceEdgeSmoothCurvature(trace, v, nb)) {
-                    curvaturePersistenceSum += traceEdgeCurvaturePersistence(trace, v, nb);
-                }
-            }
-        }
         component.strongEvidenceEdges = component.boundaryEdges + component.dihedralEdges + component.nonManifoldEdges;
         component.weakEvidenceEdges =
             component.normalTensorEdges + component.smoothCurvatureEdges + component.cleanupBridgeEdges;

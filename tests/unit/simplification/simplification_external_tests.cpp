@@ -148,3 +148,23 @@ TEST(ManuMesh, ExternalBinaryStlLoadKeepsGeometryUsable) {
     EXPECT_GT(stats.area, 0.0);
     EXPECT_EQ(stats.nonManifoldEdges, 0);
 }
+
+TEST(ManuMesh, MeshDistanceIsZeroForIdenticalMeshAndFiniteAfterSimplify) {
+    const manumesh::Mesh input = loadExternalStl("thingi10k/thingi10k_108336_projekt_muse_z_system.stl");
+    ASSERT_FALSE(input.empty());
+
+    const manumesh::simplification::DistanceStats identical =
+        manumesh::simplification::compareMeshesBySampledDistance(input, input, 32);
+    EXPECT_NEAR(identical.meanOriginalToSimplified, 0.0, 1e-12);
+    EXPECT_NEAR(identical.maxOriginalToSimplified, 0.0, 1e-12);
+    EXPECT_NEAR(identical.meanSimplifiedToOriginal, 0.0, 1e-12);
+    EXPECT_NEAR(identical.maxSimplifiedToOriginal, 0.0, 1e-12);
+
+    const SimplifiedMesh simplified = simplifyWithReport(input, paperLineQuadricsOptions(0.35));
+    const manumesh::simplification::DistanceStats distance =
+        manumesh::simplification::compareMeshesBySampledDistance(input, simplified.mesh, 32);
+    EXPECT_GE(distance.meanOriginalToSimplified, 0.0);
+    EXPECT_GE(distance.maxOriginalToSimplified, distance.meanOriginalToSimplified);
+    EXPECT_GE(distance.meanSimplifiedToOriginal, 0.0);
+    EXPECT_GE(distance.maxSimplifiedToOriginal, distance.meanSimplifiedToOriginal);
+}

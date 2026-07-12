@@ -282,12 +282,21 @@ int main() {
 
 ## 验证闭环
 
-基础回归：
+快速套件（秒级，排除外部大模型用例，日常开发首选）：
+
+```powershell
+$buildDir = "build/mingw-ninja-release"
+cmake -E chdir $buildDir ctest -LE "performance|external" --output-on-failure
+```
+
+完整回归（含 `external` 标签的外部大模型用例）：
 
 ```powershell
 $buildDir = "build/mingw-ninja-release"
 cmake -E chdir $buildDir ctest -LE performance --output-on-failure
 ```
+
+只跑外部大模型用例：`ctest -L external`（或构建目标 `external-tests`）。
 
 大模型性能测试：
 

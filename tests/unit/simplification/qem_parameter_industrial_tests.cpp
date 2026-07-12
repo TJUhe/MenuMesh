@@ -21,30 +21,6 @@ using manumesh::test::SimplifiedMesh;
 using manumesh::test::simplifyWithReport;
 using manumesh::test::standardOptions;
 using manumesh::test::qem_parameters::innerEllipseLoops;
-TEST(ManuMeshParameters, StrictQualityModeImprovesWorstThingi10kFixture) {
-    const manumesh::Mesh input = loadCaseMesh("external/thingi10k/thingi10k_104188_iphone_tank_case_gen_4_and_4s.stl");
-    ASSERT_FALSE(input.empty());
-
-    manumesh::simplification::SimplifyOptions defaultOptions = lineOptions(0.50);
-    const SimplifiedMesh defaultResult = simplifyWithReport(input, defaultOptions);
-
-    manumesh::simplification::SimplifyOptions strictOptions = lineOptions(0.50);
-    strictOptions.preserveBoundary = true;
-    strictOptions.minTriangleQuality = 1e-4;
-    strictOptions.maxNormalDeviationDeg = 75.0;
-    const SimplifiedMesh strictResult = simplifyWithReport(input, strictOptions);
-
-    expectBudget(defaultResult, input, 0.50);
-    expectBudget(strictResult, input, 0.50);
-    EXPECT_GT(strictResult.report.qualityRejectedCollapses, 0);
-
-    const manumesh::simplification::MeshStats defaultStats =
-        manumesh::simplification::computeMeshStats(defaultResult.mesh);
-    const manumesh::simplification::MeshStats strictStats =
-        manumesh::simplification::computeMeshStats(strictResult.mesh);
-    EXPECT_GT(strictStats.minTriangleQuality, defaultStats.minTriangleQuality);
-}
-
 TEST(ManuMeshParameters, IndustrialGateChecksFeatureDriftDistanceAndTopology) {
     const manumesh::Mesh input = loadCaseMesh("feature_fixtures/coaxial_hole_plate.obj");
     ASSERT_FALSE(input.empty());

@@ -27,79 +27,8 @@ void printUsage() {
               << "  manumesh validate-features [--ratio R] [--samples N] "
                  "[--input-dir dir] [--output-dir dir]\n\n"
               << "  manumesh validate-external [--input-dir dir] [--ratio R] "
-                 "[--output-dir dir]\n\n"
-              << "Simplify options:\n"
-              << "  --method standard|line          Standard QEM or line-quadric QEM\n"
-              << "  --ratio 0.25                    Target face ratio\n"
-              << "  --target-faces N                Overrides --ratio\n"
-              << "  --line-weight W                 Paper default is around 1e-3\n"
-              << "  --weight-mode uniform|dihedral|normal-tensor|height|xband\n"
-              << "  --feature-boost W               Added line weight for feature modes\n"
-              << "  --feature-angle-deg A           Dihedral threshold for feature mode\n"
-              << "  --loop-trace-angle-deg A        Dihedral threshold for loop tracing; "
-                 "negative reuses feature angle\n"
-              << "  --adaptive-scale                Add small line quadrics then scale Q\n"
-              << "  --boundary-weight W             Optional boundary plane quadrics\n"
-              << "  --preserve-boundary             Preserve open boundary topology\n"
-              << "  --preserve-feature-curves       Protect detected crease/boundary loops\n"
-              << "  --feature-protection-mode none|circular-only|primitive-curves|"
-                 "all-feature-edges\n"
-              << "                                  Hard policy for detected features; "
-                 "default primitive-curves\n"
-              << "  --feature-curve-weight W        Tangent-line quadric weight for loops\n"
-              << "  --max-feature-curve-deviation-ratio R  Reject polygonal feature "
-                 "collapses whose raw placement drifts beyond R*bbox_diag\n"
-              << "  --circle-fit-threshold R        Relative fit threshold for circular loops\n"
-              << "  --ellipse-fit-threshold R       Relative fit threshold for ellipse "
-                 "reports\n"
-              << "  --near-circle-axis-ratio-tolerance R  Axis-ratio tolerance for "
-                 "near-circles\n"
-              << "  --min-feature-loop-vertices N   Stop collapsing a loop below N vertices\n"
-              << "  --min-circular-feature-loop-vertices N  Stop circular loops below N\n"
-              << "  --normal-tensor-threshold S     Feature score threshold for tensor edges\n"
-              << "  --normal-tensor-edge-alignment A Minimum edge/tangent alignment\n"
-              << "  --normal-tensor-smoothing N     Optional tensor smoothing iterations\n"
-              << "  --normal-tensor-scales N        Number of tensor smoothing scales\n"
-              << "  --normal-tensor-min-persistent-scales N  Required supporting tensor "
-                 "scales\n"
-              << "\nFeature-analysis options (feature-report/benchmark/compare):\n"
-              << "  --smooth-curvature-features     Enable deterministic smooth ridge/valley detection\n"
-              << "  --smooth-curvature-threshold S  Scale-normalized quadric feature threshold\n"
-              << "  --smooth-curvature-edge-alignment A  Minimum edge/curve-tangent alignment\n"
-              << "  --smooth-curvature-tangent-consistency A  Cross-scale tangent agreement\n"
-              << "  --smooth-curvature-base-rings N  Smallest quadric-fit neighborhood\n"
-              << "  --smooth-curvature-scales N      Number of quadric-fit scales\n"
-              << "  --smooth-curvature-min-persistent-scales N  Required supporting scales\n"
-              << "  --smooth-curvature-robust-iterations N  Robust fit reweighting passes\n"
-              << "  --feature-graph-gap-ratio R  Bridge endpoint gaps up to R local edges\n"
-              << "  --feature-graph-max-weak-spur-edges N  Remove tensor-only spurs up to N "
-                 "edges\n"
-              << "  --feature-component-min-confidence C  Component confidence report "
-                 "threshold\n"
-              << "  --no-normal-tensor-features     Disable tensor candidates in feature "
-                 "detection\n"
-              << "  --no-feature-graph-cleanup      Disable weak spur/gap graph cleanup\n"
-              << "  --min-triangle-quality Q        Reject collapses below quality Q in [0,1]\n"
-              << "  --max-normal-deviation-deg A    Reject local face normal changes above A\n"
-              << "  --max-local-error D             Reject local collapse drift above D\n"
-              << "  --max-local-error-ratio R       Reject local drift above R*bbox diagonal\n"
-              << "  --prevent-local-intersections   Reject local triangle intersections\n"
-              << "  --quality-refinement-iterations N\n"
-                 "                                    Run N fixed-topology quality passes\n"
-              << "  --industrial-safe               Enable conservative boundary/quality "
-                 "guards\n"
-              << "  --metrics-csv path              Write one-row CSV metrics\n"
-              << "  --samples N                     Distance sample count\n"
-              << "  --ratios list                   For ratio-sweep, e.g. 0.8,0.5,0.25,0.1\n"
-              << "  --faces list                    For face-sweep, e.g. 1000,900,800\n"
-              << "  --spindle-input path            External spindle/shaft STL for "
-                 "validate-features\n"
-              << "  --ring-input path               External ring/track STL for "
-                 "validate-features\n"
-              << "  --pulley-input path             External pulley STL for "
-                 "validate-features\n"
-              << "  --flange-input path             External finished flange STL for demo/"
-                 "validate-features\n";
+                 "[--output-dir dir]\n";
+    std::cout << optionsHelpText();
     std::cout << "\nGenerator types:\n"
               << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
               << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
@@ -120,7 +49,6 @@ int run(int argc, char** argv) {
         for (int i = 2; i < argc; ++i) {
             args.values.emplace_back(argv[i]);
         }
-        validateArgs(args);
 
         if (command == "--help" || command == "-h" || command == "help") {
             printUsage();
@@ -129,13 +57,18 @@ int run(int argc, char** argv) {
 
         const auto& commands = commandRegistry();
         const auto it = commands.find(command);
-        if (it != commands.end()) {
-            return it->second(args);
+        if (it == commands.end()) {
+            throw std::invalid_argument("Unknown command: " + command);
         }
 
-        throw std::invalid_argument("Unknown command: " + command);
+        validateArgsForCommand(command, args);
+        return it->second(args);
     } catch (const std::exception& e) {
         std::cerr << "error: " << e.what() << "\n\n";
+        printUsage();
+        return 1;
+    } catch (...) {
+        std::cerr << "error: unknown fatal error\n\n";
         printUsage();
         return 1;
     }

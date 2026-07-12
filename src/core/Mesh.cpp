@@ -1,5 +1,8 @@
 #include "core/Mesh.h"
 
+#include "core/MeshTopology.h"
+#include "core/Tolerances.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -60,13 +63,24 @@ void Mesh::removeUnusedVertices() {
     newVertices.reserve(vertices.size());
     std::vector<char> validFace(faces.size(), 1);
 
+    // First pass: classify each face as a whole so vertices referenced only
+    // by dropped faces never enter the remap.
     for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
         const Face& face = faces[faceIndex];
         for (int id : face.v) {
             if (id < 0 || id >= static_cast<int>(vertices.size())) {
                 validFace[faceIndex] = 0;
-                continue;
+                break;
             }
+        }
+    }
+
+    // Second pass: build the vertex remap from valid faces only.
+    for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
+        if (!validFace[faceIndex]) {
+            continue;
+        }
+        for (int id : faces[faceIndex].v) {
             if (remap[id] < 0) {
                 remap[id] = static_cast<int>(newVertices.size());
                 newVertices.push_back(vertices[id]);
@@ -123,7 +137,9 @@ bool validateMeshIndices(const Mesh& mesh, std::string* error) {
     return true;
 }
 
-bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
+namespace {
+
+bool validateMeshGeometryImpl(const Mesh& mesh, std::string* error, bool rejectZeroAreaFaces) {
     if (!validateMeshIndices(mesh, error)) {
         return false;
     }
@@ -163,10 +179,13 @@ bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
             }
             return false;
         }
+        if (!rejectZeroAreaFaces) {
+            continue;
+        }
         const Vec3& a = mesh.vertices[face.v[0]];
         const Vec3& b = mesh.vertices[face.v[1]];
         const Vec3& c = mesh.vertices[face.v[2]];
-        if ((b - a).cross(c - a).squaredNorm() <= 0.0) {
+        if ((b - a).cross(c - a).squaredNorm() <= kMinSquaredNormalLength) {
             if (error) {
                 *error = "Mesh face " + std::to_string(faceIndex) + " has zero area.";
             }
@@ -176,12 +195,39 @@ bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
     return true;
 }
 
+} // namespace
+
+bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
+    return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/true);
+}
+
+bool validateMeshGeometryLenient(const Mesh& mesh, std::string* error) {
+    return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/false);
+}
+
+int countDegenerateFaces(const Mesh& mesh) {
+    int count = 0;
+    for (const Face& face : mesh.faces) {
+        if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
+            ++count;
+            continue;
+        }
+        const Vec3& a = mesh.vertices[face.v[0]];
+        const Vec3& b = mesh.vertices[face.v[1]];
+        const Vec3& c = mesh.vertices[face.v[2]];
+        if ((b - a).cross(c - a).squaredNorm() <= kMinSquaredNormalLength) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c) { return 0.5 * (b - a).cross(c - a).norm(); }
 
 Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c) {
     Vec3 n = (b - a).cross(c - a);
     const double len = n.norm();
-    if (len <= 1e-30) {
+    if (len <= kMinNormalLength) {
         return Vec3(0.0, 0.0, 0.0);
     }
     return n / len;
@@ -192,19 +238,13 @@ std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh) {
     std::vector<std::pair<int, int>> edges;
     edges.reserve(mesh.faces.size() * 3 / 2);
 
-    auto pack = [](int a, int b) {
-        if (a > b)
-            std::swap(a, b);
-        return (static_cast<std::uint64_t>(static_cast<uint32_t>(a)) << 32u) | static_cast<uint32_t>(b);
-    };
-
     for (const Face& face : mesh.faces) {
         for (int e = 0; e < 3; ++e) {
             int a = face.v[e];
             int b = face.v[(e + 1) % 3];
             if (a == b)
                 continue;
-            const auto key = pack(a, b);
+            const auto key = topologyEdgeKey(a, b);
             if (seen.insert(key).second) {
                 if (a > b)
                     std::swap(a, b);

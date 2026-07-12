@@ -63,7 +63,7 @@ double minimumSampleDistanceSquared(const Vec3& point, const std::vector<LocalTr
     double best = std::numeric_limits<double>::infinity();
     for (const LocalTriangle& triangle : triangles) {
         best = std::min(
-            best, manumesh::detail::pointTriangleDistanceSquared(point, triangle.p[0], triangle.p[1], triangle.p[2])
+            best, manumesh::common::pointTriangleDistanceSquared(point, triangle.p[0], triangle.p[1], triangle.p[2])
         );
     }
     return best;
@@ -120,10 +120,17 @@ bool createsLocalIntersection(
     if (!input.options.preventLocalIntersections) {
         return false;
     }
-    const double eps = std::sqrt(std::max(input.areaEps, 1e-30));
+    // Same dimension chain as CollapseLegality::checkLocalIntersections:
+    // trianglesIntersect takes a RELATIVE tolerance normalized by the local
+    // triangle scale, and the spatial query window is padded by the matching
+    // length-dimension slack.
+    constexpr double kRelativeIntersectionEps = 1e-9;
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const LocalTriangle& triangle : newTriangles) {
-        const auto [lo, hi] = manumesh::detail::triangleAabb(triangle.p, eps);
+        auto [lo, hi] = manumesh::common::triangleAabb(triangle.p, 0.0);
+        const double pad = kRelativeIntersectionEps * (hi - lo).maxCoeff();
+        lo -= Vec3::Constant(pad);
+        hi += Vec3::Constant(pad);
         const std::vector<int> spatialCandidates =
             useSpatialCandidates ? input.spatialIndex->query(lo, hi) : std::vector<int>();
         const int candidateCount =
@@ -142,7 +149,7 @@ bool createsLocalIntersection(
                 input.vertices[face.v[1]].p,
                 input.vertices[face.v[2]].p,
             };
-            if (manumesh::detail::trianglesIntersect(triangle.p, other, eps)) {
+            if (manumesh::common::trianglesIntersect(triangle.p, other, kRelativeIntersectionEps)) {
                 return true;
             }
         }
@@ -166,9 +173,9 @@ bool improvesLocalQuality(
             return false;
         }
         const double oldQuality =
-            manumesh::detail::triangleQuality(oldTriangle.p[0], oldTriangle.p[1], oldTriangle.p[2]);
+            manumesh::common::triangleQuality(oldTriangle.p[0], oldTriangle.p[1], oldTriangle.p[2]);
         const double newQuality =
-            manumesh::detail::triangleQuality(newTriangle.p[0], newTriangle.p[1], newTriangle.p[2]);
+            manumesh::common::triangleQuality(newTriangle.p[0], newTriangle.p[1], newTriangle.p[2]);
         oldMin = std::min(oldMin, oldQuality);
         newMin = std::min(newMin, newQuality);
         oldSum += oldQuality;
@@ -217,23 +224,96 @@ Vec3 tangentialCentroidCandidate(int vertex, const QualityRefinementInput& input
     return input.vertices[vertex].p + displacement - normal * displacement.dot(normal);
 }
 
-bool tryRefineVertex(int vertex, const QualityRefinementInput& input) {
+/// Local curve tangent for a soft-protected feature vertex: the finite
+/// difference of its two same-loop neighbors in the current mesh. Returns
+/// false for endpoints, junction-like configurations (neighbor count != 2),
+/// and degenerate spans. Neighbors come from activeNeighborsOf, which sorts
+/// ascending, so the difference order is deterministic.
+bool localFeatureCurveTangent(int vertex, const QualityRefinementInput& input, Vec3& outTangent) {
+    const VertexState& state = input.vertices[vertex];
+    if (state.featureLoopId < 0) {
+        return false;
+    }
+    const std::vector<int> neighbors = activeNeighborsOf(vertex, input.faces, input.vertices, input.topology);
+    int first = -1;
+    int second = -1;
+    int sameLoopCount = 0;
+    for (int neighbor : neighbors) {
+        const VertexState& other = input.vertices[neighbor];
+        if (!other.isFeature || other.featureLoopId != state.featureLoopId) {
+            continue;
+        }
+        if (sameLoopCount == 0) {
+            first = neighbor;
+        } else if (sameLoopCount == 1) {
+            second = neighbor;
+        }
+        ++sameLoopCount;
+    }
+    if (sameLoopCount != 2) {
+        return false;
+    }
+    const Vec3 span = input.vertices[second].p - input.vertices[first].p;
+    const double length = span.norm();
+    if (length <= 1e-20) {
+        return false;
+    }
+    outTangent = span / length;
+    return true;
+}
+
+/// Relaxation displacement for one vertex with the feature constraint tier
+/// applied (see skill note on remeshing constraints): free vertices move in
+/// the tangent plane, soft-protected feature-curve vertices are restricted
+/// to the one-dimensional local curve tangent so repeated refinement passes
+/// can only slide along the crease instead of rounding it, and junction or
+/// endpoint feature vertices stay frozen (zero displacement).
+Vec3 refinementDisplacement(int vertex, const QualityRefinementInput& input) {
+    const VertexState& state = input.vertices[vertex];
+    const Vec3 target = tangentialCentroidCandidate(vertex, input);
+    Vec3 displacement = target - state.p;
+    if (!state.isFeature) {
+        return displacement;
+    }
+    if (state.featureJunction) {
+        return Vec3::Zero();
+    }
+    Vec3 tangent = Vec3::Zero();
+    if (!localFeatureCurveTangent(vertex, input, tangent)) {
+        return Vec3::Zero();
+    }
+    return tangent * displacement.dot(tangent);
+}
+
+bool tryRefineVertex(int vertex, const Vec3& displacement, const QualityRefinementInput& input) {
     const std::vector<int> faceIds = incidentFaces(vertex, input);
     if (faceIds.size() < 3) {
         return false;
     }
     const Vec3 oldPosition = input.vertices[vertex].p;
-    const Vec3 target = tangentialCentroidCandidate(vertex, input);
-    const Vec3 displacement = target - oldPosition;
     if (!displacement.allFinite() || displacement.squaredNorm() <= 1e-24) {
         return false;
     }
 
     const std::vector<LocalTriangle> oldTriangles = makeLocalTriangles(vertex, oldPosition, faceIds, input);
     const std::unordered_set<int> touchedFaces(faceIds.begin(), faceIds.end());
+    const bool featureVertex = input.vertices[vertex].isFeature;
     constexpr std::array<double, 5> kLineSearch = {1.0, 0.5, 0.25, 0.125, 0.0625};
     for (double alpha : kLineSearch) {
         const Vec3 candidate = oldPosition + alpha * displacement;
+        // Soft feature vertices stay movable, but each relocation must respect
+        // the same curve-deviation budget as collapse placements.
+        if (featureVertex && !featureCurveBudgetAllows(
+                                 input.vertices[vertex],
+                                 input.vertices[vertex],
+                                 input.featureCurves,
+                                 input.primitiveFits,
+                                 input.options,
+                                 input.meshDiagonal,
+                                 candidate
+                             )) {
+            continue;
+        }
         const std::vector<LocalTriangle> newTriangles = makeLocalTriangles(vertex, candidate, faceIds, input);
         if (!improvesLocalQuality(oldTriangles, newTriangles, input) ||
             !respectsErrorEnvelope(oldTriangles, newTriangles, input) ||
@@ -269,12 +349,12 @@ void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& r
                 input.featurePolicy.isHardProtectedVertex(vertex, input.vertices)) {
                 continue;
             }
-            const Vec3 target = tangentialCentroidCandidate(vertex, input);
-            if ((target - state.p).squaredNorm() <= 1e-24) {
+            const Vec3 displacement = refinementDisplacement(vertex, input);
+            if (displacement.squaredNorm() <= 1e-24) {
                 continue;
             }
             ++report.qualityRefinementAttemptedMoves;
-            if (tryRefineVertex(vertex, input)) {
+            if (tryRefineVertex(vertex, displacement, input)) {
                 ++report.qualityRefinementAcceptedMoves;
                 ++acceptedThisIteration;
             }

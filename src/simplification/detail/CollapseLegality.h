@@ -28,6 +28,8 @@ struct CollapseLegalityInput {
     const manumesh::common::MeshDistanceIndex* referenceSurface = nullptr;
 };
 
-CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input);
+/// Evaluates placement-dependent legality after the edge topology has already
+/// passed collapseWouldPreserveLinkCondition().
+CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input);
 
 } // namespace manumesh::simplification

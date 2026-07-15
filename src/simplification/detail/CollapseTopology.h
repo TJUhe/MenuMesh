@@ -4,7 +4,6 @@
 #include "detail/SimplificationTypes.h"
 #include "mesh_edit/detail/DynamicTopology.h"
 
-#include <unordered_set>
 #include <vector>
 
 namespace manumesh::simplification {
@@ -32,14 +31,10 @@ std::vector<int> activeNeighborsOf(
     const DynamicTopology& topology
 );
 
-std::unordered_set<int> activeLinkOf(
-    int vertex,
-    const std::vector<FaceState>& faces,
-    const std::vector<VertexState>& vertices,
-    const DynamicTopology& topology,
-    int excludedVertex
-);
-
+/// Checks the simplicial link condition link(keep) intersect link(remove) =
+/// link(edge), including both vertices and edges in the endpoint links. The
+/// boundary extension rejects interior chords whose endpoints are both on an
+/// open boundary and collapses that would erase an isolated open triangle.
 bool collapseWouldPreserveLinkCondition(
     int keep,
     int remove,

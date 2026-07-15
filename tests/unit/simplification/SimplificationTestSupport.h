@@ -123,15 +123,20 @@ inline ::manumesh::Mesh makeCoplanarOverlapGuardMesh() {
         ::manumesh::Vec3(0.0, 0.0, 0.0),
         ::manumesh::Vec3(2.0, 0.0, 0.0),
         ::manumesh::Vec3(0.0, -0.2, 0.0),
-        ::manumesh::Vec3(1.0, 0.0, 0.0),
+        ::manumesh::Vec3(1.0, 1.0, 0.0),
         ::manumesh::Vec3(0.0, 1.0, 0.0),
         ::manumesh::Vec3(0.2, 0.2, 0.0),
         ::manumesh::Vec3(0.7, 0.2, 0.0),
         ::manumesh::Vec3(0.2, 0.7, 0.0),
+        ::manumesh::Vec3(2.0, -1.0, 0.0),
+        ::manumesh::Vec3(3.0, -0.5, 0.0),
     };
     mesh.faces = {
         ::manumesh::Face{{0, 1, 2}},
-        ::manumesh::Face{{1, 3, 4}},
+        ::manumesh::Face{{1, 8, 2}},
+        ::manumesh::Face{{1, 9, 8}},
+        ::manumesh::Face{{1, 3, 9}},
+        ::manumesh::Face{{1, 4, 3}},
         ::manumesh::Face{{5, 6, 7}},
     };
     return mesh;

@@ -63,10 +63,10 @@ src/simplification/Quadrics.cpp                 面 quadric、line quadric、pla
 src/simplification/Placement.cpp                placement 策略单元：Lindstrom-Turk 边界守恒边界投影（配套 detail/Placement.h）
 src/simplification/FeatureConstraints.cpp       特征曲线策略、预算和投影（长 loop 走 PolylineSegmentIndex AABB 树）
 src/simplification/CandidateQueue.cpp           折叠候选优先队列（Candidate 携带已解 placement 与 priorityScale）
-src/simplification/CollapseTopology.cpp         boundary policy、扩展 link condition（含边界弦 pinch 拒绝）与通用动态拓扑的适配
+src/simplification/CollapseTopology.cpp         与 placement 无关的完整二维 link condition、boundary policy 与动态拓扑适配
 src/simplification/SimplificationValidation.cpp 选项和输入校验
 src/simplification/QualityRefinement.cpp        可选固定拓扑质量精修轮（启用纹理保护时暂时跳过）
-src/simplification/CollapseLegality.cpp         拓扑、边界、质量、法线、自交过滤；几何谓词复用 common
+src/simplification/CollapseLegality.cpp         placement 相关的退化、重复面、质量、法线、误差与自交过滤；几何谓词复用 common
 src/simplification/SpatialFaceIndex.cpp         面片 AABB 到 common UniformAabbCandidateGrid 的适配器
 src/simplification/TextureProtection.cpp        opt-in 纹理保护：局部 UV chart 配对、有符号 UV 面积检查、标量失真代价和 buildPlan/apply 计划复用
 src/simplification/detail/TextureProtection.h   纹理保护私有接口，不安装

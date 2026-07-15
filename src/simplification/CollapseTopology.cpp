@@ -1,8 +1,100 @@
 #include "detail/CollapseTopology.h"
 
+#include "common/detail/MeshQueries.h"
+
 #include <algorithm>
+#include <cstdint>
+#include <unordered_set>
 
 namespace manumesh::simplification {
+namespace {
+
+struct SimplicialLink {
+    std::unordered_set<int> vertices;
+    std::unordered_set<std::uint64_t> edges;
+};
+
+bool isActiveVertex(int vertex, const std::vector<VertexState>& vertices) {
+    return vertex >= 0 && vertex < static_cast<int>(vertices.size()) && vertices[vertex].active;
+}
+
+SimplicialLink activeLinkOf(
+    int vertex,
+    const std::vector<FaceState>& faces,
+    const std::vector<VertexState>& vertices,
+    const DynamicTopology& topology
+) {
+    SimplicialLink link;
+    if (!isActiveVertex(vertex, vertices) || vertex >= static_cast<int>(topology.vertexFaces.size())) {
+        return link;
+    }
+
+    for (int faceId : topology.vertexFaces[vertex]) {
+        if (faceId < 0 || faceId >= static_cast<int>(faces.size())) {
+            continue;
+        }
+        const FaceState& face = faces[faceId];
+        if (!face.active || !containsVertex(face, vertex)) {
+            continue;
+        }
+
+        int opposite[2] = {-1, -1};
+        int oppositeCount = 0;
+        for (int neighbor : face.v) {
+            if (neighbor == vertex || !isActiveVertex(neighbor, vertices)) {
+                continue;
+            }
+            link.vertices.insert(neighbor);
+            if (oppositeCount < 2) {
+                opposite[oppositeCount++] = neighbor;
+            }
+        }
+        if (oppositeCount == 2 && opposite[0] != opposite[1]) {
+            link.edges.insert(common::meshEdgeKey(opposite[0], opposite[1]));
+        }
+    }
+    return link;
+}
+
+bool vertexIntersectionEqualsEdgeLink(
+    const SimplicialLink& keepLink, const SimplicialLink& removeLink, const std::unordered_set<int>& edgeLink
+) {
+    std::size_t intersectionSize = 0;
+    const auto& smaller =
+        keepLink.vertices.size() <= removeLink.vertices.size() ? keepLink.vertices : removeLink.vertices;
+    const auto& larger =
+        keepLink.vertices.size() <= removeLink.vertices.size() ? removeLink.vertices : keepLink.vertices;
+    for (int vertex : smaller) {
+        if (larger.find(vertex) == larger.end()) {
+            continue;
+        }
+        ++intersectionSize;
+        if (edgeLink.find(vertex) == edgeLink.end()) {
+            return false;
+        }
+    }
+    return intersectionSize == edgeLink.size();
+}
+
+bool endpointLinksShareEdge(const SimplicialLink& keepLink, const SimplicialLink& removeLink) {
+    const auto& smaller = keepLink.edges.size() <= removeLink.edges.size() ? keepLink.edges : removeLink.edges;
+    const auto& larger = keepLink.edges.size() <= removeLink.edges.size() ? removeLink.edges : keepLink.edges;
+    for (std::uint64_t edge : smaller) {
+        if (larger.find(edge) != larger.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isIsolatedOpenTriangleEdge(
+    int keep, int remove, int opposite, const std::vector<FaceState>& faces, const DynamicTopology& topology
+) {
+    return activeIncidentFaceCountForEdge(keep, opposite, faces, topology) == 1 &&
+           activeIncidentFaceCountForEdge(remove, opposite, faces, topology) == 1;
+}
+
+} // namespace
 
 BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input) {
     const int keep = input.edge.keep;
@@ -52,31 +144,6 @@ std::vector<int> activeNeighborsOf(
     return neighbors;
 }
 
-std::unordered_set<int> activeLinkOf(
-    int vertex,
-    const std::vector<FaceState>& faces,
-    const std::vector<VertexState>& vertices,
-    const DynamicTopology& topology,
-    int excludedVertex
-) {
-    std::unordered_set<int> link;
-    if (vertex < 0 || vertex >= static_cast<int>(topology.vertexFaces.size())) {
-        return link;
-    }
-    for (int faceId : topology.vertexFaces[vertex]) {
-        const FaceState& face = faces[faceId];
-        if (!face.active) {
-            continue;
-        }
-        for (int neighbor : face.v) {
-            if (neighbor != vertex && neighbor != excludedVertex && vertices[neighbor].active) {
-                link.insert(neighbor);
-            }
-        }
-    }
-    return link;
-}
-
 bool collapseWouldPreserveLinkCondition(
     int keep,
     int remove,
@@ -84,6 +151,12 @@ bool collapseWouldPreserveLinkCondition(
     const std::vector<VertexState>& vertices,
     const DynamicTopology& topology
 ) {
+    if (keep == remove || !isActiveVertex(keep, vertices) || !isActiveVertex(remove, vertices) ||
+        keep >= static_cast<int>(topology.vertexFaces.size()) ||
+        remove >= static_cast<int>(topology.vertexFaces.size())) {
+        return false;
+    }
+
     std::unordered_set<int> edgeLink;
     int incidentFaceCount = 0;
     const auto& keepFaces = topology.vertexFaces[keep];
@@ -94,13 +167,16 @@ bool collapseWouldPreserveLinkCondition(
         if (larger.find(faceId) == larger.end()) {
             continue;
         }
+        if (faceId < 0 || faceId >= static_cast<int>(faces.size())) {
+            continue;
+        }
         const FaceState& face = faces[faceId];
-        if (!face.active) {
+        if (!face.active || !containsVertex(face, keep) || !containsVertex(face, remove)) {
             continue;
         }
         ++incidentFaceCount;
         for (int vertex : face.v) {
-            if (vertex != keep && vertex != remove && vertices[vertex].active) {
+            if (vertex != keep && vertex != remove && isActiveVertex(vertex, vertices)) {
                 edgeLink.insert(vertex);
             }
         }
@@ -108,6 +184,13 @@ bool collapseWouldPreserveLinkCondition(
 
     if (incidentFaceCount <= 0 || incidentFaceCount > 2 ||
         edgeLink.size() != static_cast<std::size_t>(incidentFaceCount)) {
+        return false;
+    }
+
+    // Capping an isolated open triangle with the virtual boundary vertex
+    // produces a tetrahedron. Collapsing any of its real edges would otherwise
+    // erase the entire two-dimensional component in the triangle-only mesh.
+    if (incidentFaceCount == 1 && isIsolatedOpenTriangleEdge(keep, remove, *edgeLink.begin(), faces, topology)) {
         return false;
     }
 
@@ -121,24 +204,10 @@ bool collapseWouldPreserveLinkCondition(
         return false;
     }
 
-    const std::unordered_set<int> keepLink = activeLinkOf(keep, faces, vertices, topology, remove);
-    const std::unordered_set<int> removeLink = activeLinkOf(remove, faces, vertices, topology, keep);
-    std::unordered_set<int> intersection;
-    for (int vertex : keepLink) {
-        if (removeLink.find(vertex) != removeLink.end()) {
-            intersection.insert(vertex);
-        }
-    }
-
-    if (intersection.size() != edgeLink.size()) {
-        return false;
-    }
-    for (int vertex : intersection) {
-        if (edgeLink.find(vertex) == edgeLink.end()) {
-            return false;
-        }
-    }
-    return true;
+    const SimplicialLink keepLink = activeLinkOf(keep, faces, vertices, topology);
+    const SimplicialLink removeLink = activeLinkOf(remove, faces, vertices, topology);
+    return vertexIntersectionEqualsEdgeLink(keepLink, removeLink, edgeLink) &&
+           !endpointLinksShareEdge(keepLink, removeLink);
 }
 
 } // namespace manumesh::simplification

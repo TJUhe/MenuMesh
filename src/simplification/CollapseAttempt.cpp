@@ -54,6 +54,9 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         (input.policies.legality.minTriangleQuality > 0.0 || input.maxLocalError > 0.0 || input.minNormalDot > -1.0 ||
          input.policies.legality.preventLocalIntersections || input.textureProtection.active());
     const int placementCount = tryFallbackPlacements ? input.placementCount : 1;
+    const bool preservesTopology = collapseWouldPreserveLinkCondition(
+        input.edge.keep, input.edge.remove, input.faces, input.vertices, input.topology
+    );
 
     // Rejection reporting attributes the whole attempt to the first hard
     // filter that rejected the first rejected placement candidate.
@@ -91,18 +94,20 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
             }
             continue;
         }
-        const CollapseRejectReason rejectReason = collapseRejectReason(
-            {input.edge,
-             collapsePosition,
-             {input.faces, input.vertices, input.topology},
-             input.areaEps,
-             input.policies.legality.minTriangleQuality,
-             input.minNormalDot,
-             input.maxLocalError,
-             input.policies.legality.preventLocalIntersections,
-             input.spatialIndex,
-             input.referenceSurface}
-        );
+        const CollapseRejectReason rejectReason = preservesTopology
+                                                      ? collapsePlacementRejectReason(
+                                                            {input.edge,
+                                                             collapsePosition,
+                                                             {input.faces, input.vertices, input.topology},
+                                                             input.areaEps,
+                                                             input.policies.legality.minTriangleQuality,
+                                                             input.minNormalDot,
+                                                             input.maxLocalError,
+                                                             input.policies.legality.preventLocalIntersections,
+                                                             input.spatialIndex,
+                                                             input.referenceSurface}
+                                                        )
+                                                      : CollapseRejectReason::Topology;
         if (rejectReason == CollapseRejectReason::None) {
             result.status = CollapseAttemptStatus::Accepted;
             result.acceptedPosition = collapsePosition;

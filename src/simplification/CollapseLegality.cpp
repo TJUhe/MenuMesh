@@ -254,19 +254,13 @@ CollapseRejectReason checkLocalIntersections(
 
 } // namespace
 
-CollapseRejectReason collapseRejectReason(const CollapseLegalityInput& input) {
-    const int keep = input.edge.keep;
-    const int remove = input.edge.remove;
-    if (!collapseWouldPreserveLinkCondition(keep, remove, input.mesh.faces, input.mesh.vertices, input.mesh.topology)) {
-        return CollapseRejectReason::Topology;
-    }
-
+CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input) {
     std::vector<NewTriangle> newTriangles;
     std::vector<OldTriangle> oldTriangles;
     std::vector<Vec3> localReferencePoints;
     if (input.maxLocalError > 0.0) {
-        localReferencePoints.push_back(input.mesh.vertices[keep].p);
-        localReferencePoints.push_back(input.mesh.vertices[remove].p);
+        localReferencePoints.push_back(input.mesh.vertices[input.edge.keep].p);
+        localReferencePoints.push_back(input.mesh.vertices[input.edge.remove].p);
     }
 
     const std::unordered_set<int> touchedFaces = collectTouchedFaces(input);

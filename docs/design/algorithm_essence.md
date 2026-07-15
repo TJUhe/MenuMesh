@@ -226,7 +226,7 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | --- | --- | --- |
 | feature policy | `feature_rejected_collapses` | feature ownership、loop id、junction、active loop vertex count。 |
 | boundary policy | `boundary_rejected_collapses` | open boundary 的局部邻接；边界边坍缩的 placement 使用 Lindstrom-Turk 边界守恒约束（投影到最小化边界有向面积变化的直线，见 `detail/Placement.{h,cpp}`）。 |
-| link condition | `topology_rejected_collapses` | collapse 前后局部一环是否满足拓扑一致性；含"虚拟顶点"边界扩展判据——两端点都在开边界上的内部边（边界弦）一律拒绝，避免把边界捏合成非流形 pinch 点，该判据与 `preserveBoundary` 无关、始终生效。 |
+| link condition | `topology_rejected_collapses` | 按单纯复形检查 `Lk(u) ∩ Lk(v) = Lk(uv)`：不仅比较共同邻点，也比较 vertex link 中的共同对边，因此四面体边这类会生成重复面的坍缩会被拒绝；另含"虚拟顶点"边界扩展判据，拒绝两端都在开边界上的内部弦，以及会让二维分量降维消失的 isolated open triangle。上述判据都与 `preserveBoundary` 无关、始终生效。 |
 | normal deviation | `normal_flip_rejected_collapses` | 旧三角形法向与新三角形法向点积是否低于阈值。 |
 | triangle quality | `quality_rejected_collapses` | 新三角形质量是否低于 `minTriangleQuality`。 |
 | local error | `error_rejected_collapses` | 旧局部采样点到新局部三角形集合的最大距离。 |

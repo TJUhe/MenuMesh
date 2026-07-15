@@ -194,7 +194,7 @@ TEST(ManuMesh, LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap) {
     const manumesh::Mesh input = makeCoplanarOverlapGuardMesh();
 
     manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-    options.targetFaces = 1;
+    options.targetFaces = static_cast<int>(input.faces.size()) - 1;
     options.preventLocalIntersections = true;
     options.maxNormalDeviationDeg = 180.0;
     options.minTriangleQuality = 0.0;
@@ -202,15 +202,23 @@ TEST(ManuMesh, LocalIntersectionGuardUsesFallbackPlacementForCoplanarOverlap) {
 
     EXPECT_FALSE(result.mesh.empty());
     EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);
-    EXPECT_EQ(1, result.report.finalFaces);
+    EXPECT_EQ(options.targetFaces, result.report.finalFaces);
+    EXPECT_EQ(1, result.report.collapsedEdges);
     EXPECT_EQ(0, result.report.selfIntersectionRejectedCollapses);
+    const auto containsPosition = [&](const manumesh::Vec3& position) {
+        return std::any_of(result.mesh.vertices.begin(), result.mesh.vertices.end(), [&](const manumesh::Vec3& vertex) {
+            return (vertex - position).norm() <= 1e-12;
+        });
+    };
+    EXPECT_TRUE(containsPosition(manumesh::Vec3(2.0, 0.0, 0.0)));
+    EXPECT_FALSE(containsPosition(manumesh::Vec3(0.0, 0.0, 0.0)));
 }
 
 TEST(ManuMesh, LocalIntersectionGuardAllowsCoplanarSeparatedTriangles) {
     const manumesh::Mesh input = makeCoplanarSeparatedGuardMesh();
 
     manumesh::simplification::SimplifyOptions options = standardQemOptions(0.25);
-    options.targetFaces = 1;
+    options.targetFaces = static_cast<int>(input.faces.size()) - 1;
     options.preventLocalIntersections = true;
     options.maxNormalDeviationDeg = 180.0;
     options.minTriangleQuality = 0.0;

@@ -127,6 +127,63 @@ manumesh::Mesh makeNormalFlipFallbackMesh() {
     return mesh;
 }
 
+manumesh::Mesh makeTetrahedronMesh() {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(1.0, 1.0, 1.0),
+        manumesh::Vec3(-1.0, -1.0, 1.0),
+        manumesh::Vec3(-1.0, 1.0, -1.0),
+        manumesh::Vec3(1.0, -1.0, -1.0),
+    };
+    mesh.faces = {
+        manumesh::Face{{0, 2, 1}},
+        manumesh::Face{{0, 1, 3}},
+        manumesh::Face{{0, 3, 2}},
+        manumesh::Face{{1, 2, 3}},
+    };
+    return mesh;
+}
+
+manumesh::Mesh makeOctahedronMesh() {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 1.0),
+        manumesh::Vec3(0.0, 0.0, -1.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(-1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, -1.0, 0.0),
+    };
+    mesh.faces = {
+        manumesh::Face{{0, 2, 3}},
+        manumesh::Face{{0, 3, 4}},
+        manumesh::Face{{0, 4, 5}},
+        manumesh::Face{{0, 5, 2}},
+        manumesh::Face{{1, 3, 2}},
+        manumesh::Face{{1, 4, 3}},
+        manumesh::Face{{1, 5, 4}},
+        manumesh::Face{{1, 2, 5}},
+    };
+    return mesh;
+}
+
+manumesh::Mesh makeTwoDisjointTrianglesMesh() {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(3.0, 0.0, 0.0),
+        manumesh::Vec3(4.0, 0.0, 0.0),
+        manumesh::Vec3(3.0, 1.0, 0.0),
+    };
+    mesh.faces = {
+        manumesh::Face{{0, 1, 2}},
+        manumesh::Face{{3, 4, 5}},
+    };
+    return mesh;
+}
+
 } // namespace
 
 TEST(ManuMesh, BoundaryWeightPullsOpenBoundaryPlacementsBackToPolyline) {
@@ -198,6 +255,151 @@ TEST(ManuMesh, BoundaryChordCollapseFailsExtendedLinkCondition) {
         vertex.isBoundary = false;
     }
     EXPECT_TRUE(manumesh::simplification::collapseWouldPreserveLinkCondition(1, 2, faces, vertices, topology));
+}
+
+TEST(ManuMesh, TetrahedronEdgeCollapseFailsFullSimplicialLinkCondition) {
+    const manumesh::Mesh input = makeTetrahedronMesh();
+    std::vector<manumesh::simplification::FaceState> faces(input.faces.size());
+    for (int face = 0; face < static_cast<int>(input.faces.size()); ++face) {
+        faces[face].v = input.faces[face].v;
+    }
+    std::vector<manumesh::simplification::VertexState> vertices(input.vertices.size());
+    for (int vertex = 0; vertex < static_cast<int>(input.vertices.size()); ++vertex) {
+        vertices[vertex].p = input.vertices[vertex];
+    }
+    const manumesh::simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
+
+    // The endpoint links share the edge opposite each tetrahedron edge. The
+    // edge link itself contains only the two opposite vertices, so the full
+    // simplicial-complex equality fails even though the link vertex sets match.
+    for (int keep = 0; keep < 4; ++keep) {
+        for (int remove = keep + 1; remove < 4; ++remove) {
+            EXPECT_FALSE(
+                manumesh::simplification::collapseWouldPreserveLinkCondition(keep, remove, faces, vertices, topology)
+            ) << "edge ("
+              << keep << ", " << remove << ")";
+            EXPECT_FALSE(
+                manumesh::simplification::collapseWouldPreserveLinkCondition(remove, keep, faces, vertices, topology)
+            ) << "edge ("
+              << remove << ", " << keep << ")";
+        }
+    }
+}
+
+TEST(ManuMesh, SimplifyDoesNotCollapseTetrahedronThroughDuplicateFaceRemoval) {
+    const manumesh::Mesh input = makeTetrahedronMesh();
+    manumesh::simplification::SimplifyOptions options;
+    options.targetFaces = 1;
+
+    const SimplifiedMesh result = simplifyWithReport(input, options);
+
+    EXPECT_TRUE(
+        result.report.terminationReason == manumesh::simplification::SimplifyTerminationReason::RejectionLimit ||
+        result.report.terminationReason == manumesh::simplification::SimplifyTerminationReason::NoCandidates
+    );
+    EXPECT_EQ(4, result.report.finalVertices);
+    EXPECT_EQ(4, result.report.finalFaces);
+    EXPECT_EQ(0, result.report.collapsedEdges);
+    EXPECT_GT(result.report.topologyRejectedCollapses, 0);
+}
+
+TEST(ManuMesh, OctahedronEdgesPassFullSimplicialLinkCondition) {
+    const manumesh::Mesh input = makeOctahedronMesh();
+    std::vector<manumesh::simplification::FaceState> faces(input.faces.size());
+    for (int face = 0; face < static_cast<int>(input.faces.size()); ++face) {
+        faces[face].v = input.faces[face].v;
+    }
+    std::vector<manumesh::simplification::VertexState> vertices(input.vertices.size());
+    for (int vertex = 0; vertex < static_cast<int>(input.vertices.size()); ++vertex) {
+        vertices[vertex].p = input.vertices[vertex];
+    }
+    const manumesh::simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
+    const std::array<std::array<int, 2>, 12> edges = {
+        {{0, 2}, {0, 3}, {0, 4}, {0, 5}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {2, 3}, {3, 4}, {4, 5}, {5, 2}}
+    };
+
+    for (const std::array<int, 2>& edge : edges) {
+        EXPECT_TRUE(
+            manumesh::simplification::collapseWouldPreserveLinkCondition(edge[0], edge[1], faces, vertices, topology)
+        ) << "edge ("
+          << edge[0] << ", " << edge[1] << ")";
+        EXPECT_TRUE(
+            manumesh::simplification::collapseWouldPreserveLinkCondition(edge[1], edge[0], faces, vertices, topology)
+        ) << "edge ("
+          << edge[1] << ", " << edge[0] << ")";
+    }
+}
+
+TEST(ManuMesh, ClosedSurfaceSimplifiesToTetrahedronAndThenStops) {
+    const manumesh::Mesh input = makeOctahedronMesh();
+    manumesh::simplification::SimplifyOptions options;
+    options.targetFaces = 1;
+
+    const SimplifiedMesh result = simplifyWithReport(input, options);
+
+    EXPECT_TRUE(
+        result.report.terminationReason == manumesh::simplification::SimplifyTerminationReason::RejectionLimit ||
+        result.report.terminationReason == manumesh::simplification::SimplifyTerminationReason::NoCandidates
+    );
+    EXPECT_EQ(4, result.report.finalVertices);
+    EXPECT_EQ(4, result.report.finalFaces);
+    EXPECT_EQ(2, result.report.collapsedEdges);
+    EXPECT_GT(result.report.topologyRejectedCollapses, 0);
+}
+
+TEST(ManuMesh, IsolatedOpenTriangleEdgesFailBoundaryExtendedLinkCondition) {
+    const manumesh::Mesh input = makeTwoDisjointTrianglesMesh();
+    std::vector<manumesh::simplification::FaceState> faces(input.faces.size());
+    for (int face = 0; face < static_cast<int>(input.faces.size()); ++face) {
+        faces[face].v = input.faces[face].v;
+    }
+    std::vector<manumesh::simplification::VertexState> vertices(input.vertices.size());
+    for (int vertex = 0; vertex < static_cast<int>(input.vertices.size()); ++vertex) {
+        vertices[vertex].p = input.vertices[vertex];
+        vertices[vertex].isBoundary = true;
+    }
+    const manumesh::simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
+
+    for (int keep = 0; keep < 3; ++keep) {
+        const int remove = (keep + 1) % 3;
+        EXPECT_FALSE(
+            manumesh::simplification::collapseWouldPreserveLinkCondition(keep, remove, faces, vertices, topology)
+        ) << "edge ("
+          << keep << ", " << remove << ")";
+        EXPECT_FALSE(
+            manumesh::simplification::collapseWouldPreserveLinkCondition(remove, keep, faces, vertices, topology)
+        ) << "edge ("
+          << remove << ", " << keep << ")";
+    }
+}
+
+TEST(ManuMesh, SimplifyDoesNotEraseIsolatedTriangleComponent) {
+    const manumesh::Mesh input = makeTwoDisjointTrianglesMesh();
+    manumesh::simplification::SimplifyOptions options;
+    options.targetFaces = 1;
+
+    const SimplifiedMesh result = simplifyWithReport(input, options);
+
+    EXPECT_TRUE(
+        result.report.terminationReason == manumesh::simplification::SimplifyTerminationReason::RejectionLimit ||
+        result.report.terminationReason == manumesh::simplification::SimplifyTerminationReason::NoCandidates
+    );
+    EXPECT_EQ(6, result.report.finalVertices);
+    EXPECT_EQ(2, result.report.finalFaces);
+    EXPECT_EQ(0, result.report.collapsedEdges);
+    EXPECT_GT(result.report.topologyRejectedCollapses, 0);
+}
+
+TEST(ManuMesh, NonManifoldEdgeFailsLinkConditionInBothDirections) {
+    std::vector<manumesh::simplification::FaceState> faces(3);
+    faces[0].v = {0, 1, 2};
+    faces[1].v = {1, 0, 3};
+    faces[2].v = {0, 1, 4};
+    std::vector<manumesh::simplification::VertexState> vertices(5);
+    const manumesh::simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
+
+    EXPECT_FALSE(manumesh::simplification::collapseWouldPreserveLinkCondition(0, 1, faces, vertices, topology));
+    EXPECT_FALSE(manumesh::simplification::collapseWouldPreserveLinkCondition(1, 0, faces, vertices, topology));
 }
 
 TEST(ManuMesh, DefaultSimplifyKeepsOpenBoundaryVertexManifold) {

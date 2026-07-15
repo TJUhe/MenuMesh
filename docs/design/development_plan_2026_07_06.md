@@ -1,6 +1,6 @@
 # 2026-07-06 开发计划
 
-本计划按 ManuMesh 当前状态更新。ManuMesh 已经有稳定的 CMake/VS Code 构建、C++/C SDK、CLI、平级特征检测模块、特征曲线保护和 80 个 CTest 回归测试（成文时数字；2026-07-15 已增长到 258 个启用的非性能 CTest，其中快速套件 247 个、external 11 个）。下一阶段目标是把“可演示的 line quadrics 简化器”推进为“可嵌入的工业网格简化内核”。
+本计划保留 2026-07-06 的阶段目标。2026-07-15 当前已增长到 267 个启用的非性能 CTest（快速套件 256 个、external 11 个，另有 1 个 disabled 手工性能测试），并完成九阶段特征识别、normal filter、stable scale、component consolidation、junction branches 和 surface patches。当前路线以 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md) 为准。
 
 ## 第一周：稳定性和文档一致性
 

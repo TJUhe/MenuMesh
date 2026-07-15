@@ -39,9 +39,14 @@ VS Code 中对应常用任务：
 | `primitive_feature_rejected_collapses` | primitive loop 保护拒绝。 |
 | `generic_feature_rejected_collapses` | generic feature 拒绝，过高可能说明过度锁边。 |
 | `feature_components` / `weak_feature_components` / `high_confidence_feature_components` | cleanup 后 feature graph component 的总数、弱证据 component 数和高置信 component 数，用来判断弱特征是否已经形成可保护支撑。 |
-| `graph_cleanup_bridged_gaps` / `graph_cleanup_removed_spurs` / `graph_cleanup_merged_junctions` | 特征图 cleanup 实际桥接 endpoint gap、删除 normal-tensor/smooth-curvature 弱 spur、合并近 junction 的数量。endpoint bridge 有双端切向门控，close-junction bridge 当前仅按距离，因此 merged-junction 计数异常升高时要排查误合并。 |
+| `graph_cleanup_bridged_gaps` / `graph_cleanup_removed_spurs` / `graph_cleanup_merged_junctions` | cleanup 的 endpoint/close-junction bridge 都复核双端方向、evidence source 和 signed kind；计数异常升高仍要排查局部贪心误合并。 |
+| `graph_consolidation_bridges` / `graph_consolidation_skipped_by_cap` | opt-in 跨 component endpoint recovery 的实际桥数与 cap 跳过次数；应结合 closure、branch-pair benchmark 和可视化判断收益。 |
+| `feature_normal_filter_*` | 法线域预处理的迭代、变化面、保留边、mean/max angular change 和 edge indicator；只解释 detection evidence，不表示顶点几何已去噪。 |
+| `junction_branch_pairs` / `ambiguous_junctions` | junction continuation 配对数量与仍有未配对分支的 junction 数。 |
+| `surface_patches` / `closed_surface_patches` / `segmentation_ignored_recovery_edges` | feature-induced face partition 的规模、闭合 patch 数，以及因 bridge 不是原 mesh edge 而忽略的 barrier 数。 |
 | `mean_feature_component_confidence` / `min_feature_component_confidence` | component-level confidence，综合强/弱证据比例、闭合率、junction、primitive residual 和 tensor persistence；QEM 的特征曲线软成本会消费该置信度。 |
 | `mean_normal_tensor_local_scale` / `mean_normal_tensor_persistence` | normal-tensor 弱特征的局部尺度与多尺度 persistence 诊断，适合和 `feature-benchmark` 的 precision/recall 一起看。 |
+| `mean_smooth_curvature_scale_stability` | stable-scale 模式下参考尺度的一致性；低值提示证据对邻域尺度敏感。 |
 | `boundary_rejected_collapses` | 边界保护拒绝。 |
 | `quality_rejected_collapses` | 三角形质量过滤拒绝。 |
 | `normal_flip_rejected_collapses` | 法线偏转过滤拒绝。 |

@@ -52,6 +52,11 @@ if(BUILD_TESTING)
       --smooth-curvature-base-rings 2
       --smooth-curvature-scales 3
       --smooth-curvature-min-persistent-scales 2
+      --smooth-curvature-stable-scale
+      --feature-normal-filter
+      --feature-normal-filter-iterations 2
+      --feature-graph-consolidation
+      --surface-patches
   )
   add_test(NAME manumesh_cli_feature_benchmark
     COMMAND manumesh feature-benchmark
@@ -86,7 +91,7 @@ if(BUILD_TESTING)
     PROPERTIES LABELS cli
   )
   set_tests_properties(manumesh_cli_feature_report
-    PROPERTIES PASS_REGULAR_EXPRESSION "inconsistent_winding_edges="
+    PROPERTIES PASS_REGULAR_EXPRESSION "surface_patches="
   )
 endif()
 

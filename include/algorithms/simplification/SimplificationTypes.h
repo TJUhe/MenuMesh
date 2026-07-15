@@ -119,6 +119,19 @@ struct SimplifyOptions {
     /// pruning dangling weak-evidence chains. Zero keeps edge-count behavior.
     double featureGraphMinWeakSpurStrength = 0.0;
     double featureComponentMinConfidence = 0.35;
+    /// Optional feature-preserving normal-domain preprocessing for noisy input.
+    bool useFeatureNormalFilter = false;
+    int featureNormalFilterIterations = 4;
+    double featureNormalFilterAngleSigmaDeg = 20.0;
+    double featureNormalFilterPreserveAngleDeg = 50.0;
+    double featureNormalFilterRelaxation = 0.8;
+    /// Stable-scale reference selection for smooth curvature evidence.
+    bool smoothCurvatureUseStableScaleSelection = false;
+    double smoothCurvatureMinScaleStability = 0.0;
+    /// Component-level weak feature recovery after local graph cleanup.
+    bool consolidateFeatureGraph = false;
+    double featureGraphConsolidationGapLengthRatio = 3.0;
+    double featureGraphConsolidationMinAlignment = 0.75;
 
     // Hard post-placement filters and diagnostics.
     /// Hard post-placement filters. Local-error budgets enforce an approximate
@@ -203,6 +216,17 @@ struct SimplifyReport {
     int inconsistentWindingEdges = 0;
     int graphCleanupSkippedByCap = 0;
     int circularRecoveryTruncated = 0;
+    int featureNormalFilterIterationsCompleted = 0;
+    int featureNormalFilterChangedFaces = 0;
+    int featureNormalFilterPreservedEdges = 0;
+    double meanFeatureNormalFilterAngularChangeDeg = 0.0;
+    double maxFeatureNormalFilterAngularChangeDeg = 0.0;
+    double meanFeatureNormalFilterEdgeIndicator = 0.0;
+    double meanSmoothCurvatureScaleStability = 0.0;
+    int graphConsolidationBridges = 0;
+    int graphConsolidationSkippedByCap = 0;
+    int junctionBranchPairs = 0;
+    int ambiguousFeatureJunctions = 0;
 
     // First-reject counters for current collapse candidates.
     int featureRejectedCollapses = 0;

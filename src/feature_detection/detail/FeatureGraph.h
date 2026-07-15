@@ -38,6 +38,6 @@ void addTraceGraphEdge(TraceGraph& trace, FeatureAnalysis& analysis, const Candi
 void removeTraceGraphEdge(TraceGraph& trace, int a, int b);
 void rebuildTraceGraphEdges(TraceGraph& trace);
 
-void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis);
+void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis);
 
 } // namespace manumesh::feature::detector_detail

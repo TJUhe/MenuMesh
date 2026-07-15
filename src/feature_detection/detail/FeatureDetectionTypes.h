@@ -21,6 +21,7 @@ struct CandidateEdge {
     bool smoothCurvature = false;
     bool nonManifold = false;
     bool cleanupBridge = false;
+    bool consolidationBridge = false;
     int signedKind = 0;
     double angleRad = 0.0;
     double tensorPersistentScore = 0.0;
@@ -41,6 +42,7 @@ struct TraceEdgeAttrs {
     bool smoothCurvature = false;
     bool nonManifold = false;
     bool cleanupBridge = false;
+    bool consolidationBridge = false;
     int signedKind = 0;
     double tensorPersistence = 0.0;
     int tensorPersistentScales = 0;

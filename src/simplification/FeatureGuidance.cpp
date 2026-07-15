@@ -112,11 +112,17 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
     guidance.summary.maxSmoothCurvaturePersistentScore = analysis.maxSmoothCurvaturePersistentScore;
     guidance.summary.meanSmoothCurvatureLocalScale = analysis.meanSmoothCurvatureLocalScale;
     guidance.summary.meanSmoothCurvaturePersistence = analysis.meanSmoothCurvaturePersistence;
+    guidance.summary.meanSmoothCurvatureScaleStability = analysis.meanSmoothCurvatureScaleStability;
     guidance.summary.meanFeatureComponentConfidence = analysis.meanFeatureComponentConfidence;
     guidance.summary.minFeatureComponentConfidence = analysis.minFeatureComponentConfidence;
     guidance.summary.inconsistentWindingEdges = analysis.inconsistentWindingEdges;
     guidance.summary.graphCleanupSkippedByCap = analysis.graphCleanupSkippedByCap;
     guidance.summary.circularRecoveryTruncated = analysis.circularRecoveryTruncated;
+    guidance.summary.normalFilter = analysis.normalFilter;
+    guidance.summary.graphConsolidationBridges = analysis.graphConsolidationBridges;
+    guidance.summary.graphConsolidationSkippedByCap = analysis.graphConsolidationSkippedByCap;
+    guidance.summary.junctionBranchPairs = analysis.junctionBranchPairs;
+    guidance.summary.ambiguousFeatureJunctions = analysis.ambiguousJunctions;
 
     guidance.vertices.reserve(analysis.vertices.size());
     for (const feature::VertexFeature& vertex : analysis.vertices) {
@@ -279,11 +285,22 @@ void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, Simplify
     report.maxSmoothCurvaturePersistentScore = summary.maxSmoothCurvaturePersistentScore;
     report.meanSmoothCurvatureLocalScale = summary.meanSmoothCurvatureLocalScale;
     report.meanSmoothCurvaturePersistence = summary.meanSmoothCurvaturePersistence;
+    report.meanSmoothCurvatureScaleStability = summary.meanSmoothCurvatureScaleStability;
     report.meanFeatureComponentConfidence = summary.meanFeatureComponentConfidence;
     report.minFeatureComponentConfidence = summary.minFeatureComponentConfidence;
     report.inconsistentWindingEdges = summary.inconsistentWindingEdges;
     report.graphCleanupSkippedByCap = summary.graphCleanupSkippedByCap;
     report.circularRecoveryTruncated = summary.circularRecoveryTruncated;
+    report.featureNormalFilterIterationsCompleted = summary.normalFilter.iterationsCompleted;
+    report.featureNormalFilterChangedFaces = summary.normalFilter.changedFaces;
+    report.featureNormalFilterPreservedEdges = summary.normalFilter.preservedEdges;
+    report.meanFeatureNormalFilterAngularChangeDeg = summary.normalFilter.meanAngularChangeDeg;
+    report.maxFeatureNormalFilterAngularChangeDeg = summary.normalFilter.maxAngularChangeDeg;
+    report.meanFeatureNormalFilterEdgeIndicator = summary.normalFilter.meanEdgeIndicator;
+    report.graphConsolidationBridges = summary.graphConsolidationBridges;
+    report.graphConsolidationSkippedByCap = summary.graphConsolidationSkippedByCap;
+    report.junctionBranchPairs = summary.junctionBranchPairs;
+    report.ambiguousFeatureJunctions = summary.ambiguousFeatureJunctions;
 }
 
 } // namespace manumesh::simplification

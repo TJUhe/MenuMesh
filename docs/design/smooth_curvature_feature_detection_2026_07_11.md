@@ -5,7 +5,8 @@ Ohtake edge zero-crossing criterion, Yoshizawa component-strength filter;
 updated 2026-07-13: per-crossing cyclideness gate against spurious responses
 on Dupin cyclides, exposed by the analytic torus fixture; updated 2026-07-15:
 current-source audit, pure supporting-scale vote semantics, exact edge acceptance,
-source locator, CLI/simplifier boundary, and current performance evidence)
+source locator, CLI/simplifier boundary, and current performance evidence;
+updated again 2026-07-15 with opt-in stable-scale selection and stability diagnostics)
 
 This upgrade is limited to triangle and polygon surface meshes. It does not
 introduce B-Rep entities, solid modeling, CAD feature trees, learned scoring,
@@ -35,14 +36,13 @@ The important source locations are:
 | Responsibility | Source symbol | Current location |
 | --- | --- | --- |
 | Public controls and per-vertex result | `FeatureOptions`, `SmoothCurvatureOptions`, `SmoothCurvatureVertex` | `include/algorithms/feature_detection/FeatureTypes.h` |
-| Local normal and k-ring gathering | `computeAreaWeightedVertexNormals`, `gatherNeighborhood` | `src/feature_detection/SmoothCurvature.cpp:78`, `:102` |
-| Cubic Monge fit and robust solve | `fitScale` | `src/feature_detection/SmoothCurvature.cpp:147` |
-| Per-scale ridge/valley classification | `classifyScaleCandidate` | `src/feature_detection/SmoothCurvature.cpp:382` |
-| Cross-scale support vote | `computeSmoothCurvatureFeaturesCached` | `src/feature_detection/SmoothCurvature.cpp:531` |
-| Vertex evidence to mesh-edge evidence | `smoothCurvatureEdgeCandidate` | `src/feature_detection/FeatureEvidence.cpp:382` |
-| Evidence-source materialization | `SmoothCurvatureEvidenceStrategy`, `collectFeatureEdges` | `src/feature_detection/FeatureEvidence.cpp:493`, `:508` |
-| Graph cleanup and component confidence | `cleanupTraceGraph`, `summarizeFeatureComponents` | `src/feature_detection/FeatureGraphCleanup.cpp:493`, `:508` |
-| CLI option binding | `parseFeatureOptions` | `apps/manumesh/CliOptionBinding.cpp:95` |
+| Local normal and k-ring gathering | `computeAreaWeightedVertexNormals`, `gatherNeighborhood` | `src/feature_detection/SmoothCurvature.cpp` |
+| Cubic Monge fit and robust solve | `fitScale` | `src/feature_detection/SmoothCurvature.cpp` |
+| Per-scale ridge/valley classification | `classifyScaleCandidate` | `src/feature_detection/SmoothCurvature.cpp` |
+| Cross-scale support and reference-scale selection | `computeSmoothCurvatureFeaturesCached` | `src/feature_detection/SmoothCurvature.cpp` |
+| Vertex evidence to mesh-edge evidence | `smoothCurvatureEdgeCandidate` | `src/feature_detection/FeatureEvidence.cpp` |
+| Graph cleanup/consolidation | `cleanupTraceGraph`, `consolidateFeatureGraph` | `FeatureGraphCleanup.cpp`, `FeatureGraphCompatibility.cpp`, `FeatureGraphConsolidation.cpp` |
+| CLI option binding | `parseFeatureOptions` | `apps/manumesh/CliOptionBinding.cpp` |
 
 An earlier revision required the coarsest requested scale to support a candidate.
 That veto was removed because it suppressed real features whose physical width
@@ -118,10 +118,13 @@ For every vertex and every requested topological scale:
 8. Score the candidate with scale-normalized curvature magnitude, anisotropy,
    zero-crossing strength (mean |e| times the tangential edge extent, in
    radius-normalized units), and fit residual quality.
-9. Select the valid scale with the highest score as the reference. Every
+9. Select a reference scale. The default keeps the highest-score scale for
+   backward compatibility. With `useStableScaleSelection`, valid candidates
+   are ranked by cross-scale sign/tangent/score consistency and candidates below
+   `minScaleStability` are rejected. Every
    requested scale casts one support vote when all of the following hold:
    (a) it is valid, (b) its score is at least
-   `max(persistenceThreshold, 0.30 * bestScore)`, (c) its signed ridge/valley
+   `max(persistenceThreshold, 0.30 * referenceScore)`, (c) its signed ridge/valley
    kind matches the reference, and (d) the absolute tangent dot product with
    the reference is at least `minTangentConsistency`. Supporting scales do not
    have to be adjacent, and the coarsest requested scale does not have to vote.
@@ -130,7 +133,7 @@ For every vertex and every requested topological scale:
    `persistenceRatio = persistentScales / scaleCount`
 
    `persistentFeatureScore =
-      (0.65 * bestScore + 0.35 * meanSupportedScore)
+      (0.65 * referenceScore + 0.35 * meanSupportedScore)
       * persistenceRatio * meanSupportedAlignment`
 
    Unsupported scales contribute zero to `averageFeatureScore`, whose stored
@@ -173,6 +176,8 @@ strong-evidence gates.
 - `smoothCurvatureScaleCount`
 - `smoothCurvatureMinPersistentScales`
 - `smoothCurvatureRobustFitIterations`
+- `smoothCurvatureUseStableScaleSelection` (default false)
+- `smoothCurvatureMinScaleStability` (default 0.0)
 
 Graph cleanup additionally exposes `featureGraphMinWeakSpurStrength`
 (default 0.0) through C++ `FeatureOptions`, C++ `SimplifyOptions`, both CLI
@@ -194,7 +199,9 @@ The CLI exposes the same controls to `feature-report`, `feature-benchmark`,
 `feature-compare`, and `simplify`. On `simplify`,
 `--smooth-curvature-features` also enables `preserveFeatureCurves`, so the
 detected graph is consumed by the protection policy instead of being computed
-and discarded.
+and discarded. Stable-scale controls are exposed as
+`--smooth-curvature-stable-scale` and
+`--smooth-curvature-min-scale-stability`.
 
 ## Diagnostics
 
@@ -202,7 +209,8 @@ and discarded.
 
 - smooth-curvature scored vertices and graph edges;
 - maximum raw and persistent scores;
-- mean local scale and persistence;
+- mean local scale, persistence, and scale stability;
+- per-vertex `selectedScale` and `scaleStability`;
 - per-edge `smoothCurvature` ownership;
 - per-component smooth-edge count and mean curvature persistence.
 
@@ -292,7 +300,8 @@ Remaining limitations:
 
 ## Simplification boundary
 
-`SimplifyOptions` now mirrors all eight smooth-curvature controls plus
+`SimplifyOptions` mirrors the smooth-curvature controls, including stable-scale
+selection and minimum stability, plus
 `featureGraphMinWeakSpurStrength`; `featureOptionsFromSimplifyOptions` maps them
 without changing thresholds. C++ callers enable both
 `preserveFeatureCurves = true` and `useSmoothCurvatureFeatures = true`. The CLI

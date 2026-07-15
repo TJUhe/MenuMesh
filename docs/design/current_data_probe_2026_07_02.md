@@ -44,7 +44,7 @@ stepped-shaft, pipe-coupling, pulley
 
 ## 当前测试覆盖
 
-`cmake -E chdir build/mingw-ninja-release ctest -N` 在本文成文时（2026-07-02）显示 CTest 共 80 个；2026-07-15 当前复核为启用的非性能 CTest 共 258 个（快速套件 `-LE "performance|external"` 247 个 + external 大网格 11 个），新增部分主要是解析真值测试、性能护栏、纹理/光滑曲率、OBJ ear clipping、C ABI 尾字段和 architecture 守卫用例，分层说明见 [`testing_strategy.md`](testing_strategy.md)。覆盖：
+`cmake -E chdir build/mingw-ninja-release ctest -N` 在本文成文时（2026-07-02）显示 CTest 共 80 个；2026-07-15 当前复核为启用的非性能 CTest 共 267 个（快速套件 `-LE "performance|external"` 256 个 + external 大网格 11 个），另有 1 个 disabled 手工计时用例。新增覆盖包括 normal filter、stable scale、component consolidation、junction branches、surface patches 和扩展 benchmark；分层说明见 [`testing_strategy.md`](testing_strategy.md)。覆盖：
 
 - CLI 基本行为和错误拒绝。
 - 示例程序构建/运行。

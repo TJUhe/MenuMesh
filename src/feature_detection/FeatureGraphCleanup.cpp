@@ -2,6 +2,7 @@
 
 #include "common/detail/MeshQueries.h"
 #include "detail/FeatureGraph.h"
+#include "detail/FeatureGraphCompatibility.h"
 
 #include <algorithm>
 #include <cmath>
@@ -28,6 +29,7 @@ struct GapCandidate {
     /// Direction-aware ranking key: distance divided by the mean tangential
     /// alignment of the two endpoint tangents with the connecting segment.
     double score = 0.0;
+    int signedKind = 0;
 };
 
 double meanPositiveScale(const std::vector<double>& scales, double fallback) {
@@ -308,8 +310,15 @@ void bridgeEndpointGaps(
             if (!alignment.compatible) {
                 continue;
             }
+            const TraceEdgeAttrs* aAttrs = traceEdgeAttrs(trace, a.vertex, a.neighbor);
+            const TraceEdgeAttrs* bAttrs = traceEdgeAttrs(trace, b.vertex, b.neighbor);
+            if (!compatibleFeatureEvidence(aAttrs, bAttrs)) {
+                continue;
+            }
             const double score = distance / std::max(0.5, alignment.meanAlignment);
-            candidates.push_back(GapCandidate{a.vertex, b.vertex, distance, score});
+            candidates.push_back(
+                GapCandidate{a.vertex, b.vertex, distance, score, compatibleSignedKind(aAttrs, bAttrs)}
+            );
         }
     }
 
@@ -331,6 +340,7 @@ void bridgeEndpointGaps(
         bridge.a = candidate.a;
         bridge.b = candidate.b;
         bridge.cleanupBridge = true;
+        bridge.signedKind = candidate.signedKind;
         addTraceGraphEdge(trace, analysis, bridge);
         used.insert(candidate.a);
         used.insert(candidate.b);
@@ -382,12 +392,30 @@ void bridgeCloseJunctions(
                 0.5 * options.featureGraphGapLengthRatio *
                 (vertexScale(localScale, a, fallbackScale) + vertexScale(localScale, b, fallbackScale));
             if (distance <= allowed) {
-                candidates.push_back(GapCandidate{a, b, distance, distance});
+                const ContinuationBranch aBranch = bestContinuationBranch(mesh, trace, a, b, 0.35);
+                const ContinuationBranch bBranch = bestContinuationBranch(mesh, trace, b, a, 0.35);
+                if (aBranch.neighbor < 0 || bBranch.neighbor < 0 ||
+                    !compatibleFeatureEvidence(aBranch.attrs, bBranch.attrs)) {
+                    continue;
+                }
+                const double alignmentPenalty = 0.5 * (2.0 - aBranch.alignment - bBranch.alignment);
+                candidates.push_back(
+                    GapCandidate{
+                        a,
+                        b,
+                        distance,
+                        distance + allowed * alignmentPenalty,
+                        compatibleSignedKind(aBranch.attrs, bBranch.attrs),
+                    }
+                );
             }
         }
     }
 
     std::sort(candidates.begin(), candidates.end(), [](const GapCandidate& lhs, const GapCandidate& rhs) {
+        if (lhs.score != rhs.score) {
+            return lhs.score < rhs.score;
+        }
         if (lhs.distance != rhs.distance) {
             return lhs.distance < rhs.distance;
         }
@@ -402,6 +430,7 @@ void bridgeCloseJunctions(
         bridge.a = candidate.a;
         bridge.b = candidate.b;
         bridge.cleanupBridge = true;
+        bridge.signedKind = candidate.signedKind;
         addTraceGraphEdge(trace, analysis, bridge);
         used.insert(candidate.a);
         used.insert(candidate.b);
@@ -556,6 +585,8 @@ void summarizeFeatureComponents(
                             ++component.nonManifoldEdges;
                         if (attrs->cleanupBridge)
                             ++component.cleanupBridgeEdges;
+                        if (attrs->consolidationBridge)
+                            ++component.consolidationBridgeEdges;
                     }
                 }
                 if (!visited[nb]) {
@@ -566,8 +597,8 @@ void summarizeFeatureComponents(
         }
 
         component.strongEvidenceEdges = component.boundaryEdges + component.dihedralEdges + component.nonManifoldEdges;
-        component.weakEvidenceEdges =
-            component.normalTensorEdges + component.smoothCurvatureEdges + component.cleanupBridgeEdges;
+        component.weakEvidenceEdges = component.normalTensorEdges + component.smoothCurvatureEdges +
+                                      component.cleanupBridgeEdges + component.consolidationBridgeEdges;
         component.cycleRank = component.edgeCount - static_cast<int>(component.vertices.size()) + 1;
         component.closed = component.endpointVertices == 0 && component.edgeCount > 0 && component.cycleRank >= 0;
         component.closureRate = computeClosureRate(component.endpointVertices, component.cycleRank);

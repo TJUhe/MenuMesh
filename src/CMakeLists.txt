@@ -62,20 +62,25 @@ if(MANUMESH_ENABLE_DEBUG_UTIL)
 endif()
 
 set(MANUMESH_FEATURE_DETECTION_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureBenchmark.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCircularRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureComparison.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCycleRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureDetector.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureEvidence.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureGraph.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureGraphCompatibility.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureGraphCleanup.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureGraphConsolidation.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureLoopBuilder.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureLoopRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeaturePrimitiveRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureTraceRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/NormalTensor.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureNormalFilter.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureSegmentation.cpp"
 )
 
 if(MINGW)
@@ -137,10 +142,14 @@ set(MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureDetectionTypes.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureEvidence.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureGraph.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureGraphCompatibility.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureGraphCleanup.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureGraphConsolidation.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureLoopBuilder.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureLoopRecovery.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeaturePrimitiveRecovery.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureNormalFilter.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureSegmentation.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureTraceRecovery.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/PrimitiveFit.h"
 )

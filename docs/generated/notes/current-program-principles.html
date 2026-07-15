@@ -247,12 +247,12 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code>、<code>src/common/GeometryPredicates.cpp</code>、<code>src/common/SpatialIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">docs/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">docs/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">docs/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
     <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、dihedral、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">docs/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Normal Tensor / Weak Feature Evidence</h3><p><strong>代码：</strong><code>NormalTensor.cpp</code> 使用局部边长归一化、多尺度 smoothing/persistence；<code>FeatureEvidence.cpp</code> 用 persistent score 和切线对齐接受弱边。</p><p><strong>引用：</strong>M015 normal tensor，M012/M013 normal voting，M009 multi-scale creases。</p><span class="doc-path">docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</span><span class="doc-path">docs/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</span><span class="doc-path">docs/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</span><span class="doc-path">docs/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</span></article>
-    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code> 做短 gap 桥接、弱 spur 删除、junction 合并，并输出 <code>FeatureComponent</code> confidence 给 QEM 消费。</p><p><strong>引用：</strong>M016 graph continuity，M024/M025 segmentation loop closure，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/segmentation/liu_ramani_2010_edge_based_mesh_segmentation_engineering_objects.pdf</span><span class="doc-path">docs/papers/segmentation/mizoguchi_2006_scanned_mesh_analytic_surfaces_region_growing.pdf</span><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Consolidation / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code>、<code>FeatureGraphCompatibility.cpp</code>、<code>FeatureGraphConsolidation.cpp</code> 做弱 spur、兼容 bridge 和跨 component recovery，并输出 confidence。</p><p><strong>引用：</strong>M016/M044 graph continuity，M024/M025 segmentation，M026 weak-feature consolidation。</p><span class="doc-path">docs/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">docs/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">docs/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
-    <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureEdges()</code> 输出 edge precision/recall、junction F1、loop closure、component confidence 与 feature drift。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 feature-preserving simplification 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
+    <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureAnalysis()</code> 输出 edge/junction/branch-pair F1、patch adjacency accuracy、loop closure 与 component confidence。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 curve-network 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
     <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>确定性曲率 ridge/valley 已于 2026-07 落地为 opt-in 的 smooth-curvature 弱证据路径（<code>SmoothCurvature.cpp</code>，默认关闭）；wireframe/neural edge、learned QEM 仍作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">docs/papers/feature_detection/</span><span class="doc-path">docs/papers/neural_and_temporal_qem/</span><span class="doc-path">docs/papers/mesh_generation/</span></article>
   </div>
-  <p>一句话总览：ManuMesh 当前默认路线是 <strong>CAD/STL 离散证据 + normal-tensor 弱特征 + feature graph cleanup + component confidence + QEM/line-quadrics edge collapse + hard legality guards</strong>；neural/wireframe 是后续 benchmark 与增强方向。</p>
+  <p>一句话总览：默认路线仍是 <strong>CAD/STL evidence + normal-tensor + cleanup/confidence + QEM/line-quadrics + hard guards</strong>；normal filter、stable scale、component consolidation 和 surface patches 为 opt-in，neural/wireframe 只作对照。</p>
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
 <section class="feature-recognition-brief qem-quadrics-expansion">
   <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
@@ -1030,7 +1030,7 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 
 <pre><code>100% tests passed, 0 tests failed out of 247 enabled tests</code></pre>
 
-<p>快速套件 <code>-j 10</code> 在本机 MinGW Release 下并行实测约 2 秒（受环境影响）；加上 11 个 external 大网格用例的全量非性能套件是 <code>-LE performance</code>，共 258 个启用用例。其中包括 C API 尾字段兼容、局部误差/相交 guard、曲线预算、FeatureGraph、normal tensor、smooth-curvature 主入口、OBJ ear clipping、多数据集 validation gate、Casting/Fandisk 拓扑合法性，以及解析真值测试和两个性能护栏。另有独立 performance 构建的 4 个数据集用例。测试分层、解析 fixture 设计与新增测试注册方式见 <code>docs/design/testing_strategy.md</code>。</p>
+<p>2026-07-15 快速套件有 256 个启用用例，另有 1 个 disabled 手工计时用例；加上 11 个 external 大网格用例的全量非性能套件共 267 个。新增覆盖包括 normal filter、stable scale、component consolidation、junction branches、surface patches、同侧 branch 拒配和缺失 patch prediction 计错。测试分层见 <code>docs/design/testing_strategy.md</code>。</p>
 
 <h3>10.7 VS Code 演示路线</h3>
 
@@ -1202,17 +1202,18 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <li>由第一/第二基本形式解广义自伴特征问题，得到两条带符号主曲率与主方向；</li>
 <li>由三次项解析计算 extremality <code>e_i = ∇κ_i · t_i</code>，并用 Ohtake（M011）的边零交叉极值判据判定 ridge/valley：极值点位于 <code>e</code> 沿网格边变号处（替代旧的“邻居法曲率对比”采样，同样排除圆柱侧壁这类“曲率大但不是极值”的均匀弯曲区域）；</li>
 <li>打分融合尺度归一化曲率幅值、各向异性、极值对比度、拟合残差质量；</li>
-<li>以最高分尺度为参照，让所有请求尺度独立投票：分数须达到 <code>max(绝对阈值, 0.30·bestScore)</code>，并满足 signed kind 与切向一致；支持尺度不要求相邻，最粗尺度没有特殊否决权。精确公式与源码索引见 <a href="manumesh-feature-recognition-pipeline.html#smooth-curvature">特征识别全链路</a>（<code>SmoothCurvature.cpp:579-639</code>）；</li>
+<li>默认以最高分尺度为参照；opt-in stable-scale 模式改按跨尺度 sign/tangent/score 一致性选择，并输出 <code>selectedScale</code> / <code>scaleStability</code>。支持尺度独立投票，不要求相邻，最粗尺度没有特殊否决权；</li>
 <li>两端点在符号、切向、尺度支持、边对齐上一致时，才把顶点证据转成 mesh-edge 证据。</li>
 </ol>
-<p><code>FeatureOptions</code> 的新字段与默认值：<code>useSmoothCurvatureFeatures=false</code>（opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面两种场景需要不同阈值和验证集）、<code>smoothCurvatureFeatureThreshold=0.015</code>、<code>smoothCurvatureMinEdgeAlignment=0.55</code>、<code>smoothCurvatureMinTangentConsistency=0.65</code>、<code>smoothCurvatureBaseNeighborhoodRings=2</code>（one-ring 拟合对噪声过敏）、<code>smoothCurvatureScaleCount=3</code>、<code>smoothCurvatureMinPersistentScales=2</code>、<code>smoothCurvatureRobustFitIterations=2</code>。诊断层面：graph edge 来源标记新增 <code>smoothCurvature</code>，component 统计新增 <code>smoothCurvatureEdges</code>、<code>meanCurvaturePersistence</code>，<code>FeatureAnalysis</code> 新增 <code>smoothCurvatureFeatureEdges</code>、<code>smoothCurvatureScoredVertices</code>、<code>maxSmoothCurvatureFeatureScore</code>、<code>maxSmoothCurvaturePersistentScore</code>、<code>meanSmoothCurvatureLocalScale</code>、<code>meanSmoothCurvaturePersistence</code>。CLI 的 feature-analysis 命令和 <code>simplify</code> 都接受 8 个 <code>--smooth-curvature-*</code> 选项；<code>simplify --smooth-curvature-features</code> 自动开启 feature-curve policy。feature-report 与 simplify 的报告/CSV 同步输出 smooth-curvature、绕向冲突、cleanup cap 和 circular recovery 截断诊断；C++ 还可继续消费预计算 <code>FeatureAnalysis</code>。</p>
+<p><code>FeatureOptions</code> 保留既有 smooth-curvature defaults，并新增 stable-scale controls；另有默认关闭的 <code>normalFilter</code>、<code>graphConsolidation</code> 和 <code>surfacePatches</code>。CLI feature-analysis 接入全部选项，<code>simplify</code> 接入 smooth/stable-scale、normal-filter 和 consolidation；surface patches 不参与 collapse。报告/CSV 同步输出 stability/filter/consolidation/junction/patch 与既有 winding/cleanup/recovery 诊断。</p>
 
 <h3>B.4 第三层：trace graph 和 cleanup 把候选边变成曲线</h3>
 <p>一堆边还不能保护特征。QEM 需要知道“哪些顶点属于同一条曲线”“这条曲线闭合吗”“junction 是真实分叉还是噪声造成的断裂”。因此 <code>FeatureGraph.cpp</code> 先把候选 edge 加入 trace graph，<code>FeatureGraphCleanup.cpp</code> 再做三类整理。</p>
 <ol class="feature-flow-list">
 <li><strong>短 gap 桥接：</strong>如果两个 endpoint 在局部尺度下足够近、方向也合理，就用 <code>cleanupBridge=true</code> 的边补上断裂。bridge 会被报告出来，不会伪装成原始 dihedral/boundary。</li>
 <li><strong>弱 spur 删除：</strong>如果一个短枝只由 normal-tensor 或 smooth-curvature 弱证据支持，且没有 boundary/dihedral/non-manifold/cleanup-bridge 支持，就按边数或可选 Yoshizawa 强度删除。</li>
-<li><strong>近 junction 合并：</strong>很多 STL 在角点附近会出现多个几乎重合的分支点；合并可减少断裂 loop，但当前实现只有局部尺度距离门控，没有 endpoint bridge 的双端切向复核，存在误合并风险。</li>
+<li><strong>近 junction 合并：</strong>双端 continuation、evidence source 与 signed kind 必须兼容；仍是局部一对一贪心，密集网络可能选错候选。</li>
+<li><strong>跨 component consolidation（opt-in）：</strong>cleanup 后只连接不同 component 的 degree-1 endpoints，按局部尺度距离与 alignment penalty 排序，并独立报告 <code>consolidationBridge</code>。</li>
 </ol>
 <p>这里对应 M016 的 CAD feature graph 连续性，也对应 M024/M025 的 segmentation 前提：没有闭合、连续、可追踪的边界，后续 patch segmentation 或 primitive fitting 就会泄漏。M026 CWF 则提醒我们，弱特征要先 consolidated 成稳定 support，再决定是软保护、硬保护还是后处理 relocation。</p>
 
@@ -1235,7 +1236,7 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <tr><td>feature-curve quadric</td><td>软成本</td><td>可信但不需要完全锁死的曲线、弱 ridge、generic polygonal feature。</td><td>权重过小会漂移，过大可能压过 plane QEM。</td></tr>
 <tr><td>primitive deviation budget</td><td>硬 guard</td><td>圆孔、椭圆孔、制造语义明确的闭合 loop。</td><td>目标 ratio 太低时可能导致大量 <code>featureRejectedCollapses</code>。</td></tr>
 <tr><td>feature protection mode</td><td>策略层</td><td><code>primitive-curves</code>、<code>circular-only</code>、<code>all-feature-edges</code> 等不同保守程度。</td><td>全部硬锁通常能保特征，但可能牺牲面数、质量和局部 valence。</td></tr>
-<tr><td>benchmark / diagnostics</td><td>验证层</td><td>precision/recall、loop closure、junction F1、feature drift/Hausdorff envelope。</td><td>只看 feature 数量会掩盖误连、断裂和漂移。</td></tr>
+<tr><td>benchmark / diagnostics</td><td>验证层</td><td>edge/junction/branch-pair F1、patch adjacency、loop closure、feature drift/Hausdorff envelope。</td><td>只看 feature 数量会掩盖误连、断裂、分区泄漏和漂移。</td></tr>
 </table>
 
 <h3>B.7 调试特征识别时按这个顺序看</h3>
@@ -1262,10 +1263,10 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <tr><td>3. 弱证据打分</td><td>局部边长、顶点一环/多尺度邻域、面法向分布。</td><td><code>persistentFeatureScore</code>、<code>persistentScales</code>、crease tangent、normal-tensor edge。</td><td>弱特征召回低看 threshold/persistence；假阳性多看两端点分数和 edge/tangent alignment。注意 normal-tensor 对齐使用两端最大值。</td><td><code>NormalTensor.cpp</code>、<code>FeatureEvidence.cpp:330-380</code>；M009、M012/M013、M015。</td></tr>
 <tr><td>3b. 光滑曲率打分（opt-in）</td><td>k-ring 邻域、局部平均边长、逐尺度 Monge patch 拟合。</td><td>带符号主曲率/方向、方向极值、persistence 过滤后的 smooth-curvature edge 证据。</td><td>平面误报看 threshold 与残差质量；漏检看 base rings/scale count；碎裂看 tangent consistency 与 edge alignment。</td><td><code>SmoothCurvature.cpp</code>、<code>FeatureEvidence.cpp</code>；M014/M042-M044、M026。</td></tr>
 <tr><td>4. trace eligibility</td><td>所有 edge evidence 和 trace 阈值。</td><td>进入 trace graph 的边集合。</td><td>诊断里有 feature edge 但没有 loop，先看 <code>loopTraceAngleDeg</code> 是否比 evidence 阈值更严。</td><td><code>FeatureGraph.cpp</code>；M018/M019。</td></tr>
-<tr><td>5. graph cleanup</td><td>候选边图、局部尺度、端点方向、证据强弱。</td><td>bridged gap、removed spur、merged junction、清理后的 component。</td><td><code>graphCleanupBridgedGaps</code> 很高说明断裂多；<code>RemovedSpurs</code> 很高说明 tensor 噪声多。</td><td><code>FeatureGraphCleanup.cpp</code>；M024/M025、M026。</td></tr>
+<tr><td>5. graph cleanup / consolidation</td><td>候选图、局部尺度、branch directions、source/sign。</td><td>cleanup/consolidation bridges、removed spur、恢复后的 component。</td><td>bridge 多看兼容规则和局部贪心；spur 多区分 tensor/curvature noise。</td><td><code>FeatureGraphCleanup.cpp</code>、<code>FeatureGraphCompatibility.cpp</code>、<code>FeatureGraphConsolidation.cpp</code>；M026/M044。</td></tr>
 <tr><td>6. loop / chain recovery</td><td>清理后的 feature graph。</td><td><code>FeatureLoop</code>，包含闭合状态、顶点序列、component ownership。</td><td>edge 数很多但 loop 少，说明图连通性、junction 或 gap closure 仍不够。</td><td><code>FeatureLoopBuilder.cpp</code>、<code>FeatureTraceRecovery.cpp</code>；M016、M024。</td></tr>
 <tr><td>7. primitive fitting</td><td>loop 顶点序列与三维坐标。</td><td>circle / near-circle / ellipse / polygonal primitive、plane residual、radial residual。</td><td>圆孔没有 primitive，先看 loop 是否闭合、是否共面、顶点数是否足够。</td><td><code>PrimitiveFit.cpp</code>、<code>FeatureCircularRecovery.cpp</code>；M007、M024/M025。</td></tr>
-<tr><td>8. component confidence</td><td>强证据比例、弱证据比例、闭合率、junction 数、primitive residual。</td><td><code>weakFeatureComponents</code>、<code>highConfidenceFeatureComponents</code>、<code>meanFeatureComponentConfidence</code>。</td><td>confidence 偏低时不应直接提高 QEM 权重，应先找是哪一个分量拖低了分数。</td><td><code>FeatureTypes.h</code>、<code>FeatureGraphCleanup.cpp</code>；M026、M028/M029。</td></tr>
+<tr><td>8. component / junction / patches</td><td>证据比例、闭合率、junction branches、primitive residual、feature barriers。</td><td>confidence、branch pairs/ambiguity、facePatchIds/patch adjacency。</td><td>confidence 低先找 component；patch leakage/oversegmentation 先看 barrier precision。</td><td><code>FeatureGraphCleanup.cpp</code>、<code>FeatureGraph.cpp</code>、<code>FeatureSegmentation.cpp</code>；M024-M026/M044。</td></tr>
 <tr><td>9. QEM 消费</td><td><code>VertexFeature</code>、loop primitive、component confidence、tangent。</td><td>feature-curve quadric、primitive deviation guard、rejection counters。</td><td>检测正确但 drift 大，看 <code>featureCurveWeight</code>；拒绝过多看 hard budget 和目标 ratio。</td><td><code>Quadrics.cpp</code>、<code>FeatureConstraints.cpp</code>；M002、M004、M033。</td></tr>
 </table>
 
@@ -1277,8 +1278,8 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <tr><td>M016 CAD triangular feature line extraction</td><td>离散边要被追踪成连续 feature line 才能服务工程任务。</td><td>使用 trace graph、loop builder、primitive fitting，而不是只返回 edge set。</td><td>还没有复杂 junction 的全局最优 graph search。</td></tr>
 <tr><td>M018/M019 polygon crawling</td><td>沿 polygon adjacency crawl 是 CAD/STL 上实用的边界提取方式，但对断裂敏感。</td><td>gap bridge、junction merge、loop closure 直接服务 crawling 后的连通性。</td><td>还没有按 patch 语义做区域互证。</td></tr>
 <tr><td>M009/M012/M013/M015 normal tensor / voting</td><td>局部法向分布比单条边二面角更能解释噪声和浅折痕。</td><td>局部尺度归一化、多尺度 persistence、端点最小分数、tangent alignment。</td><td>还没有完整各向异性张量扩散和曲率导数级 ridge/valley tracing。</td></tr>
-<tr><td>M024/M025 segmentation</td><td>后续分割需要闭合且可信的边界，不需要一堆松散高分边。</td><td>component confidence 里显式看 closure、junction 和 residual。</td><td>还没有把 feature loop 反向喂给 region growing / analytic patch fit。</td></tr>
-<tr><td>M026 CWF weak-feature consolidation</td><td>弱特征应先 consolidated 成支持结构，再决定保护策略。</td><td>弱/强 component 统计、cleanup 诊断、soft feature-curve cost。</td><td>质量型二轮 refinement 已实现；仍缺 CWF 式全局弱特征 relocation。</td></tr>
+<tr><td>M024/M025 segmentation</td><td>后续分割需要闭合且可信的边界。</td><td>已输出 feature-induced face patches 与 adjacency。</td><td>仍缺 region merge / analytic patch fit / CAD surface classification。</td></tr>
+<tr><td>M026 CWF weak-feature consolidation</td><td>弱特征应先 consolidated 成支持结构，再决定保护策略。</td><td>component confidence、兼容 endpoint consolidation、soft feature-curve cost。</td><td>仍缺 CWF 式全局 relocation/optimization。</td></tr>
 <tr><td>M002/M004/M033 QEM / line quadrics / edge-collapse engineering</td><td>QEM 是 ranking backbone，line quadrics 控制漂移，但生产代码还需要 legality guards。</td><td>feature-curve quadric + primitive hard budget + topology/quality/normal/local-error guards + 固定拓扑质量 refinement。</td><td>已有原始曲面 BVH 近似包络；仍缺可证明的全局 Hausdorff 上界。</td></tr>
 </table>
 
@@ -1440,7 +1441,7 @@ E_uv_local = edgeLength^2 * Σ(faceArea * cornerUvDisplacement^2) / meanLocalUvE
 </ol>
 
 <h3>A.15 当前算法和文献路线的关系</h3>
-<p>本地文献库建议的顺序是：先做确定性几何 baseline，再做弱特征 consolidation 和 benchmark，最后再考虑 neural/wireframe。当前代码正处在第二阶段：已经不只是 standard QEM，也还没有把 neural edge fields 当作默认核心。</p>
+<p>本地文献库建议先做确定性 baseline，再做可测的 consolidation、junction/patch 语义和 benchmark，最后再考虑 neural/wireframe。当前代码已完成局部 consolidation、branch/patch benchmark，但仍坚持 neural edge fields 不作为默认核心。</p>
 
 <table>
 <tr><th>文献路线</th><th>当前状态</th><th>为什么不是一步到位</th></tr>
@@ -1448,7 +1449,7 @@ E_uv_local = edgeLength^2 * Σ(faceArea * cornerUvDisplacement^2) / meanLocalUvE
 <tr><td>Line Quadrics</td><td>已实现，用小权重做正则</td><td>直接补 QEM 平坦区弱约束</td></tr>
 <tr><td>CAD feature-line extraction</td><td>已实现几何工程版：dihedral/boundary/trace/primitive</td><td>适合 STL/OBJ 输入，没有依赖 B-Rep</td></tr>
 <tr><td>Normal tensor / voting</td><td>已实现多尺度弱特征证据</td><td>作为补充通道，不替代硬 CAD evidence</td></tr>
-<tr><td>CWF 弱特征 consolidation</td><td>部分实现：component confidence 和 cleanup</td><td>完整 CWF 需要更多 benchmark 和 relocation</td></tr>
+<tr><td>CWF 弱特征 consolidation</td><td>局部工程子集：component confidence + compatible endpoint consolidation</td><td>完整 CWF 仍需要 relocation/optimization 和更多 scan benchmark</td></tr>
 <tr><td>Neural edge / wireframe</td><td>未作为默认核心</td><td>需要训练分布、标签、OOD 验证；更适合后续离线对照</td></tr>
 </table>
 

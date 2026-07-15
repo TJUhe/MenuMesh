@@ -4,6 +4,8 @@
 对标对象：Polygonica（商用网格内核）、OpenMesh、pmp-library、
 CGAL Polygon Mesh Processing（PMP）。
 
+> **后续同步（2026-07-15）**：特征检测已继续按本蓝图的职责拆分原则演进为九阶段编排，并新增独立的 normal filter、graph compatibility/consolidation、benchmark 和 segmentation translation units。当前实现契约见 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md)；本文其余性能数字和立项描述保留为 2026-07-12 决策快照。
+
 > **实施状态（2026-07-12 已落地）**：R1–R7 的第一至三批与 R6 已全部实现并合入本分支，
 > 具体状态见 R8 汇总表的"状态"列。本文其余部分保留立项时的论证与方案原文，
 > 作为决策记录；与实现的逐项对应见 `CHANGELOG.md` 2026-07-12 小节。落地要点：

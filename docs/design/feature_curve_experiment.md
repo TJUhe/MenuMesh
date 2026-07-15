@@ -42,6 +42,19 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
   --samples 512 --metrics-csv output/vscode_demo/coaxial_feature_curves_metrics.csv
 ```
 
+## 噪声、consolidation 与 patch 实验
+
+```powershell
+& $exe feature-report input_noisy.stl `
+  --feature-normal-filter `
+  --smooth-curvature-features --smooth-curvature-stable-scale `
+  --feature-graph-consolidation `
+  --surface-patches `
+  --csv output/vscode_demo/noisy_feature_patches.csv
+```
+
+这组开关均为 opt-in。实验要分别比较开关前后 normal angular change、smooth scale stability、consolidation bridge、junction branch pair、surface patch/adjacency 和 ignored recovery edge；不能只比较总 feature edge 数。patch leakage 可先用 `--surface-patches-strong-only` 排除 weak barrier，再判断问题来自弱 evidence 还是硬边漏检。
+
 ## 判断标准
 
 - `termination_reason` 优先希望为 `reached-target`。
@@ -50,6 +63,9 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 - `curve_budget_rejected_collapses` 过高说明曲线预算太紧。
 - `generic_feature_rejected_collapses` 过高通常说明不应使用 `all-feature-edges`。
 - STL 视觉检查应重点看孔边是否变成明显多边形、椭圆是否被拉圆、薄边是否翻折。
+- 启用 normal filter 时，圆柱 rim 等真实大角度边必须保持；changed faces 增加本身不是成功指标。
+- 启用 consolidation 时，closure 应改善且 branch-pair precision 不应明显下降。
+- 启用 patches 时，比较 patch adjacency，而不是依赖 patch id 的具体编号。
 
 这些字段对应不同算法层：`feature_loops` 来自 feature graph，`projected_feature_placements` 来自 placement 投影，`curve_budget_rejected_collapses` 来自投影前预算，`generic_feature_rejected_collapses` 来自硬保护策略。若某项异常，优先回到对应层调参。
 

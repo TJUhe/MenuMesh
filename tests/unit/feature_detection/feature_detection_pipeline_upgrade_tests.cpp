@@ -1,0 +1,295 @@
+#include "AnalyticFixtures.h"
+#include "FeatureDetectionTestSupport.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
+#include "common/detail/MeshQueries.h"
+#include "detail/FeatureDetectionCache.h"
+#include "detail/FeatureDetectionTypes.h"
+#include "detail/FeatureGraph.h"
+#include "detail/FeatureGraphConsolidation.h"
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+namespace manumesh::tests {
+namespace analytic = manumesh::test::analytic;
+namespace {
+
+feature::FeatureOptions hardFeatureOptions() {
+    feature::FeatureOptions options;
+    options.featureAngleDeg = 40.0;
+    options.loopTraceAngleDeg = 40.0;
+    options.useNormalTensorFeatures = false;
+    options.cleanupFeatureGraph = true;
+    return options;
+}
+
+Mesh makeSeparatedAlignedChains() {
+    Mesh mesh;
+    mesh.vertices = {
+        Vec3(0.0, 0.0, 0.0),
+        Vec3(1.0, 0.0, 0.0),
+        Vec3(2.0, 0.0, 0.0),
+        Vec3(3.0, 0.0, 0.0),
+        Vec3(4.0, 0.0, 0.0),
+        Vec3(5.0, 0.0, 0.0),
+        Vec3(2.5, 1.0, 0.0),
+    };
+    mesh.faces = {
+        Face{{0, 1, 6}},
+        Face{{1, 2, 6}},
+        Face{{3, 4, 6}},
+        Face{{4, 5, 6}},
+    };
+    return mesh;
+}
+
+void addWeakEdge(
+    feature::detector_detail::TraceGraph& trace,
+    feature::FeatureAnalysis& analysis,
+    int first,
+    int second,
+    int signedKind
+) {
+    feature::detector_detail::CandidateEdge edge;
+    edge.a = first;
+    edge.b = second;
+    edge.normalTensor = true;
+    edge.tensorPersistentScore = 0.3;
+    edge.tensorPersistentScales = 3;
+    edge.signedKind = signedKind;
+    feature::detector_detail::addTraceGraphEdge(trace, analysis, edge);
+}
+
+} // namespace
+
+TEST(FeatureDetectionUpgrade, NormalFilterStabilizesNoisyNormalsAndPreservesRims) {
+    const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 12, 1.0, 2.0, true);
+    const Mesh noisy =
+        analytic::withDeterministicNoise(cylinder.mesh, 0.08 * analytic::meanEdgeLength(cylinder.mesh), 20260715u);
+
+    feature::FeatureNormalFilterOptions filterOptions;
+    filterOptions.enabled = true;
+    filterOptions.iterations = 4;
+    filterOptions.angleSigmaDeg = 18.0;
+    filterOptions.preserveAngleDeg = 55.0;
+    const feature::FeatureNormalFilterResult filtered = feature::filterFeatureNormals(noisy, filterOptions);
+
+    ASSERT_EQ(noisy.faces.size(), filtered.faceNormals.size());
+    EXPECT_EQ(4, filtered.report.iterationsCompleted);
+    EXPECT_GT(filtered.report.changedFaces, 0);
+    EXPECT_GT(filtered.report.preservedEdges, 0);
+    EXPECT_GT(filtered.report.meanAngularChangeDeg, 0.0);
+    for (const Vec3& normal : filtered.faceNormals) {
+        if (normal.squaredNorm() > 1e-30) {
+            EXPECT_NEAR(1.0, normal.norm(), 1e-12);
+        }
+    }
+
+    feature::FeatureOptions options = hardFeatureOptions();
+    options.circleFitRelativeThreshold = 0.10;
+    options.normalFilter = filterOptions;
+    const feature::FeatureAnalysis analysis = feature::detectFeatureCurves(noisy, options);
+    const feature::FeatureEdgeBenchmark benchmark =
+        feature::benchmarkFeatureEdges(analysis, cylinder.groundTruthFeatureEdges());
+    EXPECT_EQ(4, analysis.normalFilter.iterationsCompleted);
+    EXPECT_GE(benchmark.edgeRecall, 0.95);
+}
+
+TEST(FeatureDetectionUpgrade, StableScaleSelectionReportsPersistentReferenceScale) {
+    const analytic::GaussianRidgeSheetFixture ridge = analytic::makeGaussianRidgeSheet(48, 2.0, 0.35, 6.0);
+    feature::SmoothCurvatureOptions options;
+    options.baseNeighborhoodRings = 2;
+    options.scaleCount = 4;
+    options.robustFitIterations = 2;
+    options.minTangentConsistency = 0.65;
+    options.useStableScaleSelection = true;
+
+    const std::vector<feature::SmoothCurvatureVertex> values =
+        feature::computeSmoothCurvatureFeatures(ridge.mesh, options, 0.008);
+    int stableCrestVertices = 0;
+    for (int vertex : ridge.interiorCrestVertices()) {
+        if (values[vertex].persistentFeatureScore > 0.008) {
+            EXPECT_GE(values[vertex].selectedScale, 0);
+            EXPECT_LT(values[vertex].selectedScale, options.scaleCount);
+            EXPECT_GT(values[vertex].scaleStability, 0.0);
+            ++stableCrestVertices;
+        }
+    }
+    EXPECT_GT(stableCrestVertices, static_cast<int>(ridge.interiorCrestVertices().size()) / 2);
+}
+
+TEST(FeatureDetectionUpgrade, ConsolidationBridgesOnlyCompatibleComponents) {
+    const Mesh mesh = makeSeparatedAlignedChains();
+    feature::FeatureAnalysis analysis;
+    analysis.vertices.assign(mesh.vertices.size(), feature::VertexFeature{});
+    analysis.graph.vertices.assign(mesh.vertices.size(), feature::FeatureGraphVertex{});
+    feature::detector_detail::TraceGraph trace;
+    trace.adjacency.resize(mesh.vertices.size());
+    trace.traceVertex.assign(mesh.vertices.size(), 0);
+
+    addWeakEdge(trace, analysis, 0, 1, 1);
+    addWeakEdge(trace, analysis, 1, 2, 1);
+    addWeakEdge(trace, analysis, 3, 4, 1);
+    addWeakEdge(trace, analysis, 4, 5, 1);
+
+    feature::FeatureOptions options;
+    options.graphConsolidation.enabled = true;
+    options.graphConsolidation.maxGapLengthRatio = 2.0;
+    options.graphConsolidation.minAlignment = 0.8;
+    feature::detector_detail::FeatureDetectionCache cache(mesh);
+    feature::detector_detail::consolidateFeatureGraph(mesh, options, cache, trace, analysis);
+
+    EXPECT_TRUE(feature::detector_detail::traceGraphHasEdge(trace, 2, 3));
+    EXPECT_EQ(1, analysis.graphConsolidationBridges);
+    const auto bridge = std::find_if(analysis.graph.edges.begin(), analysis.graph.edges.end(), [](const auto& edge) {
+        return edge.consolidationBridge;
+    });
+    ASSERT_NE(analysis.graph.edges.end(), bridge);
+    EXPECT_EQ(1, bridge->signedKind);
+}
+
+TEST(FeatureDetectionUpgrade, ConsolidationRejectsOppositeSignedCurves) {
+    const Mesh mesh = makeSeparatedAlignedChains();
+    feature::FeatureAnalysis analysis;
+    analysis.vertices.assign(mesh.vertices.size(), feature::VertexFeature{});
+    analysis.graph.vertices.assign(mesh.vertices.size(), feature::FeatureGraphVertex{});
+    feature::detector_detail::TraceGraph trace;
+    trace.adjacency.resize(mesh.vertices.size());
+    trace.traceVertex.assign(mesh.vertices.size(), 0);
+
+    addWeakEdge(trace, analysis, 0, 1, 1);
+    addWeakEdge(trace, analysis, 1, 2, 1);
+    addWeakEdge(trace, analysis, 3, 4, -1);
+    addWeakEdge(trace, analysis, 4, 5, -1);
+
+    feature::FeatureOptions options;
+    options.graphConsolidation.enabled = true;
+    options.graphConsolidation.maxGapLengthRatio = 2.0;
+    options.graphConsolidation.minAlignment = 0.8;
+    feature::detector_detail::FeatureDetectionCache cache(mesh);
+    feature::detector_detail::consolidateFeatureGraph(mesh, options, cache, trace, analysis);
+
+    EXPECT_FALSE(feature::detector_detail::traceGraphHasEdge(trace, 2, 3));
+    EXPECT_EQ(0, analysis.graphConsolidationBridges);
+}
+
+TEST(FeatureDetectionUpgrade, JunctionsExposeBranchContinuationPairs) {
+    const analytic::ChamferBoxFixture box = analytic::makeChamferBox(2.0, 0.25, 4);
+    const feature::FeatureAnalysis analysis = feature::detectFeatureCurves(box.mesh, hardFeatureOptions());
+
+    ASSERT_FALSE(analysis.graph.junctionVertices.empty());
+    EXPECT_GT(analysis.junctionBranchPairs, 0);
+    EXPECT_EQ(0, analysis.ambiguousJunctions);
+    for (int junction : analysis.graph.junctionVertices) {
+        const feature::FeatureGraphVertex& vertex = analysis.graph.vertices[junction];
+        EXPECT_GE(vertex.branches.size(), 3u);
+        EXPECT_FALSE(vertex.branchPairs.empty());
+    }
+}
+
+TEST(FeatureDetectionUpgrade, JunctionContinuationDoesNotPairSameSideBranches) {
+    Mesh mesh;
+    mesh.vertices = {
+        Vec3(0.0, 0.0, 0.0),
+        Vec3(1.0, 0.0, 0.0),
+        Vec3(1.0, 0.1, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+    };
+
+    feature::FeatureAnalysis analysis;
+    analysis.vertices.assign(mesh.vertices.size(), feature::VertexFeature{});
+    std::vector<feature::detector_detail::CandidateEdge> edges;
+    for (int neighbor = 1; neighbor < static_cast<int>(mesh.vertices.size()); ++neighbor) {
+        feature::detector_detail::CandidateEdge edge;
+        edge.a = 0;
+        edge.b = neighbor;
+        edge.dihedral = true;
+        edges.push_back(edge);
+    }
+    feature::detector_detail::initializeFeatureGraph(edges, analysis);
+    feature::detector_detail::finalizeFeatureGraphMarkers(mesh, analysis);
+
+    ASSERT_EQ(1u, analysis.graph.junctionVertices.size());
+    const feature::FeatureGraphVertex& junction = analysis.graph.vertices[0];
+    EXPECT_TRUE(junction.branchPairs.empty());
+    EXPECT_TRUE(junction.ambiguousJunction);
+    EXPECT_EQ(1, analysis.ambiguousJunctions);
+}
+
+TEST(FeatureDetectionUpgrade, CappedCylinderPartitionsIntoSideAndCapPatches) {
+    const analytic::CylinderFixture cylinder = analytic::makeCylinder(32, 6, 1.0, 2.0, true);
+    feature::FeatureOptions options = hardFeatureOptions();
+    options.surfacePatches.enabled = true;
+    options.surfacePatches.includeWeakEvidence = false;
+    const feature::FeatureAnalysis analysis = feature::detectFeatureCurves(cylinder.mesh, options);
+
+    EXPECT_EQ(cylinder.mesh.faces.size(), analysis.facePatchIds.size());
+    ASSERT_EQ(3u, analysis.patches.size());
+    EXPECT_EQ(3, analysis.closedSurfacePatches);
+    EXPECT_EQ(2u, analysis.patchAdjacencies.size());
+    for (const feature::FeaturePatch& patch : analysis.patches) {
+        EXPECT_GT(patch.faceCount, 0);
+        EXPECT_TRUE(patch.closed);
+    }
+
+    feature::FeatureBenchmarkLabels labels;
+    labels.facePatchIds.assign(cylinder.mesh.faces.size(), -1);
+    for (int faceId = 0; faceId < static_cast<int>(cylinder.mesh.faces.size()); ++faceId) {
+        const Face& face = cylinder.mesh.faces[faceId];
+        const Vec3 normal = (cylinder.mesh.vertices[face.v[1]] - cylinder.mesh.vertices[face.v[0]])
+                                .cross(cylinder.mesh.vertices[face.v[2]] - cylinder.mesh.vertices[face.v[0]])
+                                .normalized();
+        labels.facePatchIds[faceId] = std::abs(normal.z()) > 0.9 ? (normal.z() > 0.0 ? 1 : 2) : 0;
+    }
+    const feature::FeatureEdgeBenchmark benchmark = feature::benchmarkFeatureAnalysis(cylinder.mesh, analysis, labels);
+    EXPECT_GT(benchmark.labeledFaceAdjacencies, 0);
+    EXPECT_DOUBLE_EQ(1.0, benchmark.patchAdjacencyAccuracy);
+}
+
+TEST(FeatureDetectionUpgrade, PatchBenchmarkDoesNotRewardMissingPredictions) {
+    Mesh mesh;
+    mesh.vertices = {
+        Vec3(0.0, 0.0, 0.0),
+        Vec3(1.0, 0.0, 0.0),
+        Vec3(0.0, 1.0, 0.0),
+        Vec3(1.0, 1.0, 0.0),
+    };
+    mesh.faces = {
+        Face{{0, 1, 2}},
+        Face{{1, 3, 2}},
+    };
+
+    feature::FeatureAnalysis analysis;
+    feature::FeatureBenchmarkLabels labels;
+    labels.facePatchIds = {0, 1};
+    const feature::FeatureEdgeBenchmark benchmark = feature::benchmarkFeatureAnalysis(mesh, analysis, labels);
+
+    EXPECT_EQ(1, benchmark.labeledFaceAdjacencies);
+    EXPECT_EQ(0, benchmark.correctFaceAdjacencies);
+    EXPECT_DOUBLE_EQ(0.0, benchmark.patchAdjacencyAccuracy);
+}
+
+TEST(FeatureDetectionUpgrade, RejectsInvalidUpgradeOptions) {
+    const Mesh mesh = analytic::makeCylinder(16, 2, 1.0, 1.0, true).mesh;
+
+    feature::FeatureOptions options;
+    options.normalFilter.angleSigmaDeg = 0.0;
+    EXPECT_THROW(feature::detectFeatureCurves(mesh, options), std::invalid_argument);
+
+    options = feature::FeatureOptions{};
+    options.smoothCurvatureMinScaleStability = 1.1;
+    EXPECT_THROW(feature::detectFeatureCurves(mesh, options), std::invalid_argument);
+
+    options = feature::FeatureOptions{};
+    options.graphConsolidation.minAlignment = -0.1;
+    EXPECT_THROW(feature::detectFeatureCurves(mesh, options), std::invalid_argument);
+
+    feature::FeatureNormalFilterOptions filterOptions;
+    filterOptions.iterations = feature::kMaxFeatureNormalFilterIterations + 1;
+    EXPECT_THROW(feature::filterFeatureNormals(mesh, filterOptions), std::invalid_argument);
+}
+
+} // namespace manumesh::tests

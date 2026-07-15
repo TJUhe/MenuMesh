@@ -79,11 +79,11 @@
 以 `build/mingw-ninja-release` 为例（2026-07-15 实测，Windows x64 MinGW Release）：
 
 ```
-# 快速套件：247 个启用用例（另有 1 个 DISABLED 计时用例），
+# 快速套件：256 个启用用例（另有 1 个 DISABLED 计时用例），
 # 本机 MinGW Release、-j 10 并行实测约 2 秒（受环境影响）
 ctest --test-dir build/mingw-ninja-release -LE "performance|external" --output-on-failure
 
-# 全量非性能套件：258 个启用用例（快速套件 + 11 个 external 大网格用例）
+# 全量非性能套件：267 个启用用例（快速套件 + 11 个 external 大网格用例）
 ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
 
 # 仅 external 大网格用例（需要 tests/data/external 数据）
@@ -94,7 +94,7 @@ ctest --test-dir <perf-build> -L performance --output-on-failure
 ```
 
 打开 `MANUMESH_ENABLE_INSTALL=ON` 且安装 CMake package config 时，会额外注册
-`sdk_consumer_examples`，因此安装验证配置对应 248 个快速用例、259 个启用的
+`sdk_consumer_examples`，因此安装验证配置对应 257 个快速用例、268 个启用的
 非性能用例。
 
 对应的构建目标：`unit-tests`（等价于快速套件）、`external-tests`、
@@ -121,6 +121,13 @@ O(n²) 回归会超过 10 倍，必然被拦截。历史依据：`Simplification
 `initializeBudget` 缓存为 `meshDiagonal_` 一次性计算。护栏刻意不包含光滑曲率
 通道（16k 面约 6 秒，会撑爆快速套件预算），其功能行为由更小 fixture 上的
 `feature_detection_analytic_tests.cpp` 覆盖。
+
+2026-07-15 新增的
+`tests/unit/feature_detection/feature_detection_pipeline_upgrade_tests.cpp`
+专门保护法线域过滤、stable-scale、兼容 component consolidation、相反
+ridge/valley 符号拒绝、junction branch pairing、三 patch 分区和新 options
+校验。benchmark 标签格式同时覆盖 `edge`、`junction`、`branch`、`face_patch`；
+patch 指标比较相邻 faces 的同/异 patch 关系，避免依赖任意 patch id 编号。
 
 ## 测试组织约定
 

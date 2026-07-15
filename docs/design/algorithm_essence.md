@@ -101,14 +101,16 @@ E_total = E_plane + lambda * E_line
 
 如果把特征保护直接写进 QEM 内部，短期看方便，长期会导致交叉引用：简化器、验证器、修复器、重网格器都会想要“特征”，但特征又被绑死在 QEM 里。当前 ManuMesh 把特征检测提升为 `manumesh::feature`，原因是特征图是一个可复用中间语义，不属于某一个简化算法。
 
-`FeatureAnalysis` 当前包含四类信息：
+`FeatureAnalysis` 当前包含六类信息：
 
 | 信息 | 用途 |
 | --- | --- |
-| `FeatureGraph` | 边、顶点、junction、shared vertex，描述显式特征图结构。 |
+| `FeatureGraph` | 边、顶点、junction、逐分支切向/continuation pair、shared vertex，描述显式特征图结构。 |
 | `FeatureLoop` | chain/loop、闭合性、primitive 类型、半径/轴比/拟合误差。 |
 | `VertexFeature` | 每个顶点的 feature ownership、切向、圆/椭圆投影数据。 |
-| 计数字段 | 诊断边来源：boundary、dihedral、normal-tensor、non-manifold、traced/untraced 和 tensor local-scale/persistence 等。 |
+| `FeatureComponent` | 强/弱 evidence、cleanup/consolidation bridge、closure、persistence、primitive residual 和 confidence。 |
+| `FeaturePatch` / adjacency | 可选的 face partition、面积/法向/边界统计和 patch 邻接。 |
+| 计数字段 | 诊断 evidence、法线过滤、尺度稳定性、cleanup/consolidation、junction、patch、traced/untraced 和 bounded recovery。 |
 
 当前检测器的证据来源：
 
@@ -120,13 +122,20 @@ E_total = E_plane + lambda * E_line
 
 其中 1–3 是离散网格上的“硬证据”（不连续现象），4–5 是光滑表面上的“弱证据”（微分现象）。两路只在显式 `FeatureGraph` 汇合；component 置信度把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据始终占主导。
 
-内部实现按职责拆成小 pipeline：`FeatureEvidence.cpp` 组合多种 edge evidence strategy 并维护来源计数；`FeatureGraph.cpp` 构建 `FeatureGraph` 和 trace graph；`FeatureLoopRecovery.cpp` 只编排恢复顺序；`FeatureCycleRecovery.cpp` 恢复 junction cycle 和小 cycle basis；`FeatureTraceRecovery.cpp` 追踪图上的 open chain / closed loop；`FeaturePrimitiveRecovery.cpp` 处理 primitive component 兜底；`FeatureLoopBuilder.cpp` 负责 loop id、vertex ownership、切向和圆/椭圆投影数据写回；`FeatureCircularRecovery.cpp` 只处理有界三点圆扫描 fallback。随后程序恢复 junction 处可能断裂的 cycle，对闭合 loop 做 primitive fitting。圆、近圆、椭圆和折线 loop 会被写入 `FeatureLoop::primitive`。
+内部实现按职责拆成九阶段 pipeline：`FeatureEvidence.cpp` 组合 edge evidence；`FeatureNormalFilter.cpp` 为噪声输入提供按需法线稳定；`FeatureGraph.cpp` 构图并生成 junction branches；`FeatureGraphCleanup.cpp` 做局部 cleanup；`FeatureGraphCompatibility.cpp` 统一方向/source/sign 规则；`FeatureGraphConsolidation.cpp` 做 opt-in 跨 component gap recovery；五个 recovery 单元恢复 chain/loop/primitive；`FeatureSegmentation.cpp` 最后生成可选 face patches。`FeatureDetector.cpp` 只保留验证、上下文和阶段编排，benchmark 也已下沉到 `FeatureBenchmark.cpp`。
 
 算法出处与影响：
 
 - CAD/STL 线特征、边界/面片边缘检测参考 `docs/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf`、`jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf`。
 - normal tensor 思路参考 `docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf`，也和文献库 source 031、057、066、080 的 normal voting/tensor family 对齐。
+- normal-domain filtering 对应 M009/M012/M013/M015 的“先稳定法向，再分类 crease/junction”路线；当前实现不移动顶点，避免把检测预处理伪装成几何重建。
 - 复杂 CAD wireframe 和 junction 问题可继续参考文献库 source 026、063、067，但当前程序还不是通用 wireframe extractor。
+
+## 现象三之二：为什么先稳定法向但不改网格
+
+扫描噪声首先污染相邻面法向，随后放大 dihedral、normal tensor 和 curvature 的不稳定性。`FeatureNormalFilter.cpp` 在协调 face winding 后，按面积和法向夹角做 relaxation；超过 `preserveAngleDeg` 的邻面权重为零，因此硬折边不会被跨越平滑。过滤结果只进入 `FeatureDetectionCache`，输入顶点和拓扑不变。
+
+这是一种 feature-aware evidence stabilization，不是完整 denoising：它不能修复位置噪声、孔洞、非流形或重建误差。正确验证需要同时看 `changedFaces`、mean/max angular change、preserved edges 与特征 benchmark，不能只看法向是否更平滑。
 
 ## 现象四：normal tensor 的特征值在表达什么
 
@@ -171,10 +180,10 @@ persistentFeatureScore = f(featureScore, averageFeatureScore, persistentScales)
 5. 由三次块**解析求出 extremality** `e_i = ∇κ_i · t_i`（三阶方向型 `e ∝ c₀t₁³ + c₁t₁²t₂ + c₂t₁t₂² + c₃t₂³`），不再对邻居曲率做差分；
 6. 用 Ohtake 边零交叉判据分类 ridge/valley：主方向是 line field，先对邻居的切向与 extremality 做符号同步，再要求（a）边两端都通过曲率支配性测试（ridge 要求 `κ_max > |κ_min|`，valley 对偶），（b）extremality 沿近似跟随主方向的入射边变号，（c）两端一阶极大测试成立；零交叉点用反比插值归属到 |e| 较小的端点，使检测带保持一个顶点宽；
 7. 打分融合尺度归一化曲率幅值、各向异性、零交叉强度（|e| 均值乘切向边跨度）和拟合残差质量；
-8. 以最佳尺度为参照，在全部请求尺度中统计“分数达到绝对阈值与最佳分数 30% 中较大者、符号一致、曲线切向一致”的支持票数；当前实现是纯支持尺度计票，不要求支持尺度相邻，也不要求最粗尺度必须支持；
+8. 以参考尺度为基准，在全部请求尺度中统计“分数达到绝对阈值与参考分数 30% 中较大者、符号一致、曲线切向一致”的支持票数；默认参考尺度仍取 peak score，opt-in 的 stable-scale 模式改按跨尺度一致性选择，并可用 `smoothCurvatureMinScaleStability` 拒绝不稳定尺度；
 9. 两端点在符号、切向、尺度支持和边对齐上一致时，才把顶点证据转成 mesh-edge 证据。
 
-分数无量纲，网格均匀缩放不需要重新调曲率阈值。默认 `smoothCurvatureBaseNeighborhoodRings = 2`，因为 one-ring 拟合对噪声过敏。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面两种场景需要不同阈值和验证集；不启用时既有硬特征行为完全不变。诊断字段包括 `FeatureAnalysis::smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、`maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、`meanSmoothCurvatureLocalScale`、`meanSmoothCurvaturePersistence`，graph edge 与 component 分别记录 `smoothCurvature` 来源和 `smoothCurvatureEdges`、`meanCurvaturePersistence`。整条链路是确定性数值几何，不含任何神经/学习成分。
+分数无量纲，网格均匀缩放不需要重新调曲率阈值。默认 `smoothCurvatureBaseNeighborhoodRings = 2`，因为 one-ring 拟合对噪声过敏。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面两种场景需要不同阈值和验证集；不启用时既有硬特征行为完全不变。诊断除 score/local scale/persistence 外，还包括逐顶点 `selectedScale`、`scaleStability` 和分析级 mean stability。整条链路是确定性数值几何，不含任何神经/学习成分。
 
 ## 现象五：primitive fitting 为什么重要
 
@@ -297,7 +306,8 @@ Garland-Heckbert 1998 的属性 QEM 把颜色/UV 追加进齐次向量，让 qua
 当前没有承诺：
 
 - 从任意 STL 自动恢复完整 CAD feature tree。
-- 对高噪扫描输入自动完成去噪和法线重估（opt-in 的 smooth-curvature 通道提供确定性 ridge/valley 证据，但不承担去噪预处理）。
+- 对高噪扫描输入自动完成顶点去噪、重建和法线积分；opt-in normal filter 只稳定 evidence normals，不修改表面位置。
+- 从 feature patches 自动拟合/合并 analytic surfaces 或恢复 CAD surface type。
 - 提供全局 Hausdorff/envelope 证明。
 - 保证输出直接满足制造公差。
 - 提供布尔、offset/thickening、修复、补洞或完整 manifold repair。
@@ -317,7 +327,9 @@ Garland-Heckbert 1998 的属性 QEM 把颜色/UV 追加进齐次向量，让 qua
 - 讲特征识别时必须区分“三角网格 feature graph”与“完整 CAD/B-Rep 语义”。
 - 讲 line quadrics 时不要说它能去噪；它当前解决的是平坦区切向欠约束和候选排序退化。
 - 讲 normal tensor 时不要写成万能特征恢复；它是弱特征证据和空间变权来源，受邻域、尺度和噪声影响。
+- 讲 normal filter 时必须说明只改检测缓存中的面法向，不改输入 mesh，也不等同于扫描重建。
 - 讲 smooth-curvature 时必须写明它是 opt-in、确定性、无学习成分的弱证据通道，只在显式 `FeatureGraph` 与硬证据汇合，不改变默认检测行为。
+- 讲 segmentation 时必须区分 feature-induced connectivity patch 与 analytic/CAD surface segmentation。
 - 讲纹理感知简化时必须区分“标量排序代价”和“chart/有符号面积硬过滤”，不得说几何 quadric 被扩维，也不得在 CLI 文档里描述不存在的纹理选项。
 - 讲工业安全时必须绑定具体过滤器、测试数据和报告字段。
 - 新增能力应进入 `include/algorithms/<domain>/` 下的平级模块，而不是反向塞进 simplification。

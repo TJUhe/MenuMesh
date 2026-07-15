@@ -1,5 +1,6 @@
 #pragma once
 
+#include "algorithms/feature_detection/FeatureTypes.h"
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "core/Mesh.h"
 #include "detail/SimplificationTypes.h"
@@ -62,6 +63,12 @@ struct FeatureGuidanceSummary {
     int inconsistentWindingEdges = 0;
     int graphCleanupSkippedByCap = 0;
     int circularRecoveryTruncated = 0;
+    feature::FeatureNormalFilterReport normalFilter;
+    double meanSmoothCurvatureScaleStability = 0.0;
+    int graphConsolidationBridges = 0;
+    int graphConsolidationSkippedByCap = 0;
+    int junctionBranchPairs = 0;
+    int ambiguousFeatureJunctions = 0;
 };
 
 struct FeatureGuidance {

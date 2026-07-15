@@ -454,6 +454,16 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
     EXPECT_EQ(2, options.smooth_curvature_min_persistent_scales);
     EXPECT_EQ(2, options.smooth_curvature_robust_fit_iterations);
     EXPECT_DOUBLE_EQ(0.0, options.feature_graph_min_weak_spur_strength);
+    EXPECT_EQ(0, options.use_feature_normal_filter);
+    EXPECT_EQ(4, options.feature_normal_filter_iterations);
+    EXPECT_DOUBLE_EQ(20.0, options.feature_normal_filter_angle_sigma_deg);
+    EXPECT_DOUBLE_EQ(50.0, options.feature_normal_filter_preserve_angle_deg);
+    EXPECT_DOUBLE_EQ(0.8, options.feature_normal_filter_relaxation);
+    EXPECT_EQ(0, options.smooth_curvature_use_stable_scale_selection);
+    EXPECT_DOUBLE_EQ(0.0, options.smooth_curvature_min_scale_stability);
+    EXPECT_EQ(0, options.consolidate_feature_graph);
+    EXPECT_DOUBLE_EQ(3.0, options.feature_graph_consolidation_gap_length_ratio);
+    EXPECT_DOUBLE_EQ(0.75, options.feature_graph_consolidation_min_alignment);
     EXPECT_DOUBLE_EQ(0.0, options.max_local_error);
     EXPECT_DOUBLE_EQ(0.0, options.max_local_error_ratio);
     EXPECT_EQ(0, options.prevent_local_intersections);

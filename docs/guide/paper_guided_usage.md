@@ -17,8 +17,11 @@ $exe = "$buildDir/bin/manumesh.exe"
 | 圆孔简化后变椭圆或顶点太少 | 特征 loop 没有形成硬保护，或最低 loop 顶点数太低。 | `--preserve-feature-curves`、`--feature-protection-mode primitive-curves`、`--min-circular-feature-loop-vertices`。 |
 | 开边界被吃掉或合并 | boundary weight 只作为软成本，不足以阻止拓扑改变。当前扩展 link condition 已始终拒绝"边界弦"折叠（两端点均为边界顶点的内部边），防止非流形 pinch 点；边界边自身的折叠仍需硬策略控制。 | `--preserve-boundary`，以及 `boundary_rejected_collapses`、`topology_rejected_collapses`。 |
 | 达不到目标面数，提前停止 | 目标比例和硬过滤器冲突，候选被大量拒绝。 | `termination_reason`、最高的 `*_rejected_collapses`。 |
-| normal tensor 结果不稳定 | 张量特征受邻域、尺度、噪声和采样影响。 | `--normal-tensor-threshold`、`--normal-tensor-edge-alignment`、`--normal-tensor-scales`、`--normal-tensor-min-persistent-scales`、是否需要预处理。 |
+| normal tensor 结果不稳定 | 张量特征受邻域、尺度、噪声和采样影响。 | 轻中度法向噪声先试 `--feature-normal-filter` 并观察 angular-change 诊断，再调 tensor threshold/alignment/scales。 |
 | 光滑 fillet 中心线或平缓 ridge/valley 不出现在特征报告/简化保护中 | 二面角和 normal tensor 依赖离散法向差异，对光滑微分事件响应弱。 | 先在 `feature-report` 启用 `--smooth-curvature-features` 校准，再把同组选项用于 `simplify`；检查 feature report 的 `smooth_curvature_edges` 与 simplify 的 `smooth_curvature_feature_edges`。 |
+| ridge/valley 在相邻尺度间跳变 | peak-score 参考尺度对局部采样敏感。 | 试 `--smooth-curvature-stable-scale` 和 `--smooth-curvature-min-scale-stability`，检查 mean scale stability。 |
+| 特征图碎成多个相邻 component | local cleanup 不跨 component。 | 试 `--feature-graph-consolidation`，同时限制 gap/alignment 并检查 bridge count 与 branch-pair precision。 |
+| patch 分区泄漏或过分割 | feature barrier 漏检或误检。 | 用 `--surface-patches`；必要时用 `--surface-patches-strong-only` 排除弱 evidence barrier，并看 patch adjacency accuracy。 |
 
 这个阅读顺序比单纯调大某个权重更安全。QEM 和 line quadrics 是排序成本；feature graph 是曲线支撑；legality filters 才是硬安全闸。
 
@@ -79,11 +82,15 @@ line quadrics 对照：
 
 ```powershell
 & $exe feature-report input.stl `
+  --feature-normal-filter `
   --smooth-curvature-features `
+  --smooth-curvature-stable-scale `
   --smooth-curvature-threshold 0.015 `
   --smooth-curvature-base-rings 2 `
   --smooth-curvature-scales 3 `
   --smooth-curvature-min-persistent-scales 2 `
+  --feature-graph-consolidation `
+  --surface-patches `
   --csv features.csv
 ```
 
@@ -100,7 +107,7 @@ line quadrics 对照：
   --metrics-csv smooth_metrics.csv
 ```
 
-CLI 中 `--smooth-curvature-features` 会自动启用 feature-curve policy；默认保护模式仍是 `primitive-curves`，要硬保护所有 smooth/generic edge 时显式用 `--feature-protection-mode all-feature-edges`。分数尺度归一化，网格均匀缩放后不需要重调阈值。feature report 输出 `smooth_curvature_edges`，simplify 输出 `smooth_curvature_feature_edges`；两者还输出 scored vertices、persistent score、local scale/persistence 与 bounded-recovery 诊断。纹理感知简化（`preserveTexture`）仍是 C++ `SimplifyOptions` 能力，CLI `simplify` 没有对应选项。
+CLI 中 `--smooth-curvature-features`、`--feature-normal-filter` 或 `--feature-graph-consolidation` 会自动启用 feature-curve policy；默认保护模式仍是 `primitive-curves`。normal filter 只改检测法向，surface patches 只属于 feature analysis。报告除 scored vertices、persistence 外，还包含 scale stability、normal-filter、consolidation、junction pair 和 patch 诊断。纹理感知简化（`preserveTexture`）仍是 C++ `SimplifyOptions` 能力，CLI `simplify` 没有对应选项。
 
 曲线特征保护的推荐起点：
 
@@ -145,7 +152,7 @@ feature_loops / circular_feature_loops 在特征保护场景下仍可识别
 projected_feature_placements、curve_budget_rejected_collapses 与参数预期一致
 ```
 
-line quadrics 和 normal tensor 都不是去噪器。扫描噪声应先做稳健法线估计、去噪或重建，再进入 ManuMesh 当前简化流程。
+line quadrics 和 normal tensor 都不是去噪器。ManuMesh 的 opt-in normal filter 可先稳定面法向 evidence，但不会移动顶点；强位置噪声仍应先做稳健去噪或重建。
 
 ## 相关论文出处
 
@@ -162,5 +169,8 @@ line quadrics 和 normal tensor 都不是去噪器。扫描噪声应先做稳健
 | edge-collapse 工程细节 | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025，位于 `docs/papers/edge_collapse/` |
 | CAD/STL 特征线 | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008，位于 `docs/papers/feature_detection/` |
 | normal tensor 特征评分 | Tsuchie-Higashi 2014，`docs/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` |
+| normal-domain feature stabilization | M009/M012/M013/M015 的 multiscale crease、normal voting/tensor 路线；工程对照包括 MeshLib、L0Denoising、NLLR、LSD |
+| weak component consolidation | CWF/M026 的“先整合弱支持再保护”原则；当前只实现受方向/source/sign 门控的局部 endpoint recovery |
+| feature-induced patch segmentation | M024/M025；当前实现 connectivity partition 与 adjacency，不含 analytic surface fitting/merge |
 | 特征敏感简化 | Wang 2008、Hussain-Grahn-Persson 2008，位于 `docs/papers/feature_preserving_simplification/` |
 | feature graph 弱 spur 强度裁决 T=(∫ds)·(∫strength ds) 与 gap 桥接角度规则 | Yoshizawa（M021）；`featureGraphMinWeakSpurStrength`（默认 `0.0` 即旧行为）已映射到 C++ feature/simplify options、`--feature-graph-min-weak-spur-strength` 与 C ABI 尾字段，实现在 `src/feature_detection/FeatureGraphCleanup.cpp` |

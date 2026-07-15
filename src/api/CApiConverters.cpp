@@ -209,6 +209,16 @@ ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::
     MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_persistent_scales, 2);
     MANUMESH_INITIALIZE_OPTION(smooth_curvature_robust_fit_iterations, 2);
     MANUMESH_INITIALIZE_OPTION(feature_graph_min_weak_spur_strength, 0.0);
+    MANUMESH_INITIALIZE_OPTION(use_feature_normal_filter, 0);
+    MANUMESH_INITIALIZE_OPTION(feature_normal_filter_iterations, 4);
+    MANUMESH_INITIALIZE_OPTION(feature_normal_filter_angle_sigma_deg, 20.0);
+    MANUMESH_INITIALIZE_OPTION(feature_normal_filter_preserve_angle_deg, 50.0);
+    MANUMESH_INITIALIZE_OPTION(feature_normal_filter_relaxation, 0.8);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_use_stable_scale_selection, 0);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_scale_stability, 0.0);
+    MANUMESH_INITIALIZE_OPTION(consolidate_feature_graph, 0);
+    MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_gap_length_ratio, 3.0);
+    MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_min_alignment, 0.75);
 
 #undef MANUMESH_INITIALIZE_OPTION
 
@@ -439,6 +449,72 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, use_feature_normal_filter)) {
+        target.useFeatureNormalFilter = boolFromInt(source.use_feature_normal_filter);
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_iterations)) {
+        target.featureNormalFilterIterations = source.feature_normal_filter_iterations;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_angle_sigma_deg) &&
+        !readFiniteDouble(
+            source.feature_normal_filter_angle_sigma_deg,
+            "feature_normal_filter_angle_sigma_deg",
+            target.featureNormalFilterAngleSigmaDeg,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_preserve_angle_deg) &&
+        !readFiniteDouble(
+            source.feature_normal_filter_preserve_angle_deg,
+            "feature_normal_filter_preserve_angle_deg",
+            target.featureNormalFilterPreserveAngleDeg,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_relaxation) &&
+        !readFiniteDouble(
+            source.feature_normal_filter_relaxation,
+            "feature_normal_filter_relaxation",
+            target.featureNormalFilterRelaxation,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_use_stable_scale_selection)) {
+        target.smoothCurvatureUseStableScaleSelection = boolFromInt(source.smooth_curvature_use_stable_scale_selection);
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_scale_stability) &&
+        !readFiniteDouble(
+            source.smooth_curvature_min_scale_stability,
+            "smooth_curvature_min_scale_stability",
+            target.smoothCurvatureMinScaleStability,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, consolidate_feature_graph)) {
+        target.consolidateFeatureGraph = boolFromInt(source.consolidate_feature_graph);
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_consolidation_gap_length_ratio) &&
+        !readFiniteDouble(
+            source.feature_graph_consolidation_gap_length_ratio,
+            "feature_graph_consolidation_gap_length_ratio",
+            target.featureGraphConsolidationGapLengthRatio,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_consolidation_min_alignment) &&
+        !readFiniteDouble(
+            source.feature_graph_consolidation_min_alignment,
+            "feature_graph_consolidation_min_alignment",
+            target.featureGraphConsolidationMinAlignment,
+            error
+        )) {
+        return false;
+    }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, quality_refinement_iterations)) {
         target.qualityRefinementIterations = source.quality_refinement_iterations;
     }
@@ -570,6 +646,33 @@ ManuMeshStatus fillSimplifyReport(
     MANUMESH_SET_REPORT_FIELD(target, writeSize, inconsistent_winding_edges, source.inconsistentWindingEdges);
     MANUMESH_SET_REPORT_FIELD(target, writeSize, graph_cleanup_skipped_by_cap, source.graphCleanupSkippedByCap);
     MANUMESH_SET_REPORT_FIELD(target, writeSize, circular_recovery_truncated, source.circularRecoveryTruncated);
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, feature_normal_filter_iterations_completed, source.featureNormalFilterIterationsCompleted
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, feature_normal_filter_changed_faces, source.featureNormalFilterChangedFaces
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, feature_normal_filter_preserved_edges, source.featureNormalFilterPreservedEdges
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, mean_feature_normal_filter_angular_change_deg, source.meanFeatureNormalFilterAngularChangeDeg
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, max_feature_normal_filter_angular_change_deg, source.maxFeatureNormalFilterAngularChangeDeg
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, mean_feature_normal_filter_edge_indicator, source.meanFeatureNormalFilterEdgeIndicator
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, mean_smooth_curvature_scale_stability, source.meanSmoothCurvatureScaleStability
+    );
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, graph_consolidation_bridges, source.graphConsolidationBridges);
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, graph_consolidation_skipped_by_cap, source.graphConsolidationSkippedByCap
+    );
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, junction_branch_pairs, source.junctionBranchPairs);
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, ambiguous_feature_junctions, source.ambiguousFeatureJunctions);
     return MANUMESH_STATUS_OK;
 }
 

@@ -296,8 +296,9 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/feature_detection/feature_detection_discrete_tests.cpp
   unit/feature_detection/feature_detection_fixture_tests.cpp
   unit/feature_detection/feature_detection_loop_tests.cpp
-  unit/feature_detection/feature_detection_perf_tests.cpp
-  unit/feature_detection/feature_detection_primitive_fit_tests.cpp
+    unit/feature_detection/feature_detection_perf_tests.cpp
+    unit/feature_detection/feature_detection_pipeline_upgrade_tests.cpp
+    unit/feature_detection/feature_detection_primitive_fit_tests.cpp
   unit/feature_detection/feature_detection_robustness_tests.cpp
   unit/feature_detection/feature_detection_smooth_curvature_tests.cpp
   unit/io/mesh_io_tests.cpp

@@ -17,6 +17,10 @@ License notes are factual repository metadata; algorithm comparison is the main 
 | [MeshLab](https://github.com/cnr-isti-vclab/meshlab) | End-user filters backed largely by VCGlib, including remeshing and cleaning | GPL 3.0 | Manual/result comparison tool, not an SDK dependency. |
 | [MMG](https://github.com/MmgTools/mmg) | Metric-driven anisotropic surface remeshing through MMGS | LGPL 3.0-or-later | Reference or optional external-process baseline for anisotropic metric behavior. |
 | [Instant Meshes](https://github.com/wjakob/instant-meshes) | Direction-field-aligned triangle/quad mesh generation | BSD-style 3-Clause terms | Far-term field-aligned benchmark; keep separate from isotropic triangle remesh MVP. |
+| [MeshLib](https://github.com/MeshInspector/MeshLib) | Broad mesh processing plus normal/segmentation-oriented denoising examples | Repository-specific; GitHub API reports no SPDX assertion, verify before reuse | Feature-aware normal filtering behavior and practical scan-processing comparison. |
+| [L0Denoising](https://github.com/tatsy/L0Denoising) | Reference implementation of mesh denoising via L0 optimization | MIT | Global sparse/feature-preserving denoising comparison; substantially heavier than ManuMesh's detection-only normal filter. |
+| [NLLR](https://github.com/nini-lxz/NLLR) | Non-local low-rank normal filtering for mesh denoising | No license metadata reported; research comparison only unless clarified | Non-local scan denoising baseline and failure-mode comparison. |
+| [LSD](https://github.com/xnowbzhao/lsd) | Local Surface Descriptor for geometry- and feature-preserved mesh denoising | No license metadata reported; research comparison only unless clarified | Descriptor-guided denoising and weak-feature preservation reference. |
 
 ## Recommended Study Order
 
@@ -25,6 +29,7 @@ License notes are factual repository metadata; algorithm comparison is the main 
 3. CGAL PMP for constrained remeshing contracts and production-grade preconditions.
 4. Geogram and M039 for Voronoi/CVT or metric-driven sampling.
 5. MMG for anisotropic metric fields and Instant Meshes for field-aligned topology generation.
+6. MeshLib/L0Denoising/NLLR/LSD when evaluating whether the lightweight normal-domain filter is sufficient for a noisy scan. These are comparison projects, not planned runtime dependencies.
 
 ## Feature Detection Patterns Applied in ManuMesh
 
@@ -43,6 +48,14 @@ ManuMesh follows these patterns without importing an external mesh kernel. The
 current smooth path adds robust reweighting, dimensionless local-scale
 normalization, signed directional extrema, cross-scale persistence, and explicit
 feature-graph ownership.
+
+The optional `FeatureNormalFilter` stays deliberately smaller than L0,
+non-local, or descriptor-driven denoisers: it stabilizes face normals for
+evidence extraction, preserves vertices/topology, and exposes angular-change
+diagnostics instead of claiming reconstructed geometry. Graph cleanup and
+component consolidation share one compatibility helper for direction, evidence
+source, and ridge/valley sign; junctions expose branch continuation pairs; patch
+segmentation ignores recovery bridges that are not real mesh edges.
 
 The same separation now applies in the simplifier: `SimplifyOptions` maps the
 smooth-curvature and integrated weak-spur controls into `FeatureOptions`, while

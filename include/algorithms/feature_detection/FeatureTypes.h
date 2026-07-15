@@ -16,6 +16,34 @@ inline constexpr int kMaxNormalTensorScaleCount = 8;
 inline constexpr int kMaxSmoothCurvatureBaseNeighborhoodRings = 4;
 inline constexpr int kMaxSmoothCurvatureScaleCount = 6;
 inline constexpr int kMaxSmoothCurvatureRobustFitIterations = 4;
+inline constexpr int kMaxFeatureNormalFilterIterations = 16;
+
+/// Optional normal-domain preprocessing for noisy triangle meshes.
+///
+/// The filter keeps the input topology and vertex positions unchanged. It
+/// alternates an edge indicator with area-weighted face-normal relaxation, so
+/// feature evidence can consume stabilized normals without silently replacing
+/// the caller's mesh.
+struct FeatureNormalFilterOptions {
+    bool enabled = false;
+    int iterations = 4;
+    double angleSigmaDeg = 20.0;
+    double preserveAngleDeg = 50.0;
+    double relaxation = 0.8;
+};
+
+/// Component-level recovery after local feature-graph cleanup.
+struct FeatureGraphConsolidationOptions {
+    bool enabled = false;
+    double maxGapLengthRatio = 3.0;
+    double minAlignment = 0.75;
+};
+
+/// Optional face partition induced by active feature-graph edges.
+struct SurfacePatchOptions {
+    bool enabled = false;
+    bool includeWeakEvidence = true;
+};
 
 /// Fitted primitive type for one detected feature loop.
 enum class FeaturePrimitiveType {
@@ -86,6 +114,11 @@ struct FeatureOptions {
     /// Deterministic robust reweighting passes for local quadric fitting.
     /// Valid range: [0, kMaxSmoothCurvatureRobustFitIterations].
     int smoothCurvatureRobustFitIterations = 2;
+    /// Selects the reference fit scale by cross-scale stability instead of raw
+    /// peak score alone.
+    bool smoothCurvatureUseStableScaleSelection = false;
+    /// Minimum accepted stability of the selected smooth-curvature scale.
+    double smoothCurvatureMinScaleStability = 0.0;
     /// Enables local feature-graph cleanup before loop recovery.
     bool cleanupFeatureGraph = true;
     /// Maximum endpoint gap, in local average-edge-length units, bridged by cleanup.
@@ -107,6 +140,29 @@ struct FeatureOptions {
     /// the legacy behavior of removing every weak spur with at most
     /// featureGraphMaxWeakSpurEdges edges.
     double featureGraphMinWeakSpurStrength = 0.0;
+
+    /// Optional noisy-input preprocessing, component recovery, and face
+    /// segmentation stages. They are grouped to keep the main option surface
+    /// readable while preserving value semantics.
+    FeatureNormalFilterOptions normalFilter;
+    FeatureGraphConsolidationOptions graphConsolidation;
+    SurfacePatchOptions surfacePatches;
+};
+
+/// Diagnostics from one normal-domain preprocessing run.
+struct FeatureNormalFilterReport {
+    int iterationsCompleted = 0;
+    int changedFaces = 0;
+    int preservedEdges = 0;
+    double meanAngularChangeDeg = 0.0;
+    double maxAngularChangeDeg = 0.0;
+    double meanEdgeIndicator = 0.0;
+};
+
+/// Filtered face normals plus quantitative preprocessing diagnostics.
+struct FeatureNormalFilterResult {
+    std::vector<Vec3> faceNormals;
+    FeatureNormalFilterReport report;
 };
 
 /// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
@@ -138,6 +194,8 @@ struct SmoothCurvatureOptions {
     int scaleCount = 3;
     int robustFitIterations = 2;
     double minTangentConsistency = 0.65;
+    bool useStableScaleSelection = false;
+    double minScaleStability = 0.0;
 };
 
 /// Per-vertex smooth ridge/valley evidence from multiscale quadric fitting.
@@ -163,6 +221,8 @@ struct SmoothCurvatureVertex {
     double fitResidual = 0.0;
     double localScale = 0.0;
     int persistentScales = 0;
+    int selectedScale = -1;
+    double scaleStability = 0.0;
     /// Positive for a ridge, negative for a valley, zero when unclassified.
     int signedKind = 0;
 };
@@ -241,8 +301,24 @@ struct FeatureGraphEdge {
     bool smoothCurvature = false;
     bool nonManifold = false;
     bool cleanupBridge = false;
+    bool consolidationBridge = false;
     bool removedByCleanup = false;
     int signedKind = 0;
+};
+
+/// One directed branch leaving a feature-graph vertex.
+struct FeatureGraphBranch {
+    int edgeId = -1;
+    int neighborVertex = -1;
+    Vec3 tangent = Vec3::Zero();
+    int signedKind = 0;
+};
+
+/// Best continuation pairing between two incident branches at a junction.
+struct FeatureGraphBranchPair {
+    int firstBranch = -1;
+    int secondBranch = -1;
+    double alignment = 0.0;
 };
 
 /// Per-vertex ownership in the explicit feature graph.
@@ -253,9 +329,12 @@ struct FeatureGraphEdge {
 struct FeatureGraphVertex {
     std::vector<int> incidentEdges;
     std::vector<int> loopIds;
+    std::vector<FeatureGraphBranch> branches;
+    std::vector<FeatureGraphBranchPair> branchPairs;
     bool junction = false;
     bool shared = false;
     bool endpoint = false;
+    bool ambiguousJunction = false;
 };
 
 /// Explicit graph view of detected feature edges and recovered loops.
@@ -282,6 +361,7 @@ struct FeatureComponent {
     int smoothCurvatureEdges = 0;
     int nonManifoldEdges = 0;
     int cleanupBridgeEdges = 0;
+    int consolidationBridgeEdges = 0;
     int strongEvidenceEdges = 0;
     int weakEvidenceEdges = 0;
     int junctionVertices = 0;
@@ -294,6 +374,26 @@ struct FeatureComponent {
     double meanCurvaturePersistence = 0.0;
     double meanPrimitiveResidual = 0.0;
     double confidence = 0.0;
+};
+
+/// One connected face region separated by active feature edges.
+struct FeaturePatch {
+    int id = -1;
+    int faceCount = 0;
+    int featureBoundaryEdges = 0;
+    int meshBoundaryEdges = 0;
+    int nonManifoldBoundaryEdges = 0;
+    bool closed = false;
+    double area = 0.0;
+    Vec3 normal = Vec3(0.0, 0.0, 1.0);
+    std::vector<int> neighboringPatches;
+};
+
+/// Feature-edge adjacency between two surface patches.
+struct FeaturePatchAdjacency {
+    int firstPatch = -1;
+    int secondPatch = -1;
+    int featureEdges = 0;
 };
 
 /// Full feature-detection result for a mesh.
@@ -336,6 +436,7 @@ struct FeatureAnalysis {
     double maxSmoothCurvaturePersistentScore = 0.0;
     double meanSmoothCurvatureLocalScale = 0.0;
     double meanSmoothCurvaturePersistence = 0.0;
+    double meanSmoothCurvatureScaleStability = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
     /// Interior edges whose two faces disagree on winding order; dihedral
@@ -350,6 +451,32 @@ struct FeatureAnalysis {
     /// evidence skips their contribution; the count makes that degradation
     /// visible instead of silently absorbing dirty input.
     int degenerateFaces = 0;
+    FeatureNormalFilterReport normalFilter;
+    int graphConsolidationBridges = 0;
+    int graphConsolidationSkippedByCap = 0;
+    int junctionBranchPairs = 0;
+    int ambiguousJunctions = 0;
+    std::vector<int> facePatchIds;
+    std::vector<FeaturePatch> patches;
+    std::vector<FeaturePatchAdjacency> patchAdjacencies;
+    int closedSurfacePatches = 0;
+    int segmentationIgnoredRecoveryEdges = 0;
+};
+
+/// Ground-truth continuation at one labeled feature junction.
+struct FeatureBranchPairLabel {
+    int junctionVertex = -1;
+    int firstNeighbor = -1;
+    int secondNeighbor = -1;
+};
+
+/// Extensible labels for edge, junction, branch, and face-patch benchmarks.
+struct FeatureBenchmarkLabels {
+    std::vector<std::pair<int, int>> edges;
+    std::vector<int> junctionVertices;
+    std::vector<FeatureBranchPairLabel> branchPairs;
+    /// Per-face ground-truth patch id; negative values are unlabeled.
+    std::vector<int> facePatchIds;
 };
 
 /// Edge-label benchmark summary for one detected feature graph.
@@ -372,6 +499,17 @@ struct FeatureEdgeBenchmark {
     double junctionF1 = 0.0;
     double loopClosureRate = 0.0;
     double meanComponentConfidence = 0.0;
+    int groundTruthBranchPairs = 0;
+    int detectedBranchPairs = 0;
+    int truePositiveBranchPairs = 0;
+    int falsePositiveBranchPairs = 0;
+    int falseNegativeBranchPairs = 0;
+    double branchPairPrecision = 0.0;
+    double branchPairRecall = 0.0;
+    double branchPairF1 = 0.0;
+    int labeledFaceAdjacencies = 0;
+    int correctFaceAdjacencies = 0;
+    double patchAdjacencyAccuracy = 0.0;
 };
 
 /// Error of a detected loop against a circular reference curve.

@@ -203,7 +203,7 @@ footer {
       <ul>
         <li><code>apps/manumesh/main.cpp</code>、<code>ManuMeshCli.cpp</code>、<code>CliArguments.cpp</code>、<code>ManuMeshCommands.cpp</code>、<code>ManuMeshFeatureCommands.cpp</code>：CLI 入口、共享 <code>OptionSpec</code> 选项表（<code>optionsHelpText()</code> 生成 help、<code>validateArgsForCommand()</code> 逐命令校验）、命令注册和命令处理；CSV 拼装在 <code>CliCsv.cpp</code>。</li>
         <li><code>src/io/MeshIo.cpp</code>：STL/OBJ 读取和 ASCII STL 写出；<code>probeStlFormat</code> 探测 ASCII/二进制，数值解析用 <code>std::from_chars</code>。</li>
-        <li><code>src/feature_detection/*.cpp</code>：特征边证据、trace graph、cleanup、loop/primitive 恢复、component 置信度；全网格辅助结构由 <code>detail/FeatureDetectionCache.h</code> 一次构建、全管线复用。</li>
+        <li><code>src/feature_detection/*.cpp</code>：法线预处理、edge evidence、trace graph、cleanup/compatibility/consolidation、junction branches、loop/primitive、component confidence、patch segmentation 与 benchmark；辅助结构由 <code>FeatureDetectionCache</code> 复用。</li>
         <li><code>src/simplification/*.cpp</code>：QEM/line-quadrics 初始化、候选队列、动态拓扑、折叠合法性、placement 与边界投影（<code>Placement.cpp</code>）、结果 compact。</li>
         <li><code>src/analysis/MeshAnalysis.cpp</code>：<code>manumesh::analysis</code> 的网格统计与采样距离；<code>src/simplification/Metrics.cpp</code> 仅保留弃用 API 的兼容转发实现。</li>
         <li><code>src/api/CApi.cpp</code>、<code>src/api/CApiConverters.cpp</code>：C ABI 句柄、结构体 ABI 校验、异常到状态码转换（含 <code>std::bad_alloc</code> → OOM 状态码、数值参数 finite 校验）。</li>
@@ -343,13 +343,13 @@ flowchart TD
         </tr>
         <tr>
           <td><code>feature-report</code></td>
-          <td>要求输入 mesh；解析 <code>FeatureOptions</code>（含 opt-in 的 <code>--smooth-curvature-features</code> 及七个 <code>--smooth-curvature-*</code> 参数）；执行 <code>detectFeatureCurves</code>；打印 feature counters（含 <code>smooth_curvature_*</code> 系列字段）和每个 loop 的 CSV 行。</td>
+          <td>要求输入 mesh；解析 smooth/stable-scale、normal-filter、consolidation、surface-patch 等 <code>FeatureOptions</code>；执行 <code>detectFeatureCurves</code>；打印 graph/loop/component/patch counters 和 CSV。</td>
           <td>可选 <code>--csv</code> 时先创建父目录；检测参数非法会抛异常。</td>
           <td>stdout 报告；可选 CSV。</td>
         </tr>
         <tr>
           <td><code>feature-benchmark</code></td>
-          <td>要求 <code>input labels.csv</code>；读取 ground-truth edge/junction；检测特征；计算 precision/recall/F1。</td>
+          <td>要求 <code>input labels.csv</code>；读取 ground-truth edge/junction/branch/face-patch 标签；检测特征；计算 edge、junction、branch-pair precision/recall/F1 与 patch adjacency accuracy。</td>
           <td>label 文件打不开抛 <code>runtime_error</code>；CSV 中非整数行会被忽略，<code>junction</code>/<code>junction_vertex</code> 行作为 junction 标签。</td>
           <td>stdout benchmark；可选 CSV。</td>
         </tr>
@@ -494,18 +494,21 @@ flowchart TD
   B --> C["validateFeatureInput"]
   C --> D{mesh.empty()?}
   D -- 是 --> E["返回空 FeatureAnalysis<br/>vertices 数组已按输入顶点数初始化"]
-  D -- 否 --> F["EdgeEvidenceStage<br/>collectFeatureEdges"]
-  F --> G["FeatureGraphStage<br/>initialize graph + build trace graph"]
+  D -- 否 --> F["EdgeEvidenceStage<br/>lazy normal filter + collectFeatureEdges"]
+  F --> F2["DegenerateEvidenceFilterStage"]
+  F2 --> G["FeatureGraphStage<br/>initialize graph + build trace graph"]
   G --> H["FeatureGraphCleanupStage<br/>remove spurs / bridge gaps / merge close junctions"]
-  H --> I["LoopRecoveryStage"]
+  H --> H2["FeatureGraphConsolidationStage<br/>compatible cross-component gaps"]
+  H2 --> I["LoopRecoveryStage"]
   I --> I1["recoverCircularCyclesThroughJunctions"]
   I1 --> I2["recoverSmallCycleBasis"]
   I2 --> I3["traceRemainingFeatureLoops"]
   I3 --> I4["recoverPrimitiveComponents"]
   I4 --> I5["recoverCircularVertexClusters"]
   I5 --> J["FeatureComponentSummaryStage<br/>BFS components + confidence"]
-  J --> K["FeatureGraphFinalizeStage<br/>junction/shared markers"]
-  K --> L["builder.build()"]
+  J --> K["FeatureGraphFinalizeStage<br/>junction branches / pairs / shared markers"]
+  K --> K2["FeatureSegmentationStage<br/>face patches + adjacency"]
+  K2 --> L["builder.build()"]
       </pre>
     </div>
 
@@ -513,7 +516,7 @@ flowchart TD
     <div class="diagram-wrap">
       <pre class="mermaid">
 flowchart TD
-  A["collectFeatureEdges"] --> B["构建 FeatureDetectionCache<br/>面法向 + 边信息 + 顶点邻接 + 局部平均边长<br/>（一次构建，证据/清理/recovery 全管线传引用复用）"]
+  A["collectFeatureEdges"] --> B["构建 FeatureDetectionCache<br/>原始/过滤面法向 + 边信息 + 顶点邻接 + 局部平均边长<br/>（一次构建，全管线传引用复用）"]
   B --> C{useNormalTensorFeatures?}
   C -- 是 --> T["computeNormalTensorFeatures<br/>统计 tensor score / persistence"]
   C -- 否 --> NT["tensor 为空"]

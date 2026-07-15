@@ -60,6 +60,8 @@ docs/                             当前设计事实和使用指南
 - 特征检测新证据来源：放到 `src/feature_detection/FeatureEvidence.cpp` 或相邻新文件。
 - 特征 loop 恢复策略：放到 `src/feature_detection/FeatureLoopRecovery.cpp` 或专门 recovery 文件。
 
+当前 feature detection 已给出更细的拆分范例：normal-domain 预处理、graph compatibility、component consolidation、segmentation 和 benchmark 分别位于独立 translation unit。新增 graph recovery 规则必须复用 `FeatureGraphCompatibility`，新增 recovery edge 必须声明它是否为真实 mesh edge，避免 surface patch segmentation 把空间 bridge 错当 face barrier。
+
 应该新建平级模块的例子：
 
 - `repair`：修洞、去重、非流形处理。
@@ -367,4 +369,6 @@ cmake --build build\install-check --target sdk-consumer-test --parallel
 - 新 target 在对应目录的 `CMakeLists.txt` 中维护。
 - 没有新增项目自有 `.cmake` 模块。
 - C API struct 如果新增字段，只追加在尾部，并有 ABI 测试。
+- feature detection 新 options 同步覆盖 C++ validation、CLI binding、simplify mapping、size-aware C ABI 和非法值测试。
+- 新 evidence/recovery 同步更新 graph source flags、component summary、CLI/CSV、benchmark 和文档；新增 patch 语义同时测试 patch id 重编号不影响 adjacency accuracy。
 - 文档描述的是当前代码事实，不是未来愿景。

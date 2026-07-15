@@ -51,12 +51,15 @@ struct EdgeEvidenceContext {
                                                            options.smoothCurvatureScaleCount,
                                                            options.smoothCurvatureRobustFitIterations,
                                                            options.smoothCurvatureMinTangentConsistency,
+                                                           options.smoothCurvatureUseStableScaleSelection,
+                                                           options.smoothCurvatureMinScaleStability,
                                                        },
                                                        options.smoothCurvatureFeatureThreshold
                                                    )
                                                  : std::vector<SmoothCurvatureVertex>()
           ),
           discreteFeatureVertex(mesh.vertices.size(), 0) {
+        analysis.normalFilter = cache.normalFilterReport();
         summarizeNormalTensorVertices();
         summarizeSmoothCurvatureVertices();
         markDiscreteFeatureVertices();
@@ -136,6 +139,7 @@ private:
 
         double localScaleSum = 0.0;
         double persistenceSum = 0.0;
+        double stabilitySum = 0.0;
         for (const SmoothCurvatureVertex& vertex : curvature) {
             analysis.maxSmoothCurvatureFeatureScore =
                 std::max(analysis.maxSmoothCurvatureFeatureScore, vertex.featureScore);
@@ -147,12 +151,14 @@ private:
             ++analysis.smoothCurvatureScoredVertices;
             localScaleSum += vertex.localScale;
             persistenceSum += static_cast<double>(vertex.persistentScales);
+            stabilitySum += vertex.scaleStability;
         }
 
         if (analysis.smoothCurvatureScoredVertices > 0) {
             const double count = static_cast<double>(analysis.smoothCurvatureScoredVertices);
             analysis.meanSmoothCurvatureLocalScale = localScaleSum / count;
             analysis.meanSmoothCurvaturePersistence = persistenceSum / count;
+            analysis.meanSmoothCurvatureScaleStability = stabilitySum / count;
         }
     }
 };

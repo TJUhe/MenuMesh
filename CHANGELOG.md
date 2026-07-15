@@ -2,10 +2,20 @@
 
 ## 2026-07-15
 
+### 特征识别系统增强
+
+- 新增 opt-in 法线域特征保持过滤：只稳定检测缓存中的面法向，不改输入顶点或拓扑；输出迭代数、变化面、保留边、角度变化和 edge-indicator 诊断。
+- smooth-curvature 新增稳定尺度选择与 `selectedScale` / `scaleStability` 诊断，保留旧 peak-score 路径作为默认行为。
+- graph cleanup 的 endpoint/close-junction bridge 统一使用方向、evidence source 和 ridge/valley 符号兼容规则；新增 opt-in component consolidation，恢复不同弱 component 之间的兼容短缺口。
+- junction 现在保存逐分支切向和 continuation pair，并报告 ambiguous junction；continuation 只接受从 junction 向相反方向延续的分支，不把同侧近平行分支误配。
+- 新增 feature-induced surface patch segmentation，输出 `facePatchIds`、patch 和 patch adjacency；非 mesh-edge recovery bridge 不作为分区 barrier。
+- benchmark 从 edge/junction 扩展到 branch pair 和 face-patch adjacency；标签支持 `edge`、`junction`、`branch`、`face_patch` 四类记录，缺失 patch prediction 计为错误。
+- 将 normal filter、graph compatibility/consolidation、segmentation 和 benchmark 拆成独立 translation units；新增系统升级说明并同步当前维护文档、CLI、C++/C ABI 与测试契约。
+
 ### 特征识别文档源码校准
 
 - 按当前 `src/feature_detection/` 逐函数复核特征识别文档，修正 smooth-curvature persistence 的旧描述：实现按最佳尺度统计所有请求尺度的支持票数，不要求支持尺度相邻，也不要求最粗尺度必须支持。
-- 扩写 `manumesh-feature-recognition-pipeline.html`、`manumesh-loop-construction.html` 和交付开发者指南，明确 7 段 pipeline、退化面 evidence 降级、强/弱证据排斥关系、normal-tensor 与 smooth-curvature 的不同 edge alignment 规则、cleanup 上限与误连风险、五段 recovery、primitive fitting、component confidence 公式、CLI/QEM 消费边界和逐函数源码定位。
+- 扩写 `manumesh-feature-recognition-pipeline.html`、`manumesh-loop-construction.html` 和交付开发者指南；本轮进一步校准为 9 阶段 pipeline，并补入法线预处理、component consolidation、junction branch pairing、patch segmentation 与扩展 benchmark。
 - 修正公共 `FeatureOptions` 与 CLI 帮助中的文档语义：`minFeatureLoopVertices` 是 recovered-cycle/primitive-fit 门槛，普通 traced chain 仍会报告；weak spur cleanup 同时覆盖 normal-tensor 与 smooth-curvature 证据。
 
 ### 拓扑与算法

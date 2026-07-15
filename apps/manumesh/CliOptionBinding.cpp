@@ -49,6 +49,8 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
         getIntArg(args, "--smooth-curvature-min-persistent-scales", options.smoothCurvatureMinPersistentScales);
     options.smoothCurvatureRobustFitIterations =
         getIntArg(args, "--smooth-curvature-robust-iterations", options.smoothCurvatureRobustFitIterations);
+    options.smoothCurvatureMinScaleStability =
+        getDoubleArg(args, "--smooth-curvature-min-scale-stability", options.smoothCurvatureMinScaleStability);
     options.featureGraphGapLengthRatio =
         getDoubleArg(args, "--feature-graph-gap-ratio", options.featureGraphGapLengthRatio);
     options.featureGraphMaxWeakSpurEdges =
@@ -57,6 +59,18 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
         getDoubleArg(args, "--feature-graph-min-weak-spur-strength", options.featureGraphMinWeakSpurStrength);
     options.featureComponentMinConfidence =
         getDoubleArg(args, "--feature-component-min-confidence", options.featureComponentMinConfidence);
+    options.featureNormalFilterIterations =
+        getIntArg(args, "--feature-normal-filter-iterations", options.featureNormalFilterIterations);
+    options.featureNormalFilterAngleSigmaDeg =
+        getDoubleArg(args, "--feature-normal-filter-angle-sigma-deg", options.featureNormalFilterAngleSigmaDeg);
+    options.featureNormalFilterPreserveAngleDeg =
+        getDoubleArg(args, "--feature-normal-filter-preserve-angle-deg", options.featureNormalFilterPreserveAngleDeg);
+    options.featureNormalFilterRelaxation =
+        getDoubleArg(args, "--feature-normal-filter-relaxation", options.featureNormalFilterRelaxation);
+    options.featureGraphConsolidationGapLengthRatio =
+        getDoubleArg(args, "--feature-graph-consolidation-gap-ratio", options.featureGraphConsolidationGapLengthRatio);
+    options.featureGraphConsolidationMinAlignment =
+        getDoubleArg(args, "--feature-graph-consolidation-alignment", options.featureGraphConsolidationMinAlignment);
     options.minTriangleQuality = getDoubleArg(args, "--min-triangle-quality", options.minTriangleQuality);
     options.maxNormalDeviationDeg = getDoubleArg(args, "--max-normal-deviation-deg", options.maxNormalDeviationDeg);
     options.maxLocalError = getDoubleArg(args, "--max-local-error", options.maxLocalError);
@@ -68,7 +82,11 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
     options.preserveBoundary = hasFlag(args, "--preserve-boundary");
     options.preventLocalIntersections = hasFlag(args, "--prevent-local-intersections");
     options.useSmoothCurvatureFeatures = hasFlag(args, "--smooth-curvature-features");
-    options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves") || options.useSmoothCurvatureFeatures;
+    options.smoothCurvatureUseStableScaleSelection = hasFlag(args, "--smooth-curvature-stable-scale");
+    options.useFeatureNormalFilter = hasFlag(args, "--feature-normal-filter");
+    options.consolidateFeatureGraph = hasFlag(args, "--feature-graph-consolidation");
+    options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves") || options.useSmoothCurvatureFeatures ||
+                                    options.useFeatureNormalFilter || options.consolidateFeatureGraph;
     options.featureProtectionMode = simplification::parseFeatureProtectionMode(
         getArg(args, "--feature-protection-mode", simplification::toString(options.featureProtectionMode))
     );
@@ -131,6 +149,8 @@ feature::FeatureOptions parseFeatureOptions(const Args& args) {
         getIntArg(args, "--smooth-curvature-min-persistent-scales", options.smoothCurvatureMinPersistentScales);
     options.smoothCurvatureRobustFitIterations =
         getIntArg(args, "--smooth-curvature-robust-iterations", options.smoothCurvatureRobustFitIterations);
+    options.smoothCurvatureMinScaleStability =
+        getDoubleArg(args, "--smooth-curvature-min-scale-stability", options.smoothCurvatureMinScaleStability);
     options.featureGraphGapLengthRatio =
         getDoubleArg(args, "--feature-graph-gap-ratio", options.featureGraphGapLengthRatio);
     options.featureGraphMaxWeakSpurEdges =
@@ -139,9 +159,26 @@ feature::FeatureOptions parseFeatureOptions(const Args& args) {
         getDoubleArg(args, "--feature-graph-min-weak-spur-strength", options.featureGraphMinWeakSpurStrength);
     options.featureComponentMinConfidence =
         getDoubleArg(args, "--feature-component-min-confidence", options.featureComponentMinConfidence);
+    options.normalFilter.iterations =
+        getIntArg(args, "--feature-normal-filter-iterations", options.normalFilter.iterations);
+    options.normalFilter.angleSigmaDeg =
+        getDoubleArg(args, "--feature-normal-filter-angle-sigma-deg", options.normalFilter.angleSigmaDeg);
+    options.normalFilter.preserveAngleDeg =
+        getDoubleArg(args, "--feature-normal-filter-preserve-angle-deg", options.normalFilter.preserveAngleDeg);
+    options.normalFilter.relaxation =
+        getDoubleArg(args, "--feature-normal-filter-relaxation", options.normalFilter.relaxation);
+    options.graphConsolidation.maxGapLengthRatio =
+        getDoubleArg(args, "--feature-graph-consolidation-gap-ratio", options.graphConsolidation.maxGapLengthRatio);
+    options.graphConsolidation.minAlignment =
+        getDoubleArg(args, "--feature-graph-consolidation-alignment", options.graphConsolidation.minAlignment);
     options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");
     options.useSmoothCurvatureFeatures = hasFlag(args, "--smooth-curvature-features");
+    options.smoothCurvatureUseStableScaleSelection = hasFlag(args, "--smooth-curvature-stable-scale");
     options.cleanupFeatureGraph = !hasFlag(args, "--no-feature-graph-cleanup");
+    options.normalFilter.enabled = hasFlag(args, "--feature-normal-filter");
+    options.graphConsolidation.enabled = hasFlag(args, "--feature-graph-consolidation");
+    options.surfacePatches.enabled = hasFlag(args, "--surface-patches");
+    options.surfacePatches.includeWeakEvidence = !hasFlag(args, "--surface-patches-strong-only");
     return options;
 }
 

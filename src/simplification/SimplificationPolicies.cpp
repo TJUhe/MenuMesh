@@ -39,11 +39,21 @@ featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeature
     featureOptions.smoothCurvatureScaleCount = options.smoothCurvatureScaleCount;
     featureOptions.smoothCurvatureMinPersistentScales = options.smoothCurvatureMinPersistentScales;
     featureOptions.smoothCurvatureRobustFitIterations = options.smoothCurvatureRobustFitIterations;
+    featureOptions.smoothCurvatureUseStableScaleSelection = options.smoothCurvatureUseStableScaleSelection;
+    featureOptions.smoothCurvatureMinScaleStability = options.smoothCurvatureMinScaleStability;
     featureOptions.cleanupFeatureGraph = options.cleanupFeatureGraph;
     featureOptions.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
     featureOptions.featureGraphMaxWeakSpurEdges = options.featureGraphMaxWeakSpurEdges;
     featureOptions.featureGraphMinWeakSpurStrength = options.featureGraphMinWeakSpurStrength;
     featureOptions.featureComponentMinConfidence = options.featureComponentMinConfidence;
+    featureOptions.normalFilter.enabled = options.useFeatureNormalFilter;
+    featureOptions.normalFilter.iterations = options.featureNormalFilterIterations;
+    featureOptions.normalFilter.angleSigmaDeg = options.featureNormalFilterAngleSigmaDeg;
+    featureOptions.normalFilter.preserveAngleDeg = options.featureNormalFilterPreserveAngleDeg;
+    featureOptions.normalFilter.relaxation = options.featureNormalFilterRelaxation;
+    featureOptions.graphConsolidation.enabled = options.consolidateFeatureGraph;
+    featureOptions.graphConsolidation.maxGapLengthRatio = options.featureGraphConsolidationGapLengthRatio;
+    featureOptions.graphConsolidation.minAlignment = options.featureGraphConsolidationMinAlignment;
     return featureOptions;
 }
 

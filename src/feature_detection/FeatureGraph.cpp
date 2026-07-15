@@ -21,6 +21,7 @@ void appendFeatureGraphEdge(FeatureAnalysis& analysis, const CandidateEdge& edge
     graphEdge.smoothCurvature = edge.smoothCurvature;
     graphEdge.nonManifold = edge.nonManifold;
     graphEdge.cleanupBridge = edge.cleanupBridge;
+    graphEdge.consolidationBridge = edge.consolidationBridge;
     graphEdge.signedKind = edge.signedKind;
     const int edgeId = static_cast<int>(analysis.graph.edges.size());
     analysis.graph.edges.push_back(graphEdge);
@@ -49,6 +50,7 @@ void addTraceGraphStorage(TraceGraph& trace, const CandidateEdge& edge) {
     attrs.smoothCurvature = edge.smoothCurvature;
     attrs.nonManifold = edge.nonManifold;
     attrs.cleanupBridge = edge.cleanupBridge;
+    attrs.consolidationBridge = edge.consolidationBridge;
     attrs.signedKind = edge.signedKind;
     attrs.tensorPersistence = edge.tensorPersistentScore;
     attrs.tensorPersistentScales = edge.tensorPersistentScales;
@@ -199,12 +201,17 @@ void rebuildTraceGraphEdges(TraceGraph& trace) {
     }
 }
 
-void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis) {
+void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis) {
     analysis.graph.junctionVertices.clear();
     analysis.graph.sharedVertices.clear();
     analysis.graph.endpointVertices.clear();
+    analysis.junctionBranchPairs = 0;
+    analysis.ambiguousJunctions = 0;
     for (int id = 0; id < static_cast<int>(analysis.graph.vertices.size()); ++id) {
         FeatureGraphVertex& vertex = analysis.graph.vertices[id];
+        vertex.branches.clear();
+        vertex.branchPairs.clear();
+        vertex.ambiguousJunction = false;
         const int activeIncidentEdges =
             static_cast<int>(std::count_if(vertex.incidentEdges.begin(), vertex.incidentEdges.end(), [&](int edgeId) {
                 return edgeId >= 0 && edgeId < static_cast<int>(analysis.graph.edges.size()) &&
@@ -222,6 +229,77 @@ void finalizeFeatureGraphMarkers(FeatureAnalysis& analysis) {
         vertex.junction = activeIncidentEdges > 2;
         vertex.shared = vertex.loopIds.size() > 1;
         vertex.endpoint = activeIncidentEdges == 1;
+
+        for (int edgeId : vertex.incidentEdges) {
+            if (edgeId < 0 || edgeId >= static_cast<int>(analysis.graph.edges.size())) {
+                continue;
+            }
+            const FeatureGraphEdge& edge = analysis.graph.edges[edgeId];
+            if (edge.removedByCleanup) {
+                continue;
+            }
+            const int neighbor = edge.a == id ? edge.b : edge.b == id ? edge.a : -1;
+            if (neighbor < 0 || id >= static_cast<int>(mesh.vertices.size()) ||
+                neighbor >= static_cast<int>(mesh.vertices.size())) {
+                continue;
+            }
+            Vec3 tangent = mesh.vertices[neighbor] - mesh.vertices[id];
+            if (tangent.squaredNorm() <= 1e-30) {
+                continue;
+            }
+            tangent.normalize();
+            vertex.branches.push_back(FeatureGraphBranch{edgeId, neighbor, tangent, edge.signedKind});
+        }
+
+        if (vertex.junction) {
+            struct PairCandidate {
+                int first = -1;
+                int second = -1;
+                double alignment = 0.0;
+            };
+            std::vector<PairCandidate> candidates;
+            for (int first = 0; first < static_cast<int>(vertex.branches.size()); ++first) {
+                for (int second = first + 1; second < static_cast<int>(vertex.branches.size()); ++second) {
+                    const FeatureGraphBranch& lhs = vertex.branches[first];
+                    const FeatureGraphBranch& rhs = vertex.branches[second];
+                    if (lhs.signedKind != 0 && rhs.signedKind != 0 && lhs.signedKind != rhs.signedKind) {
+                        continue;
+                    }
+                    // Branch tangents point away from the junction, so a true
+                    // continuation is anti-parallel. Using |dot| would also
+                    // pair two nearly coincident branches leaving on the same
+                    // side of the junction.
+                    const double alignment = -lhs.tangent.dot(rhs.tangent);
+                    if (alignment >= 0.65) {
+                        candidates.push_back({first, second, alignment});
+                    }
+                }
+            }
+            std::sort(candidates.begin(), candidates.end(), [](const PairCandidate& lhs, const PairCandidate& rhs) {
+                if (lhs.alignment != rhs.alignment) {
+                    return lhs.alignment > rhs.alignment;
+                }
+                return lhs.first != rhs.first ? lhs.first < rhs.first : lhs.second < rhs.second;
+            });
+            std::vector<char> paired(vertex.branches.size(), 0);
+            for (const PairCandidate& candidate : candidates) {
+                if (paired[candidate.first] || paired[candidate.second]) {
+                    continue;
+                }
+                paired[candidate.first] = 1;
+                paired[candidate.second] = 1;
+                vertex.branchPairs.push_back(
+                    FeatureGraphBranchPair{candidate.first, candidate.second, candidate.alignment}
+                );
+            }
+            analysis.junctionBranchPairs += static_cast<int>(vertex.branchPairs.size());
+            const int unpairedBranches =
+                static_cast<int>(vertex.branches.size()) - 2 * static_cast<int>(vertex.branchPairs.size());
+            vertex.ambiguousJunction = unpairedBranches > 1;
+            if (vertex.ambiguousJunction) {
+                ++analysis.ambiguousJunctions;
+            }
+        }
         if (vertex.junction && activeIncidentEdges > 0) {
             analysis.graph.junctionVertices.push_back(id);
         }

@@ -72,6 +72,13 @@ TEST_F(CApiTest, ExposesSmoothCurvatureOptionsAndDiagnostics) {
     options.smooth_curvature_scale_count = 3;
     options.smooth_curvature_min_persistent_scales = 2;
     options.smooth_curvature_robust_fit_iterations = 2;
+    options.smooth_curvature_use_stable_scale_selection = 1;
+    options.smooth_curvature_min_scale_stability = 0.0;
+    options.use_feature_normal_filter = 1;
+    options.feature_normal_filter_iterations = 2;
+    options.feature_normal_filter_angle_sigma_deg = 18.0;
+    options.feature_normal_filter_preserve_angle_deg = 55.0;
+    options.feature_normal_filter_relaxation = 0.8;
     options.feature_graph_min_weak_spur_strength = 0.01;
 
     ManuMeshSimplifyReport report;
@@ -82,6 +89,10 @@ TEST_F(CApiTest, ExposesSmoothCurvatureOptionsAndDiagnostics) {
     EXPECT_GT(report.max_smooth_curvature_persistent_score, options.smooth_curvature_feature_threshold);
     EXPECT_GT(report.mean_smooth_curvature_local_scale, 0.0);
     EXPECT_GT(report.mean_smooth_curvature_persistence, 0.0);
+    EXPECT_GT(report.mean_smooth_curvature_scale_stability, 0.0);
+    EXPECT_EQ(2, report.feature_normal_filter_iterations_completed);
+    EXPECT_GT(report.feature_normal_filter_changed_faces, 0);
+    EXPECT_GT(report.mean_feature_normal_filter_angular_change_deg, 0.0);
 
     manumesh_mesh_destroy(output);
     manumesh_mesh_destroy(input);

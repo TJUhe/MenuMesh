@@ -155,12 +155,15 @@ featureOptions.smoothCurvatureBaseNeighborhoodRings = 2;   // one-ring 拟合对
 featureOptions.smoothCurvatureScaleCount = 3;
 featureOptions.smoothCurvatureMinPersistentScales = 2;
 featureOptions.smoothCurvatureRobustFitIterations = 2;
+featureOptions.smoothCurvatureUseStableScaleSelection = true;
+featureOptions.smoothCurvatureMinScaleStability = 0.4;
 ```
 
 分数无量纲，网格均匀缩放后不需要重新调阈值。`FeatureAnalysis` 对应返回
 `smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、
 `maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、
-`meanSmoothCurvatureLocalScale` 和 `meanSmoothCurvaturePersistence`；graph edge 带
+`meanSmoothCurvatureLocalScale`、`meanSmoothCurvaturePersistence` 和
+`meanSmoothCurvatureScaleStability`；逐顶点结果带 `selectedScale` / `scaleStability`，graph edge 带
 `smoothCurvature` 来源标记，component 带 `smoothCurvatureEdges` 和
 `meanCurvaturePersistence`。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面场景需要不同阈值与验证集；不启用时既有硬特征检测和简化行为完全不变。
 
@@ -177,13 +180,33 @@ simplifyOptions.smoothCurvatureBaseNeighborhoodRings = 2;
 simplifyOptions.smoothCurvatureScaleCount = 3;
 simplifyOptions.smoothCurvatureMinPersistentScales = 2;
 simplifyOptions.smoothCurvatureRobustFitIterations = 2;
+simplifyOptions.smoothCurvatureUseStableScaleSelection = true;
+simplifyOptions.smoothCurvatureMinScaleStability = 0.4;
+simplifyOptions.useFeatureNormalFilter = true;
+simplifyOptions.featureNormalFilterIterations = 4;
+simplifyOptions.consolidateFeatureGraph = true;
+simplifyOptions.featureGraphConsolidationGapLengthRatio = 3.0;
+simplifyOptions.featureGraphConsolidationMinAlignment = 0.75;
 simplifyOptions.featureGraphMinWeakSpurStrength = 0.0;
 ```
 
-`SimplifyReport` 会返回 `smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、persistent score/local scale/persistence，以及 `inconsistentWindingEdges`、`graphCleanupSkippedByCap`、`circularRecoveryTruncated`。需要让多个流程共享同一分析时，仍可先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。设计细节见 [`../design/smooth_curvature_feature_detection_2026_07_11.md`](../design/smooth_curvature_feature_detection_2026_07_11.md)。
+`SimplifyReport` 会返回 smooth score/local scale/persistence/stability、normal-filter iterations/changed faces/preserved edges/angular change、consolidation bridge/cap，以及既有 winding/cleanup/recovery 诊断。需要让多个流程共享同一分析时，仍可先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。
 
-如果有人工或 CAD 导出的 edge labels，可用
-`manumesh::feature::benchmarkFeatureEdges(features, labels, junctionLabels)` 计算 edge precision/recall/F1、junction correctness、loop closure rate 和平均 component confidence。
+独立 feature analysis 还可以启用 face partition：
+
+```cpp
+featureOptions.normalFilter.enabled = true;
+featureOptions.graphConsolidation.enabled = true;
+featureOptions.surfacePatches.enabled = true;
+featureOptions.surfacePatches.includeWeakEvidence = false; // strong barriers only
+auto analysis = manumesh::feature::detectFeatureCurves(input, featureOptions);
+// analysis.facePatchIds / patches / patchAdjacencies
+```
+
+surface patches 不进入 QEM collapse；它们是验证、后续 region processing 和 benchmark 的输出。非 mesh-edge recovery bridge 不会切开 faces，并计入 `segmentationIgnoredRecoveryEdges`。
+
+如果有人工或 CAD 导出的标签，可用兼容入口
+`benchmarkFeatureEdges()` 评估 edge/junction，或用 `benchmarkFeatureAnalysis(mesh, features, labels)` 同时评估 edge、junction、continuation branch pair 和 face-patch adjacency。
 
 ## C ABI 最小流程
 
@@ -201,7 +224,7 @@ simplifyOptions.featureGraphMinWeakSpurStrength = 0.0;
 
 旧的无容量 init 符号以及旧 `manumesh_simplify_mesh` / `manumesh_compute_mesh_stats` 符号仍导出。它们不读取 report/stats 的原有字节，并始终只写首次发布的 v1 历史尺寸，因而兼容首发时允许未初始化 output 的调用方式，也不会覆盖旧调用方较小的栈对象。这个选择无法保留所有后加尾字段的语义：已经编译且依赖 `loop_trace_angle_deg`、cleanup、quality refinement 或新增 report 尾字段的中间版本客户端，换用新 DLL 后必须重新编译或迁移到 size-aware 入口，否则这些字段会按首发容量被忽略。新源码确实需要直接访问旧符号时，可在包含 `api/CApi.h` 前定义 `MANUMESH_DISABLE_SIZE_AWARE_ALIASES`；旧名称 `MANUMESH_DISABLE_SIZE_AWARE_INIT_MACROS` 仍作为兼容开关。库的 C API object target 使用 `MANUMESH_C_API_IMPLEMENTATION` 禁用 alias。
 
-`normal_tensor_min_persistent_scales`、feature graph cleanup、smooth-curvature 选项和 component/smooth/winding/recovery 报告字段都位于 C ABI 结构体尾部；较早、较短的同版本调用方继续使用库默认行为。`ManuMeshSimplifyOptions` 已暴露 `use_smooth_curvature_features`、七个 `smooth_curvature_*` 参数和 `feature_graph_min_weak_spur_strength`；`ManuMeshSimplifyReport` 已暴露 smooth-curvature、`inconsistent_winding_edges`、`graph_cleanup_skipped_by_cap`、`circular_recovery_truncated`。纹理保护选项（`preserveTexture` 等）仍只在 C++ API 提供，因为 v1 C ABI 不携带逐角纹理坐标——需要保纹理时必须使用 C++ `Mesh` / `PlainMesh` 边界。
+normal-tensor、cleanup、smooth-curvature stable-scale、feature normal filter、graph consolidation 和对应 report 字段都位于 C ABI 结构体尾部；较早、较短的同版本调用方继续使用库默认行为。surface patch 结果是可变长 C++ 容器，当前没有加入 v1 C ABI；纹理保护同样仍只在 C++ API 提供。
 
 错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM 与参数错误作为可区分的状态处理。
 

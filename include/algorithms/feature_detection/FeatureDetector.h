@@ -48,6 +48,11 @@ private:
 #pragma warning(pop)
 #endif
 
+/// Stabilizes face normals for noisy-input feature detection while preserving
+/// mesh topology and vertex positions.
+MANUMESH_API FeatureNormalFilterResult
+filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options = {});
+
 /// Computes local normal-tensor scores from one-ring face normals.
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options = {});
@@ -79,6 +84,11 @@ MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 /// scale/threshold parameters for that regime.
 MANUMESH_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options);
 
+/// Builds a face partition separated by active feature-graph edges and writes
+/// it into analysis.facePatchIds / patches / patchAdjacencies.
+MANUMESH_API void
+segmentFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const SurfacePatchOptions& options = {});
+
 /// Measures one detected loop against a supplied circle.
 MANUMESH_API DirectionalCurveError measureLoopAgainstCircle(
     const Mesh& mesh, const FeatureLoop& loop, const Vec3& center, const Vec3& normal, double radius
@@ -96,5 +106,9 @@ MANUMESH_API FeatureEdgeBenchmark benchmarkFeatureEdges(
     const std::vector<std::pair<int, int>>& groundTruthEdges,
     const std::vector<int>& groundTruthJunctionVertices = {}
 );
+
+/// Extended benchmark for branch continuation and face-patch partition labels.
+MANUMESH_API FeatureEdgeBenchmark
+benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, const FeatureBenchmarkLabels& labels);
 
 } // namespace manumesh::feature

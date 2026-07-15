@@ -251,6 +251,8 @@ int commandSimplify(const Args& args) {
                   << " graph_cleanup_removed_spurs=" << report.graphCleanupRemovedSpurs
                   << " graph_cleanup_merged_junctions=" << report.graphCleanupMergedJunctions
                   << " graph_cleanup_skipped_by_cap=" << report.graphCleanupSkippedByCap
+                  << " graph_consolidation_bridges=" << report.graphConsolidationBridges
+                  << " graph_consolidation_skipped_by_cap=" << report.graphConsolidationSkippedByCap
                   << " circular_recovery_truncated=" << report.circularRecoveryTruncated
                   << " inconsistent_winding_edges=" << report.inconsistentWindingEdges
                   << " mean_feature_component_confidence=" << report.meanFeatureComponentConfidence
@@ -266,6 +268,13 @@ int commandSimplify(const Args& args) {
                   << " max_smooth_curvature_persistent_score=" << report.maxSmoothCurvaturePersistentScore
                   << " mean_smooth_curvature_local_scale=" << report.meanSmoothCurvatureLocalScale
                   << " mean_smooth_curvature_persistence=" << report.meanSmoothCurvaturePersistence
+                  << " mean_smooth_curvature_scale_stability=" << report.meanSmoothCurvatureScaleStability
+                  << " normal_filter_iterations=" << report.featureNormalFilterIterationsCompleted
+                  << " normal_filter_changed_faces=" << report.featureNormalFilterChangedFaces
+                  << " normal_filter_preserved_edges=" << report.featureNormalFilterPreservedEdges
+                  << " mean_normal_filter_angular_change_deg=" << report.meanFeatureNormalFilterAngularChangeDeg
+                  << " junction_branch_pairs=" << report.junctionBranchPairs
+                  << " ambiguous_feature_junctions=" << report.ambiguousFeatureJunctions
                   << " feature_rejected=" << report.featureRejectedCollapses
                   << " primitive_feature_rejected=" << report.primitiveFeatureRejectedCollapses
                   << " generic_feature_rejected=" << report.genericFeatureRejectedCollapses
@@ -289,12 +298,18 @@ int commandSimplify(const Args& args) {
                "high_confidence_feature_components,graph_cleanup_bridged_gaps,"
                "graph_cleanup_removed_spurs,graph_cleanup_merged_junctions,"
                "graph_cleanup_skipped_by_cap,circular_recovery_truncated,inconsistent_winding_edges,"
+               "graph_consolidation_bridges,graph_consolidation_skipped_by_cap,"
                "mean_feature_component_confidence,min_feature_component_confidence,"
                "normal_tensor_feature_edges,normal_tensor_scored_vertices,"
                "max_normal_tensor_persistent_score,mean_normal_tensor_local_scale,"
                "mean_normal_tensor_persistence,smooth_curvature_feature_edges,"
                "smooth_curvature_scored_vertices,max_smooth_curvature_persistent_score,"
-               "mean_smooth_curvature_local_scale,mean_smooth_curvature_persistence,feature_protection_mode,"
+               "mean_smooth_curvature_local_scale,mean_smooth_curvature_persistence,"
+               "mean_smooth_curvature_scale_stability,feature_normal_filter_iterations_completed,"
+               "feature_normal_filter_changed_faces,feature_normal_filter_preserved_edges,"
+               "mean_feature_normal_filter_angular_change_deg,max_feature_normal_filter_angular_change_deg,"
+               "mean_feature_normal_filter_edge_indicator,junction_branch_pairs,ambiguous_feature_junctions,"
+               "feature_protection_mode,"
                "feature_rejected_collapses,boundary_rejected_collapses,"
                "primitive_feature_rejected_collapses,"
                "generic_feature_rejected_collapses,"
@@ -312,13 +327,18 @@ int commandSimplify(const Args& args) {
             << "," << report.highConfidenceFeatureComponents << "," << report.graphCleanupBridgedGaps << ","
             << report.graphCleanupRemovedSpurs << "," << report.graphCleanupMergedJunctions << ","
             << report.graphCleanupSkippedByCap << "," << report.circularRecoveryTruncated << ","
-            << report.inconsistentWindingEdges << "," << report.meanFeatureComponentConfidence << ","
+            << report.inconsistentWindingEdges << "," << report.graphConsolidationBridges << ","
+            << report.graphConsolidationSkippedByCap << "," << report.meanFeatureComponentConfidence << ","
             << report.minFeatureComponentConfidence << "," << report.normalTensorFeatureEdges << ","
             << report.normalTensorScoredVertices << "," << report.maxNormalTensorPersistentScore << ","
             << report.meanNormalTensorLocalScale << "," << report.meanNormalTensorPersistence << ","
             << report.smoothCurvatureFeatureEdges << "," << report.smoothCurvatureScoredVertices << ","
             << report.maxSmoothCurvaturePersistentScore << "," << report.meanSmoothCurvatureLocalScale << ","
-            << report.meanSmoothCurvaturePersistence << ","
+            << report.meanSmoothCurvaturePersistence << "," << report.meanSmoothCurvatureScaleStability << ","
+            << report.featureNormalFilterIterationsCompleted << "," << report.featureNormalFilterChangedFaces << ","
+            << report.featureNormalFilterPreservedEdges << "," << report.meanFeatureNormalFilterAngularChangeDeg << ","
+            << report.maxFeatureNormalFilterAngularChangeDeg << "," << report.meanFeatureNormalFilterEdgeIndicator
+            << "," << report.junctionBranchPairs << "," << report.ambiguousFeatureJunctions << ","
             << manumesh::simplification::toString(options.featureProtectionMode) << ","
             << report.featureRejectedCollapses << "," << report.boundaryRejectedCollapses << ","
             << report.primitiveFeatureRejectedCollapses << "," << report.genericFeatureRejectedCollapses << ","

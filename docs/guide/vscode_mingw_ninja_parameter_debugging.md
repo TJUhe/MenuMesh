@@ -367,6 +367,11 @@ preventLocalIntersections = true
 | `max_normal_tensor_persistent_score` | 结合平均分数和多尺度 persistence 后的最大 tensor 分数。 |
 | `mean_normal_tensor_local_scale` | tensor scored vertices 的平均局部边长尺度。 |
 | `mean_normal_tensor_persistence` | tensor scored vertices 的平均支持尺度数。 |
+| `mean_smooth_curvature_scale_stability` | stable-scale 模式下 smooth-curvature 参考尺度的平均稳定性。 |
+| `normal_filter_*` | 法线域过滤的迭代、变化面、保留边和角度变化；不表示顶点已去噪。 |
+| `graph_consolidation_bridges`、`graph_consolidation_skipped_by_cap` | opt-in 跨 component recovery 的桥数和 cap 跳过。 |
+| `junction_branch_pairs`、`ambiguous_junctions` | continuation 分支配对和仍有未配对分支的 junction。 |
+| `surface_patches`、`patch_adjacencies`、`segmentation_ignored_recovery_edges` | 可选 face partition、patch 邻接和被忽略的非 mesh-edge bridge。 |
 | `mean_feature_component_confidence`、`min_feature_component_confidence` | component-level support 的平均/最低置信度。 |
 | `loops` | 恢复出的特征曲线/环数量。 |
 | `circle_loops`、`near_circle_loops`、`ellipse_loops`、`polygonal_loops` | primitive 拟合分类。 |
@@ -375,12 +380,14 @@ preventLocalIntersections = true
 
 ### feature-benchmark 输出
 
-`feature-benchmark input.stl labels.csv --csv out.csv` 读取 0-based vertex-index 标签。普通行 `a,b` 表示 ground-truth feature edge，可选行 `junction,id` 表示 ground-truth junction。
+`feature-benchmark input.stl labels.csv --csv out.csv` 读取可扩展标签。支持 `edge,a,b`（兼容 `a,b`）、`junction,id`、`branch,junction,neighborA,neighborB` 和 `face_patch,faceId,patchId`。
 
 | 字段 | 含义 |
 | --- | --- |
 | `edge_precision`、`edge_recall`、`edge_f1` | 检测边与 ground-truth feature edge 的精确率、召回率和 F1。 |
 | `junction_precision`、`junction_recall`、`junction_f1` | 检测 junction 与标签 junction 的匹配情况。 |
+| `branch_pair_precision`、`branch_pair_recall`、`branch_pair_f1` | junction continuation 关系是否匹配。 |
+| `patch_adjacency_accuracy` | 已标注相邻 faces 的同/异 patch 关系准确率；不依赖 patch id 的具体编号。 |
 | `loop_closure_rate` | feature component closure rate 平均值。 |
 | `mean_component_confidence` | component-level support 平均置信度。 |
 

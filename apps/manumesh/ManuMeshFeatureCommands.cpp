@@ -76,6 +76,8 @@ int report(const Args& args) {
               << " graph_cleanup_removed_spurs=" << analysis.graphCleanupRemovedSpurs
               << " graph_cleanup_merged_junctions=" << analysis.graphCleanupMergedJunctions
               << " graph_cleanup_skipped_by_cap=" << analysis.graphCleanupSkippedByCap
+              << " graph_consolidation_bridges=" << analysis.graphConsolidationBridges
+              << " graph_consolidation_skipped_by_cap=" << analysis.graphConsolidationSkippedByCap
               << " circular_recovery_truncated=" << analysis.circularRecoveryTruncated
               << " inconsistent_winding_edges=" << analysis.inconsistentWindingEdges
               << " normal_tensor_scored_vertices=" << analysis.normalTensorScoredVertices
@@ -90,6 +92,15 @@ int report(const Args& args) {
               << " max_smooth_curvature_persistent_score=" << analysis.maxSmoothCurvaturePersistentScore
               << " mean_smooth_curvature_local_scale=" << analysis.meanSmoothCurvatureLocalScale
               << " mean_smooth_curvature_persistence=" << analysis.meanSmoothCurvaturePersistence
+              << " mean_smooth_curvature_scale_stability=" << analysis.meanSmoothCurvatureScaleStability
+              << " normal_filter_iterations=" << analysis.normalFilter.iterationsCompleted
+              << " normal_filter_changed_faces=" << analysis.normalFilter.changedFaces
+              << " normal_filter_preserved_edges=" << analysis.normalFilter.preservedEdges
+              << " mean_normal_filter_angular_change_deg=" << analysis.normalFilter.meanAngularChangeDeg
+              << " junction_branch_pairs=" << analysis.junctionBranchPairs
+              << " ambiguous_junctions=" << analysis.ambiguousJunctions
+              << " surface_patches=" << analysis.patches.size()
+              << " closed_surface_patches=" << analysis.closedSurfacePatches
               << " mean_feature_component_confidence=" << analysis.meanFeatureComponentConfidence
               << " min_feature_component_confidence=" << analysis.minFeatureComponentConfidence
               << " loops=" << analysis.loops.size() << " circular_loops=" << circularLoops
@@ -113,12 +124,17 @@ int report(const Args& args) {
                "high_confidence_feature_components,graph_cleanup_bridged_gaps,"
                "graph_cleanup_removed_spurs,graph_cleanup_merged_junctions,"
                "graph_cleanup_skipped_by_cap,circular_recovery_truncated,inconsistent_winding_edges,"
+               "graph_consolidation_bridges,graph_consolidation_skipped_by_cap,"
                "normal_tensor_scored_vertices,smooth_curvature_scored_vertices,convex_edges,"
                "concave_edges,unknown_signed_edges,"
                "max_normal_tensor_score,max_normal_tensor_persistent_score,"
                "mean_normal_tensor_local_scale,mean_normal_tensor_persistence,"
                "max_smooth_curvature_score,max_smooth_curvature_persistent_score,"
                "mean_smooth_curvature_local_scale,mean_smooth_curvature_persistence,"
+               "mean_smooth_curvature_scale_stability,normal_filter_iterations,"
+               "normal_filter_changed_faces,normal_filter_preserved_edges,"
+               "mean_normal_filter_angular_change_deg,junction_branch_pairs,ambiguous_junctions,"
+               "surface_patches,closed_surface_patches,"
                "mean_feature_component_confidence,min_feature_component_confidence,"
                "loops,circular_loops,circle_loops,"
                "near_circle_loops,ellipse_loops,polygonal_loops\n";
@@ -130,13 +146,18 @@ int report(const Args& args) {
             << analysis.graphCleanupBridgedGaps << "," << analysis.graphCleanupRemovedSpurs << ","
             << analysis.graphCleanupMergedJunctions << "," << analysis.graphCleanupSkippedByCap << ","
             << analysis.circularRecoveryTruncated << "," << analysis.inconsistentWindingEdges << ","
+            << analysis.graphConsolidationBridges << "," << analysis.graphConsolidationSkippedByCap << ","
             << analysis.normalTensorScoredVertices << "," << analysis.smoothCurvatureScoredVertices << ","
             << analysis.convexFeatureEdges << "," << analysis.concaveFeatureEdges << ","
             << analysis.unknownSignedFeatureEdges << "," << analysis.maxNormalTensorFeatureScore << ","
             << analysis.maxNormalTensorPersistentScore << "," << analysis.meanNormalTensorLocalScale << ","
             << analysis.meanNormalTensorPersistence << "," << analysis.maxSmoothCurvatureFeatureScore << ","
             << analysis.maxSmoothCurvaturePersistentScore << "," << analysis.meanSmoothCurvatureLocalScale << ","
-            << analysis.meanSmoothCurvaturePersistence << "," << analysis.meanFeatureComponentConfidence << ","
+            << analysis.meanSmoothCurvaturePersistence << "," << analysis.meanSmoothCurvatureScaleStability << ","
+            << analysis.normalFilter.iterationsCompleted << "," << analysis.normalFilter.changedFaces << ","
+            << analysis.normalFilter.preservedEdges << "," << analysis.normalFilter.meanAngularChangeDeg << ","
+            << analysis.junctionBranchPairs << "," << analysis.ambiguousJunctions << "," << analysis.patches.size()
+            << "," << analysis.closedSurfacePatches << "," << analysis.meanFeatureComponentConfidence << ","
             << analysis.minFeatureComponentConfidence << "," << analysis.loops.size() << "," << circularLoops << ","
             << circleLoops << "," << nearCircleLoops << "," << ellipseLoops << "," << polygonalLoops << "\n\n";
         csv << manumesh::feature::featureReportHeaderCsv() << "\n";
@@ -162,7 +183,7 @@ static bool tryParseIntField(const std::string& text, int& value) {
 }
 
 static void
-readFeatureBenchmarkLabels(const fs::path& path, std::vector<std::pair<int, int>>& edges, std::vector<int>& junctions) {
+readFeatureBenchmarkLabels(const fs::path& path, manumesh::feature::FeatureBenchmarkLabels& labels, int faceCount) {
     std::ifstream in(path);
     if (!in) {
         throw std::runtime_error("Cannot open feature label CSV: " + path.string());
@@ -181,7 +202,31 @@ readFeatureBenchmarkLabels(const fs::path& path, std::vector<std::pair<int, int>
         if ((fields[0] == "junction" || fields[0] == "junction_vertex") && fields.size() >= 2) {
             int id = -1;
             if (tryParseIntField(fields[1], id)) {
-                junctions.push_back(id);
+                labels.junctionVertices.push_back(id);
+            } else {
+                ++skippedRows;
+            }
+            continue;
+        }
+        if ((fields[0] == "branch" || fields[0] == "branch_pair") && fields.size() >= 4) {
+            manumesh::feature::FeatureBranchPairLabel label;
+            if (tryParseIntField(fields[1], label.junctionVertex) && tryParseIntField(fields[2], label.firstNeighbor) &&
+                tryParseIntField(fields[3], label.secondNeighbor)) {
+                labels.branchPairs.push_back(label);
+            } else {
+                ++skippedRows;
+            }
+            continue;
+        }
+        if ((fields[0] == "face_patch" || fields[0] == "patch") && fields.size() >= 3) {
+            int faceId = -1;
+            int patchId = -1;
+            if (tryParseIntField(fields[1], faceId) && tryParseIntField(fields[2], patchId) && faceId >= 0 &&
+                faceId < faceCount) {
+                if (labels.facePatchIds.empty()) {
+                    labels.facePatchIds.assign(static_cast<std::size_t>(faceCount), -1);
+                }
+                labels.facePatchIds[faceId] = patchId;
             } else {
                 ++skippedRows;
             }
@@ -189,8 +234,11 @@ readFeatureBenchmarkLabels(const fs::path& path, std::vector<std::pair<int, int>
         }
         int a = -1;
         int b = -1;
-        if (fields.size() >= 2 && tryParseIntField(fields[0], a) && tryParseIntField(fields[1], b)) {
-            edges.emplace_back(a, b);
+        if (fields[0] == "edge" && fields.size() >= 3 && tryParseIntField(fields[1], a) &&
+            tryParseIntField(fields[2], b)) {
+            labels.edges.emplace_back(a, b);
+        } else if (fields.size() >= 2 && tryParseIntField(fields[0], a) && tryParseIntField(fields[1], b)) {
+            labels.edges.emplace_back(a, b);
         } else {
             ++skippedRows;
         }
@@ -213,20 +261,26 @@ int benchmark(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    std::vector<std::pair<int, int>> groundTruthEdges;
-    std::vector<int> groundTruthJunctions;
-    readFeatureBenchmarkLabels(positional[1], groundTruthEdges, groundTruthJunctions);
+    manumesh::feature::FeatureBenchmarkLabels labels;
+    readFeatureBenchmarkLabels(positional[1], labels, static_cast<int>(input.faces.size()));
 
-    const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
+    manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
+    if (!labels.facePatchIds.empty()) {
+        options.surfacePatches.enabled = true;
+    }
     const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, options);
     const manumesh::feature::FeatureEdgeBenchmark benchmark =
-        manumesh::feature::benchmarkFeatureEdges(analysis, groundTruthEdges, groundTruthJunctions);
+        manumesh::feature::benchmarkFeatureAnalysis(input, analysis, labels);
 
     const std::string header = "ground_truth_edges,detected_edges,true_positive_edges,false_positive_edges,"
                                "false_negative_edges,edge_precision,edge_recall,edge_f1,"
                                "ground_truth_junctions,detected_junctions,true_positive_junctions,"
                                "false_positive_junctions,false_negative_junctions,junction_precision,"
-                               "junction_recall,junction_f1,loop_closure_rate,mean_component_confidence";
+                               "junction_recall,junction_f1,loop_closure_rate,mean_component_confidence,"
+                               "ground_truth_branch_pairs,detected_branch_pairs,true_positive_branch_pairs,"
+                               "false_positive_branch_pairs,false_negative_branch_pairs,branch_pair_precision,"
+                               "branch_pair_recall,branch_pair_f1,labeled_face_adjacencies,"
+                               "correct_face_adjacencies,patch_adjacency_accuracy";
     std::ostringstream row;
     row << std::setprecision(12) << benchmark.groundTruthEdges << "," << benchmark.detectedEdges << ","
         << benchmark.truePositiveEdges << "," << benchmark.falsePositiveEdges << "," << benchmark.falseNegativeEdges
@@ -234,7 +288,12 @@ int benchmark(const Args& args) {
         << benchmark.groundTruthJunctions << "," << benchmark.detectedJunctions << ","
         << benchmark.truePositiveJunctions << "," << benchmark.falsePositiveJunctions << ","
         << benchmark.falseNegativeJunctions << "," << benchmark.junctionPrecision << "," << benchmark.junctionRecall
-        << "," << benchmark.junctionF1 << "," << benchmark.loopClosureRate << "," << benchmark.meanComponentConfidence;
+        << "," << benchmark.junctionF1 << "," << benchmark.loopClosureRate << "," << benchmark.meanComponentConfidence
+        << "," << benchmark.groundTruthBranchPairs << "," << benchmark.detectedBranchPairs << ","
+        << benchmark.truePositiveBranchPairs << "," << benchmark.falsePositiveBranchPairs << ","
+        << benchmark.falseNegativeBranchPairs << "," << benchmark.branchPairPrecision << ","
+        << benchmark.branchPairRecall << "," << benchmark.branchPairF1 << "," << benchmark.labeledFaceAdjacencies << ","
+        << benchmark.correctFaceAdjacencies << "," << benchmark.patchAdjacencyAccuracy;
 
     std::cout << header << "\n" << row.str() << "\n";
     const std::string csvPath = getArg(args, "--csv");

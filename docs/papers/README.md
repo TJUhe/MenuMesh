@@ -123,9 +123,19 @@ M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照�
 
 ## 与当前实现的关系
 
-ManuMesh 当前实现已经落地：QEM、line quadrics、有向（绕向感知）二面角和 normal-tensor 特征证据、独立 loop trace 阈值、traced/untraced 诊断、局部尺度归一化、多尺度 persistence、圆/近圆/椭圆 loop 拟合（Taubin 圆 + Halíř-Flusser 椭圆，Kåsa 保留回退）、component-level fallback、特征曲线保护、边界/拓扑（含边界弦 pinch 拒绝）/质量/局部误差/自交过滤。2026-07-12 进一步落地了源自本索引论文的多项技巧：M011/M021 的三次拟合解析 extremality 与边零交叉判据（`SmoothCurvature.cpp`）、M021 的组件级曲线强度过滤与 gap 桥接角度规则（`FeatureGraphCleanup.cpp`）及其 Eq.5-6 cyclideness 零交叉门控（`SmoothCurvature.cpp`，2026-07-13，环面伪 valley 清零）、M007 的 valence 判据图级 junction（`FeatureGraph.cpp`，2026-07-13）、M031 的虚拟顶点扩展 link condition（`CollapseTopology.cpp`）、M032 的边界守恒 placement（`Placement.cpp`）、M002 的沿边一维最优 fallback（`Quadrics.cpp`）、M029 的队列优先级解耦（`priorityScale`）。2026-07-09 的特征识别升级见 [`../design/feature_detection_upgrade_2026_07_09.md`](../design/feature_detection_upgrade_2026_07_09.md)；工程蒸馏清单见 `.claude/skills/mesh-kernel-algorithms/`。
+ManuMesh 当前实现已经落地：QEM、line quadrics、有向二面角、normal-tensor、opt-in smooth-curvature 与 stable-scale、独立 loop trace、法线域 evidence stabilization、cleanup + compatible component consolidation、逐 junction branch pairing、圆/近圆/椭圆 loop、component confidence、feature-induced surface patches，以及边界/拓扑/质量/局部误差/自交过滤。关键算法落点包括 `FeatureNormalFilter.cpp`、`SmoothCurvature.cpp`、`FeatureGraphCompatibility.cpp`、`FeatureGraphConsolidation.cpp`、`FeatureSegmentation.cpp` 和 `FeatureBenchmark.cpp`。完整 2026-07-15 对照见 [`../design/feature_recognition_system_upgrade_2026_07_15.md`](../design/feature_recognition_system_upgrade_2026_07_15.md)。
 
-当前没有落地：论文中的完整 edge dihedral plane quadrics、Rusinkiewicz per-face 张量曲率估计器（M014，当前唯一曲率来源仍是逐顶点 Monge 拟合）、Page 投票旋转与三路相对分类（M013）、Vidal 两侧切平面角复核与 graph-cut 链化（M016）、通用扫描去噪、学习式特征评分、时间一致性简化、神经 QEM 表示和完整 remeshing 算法。ManuMesh 的目标是三角表面网格处理，不把 B-Rep/CAD feature-tree 重建作为本库范围。
+当前没有落地：完整 edge dihedral plane quadrics、Rusinkiewicz per-face 张量曲率估计器、Page 全投票场与三路相对分类、Vidal graph-cut 链化、会移动顶点的 variational/L0/non-local 扫描去噪、analytic surface fitting/patch merge、全局 Hough/winding-number recovery、学习式特征评分、时间一致性简化、神经 QEM 和完整 remeshing。ManuMesh 的目标是三角表面网格处理，不把 B-Rep/CAD feature-tree 重建作为本库范围。
+
+### 补充论文与开源对照（未收录本地 PDF）
+
+| 方向 | 参考 | 对当前实现的意义 |
+| --- | --- | --- |
+| Graph spectral feature-preserving denoising | DOI `10.1109/TVCG.2018.2802926` | 说明全局频谱/特征保持去噪比当前局部 normal relaxation 更完整，也更重。 |
+| Dynamic adaptive mesh denoising | DOI `10.1016/j.gmod.2020.101065` | 动态尺度与噪声强度自适应参考。 |
+| Segmentation-driven denoising | DOI `10.1007/s00371-023-03161-w` | 将 patch/region 语义反向用于去噪；当前 ManuMesh 只输出 connectivity patches。 |
+| Winding-number feature line | DOI `10.1016/j.gmod.2025.101296` | 局部曲线碎裂时的全局 recovery 对照；未读取全文前不推断公式细节。 |
+| 开源实现 | MeshLib、L0Denoising、NLLR、LSD，见 [`open_source_mesh_libraries.md`](open_source_mesh_libraries.md) | 用于 scan preprocessing 结果和失败模式对比，不作为当前运行时依赖。 |
 
 ## 按问题阅读
 
@@ -136,6 +146,9 @@ ManuMesh 当前实现已经落地：QEM、line quadrics、有向（绕向感知�
 | 为什么不能只调大特征权重？ | M026、M028、M029、M033。 | `FeatureConstraints.cpp`、`CollapseLegality.cpp` |
 | CAD/STL 特征边为什么优先用二面角、边界和 loop tracing？ | M007、M016、M018、M019。 | `FeatureEvidence.cpp`、`FeatureGraph.cpp`、`FeatureLoopRecovery.cpp` |
 | normal tensor 的特征值怎么解释？ | M012、M013、M015。 | `NormalTensor.cpp` |
+| 轻中度 noisy normals 如何稳定？ | M009、M012、M013、M015，并与 MeshLib/L0Denoising/NLLR/LSD 对照。 | `FeatureNormalFilter.cpp`；注意它不移动顶点 |
+| 弱 component 为什么以及如何连接？ | M026、M044。 | `FeatureGraphCompatibility.cpp`、`FeatureGraphConsolidation.cpp` |
+| feature edge 如何变成 surface patches？ | M024、M025。 | `FeatureSegmentation.cpp`；当前只做 connectivity partition |
 | 圆/椭圆 loop 为什么要拟合 primitive？ | M016、M024、M025，配合当前 feature fixture；拟合核的出处是 Taubin 1991 与 Halíř-Flusser 1998（经典文献，无本地 PDF）。 | `PrimitiveFit.cpp` |
 | 如果要补 ridge/valley/crest line 应看什么？ | M005、M011、M014、M021、M042。 | `src/feature_detection/SmoothCurvature.cpp`（三次拟合 + 零交叉已落地；M014 张量估计器仍是路线图） |
 | 为什么需要 topology/quality/error/self-intersection filters？ | M031、M032、M033。 | `CollapseLegality.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/SpatialIndex.cpp` |

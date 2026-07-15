@@ -141,6 +141,17 @@ typedef struct ManuMeshSimplifyOptions {
     int smooth_curvature_robust_fit_iterations;
     /* Integrated weak-spur strength threshold; zero keeps edge-count cleanup. */
     double feature_graph_min_weak_spur_strength;
+    /* Optional noisy-input preprocessing and graph recovery. Tail extension. */
+    int use_feature_normal_filter;
+    int feature_normal_filter_iterations;
+    double feature_normal_filter_angle_sigma_deg;
+    double feature_normal_filter_preserve_angle_deg;
+    double feature_normal_filter_relaxation;
+    int smooth_curvature_use_stable_scale_selection;
+    double smooth_curvature_min_scale_stability;
+    int consolidate_feature_graph;
+    double feature_graph_consolidation_gap_length_ratio;
+    double feature_graph_consolidation_min_alignment;
 } ManuMeshSimplifyOptions;
 
 typedef struct ManuMeshSimplifyReport {
@@ -215,6 +226,18 @@ typedef struct ManuMeshSimplifyReport {
     int inconsistent_winding_edges;
     int graph_cleanup_skipped_by_cap;
     int circular_recovery_truncated;
+    /* Noisy-input preprocessing, stable-scale, and graph-recovery diagnostics. */
+    int feature_normal_filter_iterations_completed;
+    int feature_normal_filter_changed_faces;
+    int feature_normal_filter_preserved_edges;
+    double mean_feature_normal_filter_angular_change_deg;
+    double max_feature_normal_filter_angular_change_deg;
+    double mean_feature_normal_filter_edge_indicator;
+    double mean_smooth_curvature_scale_stability;
+    int graph_consolidation_bridges;
+    int graph_consolidation_skipped_by_cap;
+    int junction_branch_pairs;
+    int ambiguous_feature_junctions;
 } ManuMeshSimplifyReport;
 
 typedef struct ManuMeshMeshStats {

@@ -18,19 +18,16 @@ namespace manumesh::feature::detector_detail {
 /// mesh it was created for.
 class FeatureDetectionCache {
 public:
-    explicit FeatureDetectionCache(const Mesh& mesh)
-        : mesh_(&mesh) {}
+    explicit FeatureDetectionCache(const Mesh& mesh, FeatureNormalFilterOptions normalFilterOptions = {})
+        : mesh_(&mesh),
+          normalFilterOptions_(normalFilterOptions) {}
 
     FeatureDetectionCache(const FeatureDetectionCache&) = delete;
     FeatureDetectionCache& operator=(const FeatureDetectionCache&) = delete;
 
-    const std::vector<Vec3>& faceNormals() {
-        if (!hasFaceNormals_) {
-            faceNormals_ = manumesh::common::computeFaceNormals(*mesh_);
-            hasFaceNormals_ = true;
-        }
-        return faceNormals_;
-    }
+    const std::vector<Vec3>& faceNormals();
+
+    const FeatureNormalFilterReport& normalFilterReport();
 
     const manumesh::common::MeshEdgeInfoMap& edgeInfo() {
         if (!hasEdgeInfo_) {
@@ -66,6 +63,8 @@ private:
     std::vector<std::vector<int>> vertexNeighbors_;
     std::vector<double> vertexAverageEdgeLength_;
     std::vector<Vec3> areaWeightedVertexNormals_;
+    FeatureNormalFilterOptions normalFilterOptions_;
+    FeatureNormalFilterReport normalFilterReport_;
     bool hasFaceNormals_ = false;
     bool hasEdgeInfo_ = false;
     bool hasVertexNeighbors_ = false;

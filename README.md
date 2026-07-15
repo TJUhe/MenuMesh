@@ -152,13 +152,16 @@ manumesh::Mesh simplified = simplifier.simplify(input, &report);
 manumesh::feature::FeatureOptions featureOptions;
 featureOptions.useSmoothCurvatureFeatures = true;
 featureOptions.featureGraphMinWeakSpurStrength = 0.05;
+featureOptions.normalFilter.enabled = true;       // noisy scan only
+featureOptions.graphConsolidation.enabled = true; // opt-in gap recovery
+featureOptions.surfacePatches.enabled = true;     // opt-in face partition
 manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
 
-`FeatureAnalysis` 现在同时包含 raw evidence、cleanup 后的 feature graph、loop/primitive、以及 `FeatureComponent` 级 confidence。常用诊断包括 `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupSkippedByCap`、`inconsistentWindingEdges`、`circularRecoveryTruncated`、`smoothCurvatureFeatureEdges`、`weakFeatureComponents`、`meanFeatureComponentConfidence` 和 loop CSV 中的 `component_confidence` / `primitive_residual`。
+`FeatureAnalysis` 现在同时包含 raw evidence、cleanup/consolidation 后的 feature graph、junction branches、loop/primitive、`FeatureComponent` confidence，以及可选的 surface patches。常用诊断包括 normal-filter、graph cleanup/consolidation、junction branch pairing、smooth-curvature scale stability、patch segmentation、`inconsistentWindingEdges`、`circularRecoveryTruncated` 和 loop CSV 中的 `component_confidence` / `primitive_residual`。
 
-简化入口也能直接运行 smooth-curvature 检测：C++ 同时设置 `SimplifyOptions::preserveFeatureCurves=true` 和 `useSmoothCurvatureFeatures=true`；CLI 使用 `--smooth-curvature-features` 时会自动开启 feature-curve policy。`SimplifyReport`、metrics CSV 和 C ABI report 会回传 smooth-curvature、绕向冲突与 bounded-recovery 诊断。预计算 `FeatureAnalysis` 的重载仍保留，适合多个算法复用同一份识别结果。
+简化入口也能直接运行 smooth-curvature 检测、法线域预处理和 feature component consolidation：C++ 需设置对应 `SimplifyOptions`；CLI 的 `--smooth-curvature-features`、`--feature-normal-filter` 或 `--feature-graph-consolidation` 会自动开启 feature-curve policy。`SimplifyReport`、metrics CSV 和 C ABI report 会回传 smooth-curvature 稳定性、normal-filter、consolidation、绕向冲突与 bounded-recovery 诊断。surface patch segmentation 只属于 feature analysis，不参与 QEM collapse。预计算 `FeatureAnalysis` 的重载仍保留，适合多个算法复用同一份识别结果。
 
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
 如果下游本身也是 CMake 工程，并且安装 SDK 时打开了
@@ -343,14 +346,14 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 
 OBJ loader 对严格凸多边形保持确定性 fan 输出，对凹多边形使用主轴投影后的 ear clipping，并逐角保留 `vt`；重复角、退化轮廓、自交轮廓以及同一面混用有/无纹理角会明确报错，不再生成重叠三角形。
 
-带 ground-truth edge labels 的特征识别 benchmark：
+带 ground-truth edge/junction/branch/patch labels 的特征识别 benchmark：
 
 ```powershell
 $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe feature-benchmark input.stl labels.csv --csv output/feature_benchmark.csv
 ```
 
-`labels.csv` 可用每行 `a,b` 表示一条 vertex-index ground-truth feature edge；可选 `junction,id` 行用于 junction correctness。
+`labels.csv` 支持 `edge,a,b`（兼容旧式 `a,b`）、`junction,id`、`branch,junction,neighborA,neighborB` 和 `face_patch,faceId,patchId`。输出除 edge/junction precision、recall、F1 外，还包括 continuation branch-pair 指标和 face-patch adjacency accuracy。
 
 每项能力、性能指标、输出文件和验收口径见
 [`docs/design/industrial_validation.md`](docs/design/industrial_validation.md)。
@@ -361,7 +364,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 `Terminal > Run Task...`：
 
 - `demo: feature report selected mesh`：查看输入网格的 feature edge、loop、circle/ellipse 识别。
-- `demo: feature benchmark selected mesh`：读取 edge label CSV，输出 precision/recall、junction、closure 和 confidence 指标。
+- `demo: feature benchmark selected mesh`：读取可扩展 label CSV，输出 edge/junction/branch-pair、patch adjacency、closure 和 confidence 指标。
 - `demo: simplify standard selected mesh`：用普通 QEM 简化下拉框选择的 mesh。
 - `demo: simplify feature curves selected mesh`：用 line quadrics、dihedral 权重和特征曲线保护简化选定 mesh。
 - `demo: simplify normal tensor selected mesh`：用局部尺度 + 多尺度 persistence 的 normal-tensor 权重调试弱特征补充。

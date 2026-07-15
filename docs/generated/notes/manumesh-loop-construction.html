@@ -267,10 +267,10 @@ footer {
           <td>打开 smooth-curvature 后，<code>graphCleanupRemovedSpurs</code> 也可能来自曲率通道，不能按 tensor 独占计数解释。</td>
         </tr>
         <tr>
-          <td>endpoint gap 与 close-junction gap 使用同一套方向规则。</td>
-          <td>endpoint gap 要求连接段同时延续两端 outward tangent，且两条 outward tangent 方向相反；close-junction 当前只检查局部尺度归一化距离并按最近优先配对。</td>
-          <td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp:247-342, 344-413</a></td>
-          <td>若 <code>graphCleanupMergedJunctions</code> 异常偏高，应优先排查相邻但不属于同一曲线网络的 junction 被误焊接。</td>
+          <td>endpoint gap、close-junction 和 component consolidation 使用同一兼容性基础。</td>
+          <td>连接段必须延续双端 branch；evidence source 与已知 ridge/valley sign 必须兼容。endpoint cleanup 另保留 Yoshizawa 双端角度规则。</td>
+          <td><a href="../../../src/feature_detection/FeatureGraphCompatibility.cpp">FeatureGraphCompatibility.cpp</a>；<a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp</a></td>
+          <td>若 cleanup/consolidation bridge 异常偏高，仍需排查局部一对一贪心把相邻独立网络误连。</td>
         </tr>
         <tr>
           <td>所有 fallback 都可以处理弱证据闭环。</td>
@@ -349,8 +349,9 @@ flowchart TD
   D -->|"boundary / nonManifold /<br/>normalTensor / smoothCurvature"| E["加入 TraceGraph"]
   D -->|"dihedral 且 angle >= loopTraceAngle"| E
   D -->|"dihedral 但角度不够"| F["untracedFeatureEdges++"]
-  E --> G["可选 cleanupTraceGraph<br/>删弱 spur / 桥接近 junction / 桥接 endpoint gap"]
-  G --> H["recoverFeatureLoops 五段恢复"]
+  E --> G["cleanupTraceGraph<br/>删弱 spur / 兼容近 junction / 兼容 endpoint gap"]
+  G --> G2["可选 consolidateFeatureGraph<br/>跨 component endpoint recovery"]
+  G2 --> H["recoverFeatureLoops 五段恢复"]
       </pre>
     </div>
     <h3>TraceGraph 的过滤规则</h3>
@@ -367,13 +368,11 @@ flowchart TD
     </div>
     <h3>cleanup 对 loop 的影响</h3>
     <p>
-      loop recovery 之前，`cleanupTraceGraph` 会按固定顺序删弱证据 spur（normal tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。删 spur 默认按边数裁决（`featureGraphMaxWeakSpurEdges`）；当 `featureGraphMinWeakSpurStrength` 设为正值时，改用 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。该参数已贯通 `FeatureOptions`、`SimplifyOptions`、CLI `--feature-graph-min-weak-spur-strength` 与 size-aware C ABI 尾字段。endpoint gap 桥接采用双端方向规则：连接段对两端 outward tangent 的对齐都必须至少为 0.5，且两条 outward tangent 不能同向；候选以 `distance / meanAlignment` 排序。close-junction bridge 不使用这套切向门控，只比较 junction 间距与两端局部平均边长给出的允许距离。端点超过 512 个或 junction 超过 256 个时，相应 pass 整体跳过并计入 `graphCleanupSkippedByCap`。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
+      loop recovery 之前，`cleanupTraceGraph` 会按固定顺序删弱证据 spur、桥接近 junction、桥接 endpoint gap。bridge 共享 `FeatureGraphCompatibility`：双端 continuation、evidence source 与 ridge/valley signed kind 必须兼容；endpoint cleanup 继续要求 Yoshizawa 双端角度规则。端点超过 512 个或 junction 超过 256 个时，相应 pass 跳过并计入 cap。随后 opt-in `consolidateFeatureGraph` 只连接不同 component 的 degree-1 endpoint，按 normalized distance + alignment penalty 确定性排序。两类 bridge 分别标为 `cleanupBridge` 和 `consolidationBridge`，不会伪装成 raw evidence。<span class="ref">C03</span>
     </p>
     <div class="callout warn">
-      <strong>已知风险：close-junction bridge 是纯距离启发式。</strong>
-      两个空间上很近、但属于不同曲线或不同层面的 junction，当前仍可能被桥接；该动作每个 pass 对一个 junction 最多使用一次，并按距离从小到大贪心选择，但没有切向、法向、source-kind 或 primitive 一致性复核。定位入口：
-      <a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp:344-413</a>。运行时先看
-      <code>graphCleanupMergedJunctions</code>，再对比 cleanup 开关关闭前后的 component、cycle rank 与 loop 数。
+      <strong>已知风险：bridge 仍是局部一对一贪心。</strong>
+      双端方向、source 和 signed kind 已显著收紧误连，但没有全局 curve identity、primitive 或 surface-side 优化；密集近距离网络仍可能选错局部配对。运行时同时看 cleanup/consolidation 计数、branch-pair benchmark、component closure 与可视化。
     </div>
   </section>
 
@@ -779,7 +778,7 @@ flowchart TD
     </div>
     <h3>junction 和 shared 的来源：保护 flag 与图级 junction 是两个语义</h3>
     <p>
-      这里要区分两层。<strong>逐顶点保护 flag</strong>（`VertexFeature::junction`，`assignLoopToVertices` 写入）偏保守：真实分支点（邻接度 &gt; 2）和被多个 recovered loop 共享的顶点都会被钉住——简化层不能塌掉多条恢复曲线共同依赖的顶点。<strong>图级 junction 报告</strong>（`finalizeFeatureGraphMarkers` 写入 `graph.junctionVertices`）则严格得多：按 M007 的判据，junction 就是 feature graph 的分支点，即 active valence &gt; 2 的顶点；loop 成员关系和保护 flag 都不算分支证据——recovered loop 经常沿整段 2-valence 链重叠，而真正相交的 loop 必然在某个 incident 特征边数 &gt; 2 的顶点相遇。早期实现把“被多个 loop 共享”也算进图级 junction，circular recovery 一旦多恢复几个重叠圆，junction 集就被洪泛（chamfer box 上 precision 0.29）；改为纯 valence 判据后，junction 集恰好就是 16 个八边形角点（precision 1.0）。`shared`（loopIds 多于 1）与 `endpoint`（valence 恰为 1）单独报告。<span class="ref">C16</span>
+      这里要区分两层。<strong>逐顶点保护 flag</strong>偏保守：真实分支点和被多个 recovered loop 共享的顶点都会被钉住。<strong>图级 junction 报告</strong>仍以 active valence &gt; 2 为入口，`shared` 与 `endpoint` 单独报告；但每个 junction 现在还保存 incident branches 的 outward tangent/signed kind、最优 continuation pairs 和 ambiguous 标记。这样既保留 M007 的分支点定义，也能测“分支是否接对”，而不只测 junction 顶点集合。<span class="ref">C16</span>
     </p>
     <h3>为什么要写 tangent</h3>
     <p>
@@ -860,7 +859,7 @@ flowchart TD
         </tr>
         <tr>
           <td>两个不同曲线网络的 junction 在空间上很近</td>
-          <td>close-junction cleanup 当前只按局部尺度距离生成候选，再按距离贪心桥接；没有 endpoint bridge 的双端切向检查。</td>
+          <td>cleanup/consolidation 已有双端方向、source 和 signed-kind 门控；风险变为局部贪心在密集网络中选错兼容候选。</td>
           <td>可能产生错误 component 合并、额外 cycle 或错误 primitive fallback；用 <code>graphCleanupMergedJunctions</code> 和关闭 cleanup 的对照运行定位。</td>
           <td><span class="ref">C03</span></td>
         </tr>
@@ -993,7 +992,7 @@ flowchart TD
       <tbody>
         <tr><td><span class="ref">C01</span></td><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">src/feature_detection/FeatureLoopRecovery.cpp:10-17</a></td><td>loop recovery 五段调度入口。</td></tr>
         <tr><td><span class="ref">C02</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:70-184</a></td><td>从 candidate feature edges 构造 TraceGraph，决定 traced/untraced。</td></tr>
-        <tr><td><span class="ref">C03</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:53-223, 247-413, 493-505</a></td><td>weak-evidence spur 判定与删除、endpoint 双端切向桥接、纯距离 close-junction 桥接、cleanup 调度顺序。</td></tr>
+        <tr><td><span class="ref">C03</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp</a>；<a href="../../../src/feature_detection/FeatureGraphCompatibility.cpp">FeatureGraphCompatibility.cpp</a>；<a href="../../../src/feature_detection/FeatureGraphConsolidation.cpp">FeatureGraphConsolidation.cpp</a></td><td>weak spur、兼容 cleanup bridge、跨 component consolidation 与调度顺序。</td></tr>
         <tr><td><span class="ref">C04</span></td><td><a href="../../../src/feature_detection/FeatureTraceRecovery.cpp">src/feature_detection/FeatureTraceRecovery.cpp:13-173</a></td><td>traceOpenChain、traceClosedLoop、traceRemainingFeatureLoops。</td></tr>
         <tr><td><span class="ref">C05</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:62-142</a></td><td>cycleSignature、assignLoopToVertices。</td></tr>
         <tr><td><span class="ref">C06</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:144-178</a></td><td>makeLoopFromStats、addTracedLoop。</td></tr>
@@ -1006,7 +1005,7 @@ flowchart TD
         <tr><td><span class="ref">C13</span></td><td><a href="../../../src/feature_detection/FeatureCircularRecovery.cpp">src/feature_detection/FeatureCircularRecovery.cpp:37-282</a></td><td>三点圆、角覆盖、证据连通性门控（clusterSupportedByTraceEdges）、component 收集、circular vertex cluster fallback。</td></tr>
         <tr><td><span class="ref">C14</span></td><td><a href="../../../src/simplification/FeatureGuidance.cpp">src/simplification/FeatureGuidance.cpp:91-164</a></td><td>FeatureAnalysis loops/vertices 如何被转成简化阶段的 feature guidance。</td></tr>
         <tr><td><span class="ref">C15</span></td><td><a href="../../../src/feature_detection/PrimitiveFit.cpp">src/feature_detection/PrimitiveFit.cpp:42-608</a></td><td>primitive fit（Taubin 圆 + Halíř-Flusser 椭圆，Kåsa/二阶矩为回退）、classification、applyPrimitiveFit、cycleEdgesFollowCircle。</td></tr>
-        <tr><td><span class="ref">C16</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:202-235</a></td><td>finalizeFeatureGraphMarkers，junction/shared 顶点最终标记。</td></tr>
+        <tr><td><span class="ref">C16</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp</a></td><td>junction/shared/endpoint、branch tangents、continuation pairs 与 ambiguous 标记。</td></tr>
       </tbody>
     </table>
 

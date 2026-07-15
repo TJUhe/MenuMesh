@@ -61,6 +61,11 @@ struct ScaleCandidate {
     int signedKind = 0;
 };
 
+struct ScaleSelection {
+    int scale = -1;
+    double stability = 0.0;
+};
+
 /// Reusable per-call scratch buffers for the multiscale fitting hot path.
 /// Earlier revisions allocated fresh vectors, queues, and Eigen matrices for
 /// every vertex and robust iteration; one workspace per analysis removes that
@@ -75,16 +80,19 @@ struct FitWorkspace {
     std::vector<double> medianScratch;
 };
 
-std::vector<Vec3> computeAreaWeightedVertexNormals(const Mesh& mesh) {
+std::vector<Vec3> computeAreaWeightedVertexNormals(const Mesh& mesh, const std::vector<Vec3>& faceNormals) {
     std::vector<Vec3> normals(mesh.vertices.size(), Vec3::Zero());
-    for (const Face& face : mesh.faces) {
+    for (int faceId = 0; faceId < static_cast<int>(mesh.faces.size()); ++faceId) {
+        const Face& face = mesh.faces[faceId];
         const Vec3 cross = (mesh.vertices[face.v[1]] - mesh.vertices[face.v[0]])
                                .cross(mesh.vertices[face.v[2]] - mesh.vertices[face.v[0]]);
         if (cross.squaredNorm() <= 1e-30) {
             continue;
         }
+        const Vec3 direction = faceId < static_cast<int>(faceNormals.size()) ? faceNormals[faceId] : cross.normalized();
+        const Vec3 weighted = cross.norm() * direction;
         for (int id : face.v) {
-            normals[id] += cross;
+            normals[id] += weighted;
         }
     }
     for (Vec3& normal : normals) {
@@ -142,6 +150,57 @@ double medianAbsolute(const std::vector<double>& values, std::vector<double>& sc
         median = 0.5 * (median + *lower);
     }
     return median;
+}
+
+ScaleSelection selectReferenceScale(
+    const std::vector<std::vector<ScaleCandidate>>& candidates,
+    int vertex,
+    double tangentConsistency,
+    double persistenceThreshold,
+    bool stableSelection
+) {
+    ScaleSelection selection;
+    double bestObjective = -1.0;
+    double bestRawScore = -1.0;
+    const int scaleCount = static_cast<int>(candidates.size());
+    for (int scale = 0; scale < scaleCount; ++scale) {
+        const ScaleCandidate& reference = candidates[scale][vertex];
+        if (!reference.valid) {
+            continue;
+        }
+
+        int supportCount = 0;
+        double alignmentSum = 0.0;
+        const double threshold = std::max(persistenceThreshold, 0.30 * reference.score);
+        for (int otherScale = 0; otherScale < scaleCount; ++otherScale) {
+            const ScaleCandidate& other = candidates[otherScale][vertex];
+            if (!other.valid || other.signedKind != reference.signedKind || other.score < threshold) {
+                continue;
+            }
+            const double alignment = std::abs(other.curveTangent.dot(reference.curveTangent));
+            if (alignment < tangentConsistency) {
+                continue;
+            }
+            ++supportCount;
+            alignmentSum += alignment;
+        }
+
+        const double supportRatio =
+            scaleCount > 0 ? static_cast<double>(supportCount) / static_cast<double>(scaleCount) : 0.0;
+        const double meanAlignment = supportCount > 0 ? alignmentSum / static_cast<double>(supportCount) : 0.0;
+        const double fitQuality = 1.0 / (1.0 + std::max(0.0, reference.fitResidual));
+        const double stability = supportRatio * meanAlignment * fitQuality;
+        const double objective = reference.score * (stableSelection ? 0.5 + 0.5 * stability : 1.0);
+        if (selection.scale < 0 || objective > bestObjective ||
+            (objective == bestObjective &&
+             (reference.score > bestRawScore || (reference.score == bestRawScore && scale < selection.scale)))) {
+            selection.scale = scale;
+            selection.stability = stability;
+            bestObjective = objective;
+            bestRawScore = reference.score;
+        }
+    }
+    return selection;
 }
 
 ScaleEstimate fitScale(
@@ -473,8 +532,7 @@ ScaleCandidate classifyScaleCandidate(
             // whether kappa varies by at least a fixed fraction of itself
             // over one curvature radius along its own line of curvature --
             // zero on cyclides, O(1) on true crests.
-            const double crossingCyclideness =
-                0.5 * (std::abs(centerExtremality) + std::abs(neighborExtremality));
+            const double crossingCyclideness = 0.5 * (std::abs(centerExtremality) + std::abs(neighborExtremality));
             if (crossingCyclideness < kMinCrossingCyclidenessRatio * curvature * curvature) {
                 continue;
             }
@@ -522,7 +580,7 @@ namespace detector_detail {
 
 const std::vector<Vec3>& FeatureDetectionCache::areaWeightedVertexNormals() {
     if (!hasAreaWeightedVertexNormals_) {
-        areaWeightedVertexNormals_ = computeAreaWeightedVertexNormals(*mesh_);
+        areaWeightedVertexNormals_ = computeAreaWeightedVertexNormals(*mesh_, faceNormals());
         hasAreaWeightedVertexNormals_ = true;
     }
     return areaWeightedVertexNormals_;
@@ -577,13 +635,10 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
     }
 
     for (int vertex = 0; vertex < static_cast<int>(mesh.vertices.size()); ++vertex) {
-        int bestScale = -1;
-        for (int scale = 0; scale < scaleCount; ++scale) {
-            if (candidates[scale][vertex].valid &&
-                (bestScale < 0 || candidates[scale][vertex].score > candidates[bestScale][vertex].score)) {
-                bestScale = scale;
-            }
-        }
+        const ScaleSelection selection = selectReferenceScale(
+            candidates, vertex, tangentConsistency, persistenceThreshold, options.useStableScaleSelection
+        );
+        const int bestScale = selection.scale;
         SmoothCurvatureVertex& output = result[vertex];
         output.normal = vertexNormals[vertex];
         if (bestScale < 0) {
@@ -620,6 +675,8 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
         output.averageFeatureScore = supportedScoreSum / static_cast<double>(scaleCount);
         output.fitResidual = best.fitResidual;
         output.localScale = best.localScale;
+        output.selectedScale = bestScale;
+        output.scaleStability = selection.stability;
         output.signedKind = best.signedKind;
         // Pure vote counting (Luo-Zha M009): persistence is the number of
         // supporting scales, thresholded downstream against
@@ -629,7 +686,7 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
         // coarsest neighborhood radius (baseRings + scaleCount - 1 rings) on
         // dense meshes -- exactly the small fillets and short ridges the
         // multiscale channel exists to find.
-        if (output.persistentScales > 0) {
+        if (output.persistentScales > 0 && output.scaleStability >= options.minScaleStability) {
             const double persistenceRatio =
                 static_cast<double>(output.persistentScales) / static_cast<double>(scaleCount);
             const double meanAlignment = supportedAlignmentSum / static_cast<double>(output.persistentScales);

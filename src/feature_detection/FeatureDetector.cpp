@@ -6,8 +6,10 @@
 #include "detail/FeatureEvidence.h"
 #include "detail/FeatureGraph.h"
 #include "detail/FeatureGraphCleanup.h"
+#include "detail/FeatureGraphConsolidation.h"
 #include "detail/FeatureInputValidation.h"
 #include "detail/FeatureLoopRecovery.h"
+#include "detail/FeatureSegmentation.h"
 #include "detail/PrimitiveFit.h"
 
 #include <algorithm>
@@ -17,7 +19,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <unordered_set>
 #include <utility>
 
 namespace manumesh::feature {
@@ -32,7 +33,7 @@ struct FeatureDetectionContext {
     FeatureDetectionContext(const Mesh& inputMesh, const FeatureOptions& inputOptions)
         : mesh(inputMesh),
           options(inputOptions),
-          cache(inputMesh),
+          cache(inputMesh, inputOptions.normalFilter),
           builder(static_cast<int>(inputMesh.vertices.size())) {}
 
     FeatureAnalysis& analysis() { return builder.analysis(); }
@@ -118,6 +119,10 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
             std::to_string(kMaxSmoothCurvatureRobustFitIterations) + "]."
         );
     }
+    if (!std::isfinite(options.smoothCurvatureMinScaleStability) || options.smoothCurvatureMinScaleStability < 0.0 ||
+        options.smoothCurvatureMinScaleStability > 1.0) {
+        throw std::invalid_argument("smoothCurvatureMinScaleStability must be finite and in [0, 1].");
+    }
     requireFiniteNonNegative(options.featureGraphGapLengthRatio, "featureGraphGapLengthRatio");
     if (options.featureGraphMaxWeakSpurEdges < 0) {
         throw std::invalid_argument("featureGraphMaxWeakSpurEdges must be non-negative.");
@@ -127,6 +132,28 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
         throw std::invalid_argument("featureComponentMinConfidence must be finite and in [0, 1].");
     }
     requireFiniteNonNegative(options.featureGraphMinWeakSpurStrength, "featureGraphMinWeakSpurStrength");
+    if (options.normalFilter.iterations < 0 || options.normalFilter.iterations > kMaxFeatureNormalFilterIterations) {
+        throw std::invalid_argument(
+            "normalFilter.iterations must be in [0, " + std::to_string(kMaxFeatureNormalFilterIterations) + "]."
+        );
+    }
+    if (!std::isfinite(options.normalFilter.angleSigmaDeg) || options.normalFilter.angleSigmaDeg <= 0.0 ||
+        options.normalFilter.angleSigmaDeg > 180.0) {
+        throw std::invalid_argument("normalFilter.angleSigmaDeg must be finite and in (0, 180].");
+    }
+    if (!std::isfinite(options.normalFilter.preserveAngleDeg) || options.normalFilter.preserveAngleDeg < 0.0 ||
+        options.normalFilter.preserveAngleDeg > 180.0) {
+        throw std::invalid_argument("normalFilter.preserveAngleDeg must be finite and in [0, 180].");
+    }
+    if (!std::isfinite(options.normalFilter.relaxation) || options.normalFilter.relaxation < 0.0 ||
+        options.normalFilter.relaxation > 1.0) {
+        throw std::invalid_argument("normalFilter.relaxation must be finite and in [0, 1].");
+    }
+    requireFiniteNonNegative(options.graphConsolidation.maxGapLengthRatio, "graphConsolidation.maxGapLengthRatio");
+    if (!std::isfinite(options.graphConsolidation.minAlignment) || options.graphConsolidation.minAlignment < 0.0 ||
+        options.graphConsolidation.minAlignment > 1.0) {
+        throw std::invalid_argument("graphConsolidation.minAlignment must be finite and in [0, 1].");
+    }
 }
 
 void validateFeatureInput(const Mesh& mesh) { detector_detail::validateFeatureMeshInput(mesh); }
@@ -176,8 +203,7 @@ public:
                 bool touchesDegenerate = false;
                 if (it != edgeInfo.end()) {
                     for (int faceId : it->second.faces) {
-                        if (faceId >= 0 && faceId < static_cast<int>(degenerateFace.size()) &&
-                            degenerateFace[faceId]) {
+                        if (faceId >= 0 && faceId < static_cast<int>(degenerateFace.size()) && degenerateFace[faceId]) {
                             touchesDegenerate = true;
                             break;
                         }
@@ -225,6 +251,15 @@ public:
     }
 };
 
+class FeatureGraphConsolidationStage {
+public:
+    void run(FeatureDetectionContext& context) const {
+        detector_detail::consolidateFeatureGraph(
+            context.mesh, context.options, context.cache, context.trace, context.analysis()
+        );
+    }
+};
+
 class LoopRecoveryStage {
 public:
     void run(FeatureDetectionContext& context) const {
@@ -244,7 +279,16 @@ public:
 class FeatureGraphFinalizeStage {
 public:
     void run(FeatureDetectionContext& context) const {
-        detector_detail::finalizeFeatureGraphMarkers(context.analysis());
+        detector_detail::finalizeFeatureGraphMarkers(context.mesh, context.analysis());
+    }
+};
+
+class FeatureSegmentationStage {
+public:
+    void run(FeatureDetectionContext& context) const {
+        if (context.options.surfacePatches.enabled) {
+            detector_detail::buildFeaturePatches(context.mesh, context.analysis(), context.options.surfacePatches);
+        }
     }
 };
 
@@ -267,9 +311,11 @@ public:
         degenerateFilter_.run(context);
         featureGraph_.run(context);
         cleanup_.run(context);
+        consolidation_.run(context);
         loopRecovery_.run(context);
         componentSummary_.run(context);
         finalize_.run(context);
+        segmentation_.run(context);
         return context.builder.build();
     }
 
@@ -278,9 +324,11 @@ private:
     DegenerateEvidenceFilterStage degenerateFilter_;
     FeatureGraphStage featureGraph_;
     FeatureGraphCleanupStage cleanup_;
+    FeatureGraphConsolidationStage consolidation_;
     LoopRecoveryStage loopRecovery_;
     FeatureComponentSummaryStage componentSummary_;
     FeatureGraphFinalizeStage finalize_;
+    FeatureSegmentationStage segmentation_;
 };
 
 } // namespace
@@ -382,95 +430,6 @@ std::string toString(FeaturePrimitiveType primitive) {
         return "polygonal-loop";
     }
     return "unknown";
-}
-
-FeatureEdgeBenchmark benchmarkFeatureEdges(
-    const FeatureAnalysis& analysis,
-    const std::vector<std::pair<int, int>>& groundTruthEdges,
-    const std::vector<int>& groundTruthJunctionVertices
-) {
-    FeatureEdgeBenchmark result;
-    std::unordered_set<std::uint64_t> truthEdges;
-    truthEdges.reserve(groundTruthEdges.size());
-    for (const auto& [a, b] : groundTruthEdges) {
-        if (a >= 0 && b >= 0 && a != b) {
-            truthEdges.insert(manumesh::common::meshEdgeKey(a, b));
-        }
-    }
-
-    std::unordered_set<std::uint64_t> detectedEdges;
-    detectedEdges.reserve(analysis.graph.edges.size());
-    for (const FeatureGraphEdge& edge : analysis.graph.edges) {
-        if (edge.removedByCleanup || edge.a < 0 || edge.b < 0 || edge.a == edge.b) {
-            continue;
-        }
-        detectedEdges.insert(manumesh::common::meshEdgeKey(edge.a, edge.b));
-    }
-
-    result.groundTruthEdges = static_cast<int>(truthEdges.size());
-    result.detectedEdges = static_cast<int>(detectedEdges.size());
-    for (std::uint64_t edge : detectedEdges) {
-        if (truthEdges.find(edge) != truthEdges.end()) {
-            ++result.truePositiveEdges;
-        } else {
-            ++result.falsePositiveEdges;
-        }
-    }
-    for (std::uint64_t edge : truthEdges) {
-        if (detectedEdges.find(edge) == detectedEdges.end()) {
-            ++result.falseNegativeEdges;
-        }
-    }
-
-    auto ratio = [](int numerator, int denominator) {
-        return denominator > 0 ? static_cast<double>(numerator) / static_cast<double>(denominator) : 0.0;
-    };
-    auto f1 = [](double precision, double recall) {
-        return precision + recall > 0.0 ? 2.0 * precision * recall / (precision + recall) : 0.0;
-    };
-    result.edgePrecision = ratio(result.truePositiveEdges, result.truePositiveEdges + result.falsePositiveEdges);
-    result.edgeRecall = ratio(result.truePositiveEdges, result.truePositiveEdges + result.falseNegativeEdges);
-    result.edgeF1 = f1(result.edgePrecision, result.edgeRecall);
-
-    std::unordered_set<int> truthJunctions;
-    truthJunctions.reserve(groundTruthJunctionVertices.size());
-    for (int id : groundTruthJunctionVertices) {
-        if (id >= 0) {
-            truthJunctions.insert(id);
-        }
-    }
-    std::unordered_set<int> detectedJunctions(
-        analysis.graph.junctionVertices.begin(), analysis.graph.junctionVertices.end()
-    );
-    result.groundTruthJunctions = static_cast<int>(truthJunctions.size());
-    result.detectedJunctions = static_cast<int>(detectedJunctions.size());
-    for (int id : detectedJunctions) {
-        if (truthJunctions.find(id) != truthJunctions.end()) {
-            ++result.truePositiveJunctions;
-        } else {
-            ++result.falsePositiveJunctions;
-        }
-    }
-    for (int id : truthJunctions) {
-        if (detectedJunctions.find(id) == detectedJunctions.end()) {
-            ++result.falseNegativeJunctions;
-        }
-    }
-    result.junctionPrecision =
-        ratio(result.truePositiveJunctions, result.truePositiveJunctions + result.falsePositiveJunctions);
-    result.junctionRecall =
-        ratio(result.truePositiveJunctions, result.truePositiveJunctions + result.falseNegativeJunctions);
-    result.junctionF1 = f1(result.junctionPrecision, result.junctionRecall);
-
-    if (!analysis.components.empty()) {
-        double closureSum = 0.0;
-        for (const FeatureComponent& component : analysis.components) {
-            closureSum += component.closureRate;
-        }
-        result.loopClosureRate = closureSum / static_cast<double>(analysis.components.size());
-    }
-    result.meanComponentConfidence = analysis.meanFeatureComponentConfidence;
-    return result;
 }
 
 } // namespace manumesh::feature

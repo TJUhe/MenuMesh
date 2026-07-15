@@ -8,6 +8,7 @@
 - 本目录中的 `*.html` 可用于浏览算法解释、代码阅读笔记和实验报告；本轮已同步标注 `include/io`、`src/io` 和 Debug-only `src/debugUtil` 的当前源码位置。
 - 2026-07-12：`manumesh-feature-recognition-pipeline.html`、`manumesh-loop-construction.html`、`manumesh-theory-explained.html`、`circular-feature-practice-results.html` 的算法描述已同步到当日源码基线；2026-07-15 又把二面角正典位置更新为 `common::computeOrientedDihedralAngle`，并保留 `inconsistentWindingEdges` 诊断。Taubin 圆拟合与 Halíř-Flusser 椭圆拟合（Kåsa/二阶矩为回退）、smooth-curvature 三次 Monge patch 与 Ohtake 边零交叉极值、weak-spur 强度裁决、GH97 三级 placement 回退链、Lindstrom-Turk 边界 placement、Wang 2008 featureBoost 解耦和公共 `manumesh::feature::matchCircularLoops` 均已同步；`circular-feature-practice-results.html` 的历史实测数值保持原样。
 - 2026-07-15：按当前源码把特征识别 HTML 更新为 9 阶段 pipeline，并补入 opt-in normal filter、smooth stable-scale、共享 graph compatibility、component consolidation、junction branch pairing、surface patches、扩展 benchmark 与 size-aware C ABI；历史实验数字保持原样。主入口为 `manumesh-feature-recognition-pipeline.html`。
+- 2026-07-15：主入口进一步加入 MathJax 公式专题、逐阶段伪代码、源码行号、数值算例和五组实跑 CLI；明确 normal filter 当前进入有向二面角与 smooth-curvature，但 normal tensor 仍从原始三角形几何重算法向。
 - 2026-07-15（当前补丁）：smooth-curvature 与 weak-spur 参数已贯通 `SimplifyOptions`、`simplify` CLI 和 size-aware C ABI；feature/simplify 报告补齐绕向冲突、cleanup cap、圆恢复截断诊断。公共绕向感知二面角下沉到 `common::computeOrientedDihedralAngle`，退化面 point quadric 改为代表面积加权，局部相交检查覆盖新一环内部并区分合法共享拓扑接触；OBJ 凹多边形改用投影 ear clipping。归档 HTML/PDF 仍是历史快照，以本目录当前 HTML 与 `docs/design`/`docs/guide` 为准。
 - `*.pdf` 是阅读版导出文件；当前未在本次文档更新中重写 PDF 二进制内容。
 - `eye-care.css` 是导出 HTML 共用样式。

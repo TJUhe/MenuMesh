@@ -7,7 +7,7 @@
 | 文档 | 用途 |
 | --- | --- |
 | [`delivery/manumesh_kernel_developer_guide.html`](delivery/manumesh_kernel_developer_guide.html) | 商用内核交付级开发者手册，包含定位、架构、模块、API、C ABI、构建、验证、扩展边界和交付清单。 |
-| [`generated/notes/manumesh-feature-recognition-pipeline.html`](generated/notes/manumesh-feature-recognition-pipeline.html) | 当前特征识别源码级权威说明：9 阶段 pipeline、可选法线域预处理、五类 evidence、稳定尺度选择、graph cleanup/consolidation、junction branch pairing、loop/primitive recovery、surface patch segmentation、benchmark、CLI/QEM 边界与测试。 |
+| [`generated/notes/manumesh-feature-recognition-pipeline.html`](generated/notes/manumesh-feature-recognition-pipeline.html) | 当前特征识别源码级权威 HTML：9 阶段 pipeline、MathJax 公式推导、normal-filter 实际数据流、normal tensor、三次 Monge ridge/valley、graph cleanup/consolidation、junction/patch、Taubin/Halíř-Flusser primitive、component confidence、伪代码、数值算例和可复现 CLI 实验。 |
 | [`design/feature_recognition_system_upgrade_2026_07_15.md`](design/feature_recognition_system_upgrade_2026_07_15.md) | 本轮系统增强的设计与实现对照：模块职责、默认兼容策略、C++/CLI/C ABI、benchmark 标签、论文/开源程序依据和仍未实现的边界。 |
 | [`generated/notes/manumesh-loop-construction.html`](generated/notes/manumesh-loop-construction.html) | FeatureLoop 五段恢复顺序、宽松 trace 与严格 recovered cycle 的差异、各 fallback 上限、primitive fitting 和 vertex ownership 源码对照。 |
 | [`guide/debug_util_usage.md`](guide/debug_util_usage.md) | 内部 Debug-only HTML wireframe 工具使用教程，包含开启方式、常用宏、颜色约定、插入位置和截图预览。 |

@@ -1,5 +1,24 @@
 # 更新日志
 
+## 2026-07-15
+
+### 拓扑与算法
+
+- edge collapse 改为比较完整单纯复形 link：除共同邻点外同时检查 endpoint link 的共同对边，拒绝四面体边坍缩后生成重复面的情况；边界虚拟封口规则补充 isolated open triangle 拒绝，避免二维分量降维消失。
+- 新增四面体拒绝、八面体合法边与简化到四面体后停止、孤立三角形分量保持、三面共边拒绝的 direct/端到端回归；coplanar fallback fixture 改为合法三角形 fan，不再依赖删除孤立分量达到目标。
+
+### C ABI
+
+- 新增返回 `ManuMeshStatus` 的 `manumesh_*_init_with_size` 初始化入口，按调用方显式容量有界清零和写入 ABI 头；过小容量或空指针返回 `MANUMESH_STATUS_INVALID_ARGUMENT`，超大容量只写库当前已知尺寸。
+- 保留三个旧的无容量 ABI v1 初始化符号，并将其写入范围冻结到首次发布布局：options 截止 `feature_protection_mode`，report 截止 `max_applied_line_weight`，mesh stats 保持首发完整尺寸。新头文件用兼容宏把普通源码调用透明转发到 size-aware 入口，旧二进制继续解析旧符号且不会被当前扩展结构体尺寸越界覆盖。
+- 新增 `manumesh_simplify_mesh_with_report_size` 和 `manumesh_compute_mesh_stats_with_size`：显式 output capacity 是唯一写入边界，不读取未初始化 report/stats 的 ABI 头；普通源码调用通过对象式 alias 传入当前 `sizeof`。旧输出符号始终按首发冻结容量写，因此恢复首发 v1 允许未初始化 output 的契约且不越界。
+- 旧无容量符号以首发 v1 前缀的内存安全为优先；已经编译且依赖后加 v1 尾字段的中间版本客户端需要重新编译或显式迁移到 size-aware 入口，否则尾部 options/report 字段会按首发容量被忽略。
+- C ABI 回归增加 options/report/stats 的 legacy、最小头、历史尺寸、当前尺寸、超大容量、过小容量、空指针和未初始化 output 哨兵测试；安装后 C consumer 同时覆盖 current alias 与 legacy DLL 符号。
+
+### MSVC 2019 / v142
+
+- 新增 `windows-2022` 托管工作流，使用 Visual Studio 2022 generator 配合 `-T v142` 在 Debug/Release 下编译并运行 fast、external 和安装后 SDK consumer，持续验证 VS2019 16.11 对应的编译器、STL 与 ABI。VS16 generator/MSBuild 16 的精确兼容仍需自托管 VS2019 runner。
+
 ## 2026-07-13
 
 ### 合并前收口

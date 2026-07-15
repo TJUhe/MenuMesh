@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 236 个启用的非性能 CTest（快速套件 225 个 + external 11 个，2026-07-13 复核）。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。2026-07-09 的特征识别升级记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)；2026-07-11 落地的确定性光滑曲率特征检测见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 247 个启用的非性能 CTest（快速套件 236 个 + external 11 个，2026-07-15 复核）。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。2026-07-09 的特征识别升级记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)；2026-07-11 落地的确定性光滑曲率特征检测见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
 
 ## 当前理解框架
 
@@ -51,7 +51,7 @@ ManuMesh 的简化器应按四层阅读：
 3. normal tensor 是弱特征证据和空间变权来源，不是通用 ridge/valley 提取器；当前已把局部尺度、多尺度 persistence 和 persistent score 用于弱特征接受准则与 QEM normal-tensor 权重。
 4. `all-feature-edges` 会锁住太多 generic crease，可能导致 `rejection-limit`，默认 `primitive-curves` 更平衡。
 5. 局部自交和局部误差过滤改善安全性，但不是全局 Hausdorff/envelope 证明。
-6. C ABI 结构体依赖 `struct_size` 和 `abi_version`，外部调用必须初始化；同一 ABI 版本内允许旧尾部尺寸，缺失字段使用默认值。
+6. C ABI 输入结构体依赖 `struct_size` 和 `abi_version`，外部调用必须初始化；纯输出 report/stats 由 size-aware 入口按显式容量初始化。同一 ABI 版本内允许旧尾部尺寸，缺失字段使用默认值。
 7. smooth-curvature 通道默认关闭：CAD/STL 硬边与扫描/自由曲面需要不同阈值和验证集；在带标注扫描 benchmark 就绪前不应默认开启。
 8. 纹理保护启用时固定拓扑质量精修轮暂时跳过（该顶点重定位阶段尚未约束 UV 失真）；`textureWeight` 只影响候选排序，不提供全局 UV 失真上界。
 

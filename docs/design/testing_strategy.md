@@ -1,6 +1,6 @@
 # 测试体系与策略
 
-日期：2026-07-13（对应 2026-07 测试体系重构：解析真值 fixture、性能护栏、core/io 用例迁移）
+日期：2026-07-15（对应 2026-07 测试体系重构：解析真值 fixture、性能护栏、core/io 用例迁移）
 
 本文说明 ManuMesh 当前的测试分层、解析 fixture 的设计理念、确定性验证方式、
 快速/全量套件的命令与规模，以及新增测试的注册方式。测试目录契约见
@@ -76,14 +76,14 @@
 
 ## 套件命令与预期规模
 
-以 `build/mingw-ninja-release` 为例（2026-07-13 实测，Windows x64 MinGW Release）：
+以 `build/mingw-ninja-release` 为例（2026-07-15 实测，Windows x64 MinGW Release）：
 
 ```
-# 快速套件：225 个启用用例（另有 1 个 DISABLED 计时用例），
+# 快速套件：236 个启用用例（另有 1 个 DISABLED 计时用例），
 # 本机 MinGW Release、-j 10 并行实测约 4 秒（受环境影响）
 ctest --test-dir build/mingw-ninja-release -LE "performance|external" --output-on-failure
 
-# 全量非性能套件：236 个启用用例（快速套件 + 11 个 external 大网格用例）
+# 全量非性能套件：247 个启用用例（快速套件 + 11 个 external 大网格用例）
 ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
 
 # 仅 external 大网格用例（需要 tests/data/external 数据）
@@ -94,11 +94,24 @@ ctest --test-dir <perf-build> -L performance --output-on-failure
 ```
 
 打开 `MANUMESH_ENABLE_INSTALL=ON` 且安装 CMake package config 时，会额外注册
-`sdk_consumer_examples`，因此安装验证配置对应 226 个快速用例、237 个启用的
+`sdk_consumer_examples`，因此安装验证配置对应 237 个快速用例、248 个启用的
 非性能用例。
 
 对应的构建目标：`unit-tests`（等价于快速套件）、`external-tests`、
 `performance-tests`（仅性能构建）。
+
+## MSVC 2019 / v142 兼容门禁
+
+`.github/workflows/msvc-v142.yml` 在每个 pull request 和 `main` push 上使用固定的
+`windows-2022` runner、Visual Studio 2022 generator 和 `-T v142`。Debug 运行快速
+套件，Release 额外运行 external 与安装后 C/C++ SDK consumer；依赖固定使用仓库内
+Eigen 和源码 GoogleTest，确保测试代码本身也由 v142 编译。
+
+该门禁验证的是 Visual Studio 2019 16.11 对应的 MSVC 19.29/v142 编译器、STL 与
+ABI，不等同于验证 VS16 generator、MSBuild 16、VS2019 IDE 或调试器。GitHub 托管的
+`windows-2019` runner 已退役；若交付要求精确覆盖 VS2019 IDE 工程链，应另设安装
+VS2019 16.11 的隔离 self-hosted runner，并用 `Visual Studio 16 2019` generator 运行
+同一套 Release、external 和 SDK consumer 测试。
 
 性能护栏的上限设计（`tests/unit/perf/pipeline_perf_guard_tests.cpp` 注释中有
 机器基准）：上限取实测值的 ≥3 倍，慢一些的 CI 机器仍能通过；而这一规模下的

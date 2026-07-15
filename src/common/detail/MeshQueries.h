@@ -19,6 +19,14 @@ struct MeshEdgeInfo {
 
 using MeshEdgeInfoMap = std::unordered_map<std::uint64_t, MeshEdgeInfo>;
 
+/// Winding-aware dihedral classification for one manifold interior edge.
+struct OrientedDihedralAngle {
+    double angleRad = 0.0;
+    bool inconsistentWinding = false;
+    /// +1 convex ridge, -1 concave valley, 0 flat/unknown.
+    int signedKind = 0;
+};
+
 /// Packs an undirected vertex pair into a stable integer key.
 ///
 /// Kept as an inline forwarder to the core topologyEdgeKey so every module
@@ -41,6 +49,22 @@ MeshEdgeInfoMap buildMeshEdgeInfo(const Mesh& mesh);
 
 /// Computes one unit normal per face, returning zero for degenerate triangles.
 std::vector<Vec3> computeFaceNormals(const Mesh& mesh);
+
+/// Builds deterministic per-face flip marks that harmonize winding within
+/// each orientable manifold component without modifying the input mesh.
+std::vector<char> harmonizeFaceWindings(const Mesh& mesh, const MeshEdgeInfoMap& edges);
+
+/// Computes a winding-aware dihedral angle for a two-face edge. Unresolvable
+/// orientation conflicts fall back to the unsigned normal angle and set the
+/// diagnostic flag.
+OrientedDihedralAngle computeOrientedDihedralAngle(
+    const Mesh& mesh,
+    const std::vector<Vec3>& normals,
+    const std::vector<char>& windingFlip,
+    const MeshEdgeInfo& info,
+    int a,
+    int b
+);
 
 /// Computes the centroid of one triangle face.
 Vec3 faceCentroid(const Mesh& mesh, const Face& face);

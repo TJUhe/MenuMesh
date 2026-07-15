@@ -93,6 +93,7 @@ void computeInitialQuadrics(
     initial.priorityScales.clear();
     std::vector<double> vertexArea(mesh.vertices.size(), 0.0);
     std::vector<Vec3> normalSum(mesh.vertices.size(), Vec3::Zero());
+    std::vector<int> degenerateFaceIncidence(mesh.vertices.size(), 0);
 
     for (const Face& face : mesh.faces) {
         const Vec3& a = mesh.vertices[face.v[0]];
@@ -102,7 +103,7 @@ void computeInitialQuadrics(
         const double area = triangleArea(a, b, c);
         if (area <= 1e-24 || n.norm() <= 1e-20) {
             for (int id : face.v) {
-                quadrics[id] += 1e-6 * pointQuadric(mesh.vertices[id]);
+                ++degenerateFaceIncidence[id];
             }
             continue;
         }
@@ -113,6 +114,24 @@ void computeInitialQuadrics(
             vertexArea[id] += baryArea;
             normalSum[id] += area * n;
             quadrics[id] += baryArea * q;
+        }
+    }
+
+    double positiveAreaSum = 0.0;
+    int positiveAreaCount = 0;
+    for (double area : vertexArea) {
+        if (area > 1e-24) {
+            positiveAreaSum += area;
+            ++positiveAreaCount;
+        }
+    }
+    const double diagonal = mesh.bboxDiag();
+    const double representativeArea = positiveAreaCount > 0 ? positiveAreaSum / static_cast<double>(positiveAreaCount)
+                                                            : std::max(1e-300, diagonal * diagonal * 1e-6);
+    for (int i = 0; i < static_cast<int>(quadrics.size()); ++i) {
+        if (degenerateFaceIncidence[i] > 0) {
+            quadrics[i] += static_cast<double>(degenerateFaceIncidence[i]) * 1e-6 * representativeArea *
+                           pointQuadric(mesh.vertices[i]);
         }
     }
 
@@ -143,7 +162,7 @@ void computeInitialQuadrics(
         for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
             Vec3 normal = normalSum[i];
             if (normal.norm() <= 1e-20 || vertexArea[i] <= 1e-24) {
-                quadrics[i] += 1e-6 * pointQuadric(mesh.vertices[i]);
+                quadrics[i] += 1e-6 * representativeArea * pointQuadric(mesh.vertices[i]);
                 continue;
             }
             normal.normalize();
@@ -171,17 +190,6 @@ void computeInitialQuadrics(
     }
 
     if (options.preserveFeatureCurves && featureGuidance.enabled && options.featureCurveWeight > 0.0) {
-        double positiveAreaSum = 0.0;
-        int positiveAreaCount = 0;
-        for (double area : vertexArea) {
-            if (area > 1e-24) {
-                positiveAreaSum += area;
-                ++positiveAreaCount;
-            }
-        }
-        const double fallbackArea = positiveAreaCount > 0 ? positiveAreaSum / static_cast<double>(positiveAreaCount)
-                                                          : std::max(1e-12, mesh.bboxDiag() * mesh.bboxDiag() * 1e-6);
-
         for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
             if (i >= static_cast<int>(featureGuidance.vertices.size())) {
                 continue;
@@ -190,7 +198,7 @@ void computeInitialQuadrics(
             if (!vf.isFeature || vf.tangent.norm() <= 1e-20) {
                 continue;
             }
-            const double areaScale = std::max(vertexArea[i], fallbackArea);
+            const double areaScale = std::max(vertexArea[i], representativeArea);
             const Mat4 qCurve = lineQuadric(mesh.vertices[i], vf.tangent);
             const double confidenceScale = 0.35 + 0.65 * std::clamp(vf.confidence, 0.0, 1.0);
             quadrics[i] += options.featureCurveWeight * confidenceScale * areaScale * qCurve;

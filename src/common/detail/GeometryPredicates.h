@@ -20,6 +20,17 @@ std::pair<Vec3, Vec3> triangleAabb(const std::array<Vec3, 3>& tri, double paddin
 /// Typical eps: 1e-9 .. 1e-12.
 bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3>& rhs, double eps);
 
+/// Intersection test for mesh triangles that may share vertex ids. Contact
+/// confined to the declared shared vertex or shared edge is allowed; overlap
+/// or crossing beyond that shared topology is reported as an intersection.
+bool trianglesIntersectBeyondSharedTopology(
+    const std::array<int, 3>& lhsIds,
+    const std::array<Vec3, 3>& lhs,
+    const std::array<int, 3>& rhsIds,
+    const std::array<Vec3, 3>& rhs,
+    double eps
+);
+
 } // namespace manumesh::common
 
 namespace manumesh {

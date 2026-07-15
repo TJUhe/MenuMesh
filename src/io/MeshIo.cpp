@@ -357,11 +357,7 @@ void mergeDuplicateTriangleVertices(
     };
     double relativeEps = 0.0;
     if (mergeRelativeEpsilon > 0.0) {
-        relativeEps = std::hypot(
-            scaledSpan(lo.x(), hi.x()),
-            scaledSpan(lo.y(), hi.y()),
-            scaledSpan(lo.z(), hi.z())
-        );
+        relativeEps = std::hypot(scaledSpan(lo.x(), hi.x()), scaledSpan(lo.y(), hi.y()), scaledSpan(lo.z(), hi.z()));
         if (!std::isfinite(relativeEps)) {
             relativeEps = std::numeric_limits<double>::max();
         }
@@ -444,6 +440,254 @@ struct ObjCorner {
     int texcoord = -1;
 };
 
+using ObjTriangle = std::array<int, 3>;
+
+constexpr double kObjPolygonEpsilon = 1e-12;
+
+double orient2d(const Vec2& a, const Vec2& b, const Vec2& c) {
+    const Vec2 ab = b - a;
+    const Vec2 ac = c - a;
+    return ab.x() * ac.y() - ab.y() * ac.x();
+}
+
+bool pointOnSegment2d(const Vec2& point, const Vec2& a, const Vec2& b) {
+    if (std::abs(orient2d(a, b, point)) > kObjPolygonEpsilon) {
+        return false;
+    }
+    return point.x() >= std::min(a.x(), b.x()) - kObjPolygonEpsilon &&
+           point.x() <= std::max(a.x(), b.x()) + kObjPolygonEpsilon &&
+           point.y() >= std::min(a.y(), b.y()) - kObjPolygonEpsilon &&
+           point.y() <= std::max(a.y(), b.y()) + kObjPolygonEpsilon;
+}
+
+int orientationSign(double value) {
+    if (value > kObjPolygonEpsilon) {
+        return 1;
+    }
+    if (value < -kObjPolygonEpsilon) {
+        return -1;
+    }
+    return 0;
+}
+
+bool segmentsIntersect2d(const Vec2& a, const Vec2& b, const Vec2& c, const Vec2& d) {
+    if (std::max(a.x(), b.x()) + kObjPolygonEpsilon < std::min(c.x(), d.x()) ||
+        std::max(c.x(), d.x()) + kObjPolygonEpsilon < std::min(a.x(), b.x()) ||
+        std::max(a.y(), b.y()) + kObjPolygonEpsilon < std::min(c.y(), d.y()) ||
+        std::max(c.y(), d.y()) + kObjPolygonEpsilon < std::min(a.y(), b.y())) {
+        return false;
+    }
+
+    const int abc = orientationSign(orient2d(a, b, c));
+    const int abd = orientationSign(orient2d(a, b, d));
+    const int cda = orientationSign(orient2d(c, d, a));
+    const int cdb = orientationSign(orient2d(c, d, b));
+    if (abc * abd < 0 && cda * cdb < 0) {
+        return true;
+    }
+    return (abc == 0 && pointOnSegment2d(c, a, b)) || (abd == 0 && pointOnSegment2d(d, a, b)) ||
+           (cda == 0 && pointOnSegment2d(a, c, d)) || (cdb == 0 && pointOnSegment2d(b, c, d));
+}
+
+bool polygonSelfIntersects(const std::vector<Vec2>& polygon) {
+    const int size = static_cast<int>(polygon.size());
+    for (int first = 0; first < size; ++first) {
+        const int firstNext = (first + 1) % size;
+        for (int second = first + 1; second < size; ++second) {
+            const int secondNext = (second + 1) % size;
+            if (first == second || firstNext == second || secondNext == first) {
+                continue;
+            }
+            if (segmentsIntersect2d(
+                    polygon[static_cast<std::size_t>(first)],
+                    polygon[static_cast<std::size_t>(firstNext)],
+                    polygon[static_cast<std::size_t>(second)],
+                    polygon[static_cast<std::size_t>(secondNext)]
+                )) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool pointInOrOnTriangle2d(const Vec2& point, const Vec2& a, const Vec2& b, const Vec2& c, int orientation) {
+    return orientation * orient2d(a, b, point) >= -kObjPolygonEpsilon &&
+           orientation * orient2d(b, c, point) >= -kObjPolygonEpsilon &&
+           orientation * orient2d(c, a, point) >= -kObjPolygonEpsilon;
+}
+
+bool triangulateObjPolygon(
+    const std::vector<ObjCorner>& corners,
+    const std::vector<Vec3>& positions,
+    std::vector<ObjTriangle>& triangles,
+    const char*& failureReason
+) {
+    triangles.clear();
+    if (corners.size() < 3) {
+        failureReason = "face has fewer than three corners.";
+        return false;
+    }
+
+    const Vec3 origin = positions[static_cast<std::size_t>(corners[0].vertex)];
+    std::vector<Vec3> normalized;
+    normalized.reserve(corners.size());
+    double scale = 0.0;
+    for (const ObjCorner& corner : corners) {
+        const Vec3 delta = positions[static_cast<std::size_t>(corner.vertex)] - origin;
+        scale = std::max(scale, delta.cwiseAbs().maxCoeff());
+        normalized.push_back(delta);
+    }
+    if (!std::isfinite(scale) || scale <= 0.0) {
+        failureReason = "face polygon is degenerate.";
+        return false;
+    }
+    for (Vec3& point : normalized) {
+        point /= scale;
+    }
+    for (std::size_t first = 0; first < normalized.size(); ++first) {
+        for (std::size_t second = first + 1; second < normalized.size(); ++second) {
+            if ((normalized[first] - normalized[second]).squaredNorm() <= kObjPolygonEpsilon * kObjPolygonEpsilon) {
+                failureReason = "face polygon repeats a corner position.";
+                return false;
+            }
+        }
+    }
+
+    Vec3 normal = Vec3::Zero();
+    for (std::size_t i = 0; i < normalized.size(); ++i) {
+        normal += normalized[i].cross(normalized[(i + 1) % normalized.size()]);
+    }
+    if (normal.squaredNorm() <= kObjPolygonEpsilon * kObjPolygonEpsilon) {
+        for (std::size_t first = 1; first < normalized.size(); ++first) {
+            for (std::size_t second = first + 1; second < normalized.size(); ++second) {
+                const Vec3 candidate = normalized[first].cross(normalized[second]);
+                if (candidate.squaredNorm() > normal.squaredNorm()) {
+                    normal = candidate;
+                }
+            }
+        }
+        if (normal.squaredNorm() <= kObjPolygonEpsilon * kObjPolygonEpsilon) {
+            failureReason = "face polygon is degenerate.";
+            return false;
+        }
+    }
+
+    int dropAxis = 0;
+    normal = normal.cwiseAbs();
+    if (normal.y() > normal.x()) {
+        dropAxis = 1;
+    }
+    if (normal.z() > normal[dropAxis]) {
+        dropAxis = 2;
+    }
+
+    std::vector<Vec2> projected;
+    projected.reserve(normalized.size());
+    for (const Vec3& point : normalized) {
+        if (dropAxis == 0) {
+            projected.emplace_back(point.y(), point.z());
+        } else if (dropAxis == 1) {
+            projected.emplace_back(point.x(), point.z());
+        } else {
+            projected.emplace_back(point.x(), point.y());
+        }
+    }
+
+    double signedAreaTwice = 0.0;
+    for (std::size_t i = 0; i < projected.size(); ++i) {
+        const Vec2& a = projected[i];
+        const Vec2& b = projected[(i + 1) % projected.size()];
+        signedAreaTwice += a.x() * b.y() - a.y() * b.x();
+    }
+    if (polygonSelfIntersects(projected)) {
+        failureReason = "face polygon is self-intersecting.";
+        return false;
+    }
+    if (std::abs(signedAreaTwice) <= kObjPolygonEpsilon) {
+        failureReason = "face polygon has zero projected area.";
+        return false;
+    }
+    const int orientation = signedAreaTwice > 0.0 ? 1 : -1;
+
+    bool strictlyConvex = true;
+    for (std::size_t i = 0; i < projected.size(); ++i) {
+        const Vec2& previous = projected[(i + projected.size() - 1) % projected.size()];
+        const Vec2& current = projected[i];
+        const Vec2& next = projected[(i + 1) % projected.size()];
+        if (orientation * orient2d(previous, current, next) <= kObjPolygonEpsilon) {
+            strictlyConvex = false;
+            break;
+        }
+    }
+    if (strictlyConvex) {
+        triangles.reserve(corners.size() - 2);
+        for (int i = 1; i + 1 < static_cast<int>(corners.size()); ++i) {
+            triangles.push_back({0, i, i + 1});
+        }
+        return true;
+    }
+
+    std::vector<int> remaining;
+    remaining.reserve(corners.size());
+    for (int i = 0; i < static_cast<int>(corners.size()); ++i) {
+        remaining.push_back(i);
+    }
+    triangles.reserve(corners.size() - 2);
+    while (remaining.size() > 3) {
+        bool clippedEar = false;
+        for (std::size_t i = 0; i < remaining.size(); ++i) {
+            const int previous = remaining[(i + remaining.size() - 1) % remaining.size()];
+            const int current = remaining[i];
+            const int next = remaining[(i + 1) % remaining.size()];
+            const Vec2& a = projected[static_cast<std::size_t>(previous)];
+            const Vec2& b = projected[static_cast<std::size_t>(current)];
+            const Vec2& c = projected[static_cast<std::size_t>(next)];
+            if (orientation * orient2d(a, b, c) <= kObjPolygonEpsilon) {
+                continue;
+            }
+
+            bool containsOtherCorner = false;
+            for (int candidate : remaining) {
+                if (candidate == previous || candidate == current || candidate == next) {
+                    continue;
+                }
+                if (pointInOrOnTriangle2d(projected[static_cast<std::size_t>(candidate)], a, b, c, orientation)) {
+                    containsOtherCorner = true;
+                    break;
+                }
+            }
+            if (containsOtherCorner) {
+                continue;
+            }
+
+            triangles.push_back({previous, current, next});
+            remaining.erase(remaining.begin() + static_cast<std::ptrdiff_t>(i));
+            clippedEar = true;
+            break;
+        }
+        if (!clippedEar) {
+            failureReason = "face polygon cannot be triangulated without degenerate or overlapping triangles.";
+            return false;
+        }
+    }
+
+    const int a = remaining[0];
+    const int b = remaining[1];
+    const int c = remaining[2];
+    if (orientation * orient2d(
+                          projected[static_cast<std::size_t>(a)],
+                          projected[static_cast<std::size_t>(b)],
+                          projected[static_cast<std::size_t>(c)]
+                      ) <=
+        kObjPolygonEpsilon) {
+        failureReason = "face polygon produces a degenerate final triangle.";
+        return false;
+    }
+    triangles.push_back({a, b, c});
+    return true;
+}
+
 /// Parses one face corner token: `v`, `v/vt`, `v//vn`, or `v/vt/vn`.
 /// The normal index after the second slash is intentionally ignored.
 bool parseObjCorner(const char* begin, const char* end, int vertexCount, int texcoordCount, ObjCorner& corner) {
@@ -521,6 +765,7 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
     bool sawTextureReference = false;
 
     std::vector<ObjCorner> corners;
+    std::vector<ObjTriangle> polygonTriangles;
     const char* cursor = text.data();
     const char* const textEnd = cursor + text.size();
     int lineNumber = 0;
@@ -601,37 +846,44 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
                 corners.push_back(corner);
                 q = tokenEnd;
             }
-            for (int i = 1; i + 1 < static_cast<int>(corners.size()); ++i) {
+            const bool allTextured = std::all_of(corners.begin(), corners.end(), [](const ObjCorner& corner) {
+                return corner.texcoord >= 0;
+            });
+            const bool noneTextured = std::all_of(corners.begin(), corners.end(), [](const ObjCorner& corner) {
+                return corner.texcoord < 0;
+            });
+            if (!allTextured && !noneTextured) {
+                if (error)
+                    *error = objLineError(lineNumber, "face mixes textured and untextured corners.");
+                return false;
+            }
+            const char* triangulationFailure = nullptr;
+            if (!triangulateObjPolygon(corners, positions, polygonTriangles, triangulationFailure)) {
+                if (error)
+                    *error = objLineError(lineNumber, triangulationFailure);
+                return false;
+            }
+            for (const ObjTriangle& triangle : polygonTriangles) {
                 Face face;
                 face.v = {
-                    corners[0].vertex,
-                    corners[static_cast<std::size_t>(i)].vertex,
-                    corners[static_cast<std::size_t>(i) + 1].vertex
+                    corners[static_cast<std::size_t>(triangle[0])].vertex,
+                    corners[static_cast<std::size_t>(triangle[1])].vertex,
+                    corners[static_cast<std::size_t>(triangle[2])].vertex
                 };
-                if (face.v[0] != face.v[1] && face.v[1] != face.v[2] && face.v[0] != face.v[2]) {
-                    mesh.faces.push_back(face);
-                    FaceTexCoords faceUv;
-                    const std::array<int, 3> textureIds{
-                        corners[0].texcoord,
-                        corners[static_cast<std::size_t>(i)].texcoord,
-                        corners[static_cast<std::size_t>(i) + 1].texcoord
-                    };
-                    const bool allTextured = textureIds[0] >= 0 && textureIds[1] >= 0 && textureIds[2] >= 0;
-                    const bool noneTextured = textureIds[0] < 0 && textureIds[1] < 0 && textureIds[2] < 0;
-                    if (!allTextured && !noneTextured) {
-                        if (error)
-                            *error = objLineError(lineNumber, "face mixes textured and untextured corners.");
-                        return false;
-                    }
-                    faceUv.valid = allTextured;
-                    if (allTextured) {
-                        for (int corner = 0; corner < 3; ++corner) {
-                            faceUv.uv[static_cast<std::size_t>(corner)] =
-                                texcoords[static_cast<std::size_t>(textureIds[static_cast<std::size_t>(corner)])];
-                        }
-                    }
-                    mesh.faceTexCoords.push_back(faceUv);
+                mesh.faces.push_back(face);
+                FaceTexCoords faceUv;
+                for (Vec2& uv : faceUv.uv) {
+                    uv = Vec2::Zero();
                 }
+                faceUv.valid = allTextured;
+                if (allTextured) {
+                    for (int corner = 0; corner < 3; ++corner) {
+                        const int polygonCorner = triangle[static_cast<std::size_t>(corner)];
+                        const int textureId = corners[static_cast<std::size_t>(polygonCorner)].texcoord;
+                        faceUv.uv[static_cast<std::size_t>(corner)] = texcoords[static_cast<std::size_t>(textureId)];
+                    }
+                }
+                mesh.faceTexCoords.push_back(faceUv);
             }
         }
         // Everything else (vn, g, o, s, usemtl, comments, ...) is ignored.

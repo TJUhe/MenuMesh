@@ -27,7 +27,7 @@ M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照�
 | ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
 | --- | --- | --- | --- | --- |
 | M001 | Two-Round Optimization Algorithm Based on Quadric Error Metrics (OpenAlex citations: 3) | `qem/chang_2025_two_round_optimization_qem.pdf` | `10.1109/ACCESS.2025.3541436` | 近期二轮 QEM 优化参考，可用于后处理和 refinement 路线。 |
-| M002 | Surface Simplification Using Quadric Error Metrics (OpenAlex citations: 3386) | `qem/garland_heckbert_1997_surface_simplification_qem.pdf` | `10.1145/258734.258849` | 原始 QEM 论文，解释 plane quadric、vertex quadric 和 edge contraction cost。 |
+| M002 | Surface Simplification Using Quadric Error Metrics (OpenAlex citations: 3386) | `qem/garland_heckbert_1997_surface_simplification_qem.pdf` | `10.1145/258734.258849` | 原始 QEM 论文，解释 plane quadric、vertex quadric 和 edge contraction cost。ManuMesh 的正常面按面积/3 累加；退化面仅加 `1e-6 * representativeArea * pointQuadric`，保持与正常 QEM 相同的 L^4 缩放量纲。 |
 | M003 | Simplifying Surfaces with Color and Texture Using Quadric Error Metrics (OpenAlex citations: 246) | `qem/garland_heckbert_1998_color_texture_qem.pdf` | `10.1109/VISUAL.1998.745312` | QEM 属性扩展参考，说明如何把颜色、纹理等属性并入 quadric 风格误差项。 |
 
 ## Line Quadrics
@@ -88,7 +88,7 @@ M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照�
 | M030 | Efficient Adaptive Simplification of Massive Meshes (OpenAlex citations: 84) | `edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf` | `10.1109/VISUAL.2001.964503` | 大模型自适应简化参考。 |
 | M031 | Progressive Meshes (OpenAlex citations: 2813) | `edge_collapse/hoppe_1996_progressive_meshes.pdf` | `10.1145/237170.237216` | Progressive Mesh 框架参考，用于理解 collapse workflow 和重建；开边界"虚拟顶点"扩展 link condition（边界弦 pinch 拒绝）已在 `CollapseTopology.cpp` 落地（2026-07-12）。 |
 | M032 | Fast and Memory Efficient Polygonal Simplification (OpenAlex citations: 151) | `edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf` | `10.1109/VISUAL.1998.745314` | 局部边折叠、内存效率和约束保持参考；其边界守恒约束（§4.2.2）已作为边界边折叠 placement 在 `Placement.cpp` 落地（2026-07-12）。 |
-| M033 | A Comprehensive Guide to Mesh Simplification using Edge Collapse (OpenAlex citations: 0) | `edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf` | `10.48550/arXiv.2512.19959` | 边折叠工程清单参考：队列、placement、合法性、边界和误差过滤。 |
+| M033 | A Comprehensive Guide to Mesh Simplification using Edge Collapse (OpenAlex citations: 0) | `edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf` | `10.48550/arXiv.2512.19959` | 边折叠工程清单参考：队列、placement、合法性、边界和误差过滤。当前局部相交 guard 检查新一环内部及附近活动面，并通过共享拓扑感知谓词允许合法共享顶点/边接触；它不是全局无自交认证。 |
 
 ## 神经与时间一致性 QEM
 

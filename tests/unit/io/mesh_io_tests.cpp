@@ -191,6 +191,96 @@ TEST(MeshIo, ObjFanTriangulatesConvexPolygons) {
     }
 }
 
+TEST(MeshIo, ObjEarClipsConcavePolygonsWithoutOverlappingFanTriangles) {
+    const std::filesystem::path path = writeTempFile(
+        "manumesh_io_concave_polygon.obj",
+        "v 0 0 0\n"
+        "v 2 0 0\n"
+        "v 2 2 0\n"
+        "v 1 1 0\n"
+        "v 0 2 0\n"
+        "f 1 2 3 4 5\n"
+    );
+
+    manumesh::Mesh mesh;
+    std::string error;
+    ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
+    std::filesystem::remove(path);
+
+    ASSERT_EQ(3u, mesh.faces.size());
+    double triangleArea = 0.0;
+    for (const manumesh::Face& face : mesh.faces) {
+        const manumesh::Vec3& a = mesh.vertices[static_cast<std::size_t>(face.v[0])];
+        const manumesh::Vec3& b = mesh.vertices[static_cast<std::size_t>(face.v[1])];
+        const manumesh::Vec3& c = mesh.vertices[static_cast<std::size_t>(face.v[2])];
+        const double signedAreaTwice = (b - a).cross(c - a).z();
+        EXPECT_GT(signedAreaTwice, 0.0);
+        triangleArea += 0.5 * signedAreaTwice;
+    }
+    EXPECT_NEAR(3.0, triangleArea, 1e-12);
+}
+
+TEST(MeshIo, ObjPreservesPerCornerTextureCoordinatesThroughConcaveEarClipping) {
+    const std::filesystem::path path = writeTempFile(
+        "manumesh_io_concave_polygon_uv.obj",
+        "v 0 0 0\n"
+        "v 2 0 0\n"
+        "v 2 2 0\n"
+        "v 1 1 0\n"
+        "v 0 2 0\n"
+        "vt 0 0\n"
+        "vt 2 0\n"
+        "vt 22 0\n"
+        "vt 11 0\n"
+        "vt 20 0\n"
+        "f 1/1 2/2 3/3 4/4 5/5\n"
+    );
+
+    manumesh::Mesh mesh;
+    std::string error;
+    ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
+    std::filesystem::remove(path);
+
+    ASSERT_EQ(3u, mesh.faces.size());
+    ASSERT_EQ(mesh.faces.size(), mesh.faceTexCoords.size());
+    for (std::size_t face = 0; face < mesh.faces.size(); ++face) {
+        ASSERT_TRUE(mesh.faceTexCoords[face].valid);
+        for (std::size_t corner = 0; corner < 3; ++corner) {
+            const manumesh::Vec3& point = mesh.vertices[static_cast<std::size_t>(mesh.faces[face].v[corner])];
+            EXPECT_DOUBLE_EQ(point.x() + 10.0 * point.y(), mesh.faceTexCoords[face].uv[corner].x());
+        }
+    }
+}
+
+TEST(MeshIo, ObjRejectsSelfIntersectingAndRepeatedPolygonFaces) {
+    const std::filesystem::path selfIntersecting = writeTempFile(
+        "manumesh_io_self_intersecting_polygon.obj",
+        "v 0 0 0\n"
+        "v 2 2 0\n"
+        "v 0 2 0\n"
+        "v 2 0 0\n"
+        "f 1 2 3 4\n"
+    );
+    manumesh::Mesh mesh;
+    std::string error;
+    EXPECT_FALSE(manumesh::loadObj(selfIntersecting.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("self-intersecting"));
+    std::filesystem::remove(selfIntersecting);
+
+    const std::filesystem::path repeated = writeTempFile(
+        "manumesh_io_repeated_polygon_corner.obj",
+        "v 0 0 0\n"
+        "v 2 0 0\n"
+        "v 2 2 0\n"
+        "v 0 2 0\n"
+        "f 1 2 3 2 4\n"
+    );
+    error.clear();
+    EXPECT_FALSE(manumesh::loadObj(repeated.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("repeats a corner position"));
+    std::filesystem::remove(repeated);
+}
+
 TEST(MeshIo, ObjPreservesTextureCoordinatesThroughFanTriangulation) {
     const std::filesystem::path path = writeTempFile(
         "manumesh_io_uv_roundtrip.obj",
@@ -422,12 +512,12 @@ TEST(MeshIo, StlVertexMergingIsInvariantToLargeTranslation) {
         manumesh::Mesh translated;
         std::string error;
         const bool originLoaded = epsilonCase == 0 ? manumesh::loadStl(originPath.string(), origin, &error)
-                                                    : manumesh::loadStl(originPath.string(), origin, &error, 0.0);
+                                                   : manumesh::loadStl(originPath.string(), origin, &error, 0.0);
         ASSERT_TRUE(originLoaded) << "epsilon case " << epsilonCase << ": " << error;
         error.clear();
-        const bool translatedLoaded =
-            epsilonCase == 0 ? manumesh::loadStl(translatedPath.string(), translated, &error)
-                             : manumesh::loadStl(translatedPath.string(), translated, &error, 0.0);
+        const bool translatedLoaded = epsilonCase == 0
+                                          ? manumesh::loadStl(translatedPath.string(), translated, &error)
+                                          : manumesh::loadStl(translatedPath.string(), translated, &error, 0.0);
         ASSERT_TRUE(translatedLoaded) << "epsilon case " << epsilonCase << ": " << error;
 
         ASSERT_EQ(origin.vertices.size(), translated.vertices.size()) << "epsilon case " << epsilonCase;
@@ -438,9 +528,9 @@ TEST(MeshIo, StlVertexMergingIsInvariantToLargeTranslation) {
         const manumesh::Vec3 translatedLo = translated.bboxMin();
         for (std::size_t vertex = 0; vertex < origin.vertices.size(); ++vertex) {
             EXPECT_DOUBLE_EQ(
-                0.0,
-                ((origin.vertices[vertex] - originLo) - (translated.vertices[vertex] - translatedLo)).norm()
-            ) << "epsilon case " << epsilonCase << ", vertex " << vertex;
+                0.0, ((origin.vertices[vertex] - originLo) - (translated.vertices[vertex] - translatedLo)).norm()
+            ) << "epsilon case "
+              << epsilonCase << ", vertex " << vertex;
         }
         for (std::size_t face = 0; face < origin.faces.size(); ++face) {
             EXPECT_EQ(origin.faces[face].v, translated.faces[face].v) << "epsilon case " << epsilonCase;

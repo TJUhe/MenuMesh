@@ -182,6 +182,33 @@ TEST_F(CApiTest, IgnoresAbsentQualityRefinementTailFieldInOlderOptionsStruct) {
     manumesh_mesh_destroy(input);
 }
 
+TEST_F(CApiTest, IgnoresAbsentSmoothCurvatureTailFieldsInOlderOptionsStruct) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "bump", 20, input));
+
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.target_ratio = 0.90;
+    options.preserve_feature_curves = 1;
+    options.use_smooth_curvature_features = 1;
+    options.smooth_curvature_feature_threshold = -1.0;
+    options.feature_graph_min_weak_spur_strength = -1.0;
+    options.struct_size = offsetof(ManuMeshSimplifyOptions, use_smooth_curvature_features);
+
+    ManuMeshSimplifyReport report;
+    manumesh_simplify_report_init(&report);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
+    EXPECT_EQ(0, report.smooth_curvature_feature_edges);
+    EXPECT_EQ(0, report.smooth_curvature_scored_vertices);
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
 TEST_F(CApiTest, MapsQualityRefinementTailOptionAndReportFields) {
     ManuMeshMeshHandle* input = manumesh_mesh_create(context);
     ManuMeshMeshHandle* output = manumesh_mesh_create(context);
@@ -418,6 +445,15 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
     EXPECT_EQ(2, options.feature_graph_max_weak_spur_edges);
     EXPECT_DOUBLE_EQ(0.35, options.feature_component_min_confidence);
     EXPECT_EQ(0, options.quality_refinement_iterations);
+    EXPECT_EQ(0, options.use_smooth_curvature_features);
+    EXPECT_DOUBLE_EQ(0.015, options.smooth_curvature_feature_threshold);
+    EXPECT_DOUBLE_EQ(0.55, options.smooth_curvature_min_edge_alignment);
+    EXPECT_DOUBLE_EQ(0.65, options.smooth_curvature_min_tangent_consistency);
+    EXPECT_EQ(2, options.smooth_curvature_base_neighborhood_rings);
+    EXPECT_EQ(3, options.smooth_curvature_scale_count);
+    EXPECT_EQ(2, options.smooth_curvature_min_persistent_scales);
+    EXPECT_EQ(2, options.smooth_curvature_robust_fit_iterations);
+    EXPECT_DOUBLE_EQ(0.0, options.feature_graph_min_weak_spur_strength);
     EXPECT_DOUBLE_EQ(0.0, options.max_local_error);
     EXPECT_DOUBLE_EQ(0.0, options.max_local_error_ratio);
     EXPECT_EQ(0, options.prevent_local_intersections);

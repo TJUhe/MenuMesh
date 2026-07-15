@@ -79,11 +79,11 @@
 以 `build/mingw-ninja-release` 为例（2026-07-15 实测，Windows x64 MinGW Release）：
 
 ```
-# 快速套件：236 个启用用例（另有 1 个 DISABLED 计时用例），
-# 本机 MinGW Release、-j 10 并行实测约 4 秒（受环境影响）
+# 快速套件：247 个启用用例（另有 1 个 DISABLED 计时用例），
+# 本机 MinGW Release、-j 10 并行实测约 2 秒（受环境影响）
 ctest --test-dir build/mingw-ninja-release -LE "performance|external" --output-on-failure
 
-# 全量非性能套件：247 个启用用例（快速套件 + 11 个 external 大网格用例）
+# 全量非性能套件：258 个启用用例（快速套件 + 11 个 external 大网格用例）
 ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
 
 # 仅 external 大网格用例（需要 tests/data/external 数据）
@@ -94,7 +94,7 @@ ctest --test-dir <perf-build> -L performance --output-on-failure
 ```
 
 打开 `MANUMESH_ENABLE_INSTALL=ON` 且安装 CMake package config 时，会额外注册
-`sdk_consumer_examples`，因此安装验证配置对应 237 个快速用例、248 个启用的
+`sdk_consumer_examples`，因此安装验证配置对应 248 个快速用例、259 个启用的
 非性能用例。
 
 对应的构建目标：`unit-tests`（等价于快速套件）、`external-tests`、

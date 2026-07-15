@@ -120,7 +120,7 @@ manumesh::feature::LoopMatchReport loopReport =
 - Eigen-backed 侧：`manumesh::Vec2`（`Eigen::Vector2d`）、`FaceTexCoords`（每面三个 `Vec2` 加 `valid` 标记）、`Mesh::faceTexCoords`。
 - Eigen-free 侧：`PlainVec2 { double u, v; }`、`PlainFaceTexCoords`、`PlainMesh::faceTexCoords`；`Mesh` 与 `PlainMesh` 的双向转换以及 compaction/validation/remap 都会保留逐角 UV。
 
-`faceTexCoords` 为空表示无纹理；非空时必须与 `faces` 对齐，个别条目可以 invalid（例如 OBJ 中未贴图的面）。UV 是“角拥有”而不是“顶点拥有”，因为一个几何顶点可能属于多个 UV chart（纹理接缝）。`Mesh::hasTextureCoordinates()` 在至少一个面带有效逐角坐标时返回 true。IO 层的 `loadObj()` / `loadMesh()` 会读取多边形 OBJ、自动三角化并保留每个三角化后角点的 `vt` 索引。
+`faceTexCoords` 为空表示无纹理；非空时必须与 `faces` 对齐，个别条目可以 invalid（例如 OBJ 中未贴图的面）。UV 是“角拥有”而不是“顶点拥有”，因为一个几何顶点可能属于多个 UV chart（纹理接缝）。`Mesh::hasTextureCoordinates()` 在至少一个面带有效逐角坐标时返回 true。IO 层的 `loadObj()` / `loadMesh()` 会读取多边形 OBJ：严格凸面保持确定性 fan 三角化，凹面使用主轴投影 ear clipping，并保留每个三角化后角点的 `vt` 索引；重复、退化、自交 polygon 以及同一面混用有/无纹理角会返回错误。
 
 纹理保护是显式 opt-in 的 `SimplifyOptions` 能力：
 
@@ -162,7 +162,25 @@ featureOptions.smoothCurvatureRobustFitIterations = 2;
 `maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、
 `meanSmoothCurvatureLocalScale` 和 `meanSmoothCurvaturePersistence`；graph edge 带
 `smoothCurvature` 来源标记，component 带 `smoothCurvatureEdges` 和
-`meanCurvaturePersistence`。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面场景需要不同阈值与验证集；不启用时既有硬特征检测和简化行为完全不变。简化侧的 `SimplifyOptions` 当前没有独立的 smooth-curvature 字段，需要时应先用上述 `FeatureOptions` 预计算带 smooth 特征的分析结果，再通过 `QEMSimplifier::simplify(input, features, &report)` 重载交给简化消费。设计细节见 [`../design/smooth_curvature_feature_detection_2026_07_11.md`](../design/smooth_curvature_feature_detection_2026_07_11.md)。
+`meanCurvaturePersistence`。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面场景需要不同阈值与验证集；不启用时既有硬特征检测和简化行为完全不变。
+
+简化侧可直接启用同一检测器：
+
+```cpp
+manumesh::simplification::SimplifyOptions simplifyOptions;
+simplifyOptions.preserveFeatureCurves = true;
+simplifyOptions.useSmoothCurvatureFeatures = true;
+simplifyOptions.smoothCurvatureFeatureThreshold = 0.015;
+simplifyOptions.smoothCurvatureMinEdgeAlignment = 0.55;
+simplifyOptions.smoothCurvatureMinTangentConsistency = 0.65;
+simplifyOptions.smoothCurvatureBaseNeighborhoodRings = 2;
+simplifyOptions.smoothCurvatureScaleCount = 3;
+simplifyOptions.smoothCurvatureMinPersistentScales = 2;
+simplifyOptions.smoothCurvatureRobustFitIterations = 2;
+simplifyOptions.featureGraphMinWeakSpurStrength = 0.0;
+```
+
+`SimplifyReport` 会返回 `smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、persistent score/local scale/persistence，以及 `inconsistentWindingEdges`、`graphCleanupSkippedByCap`、`circularRecoveryTruncated`。需要让多个流程共享同一分析时，仍可先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。设计细节见 [`../design/smooth_curvature_feature_detection_2026_07_11.md`](../design/smooth_curvature_feature_detection_2026_07_11.md)。
 
 如果有人工或 CAD 导出的 edge labels，可用
 `manumesh::feature::benchmarkFeatureEdges(features, labels, junctionLabels)` 计算 edge precision/recall/F1、junction correctness、loop closure rate 和平均 component confidence。
@@ -183,7 +201,7 @@ featureOptions.smoothCurvatureRobustFitIterations = 2;
 
 旧的无容量 init 符号以及旧 `manumesh_simplify_mesh` / `manumesh_compute_mesh_stats` 符号仍导出。它们不读取 report/stats 的原有字节，并始终只写首次发布的 v1 历史尺寸，因而兼容首发时允许未初始化 output 的调用方式，也不会覆盖旧调用方较小的栈对象。这个选择无法保留所有后加尾字段的语义：已经编译且依赖 `loop_trace_angle_deg`、cleanup、quality refinement 或新增 report 尾字段的中间版本客户端，换用新 DLL 后必须重新编译或迁移到 size-aware 入口，否则这些字段会按首发容量被忽略。新源码确实需要直接访问旧符号时，可在包含 `api/CApi.h` 前定义 `MANUMESH_DISABLE_SIZE_AWARE_ALIASES`；旧名称 `MANUMESH_DISABLE_SIZE_AWARE_INIT_MACROS` 仍作为兼容开关。库的 C API object target 使用 `MANUMESH_C_API_IMPLEMENTATION` 禁用 alias。
 
-`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部；布局中尚不存在这些字段的更早调用方继续使用库默认行为。注意：本轮新增的纹理保护选项（`preserveTexture` 等）和 smooth-curvature 特征选项当前只在 C++ API 提供，C ABI 结构体尚未暴露对应字段；跨 ABI 场景暂时无法使用这两项能力。`include/api/CApi.h` 顶部已明确声明 v1 ABI 不携带逐角纹理坐标——需要保纹理时必须使用 C++ `Mesh` / `PlainMesh` 边界。
+`normal_tensor_min_persistent_scales`、feature graph cleanup、smooth-curvature 选项和 component/smooth/winding/recovery 报告字段都位于 C ABI 结构体尾部；较早、较短的同版本调用方继续使用库默认行为。`ManuMeshSimplifyOptions` 已暴露 `use_smooth_curvature_features`、七个 `smooth_curvature_*` 参数和 `feature_graph_min_weak_spur_strength`；`ManuMeshSimplifyReport` 已暴露 smooth-curvature、`inconsistent_winding_edges`、`graph_cleanup_skipped_by_cap`、`circular_recovery_truncated`。纹理保护选项（`preserveTexture` 等）仍只在 C++ API 提供，因为 v1 C ABI 不携带逐角纹理坐标——需要保纹理时必须使用 C++ `Mesh` / `PlainMesh` 边界。
 
 错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM 与参数错误作为可区分的状态处理。
 
@@ -231,4 +249,4 @@ cmake --build $buildDir --target sdk-consumer-test --parallel
 - 不要依赖 `src/feature_detection/detail/`，primitive fitting、trace/cycle 恢复等 helper 仍是私有实现。
 - 内部实现命名空间已由 `manumesh::detail` 改名为 `manumesh::common`（保留 `namespace detail = common` 过渡别名一个 minor 版本）；这是内部层调整，不影响任何公共 API。
 - 当前 ManuMesh SDK 不承诺通用布尔、offset、修复或去噪能力。
-- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持多边形三角化并保留逐角 `vt`，STL 输出仍是 ASCII STL（不携带 UV）。STL/OBJ 解析器本轮重写为 `std::from_chars` 数值解析加缓冲扫描，内部自动探测 ASCII/二进制 STL 并预读三角形数，解析失败的错误信息更明确。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。
+- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持凸面 fan、凹面 ear clipping、逐角 `vt`，并拒绝重复/退化/自交 polygon；STL 输出仍是 ASCII STL（不携带 UV）。STL/OBJ 解析器使用 `std::from_chars` 数值解析加缓冲扫描，内部自动探测 ASCII/二进制 STL 并预读三角形数，解析失败的错误信息更明确。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。

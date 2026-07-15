@@ -150,11 +150,15 @@ manumesh::Mesh simplified = simplifier.simplify(input, &report);
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 manumesh::feature::FeatureOptions featureOptions;
+featureOptions.useSmoothCurvatureFeatures = true;
+featureOptions.featureGraphMinWeakSpurStrength = 0.05;
 manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
 
-`FeatureAnalysis` 现在同时包含 raw evidence、cleanup 后的 feature graph、loop/primitive、以及 `FeatureComponent` 级 confidence。常用诊断包括 `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`weakFeatureComponents`、`meanFeatureComponentConfidence` 和 loop CSV 中的 `component_confidence` / `primitive_residual`。
+`FeatureAnalysis` 现在同时包含 raw evidence、cleanup 后的 feature graph、loop/primitive、以及 `FeatureComponent` 级 confidence。常用诊断包括 `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupSkippedByCap`、`inconsistentWindingEdges`、`circularRecoveryTruncated`、`smoothCurvatureFeatureEdges`、`weakFeatureComponents`、`meanFeatureComponentConfidence` 和 loop CSV 中的 `component_confidence` / `primitive_residual`。
+
+简化入口也能直接运行 smooth-curvature 检测：C++ 同时设置 `SimplifyOptions::preserveFeatureCurves=true` 和 `useSmoothCurvatureFeatures=true`；CLI 使用 `--smooth-curvature-features` 时会自动开启 feature-curve policy。`SimplifyReport`、metrics CSV 和 C ABI report 会回传 smooth-curvature、绕向冲突与 bounded-recovery 诊断。预计算 `FeatureAnalysis` 的重载仍保留，适合多个算法复用同一份识别结果。
 
 安装后推荐外部程序直接使用 SDK 的 `include/`、`lib/` 和 `bin/`。
 如果下游本身也是 CMake 工程，并且安装 SDK 时打开了
@@ -337,6 +341,8 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-external --ratio 0.25 --samples 800
 ```
 
+OBJ loader 对严格凸多边形保持确定性 fan 输出，对凹多边形使用主轴投影后的 ear clipping，并逐角保留 `vt`；重复角、退化轮廓、自交轮廓以及同一面混用有/无纹理角会明确报错，不再生成重叠三角形。
+
 带 ground-truth edge labels 的特征识别 benchmark：
 
 ```powershell
@@ -412,6 +418,7 @@ STL 目检重点：
 - STL/OBJ 输入没有 B-Rep 语义；圆孔、硬边和弱特征只能从三角网格推断。
 - line quadrics 改善平面区域的切向漂移和采样均匀性，但不是去噪器。
 - 曲线特征保护仍依赖当前 feature graph 检测质量；复杂 CAD 图需要更强的多环追踪。
+- `--prevent-local-intersections` 检查折叠/质量精修产生的新一环三角形及其附近活动面，并允许仅限共享顶点/共享边的拓扑接触；它是局部防护，不是对整个输出网格的全局无自交形式化证明。
 
 更详细的库结构见 [`docs/design/industrial_library.md`](docs/design/industrial_library.md)，特征约束方案见
 [`docs/design/feature_curve_constraints.md`](docs/design/feature_curve_constraints.md)。

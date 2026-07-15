@@ -55,7 +55,7 @@ small cycle basis 和 circular fallback 现在按 trace connected component 运�
 
 `FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/smooth-curvature/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、curvature persistence、primitive residual 和 confidence。component confidence 把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据（boundary/dihedral/non-manifold）始终占主导。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
 
-Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 的连接段必须同时延续两端链切向；close junction 当前只按局部尺度距离桥接，没有切向/法向/source-kind 复核，因此存在误合并邻近曲线网络的风险；短 weak-evidence spur 覆盖 normal-tensor 与 smooth-curvature 两通道，并要求没有 boundary/dihedral/non-manifold/cleanup-bridge 支持。除按边数剪枝（`featureGraphMaxWeakSpurEdges`）外，`featureGraphMinWeakSpurStrength`（默认 0 = 旧行为，仅 C++ `FeatureOptions` 暴露）为正时改按 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。源码：`FeatureGraphCleanup.cpp:53-223, 247-413, 493-505`。
+Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 的连接段必须同时延续两端链切向；close junction 当前只按局部尺度距离桥接，没有切向/法向/source-kind 复核，因此存在误合并邻近曲线网络的风险；短 weak-evidence spur 覆盖 normal-tensor 与 smooth-curvature 两通道，并要求没有 boundary/dihedral/non-manifold/cleanup-bridge 支持。除按边数剪枝（`featureGraphMaxWeakSpurEdges`）外，`featureGraphMinWeakSpurStrength`（默认 0 = 旧行为；C++ feature/simplify options、CLI 与 C ABI 均已暴露）为正时改按 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges`、`--feature-graph-min-weak-spur-strength` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。源码：`FeatureGraphCleanup.cpp:53-223, 247-413, 493-505`。
 
 QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。强 CAD loop 接近原始 `featureCurveWeight`，弱 tensor support 会先作为较软成本进入排序；是否硬保护仍由 `featureProtectionMode` 决定。
 
@@ -101,7 +101,7 @@ QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。�
 - 浅二面角需要进入 loop：降低 `--feature-angle-deg`，并让 `--loop-trace-angle-deg -1` 复用同一阈值。
 - 只想观察浅边但暂不让它保护简化：把 `--loop-trace-angle-deg` 设得高于 `--feature-angle-deg`，再检查 `untraced_edges`。
 - 弱特征不明显：尝试 `--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2`。
-- 光滑 fillet 中心线或平缓 ridge/valley 完全不出现在 feature graph：在 `feature-report` / `feature-benchmark` / `feature-compare` 中启用 `--smooth-curvature-features`（这是 feature-analysis 选项，`simplify` 会显式拒绝；C++ 简化可消费预计算的 `FeatureAnalysis`）。
+- 光滑 fillet 中心线或平缓 ridge/valley 完全不出现在 feature graph：先用 `feature-report --smooth-curvature-features` 校准阈值；需要直接保护简化时在 `simplify` 使用同一组选项。CLI 会自动打开 feature-curve policy；C++ 调用需同时设置 `preserveFeatureCurves` 与 `useSmoothCurvatureFeatures`，也可继续传入预计算 `FeatureAnalysis`。
 - 输出偏离曲线：增大 `featureCurveWeight` 或减小 `maxFeatureCurveDeviationRatio`，同时检查拒绝计数是否过高。
 
 ## 相关算法出处

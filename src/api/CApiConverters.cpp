@@ -200,6 +200,15 @@ ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::
     MANUMESH_INITIALIZE_OPTION(feature_graph_max_weak_spur_edges, 2);
     MANUMESH_INITIALIZE_OPTION(feature_component_min_confidence, 0.35);
     MANUMESH_INITIALIZE_OPTION(quality_refinement_iterations, 0);
+    MANUMESH_INITIALIZE_OPTION(use_smooth_curvature_features, 0);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_feature_threshold, 0.015);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_edge_alignment, 0.55);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_tangent_consistency, 0.65);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_base_neighborhood_rings, 2);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_scale_count, 3);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_persistent_scales, 2);
+    MANUMESH_INITIALIZE_OPTION(smooth_curvature_robust_fit_iterations, 2);
+    MANUMESH_INITIALIZE_OPTION(feature_graph_min_weak_spur_strength, 0.0);
 
 #undef MANUMESH_INITIALIZE_OPTION
 
@@ -355,6 +364,48 @@ bool readSimplifyOptions(
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_min_persistent_scales)) {
         target.normalTensorMinPersistentScales = source.normal_tensor_min_persistent_scales;
     }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, use_smooth_curvature_features)) {
+        target.useSmoothCurvatureFeatures = boolFromInt(source.use_smooth_curvature_features);
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_feature_threshold) &&
+        !readFiniteDouble(
+            source.smooth_curvature_feature_threshold,
+            "smooth_curvature_feature_threshold",
+            target.smoothCurvatureFeatureThreshold,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_edge_alignment) &&
+        !readFiniteDouble(
+            source.smooth_curvature_min_edge_alignment,
+            "smooth_curvature_min_edge_alignment",
+            target.smoothCurvatureMinEdgeAlignment,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_tangent_consistency) &&
+        !readFiniteDouble(
+            source.smooth_curvature_min_tangent_consistency,
+            "smooth_curvature_min_tangent_consistency",
+            target.smoothCurvatureMinTangentConsistency,
+            error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_base_neighborhood_rings)) {
+        target.smoothCurvatureBaseNeighborhoodRings = source.smooth_curvature_base_neighborhood_rings;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_scale_count)) {
+        target.smoothCurvatureScaleCount = source.smooth_curvature_scale_count;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_persistent_scales)) {
+        target.smoothCurvatureMinPersistentScales = source.smooth_curvature_min_persistent_scales;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_robust_fit_iterations)) {
+        target.smoothCurvatureRobustFitIterations = source.smooth_curvature_robust_fit_iterations;
+    }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, cleanup_feature_graph)) {
         target.cleanupFeatureGraph = boolFromInt(source.cleanup_feature_graph);
     }
@@ -369,6 +420,15 @@ bool readSimplifyOptions(
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_max_weak_spur_edges)) {
         target.featureGraphMaxWeakSpurEdges = source.feature_graph_max_weak_spur_edges;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_min_weak_spur_strength) &&
+        !readFiniteDouble(
+            source.feature_graph_min_weak_spur_strength,
+            "feature_graph_min_weak_spur_strength",
+            target.featureGraphMinWeakSpurStrength,
+            error
+        )) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_component_min_confidence) &&
         !readFiniteDouble(
@@ -494,6 +554,22 @@ ManuMeshStatus fillSimplifyReport(
         target, writeSize, quality_refinement_accepted_moves, source.qualityRefinementAcceptedMoves
     );
     MANUMESH_SET_REPORT_FIELD(target, writeSize, degenerate_input_faces, source.degenerateInputFaces);
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, smooth_curvature_feature_edges, source.smoothCurvatureFeatureEdges);
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, smooth_curvature_scored_vertices, source.smoothCurvatureScoredVertices
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, max_smooth_curvature_persistent_score, source.maxSmoothCurvaturePersistentScore
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, mean_smooth_curvature_local_scale, source.meanSmoothCurvatureLocalScale
+    );
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, mean_smooth_curvature_persistence, source.meanSmoothCurvaturePersistence
+    );
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, inconsistent_winding_edges, source.inconsistentWindingEdges);
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, graph_cleanup_skipped_by_cap, source.graphCleanupSkippedByCap);
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, circular_recovery_truncated, source.circularRecoveryTruncated);
     return MANUMESH_STATUS_OK;
 }
 

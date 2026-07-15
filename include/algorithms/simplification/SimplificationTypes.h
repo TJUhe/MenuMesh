@@ -101,10 +101,23 @@ struct SimplifyOptions {
     int normalTensorSmoothingIterations = 0;
     int normalTensorScaleCount = 1;
     int normalTensorMinPersistentScales = 1;
+    /// Enables deterministic multiscale smooth ridge/valley evidence during
+    /// the feature-analysis stage that precedes simplification.
+    bool useSmoothCurvatureFeatures = false;
+    double smoothCurvatureFeatureThreshold = 0.015;
+    double smoothCurvatureMinEdgeAlignment = 0.55;
+    double smoothCurvatureMinTangentConsistency = 0.65;
+    int smoothCurvatureBaseNeighborhoodRings = 2;
+    int smoothCurvatureScaleCount = 3;
+    int smoothCurvatureMinPersistentScales = 2;
+    int smoothCurvatureRobustFitIterations = 2;
     /// Cleans weak feature graph fragments before loop recovery.
     bool cleanupFeatureGraph = true;
     double featureGraphGapLengthRatio = 1.25;
     int featureGraphMaxWeakSpurEdges = 2;
+    /// Dimensionless Yoshizawa-style integrated-strength threshold used when
+    /// pruning dangling weak-evidence chains. Zero keeps edge-count behavior.
+    double featureGraphMinWeakSpurStrength = 0.0;
     double featureComponentMinConfidence = 0.35;
 
     // Hard post-placement filters and diagnostics.
@@ -171,6 +184,8 @@ struct SimplifyReport {
     int untracedFeatureEdges = 0;
     int normalTensorFeatureEdges = 0;
     int normalTensorScoredVertices = 0;
+    int smoothCurvatureFeatureEdges = 0;
+    int smoothCurvatureScoredVertices = 0;
     int featureComponents = 0;
     int weakFeatureComponents = 0;
     int highConfidenceFeatureComponents = 0;
@@ -180,8 +195,14 @@ struct SimplifyReport {
     double maxNormalTensorPersistentScore = 0.0;
     double meanNormalTensorLocalScale = 0.0;
     double meanNormalTensorPersistence = 0.0;
+    double maxSmoothCurvaturePersistentScore = 0.0;
+    double meanSmoothCurvatureLocalScale = 0.0;
+    double meanSmoothCurvaturePersistence = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
+    int inconsistentWindingEdges = 0;
+    int graphCleanupSkippedByCap = 0;
+    int circularRecoveryTruncated = 0;
 
     // First-reject counters for current collapse candidates.
     int featureRejectedCollapses = 0;

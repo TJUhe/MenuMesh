@@ -48,6 +48,45 @@ TEST_F(CApiTest, ExposesNormalTensorOptionsAndDiagnostics) {
     manumesh_mesh_destroy(input);
 }
 
+TEST_F(CApiTest, ExposesSmoothCurvatureOptionsAndDiagnostics) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "bump", 24, input));
+
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.target_ratio = 0.90;
+    options.preserve_feature_curves = 1;
+    options.feature_protection_mode = MANUMESH_FEATURE_PROTECTION_ALL_FEATURE_EDGES;
+    options.use_normal_tensor_features = 0;
+    options.feature_angle_deg = 180.0;
+    options.loop_trace_angle_deg = 180.0;
+    options.use_smooth_curvature_features = 1;
+    options.smooth_curvature_feature_threshold = 0.008;
+    options.smooth_curvature_min_edge_alignment = 0.45;
+    options.smooth_curvature_min_tangent_consistency = 0.55;
+    options.smooth_curvature_base_neighborhood_rings = 2;
+    options.smooth_curvature_scale_count = 3;
+    options.smooth_curvature_min_persistent_scales = 2;
+    options.smooth_curvature_robust_fit_iterations = 2;
+    options.feature_graph_min_weak_spur_strength = 0.01;
+
+    ManuMeshSimplifyReport report;
+    manumesh_simplify_report_init(&report);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
+    EXPECT_GT(report.smooth_curvature_feature_edges, 0);
+    EXPECT_GT(report.smooth_curvature_scored_vertices, 0);
+    EXPECT_GT(report.max_smooth_curvature_persistent_score, options.smooth_curvature_feature_threshold);
+    EXPECT_GT(report.mean_smooth_curvature_local_scale, 0.0);
+    EXPECT_GT(report.mean_smooth_curvature_persistence, 0.0);
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
 TEST_F(CApiTest, ExposesLegalityOptionsAndDetailedRejectDiagnostics) {
     ManuMeshMeshHandle* input = manumesh_mesh_create(context);
     ManuMeshMeshHandle* output = manumesh_mesh_create(context);

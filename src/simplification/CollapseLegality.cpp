@@ -188,17 +188,6 @@ CollapseRejectReason checkLocalError(
     return CollapseRejectReason::None;
 }
 
-bool sharesVertex(const std::array<int, 3>& a, const std::array<int, 3>& b) {
-    for (int lhs : a) {
-        for (int rhs : b) {
-            if (lhs == rhs) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 CollapseRejectReason checkLocalIntersections(
     const CollapseLegalityInput& input,
     const std::unordered_set<int>& touchedFaces,
@@ -218,6 +207,21 @@ CollapseRejectReason checkLocalIntersections(
     constexpr double kRelativeIntersectionEps = 1e-9;
     const std::vector<FaceState>& faces = input.mesh.faces;
     const std::vector<VertexState>& vertices = input.mesh.vertices;
+
+    for (std::size_t i = 0; i < newTriangles.size(); ++i) {
+        for (std::size_t j = i + 1; j < newTriangles.size(); ++j) {
+            if (manumesh::common::trianglesIntersectBeyondSharedTopology(
+                    newTriangles[i].ids,
+                    newTriangles[i].p,
+                    newTriangles[j].ids,
+                    newTriangles[j].p,
+                    kRelativeIntersectionEps
+                )) {
+                return CollapseRejectReason::SelfIntersection;
+            }
+        }
+    }
+
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const NewTriangle& tri : newTriangles) {
         auto [triLo, triHi] = manumesh::common::triangleAabb(tri.p, 0.0);
@@ -236,15 +240,14 @@ CollapseRejectReason checkLocalIntersections(
                 continue;
             }
             const FaceState& face = faces[faceId];
-            if (sharesVertex(tri.ids, face.v)) {
-                continue;
-            }
             const std::array<Vec3, 3> other = {
                 vertices[face.v[0]].p,
                 vertices[face.v[1]].p,
                 vertices[face.v[2]].p,
             };
-            if (manumesh::common::trianglesIntersect(tri.p, other, kRelativeIntersectionEps)) {
+            if (manumesh::common::trianglesIntersectBeyondSharedTopology(
+                    tri.ids, tri.p, face.v, other, kRelativeIntersectionEps
+                )) {
                 return CollapseRejectReason::SelfIntersection;
             }
         }

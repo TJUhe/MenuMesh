@@ -43,6 +43,8 @@ struct FeatureGuidanceSummary {
     int untracedFeatureEdges = 0;
     int normalTensorFeatureEdges = 0;
     int normalTensorScoredVertices = 0;
+    int smoothCurvatureFeatureEdges = 0;
+    int smoothCurvatureScoredVertices = 0;
     int featureComponents = 0;
     int weakFeatureComponents = 0;
     int highConfidenceFeatureComponents = 0;
@@ -52,8 +54,14 @@ struct FeatureGuidanceSummary {
     double maxNormalTensorPersistentScore = 0.0;
     double meanNormalTensorLocalScale = 0.0;
     double meanNormalTensorPersistence = 0.0;
+    double maxSmoothCurvaturePersistentScore = 0.0;
+    double meanSmoothCurvatureLocalScale = 0.0;
+    double meanSmoothCurvaturePersistence = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
+    int inconsistentWindingEdges = 0;
+    int graphCleanupSkippedByCap = 0;
+    int circularRecoveryTruncated = 0;
 };
 
 struct FeatureGuidance {

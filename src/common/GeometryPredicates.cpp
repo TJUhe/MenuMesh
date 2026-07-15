@@ -303,4 +303,84 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     return false;
 }
 
+bool trianglesIntersectBeyondSharedTopology(
+    const std::array<int, 3>& lhsIds,
+    const std::array<Vec3, 3>& lhs,
+    const std::array<int, 3>& rhsIds,
+    const std::array<Vec3, 3>& rhs,
+    double eps
+) {
+    std::array<int, 2> lhsShared{{-1, -1}};
+    int sharedCount = 0;
+    int lhsOpposite = -1;
+    int rhsOpposite = -1;
+    for (int i = 0; i < 3; ++i) {
+        bool shared = false;
+        for (int j = 0; j < 3; ++j) {
+            if (lhsIds[i] == rhsIds[j]) {
+                if (sharedCount < 2) {
+                    lhsShared[sharedCount] = i;
+                }
+                ++sharedCount;
+                shared = true;
+                break;
+            }
+        }
+        if (!shared) {
+            lhsOpposite = i;
+        }
+    }
+    for (int j = 0; j < 3; ++j) {
+        bool shared = false;
+        for (int i = 0; i < 3; ++i) {
+            if (rhsIds[j] == lhsIds[i]) {
+                shared = true;
+                break;
+            }
+        }
+        if (!shared) {
+            rhsOpposite = j;
+        }
+    }
+
+    if (sharedCount <= 1) {
+        return trianglesIntersect(lhs, rhs, eps);
+    }
+    if (sharedCount >= 3) {
+        return true;
+    }
+
+    const Vec3& s0 = lhs[static_cast<std::size_t>(lhsShared[0])];
+    const Vec3& s1 = lhs[static_cast<std::size_t>(lhsShared[1])];
+    const Vec3& lhsTip = lhs[static_cast<std::size_t>(lhsOpposite)];
+    const Vec3& rhsTip = rhs[static_cast<std::size_t>(rhsOpposite)];
+    const Vec3 lhsNormal = (lhs[1] - lhs[0]).cross(lhs[2] - lhs[0]);
+    const Vec3 rhsNormal = (rhs[1] - rhs[0]).cross(rhs[2] - rhs[0]);
+    const double lhsNorm = lhsNormal.norm();
+    const double rhsNorm = rhsNormal.norm();
+    const double scale = std::max(
+        (lhs[0].cwiseMax(lhs[1]).cwiseMax(lhs[2]) - lhs[0].cwiseMin(lhs[1]).cwiseMin(lhs[2])).maxCoeff(),
+        (rhs[0].cwiseMax(rhs[1]).cwiseMax(rhs[2]) - rhs[0].cwiseMin(rhs[1]).cwiseMin(rhs[2])).maxCoeff()
+    );
+    const double epsLen = eps * scale;
+    const double epsArea = eps * scale * scale;
+    if (lhsNorm <= epsArea || rhsNorm <= epsArea) {
+        return false;
+    }
+
+    const Vec3 lhsUnit = lhsNormal / lhsNorm;
+    const Vec3 rhsUnit = rhsNormal / rhsNorm;
+    const bool coplanar = lhsUnit.cross(rhsUnit).norm() <= 1e-8 && std::abs((rhsTip - s0).dot(lhsUnit)) <= epsLen;
+    if (!coplanar) {
+        // Two non-coplanar triangles sharing an entire edge can intersect only
+        // on the line containing that declared edge.
+        return false;
+    }
+
+    const Vec3 edge = s1 - s0;
+    const double lhsSide = lhsUnit.dot(edge.cross(lhsTip - s0));
+    const double rhsSide = lhsUnit.dot(edge.cross(rhsTip - s0));
+    return (lhsSide > epsArea && rhsSide > epsArea) || (lhsSide < -epsArea && rhsSide < -epsArea);
+}
+
 } // namespace manumesh::common

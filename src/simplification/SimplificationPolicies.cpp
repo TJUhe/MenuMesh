@@ -31,9 +31,18 @@ featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeature
     featureOptions.normalTensorSmoothingIterations = options.normalTensorSmoothingIterations;
     featureOptions.normalTensorScaleCount = options.normalTensorScaleCount;
     featureOptions.normalTensorMinPersistentScales = options.normalTensorMinPersistentScales;
+    featureOptions.useSmoothCurvatureFeatures = options.useSmoothCurvatureFeatures;
+    featureOptions.smoothCurvatureFeatureThreshold = options.smoothCurvatureFeatureThreshold;
+    featureOptions.smoothCurvatureMinEdgeAlignment = options.smoothCurvatureMinEdgeAlignment;
+    featureOptions.smoothCurvatureMinTangentConsistency = options.smoothCurvatureMinTangentConsistency;
+    featureOptions.smoothCurvatureBaseNeighborhoodRings = options.smoothCurvatureBaseNeighborhoodRings;
+    featureOptions.smoothCurvatureScaleCount = options.smoothCurvatureScaleCount;
+    featureOptions.smoothCurvatureMinPersistentScales = options.smoothCurvatureMinPersistentScales;
+    featureOptions.smoothCurvatureRobustFitIterations = options.smoothCurvatureRobustFitIterations;
     featureOptions.cleanupFeatureGraph = options.cleanupFeatureGraph;
     featureOptions.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
     featureOptions.featureGraphMaxWeakSpurEdges = options.featureGraphMaxWeakSpurEdges;
+    featureOptions.featureGraphMinWeakSpurStrength = options.featureGraphMinWeakSpurStrength;
     featureOptions.featureComponentMinConfidence = options.featureComponentMinConfidence;
     return featureOptions;
 }

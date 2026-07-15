@@ -98,6 +98,8 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
     guidance.summary.untracedFeatureEdges = analysis.untracedFeatureEdges;
     guidance.summary.normalTensorFeatureEdges = analysis.normalTensorFeatureEdges;
     guidance.summary.normalTensorScoredVertices = analysis.normalTensorScoredVertices;
+    guidance.summary.smoothCurvatureFeatureEdges = analysis.smoothCurvatureFeatureEdges;
+    guidance.summary.smoothCurvatureScoredVertices = analysis.smoothCurvatureScoredVertices;
     guidance.summary.featureComponents = static_cast<int>(analysis.components.size());
     guidance.summary.weakFeatureComponents = analysis.weakFeatureComponents;
     guidance.summary.highConfidenceFeatureComponents = analysis.highConfidenceFeatureComponents;
@@ -107,8 +109,14 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
     guidance.summary.maxNormalTensorPersistentScore = analysis.maxNormalTensorPersistentScore;
     guidance.summary.meanNormalTensorLocalScale = analysis.meanNormalTensorLocalScale;
     guidance.summary.meanNormalTensorPersistence = analysis.meanNormalTensorPersistence;
+    guidance.summary.maxSmoothCurvaturePersistentScore = analysis.maxSmoothCurvaturePersistentScore;
+    guidance.summary.meanSmoothCurvatureLocalScale = analysis.meanSmoothCurvatureLocalScale;
+    guidance.summary.meanSmoothCurvaturePersistence = analysis.meanSmoothCurvaturePersistence;
     guidance.summary.meanFeatureComponentConfidence = analysis.meanFeatureComponentConfidence;
     guidance.summary.minFeatureComponentConfidence = analysis.minFeatureComponentConfidence;
+    guidance.summary.inconsistentWindingEdges = analysis.inconsistentWindingEdges;
+    guidance.summary.graphCleanupSkippedByCap = analysis.graphCleanupSkippedByCap;
+    guidance.summary.circularRecoveryTruncated = analysis.circularRecoveryTruncated;
 
     guidance.vertices.reserve(analysis.vertices.size());
     for (const feature::VertexFeature& vertex : analysis.vertices) {
@@ -221,6 +229,7 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
 
     const std::vector<Vec3> faceNormals = common::computeFaceNormals(mesh);
     const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
+    const std::vector<char> windingFlip = common::harmonizeFaceWindings(mesh, edgeInfo);
     const double threshold = options.featureAngleDeg * kPi / 180.0;
     const double denom = std::max(1e-12, kPi - threshold);
     for (const auto& [key, info] : edgeInfo) {
@@ -233,8 +242,9 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
             // Degenerate (zero-area) faces have zero normals; their dot reads
             // as a fake 90-degree crease. Skip the edge instead of scoring it.
             if (n0.squaredNorm() > 0.0 && n1.squaredNorm() > 0.0) {
-                const double dot = std::clamp(std::abs(n0.dot(n1)), -1.0, 1.0);
-                const double angle = std::acos(dot);
+                const auto [a, b] = common::unpackMeshEdgeKey(key);
+                const double angle =
+                    common::computeOrientedDihedralAngle(mesh, faceNormals, windingFlip, info, a, b).angleRad;
                 edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
             }
         }
@@ -255,6 +265,8 @@ void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, Simplify
     report.untracedFeatureEdges = summary.untracedFeatureEdges;
     report.normalTensorFeatureEdges = summary.normalTensorFeatureEdges;
     report.normalTensorScoredVertices = summary.normalTensorScoredVertices;
+    report.smoothCurvatureFeatureEdges = summary.smoothCurvatureFeatureEdges;
+    report.smoothCurvatureScoredVertices = summary.smoothCurvatureScoredVertices;
     report.featureComponents = summary.featureComponents;
     report.weakFeatureComponents = summary.weakFeatureComponents;
     report.highConfidenceFeatureComponents = summary.highConfidenceFeatureComponents;
@@ -264,8 +276,14 @@ void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, Simplify
     report.maxNormalTensorPersistentScore = summary.maxNormalTensorPersistentScore;
     report.meanNormalTensorLocalScale = summary.meanNormalTensorLocalScale;
     report.meanNormalTensorPersistence = summary.meanNormalTensorPersistence;
+    report.maxSmoothCurvaturePersistentScore = summary.maxSmoothCurvaturePersistentScore;
+    report.meanSmoothCurvatureLocalScale = summary.meanSmoothCurvatureLocalScale;
+    report.meanSmoothCurvaturePersistence = summary.meanSmoothCurvaturePersistence;
     report.meanFeatureComponentConfidence = summary.meanFeatureComponentConfidence;
     report.minFeatureComponentConfidence = summary.minFeatureComponentConfidence;
+    report.inconsistentWindingEdges = summary.inconsistentWindingEdges;
+    report.graphCleanupSkippedByCap = summary.graphCleanupSkippedByCap;
+    report.circularRecoveryTruncated = summary.circularRecoveryTruncated;
 }
 
 } // namespace manumesh::simplification

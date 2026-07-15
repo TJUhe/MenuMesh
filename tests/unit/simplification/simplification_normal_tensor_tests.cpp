@@ -6,6 +6,7 @@
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
+#include "simplification/detail/FeatureGuidance.h"
 
 #include <algorithm>
 #include <array>
@@ -26,6 +27,47 @@ using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
 
 namespace simplification = manumesh::simplification;
+
+namespace {
+
+manumesh::Mesh makeRectangularBipyramidMesh() {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.3),
+        manumesh::Vec3(0.0, 0.0, -0.3),
+        manumesh::Vec3(2.0, 0.3, 0.0),
+        manumesh::Vec3(-2.0, 0.3, 0.0),
+        manumesh::Vec3(-2.0, -0.3, 0.0),
+        manumesh::Vec3(2.0, -0.3, 0.0),
+    };
+    for (int i = 0; i < 4; ++i) {
+        const int a = 2 + i;
+        const int b = 2 + ((i + 1) % 4);
+        mesh.faces.push_back({{0, b, a}});
+        mesh.faces.push_back({{1, a, b}});
+    }
+    return mesh;
+}
+
+} // namespace
+
+TEST(ManuMesh, DihedralWeightModeUsesReflexKnifeEdgeAngle) {
+    const manumesh::Mesh input = makeRectangularBipyramidMesh();
+    manumesh::simplification::SimplifyOptions options;
+    options.weightMode = manumesh::simplification::WeightMode::Dihedral;
+    options.featureAngleDeg = 120.0;
+
+    const manumesh::simplification::FeatureWeightScores scores =
+        manumesh::simplification::computeFeatureWeightScores(input, options);
+
+    ASSERT_EQ(input.vertices.size(), scores.values.size());
+    EXPECT_DOUBLE_EQ(0.0, scores.values[0]);
+    EXPECT_DOUBLE_EQ(0.0, scores.values[1]);
+    for (int vertex = 2; vertex < 6; ++vertex) {
+        EXPECT_GT(scores.values[vertex], 0.70) << "vertex=" << vertex;
+    }
+}
+
 TEST(ManuMesh, NormalTensorScoresSeparatePlaneFromRidge) {
     const manumesh::Mesh plane = manumesh::generatePlaneGrid(24, 2.0, false);
     const manumesh::Mesh ridge = manumesh::generateRidgeGrid(24, 2.0, 0.5);

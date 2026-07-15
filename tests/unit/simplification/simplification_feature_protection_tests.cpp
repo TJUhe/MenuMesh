@@ -6,6 +6,7 @@
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
+#include "simplification/detail/SimplificationPolicies.h"
 
 #include <algorithm>
 #include <array>
@@ -26,6 +27,61 @@ using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
 
 namespace simplification = manumesh::simplification;
+
+TEST(ManuMesh, SimplificationMapsSmoothCurvatureAndWeakSpurOptions) {
+    simplification::SimplifyOptions options;
+    options.useSmoothCurvatureFeatures = true;
+    options.smoothCurvatureFeatureThreshold = 0.021;
+    options.smoothCurvatureMinEdgeAlignment = 0.61;
+    options.smoothCurvatureMinTangentConsistency = 0.73;
+    options.smoothCurvatureBaseNeighborhoodRings = 3;
+    options.smoothCurvatureScaleCount = 4;
+    options.smoothCurvatureMinPersistentScales = 3;
+    options.smoothCurvatureRobustFitIterations = 1;
+    options.featureGraphMinWeakSpurStrength = 0.42;
+
+    const manumesh::feature::FeatureOptions mapped = simplification::featureOptionsFromSimplifyOptions(options);
+
+    EXPECT_TRUE(mapped.useSmoothCurvatureFeatures);
+    EXPECT_DOUBLE_EQ(options.smoothCurvatureFeatureThreshold, mapped.smoothCurvatureFeatureThreshold);
+    EXPECT_DOUBLE_EQ(options.smoothCurvatureMinEdgeAlignment, mapped.smoothCurvatureMinEdgeAlignment);
+    EXPECT_DOUBLE_EQ(options.smoothCurvatureMinTangentConsistency, mapped.smoothCurvatureMinTangentConsistency);
+    EXPECT_EQ(options.smoothCurvatureBaseNeighborhoodRings, mapped.smoothCurvatureBaseNeighborhoodRings);
+    EXPECT_EQ(options.smoothCurvatureScaleCount, mapped.smoothCurvatureScaleCount);
+    EXPECT_EQ(options.smoothCurvatureMinPersistentScales, mapped.smoothCurvatureMinPersistentScales);
+    EXPECT_EQ(options.smoothCurvatureRobustFitIterations, mapped.smoothCurvatureRobustFitIterations);
+    EXPECT_DOUBLE_EQ(options.featureGraphMinWeakSpurStrength, mapped.featureGraphMinWeakSpurStrength);
+}
+
+TEST(ManuMesh, SimplificationDetectsSmoothCurvatureFeaturesThroughPrimaryEntryPoint) {
+    const manumesh::Mesh input = manumesh::generateBumpGrid(24, 2.0);
+    simplification::SimplifyOptions options = standardQemOptions(0.50);
+    options.preserveFeatureCurves = true;
+    options.featureProtectionMode = simplification::FeatureProtectionMode::AllFeatureEdges;
+    options.useNormalTensorFeatures = false;
+    options.featureAngleDeg = 180.0;
+    options.loopTraceAngleDeg = 180.0;
+    options.useSmoothCurvatureFeatures = true;
+    options.smoothCurvatureFeatureThreshold = 0.008;
+    options.smoothCurvatureMinEdgeAlignment = 0.45;
+    options.smoothCurvatureMinTangentConsistency = 0.55;
+    options.smoothCurvatureBaseNeighborhoodRings = 2;
+    options.smoothCurvatureScaleCount = 3;
+    options.smoothCurvatureMinPersistentScales = 2;
+    options.smoothCurvatureRobustFitIterations = 2;
+
+    const SimplifiedMesh result = simplifyWithReport(input, options);
+
+    expectBudgetedSimplification(result, input, options.targetRatio);
+    EXPECT_GT(result.report.smoothCurvatureScoredVertices, 0);
+    EXPECT_GT(result.report.smoothCurvatureFeatureEdges, 0);
+    EXPECT_GT(result.report.maxSmoothCurvaturePersistentScore, options.smoothCurvatureFeatureThreshold);
+    EXPECT_GT(result.report.meanSmoothCurvatureLocalScale, 0.0);
+    EXPECT_GT(result.report.meanSmoothCurvaturePersistence, 0.0);
+    EXPECT_GT(result.report.featureVertices, countBoundaryVertices(input));
+    EXPECT_GT(result.report.featureRejectedCollapses, 0);
+}
+
 TEST(ManuMesh, StrictPolygonalFeatureProtectionRejectsChordPlacement) {
     const manumesh::Mesh input = makePolygonalFeatureChordMesh();
 

@@ -14,178 +14,7 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
-/// Returns +1 when the face traverses the directed edge a->b, -1 for b->a,
-/// and 0 when the face does not contain the edge at all.
-int faceEdgeDirection(const Face& face, int a, int b) {
-    for (int i = 0; i < 3; ++i) {
-        const int u = face.v[i];
-        const int v = face.v[(i + 1) % 3];
-        if (u == a && v == b) {
-            return 1;
-        }
-        if (u == b && v == a) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-/// Detection-internal winding-harmonization marks: flip[f] == 1 means face f
-/// is interpreted with reversed vertex order (face normal negated, edge
-/// traversal reversed) for all dihedral purposes. The input mesh itself is
-/// never modified.
-///
-/// Built with one deterministic BFS over face adjacency, O(F) total: every
-/// face pushes each of its three edges exactly once and every interior edge
-/// stores at most two faces. Determinism: components are seeded in ascending
-/// face-index order, each face expands its edges in vertex order, and
-/// buildMeshEdgeInfo stores the two incident faces of an edge in ascending
-/// face-index order, so the flip assignment never depends on hash-map
-/// iteration order.
-///
-/// Orientation is propagated only across manifold interior edges (exactly
-/// two incident faces); boundary and non-manifold edges carry no winding
-/// relation. Interior edges whose two faces still traverse the edge in the
-/// same direction after propagation are unresolvable orientation conflicts
-/// (non-orientable neighbourhoods, e.g. a Moebius band closure); they are
-/// detected per edge by orientedDihedralAngle, which falls back to the
-/// unsigned normal angle and keeps the inconsistentWindingEdges diagnostic.
-///
-/// After a component is traversed, marks are normalized so the majority of
-/// its faces keeps the input orientation (ties keep the seed face's
-/// orientation). A consistently wound mesh therefore gets the identity
-/// marking, and reversing a minority patch of faces reproduces the original
-/// orientation - and hence the original feature classification - exactly.
-std::vector<char> harmonizeFaceWindings(const Mesh& mesh, const manumesh::common::MeshEdgeInfoMap& edges) {
-    const int faceCount = static_cast<int>(mesh.faces.size());
-    std::vector<char> flip(static_cast<std::size_t>(faceCount), 0);
-    std::vector<char> visited(static_cast<std::size_t>(faceCount), 0);
-    std::vector<int> queue;
-    for (int seed = 0; seed < faceCount; ++seed) {
-        if (visited[seed]) {
-            continue;
-        }
-        visited[seed] = 1;
-        queue.clear();
-        queue.push_back(seed);
-        for (std::size_t head = 0; head < queue.size(); ++head) {
-            const int f = queue[head];
-            const Face& face = mesh.faces[f];
-            const int signF = flip[f] ? -1 : 1;
-            for (int e = 0; e < 3; ++e) {
-                const int a = face.v[e];
-                const int b = face.v[(e + 1) % 3];
-                const auto it = edges.find(manumesh::common::meshEdgeKey(a, b));
-                if (it == edges.end() || it->second.faces.size() != 2) {
-                    continue;
-                }
-                const int g = it->second.faces[0] == f ? it->second.faces[1] : it->second.faces[0];
-                if (g == f || visited[g]) {
-                    continue;
-                }
-                const int dirF = faceEdgeDirection(face, a, b);
-                const int dirG = faceEdgeDirection(mesh.faces[g], a, b);
-                if (dirF == 0 || dirG == 0) {
-                    continue;
-                }
-                // Consistent winding requires the two faces to traverse the
-                // shared edge in opposite directions after flips:
-                //   dirF * signF == -(dirG * signG)  =>  signG = -dirF * dirG * signF.
-                visited[g] = 1;
-                flip[g] = (-dirF * dirG * signF) < 0 ? 1 : 0;
-                queue.push_back(g);
-            }
-        }
-        // Majority normalization: flipping every mark in a component keeps
-        // all pairwise winding relations, so pick the assignment that keeps
-        // most faces in their input orientation.
-        int flippedCount = 0;
-        for (int f : queue) {
-            flippedCount += flip[f] ? 1 : 0;
-        }
-        if (2 * flippedCount > static_cast<int>(queue.size())) {
-            for (int f : queue) {
-                flip[f] = flip[f] ? 0 : 1;
-            }
-        }
-    }
-    return flip;
-}
-
-struct DihedralAngle {
-    double angleRad = 0.0;
-    bool inconsistentWinding = false;
-    /// +1 convex ridge, -1 concave valley, 0 flat/unknown.
-    int signedKind = 0;
-};
-
-/// Computes the turning angle and convexity across a two-face edge from the
-/// winding-harmonized face normals.
-///
-/// Angle: with harmonized windings the plain normal dot product
-/// distinguishes shallow creases from reflex knife edges (theta > 90
-/// degrees) even when a patch of the input mesh was wound backwards. Edges
-/// whose faces still traverse the edge in the same direction after
-/// harmonization (non-orientable neighbourhoods) fall back to the unsigned
-/// angle, which can only under-report sharpness.
-///
-/// Convexity (Jiao 2008 style, using the face's own traversal direction):
-/// let d be the unit direction in which harmonized face 0 traverses the
-/// shared edge, and n0, n1 the harmonized unit normals. Then
-///
-///     kind = sign((n0 x n1) . d),   + convex, - concave.
-///
-/// Derivation with two hand-checked 90-degree cases (edge along +y, face 0
-/// horizontal in z = 0 covering x <= 0 with n0 = +z and d = +y; both cases
-/// have consistent winding, i.e. face 1 traverses the edge along -y):
-///  - Convex ridge (table edge): face 1 hangs straight down (x = 0,
-///    z <= 0), outward normal n1 = +x. (n0 x n1) . d = (z x x) . y =
-///    y . y = +1 > 0  => convex.
-///  - Concave valley (room corner): face 1 rises straight up (x = 0,
-///    z >= 0), outward normal n1 = -x (pointing back over the floor).
-///    (n0 x n1) . d = (z x -x) . y = -y . y = -1 < 0  => concave.
-/// Swapping the roles of the faces flips both d and the cross product, so
-/// the sign is independent of which incident face is "face 0". The triple
-/// product of three unit vectors is dimensionless and its magnitude is
-/// sin(theta) at a clean crease, so a fixed 1e-12 cutoff only suppresses
-/// numerically flat or degenerate configurations.
-DihedralAngle orientedDihedralAngle(
-    const Mesh& mesh,
-    const std::vector<Vec3>& normals,
-    const std::vector<char>& windingFlip,
-    const manumesh::common::MeshEdgeInfo& info,
-    int a,
-    int b
-) {
-    DihedralAngle result;
-    const int f0 = info.faces[0];
-    const int f1 = info.faces[1];
-    const int s0 = windingFlip[f0] ? -1 : 1;
-    const int s1 = windingFlip[f1] ? -1 : 1;
-    double dot = std::clamp(normals[f0].dot(normals[f1]), -1.0, 1.0) * static_cast<double>(s0 * s1);
-    const int direction0 = faceEdgeDirection(mesh.faces[f0], a, b) * s0;
-    const int direction1 = faceEdgeDirection(mesh.faces[f1], a, b) * s1;
-    if (direction0 == 0 || direction1 == 0 || direction0 == direction1) {
-        result.inconsistentWinding = true;
-        dot = std::abs(dot);
-    }
-    result.angleRad = std::acos(dot);
-    if (!result.inconsistentWinding) {
-        Vec3 edge = mesh.vertices[b] - mesh.vertices[a];
-        const double edgeLength = edge.norm();
-        if (edgeLength > 1e-20) {
-            const Vec3 d = edge * (static_cast<double>(direction0) / edgeLength);
-            const double side =
-                (normals[f0] * static_cast<double>(s0)).cross(normals[f1] * static_cast<double>(s1)).dot(d);
-            if (side > 1e-12) {
-                result.signedKind = 1;
-            } else if (side < -1e-12) {
-                result.signedKind = -1;
-            }
-        }
-    }
-    return result;
-}
+using DihedralAngle = manumesh::common::OrientedDihedralAngle;
 
 struct EdgeEvidenceContext {
     EdgeEvidenceContext(
@@ -199,7 +28,7 @@ struct EdgeEvidenceContext {
           analysis(outputAnalysis),
           normals(cache.faceNormals()),
           edges(cache.edgeInfo()),
-          windingFlip(harmonizeFaceWindings(inputMesh, cache.edgeInfo())),
+          windingFlip(manumesh::common::harmonizeFaceWindings(inputMesh, cache.edgeInfo())),
           dihedralThreshold(options.featureAngleDeg * kPi / 180.0),
           tensor(
               options.useNormalTensorFeatures ? computeNormalTensorFeaturesCached(
@@ -288,7 +117,8 @@ private:
             if (info.faces.size() == 1 || info.faces.size() > 2) {
                 discrete = true;
             } else if (info.faces.size() == 2) {
-                const DihedralAngle dihedral = orientedDihedralAngle(mesh, normals, windingFlip, info, a, b);
+                const DihedralAngle dihedral =
+                    manumesh::common::computeOrientedDihedralAngle(mesh, normals, windingFlip, info, a, b);
                 dihedralAngles.emplace(key, dihedral);
                 discrete = dihedral.angleRad >= dihedralThreshold;
             }

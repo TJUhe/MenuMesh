@@ -7,17 +7,17 @@
 ## 当前内容
 
 ```text
-src/common/detail/GeometryPredicates.h  triangle quality、点到三角形距离、AABB 距离、三角形包围盒、三角形相交
+src/common/detail/GeometryPredicates.h  triangle quality、点到三角形距离、AABB 距离、三角形包围盒、普通/共享拓扑感知三角形相交
 src/common/GeometryPredicates.cpp       GeometryPredicates 实现
 src/common/detail/MeshDistanceIndex.h   面向三角网格表面的 BVH 距离查询
 src/common/MeshDistanceIndex.cpp        MeshDistanceIndex 实现
-src/common/detail/MeshQueries.h         边 key、面 key、边-面 incidence、面法向、面心、顶点邻接、局部边长、边界顶点
+src/common/detail/MeshQueries.h         边 key、面 key、边-面 incidence、面法向、面心、顶点邻接、局部边长、边界顶点、绕向协调与有向二面角
 src/common/MeshQueries.cpp              MeshQueries 实现
 src/common/detail/SpatialIndex.h        CellCoord、hash、UniformAabbCandidateGrid、AABB 候选查询和 overflow 管理
 src/common/SpatialIndex.cpp             SpatialIndex 实现
 ```
 
-这些能力已经被 feature detection 和 simplification 共享，或已经从 simplification 的私有实现迁入 common。`SpatialFaceIndex` 现在只负责把 simplification 的 `FaceState`/`VertexState` 转成 AABB，真正的候选网格由 `UniformAabbCandidateGrid` 维护。通用网格统计与双 mesh 采样距离比较已上浮为 `manumesh::analysis` 模块（`src/analysis/MeshAnalysis.cpp`），点到 mesh 表面的 BVH 距离查询由 `MeshDistanceIndex` 承担。数学常量的正典位置是 `include/core/MathConstants.h`（`kPi`），`src/common/detail/MathConstants.h` 只保留转发别名。common 的命名空间是 `manumesh::common`（由 `manumesh::detail` 改名，过渡别名保留一个 minor 版本）。
+这些能力已经被 feature detection 和 simplification 共享，或已经从 simplification 的私有实现迁入 common。`computeOrientedDihedralAngle` 统一 feature evidence 与 `WeightMode::Dihedral` 的反折角定义；`trianglesIntersectBeyondSharedTopology` 允许仅限声明共享顶点/边的接触，同时拒绝越过该共享拓扑的重叠。`SpatialFaceIndex` 现在只负责把 simplification 的 `FaceState`/`VertexState` 转成 AABB，真正的候选网格由 `UniformAabbCandidateGrid` 维护。通用网格统计与双 mesh 采样距离比较已上浮为 `manumesh::analysis` 模块（`src/analysis/MeshAnalysis.cpp`），点到 mesh 表面的 BVH 距离查询由 `MeshDistanceIndex` 承担。数学常量的正典位置是 `include/core/MathConstants.h`（`kPi`），`src/common/detail/MathConstants.h` 只保留转发别名。common 的命名空间是 `manumesh::common`（由 `manumesh::detail` 改名，过渡别名保留一个 minor 版本）。
 
 后续新增模块应优先检查 common 是否已有能力，再决定是否新增私有 helper。common 测试越扎实，算法模块越容易只测试策略行为。
 

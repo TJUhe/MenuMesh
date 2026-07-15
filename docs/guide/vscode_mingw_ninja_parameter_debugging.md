@@ -262,7 +262,7 @@ ManuMesh 当前简化管线可以看成四层：
 
 ### 特征检测参数
 
-这些参数同时影响 `feature-report` 和 `simplify --preserve-feature-curves`（`--smooth-curvature-*` 系列除外：它们是 feature-analysis 选项，只被 `feature-report` / `feature-benchmark` / `feature-compare` 接受）。如果只想验证识别结果，优先用 `(MinGW Ninja) Debug CLI Feature Report`，它不会引入 QEM 坍缩的干扰。
+这些参数同时影响 `feature-report` 和 `simplify` 的 feature policy；`--smooth-curvature-features` 在 `simplify` 中会自动把 `preserveFeatureCurves` 设为 true。如果只想验证识别结果，优先用 `(MinGW Ninja) Debug CLI Feature Report`，它不会引入 QEM 坍缩的干扰。
 
 | 参数 | 进入字段 | 数学/工程意义 | 断点 | 输出观察 |
 | --- | --- | --- | --- | --- |
@@ -279,7 +279,7 @@ ManuMesh 当前简化管线可以看成四层：
 | `--normal-tensor-scales N` | `normalTensorScaleCount` | tensor 多尺度数量。 | `NormalTensor.cpp` | 多尺度能提高稳定性，但耗时增加。 |
 | `--normal-tensor-min-persistent-scales N` | `normalTensorMinPersistentScales` | tensor 弱特征边至少需要 N 个尺度支持。默认 1，调试弱特征时建议从 2 开始。 | `FeatureEvidence.cpp`、`Quadrics.cpp` | `normal_tensor_edges`、`max_normal_tensor_persistent_score`、`mean_normal_tensor_persistence`。 |
 | `--no-normal-tensor-features` | `useNormalTensorFeatures=false` | 关闭 tensor 弱特征候选，只保留 boundary/dihedral/non-manifold 证据。 | `FeatureEvidence.cpp` | `normal_tensor_edges=0`。 |
-| `--smooth-curvature-features` | `useSmoothCurvatureFeatures=true` | 启用确定性光滑曲率 ridge/valley 证据（默认关闭）。只被 `feature-report` / `feature-benchmark` / `feature-compare` 接受，`simplify` 会显式拒绝。 | `SmoothCurvature.cpp`、`FeatureEvidence.cpp` | `smooth_curvature_edges`、`smooth_curvature_scored_vertices`。 |
+| `--smooth-curvature-features` | `useSmoothCurvatureFeatures=true` | 启用确定性光滑曲率 ridge/valley 证据（默认关闭）。feature-analysis 命令只检测；`simplify` 还会自动启用 feature-curve policy。 | `SmoothCurvature.cpp`、`FeatureEvidence.cpp`、`SimplificationPolicies.cpp` | feature report 看 `smooth_curvature_edges`；simplify 看 `smooth_curvature_feature_edges` 与 feature rejection。 |
 | `--smooth-curvature-threshold S` | `smoothCurvatureFeatureThreshold` | 尺度归一化的光滑特征分数阈值（默认 `0.015`）。分数无量纲，网格均匀缩放后不需要重调。 | `SmoothCurvature.cpp` | `max_smooth_curvature_score`、`max_smooth_curvature_persistent_score`。 |
 | `--smooth-curvature-edge-alignment A` | `smoothCurvatureMinEdgeAlignment` | mesh edge 与恢复曲线切向的最小对齐（默认 `0.55`）。 | `SmoothCurvature.cpp` | 变严格时 `smooth_curvature_edges` 减少。 |
 | `--smooth-curvature-tangent-consistency A` | `smoothCurvatureMinTangentConsistency` | 跨尺度与两端点切向一致性要求（默认 `0.65`）。 | `SmoothCurvature.cpp` | 噪声响应被抑制，稳定曲线保留。 |
@@ -289,6 +289,7 @@ ManuMesh 当前简化管线可以看成四层：
 | `--smooth-curvature-robust-iterations N` | `smoothCurvatureRobustFitIterations` | 确定性 Huber 重加权拟合轮数（默认 `2`）。 | `SmoothCurvature.cpp` | 拟合残差对离群三角形更稳健。 |
 | `--feature-graph-gap-ratio R` | `featureGraphGapLengthRatio` | cleanup 桥接 endpoint/junction gap 的局部边长倍数。 | `FeatureGraphCleanup.cpp` | `graph_cleanup_bridged_gaps`、`graph_cleanup_merged_junctions`。 |
 | `--feature-graph-max-weak-spur-edges N` | `featureGraphMaxWeakSpurEdges` | 删除最多 N 条边、且仅由 normal-tensor 或 smooth-curvature 支持的弱 spur。 | `FeatureGraphCleanup.cpp:53-223` | `graph_cleanup_removed_spurs`、`weak_feature_components`。 |
+| `--feature-graph-min-weak-spur-strength S` | `featureGraphMinWeakSpurStrength` | S>0 时按 Yoshizawa 无量纲积分强度裁决弱 spur；0 保持按边数行为。feature-analysis 和 simplify 均接受。 | `FeatureGraphCleanup.cpp`、`SimplificationPolicies.cpp` | 长而弱曲线更易保留，短噪声刺更易删除。 |
 | `--feature-component-min-confidence C` | `featureComponentMinConfidence` | 报告 high-confidence component 的阈值。 | `FeatureGraphCleanup.cpp::summarizeFeatureComponents` | `high_confidence_feature_components`。 |
 | `--no-feature-graph-cleanup` | `cleanupFeatureGraph=false` | 关闭短 gap、短弱 spur 和近 junction cleanup。 | `FeatureDetector.cpp`、`FeatureGraphCleanup.cpp` | cleanup 计数为 0，loop closure 可能下降。 |
 
@@ -325,7 +326,7 @@ ManuMesh 当前简化管线可以看成四层：
 | `--max-normal-deviation-deg A` | `maxNormalDeviationDeg` | 坍缩后局部面法向偏转超过 A 度时拒绝。 | `CollapseLegality.cpp` | `normal_flip_rejected_collapses`。 |
 | `--max-local-error D` | `maxLocalError` | 用绝对距离限制局部坍缩漂移。0 表示关闭。 | `CollapseLegality.cpp` | `error_rejected_collapses`。 |
 | `--max-local-error-ratio R` | `maxLocalErrorRatio` | 用 `R * bbox_diag` 限制局部坍缩漂移。0 表示关闭。 | `SimplificationPolicies.cpp`、`CollapseLegality.cpp` | `error_rejected_collapses`。 |
-| `--prevent-local-intersections` | `preventLocalIntersections=true` | 用局部三角形相交检测拒绝可能引入自交的坍缩。 | `CollapseLegality.cpp` | `self_intersection_rejected_collapses`。 |
+| `--prevent-local-intersections` | `preventLocalIntersections=true` | 检查新一环三角形两两相交及其与附近活动面的相交；仅声明共享顶点/边的接触允许。该 guard 也用于质量精修，但不构成全局无自交认证。 | `CollapseLegality.cpp`、`QualityRefinement.cpp`、`common/GeometryPredicates.cpp` | `self_intersection_rejected_collapses`。 |
 | `--industrial-safe` | 多字段组合 | 保守预设：打开边界保护、自交检查，提高最低质量要求，并设置局部误差比例下限。 | `parseSimplifyOptions` | 多类拒绝计数上升，目标可能更难达到。 |
 
 `--industrial-safe` 当前展开为：

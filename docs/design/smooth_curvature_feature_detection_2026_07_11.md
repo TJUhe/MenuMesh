@@ -175,7 +175,9 @@ strong-evidence gates.
 - `smoothCurvatureRobustFitIterations`
 
 Graph cleanup additionally exposes `featureGraphMinWeakSpurStrength`
-(default 0.0, C++ `FeatureOptions` only, no CLI/C ABI binding yet). When
+(default 0.0) through C++ `FeatureOptions`, C++ `SimplifyOptions`, both CLI
+option tables (`--feature-graph-min-weak-spur-strength`), and the size-aware C
+ABI tail. When
 positive, dangling weak-evidence chains are judged by the dimensionless
 Yoshizawa curve strength `T = (integral ds) * (integral strength ds)` — ds in
 local average-edge-length units, per-edge strength as the persistence score
@@ -185,11 +187,14 @@ noise spikes are pruned. The default keeps legacy behavior exactly.
 
 The path is opt-in because clean CAD/STL hard-edge detection and noisy/free-form
 smooth-feature detection require different validation sets. Existing
-simplification behavior remains unchanged unless a caller supplies a precomputed
-analysis with smooth features.
+simplification behavior remains unchanged unless the smooth channel is enabled
+or a caller supplies a precomputed analysis with smooth features.
 
-The CLI exposes the same controls to `feature-report`, `feature-benchmark`, and
-`feature-compare` through `--smooth-curvature-*` options.
+The CLI exposes the same controls to `feature-report`, `feature-benchmark`,
+`feature-compare`, and `simplify`. On `simplify`,
+`--smooth-curvature-features` also enables `preserveFeatureCurves`, so the
+detected graph is consumed by the protection policy instead of being computed
+and discarded.
 
 ## Diagnostics
 
@@ -287,18 +292,17 @@ Remaining limitations:
 
 ## Simplification boundary
 
-The feature-analysis CLI exposes all `--smooth-curvature-*` controls through
-`feature-report`, `feature-benchmark`, and `feature-compare`. The `simplify`
-command intentionally rejects those options. `SimplifyOptions` currently has no
-smooth-curvature fields, and `featureOptionsFromSimplifyOptions` therefore
-cannot enable this channel internally. C++ callers that need smooth-feature
-preservation must:
+`SimplifyOptions` now mirrors all eight smooth-curvature controls plus
+`featureGraphMinWeakSpurStrength`; `featureOptionsFromSimplifyOptions` maps them
+without changing thresholds. C++ callers enable both
+`preserveFeatureCurves = true` and `useSmoothCurvatureFeatures = true`. The CLI
+does the first part automatically when `--smooth-curvature-features` is present.
+`SimplifyReport`, simplify stdout/metrics CSV, and the size-aware C ABI report
+carry smooth edge/scored-vertex/persistence diagnostics together with winding,
+cleanup-cap, and circular-recovery diagnostics.
 
-1. call `detectFeatureCurves(mesh, featureOptions)` with
-   `useSmoothCurvatureFeatures = true`;
-2. pass the resulting `FeatureAnalysis` to
-   `QEMSimplifier::simplify(input, features, report)`.
-
-This boundary keeps feature policy out of the topology-edit loop and follows
-the explicit constrained-edge/data-adapter practice represented by CGAL PMP
-and OpenMesh.
+The precomputed `FeatureAnalysis` overload remains supported when detection is
+shared with repair/remeshing/validation. Both routes converge at
+`buildFeatureGuidanceFromAnalysis`; feature policy therefore remains outside the
+topology-edit loop, consistent with the constrained-edge/data-adapter practice
+represented by CGAL PMP and OpenMesh.

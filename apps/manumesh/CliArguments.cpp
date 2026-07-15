@@ -54,8 +54,16 @@ const std::vector<OptionSpec>& simplifyOptionSpecs() {
         {"--normal-tensor-smoothing", "N", "Optional tensor smoothing iterations"},
         {"--normal-tensor-scales", "N", "Number of tensor smoothing scales"},
         {"--normal-tensor-min-persistent-scales", "N", "Required supporting tensor scales"},
+        {"--smooth-curvature-threshold", "S", "Scale-normalized quadric feature threshold"},
+        {"--smooth-curvature-edge-alignment", "A", "Minimum edge/curve-tangent alignment"},
+        {"--smooth-curvature-tangent-consistency", "A", "Cross-scale tangent agreement"},
+        {"--smooth-curvature-base-rings", "N", "Smallest quadric-fit neighborhood"},
+        {"--smooth-curvature-scales", "N", "Number of quadric-fit scales"},
+        {"--smooth-curvature-min-persistent-scales", "N", "Required supporting smooth scales"},
+        {"--smooth-curvature-robust-iterations", "N", "Robust fit reweighting passes"},
         {"--feature-graph-gap-ratio", "R", "Bridge endpoint gaps up to R local edges"},
         {"--feature-graph-max-weak-spur-edges", "N", "Remove weak-evidence spurs up to N edges"},
+        {"--feature-graph-min-weak-spur-strength", "S", "Keep weak spurs whose integrated strength reaches S"},
         {"--feature-component-min-confidence", "C", "Component confidence report threshold"},
         {"--min-triangle-quality", "Q", "Reject collapses below quality Q in [0,1]"},
         {"--max-normal-deviation-deg", "A", "Reject local face normal changes above A"},
@@ -68,6 +76,7 @@ const std::vector<OptionSpec>& simplifyOptionSpecs() {
         {"--prevent-local-intersections", "", "Reject local triangle intersections"},
         {"--industrial-safe", "", "Enable conservative boundary/quality guards"},
         {"--no-normal-tensor-features", "", "Disable tensor candidates in feature detection"},
+        {"--smooth-curvature-features", "", "Enable deterministic smooth ridge/valley preservation"},
         {"--no-feature-graph-cleanup", "", "Disable weak spur/gap graph cleanup"},
     };
     return specs;
@@ -98,6 +107,7 @@ const std::vector<OptionSpec>& featureOptionSpecs() {
         {"--smooth-curvature-robust-iterations", "N", "Robust fit reweighting passes"},
         {"--feature-graph-gap-ratio", "R", "Bridge endpoint gaps up to R local edges"},
         {"--feature-graph-max-weak-spur-edges", "N", "Remove weak-evidence spurs up to N edges"},
+        {"--feature-graph-min-weak-spur-strength", "S", "Keep weak spurs whose integrated strength reaches S"},
         {"--feature-component-min-confidence", "C", "Component confidence report threshold"},
         {"--csv", "path", "Write the feature report/compare CSV"},
         {"--smooth-curvature-features", "", "Enable deterministic smooth ridge/valley detection"},
@@ -181,18 +191,6 @@ void addSpecs(CommandOptionSet& set, const std::vector<OptionSpec>& specs) {
     }
 }
 
-// The simplify family also accepts (parses) --smooth-curvature-* so that
-// CliOptionBinding can emit its specific "feature-analysis option" rejection
-// instead of a generic unknown-option error.
-void addSmoothCurvatureAccept(CommandOptionSet& set) {
-    for (const OptionSpec& spec : featureOptionSpecs()) {
-        const std::string flag = spec.flag;
-        if (flag.rfind("--smooth-curvature", 0) == 0) {
-            addSpec(set, spec);
-        }
-    }
-}
-
 const std::map<std::string, CommandOptionSet>& commandOptionSets() {
     static const std::map<std::string, CommandOptionSet> sets = [] {
         std::map<std::string, CommandOptionSet> m;
@@ -202,7 +200,6 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
             addSpecs(set, simplifyOptionSpecs());
             addSpec(set, kSamplesSpec);
             addSpec(set, listSpec);
-            addSmoothCurvatureAccept(set);
             addSpec(set, kVerboseSpec);
             return set;
         };
@@ -216,7 +213,6 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
         addSpecs(simplify, simplifyOptionSpecs());
         addSpec(simplify, kSamplesSpec);
         addSpec(simplify, kMetricsCsvSpec);
-        addSmoothCurvatureAccept(simplify);
         addSpec(simplify, kVerboseSpec);
         m["simplify"] = simplify;
 

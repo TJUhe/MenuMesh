@@ -24,10 +24,10 @@
 ## 当前文档策略
 
 - `delivery/` 是对外交付和内部正式评审入口。
-- `archive/` 保存阶段性材料，不再作为当前产品能力说明的主入口。
+- `archive/` 保存阶段性材料，不再作为当前产品能力说明的主入口；其中的旧参数边界不会随当前程序回写。
 - `design/` 和 `guide/` 可继续作为研发工作区使用，但如果内容与交付文档冲突，以 `delivery/` 为准。
-- `generated/notes/` 多数文件属于历史导出资料；其中 `manumesh-feature-recognition-pipeline.html` 和 `manumesh-loop-construction.html` 自 2026-07-15 起按当前源码持续维护，可作为特征识别与 loop recovery 的源码级补充。对外交付总边界仍以 `delivery/` 为准。
-- 交付文档已同步纹理感知 QEM、光滑曲率特征检测，以及 2026-07-12 架构/算法批次（`manumesh::analysis` 模块、`FeatureComparison` loop 匹配、placement 三级回退链、扩展 link condition、有向二面角、Taubin/Halíř-Flusser 拟合、C ABI/IO 加固）；`generated/notes/*.html` 此前补充的 `io/` 与 Debug-only `debugUtil/` 布局说明保持不变，PDF 二进制未重写。
+- `generated/notes/` 多数文件属于历史导出资料；其中 `manumesh-feature-recognition-pipeline.html`、`manumesh-loop-construction.html` 和本轮修订到的程序/QEM说明已同步 2026-07-15 源码。对外交付总边界仍以 `delivery/` 为准。
+- 交付文档已同步纹理感知 QEM、简化内置的光滑曲率特征检测、CLI/C ABI 尾字段、公共绕向感知二面角、面积加权退化面 point quadric、共享拓扑感知的局部相交检查，以及 OBJ 凹多边形 ear clipping。PDF 二进制未重写，PDF 与同名 HTML 冲突时以当前 HTML/Markdown 为准。
 - 新增商业能力时，应先更新交付文档的能力边界、API、验证方法和限制说明，再补充研发细节。
 
 ## 交付定位
@@ -39,8 +39,9 @@ ManuMesh 当前定位为面向增材制造和三角网格处理的 C++17 mesh ge
 - feature evidence、feature graph、loop recovery 和 primitive fitting；
 - QEM / line-quadrics edge-collapse simplification；
 - 纹理感知 4×4 QEM 简化（opt-in）：逐角 UV chart 保护与标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式，当前仅通过 C++ `SimplifyOptions` 暴露；
-- 确定性光滑曲率特征检测（opt-in）：多尺度 quadric 拟合的 ridge/valley 弱证据路径，经显式 `FeatureGraph` 与硬证据汇合，`feature-report`/`feature-benchmark`/`feature-compare` CLI 已暴露 `--smooth-curvature-*` 参数；
-- feature、boundary、topology、normal、triangle quality、local error 和 local intersection 过滤；
+- 确定性光滑曲率特征检测与保护（opt-in）：多尺度 quadric 拟合的 ridge/valley 弱证据路径，经显式 `FeatureGraph` 与硬证据汇合；feature-analysis CLI 和 `simplify` 均支持 `--smooth-curvature-*`，`simplify --smooth-curvature-features` 自动开启特征曲线策略；C++/C ABI 均有对应尾字段；
+- feature、boundary、topology、normal、triangle quality、local error 和 local intersection 过滤；相交检查覆盖新一环内部与附近活动面，但不声称全局无自交认证；
+- STL/OBJ IO；OBJ 严格凸面保持 fan 顺序，凹面使用投影 ear clipping，并拒绝重复、退化或自交 polygon；
 - CLI、examples、CTest/GoogleTest 和外部 STL/OBJ 验证路径。
 - Debug-only HTML wireframe 辅助工具只属于内部算法排查手段，不属于 SDK/API 或交付 viewer。
 

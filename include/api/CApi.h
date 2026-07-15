@@ -130,6 +130,17 @@ typedef struct ManuMeshSimplifyOptions {
     double feature_component_min_confidence;
     /* Optional fixed-topology quality-improvement passes after simplification. */
     int quality_refinement_iterations;
+    /* Optional deterministic smooth ridge/valley evidence. Tail extension. */
+    int use_smooth_curvature_features;
+    double smooth_curvature_feature_threshold;
+    double smooth_curvature_min_edge_alignment;
+    double smooth_curvature_min_tangent_consistency;
+    int smooth_curvature_base_neighborhood_rings;
+    int smooth_curvature_scale_count;
+    int smooth_curvature_min_persistent_scales;
+    int smooth_curvature_robust_fit_iterations;
+    /* Integrated weak-spur strength threshold; zero keeps edge-count cleanup. */
+    double feature_graph_min_weak_spur_strength;
 } ManuMeshSimplifyOptions;
 
 typedef struct ManuMeshSimplifyReport {
@@ -195,6 +206,15 @@ typedef struct ManuMeshSimplifyReport {
     /* Input faces tolerated as degenerate (zero area / repeated vertex).
    * Added at the tail to preserve old field offsets. */
     int degenerate_input_faces;
+    /* Smooth-curvature and feature-recovery diagnostics. Tail extension. */
+    int smooth_curvature_feature_edges;
+    int smooth_curvature_scored_vertices;
+    double max_smooth_curvature_persistent_score;
+    double mean_smooth_curvature_local_scale;
+    double mean_smooth_curvature_persistence;
+    int inconsistent_winding_edges;
+    int graph_cleanup_skipped_by_cap;
+    int circular_recovery_truncated;
 } ManuMeshSimplifyReport;
 
 typedef struct ManuMeshMeshStats {

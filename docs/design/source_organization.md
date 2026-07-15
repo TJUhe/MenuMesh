@@ -94,7 +94,7 @@ src/mesh_edit/detail/DynamicTopology.h        动态拓扑私有接口
 
 ```text
 src/feature_detection/FeatureDetector.cpp          FeatureDetector pimpl、公共入口、pipeline stage 编排和 CSV 小工具
-src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor/smooth-curvature 边证据策略组合；有向（绕向感知）二面角与 inconsistentWindingEdges 诊断
+src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor/smooth-curvature 边证据策略组合；复用 common 绕向感知二面角并汇总 inconsistentWindingEdges
 src/feature_detection/SmoothCurvature.cpp          opt-in 确定性光滑曲率证据：多尺度鲁棒三次 Monge 拟合、带符号主曲率、解析 extremality 和 Ohtake 边零交叉判据
 src/feature_detection/FeatureGraph.cpp             FeatureGraph 初始化、trace graph 构建和 junction/shared 标记
 src/feature_detection/FeatureGraphCleanup.cpp      gap 桥接、弱毛刺剪除（含 Yoshizawa 组件强度过滤）和 junction 合并
@@ -109,6 +109,8 @@ src/feature_detection/NormalTensor.cpp             normal-tensor 特征评分，
 src/feature_detection/PrimitiveFit.cpp             Taubin 圆拟合（Kåsa 回退）、Halíř-Flusser 椭圆拟合和误差度量
 src/feature_detection/detail/*.h                   feature 检测私有类型、策略接口和 helper 声明（含 FeatureDetectionCache：面法向/边信息/邻接/局部边长全管线一次构建）
 ```
+
+绕向感知角度的正典实现位于 `src/common/MeshQueries.cpp` 的 `computeOrientedDihedralAngle`；feature evidence 与简化的 `WeightMode::Dihedral` 共用它，避免特征识别和 line-weight 评分对反折刀边采用不同角度定义。
 
 特征检测是与 QEM 简化平级的算法模块。它不能反向依赖 `src/simplification/`；简化、验证、修复或未来重网格模块可以消费 `FeatureAnalysis`。
 

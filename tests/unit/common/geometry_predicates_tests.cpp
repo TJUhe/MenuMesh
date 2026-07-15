@@ -151,3 +151,70 @@ TEST(ManuMesh, GeometryPredicatesCoplanarOverlapIsScaleInvariant) {
         );
     }
 }
+
+TEST(ManuMesh, GeometryPredicatesAllowOnlyDeclaredSharedTopologyContact) {
+    const std::array<int, 3> baseIds{{0, 1, 2}};
+    const std::array<manumesh::Vec3, 3> base = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+    };
+    constexpr double kRelativeEps = 1e-9;
+
+    const std::array<int, 3> vertexTouchIds{{0, 3, 4}};
+    const std::array<manumesh::Vec3, 3> vertexTouch = {
+        base[0],
+        manumesh::Vec3(-1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, -1.0, 0.0),
+    };
+    EXPECT_FALSE(
+        manumesh::common::trianglesIntersectBeyondSharedTopology(
+            baseIds, base, vertexTouchIds, vertexTouch, kRelativeEps
+        )
+    );
+
+    const std::array<manumesh::Vec3, 3> vertexOverlap = {
+        base[0],
+        manumesh::Vec3(0.8, 0.1, 0.0),
+        manumesh::Vec3(0.1, 0.8, 0.0),
+    };
+    EXPECT_TRUE(
+        manumesh::common::trianglesIntersectBeyondSharedTopology(
+            baseIds, base, vertexTouchIds, vertexOverlap, kRelativeEps
+        )
+    );
+
+    const std::array<int, 3> edgeNeighborIds{{0, 1, 3}};
+    const std::array<manumesh::Vec3, 3> edgeNeighbor = {
+        base[0],
+        base[1],
+        manumesh::Vec3(0.0, -1.0, 0.0),
+    };
+    EXPECT_FALSE(
+        manumesh::common::trianglesIntersectBeyondSharedTopology(
+            baseIds, base, edgeNeighborIds, edgeNeighbor, kRelativeEps
+        )
+    );
+
+    const std::array<manumesh::Vec3, 3> edgeOverlap = {
+        base[0],
+        base[1],
+        manumesh::Vec3(0.25, 0.5, 0.0),
+    };
+    EXPECT_TRUE(
+        manumesh::common::trianglesIntersectBeyondSharedTopology(
+            baseIds, base, edgeNeighborIds, edgeOverlap, kRelativeEps
+        )
+    );
+
+    const std::array<manumesh::Vec3, 3> foldedNeighbor = {
+        base[0],
+        base[1],
+        manumesh::Vec3(0.25, 0.0, 0.75),
+    };
+    EXPECT_FALSE(
+        manumesh::common::trianglesIntersectBeyondSharedTopology(
+            baseIds, base, edgeNeighborIds, foldedNeighbor, kRelativeEps
+        )
+    );
+}

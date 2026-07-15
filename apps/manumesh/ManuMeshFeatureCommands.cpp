@@ -75,6 +75,9 @@ int report(const Args& args) {
               << " graph_cleanup_bridged_gaps=" << analysis.graphCleanupBridgedGaps
               << " graph_cleanup_removed_spurs=" << analysis.graphCleanupRemovedSpurs
               << " graph_cleanup_merged_junctions=" << analysis.graphCleanupMergedJunctions
+              << " graph_cleanup_skipped_by_cap=" << analysis.graphCleanupSkippedByCap
+              << " circular_recovery_truncated=" << analysis.circularRecoveryTruncated
+              << " inconsistent_winding_edges=" << analysis.inconsistentWindingEdges
               << " normal_tensor_scored_vertices=" << analysis.normalTensorScoredVertices
               << " smooth_curvature_scored_vertices=" << analysis.smoothCurvatureScoredVertices
               << " convex_edges=" << analysis.convexFeatureEdges << " concave_edges=" << analysis.concaveFeatureEdges
@@ -109,6 +112,7 @@ int report(const Args& args) {
                "feature_components,weak_feature_components,"
                "high_confidence_feature_components,graph_cleanup_bridged_gaps,"
                "graph_cleanup_removed_spurs,graph_cleanup_merged_junctions,"
+               "graph_cleanup_skipped_by_cap,circular_recovery_truncated,inconsistent_winding_edges,"
                "normal_tensor_scored_vertices,smooth_curvature_scored_vertices,convex_edges,"
                "concave_edges,unknown_signed_edges,"
                "max_normal_tensor_score,max_normal_tensor_persistent_score,"
@@ -124,16 +128,17 @@ int report(const Args& args) {
             << analysis.nonManifoldFeatureEdges << "," << analysis.components.size() << ","
             << analysis.weakFeatureComponents << "," << analysis.highConfidenceFeatureComponents << ","
             << analysis.graphCleanupBridgedGaps << "," << analysis.graphCleanupRemovedSpurs << ","
-            << analysis.graphCleanupMergedJunctions << "," << analysis.normalTensorScoredVertices << ","
-            << analysis.smoothCurvatureScoredVertices << "," << analysis.convexFeatureEdges << ","
-            << analysis.concaveFeatureEdges << "," << analysis.unknownSignedFeatureEdges << ","
-            << analysis.maxNormalTensorFeatureScore << "," << analysis.maxNormalTensorPersistentScore << ","
-            << analysis.meanNormalTensorLocalScale << "," << analysis.meanNormalTensorPersistence << ","
-            << analysis.maxSmoothCurvatureFeatureScore << "," << analysis.maxSmoothCurvaturePersistentScore << ","
-            << analysis.meanSmoothCurvatureLocalScale << "," << analysis.meanSmoothCurvaturePersistence << ","
-            << analysis.meanFeatureComponentConfidence << "," << analysis.minFeatureComponentConfidence << ","
-            << analysis.loops.size() << "," << circularLoops << "," << circleLoops << "," << nearCircleLoops << ","
-            << ellipseLoops << "," << polygonalLoops << "\n\n";
+            << analysis.graphCleanupMergedJunctions << "," << analysis.graphCleanupSkippedByCap << ","
+            << analysis.circularRecoveryTruncated << "," << analysis.inconsistentWindingEdges << ","
+            << analysis.normalTensorScoredVertices << "," << analysis.smoothCurvatureScoredVertices << ","
+            << analysis.convexFeatureEdges << "," << analysis.concaveFeatureEdges << ","
+            << analysis.unknownSignedFeatureEdges << "," << analysis.maxNormalTensorFeatureScore << ","
+            << analysis.maxNormalTensorPersistentScore << "," << analysis.meanNormalTensorLocalScale << ","
+            << analysis.meanNormalTensorPersistence << "," << analysis.maxSmoothCurvatureFeatureScore << ","
+            << analysis.maxSmoothCurvaturePersistentScore << "," << analysis.meanSmoothCurvatureLocalScale << ","
+            << analysis.meanSmoothCurvaturePersistence << "," << analysis.meanFeatureComponentConfidence << ","
+            << analysis.minFeatureComponentConfidence << "," << analysis.loops.size() << "," << circularLoops << ","
+            << circleLoops << "," << nearCircleLoops << "," << ellipseLoops << "," << polygonalLoops << "\n\n";
         csv << manumesh::feature::featureReportHeaderCsv() << "\n";
         for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
             csv << manumesh::feature::featureLoopRowCsv(loop) << "\n";

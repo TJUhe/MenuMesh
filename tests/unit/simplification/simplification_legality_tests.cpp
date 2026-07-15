@@ -6,6 +6,7 @@
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
+#include "simplification/detail/CollapseLegality.h"
 
 #include <algorithm>
 #include <array>
@@ -26,6 +27,43 @@ using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
 
 namespace simplification = manumesh::simplification;
+
+TEST(ManuMesh, CollapseIntersectionGuardRejectsOverlapInsideTheNewOneRing) {
+    std::vector<simplification::VertexState> vertices(6);
+    vertices[0].p = manumesh::Vec3(-1.0, 0.0, 0.0);
+    vertices[1].p = manumesh::Vec3(3.0, 0.0, 0.0);
+    vertices[2].p = manumesh::Vec3(2.0, 0.0, 0.0);
+    vertices[3].p = manumesh::Vec3(0.0, 1.0, 0.0);
+    vertices[4].p = manumesh::Vec3(1.0, 0.5, 0.0);
+    vertices[5].p = manumesh::Vec3(1.0, -1.0, 0.0);
+
+    const std::vector<simplification::FaceState> faces = {
+        {{{0, 2, 3}}, true},
+        {{{1, 4, 2}}, true},
+        {{{0, 1, 5}}, true},
+    };
+    const simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
+    simplification::CollapseLegalityInput input{
+        {0, 1},
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        {faces, vertices, topology},
+        1e-18,
+        0.0,
+        -1.0,
+        0.0,
+        true,
+        nullptr,
+        nullptr,
+    };
+
+    EXPECT_EQ(
+        simplification::CollapseRejectReason::SelfIntersection, simplification::collapsePlacementRejectReason(input)
+    );
+
+    vertices[4].p = manumesh::Vec3(1.0, -0.5, 0.0);
+    EXPECT_EQ(simplification::CollapseRejectReason::None, simplification::collapsePlacementRejectReason(input));
+}
+
 TEST(ManuMesh, StrictTriangleQualityRejectsPoorCollapsePlacements) {
     const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
 

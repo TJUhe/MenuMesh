@@ -9,7 +9,7 @@ ManuMesh 当前特征保护已经能处理边界、二面角硬边、normal-tens
 - `FeatureOptions::useSmoothCurvatureFeatures`（默认 `false`）可启用确定性光滑曲率证据：多尺度鲁棒三次 Monge 拟合、解析 extremality、Ohtake 边零交叉极值判据和跨尺度 persistence，graph edge 与 component 分别记录 `smoothCurvature` 来源和 `smoothCurvatureEdges` / `meanCurvaturePersistence`，2026-07-11 以 opt-in 形式落地、2026-07-12 升级判据，见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
 - `FeaturePrimitiveType` 支持 `Circle`、`NearCircle`、`Ellipse`、`PolygonalLoop`。
 - `SimplifyOptions::featureProtectionMode` 支持四种硬保护策略。
-- `FeatureAnalysis` / `SimplifyReport` 区分 traced/untraced feature edges、primitive/generic feature rejections、curve budget rejections、projected placements，以及 normal-tensor local scale / persistence 诊断；smooth-curvature 系列诊断位于 `FeatureAnalysis`。
+- `FeatureAnalysis` / `SimplifyReport` 区分 traced/untraced feature edges、primitive/generic feature rejections、curve budget rejections、projected placements，以及 normal-tensor/smooth-curvature local scale / persistence、绕向冲突、cleanup cap、圆恢复截断诊断；C ABI report 以尾字段镜像简化报告中的这些值。
 
 ## 近期改进
 

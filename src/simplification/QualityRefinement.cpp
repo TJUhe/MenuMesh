@@ -101,17 +101,6 @@ bool respectsErrorEnvelope(
     return true;
 }
 
-bool sharesVertex(const std::array<int, 3>& lhs, const std::array<int, 3>& rhs) {
-    for (int a : lhs) {
-        for (int b : rhs) {
-            if (a == b) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 bool createsLocalIntersection(
     const std::vector<LocalTriangle>& newTriangles,
     const std::unordered_set<int>& touchedFaces,
@@ -125,6 +114,21 @@ bool createsLocalIntersection(
     // triangle scale, and the spatial query window is padded by the matching
     // length-dimension slack.
     constexpr double kRelativeIntersectionEps = 1e-9;
+
+    for (std::size_t i = 0; i < newTriangles.size(); ++i) {
+        for (std::size_t j = i + 1; j < newTriangles.size(); ++j) {
+            if (manumesh::common::trianglesIntersectBeyondSharedTopology(
+                    newTriangles[i].ids,
+                    newTriangles[i].p,
+                    newTriangles[j].ids,
+                    newTriangles[j].p,
+                    kRelativeIntersectionEps
+                )) {
+                return true;
+            }
+        }
+    }
+
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const LocalTriangle& triangle : newTriangles) {
         auto [lo, hi] = manumesh::common::triangleAabb(triangle.p, 0.0);
@@ -141,15 +145,14 @@ bool createsLocalIntersection(
                 continue;
             }
             const FaceState& face = input.faces[faceId];
-            if (sharesVertex(triangle.ids, face.v)) {
-                continue;
-            }
             const std::array<Vec3, 3> other = {
                 input.vertices[face.v[0]].p,
                 input.vertices[face.v[1]].p,
                 input.vertices[face.v[2]].p,
             };
-            if (manumesh::common::trianglesIntersect(triangle.p, other, kRelativeIntersectionEps)) {
+            if (manumesh::common::trianglesIntersectBeyondSharedTopology(
+                    triangle.ids, triangle.p, face.v, other, kRelativeIntersectionEps
+                )) {
                 return true;
             }
         }

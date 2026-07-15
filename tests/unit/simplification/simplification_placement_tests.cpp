@@ -153,6 +153,43 @@ TEST(PlacementSolve, RankTwoAlongEdgeOptimumIsScaleInvariant) {
     }
 }
 
+TEST(PlacementSolve, DegenerateFacePointQuadricsScaleWithAreaWeightedQem) {
+    auto makeMesh = [](double scale) {
+        Mesh mesh;
+        mesh.vertices = {
+            scale * Vec3(0.0, 0.0, 0.0),
+            scale * Vec3(1.0, 0.0, 0.0),
+            scale * Vec3(0.0, 1.0, 0.0),
+            scale * Vec3(2.0, 0.0, 0.0),
+            scale * Vec3(3.0, 0.0, 0.0),
+            scale * Vec3(4.0, 0.0, 0.0),
+        };
+        mesh.faces = {{{0, 1, 2}}, {{3, 4, 5}}};
+        return mesh;
+    };
+
+    double referenceNormalizedCost = -1.0;
+    for (double scale : {1e-3, 1.0, 1e3}) {
+        SCOPED_TRACE(testing::Message() << "scale=" << scale);
+        const Mesh mesh = makeMesh(scale);
+        manumesh::simplification::SimplifyOptions options;
+        options.useLineQuadrics = false;
+        manumesh::simplification::SimplifyReport report;
+        const manumesh::simplification::InitialQuadrics initial =
+            manumesh::simplification::InitialQuadricBuilder(options).build(
+                mesh, manumesh::simplification::FeatureGuidance{}, report
+            );
+        const Vec3 probe = mesh.vertices[3] + scale * Vec3(0.0, 1.0, 0.0);
+        const double normalizedCost =
+            manumesh::simplification::evaluateQuadric(initial.quadrics[3], probe) / std::pow(scale, 4.0);
+        if (referenceNormalizedCost < 0.0) {
+            referenceNormalizedCost = normalizedCost;
+        } else {
+            EXPECT_NEAR(referenceNormalizedCost, normalizedCost, 1e-12 * referenceNormalizedCost);
+        }
+    }
+}
+
 // Lindstrom-Turk boundary preservation: on a straight boundary chain the
 // constraint line IS the boundary, so the placement lands exactly on it.
 TEST(BoundaryPlacement, StraightChainProjectsOntoBoundaryLine) {

@@ -274,11 +274,11 @@ img, svg, canvas, video {
   <table>
     <thead><tr><th>二次型项</th><th>展开到 <code>A,b,c</code></th><th>参数与默认值</th><th>作用与引用</th></tr></thead>
     <tbody>
-      <tr><td>面平面 QEM</td><td><code>pi=[n,-n.p]</code>，<code>Q += area/3 * pi*pi^T</code>。等价于 <code>E=a(n.x-n.p)^2</code>，所以 <code>A+=a nn^T</code>、<code>b+=-a(n.p)n</code>、<code>c+=a(n.p)^2</code>。</td><td>无独立开关；退化面用很小的 <code>1e-6 pointQuadric</code> 稳定。</td><td>主几何误差，来自 M002 Garland-Heckbert 1997。</td></tr>
+      <tr><td>面平面 QEM</td><td><code>pi=[n,-n.p]</code>，<code>Q += area/3 * pi*pi^T</code>。等价于 <code>E=a(n.x-n.p)^2</code>，所以 <code>A+=a nn^T</code>、<code>b+=-a(n.p)n</code>、<code>c+=a(n.p)^2</code>。</td><td>无独立开关；退化面使用 <code>1e-6 * representativeArea * pointQuadric</code>，保持与正常 QEM 相同的 L^4 缩放量纲。</td><td>主几何误差，来自 M002 Garland-Heckbert 1997。</td></tr>
       <tr><td>普通 Line Quadric</td><td><code>lineQuadric(p,n)</code> 取两个与局部法线 <code>n</code> 垂直的单位方向 <code>u,v</code>，加入 <code>Q_l=pi_u*pi_u^T+pi_v*pi_v^T</code>。展开为 <code>E_l=||(I-nn^T)(x-p)||^2</code>，即惩罚切向漂移。</td><td><code>useLineQuadrics=true</code>，<code>lineWeight=1e-3</code>。默认分支：<code>Q_i += w_i area_i Q_l</code>。</td><td>补平坦区 QEM 切向不满秩问题，来自 M004 Liu-Rahimzadeh-Zordan 2025。</td></tr>
       <tr><td>特征加权 Line Quadric</td><td>非 uniform 模式下 <code>w_i=lineWeight+featureBoost*s_i</code>；<code>s_i</code> 来自 dihedral、normal-tensor persistence、height 或 xband。normal-tensor 模式只给满足 <code>normalTensorMinPersistentScales</code> 的顶点写入 persistent score。</td><td><code>weightMode=uniform</code>，<code>featureBoost=0.05</code>；常用调试值 <code>dihedral/normal-tensor + 0.08</code>。<code>featureAngleDeg=40</code>，<code>normalTensorFeatureThreshold=0.16</code>，<code>normalTensorScaleCount=1</code>。</td><td>让硬边、弱 ridge 或指定区域获得更高排序成本；feature evidence 参考 M007/M012/M013/M015/M016，弱特征参考 M026。</td></tr>
       <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，当前实现给 placement 只加干净的 <code>adaptiveBaseLineWeight*area_i*Q_l</code>；<code>featureBoost</code> 不再缩放 <code>Q_i</code>，而是写成逐顶点队列优先级因子 <code>priorityScale=1+max(0,featureBoost)*s_i</code>，候选边取两端点的 max，只乘在排序 cost 上（Wang 2008 的“优先级/位置解耦”）。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。非 adaptiveScale 路径保持旧的 <code>w_i=lineWeight+featureBoost*s_i</code> 行为。</td><td>用于跨尺度模型的 line weight 可比性，同时避免 featureBoost 污染 placement 求解；参考 M029 Wang 2008。</td></tr>
-      <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|*mm^T</code>，秩 1。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
+      <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|^2*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|^2*mm^T</code>，秩 1；边长平方使该项与面积加权 face QEM 同为 L^4 缩放量纲。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
       <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 只影响 high-confidence component 报告计数，不过滤 component 或保护。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
       <tr><td>Primitive 投影与硬过滤</td><td>圆/椭圆/多边形不是当前 <code>Quadrics.cpp</code> 里的单独径向二次型；当前代码用 tangent-line quadric 排序，再由 <code>projectToCircle/projectToEllipse/projectToPolygonal</code>、<code>maxFeatureCurveDeviationRatio</code> 和 <code>featureProtectionMode</code> 控制最终位置与是否拒绝折叠。</td><td><code>maxFeatureCurveDeviationRatio=0</code> 表示关闭曲线漂移预算；<code>featureProtectionMode=PrimitiveCurves</code>。圆/椭圆阈值默认均为 <code>0.05</code>。</td><td>把“软成本排序”和“硬合法性保护”分开，符合 M030-M033 edge-collapse 工程建议。</td></tr>
     </tbody>
@@ -619,7 +619,7 @@ $$E^{\text{point}}(x) = x^T I_3 \, x - 2 v_i^T x + \|v_i\|^2 = (x - v_x)^2 + (y 
 
 <div class="callout key">
 <div class="callout-title">为什么场景2和3用 $10^{-6}$ 而非 1.0？</div>
-<p>这是精心设计的：<strong>退化面的约束不应压过正常面的约束</strong>。如果一个顶点同时被 5 个正常面（各贡献 $S/3 \approx 0.01$ 量级的 quadric）和 1 个退化面（贡献 $10^{-6}$ 量级的点 quadric）约束，退化面的约束比正常面小 4-5 个数量级，不会影响结果。但如果顶点<strong>只</strong>被退化面包围，$10^{-6}$ 的约束虽小，却足以防止 $A$ 矩阵全零导致求解崩溃。</p>
+<p>这是精心设计的：<strong>退化面的约束不应压过正常面的约束，也不能破坏均匀缩放</strong>。程序先统计正常顶点的平均 barycentric area 作为 <code>representativeArea</code>，退化面 incidence 再贡献 <code>10^-6 * representativeArea * pointQuadric</code>。因此 fallback 与正常面积加权 QEM 都是 L^4 量纲；网格均匀缩放时相对权重不变。若没有任何正常面积，则用 bbox 对角线平方的保守回退尺度。</p>
 <p>对比场景1：线 quadric 内部退化时直接返回权重 1.0 的点 quadric，因为此时该顶点的整个线 quadric 都被替换，不能太弱。</p>
 </div>
 
@@ -629,13 +629,13 @@ $$E^{\text{point}}(x) = x^T I_3 \, x - 2 v_i^T x + \|v_i\|^2 = (x - v_x)^2 + (y 
 <ul>
 <li>正常面1：面积 $S_1 = 0.3$，法向 $(0,0,1)$ → 贡献 $0.1 \cdot \text{diag}(0,0,1,0)$ 到 $A$</li>
 <li>正常面2：面积 $S_2 = 0.2$，法向 $(0.866,0,0.5)$ → 贡献 $0.067 \cdot \hat{n}_2\hat{n}_2^\top$ 到 $A$</li>
-<li>退化面3：面积 $S_3 \approx 0$ → 贡献 $10^{-6} \cdot I_3$ 到 $A$</li>
+<li>退化面3：面积 $S_3 \approx 0$ → 贡献 $10^{-6}\,A_{rep} \cdot I_3$ 到 $A$</li>
 </ul>
-<p>正常面贡献量级：$\sim 0.1$。退化面贡献量级：$10^{-6}$。<strong>退化面比正常面小 5 个数量级</strong>，不影响结果，但保证 $A$ 非零。</p>
+<p>正常面贡献量级：$\sim A_{rep}$。退化面贡献量级：$10^{-6}A_{rep}$。<strong>退化面比代表正常约束小约 6 个数量级</strong>，但两者随长度缩放保持同一比例。</p>
 <div class="formula">
 $$A_{\text{total}} \approx \begin{bmatrix} 0.05 & 0 & 0.029 \\ 0 & 0.1 & 0 \\ 0.029 & 0 & 0.117 \end{bmatrix} + \begin{bmatrix} 10^{-6} & 0 & 0 \\ 0 & 10^{-6} & 0 \\ 0 & 0 & 10^{-6} \end{bmatrix}$$
 </div>
-<p>退化面的 $10^{-6}$ 对角项只在小特征值方向起"填底"作用，不改变约束主方向。</p>
+<p>退化面的 $10^{-6}A_{rep}$ 对角项只在小特征值方向起"填底"作用，不改变约束主方向。</p>
 </div>
 
 <h4>与平面/线 Quadric 的统一视角</h4>
@@ -1474,7 +1474,7 @@ Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_rad
 <tr><td><strong>Topology</strong></td><td>Link condition 检查</td><td><code>rejectTopology</code></td><td>边折叠后拓扑正确性保证，防止非流形</td></tr>
 <tr><td><strong>NormalFlip</strong></td><td>法向翻转检查</td><td><code>rejectNormalFlip</code></td><td>折叠后邻接面法向不翻转</td></tr>
 <tr><td><strong>TriangleQuality</strong></td><td>最小三角质量</td><td><code>rejectTriangleQuality</code></td><td>折叠后三角形质量不低于阈值</td></tr>
-<tr><td><strong>SelfIntersection</strong></td><td>三角形相交检测</td><td><code>rejectSelfIntersection</code></td><td>折叠后不产生自交（含 <code>SpatialFaceIndex</code> 候选过滤）</td></tr>
+<tr><td><strong>SelfIntersection</strong></td><td>共享拓扑感知的局部三角形相交检测</td><td><code>rejectSelfIntersection</code></td><td>拒绝新一环内部或与邻近活动面的非法相交（含 <code>SpatialFaceIndex</code> 候选过滤）；不等价于全局无自交认证</td></tr>
 <tr><td><strong>LocalError</strong></td><td>局部误差预算</td><td><code>rejectLocalError</code></td><td>折叠误差不超过局部预算</td></tr>
 <tr><td><strong>Feature</strong></td><td>特征折叠策略</td><td><code>rejectFeature</code></td><td>由 <code>featureCollapseAllowed()</code> 判定</td></tr>
 </table>
@@ -1945,7 +1945,7 @@ private:
 <tr><td>AreaWeighted</td><td>0.0398</td><td>0.0076</td><td>15</td><td>中</td><td>2</td><td>0.33</td></tr>
 <tr><td>Adaptive</td><td>0.0341</td><td>0.0059</td><td>5</td><td>好</td><td>0</td><td>0.41</td></tr>
 </table>
-<p><span class="dim">注：Adaptive 模式误差最低、退化最少，但计算时间最长。NormalTensor 在 CAD 模型上表现优于 Dihedral，且无自交。</span></p>
+<p><span class="dim">注：Adaptive 模式误差最低、退化最少，但计算时间最长。该批 CAD 样例中 NormalTensor 表现优于 Dihedral，局部相交 guard 未报告拒绝；这不是对输出网格的全局无自交证明。</span></p>
 </div>
 
 <div class="compare-grid">
@@ -2234,8 +2234,8 @@ ctest -T coverage --output-on-failure</code></pre>
 <li><strong>边长均匀性</strong>：<code>edge_length_cv ≤ 0.50</code>，边长分布均匀，无极端细长或极短边。</li>
 <li><strong>几何精度</strong>：<code>mean_orig_to_simp ≤ 0.005</code>（归一化），<code>max_orig_to_simp ≤ 0.02</code>。Hausdorff 距离在可接受范围内。</li>
 <li><strong>特征保持</strong>：特征曲线 <code>matched ≥ 90%</code>，<code>missing ≤ 5%</code>，<code>radial_rms ≤ 0.01</code>。圆弧/椭圆边界无明显变形。</li>
-<li><strong>边界完整</strong>：边界边数量不变，边界顶点偏移 ≤ 模型尺度的 0.1%。边界无自交。</li>
-<li><strong>无自交</strong>：<code>rejectSelfIntersection</code> 计数器合理（不为 0 说明检测在工作），简化后网格无自交三角形。</li>
+<li><strong>边界完整</strong>：边界边数量不变，边界顶点偏移 ≤ 模型尺度的 0.1%；边界自交需要独立的全局验证器复核。</li>
+<li><strong>局部相交防护</strong>：<code>rejectSelfIntersection</code> 计数器合理（不为 0 说明局部 guard 在工作）；如交付要求全局无自交，还必须对最终网格运行独立的全局三角形相交审计。</li>
 <li><strong>性能达标</strong>：10k 面模型简化时间 ≤ 30s，100k 面模型 ≤ 5min。内存峰值不超过原始网格大小的 3 倍。</li>
 </ol>
 
@@ -2320,13 +2320,13 @@ ctest -T coverage --output-on-failure</code></pre>
 <table>
 <tr><th>方面</th><th>纹理感知 QEM</th><th>光滑曲率特征检测</th></tr>
 <tr><td>测试覆盖</td><td><code>tests/unit/simplification/simplification_texture_tests.cpp</code>：矩阵维度不变、标量加权、UV atlas 缩放不变性、seam 兼容性、UV 退化、OBJ 角点归属、输出 UV 传播、关闭保护时与 legacy 几何完全一致。</td><td><code>tests/unit/feature_detection/feature_detection_smooth_curvature_tests.cpp</code>：精确平面零响应、光滑凸起响应、均匀缩放不变性、多尺度 persistence、最终 graph 阶段噪声抑制、graph 来源归属、参数校验，以及带标注 Gaussian ridge/valley fixture 上的 precision / segment recall。</td></tr>
-<tr><td>CLI 暴露</td><td>未暴露。<code>preserveTexture</code> 等只在 C++ <code>SimplifyOptions</code> 上可用，CLI <code>simplify</code> 没有对应选项。</td><td><code>feature-report</code> / <code>feature-benchmark</code> / <code>feature-compare</code> 新增 8 个 <code>--smooth-curvature-*</code> 选项，报告与 CSV 新增 <code>smooth_curvature_*</code> 字段；<code>simplify</code> 显式拒绝这些选项（C++ 简化可消费预计算的 <code>FeatureAnalysis</code>）。</td></tr>
+<tr><td>CLI 暴露</td><td>未暴露。<code>preserveTexture</code> 等只在 C++ <code>SimplifyOptions</code> 上可用，CLI <code>simplify</code> 没有对应选项。</td><td><code>feature-report</code> / <code>feature-benchmark</code> / <code>feature-compare</code> / <code>simplify</code> 共用 8 个 <code>--smooth-curvature-*</code> 选项；<code>simplify --smooth-curvature-features</code> 自动开启 feature-curve policy。feature/simplify stdout 与 CSV 均输出 smooth-curvature 和 bounded-recovery 诊断，C++ 仍可消费预计算 <code>FeatureAnalysis</code>。</td></tr>
 <tr><td>默认行为</td><td>默认关闭；不启用时候选排序与几何输出和旧路径 bit-exact 一致，UV 仍传播。</td><td>默认关闭；不启用时既有硬特征检测与简化行为完全不变。</td></tr>
 </table>
 
 <div class="callout success">
 <div class="callout-title">新能力三（2026-07-12 批次）：大规模算法与架构改进（分支 codex/mesh-edit-quality-foundation）</div>
-<p><strong>算法级：</strong>扩展 link condition——“边界弦”（内部边但两端点均为边界顶点）一律拒绝坍缩，防边界 pinch 成非流形点，与 <code>preserveBoundary</code> 无关（<code>CollapseTopology.cpp</code>）；GH97 placement 升级为三级回退链——全空间最优 → 沿折叠边一维最优（rank-2 良定情形，新增）→ 端点/中点（<code>Quadrics.cpp</code>）；Wang 2008 优先级解耦——<code>adaptiveScale=true</code> 时 <code>featureBoost</code> 变为逐顶点队列优先级因子 <code>priorityScale=1+featureBoost*score</code>（候选取两端点 max），placement 用干净的 <code>adaptiveBaseLineWeight</code>（默认 1e-2）line quadric；boundary placement 迁入新文件 <code>src/simplification/Placement.cpp</code> 并升级为 Lindstrom-Turk 边界守恒约束（投影到最小化边界有向面积变化的直线、夹取折叠边投影区间、退化回退线段夹取）；特征证据改用有向二面角 <code>orientedDihedralAngle</code>（识别 &gt;90° 反折边，绕向不一致回退无符号角并计入新诊断 <code>inconsistentWindingEdges</code>；另有 <code>graphCleanupSkippedByCap</code>、<code>circularRecoveryTruncated</code>）；<code>PrimitiveFit.cpp</code> 改 Taubin 圆拟合（Kåsa 保留回退）+ Halíř-Flusser 直接椭圆拟合（轴向来自 conic 而非 PCA）；<code>SmoothCurvature.cpp</code> 升级为三次 Monge patch（9 系数）解析 extremality <code>e_i=∇κ_i·t_i</code> + Ohtake 边零交叉极值判据；<code>FeatureGraphCleanup.cpp</code> 新增 <code>FeatureOptions::featureGraphMinWeakSpurStrength</code>（默认 0.0=旧按边数剪枝；为正时按 Yoshizawa 组件强度 T=(∫ds)·(∫strength ds) 裁决，仅 C++ 选项），gap 桥接采用 Yoshizawa 角度规则；相交谓词改尺度不变相对容差 <code>kRelativeIntersectionEps=1e-9</code>。</p>
+<p><strong>算法级：</strong>扩展 link condition——“边界弦”（内部边但两端点均为边界顶点）一律拒绝坍缩，防边界 pinch 成非流形点，与 <code>preserveBoundary</code> 无关（<code>CollapseTopology.cpp</code>）；GH97 placement 升级为三级回退链——全空间最优 → 沿折叠边一维最优（rank-2 良定情形，新增）→ 端点/中点（<code>Quadrics.cpp</code>）；Wang 2008 优先级解耦——<code>adaptiveScale=true</code> 时 <code>featureBoost</code> 变为逐顶点队列优先级因子 <code>priorityScale=1+featureBoost*score</code>（候选取两端点 max），placement 用干净的 <code>adaptiveBaseLineWeight</code>（默认 1e-2）line quadric；boundary placement 迁入新文件 <code>src/simplification/Placement.cpp</code> 并升级为 Lindstrom-Turk 边界守恒约束（投影到最小化边界有向面积变化的直线、夹取折叠边投影区间、退化回退线段夹取）；特征证据改用公共绕向感知二面角 <code>common::computeOrientedDihedralAngle</code>（识别 &gt;90° 反折边，绕向不一致回退无符号角并计入新诊断 <code>inconsistentWindingEdges</code>；另有 <code>graphCleanupSkippedByCap</code>、<code>circularRecoveryTruncated</code>）；<code>PrimitiveFit.cpp</code> 改 Taubin 圆拟合（Kåsa 保留回退）+ Halíř-Flusser 直接椭圆拟合（轴向来自 conic 而非 PCA）；<code>SmoothCurvature.cpp</code> 升级为三次 Monge patch（9 系数）解析 extremality <code>e_i=∇κ_i·t_i</code> + Ohtake 边零交叉极值判据；<code>featureGraphMinWeakSpurStrength</code>（默认 0.0=旧按边数剪枝）为正时按 Yoshizawa 组件强度 T=(∫ds)·(∫strength ds) 裁决，已贯通 FeatureOptions、SimplifyOptions、CLI 与 size-aware C ABI；相交谓词改为共享拓扑感知和尺度不变相对容差 <code>kRelativeIntersectionEps=1e-9</code>，检查新一环内部及邻近活动面，但不构成全局无自交证明。</p>
 <p><strong>架构/模块级：</strong>通用统计上浮为 <code>manumesh::analysis</code>（<code>src/analysis/MeshAnalysis.cpp</code>；旧 <code>Metrics.h/.cpp</code> 仅保留一个迁移周期的弃用兼容包装，CSV 主实现移到 <code>apps/manumesh/CliCsv.{h,cpp}</code>）；<code>feature-compare</code> 的 loop 匹配下沉为库函数 <code>manumesh::feature::matchCircularLoops</code>（<code>src/feature_detection/FeatureComparison.cpp</code>）；特征检测新增全网格辅助缓存 <code>detail/FeatureDetectionCache.h</code> 一次构建、全管线复用；<code>src/common</code> 命名空间由 <code>manumesh::detail</code> 更名 <code>manumesh::common</code>（保留 <code>detail</code> 过渡别名）；CLI 参数改共享 <code>OptionSpec</code> 选项表驱动（<code>optionsHelpText()</code> + <code>validateArgsForCommand()</code>，拼错/跨命令选项在入口统一报错）；<code>src/io/MeshIo.cpp</code> 解析器重写（<code>std::from_chars</code>、缓冲扫描、<code>probeStlFormat</code> ASCII/二进制探测）；C API 增加 <code>std::bad_alloc</code> → OOM 状态码 guard 与数值 finite 校验，<code>CApi.h</code> 声明 v1 ABI 不携带逐角 UV；新公共工具头 <code>include/core/Tolerances.h</code>（<code>kMinTriangleArea=1e-24</code> 等统一退化容差族）、<code>MathConstants.h</code>（<code>kPi</code>）、<code>generateWeldedCubeGrid(n,size)</code> 闭流形焊接立方体生成器。</p>
 <p><strong>性能：</strong>队列 Candidate 携带 <code>std::array&lt;SolveResult,4&gt;</code> placements 消除三重求解；TraceGraph 合并为单表 <code>TraceEdgeAttrs</code>；TextureProtection 拆 evaluate/buildPlan/apply（新诊断 <code>textureApplyFailures</code>，应恒为 0）；<code>PolylineSegmentIndex</code> AABB 树加速大 loop（≥64 段）的最近段查询；<code>VertexState</code> 瘦身——圆/椭圆拟合参数移到 <code>FeaturePrimitiveFit</code> side table，顶点只留 <code>primitiveFitId</code>。Release 实测：bump64 特征分析 71.8ms，简化端到端提速约 30%，逐用例验证 collapse 计数不变。</p>
 <p><strong>配套政策文档：</strong><code>docs/design/error_handling_policy.md</code>（错误处理决策表）、<code>docs/design/algorithm_extension_protocol.md</code>（新增算法 7 步路径）；架构蓝图 <code>docs/design/architecture_v2_2026_07_12.md</code>——R1-R7 的第一至三批已实现，R7-c 未实施。</p>

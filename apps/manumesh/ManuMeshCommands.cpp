@@ -250,6 +250,9 @@ int commandSimplify(const Args& args) {
                   << " graph_cleanup_bridged_gaps=" << report.graphCleanupBridgedGaps
                   << " graph_cleanup_removed_spurs=" << report.graphCleanupRemovedSpurs
                   << " graph_cleanup_merged_junctions=" << report.graphCleanupMergedJunctions
+                  << " graph_cleanup_skipped_by_cap=" << report.graphCleanupSkippedByCap
+                  << " circular_recovery_truncated=" << report.circularRecoveryTruncated
+                  << " inconsistent_winding_edges=" << report.inconsistentWindingEdges
                   << " mean_feature_component_confidence=" << report.meanFeatureComponentConfidence
                   << " min_feature_component_confidence=" << report.minFeatureComponentConfidence
                   << " feature_protection_mode=" << manumesh::simplification::toString(options.featureProtectionMode)
@@ -258,6 +261,11 @@ int commandSimplify(const Args& args) {
                   << " max_normal_tensor_persistent_score=" << report.maxNormalTensorPersistentScore
                   << " mean_normal_tensor_local_scale=" << report.meanNormalTensorLocalScale
                   << " mean_normal_tensor_persistence=" << report.meanNormalTensorPersistence
+                  << " smooth_curvature_feature_edges=" << report.smoothCurvatureFeatureEdges
+                  << " smooth_curvature_scored_vertices=" << report.smoothCurvatureScoredVertices
+                  << " max_smooth_curvature_persistent_score=" << report.maxSmoothCurvaturePersistentScore
+                  << " mean_smooth_curvature_local_scale=" << report.meanSmoothCurvatureLocalScale
+                  << " mean_smooth_curvature_persistence=" << report.meanSmoothCurvaturePersistence
                   << " feature_rejected=" << report.featureRejectedCollapses
                   << " primitive_feature_rejected=" << report.primitiveFeatureRejectedCollapses
                   << " generic_feature_rejected=" << report.genericFeatureRejectedCollapses
@@ -280,10 +288,13 @@ int commandSimplify(const Args& args) {
                "feature_components,weak_feature_components,"
                "high_confidence_feature_components,graph_cleanup_bridged_gaps,"
                "graph_cleanup_removed_spurs,graph_cleanup_merged_junctions,"
+               "graph_cleanup_skipped_by_cap,circular_recovery_truncated,inconsistent_winding_edges,"
                "mean_feature_component_confidence,min_feature_component_confidence,"
                "normal_tensor_feature_edges,normal_tensor_scored_vertices,"
                "max_normal_tensor_persistent_score,mean_normal_tensor_local_scale,"
-               "mean_normal_tensor_persistence,feature_protection_mode,"
+               "mean_normal_tensor_persistence,smooth_curvature_feature_edges,"
+               "smooth_curvature_scored_vertices,max_smooth_curvature_persistent_score,"
+               "mean_smooth_curvature_local_scale,mean_smooth_curvature_persistence,feature_protection_mode,"
                "feature_rejected_collapses,boundary_rejected_collapses,"
                "primitive_feature_rejected_collapses,"
                "generic_feature_rejected_collapses,"
@@ -300,10 +311,14 @@ int commandSimplify(const Args& args) {
             << report.untracedFeatureEdges << "," << report.featureComponents << "," << report.weakFeatureComponents
             << "," << report.highConfidenceFeatureComponents << "," << report.graphCleanupBridgedGaps << ","
             << report.graphCleanupRemovedSpurs << "," << report.graphCleanupMergedJunctions << ","
-            << report.meanFeatureComponentConfidence << "," << report.minFeatureComponentConfidence << ","
-            << report.normalTensorFeatureEdges << "," << report.normalTensorScoredVertices << ","
-            << report.maxNormalTensorPersistentScore << "," << report.meanNormalTensorLocalScale << ","
-            << report.meanNormalTensorPersistence << ","
+            << report.graphCleanupSkippedByCap << "," << report.circularRecoveryTruncated << ","
+            << report.inconsistentWindingEdges << "," << report.meanFeatureComponentConfidence << ","
+            << report.minFeatureComponentConfidence << "," << report.normalTensorFeatureEdges << ","
+            << report.normalTensorScoredVertices << "," << report.maxNormalTensorPersistentScore << ","
+            << report.meanNormalTensorLocalScale << "," << report.meanNormalTensorPersistence << ","
+            << report.smoothCurvatureFeatureEdges << "," << report.smoothCurvatureScoredVertices << ","
+            << report.maxSmoothCurvaturePersistentScore << "," << report.meanSmoothCurvatureLocalScale << ","
+            << report.meanSmoothCurvaturePersistence << ","
             << manumesh::simplification::toString(options.featureProtectionMode) << ","
             << report.featureRejectedCollapses << "," << report.boundaryRejectedCollapses << ","
             << report.primitiveFeatureRejectedCollapses << "," << report.genericFeatureRejectedCollapses << ","

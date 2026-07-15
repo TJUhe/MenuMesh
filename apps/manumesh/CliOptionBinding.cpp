@@ -6,16 +6,6 @@
 namespace manumesh::cli {
 
 simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
-    if (hasFlag(args, "--smooth-curvature-features") || hasFlag(args, "--smooth-curvature-threshold") ||
-        hasFlag(args, "--smooth-curvature-edge-alignment") || hasFlag(args, "--smooth-curvature-tangent-consistency") ||
-        hasFlag(args, "--smooth-curvature-base-rings") || hasFlag(args, "--smooth-curvature-scales") ||
-        hasFlag(args, "--smooth-curvature-min-persistent-scales") ||
-        hasFlag(args, "--smooth-curvature-robust-iterations")) {
-        throw std::invalid_argument(
-            "Smooth-curvature CLI options are feature-analysis options. Use feature-report, feature-benchmark, or "
-            "feature-compare; C++ simplification can consume a precomputed FeatureAnalysis."
-        );
-    }
     simplification::SimplifyOptions options;
     options.targetRatio = getDoubleArg(args, "--ratio", options.targetRatio);
     options.targetFaces = getIntArg(args, "--target-faces", options.targetFaces);
@@ -46,10 +36,25 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
     options.normalTensorScaleCount = getIntArg(args, "--normal-tensor-scales", options.normalTensorScaleCount);
     options.normalTensorMinPersistentScales =
         getIntArg(args, "--normal-tensor-min-persistent-scales", options.normalTensorMinPersistentScales);
+    options.smoothCurvatureFeatureThreshold =
+        getDoubleArg(args, "--smooth-curvature-threshold", options.smoothCurvatureFeatureThreshold);
+    options.smoothCurvatureMinEdgeAlignment =
+        getDoubleArg(args, "--smooth-curvature-edge-alignment", options.smoothCurvatureMinEdgeAlignment);
+    options.smoothCurvatureMinTangentConsistency =
+        getDoubleArg(args, "--smooth-curvature-tangent-consistency", options.smoothCurvatureMinTangentConsistency);
+    options.smoothCurvatureBaseNeighborhoodRings =
+        getIntArg(args, "--smooth-curvature-base-rings", options.smoothCurvatureBaseNeighborhoodRings);
+    options.smoothCurvatureScaleCount = getIntArg(args, "--smooth-curvature-scales", options.smoothCurvatureScaleCount);
+    options.smoothCurvatureMinPersistentScales =
+        getIntArg(args, "--smooth-curvature-min-persistent-scales", options.smoothCurvatureMinPersistentScales);
+    options.smoothCurvatureRobustFitIterations =
+        getIntArg(args, "--smooth-curvature-robust-iterations", options.smoothCurvatureRobustFitIterations);
     options.featureGraphGapLengthRatio =
         getDoubleArg(args, "--feature-graph-gap-ratio", options.featureGraphGapLengthRatio);
     options.featureGraphMaxWeakSpurEdges =
         getIntArg(args, "--feature-graph-max-weak-spur-edges", options.featureGraphMaxWeakSpurEdges);
+    options.featureGraphMinWeakSpurStrength =
+        getDoubleArg(args, "--feature-graph-min-weak-spur-strength", options.featureGraphMinWeakSpurStrength);
     options.featureComponentMinConfidence =
         getDoubleArg(args, "--feature-component-min-confidence", options.featureComponentMinConfidence);
     options.minTriangleQuality = getDoubleArg(args, "--min-triangle-quality", options.minTriangleQuality);
@@ -62,7 +67,8 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
     options.adaptiveScale = hasFlag(args, "--adaptive-scale");
     options.preserveBoundary = hasFlag(args, "--preserve-boundary");
     options.preventLocalIntersections = hasFlag(args, "--prevent-local-intersections");
-    options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves");
+    options.useSmoothCurvatureFeatures = hasFlag(args, "--smooth-curvature-features");
+    options.preserveFeatureCurves = hasFlag(args, "--preserve-feature-curves") || options.useSmoothCurvatureFeatures;
     options.featureProtectionMode = simplification::parseFeatureProtectionMode(
         getArg(args, "--feature-protection-mode", simplification::toString(options.featureProtectionMode))
     );
@@ -129,6 +135,8 @@ feature::FeatureOptions parseFeatureOptions(const Args& args) {
         getDoubleArg(args, "--feature-graph-gap-ratio", options.featureGraphGapLengthRatio);
     options.featureGraphMaxWeakSpurEdges =
         getIntArg(args, "--feature-graph-max-weak-spur-edges", options.featureGraphMaxWeakSpurEdges);
+    options.featureGraphMinWeakSpurStrength =
+        getDoubleArg(args, "--feature-graph-min-weak-spur-strength", options.featureGraphMinWeakSpurStrength);
     options.featureComponentMinConfidence =
         getDoubleArg(args, "--feature-component-min-confidence", options.featureComponentMinConfidence);
     options.useNormalTensorFeatures = !hasFlag(args, "--no-normal-tensor-features");

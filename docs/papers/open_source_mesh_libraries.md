@@ -1,6 +1,6 @@
 # Open-Source Surface Mesh Library Map
 
-Snapshot date: 2026-07-11. This map covers triangle/polygon surface mesh processing only. A library
+Snapshot date: 2026-07-15. This map covers triangle/polygon surface mesh processing only. A library
 may read CAD exchange formats indirectly, but that does not make B-Rep modeling part of ManuMesh.
 
 License notes are factual repository metadata; algorithm comparison is the main purpose of this map.
@@ -43,6 +43,19 @@ ManuMesh follows these patterns without importing an external mesh kernel. The
 current smooth path adds robust reweighting, dimensionless local-scale
 normalization, signed directional extrema, cross-scale persistence, and explicit
 feature-graph ownership.
+
+The same separation now applies in the simplifier: `SimplifyOptions` maps the
+smooth-curvature and integrated weak-spur controls into `FeatureOptions`, while
+the collapse loop consumes only the resulting `FeatureGuidance`. The
+precomputed-analysis overload remains available for workflows that share one
+feature result across algorithms.
+
+For polygon IO, ManuMesh follows the conventional projected ear-clipping pattern
+used by practical surface-mesh loaders: strictly convex OBJ faces retain the
+legacy fan order, concave faces are projected along the dominant polygon normal
+and ear-clipped, and repeated/degenerate/self-intersecting polygons are rejected.
+This is an internal implementation and does not add an external triangulation
+dependency.
 
 ## Boundary for ManuMesh
 

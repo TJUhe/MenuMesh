@@ -4,7 +4,7 @@
 
 ## 主笔记
 
-- `manumesh-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 ManuMesh 当前程序如何把这些项解释为候选折叠的能量。PDF 为历史导出，未随 2026-07-12 的算法更新重写；同名 HTML（`manumesh-theory-explained.html`）已同步当日源码基线：有向二面角证据、Taubin 圆拟合与 Halíř-Flusser 椭圆拟合（Kåsa 为回退）、smooth-curvature 分支的三次 Monge patch 与边零交叉极值数学、GH97 三级 placement 回退链、Lindstrom-Turk 边界 placement、adaptiveScale 模式下 featureBoost 的队列优先级解耦（Wang 2008）。以 HTML 版为准。
+- `manumesh-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 ManuMesh 程序如何把这些项解释为候选折叠的能量。PDF 为历史导出，未随 2026-07-15 的算法/API 更新重写；同名 HTML（`manumesh-theory-explained.html`）已同步当前基线，包括公共绕向感知二面角、面积加权退化面 point quadric、smooth-curvature 简化入口、共享拓扑感知局部相交和 OBJ ear clipping 边界。以 HTML/当前 Markdown 为准。
 
 ## 随包论文
 

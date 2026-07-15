@@ -367,7 +367,7 @@ flowchart TD
     </div>
     <h3>cleanup 对 loop 的影响</h3>
     <p>
-      loop recovery 之前，`cleanupTraceGraph` 会按固定顺序删弱证据 spur（normal tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。删 spur 默认按边数裁决（`featureGraphMaxWeakSpurEdges`）；当 `FeatureOptions::featureGraphMinWeakSpurStrength` 设为正值（仅 C++ API，默认 0.0 即保留旧行为）时，改用 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。endpoint gap 桥接采用双端方向规则：连接段对两端 outward tangent 的对齐都必须至少为 0.5，且两条 outward tangent 不能同向；候选以 `distance / meanAlignment` 排序。close-junction bridge 不使用这套切向门控，只比较 junction 间距与两端局部平均边长给出的允许距离。端点超过 512 个或 junction 超过 256 个时，相应 pass 整体跳过并计入 `graphCleanupSkippedByCap`。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
+      loop recovery 之前，`cleanupTraceGraph` 会按固定顺序删弱证据 spur（normal tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。删 spur 默认按边数裁决（`featureGraphMaxWeakSpurEdges`）；当 `featureGraphMinWeakSpurStrength` 设为正值时，改用 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。该参数已贯通 `FeatureOptions`、`SimplifyOptions`、CLI `--feature-graph-min-weak-spur-strength` 与 size-aware C ABI 尾字段。endpoint gap 桥接采用双端方向规则：连接段对两端 outward tangent 的对齐都必须至少为 0.5，且两条 outward tangent 不能同向；候选以 `distance / meanAlignment` 排序。close-junction bridge 不使用这套切向门控，只比较 junction 间距与两端局部平均边长给出的允许距离。端点超过 512 个或 junction 超过 256 个时，相应 pass 整体跳过并计入 `graphCleanupSkippedByCap`。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
     </p>
     <div class="callout warn">
       <strong>已知风险：close-junction bridge 是纯距离启发式。</strong>

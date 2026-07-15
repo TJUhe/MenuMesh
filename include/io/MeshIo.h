@@ -18,8 +18,10 @@ MANUMESH_API bool
 loadStl(const std::string& path, Mesh& mesh, std::string* error = nullptr, double mergeRelativeEpsilon = 1e-9);
 /// Loads an OBJ polygon mesh, triangulating faces and preserving per-corner `vt` coordinates.
 ///
-/// Polygons with more than three corners are fan-triangulated, which assumes
-/// convex polygons; concave polygons can produce overlapping triangles.
+/// Strictly convex polygons retain deterministic fan triangulation. Concave
+/// polygons use projected ear clipping; repeated, degenerate, or
+/// self-intersecting polygon faces are rejected instead of emitting invalid
+/// triangles.
 /// Vertex normals (`vn`) and unknown directives are ignored. When the
 /// function returns false, the contents of `mesh` are unspecified.
 MANUMESH_API bool loadObj(const std::string& path, Mesh& mesh, std::string* error = nullptr);

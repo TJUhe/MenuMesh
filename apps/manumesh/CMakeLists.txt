@@ -35,11 +35,15 @@ if(BUILD_TESTING)
       --out "${CMAKE_CURRENT_BINARY_DIR}/cli_cross_command_option.stl"
       --ratio 0.5
   )
-  add_test(NAME manumesh_cli_simplify_rejects_smooth_curvature
+  add_test(NAME manumesh_cli_simplify_smooth_curvature
     COMMAND manumesh simplify
       "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/boss_pocket_plate.obj"
-      "${CMAKE_CURRENT_BINARY_DIR}/cli_smooth_curvature_rejected.stl"
+      "${CMAKE_CURRENT_BINARY_DIR}/cli_smooth_curvature.stl"
+      --ratio 0.90
       --smooth-curvature-features
+      --smooth-curvature-base-rings 2
+      --smooth-curvature-scales 2
+      --smooth-curvature-min-persistent-scales 1
   )
   add_test(NAME manumesh_cli_feature_report
     COMMAND manumesh feature-report
@@ -71,16 +75,18 @@ if(BUILD_TESTING)
     manumesh_cli_rejects_missing_option_value
     manumesh_cli_rejects_malformed_number
     manumesh_cli_rejects_cross_command_option
-    manumesh_cli_simplify_rejects_smooth_curvature
       PROPERTIES WILL_FAIL TRUE
   )
   set_tests_properties(manumesh_cli_feature_report
     manumesh_cli_feature_benchmark
     manumesh_cli_feature_compare
     manumesh_cli_quality_refinement
+    manumesh_cli_simplify_smooth_curvature
     manumesh_cli_rejects_cross_command_option
-    manumesh_cli_simplify_rejects_smooth_curvature
     PROPERTIES LABELS cli
+  )
+  set_tests_properties(manumesh_cli_feature_report
+    PROPERTIES PASS_REGULAR_EXPRESSION "inconsistent_winding_edges="
   )
 endif()
 

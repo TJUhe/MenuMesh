@@ -80,6 +80,7 @@ ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
 PREDEFINED             = MANUMESH_API= \
+                         MANUMESH_DISABLE_SIZE_AWARE_ALIASES=1 \
                          MANUMESH_ENABLE_DEBUG_UTIL=1 \
                          _WIN32=1 \
                          WIN32=1

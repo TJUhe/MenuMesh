@@ -172,13 +172,18 @@ featureOptions.smoothCurvatureRobustFitIterations = 2;
 1. `manumesh_context_create()` 创建上下文。
 2. `manumesh_mesh_create()` 创建输入和输出 mesh handle。
 3. 用 `manumesh_load_mesh()` 或 `manumesh_mesh_set_data()` 填充输入。
-4. 调用 `manumesh_simplify_options_init()` 初始化 `ManuMeshSimplifyOptions`。
+4. 调用 `manumesh_simplify_options_init()` 初始化 `ManuMeshSimplifyOptions`。当前头文件会把该调用透明转发到带容量的安全入口。
 5. 调用 `manumesh_simplify_mesh()`。
 6. 用 `manumesh_mesh_copy_vertices()` / `manumesh_mesh_copy_faces()` 取回数据，或用 `manumesh_save_ascii_stl()` 保存。
 7. 销毁 mesh handle 和 context。
 
-所有带 `struct_size` / `abi_version` 的结构体都必须先调用对应初始化函数。当前 `MANUMESH_ABI_VERSION` 为 `1`。同一 ABI 版本内，库接受尾部较短的旧 `struct_size`，只读取调用方结构体中实际存在的字段，缺失的新尾部字段使用库默认值；未初始化结构体或 ABI 版本不匹配仍会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。
-`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部，旧调用方保持默认行为。注意：本轮新增的纹理保护选项（`preserveTexture` 等）和 smooth-curvature 特征选项当前只在 C++ API 提供，C ABI 结构体尚未暴露对应字段；跨 ABI 场景暂时无法使用这两项能力。`include/api/CApi.h` 顶部已明确声明 v1 ABI 不携带逐角纹理坐标——需要保纹理时必须使用 C++ `Mesh` / `PlainMesh` 边界。
+`ManuMeshSimplifyOptions` 是输入结构体，调用前必须初始化；同一 `MANUMESH_ABI_VERSION` 内，库接受尾部较短的旧 `struct_size`，只读取实际存在的字段，缺失尾字段使用库默认值，未初始化或 ABI 版本不匹配会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats` 是纯输出结构体：当前头文件会把普通调用转到显式容量入口，输出内存无需预初始化，库按调用方容量有界清零、写入 ABI 头和完整存在的字段。
+
+新代码可以继续写 `manumesh_simplify_options_init(&options)`、`manumesh_simplify_mesh(..., &report)` 和 `manumesh_compute_mesh_stats(..., &stats)`。公开头通过名称 alias 把直接调用、全局限定调用和函数地址都转到 current size-aware inline wrapper。绑定层或 FFI 可以直接调用 `*_init_with_size(pointer, capacity)`、`manumesh_simplify_mesh_with_report_size(..., report, report_capacity)` 和 `manumesh_compute_mesh_stats_with_size(..., stats, stats_capacity)`：非空输出容量小于 `abi_version` 字段末尾时返回 `MANUMESH_STATUS_INVALID_ARGUMENT` 且不写 output；容量大于当前结构体时只写库已知尺寸，未知尾部保持不变。simplify 的 report 可为 null，mesh stats 的 stats 不可为 null。report/stats 初始化函数仍可用于在调用前取得独立的零值结构体，但不再是 current output 调用的前置条件。
+
+旧的无容量 init 符号以及旧 `manumesh_simplify_mesh` / `manumesh_compute_mesh_stats` 符号仍导出。它们不读取 report/stats 的原有字节，并始终只写首次发布的 v1 历史尺寸，因而兼容首发时允许未初始化 output 的调用方式，也不会覆盖旧调用方较小的栈对象。这个选择无法保留所有后加尾字段的语义：已经编译且依赖 `loop_trace_angle_deg`、cleanup、quality refinement 或新增 report 尾字段的中间版本客户端，换用新 DLL 后必须重新编译或迁移到 size-aware 入口，否则这些字段会按首发容量被忽略。新源码确实需要直接访问旧符号时，可在包含 `api/CApi.h` 前定义 `MANUMESH_DISABLE_SIZE_AWARE_ALIASES`；旧名称 `MANUMESH_DISABLE_SIZE_AWARE_INIT_MACROS` 仍作为兼容开关。库的 C API object target 使用 `MANUMESH_C_API_IMPLEMENTATION` 禁用 alias。
+
+`normal_tensor_min_persistent_scales`、feature graph cleanup 选项、component confidence 报告字段都位于 C ABI 结构体尾部；布局中尚不存在这些字段的更早调用方继续使用库默认行为。注意：本轮新增的纹理保护选项（`preserveTexture` 等）和 smooth-curvature 特征选项当前只在 C++ API 提供，C ABI 结构体尚未暴露对应字段；跨 ABI 场景暂时无法使用这两项能力。`include/api/CApi.h` 顶部已明确声明 v1 ABI 不携带逐角纹理坐标——需要保纹理时必须使用 C++ `Mesh` / `PlainMesh` 边界。
 
 错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM 与参数错误作为可区分的状态处理。
 

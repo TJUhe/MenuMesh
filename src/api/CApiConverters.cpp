@@ -21,10 +21,30 @@ bool readFiniteDouble(double value, const char* fieldName, double& target, std::
     return true;
 }
 
-template <typename T> void initializeAbiStruct(T& value) {
-    value = T{};
-    value.struct_size = sizeof(T);
-    value.abi_version = MANUMESH_ABI_VERSION;
+bool abiFieldPresent(std::size_t structSize, std::size_t fieldOffset, std::size_t fieldSize) {
+    return fieldOffset <= std::numeric_limits<std::size_t>::max() - fieldSize && structSize >= fieldOffset + fieldSize;
+}
+
+template <typename T, typename Field>
+void writeAbiField(T* value, std::size_t writeSize, std::size_t fieldOffset, const Field& fieldValue) {
+    if (!abiFieldPresent(writeSize, fieldOffset, sizeof(Field))) {
+        return;
+    }
+    std::memcpy(reinterpret_cast<unsigned char*>(value) + fieldOffset, &fieldValue, sizeof(Field));
+}
+
+template <typename T> ManuMeshStatus initializeAbiBuffer(T* value, std::size_t structCapacity, std::size_t& writeSize) {
+    constexpr std::size_t kMinimumInitializedSize = offsetof(T, abi_version) + sizeof(unsigned int);
+    if (!value || structCapacity < kMinimumInitializedSize) {
+        return MANUMESH_STATUS_INVALID_ARGUMENT;
+    }
+
+    writeSize = structCapacity < sizeof(T) ? structCapacity : sizeof(T);
+    std::memset(static_cast<void*>(value), 0, writeSize);
+    writeAbiField(value, writeSize, offsetof(T, struct_size), writeSize);
+    const unsigned int abiVersion = MANUMESH_ABI_VERSION;
+    writeAbiField(value, writeSize, offsetof(T, abi_version), abiVersion);
+    return MANUMESH_STATUS_OK;
 }
 
 template <typename T> bool abiStructLooksInitialized(const T& value) {
@@ -32,51 +52,24 @@ template <typename T> bool abiStructLooksInitialized(const T& value) {
     return value.struct_size >= kMinimumInitializedSize && value.abi_version == MANUMESH_ABI_VERSION;
 }
 
-template <typename T> bool outputAbiStructLooksInitialized(const T& value) {
-    constexpr std::size_t kMinimumInitializedSize = offsetof(T, abi_version) + sizeof(value.abi_version);
-    return value.struct_size >= kMinimumInitializedSize && value.struct_size <= sizeof(T) &&
-           value.abi_version == MANUMESH_ABI_VERSION;
-}
-
 template <typename T>
-bool validateOutputAbiStruct(const T& value, const char* typeName, const char* initFunction, std::string& error) {
-    if (outputAbiStructLooksInitialized(value)) {
+bool validateOutputCapacity(
+    const T* value, std::size_t structCapacity, bool allowNull, const char* typeName, std::string& error
+) {
+    if (!value) {
+        if (allowNull) {
+            return true;
+        }
+        error = std::string(typeName) + " output pointer must be valid.";
+        return false;
+    }
+
+    constexpr std::size_t kMinimumInitializedSize = offsetof(T, abi_version) + sizeof(unsigned int);
+    if (structCapacity >= kMinimumInitializedSize) {
         return true;
     }
-    error = std::string(typeName) + " must be initialized with " + initFunction +
-            " or provide a valid older struct_size for this ABI version.";
+    error = std::string(typeName) + " output capacity must include the complete abi_version field.";
     return false;
-}
-
-bool abiFieldPresent(std::size_t structSize, std::size_t fieldOffset, std::size_t fieldSize) {
-    return fieldOffset <= std::numeric_limits<std::size_t>::max() - fieldSize && structSize >= fieldOffset + fieldSize;
-}
-
-template <typename T> std::size_t outputWriteSizeOrCurrent(const T& value) {
-    std::size_t structSize = 0;
-    unsigned int abiVersion = 0;
-    std::memcpy(
-        &structSize, reinterpret_cast<const unsigned char*>(&value) + offsetof(T, struct_size), sizeof(structSize)
-    );
-    std::memcpy(
-        &abiVersion, reinterpret_cast<const unsigned char*>(&value) + offsetof(T, abi_version), sizeof(abiVersion)
-    );
-
-    constexpr std::size_t kMinimumInitializedSize = offsetof(T, abi_version) + sizeof(value.abi_version);
-    if (structSize >= kMinimumInitializedSize && structSize <= sizeof(T) && abiVersion == MANUMESH_ABI_VERSION) {
-        return structSize;
-    }
-    return sizeof(T);
-}
-
-template <typename T> void initializeOutputAbiStruct(T& value, std::size_t writeSize) {
-    std::memset(&value, 0, writeSize);
-    if (abiFieldPresent(writeSize, offsetof(T, struct_size), sizeof(value.struct_size))) {
-        value.struct_size = writeSize;
-    }
-    if (abiFieldPresent(writeSize, offsetof(T, abi_version), sizeof(value.abi_version))) {
-        value.abi_version = MANUMESH_ABI_VERSION;
-    }
 }
 
 #define MANUMESH_SIMPLIFY_FIELD_PRESENT(options, field)                                                                \
@@ -159,51 +152,69 @@ ManuMeshSimplifyTerminationReason convertTerminationReason(simplification::Simpl
 
 } // namespace
 
-void initializeSimplifyOptions(ManuMeshSimplifyOptions& options) {
-    initializeAbiStruct(options);
-    options.target_faces = -1;
-    options.target_ratio = 0.25;
-    options.use_line_quadrics = 1;
-    options.line_weight = 1e-3;
-    options.weight_mode = MANUMESH_WEIGHT_MODE_UNIFORM;
-    options.feature_boost = 0.05;
-    options.feature_angle_deg = 40.0;
-    options.loop_trace_angle_deg = -1.0;
-    options.adaptive_scale = 0;
-    options.adaptive_base_line_weight = 1e-2;
-    options.boundary_weight = 0.0;
-    options.preserve_boundary = 0;
-    options.preserve_feature_curves = 0;
-    options.feature_curve_weight = 0.05;
-    options.max_feature_curve_deviation_ratio = 0.0;
-    options.circle_fit_relative_threshold = 0.05;
-    options.ellipse_fit_relative_threshold = 0.05;
-    options.near_circle_axis_ratio_tolerance = 0.08;
-    options.min_feature_loop_vertices = 16;
-    options.min_circular_feature_loop_vertices = 6;
-    options.use_normal_tensor_features = 1;
-    options.normal_tensor_feature_threshold = 0.16;
-    options.normal_tensor_min_edge_alignment = 0.45;
-    options.normal_tensor_smoothing_iterations = 0;
-    options.normal_tensor_scale_count = 1;
-    options.min_triangle_quality = 0.0;
-    options.max_normal_deviation_deg = 90.0;
-    options.max_local_error = 0.0;
-    options.max_local_error_ratio = 0.0;
-    options.prevent_local_intersections = 0;
-    options.verbose = 0;
-    options.feature_protection_mode = MANUMESH_FEATURE_PROTECTION_PRIMITIVE_CURVES;
-    options.normal_tensor_min_persistent_scales = 1;
-    options.cleanup_feature_graph = 1;
-    options.feature_graph_gap_length_ratio = 1.25;
-    options.feature_graph_max_weak_spur_edges = 2;
-    options.feature_component_min_confidence = 0.35;
-    options.quality_refinement_iterations = 0;
+ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::size_t structCapacity) {
+    std::size_t writeSize = 0;
+    const ManuMeshStatus status = initializeAbiBuffer(options, structCapacity, writeSize);
+    if (status != MANUMESH_STATUS_OK) {
+        return status;
+    }
+
+#define MANUMESH_INITIALIZE_OPTION(field, value)                                                                       \
+    writeAbiField(options, writeSize, offsetof(ManuMeshSimplifyOptions, field), value)
+
+    MANUMESH_INITIALIZE_OPTION(target_faces, -1);
+    MANUMESH_INITIALIZE_OPTION(target_ratio, 0.25);
+    MANUMESH_INITIALIZE_OPTION(use_line_quadrics, 1);
+    MANUMESH_INITIALIZE_OPTION(line_weight, 1e-3);
+    MANUMESH_INITIALIZE_OPTION(weight_mode, MANUMESH_WEIGHT_MODE_UNIFORM);
+    MANUMESH_INITIALIZE_OPTION(feature_boost, 0.05);
+    MANUMESH_INITIALIZE_OPTION(feature_angle_deg, 40.0);
+    MANUMESH_INITIALIZE_OPTION(loop_trace_angle_deg, -1.0);
+    MANUMESH_INITIALIZE_OPTION(adaptive_scale, 0);
+    MANUMESH_INITIALIZE_OPTION(adaptive_base_line_weight, 1e-2);
+    MANUMESH_INITIALIZE_OPTION(boundary_weight, 0.0);
+    MANUMESH_INITIALIZE_OPTION(preserve_boundary, 0);
+    MANUMESH_INITIALIZE_OPTION(preserve_feature_curves, 0);
+    MANUMESH_INITIALIZE_OPTION(feature_curve_weight, 0.05);
+    MANUMESH_INITIALIZE_OPTION(max_feature_curve_deviation_ratio, 0.0);
+    MANUMESH_INITIALIZE_OPTION(circle_fit_relative_threshold, 0.05);
+    MANUMESH_INITIALIZE_OPTION(ellipse_fit_relative_threshold, 0.05);
+    MANUMESH_INITIALIZE_OPTION(near_circle_axis_ratio_tolerance, 0.08);
+    MANUMESH_INITIALIZE_OPTION(min_feature_loop_vertices, 16);
+    MANUMESH_INITIALIZE_OPTION(min_circular_feature_loop_vertices, 6);
+    MANUMESH_INITIALIZE_OPTION(use_normal_tensor_features, 1);
+    MANUMESH_INITIALIZE_OPTION(normal_tensor_feature_threshold, 0.16);
+    MANUMESH_INITIALIZE_OPTION(normal_tensor_min_edge_alignment, 0.45);
+    MANUMESH_INITIALIZE_OPTION(normal_tensor_smoothing_iterations, 0);
+    MANUMESH_INITIALIZE_OPTION(normal_tensor_scale_count, 1);
+    MANUMESH_INITIALIZE_OPTION(min_triangle_quality, 0.0);
+    MANUMESH_INITIALIZE_OPTION(max_normal_deviation_deg, 90.0);
+    MANUMESH_INITIALIZE_OPTION(max_local_error, 0.0);
+    MANUMESH_INITIALIZE_OPTION(max_local_error_ratio, 0.0);
+    MANUMESH_INITIALIZE_OPTION(prevent_local_intersections, 0);
+    MANUMESH_INITIALIZE_OPTION(verbose, 0);
+    MANUMESH_INITIALIZE_OPTION(feature_protection_mode, MANUMESH_FEATURE_PROTECTION_PRIMITIVE_CURVES);
+    MANUMESH_INITIALIZE_OPTION(normal_tensor_min_persistent_scales, 1);
+    MANUMESH_INITIALIZE_OPTION(cleanup_feature_graph, 1);
+    MANUMESH_INITIALIZE_OPTION(feature_graph_gap_length_ratio, 1.25);
+    MANUMESH_INITIALIZE_OPTION(feature_graph_max_weak_spur_edges, 2);
+    MANUMESH_INITIALIZE_OPTION(feature_component_min_confidence, 0.35);
+    MANUMESH_INITIALIZE_OPTION(quality_refinement_iterations, 0);
+
+#undef MANUMESH_INITIALIZE_OPTION
+
+    return MANUMESH_STATUS_OK;
 }
 
-void initializeSimplifyReport(ManuMeshSimplifyReport& report) { initializeAbiStruct(report); }
+ManuMeshStatus initializeSimplifyReport(ManuMeshSimplifyReport* report, std::size_t structCapacity) {
+    std::size_t writeSize = 0;
+    return initializeAbiBuffer(report, structCapacity, writeSize);
+}
 
-void initializeMeshStats(ManuMeshMeshStats& stats) { initializeAbiStruct(stats); }
+ManuMeshStatus initializeMeshStats(ManuMeshMeshStats* stats, std::size_t structCapacity) {
+    std::size_t writeSize = 0;
+    return initializeAbiBuffer(stats, structCapacity, writeSize);
+}
 
 bool readSimplifyOptions(
     const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
@@ -398,17 +409,25 @@ bool readSimplifyOptions(
     return true;
 }
 
-bool validateSimplifyReportOutput(const ManuMeshSimplifyReport& target, std::string& error) {
-    return validateOutputAbiStruct(target, "ManuMeshSimplifyReport", "manumesh_simplify_report_init", error);
+bool validateSimplifyReportOutput(
+    const ManuMeshSimplifyReport* target, std::size_t structCapacity, std::string& error
+) {
+    return validateOutputCapacity(target, structCapacity, true, "ManuMeshSimplifyReport", error);
 }
 
-bool validateMeshStatsOutput(const ManuMeshMeshStats& target, std::string& error) {
-    return validateOutputAbiStruct(target, "ManuMeshMeshStats", "manumesh_mesh_stats_init", error);
+bool validateMeshStatsOutput(const ManuMeshMeshStats* target, std::size_t structCapacity, std::string& error) {
+    return validateOutputCapacity(target, structCapacity, false, "ManuMeshMeshStats", error);
 }
 
-void fillSimplifyReport(const simplification::SimplifyReport& source, ManuMeshSimplifyReport& target) {
-    const std::size_t writeSize = outputWriteSizeOrCurrent(target);
-    initializeOutputAbiStruct(target, writeSize);
+ManuMeshStatus fillSimplifyReport(
+    const simplification::SimplifyReport& source, ManuMeshSimplifyReport* output, std::size_t structCapacity
+) {
+    std::size_t writeSize = 0;
+    const ManuMeshStatus status = initializeAbiBuffer(output, structCapacity, writeSize);
+    if (status != MANUMESH_STATUS_OK) {
+        return status;
+    }
+    ManuMeshSimplifyReport& target = *output;
     MANUMESH_SET_REPORT_FIELD(target, writeSize, initial_vertices, source.initialVertices);
     MANUMESH_SET_REPORT_FIELD(target, writeSize, initial_faces, source.initialFaces);
     MANUMESH_SET_REPORT_FIELD(target, writeSize, final_vertices, source.finalVertices);
@@ -475,11 +494,16 @@ void fillSimplifyReport(const simplification::SimplifyReport& source, ManuMeshSi
         target, writeSize, quality_refinement_accepted_moves, source.qualityRefinementAcceptedMoves
     );
     MANUMESH_SET_REPORT_FIELD(target, writeSize, degenerate_input_faces, source.degenerateInputFaces);
+    return MANUMESH_STATUS_OK;
 }
 
-void fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStats& target) {
-    const std::size_t writeSize = outputWriteSizeOrCurrent(target);
-    initializeOutputAbiStruct(target, writeSize);
+ManuMeshStatus fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStats* output, std::size_t structCapacity) {
+    std::size_t writeSize = 0;
+    const ManuMeshStatus status = initializeAbiBuffer(output, structCapacity, writeSize);
+    if (status != MANUMESH_STATUS_OK) {
+        return status;
+    }
+    ManuMeshMeshStats& target = *output;
     MANUMESH_SET_STATS_FIELD(target, writeSize, vertices, source.vertices);
     MANUMESH_SET_STATS_FIELD(target, writeSize, faces, source.faces);
     MANUMESH_SET_STATS_FIELD(target, writeSize, edges, source.edges);
@@ -490,6 +514,7 @@ void fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStats& target)
     MANUMESH_SET_STATS_FIELD(target, writeSize, min_triangle_quality, source.minTriangleQuality);
     MANUMESH_SET_STATS_FIELD(target, writeSize, mean_edge_length, source.meanEdgeLength);
     MANUMESH_SET_STATS_FIELD(target, writeSize, edge_length_cv, source.edgeLengthCv);
+    return MANUMESH_STATUS_OK;
 }
 
 } // namespace manumesh::api

@@ -1,6 +1,7 @@
 #include "api/CApi.h"
 
 #include <stddef.h>
+#include <string.h>
 
 int main(void) {
     ManuMeshContext* context = manumesh_context_create();
@@ -26,16 +27,23 @@ int main(void) {
 
     ManuMeshSimplifyOptions options;
     manumesh_simplify_options_init(&options);
-    options.target_ratio = 0.35;
-
-    ManuMeshSimplifyReport report;
-    manumesh_simplify_report_init(&report);
-    ManuMeshStatus status = manumesh_simplify_mesh(context, input, &options, output, &report);
-    if (status != MANUMESH_STATUS_OK) {
+    if (options.struct_size != sizeof(options) || options.loop_trace_angle_deg != -1.0 ||
+        options.quality_refinement_iterations != 0) {
         manumesh_mesh_destroy(output);
         manumesh_mesh_destroy(input);
         manumesh_context_destroy(context);
         return 4;
+    }
+    options.target_ratio = 0.35;
+
+    ManuMeshSimplifyReport report;
+    memset(&report, 0xA5, sizeof(report));
+    ManuMeshStatus status = manumesh_simplify_mesh(context, input, &options, output, &report);
+    if (status != MANUMESH_STATUS_OK || report.struct_size != sizeof(report)) {
+        manumesh_mesh_destroy(output);
+        manumesh_mesh_destroy(input);
+        manumesh_context_destroy(context);
+        return 5;
     }
 
     size_t vertex_count = 0;
@@ -45,12 +53,22 @@ int main(void) {
         manumesh_mesh_destroy(output);
         manumesh_mesh_destroy(input);
         manumesh_context_destroy(context);
-        return 5;
+        return 6;
+    }
+
+    ManuMeshMeshStats stats;
+    memset(&stats, 0xA5, sizeof(stats));
+    status = manumesh_compute_mesh_stats(context, output, &stats);
+    if (status != MANUMESH_STATUS_OK || stats.struct_size != sizeof(stats) || stats.faces <= 0) {
+        manumesh_mesh_destroy(output);
+        manumesh_mesh_destroy(input);
+        manumesh_context_destroy(context);
+        return 7;
     }
 
     manumesh_mesh_destroy(output);
     manumesh_mesh_destroy(input);
     manumesh_context_destroy(context);
 
-    return face_count > 0 && (size_t)report.final_faces == face_count ? 0 : 6;
+    return face_count > 0 && (size_t)report.final_faces == face_count ? 0 : 8;
 }

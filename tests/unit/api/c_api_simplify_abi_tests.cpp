@@ -9,6 +9,89 @@
 #include <vector>
 
 using manumesh::test::dataRoot;
+
+namespace {
+
+constexpr unsigned char kInitializerSentinel = 0xA5;
+
+struct LegacyV1MeshStatsLayout {
+    std::size_t struct_size;
+    unsigned int abi_version;
+    int vertices;
+    int faces;
+    int edges;
+    int boundary_edges;
+    int non_manifold_edges;
+    double area;
+    double mean_triangle_quality;
+    double min_triangle_quality;
+    double mean_edge_length;
+    double edge_length_cv;
+};
+
+static_assert(
+    offsetof(LegacyV1MeshStatsLayout, edge_length_cv) == offsetof(ManuMeshMeshStats, edge_length_cv),
+    "ManuMeshMeshStats v1 field layout changed"
+);
+
+constexpr std::size_t kLegacyV1SimplifyOptionsSize = offsetof(ManuMeshSimplifyOptions, loop_trace_angle_deg);
+constexpr std::size_t kLegacyV1SimplifyReportSize = offsetof(ManuMeshSimplifyReport, traced_feature_edges);
+constexpr std::size_t kLegacyV1MeshStatsSize = sizeof(LegacyV1MeshStatsLayout);
+
+template <typename T> struct GuardedAbiStorage {
+    T object;
+    std::array<unsigned char, 16> guard{};
+
+    T* value() { return &object; }
+
+    void fill(unsigned char byte) {
+        std::memset(&object, byte, sizeof(object));
+        guard.fill(byte);
+    }
+};
+
+template <typename T> constexpr std::size_t minimumAbiStructSize() {
+    return offsetof(T, abi_version) + sizeof(unsigned int);
+}
+
+template <typename T> void expectSentinelFrom(const GuardedAbiStorage<T>& storage, std::size_t offset) {
+    const auto* objectBytes = reinterpret_cast<const unsigned char*>(&storage.object);
+    for (std::size_t i = offset; i < sizeof(T); ++i) {
+        EXPECT_EQ(kInitializerSentinel, objectBytes[i]) << "object byte " << i << " was overwritten";
+    }
+    for (std::size_t i = 0; i < storage.guard.size(); ++i) {
+        EXPECT_EQ(kInitializerSentinel, storage.guard[i]) << "guard byte " << i << " was overwritten";
+    }
+}
+
+template <typename T> void expectAllSentinel(const GuardedAbiStorage<T>& storage) { expectSentinelFrom(storage, 0); }
+
+template <typename T>
+void expectSizeAwareInitializerIsBounded(
+    ManuMeshStatus (*initializer)(T*, std::size_t), std::size_t capacity, std::size_t expectedWriteSize
+) {
+    GuardedAbiStorage<T> storage;
+    storage.fill(kInitializerSentinel);
+    ASSERT_LE(capacity, sizeof(T) + storage.guard.size());
+
+    EXPECT_EQ(MANUMESH_STATUS_OK, initializer(storage.value(), capacity));
+    EXPECT_EQ(expectedWriteSize, storage.value()->struct_size);
+    EXPECT_EQ(MANUMESH_ABI_VERSION, storage.value()->abi_version);
+    expectSentinelFrom(storage, expectedWriteSize);
+}
+
+template <typename T>
+void expectSizeAwareInitializerRejectsInvalidCapacity(ManuMeshStatus (*initializer)(T*, std::size_t)) {
+    GuardedAbiStorage<T> storage;
+    storage.fill(kInitializerSentinel);
+
+    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, initializer(storage.value(), minimumAbiStructSize<T>() - 1));
+    expectAllSentinel(storage);
+    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, initializer(nullptr, sizeof(T)));
+}
+
+} // namespace
+
 TEST_F(CApiTest, MapsInvalidSimplifyOptionsToInvalidArgumentStatus) {
     ManuMeshMeshHandle* input = manumesh_mesh_create(context);
     ManuMeshMeshHandle* output = manumesh_mesh_create(context);
@@ -124,7 +207,7 @@ TEST_F(CApiTest, MapsQualityRefinementTailOptionAndReportFields) {
     manumesh_mesh_destroy(input);
 }
 
-TEST_F(CApiTest, RejectsUninitializedSimplifyReportAbiStruct) {
+TEST_F(CApiTest, SourceCompatibleSimplifyInitializesUninitializedCurrentReport) {
     ManuMeshMeshHandle* input = manumesh_mesh_create(context);
     ManuMeshMeshHandle* output = manumesh_mesh_create(context);
     ASSERT_NE(input, nullptr);
@@ -136,9 +219,16 @@ TEST_F(CApiTest, RejectsUninitializedSimplifyReportAbiStruct) {
     manumesh_simplify_options_init(&options);
     options.target_ratio = 0.75;
 
-    ManuMeshSimplifyReport report{};
-    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, manumesh_simplify_mesh(context, input, &options, output, &report));
-    EXPECT_NE('\0', manumesh_context_last_error(context)[0]);
+    ManuMeshSimplifyReport report;
+    std::memset(&report, kInitializerSentinel, sizeof(report));
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
+    EXPECT_EQ(sizeof(report), report.struct_size);
+    EXPECT_EQ(MANUMESH_ABI_VERSION, report.abi_version);
+    EXPECT_GT(report.initial_faces, report.final_faces);
+
+    EXPECT_EQ(
+        MANUMESH_STATUS_OK, manumesh_simplify_mesh_with_report_size(context, input, &options, output, nullptr, 0)
+    );
 
     manumesh_mesh_destroy(output);
     manumesh_mesh_destroy(input);
@@ -156,25 +246,31 @@ TEST_F(CApiTest, DoesNotWritePastCallerSizedSimplifyReport) {
     manumesh_simplify_options_init(&options);
     options.target_ratio = 0.75;
 
-    constexpr unsigned char kSentinel = 0xA5;
     constexpr std::size_t kOlderReportSize = offsetof(ManuMeshSimplifyReport, traced_feature_edges);
-    alignas(ManuMeshSimplifyReport) std::array<unsigned char, sizeof(ManuMeshSimplifyReport) + 16> storage;
-    storage.fill(kSentinel);
+    GuardedAbiStorage<ManuMeshSimplifyReport> storage;
+    storage.fill(kInitializerSentinel);
+    ManuMeshSimplifyReport* report = storage.value();
 
-    auto* report = reinterpret_cast<ManuMeshSimplifyReport*>(storage.data());
-    std::memset(report, 0, kOlderReportSize);
-    report->struct_size = kOlderReportSize;
-    report->abi_version = MANUMESH_ABI_VERSION;
-
-    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, report));
+    EXPECT_EQ(
+        MANUMESH_STATUS_OK,
+        manumesh_simplify_mesh_with_report_size(context, input, &options, output, report, kOlderReportSize)
+    );
     EXPECT_EQ(kOlderReportSize, report->struct_size);
     EXPECT_EQ(MANUMESH_ABI_VERSION, report->abi_version);
     EXPECT_GT(report->initial_faces, report->final_faces);
     EXPECT_EQ(MANUMESH_SIMPLIFY_TERMINATION_REACHED_TARGET, report->termination_reason);
+    expectSentinelFrom(storage, kOlderReportSize);
 
-    for (std::size_t i = kOlderReportSize; i < storage.size(); ++i) {
-        EXPECT_EQ(kSentinel, storage[i]) << "byte " << i << " was overwritten";
-    }
+    GuardedAbiStorage<ManuMeshSimplifyReport> tooSmallStorage;
+    tooSmallStorage.fill(kInitializerSentinel);
+    const std::size_t tooSmallCapacity = minimumAbiStructSize<ManuMeshSimplifyReport>() - 1;
+    EXPECT_EQ(
+        MANUMESH_STATUS_INVALID_ARGUMENT,
+        manumesh_simplify_mesh_with_report_size(
+            context, input, &options, output, tooSmallStorage.value(), tooSmallCapacity
+        )
+    );
+    expectAllSentinel(tooSmallStorage);
 
     manumesh_mesh_destroy(output);
     manumesh_mesh_destroy(input);
@@ -186,40 +282,118 @@ TEST_F(CApiTest, DoesNotWritePastCallerSizedMeshStats) {
 
     ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "cube", 4, mesh));
 
-    constexpr unsigned char kSentinel = 0x5A;
     constexpr std::size_t kOlderStatsSize = offsetof(ManuMeshMeshStats, mean_triangle_quality);
-    alignas(ManuMeshMeshStats) std::array<unsigned char, sizeof(ManuMeshMeshStats) + 16> storage;
-    storage.fill(kSentinel);
+    GuardedAbiStorage<ManuMeshMeshStats> storage;
+    storage.fill(kInitializerSentinel);
+    ManuMeshMeshStats* stats = storage.value();
 
-    auto* stats = reinterpret_cast<ManuMeshMeshStats*>(storage.data());
-    std::memset(stats, 0, kOlderStatsSize);
-    stats->struct_size = kOlderStatsSize;
-    stats->abi_version = MANUMESH_ABI_VERSION;
-
-    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_compute_mesh_stats(context, mesh, stats));
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_compute_mesh_stats_with_size(context, mesh, stats, kOlderStatsSize));
     EXPECT_EQ(kOlderStatsSize, stats->struct_size);
     EXPECT_EQ(MANUMESH_ABI_VERSION, stats->abi_version);
     EXPECT_GT(stats->vertices, 0);
     EXPECT_GT(stats->faces, 0);
+    expectSentinelFrom(storage, kOlderStatsSize);
 
-    for (std::size_t i = kOlderStatsSize; i < storage.size(); ++i) {
-        EXPECT_EQ(kSentinel, storage[i]) << "byte " << i << " was overwritten";
-    }
+    GuardedAbiStorage<ManuMeshMeshStats> tooSmallStorage;
+    tooSmallStorage.fill(kInitializerSentinel);
+    const std::size_t tooSmallCapacity = minimumAbiStructSize<ManuMeshMeshStats>() - 1;
+    EXPECT_EQ(
+        MANUMESH_STATUS_INVALID_ARGUMENT,
+        manumesh_compute_mesh_stats_with_size(context, mesh, tooSmallStorage.value(), tooSmallCapacity)
+    );
+    expectAllSentinel(tooSmallStorage);
+    EXPECT_EQ(
+        MANUMESH_STATUS_INVALID_ARGUMENT,
+        manumesh_compute_mesh_stats_with_size(context, mesh, nullptr, sizeof(ManuMeshMeshStats))
+    );
 
     manumesh_mesh_destroy(mesh);
 }
 
-TEST_F(CApiTest, RejectsUninitializedMeshStatsAbiStruct) {
+TEST_F(CApiTest, SourceCompatibleMeshStatsInitializesUninitializedCurrentOutput) {
     ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
     ASSERT_NE(mesh, nullptr);
 
     ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "cube", 4, mesh));
 
-    ManuMeshMeshStats stats{};
-    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, manumesh_compute_mesh_stats(context, mesh, &stats));
-    EXPECT_NE('\0', manumesh_context_last_error(context)[0]);
+    ManuMeshMeshStats stats;
+    std::memset(&stats, kInitializerSentinel, sizeof(stats));
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_compute_mesh_stats(context, mesh, &stats));
+    EXPECT_EQ(sizeof(stats), stats.struct_size);
+    EXPECT_EQ(MANUMESH_ABI_VERSION, stats.abi_version);
+    EXPECT_GT(stats.vertices, 0);
+    EXPECT_GT(stats.faces, 0);
 
     manumesh_mesh_destroy(mesh);
+}
+
+TEST_F(CApiTest, SourceCompatibilityInitializersSupportGlobalQualification) {
+    ManuMeshSimplifyOptions options;
+    ::manumesh_simplify_options_init(&options);
+    EXPECT_EQ(sizeof(options), options.struct_size);
+
+    ManuMeshSimplifyReport report;
+    ::manumesh_simplify_report_init(&report);
+    EXPECT_EQ(sizeof(report), report.struct_size);
+
+    ManuMeshMeshStats stats;
+    ::manumesh_mesh_stats_init(&stats);
+    EXPECT_EQ(sizeof(stats), stats.struct_size);
+
+    void (*optionsInitializer)(ManuMeshSimplifyOptions*) = &manumesh_simplify_options_init;
+    ManuMeshSimplifyOptions indirectOptions;
+    optionsInitializer(&indirectOptions);
+    EXPECT_EQ(sizeof(indirectOptions), indirectOptions.struct_size);
+}
+
+TEST_F(CApiTest, SizeAwareInitializersRespectMinimumLegacyCurrentAndOversizedCapacities) {
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_options_init_with_size,
+        minimumAbiStructSize<ManuMeshSimplifyOptions>(),
+        minimumAbiStructSize<ManuMeshSimplifyOptions>()
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_options_init_with_size, kLegacyV1SimplifyOptionsSize, kLegacyV1SimplifyOptionsSize
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_options_init_with_size, sizeof(ManuMeshSimplifyOptions), sizeof(ManuMeshSimplifyOptions)
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_options_init_with_size, sizeof(ManuMeshSimplifyOptions) + 16, sizeof(ManuMeshSimplifyOptions)
+    );
+
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_report_init_with_size,
+        minimumAbiStructSize<ManuMeshSimplifyReport>(),
+        minimumAbiStructSize<ManuMeshSimplifyReport>()
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_report_init_with_size, kLegacyV1SimplifyReportSize, kLegacyV1SimplifyReportSize
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_report_init_with_size, sizeof(ManuMeshSimplifyReport), sizeof(ManuMeshSimplifyReport)
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_simplify_report_init_with_size, sizeof(ManuMeshSimplifyReport) + 16, sizeof(ManuMeshSimplifyReport)
+    );
+
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_mesh_stats_init_with_size,
+        minimumAbiStructSize<ManuMeshMeshStats>(),
+        minimumAbiStructSize<ManuMeshMeshStats>()
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_mesh_stats_init_with_size, kLegacyV1MeshStatsSize, kLegacyV1MeshStatsSize
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_mesh_stats_init_with_size, sizeof(ManuMeshMeshStats) + 16, sizeof(ManuMeshMeshStats)
+    );
+}
+
+TEST_F(CApiTest, SizeAwareInitializersRejectTooSmallAndNullBuffersWithoutWriting) {
+    expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_simplify_options_init_with_size);
+    expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_simplify_report_init_with_size);
+    expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_mesh_stats_init_with_size);
 }
 
 TEST_F(CApiTest, InitializesPrimitiveFitOptions) {

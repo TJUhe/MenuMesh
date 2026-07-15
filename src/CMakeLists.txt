@@ -205,6 +205,9 @@ add_library(manumesh_simplification_objects OBJECT
 add_library(manumesh_c_api_objects OBJECT
   ${MANUMESH_API_SOURCES}
 )
+target_compile_definitions(manumesh_c_api_objects
+  PRIVATE MANUMESH_C_API_IMPLEMENTATION
+)
 
 target_link_libraries(manumesh_common_objects
   PRIVATE manumesh_geometry_objects

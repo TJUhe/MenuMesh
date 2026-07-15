@@ -159,4 +159,4 @@ manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(mesh);
 ```
 
-C API 使用 `ManuMeshContext`、`ManuMeshMeshHandle`、`ManuMeshSimplifyOptions`、`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats`。所有公开 C 结构体调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移。同一 `MANUMESH_ABI_VERSION` 内，输入结构体允许尾部较短的旧 `struct_size`，库只读取存在的字段，新增尾部字段使用默认值；未初始化或 ABI 版本不匹配仍会被拒绝。
+C API 使用 `ManuMeshContext`、`ManuMeshMeshHandle`、`ManuMeshSimplifyOptions`、`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats`。输入 options 调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移；同一 `MANUMESH_ABI_VERSION` 内允许尾部较短的旧 `struct_size`，库只读取存在的字段，新增尾字段使用默认值。report/stats 是纯输出，current 源码 alias 与显式 `*_with_size` 入口以调用方容量为唯一写入边界，不读取 output 原有字节；旧 ABI 符号固定写首发 v1 前缀。

@@ -1947,7 +1947,7 @@ manumesh::feature::LoopMatchReport report =
         <p>
           The C ABI is the preferred boundary for plugins, other languages, or
           clients that cannot share the same C++ compiler and standard-library
-          ABI. All public C structs must be initialized before use.
+          ABI. Input options must be initialized; report and stats outputs are initialized by capacity-aware calls.
         </p>
         <table>
           <thead>
@@ -2013,9 +2013,9 @@ manumesh::feature::LoopMatchReport report =
 cmake --build build/mingw-release --parallel
 ctest --test-dir build/mingw-release -LE "performance|external" --output-on-failure</code></pre>
         <p>
-          <code>-LE "performance|external"</code> 是秒级快速套件（225 个启用用例，
+          <code>-LE "performance|external"</code> 是秒级快速套件（236 个启用用例，
           本机 MinGW Release 并行实测约 4 秒，受环境影响）；<code>-LE performance</code> 追加 11 个依赖
-          <code>tests/data/external</code> 大网格的用例（共 236 个启用用例）。
+          <code>tests/data/external</code> 大网格的用例（共 247 个启用用例）。
         </p>
         <h3>SDK Install Layout</h3>
         <pre><code>cmake -S . -B build/sdk-release -G Ninja ^
@@ -2087,9 +2087,9 @@ cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></p
         <h3>Regression Gate</h3>
         <pre><code>cmake --build build/audit-mingw --target unit-tests --parallel</code></pre>
         <div class="success note">
-          Latest local audit on 2026-07-13: 236 / 236 enabled non-performance tests
+          Latest local audit on 2026-07-15: 247 / 247 enabled non-performance tests
           passed with the MinGW + Ninja release configuration (fast suite
-          <code>-LE "performance|external"</code>: 225 / 225). 2026-07-12
+          <code>-LE "performance|external"</code>: 236 / 236). 2026-07-12
           起，下述新能力测试已注册进同一 <code>unit-tests</code>
           目标（<code>tests/CMakeLists.txt</code>）；测试分层、解析 fixture
           设计与新增测试注册方式的权威说明见

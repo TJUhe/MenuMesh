@@ -319,9 +319,11 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 & $exe validate-features --ratio 0.20 --samples 1000
 ```
 
-C ABI 的公开结构体仍必须先调用对应 `*_init`。同一 `MANUMESH_ABI_VERSION`
+C ABI 的输入 options 必须先调用对应 `*_init`。同一 `MANUMESH_ABI_VERSION`
 内，库会接受较旧的尾部较短 `struct_size`，缺失字段使用库默认值；未初始化
-或 ABI 版本不匹配的结构体仍会被拒绝。
+options 或 ABI 版本不匹配仍会被拒绝。report/stats 是纯输出，当前头文件通过
+size-aware wrapper 自动传递 `sizeof`，无需预初始化；FFI 可直接调用公开的
+`*_with_size` 输出入口并传入实际容量。
 
 该命令默认复制四个外部成品 STL 作为验证输入：
 Thingi10K spindle、NASA antenna azimuth track、Thingi10K mini pulley 和

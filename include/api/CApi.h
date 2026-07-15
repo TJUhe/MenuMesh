@@ -134,9 +134,11 @@ typedef struct ManuMeshSimplifyOptions {
 
 typedef struct ManuMeshSimplifyReport {
     /*
-   * Must be initialized by manumesh_simplify_report_init before calling
-   * manumesh_simplify_mesh, unless the caller deliberately provides an older
-   * trailing struct_size with the current MANUMESH_ABI_VERSION.
+   * Output storage for simplification diagnostics. Current source calls to
+   * manumesh_simplify_mesh pass sizeof(ManuMeshSimplifyReport) through the
+   * size-aware inline wrapper, so this object need not be pre-initialized.
+   * Call manumesh_simplify_report_init when an initialized standalone value is
+   * useful before the simplify call.
    */
     size_t struct_size;
     unsigned int abi_version;
@@ -197,9 +199,11 @@ typedef struct ManuMeshSimplifyReport {
 
 typedef struct ManuMeshMeshStats {
     /*
-   * Must be initialized by manumesh_mesh_stats_init before calling
-   * manumesh_compute_mesh_stats, unless the caller deliberately provides an
-   * older trailing struct_size with the current MANUMESH_ABI_VERSION.
+   * Output storage for mesh statistics. Current source calls to
+   * manumesh_compute_mesh_stats pass sizeof(ManuMeshMeshStats) through the
+   * size-aware inline wrapper, so this object need not be pre-initialized.
+   * Call manumesh_mesh_stats_init when an initialized standalone value is
+   * useful before the statistics call.
    */
     size_t struct_size;
     unsigned int abi_version;
@@ -273,9 +277,51 @@ MANUMESH_API ManuMeshStatus manumesh_save_ascii_stl(
 MANUMESH_API ManuMeshStatus
 manumesh_generate_mesh(ManuMeshContext* context, const char* name, int n, ManuMeshMeshHandle* mesh);
 
+/*
+ * Size-aware initializers. The library writes at most struct_capacity bytes,
+ * records the initialized size in struct_size, and ignores unknown future
+ * tail bytes when struct_capacity is larger than the library's current type.
+ */
+MANUMESH_API ManuMeshStatus
+manumesh_simplify_options_init_with_size(ManuMeshSimplifyOptions* options, size_t struct_capacity);
+MANUMESH_API ManuMeshStatus
+manumesh_simplify_report_init_with_size(ManuMeshSimplifyReport* report, size_t struct_capacity);
+MANUMESH_API ManuMeshStatus manumesh_mesh_stats_init_with_size(ManuMeshMeshStats* stats, size_t struct_capacity);
+
+/*
+ * Legacy ABI v1 symbols retained for already-built callers. They initialize
+ * only the original v1 layout published with these symbols. New source code
+ * includes the compatibility macros below and transparently calls the
+ * size-aware entry points with the current public struct size.
+ */
 MANUMESH_API void manumesh_simplify_options_init(ManuMeshSimplifyOptions* options);
 MANUMESH_API void manumesh_simplify_report_init(ManuMeshSimplifyReport* report);
 MANUMESH_API void manumesh_mesh_stats_init(ManuMeshMeshStats* stats);
+
+/*
+ * Capacity-aware output entry points. A non-null output buffer must include
+ * the complete abi_version field. The library writes at most the supplied
+ * capacity and at most its current structure size; larger unknown tails are
+ * left untouched. report may be null because simplification diagnostics are
+ * optional. stats is required by manumesh_compute_mesh_stats_with_size.
+ */
+MANUMESH_API ManuMeshStatus manumesh_simplify_mesh_with_report_size(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* input,
+    const ManuMeshSimplifyOptions* options,
+    ManuMeshMeshHandle* output,
+    ManuMeshSimplifyReport* report,
+    size_t report_capacity
+);
+MANUMESH_API ManuMeshStatus manumesh_compute_mesh_stats_with_size(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshMeshStats* stats, size_t stats_capacity
+);
+
+/*
+ * Legacy ABI v1 output symbols retained for already-built callers. They never
+ * inspect output memory and write only the first published v1 report/stats
+ * layouts. Current source calls are redirected to the capacity-aware entries.
+ */
 MANUMESH_API ManuMeshStatus manumesh_simplify_mesh(
     ManuMeshContext* context,
     const ManuMeshMeshHandle* input,
@@ -285,6 +331,53 @@ MANUMESH_API ManuMeshStatus manumesh_simplify_mesh(
 );
 MANUMESH_API ManuMeshStatus
 manumesh_compute_mesh_stats(ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshMeshStats* stats);
+
+#if !defined(MANUMESH_C_API_IMPLEMENTATION) && !defined(MANUMESH_DISABLE_SIZE_AWARE_ALIASES) &&                        \
+    !defined(MANUMESH_DISABLE_SIZE_AWARE_INIT_MACROS)
+#if defined(_MSC_VER) && !defined(__cplusplus)
+#define MANUMESH_C_API_INLINE __inline
+#else
+#define MANUMESH_C_API_INLINE inline
+#endif
+
+static MANUMESH_C_API_INLINE void manumesh_detail_simplify_options_init_current(ManuMeshSimplifyOptions* options) {
+    (void)manumesh_simplify_options_init_with_size(options, sizeof(ManuMeshSimplifyOptions));
+}
+
+static MANUMESH_C_API_INLINE void manumesh_detail_simplify_report_init_current(ManuMeshSimplifyReport* report) {
+    (void)manumesh_simplify_report_init_with_size(report, sizeof(ManuMeshSimplifyReport));
+}
+
+static MANUMESH_C_API_INLINE void manumesh_detail_mesh_stats_init_current(ManuMeshMeshStats* stats) {
+    (void)manumesh_mesh_stats_init_with_size(stats, sizeof(ManuMeshMeshStats));
+}
+
+static MANUMESH_C_API_INLINE ManuMeshStatus manumesh_detail_simplify_mesh_current(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* input,
+    const ManuMeshSimplifyOptions* options,
+    ManuMeshMeshHandle* output,
+    ManuMeshSimplifyReport* report
+) {
+    return manumesh_simplify_mesh_with_report_size(
+        context, input, options, output, report, sizeof(ManuMeshSimplifyReport)
+    );
+}
+
+static MANUMESH_C_API_INLINE ManuMeshStatus manumesh_detail_compute_mesh_stats_current(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshMeshStats* stats
+) {
+    return manumesh_compute_mesh_stats_with_size(context, mesh, stats, sizeof(ManuMeshMeshStats));
+}
+
+#undef MANUMESH_C_API_INLINE
+
+#define manumesh_simplify_options_init manumesh_detail_simplify_options_init_current
+#define manumesh_simplify_report_init manumesh_detail_simplify_report_init_current
+#define manumesh_mesh_stats_init manumesh_detail_mesh_stats_init_current
+#define manumesh_simplify_mesh manumesh_detail_simplify_mesh_current
+#define manumesh_compute_mesh_stats manumesh_detail_compute_mesh_stats_current
+#endif
 
 #ifdef __cplusplus
 }

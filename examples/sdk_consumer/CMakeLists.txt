@@ -24,6 +24,14 @@ set_target_properties(sdk_c_abi_basic PROPERTIES
 target_link_libraries(sdk_c_abi_basic PRIVATE ManuMesh::manumesh)
 manumesh_copy_runtime_dependencies(sdk_c_abi_basic)
 
+add_executable(sdk_c_abi_legacy_init sdk_c_abi_legacy_init.c)
+set_target_properties(sdk_c_abi_legacy_init PROPERTIES
+  LINKER_LANGUAGE CXX
+)
+target_link_libraries(sdk_c_abi_legacy_init PRIVATE ManuMesh::manumesh)
+manumesh_copy_runtime_dependencies(sdk_c_abi_legacy_init)
+
 enable_testing()
 add_test(NAME sdk_cpp_simplify COMMAND sdk_cpp_simplify)
 add_test(NAME sdk_c_abi_basic COMMAND sdk_c_abi_basic)
+add_test(NAME sdk_c_abi_legacy_init COMMAND sdk_c_abi_legacy_init)

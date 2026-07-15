@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <exception>
 #include <limits>
 #include <new>
@@ -28,6 +29,115 @@ struct ManuMeshMeshHandle {
 };
 
 namespace {
+
+struct LegacyV1SimplifyOptionsLayout {
+    std::size_t struct_size;
+    unsigned int abi_version;
+    int target_faces;
+    double target_ratio;
+    int use_line_quadrics;
+    double line_weight;
+    ManuMeshWeightMode weight_mode;
+    double feature_boost;
+    double feature_angle_deg;
+    int adaptive_scale;
+    double adaptive_base_line_weight;
+    double boundary_weight;
+    int preserve_boundary;
+    int preserve_feature_curves;
+    double feature_curve_weight;
+    double max_feature_curve_deviation_ratio;
+    double circle_fit_relative_threshold;
+    double ellipse_fit_relative_threshold;
+    double near_circle_axis_ratio_tolerance;
+    int min_feature_loop_vertices;
+    int min_circular_feature_loop_vertices;
+    int use_normal_tensor_features;
+    double normal_tensor_feature_threshold;
+    double normal_tensor_min_edge_alignment;
+    int normal_tensor_smoothing_iterations;
+    int normal_tensor_scale_count;
+    double min_triangle_quality;
+    double max_normal_deviation_deg;
+    double max_local_error;
+    double max_local_error_ratio;
+    int prevent_local_intersections;
+    int verbose;
+    ManuMeshFeatureProtectionMode feature_protection_mode;
+};
+
+struct LegacyV1SimplifyReportLayout {
+    std::size_t struct_size;
+    unsigned int abi_version;
+    int initial_vertices;
+    int initial_faces;
+    int final_vertices;
+    int final_faces;
+    int collapsed_edges;
+    int rejected_collapses;
+    int solver_fallbacks;
+    int queue_rebuilds;
+    int feature_loops;
+    int circular_feature_loops;
+    int feature_vertices;
+    int normal_tensor_feature_edges;
+    int feature_rejected_collapses;
+    int primitive_feature_rejected_collapses;
+    int generic_feature_rejected_collapses;
+    int boundary_rejected_collapses;
+    int topology_rejected_collapses;
+    int normal_flip_rejected_collapses;
+    int quality_rejected_collapses;
+    int self_intersection_rejected_collapses;
+    int curve_budget_rejected_collapses;
+    int error_rejected_collapses;
+    int projected_feature_placements;
+    ManuMeshSimplifyTerminationReason termination_reason;
+    double min_applied_line_weight;
+    double max_applied_line_weight;
+};
+
+struct LegacyV1MeshStatsLayout {
+    std::size_t struct_size;
+    unsigned int abi_version;
+    int vertices;
+    int faces;
+    int edges;
+    int boundary_edges;
+    int non_manifold_edges;
+    double area;
+    double mean_triangle_quality;
+    double min_triangle_quality;
+    double mean_edge_length;
+    double edge_length_cv;
+};
+
+static_assert(
+    sizeof(LegacyV1SimplifyOptionsLayout) == offsetof(ManuMeshSimplifyOptions, loop_trace_angle_deg),
+    "ManuMeshSimplifyOptions v1 prefix layout changed"
+);
+static_assert(
+    offsetof(LegacyV1SimplifyOptionsLayout, feature_protection_mode) ==
+        offsetof(ManuMeshSimplifyOptions, feature_protection_mode),
+    "ManuMeshSimplifyOptions v1 field layout changed"
+);
+static_assert(
+    sizeof(LegacyV1SimplifyReportLayout) == offsetof(ManuMeshSimplifyReport, traced_feature_edges),
+    "ManuMeshSimplifyReport v1 prefix layout changed"
+);
+static_assert(
+    offsetof(LegacyV1SimplifyReportLayout, max_applied_line_weight) ==
+        offsetof(ManuMeshSimplifyReport, max_applied_line_weight),
+    "ManuMeshSimplifyReport v1 field layout changed"
+);
+static_assert(
+    offsetof(LegacyV1MeshStatsLayout, edge_length_cv) == offsetof(ManuMeshMeshStats, edge_length_cv),
+    "ManuMeshMeshStats v1 field layout changed"
+);
+
+constexpr std::size_t kLegacyV1SimplifyOptionsSize = sizeof(LegacyV1SimplifyOptionsLayout);
+constexpr std::size_t kLegacyV1SimplifyReportSize = sizeof(LegacyV1SimplifyReportLayout);
+constexpr std::size_t kLegacyV1MeshStatsSize = sizeof(LegacyV1MeshStatsLayout);
 
 void clearError(ManuMeshContext* context) {
     if (context) {
@@ -324,33 +434,37 @@ ManuMeshStatus manumesh_generate_mesh(ManuMeshContext* context, const char* name
     }
 }
 
+ManuMeshStatus manumesh_simplify_options_init_with_size(ManuMeshSimplifyOptions* options, size_t struct_capacity) {
+    return manumesh::api::initializeSimplifyOptions(options, struct_capacity);
+}
+
+ManuMeshStatus manumesh_simplify_report_init_with_size(ManuMeshSimplifyReport* report, size_t struct_capacity) {
+    return manumesh::api::initializeSimplifyReport(report, struct_capacity);
+}
+
+ManuMeshStatus manumesh_mesh_stats_init_with_size(ManuMeshMeshStats* stats, size_t struct_capacity) {
+    return manumesh::api::initializeMeshStats(stats, struct_capacity);
+}
+
 void manumesh_simplify_options_init(ManuMeshSimplifyOptions* options) {
-    if (!options) {
-        return;
-    }
-    manumesh::api::initializeSimplifyOptions(*options);
+    (void)manumesh_simplify_options_init_with_size(options, kLegacyV1SimplifyOptionsSize);
 }
 
 void manumesh_simplify_report_init(ManuMeshSimplifyReport* report) {
-    if (!report) {
-        return;
-    }
-    manumesh::api::initializeSimplifyReport(*report);
+    (void)manumesh_simplify_report_init_with_size(report, kLegacyV1SimplifyReportSize);
 }
 
 void manumesh_mesh_stats_init(ManuMeshMeshStats* stats) {
-    if (!stats) {
-        return;
-    }
-    manumesh::api::initializeMeshStats(*stats);
+    (void)manumesh_mesh_stats_init_with_size(stats, kLegacyV1MeshStatsSize);
 }
 
-ManuMeshStatus manumesh_simplify_mesh(
+ManuMeshStatus manumesh_simplify_mesh_with_report_size(
     ManuMeshContext* context,
     const ManuMeshMeshHandle* input,
     const ManuMeshSimplifyOptions* options,
     ManuMeshMeshHandle* output,
-    ManuMeshSimplifyReport* report
+    ManuMeshSimplifyReport* report,
+    size_t report_capacity
 ) {
     clearError(context);
     if (!input || !output) {
@@ -366,7 +480,7 @@ ManuMeshStatus manumesh_simplify_mesh(
         }
         if (report) {
             std::string outputError;
-            if (!manumesh::api::validateSimplifyReportOutput(*report, outputError)) {
+            if (!manumesh::api::validateSimplifyReportOutput(report, report_capacity, outputError)) {
                 return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, outputError);
             }
         }
@@ -375,7 +489,10 @@ ManuMeshStatus manumesh_simplify_mesh(
         manumesh::simplification::QEMSimplifier simplifier(cppOptions);
         output->mesh = simplifier.simplify(input->mesh, &cppReport);
         if (report) {
-            manumesh::api::fillSimplifyReport(cppReport, *report);
+            const ManuMeshStatus reportStatus = manumesh::api::fillSimplifyReport(cppReport, report, report_capacity);
+            if (reportStatus != MANUMESH_STATUS_OK) {
+                return fail(context, reportStatus, "Failed to initialize the simplify report output buffer.");
+            }
         }
         return MANUMESH_STATUS_OK;
     } catch (const std::exception& ex) {
@@ -385,24 +502,40 @@ ManuMeshStatus manumesh_simplify_mesh(
     }
 }
 
-ManuMeshStatus
-manumesh_compute_mesh_stats(ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshMeshStats* stats) {
+ManuMeshStatus manumesh_simplify_mesh(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* input,
+    const ManuMeshSimplifyOptions* options,
+    ManuMeshMeshHandle* output,
+    ManuMeshSimplifyReport* report
+) {
+    const size_t reportCapacity = report ? kLegacyV1SimplifyReportSize : 0;
+    return manumesh_simplify_mesh_with_report_size(context, input, options, output, report, reportCapacity);
+}
+
+ManuMeshStatus manumesh_compute_mesh_stats_with_size(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshMeshStats* stats, size_t stats_capacity
+) {
     clearError(context);
     if (!mesh || !stats) {
         return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and stats output pointers must be valid.");
     }
     try {
         std::string outputError;
-        if (!manumesh::api::validateMeshStatsOutput(*stats, outputError)) {
+        if (!manumesh::api::validateMeshStatsOutput(stats, stats_capacity, outputError)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, outputError);
         }
-        manumesh::api::fillMeshStats(manumesh::analysis::computeMeshStats(mesh->mesh), *stats);
-        return MANUMESH_STATUS_OK;
+        return manumesh::api::fillMeshStats(manumesh::analysis::computeMeshStats(mesh->mesh), stats, stats_capacity);
     } catch (const std::exception& ex) {
         return translateException(context, ex);
     } catch (...) {
         return translateUnknownException(context);
     }
+}
+
+ManuMeshStatus
+manumesh_compute_mesh_stats(ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshMeshStats* stats) {
+    return manumesh_compute_mesh_stats_with_size(context, mesh, stats, kLegacyV1MeshStatsSize);
 }
 
 } // extern "C"

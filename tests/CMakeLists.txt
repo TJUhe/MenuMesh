@@ -285,6 +285,7 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/core/core_tests.cpp
   unit/mesh_edit/mesh_edit_tests.cpp
   unit/api/c_api_diagnostics_tests.cpp
+  unit/api/c_api_legacy_init_tests.cpp
   unit/api/c_api_mesh_tests.cpp
   unit/api/c_api_simplify_abi_tests.cpp
   unit/feature_detection/FeatureDetectionTestSupport.cpp
@@ -314,6 +315,13 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/simplification/simplification_placement_tests.cpp
   unit/simplification/simplification_quality_refinement_tests.cpp
   unit/simplification/simplification_texture_tests.cpp
+)
+
+# This source disables the public size-aware aliases before its
+# first CApi.h include so that it can exercise the legacy exported symbols.
+set_source_files_properties(
+  unit/api/c_api_legacy_init_tests.cpp
+  PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
 )
 
 # Test cases that need the large meshes under tests/data/external (or run for

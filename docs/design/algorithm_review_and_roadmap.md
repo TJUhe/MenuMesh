@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 247 个启用的非性能 CTest（快速套件 236 个 + external 11 个，2026-07-15 复核）。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。2026-07-09 的特征识别升级记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)；2026-07-11 落地的确定性光滑曲率特征检测见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 CTest 发现结果（249 个测试，其中 1 个手工性能测试默认禁用；2026-07-15 复核）。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。2026-07-09 的特征识别升级记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md)；2026-07-11 落地的确定性光滑曲率特征检测见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
 
 ## 当前理解框架
 
@@ -21,7 +21,7 @@ ManuMesh 的简化器应按四层阅读：
 | line quadrics | 已实现 `--method line` 和 `lineWeight`，作为候选排序成本的切向正则项；`adaptiveScale` 模式下按 Wang 2008 解耦，`featureBoost` 只作为逐顶点队列优先级因子（`priorityScale`），不再进入 quadric 与 placement 求解。 |
 | 权重模式 | `uniform`、`dihedral`、`normal-tensor`、`height`、`xband`。 |
 | 特征检测 | 已作为 `feature_detection` 平级算法模块实现，支持边界、非流形边、二面角边、normal-tensor 弱特征、feature graph、cleanup、loop tracing，并用 `loopTraceAngleDeg` 区分 evidence 阈值和 loop ownership 阈值；二面角为绕向感知的有向角（可识别 >90° 反折边，绕向不一致时回退无符号角并计入 `inconsistentWindingEdges`）；normal tensor 已接入局部尺度归一化、多尺度 persistence 和 persistent score；全网格辅助结构（法向、边信息、邻接、局部边长）经 `FeatureDetectionCache` 构建一次全管线复用。 |
-| 光滑曲率特征检测 | 2026-07-11 已以 opt-in 落地并于 2026-07-12 升级（`FeatureOptions::useSmoothCurvatureFeatures`，默认 `false`）：多尺度鲁棒**三次 Monge** 拟合、带符号主曲率、解析 extremality（`e_i = ∇κ_i·t_i`）、Ohtake 边零交叉极值判据、跨尺度 persistence，全程确定性、无学习成分；与硬证据只在显式 `FeatureGraph` 汇合。设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。 |
+| 光滑曲率特征检测 | 2026-07-11 已以 opt-in 落地并于 2026-07-12/13 升级（`FeatureOptions::useSmoothCurvatureFeatures`，默认 `false`）：多尺度鲁棒**三次 Monge** 拟合、带符号主曲率、解析 extremality（`e_i = ∇κ_i·t_i`）、Ohtake 边零交叉极值判据、cyclideness 门控和跨尺度支持计票，全程确定性、无学习成分。当前 persistence 不要求支持尺度相邻，也不要求最粗尺度支持；每个尺度与最佳尺度比较符号、切向和分数。与硬证据只在显式 `FeatureGraph` 汇合。设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。 |
 | 弱毛刺清理 | 除按边数剪枝外，新增 opt-in 的 Yoshizawa 组件级无量纲强度过滤 `featureGraphMinWeakSpurStrength`（`T = (∫ds)·(∫strength ds)`，默认 0 = 旧行为，仅 C++ `FeatureOptions` 暴露）；端点 gap 桥接采用 Yoshizawa 角度三条件。 |
 | 纹理感知简化 | 已以 opt-in 落地（`SimplifyOptions::preserveTexture`，默认 `false`，仅 C++ API，CLI 未暴露）：几何 quadric 保持 4×4，纹理只作为局部标量排序代价（`textureWeight`）加 UV chart 配对与有符号面积硬过滤（`textureSeamTolerance`、`minTextureAreaRatio`）；关闭时几何输出与旧路径 bit-exact。设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。 |
 | UV 数据模型与 IO | `Mesh::faceTexCoords` / `PlainMesh::faceTexCoords`（`PlainVec2`、`PlainFaceTexCoords`）存储角拥有的逐面逐角 UV；OBJ 读取升级为多边形网格自动三角化并保留逐角 `vt` 索引。 |
@@ -54,6 +54,8 @@ ManuMesh 的简化器应按四层阅读：
 6. C ABI 输入结构体依赖 `struct_size` 和 `abi_version`，外部调用必须初始化；纯输出 report/stats 由 size-aware 入口按显式容量初始化。同一 ABI 版本内允许旧尾部尺寸，缺失字段使用默认值。
 7. smooth-curvature 通道默认关闭：CAD/STL 硬边与扫描/自由曲面需要不同阈值和验证集；在带标注扫描 benchmark 就绪前不应默认开启。
 8. 纹理保护启用时固定拓扑质量精修轮暂时跳过（该顶点重定位阶段尚未约束 UV 失真）；`textureWeight` 只影响候选排序，不提供全局 UV 失真上界。
+9. `featureComponentMinConfidence` 目前只决定 `highConfidenceFeatureComponents` 的报告计数，不会过滤 component、loop 或 hard protection；真正进入 feature-curve soft quadric 的连续缩放是 `0.35 + 0.65 * confidence`。
+10. graph cleanup 的 endpoint gap bridge 有双端切向规则；close-junction bridge 当前只看局部尺度距离并采用一对一贪心匹配，密集且彼此靠近的独立特征网络仍有误连风险。
 
 ## 短期路线
 

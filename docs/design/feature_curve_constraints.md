@@ -32,7 +32,7 @@ normal tensor 弱特征现在还会记录每个顶点的局部边长尺度、多
 | 硬保护策略 | `featureProtectionMode` | 决定哪些 loop/边可以触发硬拒绝。 |
 | trace 诊断 | `tracedFeatureEdges`、`untracedFeatureEdges` | 区分 feature evidence 和可被 loop ownership 消费的边。 |
 | tensor 尺度诊断 | `normalTensorScoredVertices`、`maxNormalTensorPersistentScore`、`meanNormalTensorLocalScale`、`meanNormalTensorPersistence` | 判断弱特征证据是否有稳定多尺度支持。 |
-| graph cleanup | `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupMergedJunctions` | 在 primitive fitting 前修复短断裂、去掉 tensor-only 短 spur，并记录 cleanup 影响。 |
+| graph cleanup | `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupMergedJunctions` | 在 primitive fitting 前修复短断裂、去掉 normal-tensor/smooth-curvature 弱 spur，并记录 cleanup 影响。 |
 | component confidence | `FeatureComponent`、`meanFeatureComponentConfidence`、`weakFeatureComponents` | 把强/弱证据比例、闭合率、junction、tensor persistence 和 primitive residual 汇总成可被 QEM 消费的 support 置信度。 |
 
 ## 每一层的由来
@@ -55,7 +55,7 @@ small cycle basis 和 circular fallback 现在按 trace connected component 运�
 
 `FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/smooth-curvature/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、curvature persistence、primitive residual 和 confidence。component confidence 把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据（boundary/dihedral/non-manifold）始终占主导。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
 
-Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 会被桥接（桥接方向须满足 Yoshizawa 角度规则——连接段须近似延续两条线的切向），近 junction 会被桥接，短 tensor-only spur 会被删除。除按边数剪枝（`featureGraphMaxWeakSpurEdges`）外，`featureGraphMinWeakSpurStrength`（默认 0 = 旧行为，仅 C++ `FeatureOptions` 暴露）为正时改按 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。
+Graph cleanup 默认开启，使用局部平均边长归一化阈值：短 endpoint gap 的连接段必须同时延续两端链切向；close junction 当前只按局部尺度距离桥接，没有切向/法向/source-kind 复核，因此存在误合并邻近曲线网络的风险；短 weak-evidence spur 覆盖 normal-tensor 与 smooth-curvature 两通道，并要求没有 boundary/dihedral/non-manifold/cleanup-bridge 支持。除按边数剪枝（`featureGraphMaxWeakSpurEdges`）外，`featureGraphMinWeakSpurStrength`（默认 0 = 旧行为，仅 C++ `FeatureOptions` 暴露）为正时改按 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决。可用 `--no-feature-graph-cleanup` 关闭，或用 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 调参。cleanup 新增的桥接边不会伪装成 raw feature evidence，而是通过 `graph_cleanup_*` 诊断单独报告。源码：`FeatureGraphCleanup.cpp:53-223, 247-413, 493-505`。
 
 QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。强 CAD loop 接近原始 `featureCurveWeight`，弱 tensor support 会先作为较软成本进入排序；是否硬保护仍由 `featureProtectionMode` 决定。
 

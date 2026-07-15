@@ -2,6 +2,12 @@
 
 ## 2026-07-15
 
+### 特征识别文档源码校准
+
+- 按当前 `src/feature_detection/` 逐函数复核特征识别文档，修正 smooth-curvature persistence 的旧描述：实现按最佳尺度统计所有请求尺度的支持票数，不要求支持尺度相邻，也不要求最粗尺度必须支持。
+- 扩写 `manumesh-feature-recognition-pipeline.html`、`manumesh-loop-construction.html` 和交付开发者指南，明确 7 段 pipeline、退化面 evidence 降级、强/弱证据排斥关系、normal-tensor 与 smooth-curvature 的不同 edge alignment 规则、cleanup 上限与误连风险、五段 recovery、primitive fitting、component confidence 公式、CLI/QEM 消费边界和逐函数源码定位。
+- 修正公共 `FeatureOptions` 与 CLI 帮助中的文档语义：`minFeatureLoopVertices` 是 recovered-cycle/primitive-fit 门槛，普通 traced chain 仍会报告；weak spur cleanup 同时覆盖 normal-tensor 与 smooth-curvature 证据。
+
 ### 拓扑与算法
 
 - edge collapse 改为比较完整单纯复形 link：除共同邻点外同时检查 endpoint link 的共同对边，拒绝四面体边坍缩后生成重复面的情况；边界虚拟封口规则补充 isolated open triangle 拒绝，避免二维分量降维消失。

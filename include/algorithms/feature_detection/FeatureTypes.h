@@ -45,7 +45,9 @@ struct FeatureOptions {
     double ellipseFitRelativeThreshold = 0.05;
     /// Axis-ratio tolerance below which an ellipse is treated as near-circular.
     double nearCircleAxisRatioTolerance = 0.08;
-    /// Minimum ordered vertices required before a traced curve is reported.
+    /// Minimum vertices required by recovered-cycle acceptance and primitive fitting.
+    /// Directly traced open chains and closed traces are still reported below this
+    /// threshold; they simply do not receive a primitive fit through that path.
     int minFeatureLoopVertices = 8;
     /// Enables tensor-derived weak feature candidates in addition to graph edges.
     bool useNormalTensorFeatures = true;
@@ -88,7 +90,8 @@ struct FeatureOptions {
     bool cleanupFeatureGraph = true;
     /// Maximum endpoint gap, in local average-edge-length units, bridged by cleanup.
     double featureGraphGapLengthRatio = 1.25;
-    /// Maximum weak normal-tensor spur length removed by cleanup.
+    /// Maximum weak-evidence (normal-tensor or smooth-curvature) spur length
+    /// removed by the legacy edge-count cleanup rule.
     int featureGraphMaxWeakSpurEdges = 2;
     /// Confidence threshold used when reporting high-confidence components.
     double featureComponentMinConfidence = 0.35;

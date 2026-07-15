@@ -39,7 +39,7 @@ VS Code 中对应常用任务：
 | `primitive_feature_rejected_collapses` | primitive loop 保护拒绝。 |
 | `generic_feature_rejected_collapses` | generic feature 拒绝，过高可能说明过度锁边。 |
 | `feature_components` / `weak_feature_components` / `high_confidence_feature_components` | cleanup 后 feature graph component 的总数、弱证据 component 数和高置信 component 数，用来判断弱特征是否已经形成可保护支撑。 |
-| `graph_cleanup_bridged_gaps` / `graph_cleanup_removed_spurs` / `graph_cleanup_merged_junctions` | 特征图 cleanup 实际桥接短 gap、删除 tensor-only 短 spur、合并近 junction 的数量；这些字段帮助区分原始 evidence 与后处理修复。 |
+| `graph_cleanup_bridged_gaps` / `graph_cleanup_removed_spurs` / `graph_cleanup_merged_junctions` | 特征图 cleanup 实际桥接 endpoint gap、删除 normal-tensor/smooth-curvature 弱 spur、合并近 junction 的数量。endpoint bridge 有双端切向门控，close-junction bridge 当前仅按距离，因此 merged-junction 计数异常升高时要排查误合并。 |
 | `mean_feature_component_confidence` / `min_feature_component_confidence` | component-level confidence，综合强/弱证据比例、闭合率、junction、primitive residual 和 tensor persistence；QEM 的特征曲线软成本会消费该置信度。 |
 | `mean_normal_tensor_local_scale` / `mean_normal_tensor_persistence` | normal-tensor 弱特征的局部尺度与多尺度 persistence 诊断，适合和 `feature-benchmark` 的 precision/recall 一起看。 |
 | `boundary_rejected_collapses` | 边界保护拒绝。 |

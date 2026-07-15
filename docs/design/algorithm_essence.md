@@ -171,7 +171,7 @@ persistentFeatureScore = f(featureScore, averageFeatureScore, persistentScales)
 5. 由三次块**解析求出 extremality** `e_i = ∇κ_i · t_i`（三阶方向型 `e ∝ c₀t₁³ + c₁t₁²t₂ + c₂t₁t₂² + c₃t₂³`），不再对邻居曲率做差分；
 6. 用 Ohtake 边零交叉判据分类 ridge/valley：主方向是 line field，先对邻居的切向与 extremality 做符号同步，再要求（a）边两端都通过曲率支配性测试（ridge 要求 `κ_max > |κ_min|`，valley 对偶），（b）extremality 沿近似跟随主方向的入射边变号，（c）两端一阶极大测试成立；零交叉点用反比插值归属到 |e| 较小的端点，使检测带保持一个顶点宽；
 7. 打分融合尺度归一化曲率幅值、各向异性、零交叉强度（|e| 均值乘切向边跨度）和拟合残差质量；
-8. 跨相邻尺度符号与曲线切向一致且响应存活到最粗尺度才保留（persistence）；
+8. 以最佳尺度为参照，在全部请求尺度中统计“分数达到绝对阈值与最佳分数 30% 中较大者、符号一致、曲线切向一致”的支持票数；当前实现是纯支持尺度计票，不要求支持尺度相邻，也不要求最粗尺度必须支持；
 9. 两端点在符号、切向、尺度支持和边对齐上一致时，才把顶点证据转成 mesh-edge 证据。
 
 分数无量纲，网格均匀缩放不需要重新调曲率阈值。默认 `smoothCurvatureBaseNeighborhoodRings = 2`，因为 one-ring 拟合对噪声过敏。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面两种场景需要不同阈值和验证集；不启用时既有硬特征行为完全不变。诊断字段包括 `FeatureAnalysis::smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、`maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、`meanSmoothCurvatureLocalScale`、`meanSmoothCurvaturePersistence`，graph edge 与 component 分别记录 `smoothCurvature` 来源和 `smoothCurvatureEdges`、`meanCurvaturePersistence`。整条链路是确定性数值几何，不含任何神经/学习成分。

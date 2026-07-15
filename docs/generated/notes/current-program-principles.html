@@ -265,7 +265,7 @@ img, svg, canvas, video {
       <tr><td>特征加权 Line Quadric</td><td>非 uniform 模式下 <code>w_i=lineWeight+featureBoost*s_i</code>；<code>s_i</code> 来自 dihedral、normal-tensor persistence、height 或 xband。normal-tensor 模式只给满足 <code>normalTensorMinPersistentScales</code> 的顶点写入 persistent score。</td><td><code>weightMode=uniform</code>，<code>featureBoost=0.05</code>；常用调试值 <code>dihedral/normal-tensor + 0.08</code>。<code>featureAngleDeg=40</code>，<code>normalTensorFeatureThreshold=0.16</code>，<code>normalTensorScaleCount=1</code>。</td><td>让硬边、弱 ridge 或指定区域获得更高排序成本；feature evidence 参考 M007/M012/M013/M015/M016，弱特征参考 M026。</td></tr>
       <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，当前实现给 placement 只加干净的 <code>adaptiveBaseLineWeight*area_i*Q_l</code>；<code>featureBoost</code> 不再缩放 <code>Q_i</code>，而是写成逐顶点队列优先级因子 <code>priorityScale=1+max(0,featureBoost)*s_i</code>，候选边取两端点的 max，只乘在排序 cost 上（Wang 2008 的“优先级/位置解耦”）。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。非 adaptiveScale 路径保持旧的 <code>w_i=lineWeight+featureBoost*s_i</code> 行为。</td><td>用于跨尺度模型的 line weight 可比性，同时避免 featureBoost 污染 placement 求解；参考 M029 Wang 2008。</td></tr>
       <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|*mm^T</code>，秩 1。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
-      <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 影响诊断/策略判断。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
+      <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 只影响 high-confidence component 报告计数，不过滤 component 或保护。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
       <tr><td>Primitive 投影与硬过滤</td><td>圆/椭圆/多边形不是当前 <code>Quadrics.cpp</code> 里的单独径向二次型；当前代码用 tangent-line quadric 排序，再由 <code>projectToCircle/projectToEllipse/projectToPolygonal</code>、<code>maxFeatureCurveDeviationRatio</code> 和 <code>featureProtectionMode</code> 控制最终位置与是否拒绝折叠。</td><td><code>maxFeatureCurveDeviationRatio=0</code> 表示关闭曲线漂移预算；<code>featureProtectionMode=PrimitiveCurves</code>。圆/椭圆阈值默认均为 <code>0.05</code>。</td><td>把“软成本排序”和“硬合法性保护”分开，符合 M030-M033 edge-collapse 工程建议。</td></tr>
     </tbody>
   </table>
@@ -294,7 +294,7 @@ img, svg, canvas, video {
         <tr><td>这会不会让最小误差位置更偏？</td><td>会。它会偏离纯 plane QEM 的最优点，但这个偏移的方向是“少做切向漂移”。如果纯 plane QEM 本来在切向不满秩或近似不满秩，那么这个偏移反而让候选 placement 更稳定。</td><td><code>solvePlacementCandidates()</code> 用合并后的 <code>Q_i+Q_j</code> 求解</td></tr>
         <tr><td>为什么特征附近要比普通平面更强？</td><td>普通平面内的小滑动通常视觉影响不大；特征线附近同样大小的滑动可能跨过 CAD patch boundary、浅 ridge 或孔边。提高 <code>w_i</code> 让这些 collapse 排序靠后，给非特征区域优先被简化的机会。</td><td><code>w_i=lineWeight+featureBoost*s_i</code></td></tr>
         <tr><td>边界线也靠 line 权重保护吗？</td><td>不是只靠它。开边界在 dihedral weight mode 下会得到高 feature score，从而减少切向漂移；但真正的边界形状和拓扑还要看 <code>boundaryWeight</code> 的边界 plane quadric、<code>preserveBoundary</code> 的硬策略和 topology guards。</td><td><code>addBoundaryQuadrics()</code>，<code>preserveBoundary</code></td></tr>
-        <tr><td>normal tensor 弱特征会不会误检后过度保护？</td><td>会有这个风险。所以 normal-tensor 路径现在用 persistent score、最小 persistent scales、edge alignment 和 component confidence 来减少单尺度噪声；弱特征更适合先作为软成本进入 QEM，而不是一上来全量 hard lock。</td><td><code>normalTensorFeatureThreshold</code>，<code>normalTensorMinPersistentScales</code>，<code>featureComponentMinConfidence</code></td></tr>
+        <tr><td>normal tensor 弱特征会不会误检后过度保护？</td><td>会有这个风险。normal-tensor 路径用 persistent score、最少支持尺度和 edge alignment 降低单尺度噪声；component confidence 在 <code>Quadrics.cpp:195</code> 通过 <code>0.35 + 0.65·confidence</code> 连续缩放软 quadric。注意 <code>featureComponentMinConfidence</code> 只是报告阈值，不会过滤弱特征或关闭保护。</td><td><code>normalTensorFeatureThreshold</code>，<code>normalTensorMinPersistentScales</code>，<code>VertexFeature::confidence</code></td></tr>
       </tbody>
     </table>
     <p>可以用一个二维化的例子看直觉。假设局部平面是 <code>z=0</code>，纯 plane QEM 是 <code>E_plane=2*z^2</code>。候选点从 <code>(10,5,0)</code> 滑到 <code>(11,5,0)</code> 时，纯 plane QEM 代价仍是 0，因为它没有离开平面。加入普通 line quadric 后，代价多出 <code>0.002</code>；如果 normal-tensor persistent score 是 <code>0.6</code> 且 <code>featureBoost=0.08</code>，同样 1 mm 切向滑动代价变成 <code>0.098</code>。这并不是说几何误差突然大了 49 倍，而是系统在告诉优先队列：“这里像特征支撑，不要把切向漂移很大的 collapse 排得太靠前。”</p>
@@ -1202,7 +1202,7 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <li>由第一/第二基本形式解广义自伴特征问题，得到两条带符号主曲率与主方向；</li>
 <li>由三次项解析计算 extremality <code>e_i = ∇κ_i · t_i</code>，并用 Ohtake（M011）的边零交叉极值判据判定 ridge/valley：极值点位于 <code>e</code> 沿网格边变号处（替代旧的“邻居法曲率对比”采样，同样排除圆柱侧壁这类“曲率大但不是极值”的均匀弯曲区域）；</li>
 <li>打分融合尺度归一化曲率幅值、各向异性、极值对比度、拟合残差质量；</li>
-<li>只有跨相邻尺度符号与曲线切向一致、且响应存活到最粗尺度时才保留（persistence，最粗尺度支持仍是必要条件）；</li>
+<li>以最高分尺度为参照，让所有请求尺度独立投票：分数须达到 <code>max(绝对阈值, 0.30·bestScore)</code>，并满足 signed kind 与切向一致；支持尺度不要求相邻，最粗尺度没有特殊否决权。精确公式与源码索引见 <a href="manumesh-feature-recognition-pipeline.html#smooth-curvature">特征识别全链路</a>（<code>SmoothCurvature.cpp:579-639</code>）；</li>
 <li>两端点在符号、切向、尺度支持、边对齐上一致时，才把顶点证据转成 mesh-edge 证据。</li>
 </ol>
 <p><code>FeatureOptions</code> 的新字段与默认值：<code>useSmoothCurvatureFeatures=false</code>（opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面两种场景需要不同阈值和验证集）、<code>smoothCurvatureFeatureThreshold=0.015</code>、<code>smoothCurvatureMinEdgeAlignment=0.55</code>、<code>smoothCurvatureMinTangentConsistency=0.65</code>、<code>smoothCurvatureBaseNeighborhoodRings=2</code>（one-ring 拟合对噪声过敏）、<code>smoothCurvatureScaleCount=3</code>、<code>smoothCurvatureMinPersistentScales=2</code>、<code>smoothCurvatureRobustFitIterations=2</code>。诊断层面：graph edge 来源标记新增 <code>smoothCurvature</code>，component 统计新增 <code>smoothCurvatureEdges</code>、<code>meanCurvaturePersistence</code>，<code>FeatureAnalysis</code> 新增 <code>smoothCurvatureFeatureEdges</code>、<code>smoothCurvatureScoredVertices</code>、<code>maxSmoothCurvatureFeatureScore</code>、<code>maxSmoothCurvaturePersistentScore</code>、<code>meanSmoothCurvatureLocalScale</code>、<code>meanSmoothCurvaturePersistence</code>。CLI 侧 <code>feature-report</code> / <code>feature-benchmark</code> / <code>feature-compare</code> 新增 8 个 <code>--smooth-curvature-*</code> 选项，报告与 CSV 新增 <code>smooth_curvature_*</code> 系列列；<code>simplify</code> 命令显式拒绝这些选项——它们属于 feature-analysis 选项，C++ 简化调用方可以消费一份预计算的带 smooth-curvature 证据的 <code>FeatureAnalysis</code>。</p>
@@ -1211,8 +1211,8 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <p>一堆边还不能保护特征。QEM 需要知道“哪些顶点属于同一条曲线”“这条曲线闭合吗”“junction 是真实分叉还是噪声造成的断裂”。因此 <code>FeatureGraph.cpp</code> 先把候选 edge 加入 trace graph，<code>FeatureGraphCleanup.cpp</code> 再做三类整理。</p>
 <ol class="feature-flow-list">
 <li><strong>短 gap 桥接：</strong>如果两个 endpoint 在局部尺度下足够近、方向也合理，就用 <code>cleanupBridge=true</code> 的边补上断裂。bridge 会被报告出来，不会伪装成原始 dihedral/boundary。</li>
-<li><strong>弱 spur 删除：</strong>如果一个短枝只由 tensor-only 弱证据支持，且没有强 CAD 证据，就删除。这样保留弱特征 recall 的同时控制假阳性。</li>
-<li><strong>近 junction 合并：</strong>很多 STL 在角点附近会出现多个几乎重合的端点；合并可减少“本来闭合的 loop 被切成几段”的情况。</li>
+<li><strong>弱 spur 删除：</strong>如果一个短枝只由 normal-tensor 或 smooth-curvature 弱证据支持，且没有 boundary/dihedral/non-manifold/cleanup-bridge 支持，就按边数或可选 Yoshizawa 强度删除。</li>
+<li><strong>近 junction 合并：</strong>很多 STL 在角点附近会出现多个几乎重合的分支点；合并可减少断裂 loop，但当前实现只有局部尺度距离门控，没有 endpoint bridge 的双端切向复核，存在误合并风险。</li>
 </ol>
 <p>这里对应 M016 的 CAD feature graph 连续性，也对应 M024/M025 的 segmentation 前提：没有闭合、连续、可追踪的边界，后续 patch segmentation 或 primitive fitting 就会泄漏。M026 CWF 则提醒我们，弱特征要先 consolidated 成稳定 support，再决定是软保护、硬保护还是后处理 relocation。</p>
 
@@ -1259,7 +1259,7 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <tr><th>阶段</th><th>主要输入</th><th>主要输出</th><th>失败信号</th><th>源码与论文锚点</th></tr>
 <tr><td>1. 邻接建图</td><td>三角形索引、顶点坐标。</td><td>无向边到相邻面的 <code>MeshEdgeInfoMap</code>。</td><td>boundary 数异常、non-manifold 过多、后续二面角无法稳定计算。</td><td><code>MeshQueries.h</code>；M016、M018/M019。</td></tr>
 <tr><td>2. 强证据打分</td><td>边的相邻面数、面法向、二面角。</td><td>boundary / dihedral / non-manifold <code>FeatureGraphEdge</code> 候选。</td><td><code>dihedralFeatureEdges</code> 低于预期，通常先看 <code>featureAngleDeg</code> 和法向方向。</td><td><code>FeatureEvidence.cpp</code>；M007、M016。</td></tr>
-<tr><td>3. 弱证据打分</td><td>局部边长、顶点一环/多尺度邻域、面法向分布。</td><td><code>persistentFeatureScore</code>、<code>persistentScales</code>、crease tangent、tensor-only edge。</td><td>弱特征召回低看 threshold/persistence；假阳性多看端点最小分数和 tangent alignment。</td><td><code>NormalTensor.cpp</code>、<code>FeatureEvidence.cpp</code>；M009、M012/M013、M015。</td></tr>
+<tr><td>3. 弱证据打分</td><td>局部边长、顶点一环/多尺度邻域、面法向分布。</td><td><code>persistentFeatureScore</code>、<code>persistentScales</code>、crease tangent、normal-tensor edge。</td><td>弱特征召回低看 threshold/persistence；假阳性多看两端点分数和 edge/tangent alignment。注意 normal-tensor 对齐使用两端最大值。</td><td><code>NormalTensor.cpp</code>、<code>FeatureEvidence.cpp:330-380</code>；M009、M012/M013、M015。</td></tr>
 <tr><td>3b. 光滑曲率打分（opt-in）</td><td>k-ring 邻域、局部平均边长、逐尺度 Monge patch 拟合。</td><td>带符号主曲率/方向、方向极值、persistence 过滤后的 smooth-curvature edge 证据。</td><td>平面误报看 threshold 与残差质量；漏检看 base rings/scale count；碎裂看 tangent consistency 与 edge alignment。</td><td><code>SmoothCurvature.cpp</code>、<code>FeatureEvidence.cpp</code>；M014/M042-M044、M026。</td></tr>
 <tr><td>4. trace eligibility</td><td>所有 edge evidence 和 trace 阈值。</td><td>进入 trace graph 的边集合。</td><td>诊断里有 feature edge 但没有 loop，先看 <code>loopTraceAngleDeg</code> 是否比 evidence 阈值更严。</td><td><code>FeatureGraph.cpp</code>；M018/M019。</td></tr>
 <tr><td>5. graph cleanup</td><td>候选边图、局部尺度、端点方向、证据强弱。</td><td>bridged gap、removed spur、merged junction、清理后的 component。</td><td><code>graphCleanupBridgedGaps</code> 很高说明断裂多；<code>RemovedSpurs</code> 很高说明 tensor 噪声多。</td><td><code>FeatureGraphCleanup.cpp</code>；M024/M025、M026。</td></tr>
@@ -1315,9 +1315,9 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 
 <table>
 <tr><th>cleanup 动作</th><th>做什么</th><th>为什么安全性可控</th><th>诊断字段</th></tr>
-<tr><td>短 gap 桥接</td><td>把两个相近 endpoint 用 cleanup bridge 连起来</td><td>距离阈值按局部平均边长缩放，不用全局绝对长度</td><td><code>graphCleanupBridgedGaps</code></td></tr>
-<tr><td>弱 spur 删除</td><td>删除很短的 tensor-only 小枝</td><td>只删没有 boundary/dihedral/non-manifold 支持的弱边</td><td><code>graphCleanupRemovedSpurs</code></td></tr>
-<tr><td>近 junction 合并</td><td>桥接距离很近的 junction</td><td>避免复杂 junction 附近出现断裂 loop</td><td><code>graphCleanupMergedJunctions</code></td></tr>
+<tr><td>短 gap 桥接</td><td>把两个相近 endpoint 用 cleanup bridge 连起来</td><td>距离按局部平均边长缩放，并要求连接段同时延续两端链切向</td><td><code>graphCleanupBridgedGaps</code></td></tr>
+<tr><td>弱 spur 删除</td><td>删除很短的 weak-evidence 小枝</td><td>覆盖 normal-tensor 与 smooth-curvature；只删没有 boundary/dihedral/non-manifold/cleanup-bridge 支持的边</td><td><code>graphCleanupRemovedSpurs</code></td></tr>
+<tr><td>近 junction 合并</td><td>桥接距离很近的 junction</td><td>仅按局部尺度距离，当前无切向门控；可能误合并邻近但无关的曲线网络</td><td><code>graphCleanupMergedJunctions</code></td></tr>
 </table>
 
 <p>cleanup 新加的边不会假装成原始二面角或边界证据，而是带 <code>cleanupBridge=true</code>。这点很重要：后续报告仍能区分“真实 evidence”与“为了闭合图而做的后处理”。</p>

@@ -3,7 +3,9 @@
 Date: 2026-07-11 (updated 2026-07-12: cubic Monge fit, analytic extremality,
 Ohtake edge zero-crossing criterion, Yoshizawa component-strength filter;
 updated 2026-07-13: per-crossing cyclideness gate against spurious responses
-on Dupin cyclides, exposed by the analytic torus fixture)
+on Dupin cyclides, exposed by the analytic torus fixture; updated 2026-07-15:
+current-source audit, pure supporting-scale vote semantics, exact edge acceptance,
+source locator, CLI/simplifier boundary, and current performance evidence)
 
 This upgrade is limited to triangle and polygon surface meshes. It does not
 introduce B-Rep entities, solid modeling, CAD feature trees, learned scoring,
@@ -24,6 +26,31 @@ ManuMesh therefore keeps two paths:
 Both paths meet only at the explicit `FeatureGraph`, where source ownership,
 continuity, junctions, cleanup, components, and confidence are available to
 downstream simplification and future remeshing adapters.
+
+## Current source contract
+
+The implementation, not an earlier design sketch, defines the current behavior.
+The important source locations are:
+
+| Responsibility | Source symbol | Current location |
+| --- | --- | --- |
+| Public controls and per-vertex result | `FeatureOptions`, `SmoothCurvatureOptions`, `SmoothCurvatureVertex` | `include/algorithms/feature_detection/FeatureTypes.h` |
+| Local normal and k-ring gathering | `computeAreaWeightedVertexNormals`, `gatherNeighborhood` | `src/feature_detection/SmoothCurvature.cpp:78`, `:102` |
+| Cubic Monge fit and robust solve | `fitScale` | `src/feature_detection/SmoothCurvature.cpp:147` |
+| Per-scale ridge/valley classification | `classifyScaleCandidate` | `src/feature_detection/SmoothCurvature.cpp:382` |
+| Cross-scale support vote | `computeSmoothCurvatureFeaturesCached` | `src/feature_detection/SmoothCurvature.cpp:531` |
+| Vertex evidence to mesh-edge evidence | `smoothCurvatureEdgeCandidate` | `src/feature_detection/FeatureEvidence.cpp:382` |
+| Evidence-source materialization | `SmoothCurvatureEvidenceStrategy`, `collectFeatureEdges` | `src/feature_detection/FeatureEvidence.cpp:493`, `:508` |
+| Graph cleanup and component confidence | `cleanupTraceGraph`, `summarizeFeatureComponents` | `src/feature_detection/FeatureGraphCleanup.cpp:493`, `:508` |
+| CLI option binding | `parseFeatureOptions` | `apps/manumesh/CliOptionBinding.cpp:95` |
+
+An earlier revision required the coarsest requested scale to support a candidate.
+That veto was removed because it suppressed real features whose physical width
+is smaller than the coarsest neighborhood. The current implementation is a pure
+supporting-scale vote: supporting scales need not be adjacent and the coarsest
+scale is not special. The regression
+`FeatureDetectionAnalytic.NarrowRidgeOnDenseSheetSurvivesCoarsestScale`
+protects this behavior.
 
 ## Algorithm
 
@@ -91,13 +118,48 @@ For every vertex and every requested topological scale:
 8. Score the candidate with scale-normalized curvature magnitude, anisotropy,
    zero-crossing strength (mean |e| times the tangential edge extent, in
    radius-normalized units), and fit residual quality.
-9. Keep support only when sign and curve tangent agree across nearby scales and
-   the response survives to the coarsest requested neighborhood.
+9. Select the valid scale with the highest score as the reference. Every
+   requested scale casts one support vote when all of the following hold:
+   (a) it is valid, (b) its score is at least
+   `max(persistenceThreshold, 0.30 * bestScore)`, (c) its signed ridge/valley
+   kind matches the reference, and (d) the absolute tangent dot product with
+   the reference is at least `minTangentConsistency`. Supporting scales do not
+   have to be adjacent, and the coarsest requested scale does not have to vote.
+   The implementation then computes
+
+   `persistenceRatio = persistentScales / scaleCount`
+
+   `persistentFeatureScore =
+      (0.65 * bestScore + 0.35 * meanSupportedScore)
+      * persistenceRatio * meanSupportedAlignment`
+
+   Unsupported scales contribute zero to `averageFeatureScore`, whose stored
+   value is `supportedScoreSum / scaleCount`.
 10. Convert persistent vertices to mesh-edge evidence only when both endpoints
     agree on sign, tangent, scale support, and edge alignment.
 
 The resulting score is dimensionless. Uniformly scaling a mesh does not require
 retuning the curvature threshold.
+
+## Mesh-edge acceptance
+
+Per-vertex evidence is diagnostic until it is converted into an explicit mesh
+edge by `smoothCurvatureEdgeCandidate`:
+
+| Gate | Exact current rule |
+| --- | --- |
+| Strong-evidence exclusion | Reject when the edge is already boundary, dihedral, or non-manifold. Also reject when either endpoint was marked as a discrete-feature vertex, producing a one-vertex exclusion zone around strong CAD evidence. |
+| Scale count | `min(endpointA.persistentScales, endpointB.persistentScales) >= smoothCurvatureMinPersistentScales`. |
+| Score | Both endpoint persistent scores must reach `smoothCurvatureFeatureThreshold`. |
+| Signed kind | Both endpoints must be nonzero and agree: ridge with ridge or valley with valley. |
+| Edge alignment | The edge direction must align with both endpoint curve tangents: `min(|d.tA|, |d.tB|) >= smoothCurvatureMinEdgeAlignment`. |
+| Endpoint tangent consistency | `|tA.tB| >= smoothCurvatureMinTangentConsistency`. |
+
+This is intentionally stricter than the current normal-tensor edge rule, which
+accepts direction alignment when the better-aligned endpoint reaches its
+threshold. A mesh edge may still carry both normal-tensor and smooth-curvature
+flags because the two weak strategies are evaluated independently after the
+strong-evidence gates.
 
 ## Public controls
 
@@ -141,6 +203,18 @@ The CLI exposes the same controls to `feature-report`, `feature-benchmark`, and
 
 Component confidence treats normal-tensor and smooth-curvature evidence as
 separate weak support. Hard evidence remains dominant.
+
+The per-source edge counters are evidence-channel counts. Because one graph edge
+may carry both weak flags, `normalTensorFeatureEdges + smoothCurvatureFeatureEdges`
+is not guaranteed to equal the number of unique weak graph edges. Likewise,
+cleanup bridges are appended to `FeatureGraph` but are not included in the
+original `featureEdges` evidence count.
+
+`featureComponentMinConfidence` is a reporting threshold only: it controls the
+`highConfidenceFeatureComponents` counter and does not delete a component or
+turn hard protection on/off. Simplification continuously scales the feature
+curve soft quadric by `0.35 + 0.65 * confidence` in
+`src/simplification/Quadrics.cpp`.
 
 ## Open-source implementation lessons
 
@@ -201,7 +275,30 @@ Remaining limitations:
 - incremental neighborhood updates after split/collapse are not implemented;
 - scan-specific benchmark fixtures with labeled ridge/valley curves are still
   needed before enabling this path by default;
-- the multiscale fit costs about 6 s on a 16k-face sphere, so the channel is
-  deliberately excluded from the fast-suite performance guard
-  (`tests/unit/perf/pipeline_perf_guard_tests.cpp`); its functional behavior
-  is covered on smaller analytic fixtures instead.
+- the channel is deliberately excluded from the mandatory 16k-face fast-suite
+  wall-clock guard because its cost depends strongly on requested rings, scale
+  count, robust iterations, and local valence. The disabled manual Release
+  benchmark (`FeatureDetectionPerf.DISABLED_AnalyzeTiming`) measured about
+  92 ms for the three-scale/two-robust-pass smooth stage on the current
+  8192-face bump fixture on the 2026-07-15 development machine. This number is
+  a local observation, not an API performance guarantee; mandatory tests keep
+  functional coverage on analytic fixtures and a separate fast guard for the
+  default dihedral + normal-tensor path.
+
+## Simplification boundary
+
+The feature-analysis CLI exposes all `--smooth-curvature-*` controls through
+`feature-report`, `feature-benchmark`, and `feature-compare`. The `simplify`
+command intentionally rejects those options. `SimplifyOptions` currently has no
+smooth-curvature fields, and `featureOptionsFromSimplifyOptions` therefore
+cannot enable this channel internally. C++ callers that need smooth-feature
+preservation must:
+
+1. call `detectFeatureCurves(mesh, featureOptions)` with
+   `useSmoothCurvatureFeatures = true`;
+2. pass the resulting `FeatureAnalysis` to
+   `QEMSimplifier::simplify(input, features, report)`.
+
+This boundary keeps feature policy out of the topology-edit loop and follows
+the explicit constrained-edge/data-adapter practice represented by CGAL PMP
+and OpenMesh.

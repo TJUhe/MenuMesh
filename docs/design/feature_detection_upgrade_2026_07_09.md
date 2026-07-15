@@ -31,7 +31,7 @@
 
 ## 继续完成的算法改进
 
-- Feature graph cleanup 已接入：`cleanupFeatureGraph` 默认开启，在 loop recovery 前删除短 tensor-only spur，并按局部平均边长桥接短 endpoint gap 和近 junction gap。CLI 参数为 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 和 `--no-feature-graph-cleanup`。
+- Feature graph cleanup 已接入：`cleanupFeatureGraph` 默认开启，在 loop recovery 前删除仅由 normal-tensor 或 smooth-curvature 支持的短弱 spur，并按局部平均边长桥接短 endpoint gap 和近 junction gap。endpoint bridge 有双端切向门控；close-junction bridge 当前只有距离门控。CLI 参数为 `--feature-graph-gap-ratio`、`--feature-graph-max-weak-spur-edges` 和 `--no-feature-graph-cleanup`。
 - Component-level confidence 已接入：`FeatureComponent` 汇总强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual 和 confidence；loop/vertex 记录 component id、confidence 和 weak-feature 标记。
 - QEM 联动已接入：feature-curve soft quadric 使用 `0.35 + 0.65 * confidence` 做温和缩放，强 CAD loop 接近原权重，弱证据 component 先作为软 support 消费。
 - 定量 benchmark 已接入第一版：`feature-benchmark input.stl labels.csv` 和 `benchmarkFeatureEdges()` 支持 edge precision/recall/F1、junction correctness、loop closure rate 和 mean component confidence。

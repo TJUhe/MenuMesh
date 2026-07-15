@@ -204,7 +204,8 @@ footer {
   </div>
   <div class="tags">
     <span class="tag">生成日期：2026-07-10</span>
-    <span class="tag">更新：2026-07-12（smooth curvature 弱证据；Taubin/Halíř-Flusser primitive 拟合）</span>
+    <span class="tag">源码审计：2026-07-15</span>
+    <span class="tag">当前基线：五段 loop recovery + weak-evidence cleanup</span>
     <span class="tag">主入口：recoverFeatureLoops</span>
     <span class="tag">核心文件：FeatureLoopBuilder / FeatureCycleRecovery / FeatureTraceRecovery</span>
     <span class="tag">输出：HTML + Mermaid</span>
@@ -215,6 +216,7 @@ footer {
   <section class="toc">
     <strong>目录</strong>
     <ol>
+      <li><a href="#source-audit">当前源码审计：先纠正最容易误读的实现契约</a></li>
       <li><a href="#answer">一句话先讲明白</a></li>
       <li><a href="#meaning">这里的 loop 到底是什么意思</a></li>
       <li><a href="#inputs">进入 loop 构造前已经有什么</a></li>
@@ -232,6 +234,52 @@ footer {
       <li><a href="#papers">论文路线对照</a></li>
       <li><a href="#refs">引用索引</a></li>
     </ol>
+  </section>
+
+  <section id="source-audit">
+    <h2>0. 当前源码审计：先纠正最容易误读的实现契约</h2>
+    <div class="callout warn">
+      <strong>本页按 2026-07-15 仓库源码重新逐函数核对，不把旧注释、历史设计意图或名称直觉当成当前行为。</strong>
+      loop 构造的权威调度入口是 <code>FeatureLoopRecovery.cpp::recoverFeatureLoops</code>；图清理入口是
+      <code>FeatureGraphCleanup.cpp::cleanupTraceGraph</code>；真正决定“是否创建并报告一个 FeatureLoop”的公共入口是
+      <code>FeatureLoopBuilder.cpp::addTracedLoop</code> 与 <code>addRecoveredCycle</code>。完整特征识别上游见
+      <a href="manumesh-feature-recognition-pipeline.html">ManuMesh 特征识别实现全链路</a>。
+    </div>
+    <table>
+      <thead><tr><th>容易误读的说法</th><th>当前源码事实</th><th>直接代码位置</th><th>调试影响</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>loop recovery 只有普通 trace、cycle 和 primitive 三段。</td>
+          <td>实际固定为五段：junction 双链圆恢复、small cycle basis、剩余边 trace、primitive component fallback、circular vertex cluster fallback。</td>
+          <td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">FeatureLoopRecovery.cpp:10-17</a></td>
+          <td>某个圆环出现时，必须先确认它由哪一段创建；不同段的排序、拓扑与误判风险不同。</td>
+        </tr>
+        <tr>
+          <td><code>minFeatureLoopVertices</code> 会过滤所有短 loop/chain。</td>
+          <td>它会拒绝过短 recovered cycle，并限制 closed traced loop 的 primitive fitting；但直接 trace 到的非空短链或短环仍会写入 <code>analysis.loops</code>。</td>
+          <td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">FeatureLoopBuilder.cpp:158-177, 180-250</a></td>
+          <td>调高该值不会让所有短 feature ownership 消失；它主要减少恢复环和 primitive 分类。</td>
+        </tr>
+        <tr>
+          <td>cleanup 只删除 normal-tensor spur。</td>
+          <td><code>isWeakCleanupSpurEdge</code> 接受 normal-tensor 或 smooth-curvature 弱边，并要求该边没有 boundary、dihedral、non-manifold 或 cleanup-bridge 强/修复标记。</td>
+          <td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp:53-97</a></td>
+          <td>打开 smooth-curvature 后，<code>graphCleanupRemovedSpurs</code> 也可能来自曲率通道，不能按 tensor 独占计数解释。</td>
+        </tr>
+        <tr>
+          <td>endpoint gap 与 close-junction gap 使用同一套方向规则。</td>
+          <td>endpoint gap 要求连接段同时延续两端 outward tangent，且两条 outward tangent 方向相反；close-junction 当前只检查局部尺度归一化距离并按最近优先配对。</td>
+          <td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp:247-342, 344-413</a></td>
+          <td>若 <code>graphCleanupMergedJunctions</code> 异常偏高，应优先排查相邻但不属于同一曲线网络的 junction 被误焊接。</td>
+        </tr>
+        <tr>
+          <td>所有 fallback 都可以处理弱证据闭环。</td>
+          <td>small cycle basis 与 circular vertex cluster fallback 都跳过含任意 normal-tensor 或 smooth-curvature 边的整个 component；普通 trace 仍可报告这些弱曲线。</td>
+          <td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:105-117, 195-203</a>；<a href="../../../src/feature_detection/FeatureCircularRecovery.cpp">FeatureCircularRecovery.cpp:170-210</a></td>
+          <td>弱证据有 edge/chain 但没有闭合 primitive，可能是保守门控的预期结果，不一定是检测失败。</td>
+        </tr>
+      </tbody>
+    </table>
   </section>
 
   <section id="answer">
@@ -319,8 +367,14 @@ flowchart TD
     </div>
     <h3>cleanup 对 loop 的影响</h3>
     <p>
-      loop recovery 之前，`cleanupTraceGraph` 会按顺序删弱证据 spur（tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。删 spur 默认按边数裁决（`featureGraphMaxWeakSpurEdges`）；当 `FeatureOptions::featureGraphMinWeakSpurStrength` 设为正值（仅 C++ API，默认 0.0 即保留旧行为）时，改用 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。endpoint gap 桥接采用 Yoshizawa 角度规则：连接段须近似延续两条链的切向，避免焊接平行链；端点/junction 数超过硬上限时整个 pass 被跳过并计入 `graphCleanupSkippedByCap`。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
+      loop recovery 之前，`cleanupTraceGraph` 会按固定顺序删弱证据 spur（normal tensor 或 smooth curvature）、桥接近 junction、桥接 endpoint gap。删 spur 默认按边数裁决（`featureGraphMaxWeakSpurEdges`）；当 `FeatureOptions::featureGraphMinWeakSpurStrength` 设为正值（仅 C++ API，默认 0.0 即保留旧行为）时，改用 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决，长而弱的真实曲线存活、短而强的噪声刺被剪除。endpoint gap 桥接采用双端方向规则：连接段对两端 outward tangent 的对齐都必须至少为 0.5，且两条 outward tangent 不能同向；候选以 `distance / meanAlignment` 排序。close-junction bridge 不使用这套切向门控，只比较 junction 间距与两端局部平均边长给出的允许距离。端点超过 512 个或 junction 超过 256 个时，相应 pass 整体跳过并计入 `graphCleanupSkippedByCap`。桥接边会以 `cleanupBridge` 证据写进 trace graph，所以后面 loop stats 能知道这条边不是原始检测边，而是清理阶段补出来的。<span class="ref">C03</span>
     </p>
+    <div class="callout warn">
+      <strong>已知风险：close-junction bridge 是纯距离启发式。</strong>
+      两个空间上很近、但属于不同曲线或不同层面的 junction，当前仍可能被桥接；该动作每个 pass 对一个 junction 最多使用一次，并按距离从小到大贪心选择，但没有切向、法向、source-kind 或 primitive 一致性复核。定位入口：
+      <a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp:344-413</a>。运行时先看
+      <code>graphCleanupMergedJunctions</code>，再对比 cleanup 开关关闭前后的 component、cycle rank 与 loop 数。
+    </div>
   </section>
 
   <section id="five-stages">
@@ -476,7 +530,7 @@ flowchart LR
   <section id="stage2">
     <h2>7. 阶段二：small cycle basis 恢复多边形环</h2>
     <p>
-      第二阶段处理的是小型、强几何边界、非 tensor 的多边形 cycle。它不是枚举所有简单环，而是在每个连通分量上做 BFS 树；每条非树边和树路径组成一个 fundamental cycle，再交给 `addRecoveredCycle(Polygonal)` 验证。<span class="ref">C09</span>
+      第二阶段处理的是小型、没有 weak-evidence edge 的多边形 cycle。这里“没有弱证据”同时要求 component 内不存在 normal-tensor 与 smooth-curvature edge，并不只是“非 tensor”。它不是枚举所有简单环，而是在每个连通分量上做 BFS 树；每条非树边和树路径组成一个 fundamental cycle，再交给 `addRecoveredCycle(Polygonal)` 验证。<span class="ref">C09</span>
     </p>
     <div class="diagram-wrap">
       <pre class="mermaid">
@@ -763,6 +817,12 @@ flowchart TD
           <td><span class="ref">C04</span><span class="ref">C06</span></td>
         </tr>
         <tr>
+          <td>直接 trace 到的链或环短于 <code>minFeatureLoopVertices</code></td>
+          <td><code>addTracedLoop</code> 仍创建并报告 loop；只有 closed loop 的 primitive fit 被跳过。由 recovered-cycle 路径提交的短 cycle 则会被拒绝。</td>
+          <td>短 traced feature ownership 仍存在，通常 <code>primitive=Unknown</code>；因此该参数不能被当成全局最短曲线过滤器。</td>
+          <td><span class="ref">C06</span><span class="ref">C07</span></td>
+        </tr>
+        <tr>
           <td>二面角达到了 feature threshold，但 trace threshold 更严格</td>
           <td>`buildTraceGraph` 把它计入 `untracedFeatureEdges`，不放进 `TraceGraph`。</td>
           <td>可能有 feature edge 诊断，但没有 loop ownership，顶点也不会由 loop 标 feature。</td>
@@ -798,6 +858,12 @@ flowchart TD
           <td>重复顶点的 recovered cycle 被拒绝。</td>
           <td><span class="ref">C07</span></td>
         </tr>
+        <tr>
+          <td>两个不同曲线网络的 junction 在空间上很近</td>
+          <td>close-junction cleanup 当前只按局部尺度距离生成候选，再按距离贪心桥接；没有 endpoint bridge 的双端切向检查。</td>
+          <td>可能产生错误 component 合并、额外 cycle 或错误 primitive fallback；用 <code>graphCleanupMergedJunctions</code> 和关闭 cleanup 的对照运行定位。</td>
+          <td><span class="ref">C03</span></td>
+        </tr>
       </tbody>
     </table>
   </section>
@@ -805,7 +871,7 @@ flowchart TD
   <section id="tests">
     <h2>14. 测试用例对应关系</h2>
     <p>
-      loop 构造相关测试集中在 `feature_detection_loop_tests.cpp` 和 `FeatureDetectionTestSupport.cpp`。这些测试基本就是“代码为什么这么分阶段”的小样本。<span class="ref">T01</span>
+      loop 构造相关测试集中在 `feature_detection_loop_tests.cpp`、`feature_detection_cleanup_tests.cpp`、`feature_detection_analytic_tests.cpp` 和 `FeatureDetectionTestSupport.cpp`。这些测试覆盖主要 recovery 分支、弱 spur 清理与 circular fallback 防洪泛，但并非每个源码契约都有独立命名回归。<span class="ref">T01</span>
     </p>
     <table>
       <thead><tr><th>测试</th><th>验证的 loop 分支</th><th>关键断言</th><th>文件位置</th></tr></thead>
@@ -846,8 +912,31 @@ flowchart TD
           <td>存在 tensor feature edges，同时仍能恢复 circular loop，loop id 连续。</td>
           <td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">feature_detection_loop_tests.cpp:116-133</a></td>
         </tr>
+        <tr>
+          <td><code>LegacySpurRemovalPrunesByEdgeCountOnly</code></td>
+          <td>弱 spur 的旧式按边数裁决，fixture 使用 smooth-curvature 弱边。</td>
+          <td>长弱链保留；短而强的两边 branch 仍按长度被删除，<code>graphCleanupRemovedSpurs == 2</code>。</td>
+          <td><a href="../../../tests/unit/feature_detection/feature_detection_cleanup_tests.cpp">feature_detection_cleanup_tests.cpp:159-174</a></td>
+        </tr>
+        <tr>
+          <td><code>StrengthFilterKeepsLongWeakLinesAndStrongBranches</code></td>
+          <td>Yoshizawa 强度阈值替代纯边数裁决。</td>
+          <td>长而弱链与短而强 branch 保留，中等长度极弱噪声链被删除。</td>
+          <td><a href="../../../tests/unit/feature_detection/feature_detection_cleanup_tests.cpp">feature_detection_cleanup_tests.cpp:176-196</a></td>
+        </tr>
+        <tr>
+          <td><code>ChamferBoxJunctionPrecisionIsNotFloodedByCircularRecovery</code></td>
+          <td>circular fallback 的种子与证据连通门控。</td>
+          <td>图级 junction 恰好匹配 16 个真实分支点，防止共圆点簇制造大量假 loop。</td>
+          <td><a href="../../../tests/unit/feature_detection/feature_detection_analytic_tests.cpp">feature_detection_analytic_tests.cpp:296-322</a></td>
+        </tr>
       </tbody>
     </table>
+    <div class="callout warn">
+      <strong>当前测试空白也要明确记录。</strong>
+      现有 suite 没有一个专门命名的测试直接断言“<code>minFeatureLoopVertices</code> 很大时，短 traced chain 仍然报告但不做 primitive fit”；该行为目前由
+      <a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">FeatureLoopBuilder.cpp:158-177</a> 直接保证。类似地，small-cycle 与 circular-cluster 对 smooth-curvature component 的跳过主要由源码条件保证，现有 loop 测试只显式构造了 tensor 场景。后续若修改这两处门控，应补专门回归，而不能只依赖本文。
+    </div>
   </section>
 
   <section id="papers">
@@ -904,7 +993,7 @@ flowchart TD
       <tbody>
         <tr><td><span class="ref">C01</span></td><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">src/feature_detection/FeatureLoopRecovery.cpp:10-17</a></td><td>loop recovery 五段调度入口。</td></tr>
         <tr><td><span class="ref">C02</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:70-184</a></td><td>从 candidate feature edges 构造 TraceGraph，决定 traced/untraced。</td></tr>
-        <tr><td><span class="ref">C03</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:99-506</a></td><td>removeWeakSpurs、bridgeCloseJunctions、bridgeEndpointGaps、cleanupTraceGraph。</td></tr>
+        <tr><td><span class="ref">C03</span></td><td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">src/feature_detection/FeatureGraphCleanup.cpp:53-223, 247-413, 493-505</a></td><td>weak-evidence spur 判定与删除、endpoint 双端切向桥接、纯距离 close-junction 桥接、cleanup 调度顺序。</td></tr>
         <tr><td><span class="ref">C04</span></td><td><a href="../../../src/feature_detection/FeatureTraceRecovery.cpp">src/feature_detection/FeatureTraceRecovery.cpp:13-173</a></td><td>traceOpenChain、traceClosedLoop、traceRemainingFeatureLoops。</td></tr>
         <tr><td><span class="ref">C05</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:62-142</a></td><td>cycleSignature、assignLoopToVertices。</td></tr>
         <tr><td><span class="ref">C06</span></td><td><a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">src/feature_detection/FeatureLoopBuilder.cpp:144-178</a></td><td>makeLoopFromStats、addTracedLoop。</td></tr>
@@ -930,6 +1019,8 @@ flowchart TD
         <tr><td><span class="ref">T03</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:64-77</a></td><td>多 junction 多边形 cycle 恢复。</td></tr>
         <tr><td><span class="ref">T04</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:97-114</a></td><td>trace threshold 过严导致 untraced edges 和 no loops。</td></tr>
         <tr><td><span class="ref">T05</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_loop_tests.cpp">tests/unit/feature_detection/feature_detection_loop_tests.cpp:116-133</a></td><td>tensor component 不阻断独立 circular fallback。</td></tr>
+        <tr><td><span class="ref">T06</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_cleanup_tests.cpp">tests/unit/feature_detection/feature_detection_cleanup_tests.cpp:159-196</a></td><td>weak-evidence spur 的按边数与 Yoshizawa 强度两种裁决。</td></tr>
+        <tr><td><span class="ref">T07</span></td><td><a href="../../../tests/unit/feature_detection/feature_detection_analytic_tests.cpp">tests/unit/feature_detection/feature_detection_analytic_tests.cpp:296-322</a></td><td>circular recovery 不应洪泛图级 junction。</td></tr>
       </tbody>
     </table>
 
@@ -952,7 +1043,7 @@ flowchart TD
 </main>
 
 <footer>
-  本文档基于当前仓库源码静态阅读生成，主要服务于理解 ManuMesh 当前 feature loop 构造实现。若代码调整了 recovery 顺序、阈值或 fallback 策略，应同步更新本说明。
+  本文档基于 2026-07-15 当前仓库源码逐函数审计，主要服务于理解 ManuMesh feature loop 构造实现。若代码调整 recovery 顺序、cleanup 门控、阈值语义或 fallback 策略，应同步更新本说明与对应回归测试。
 </footer>
 </body>
 </html>

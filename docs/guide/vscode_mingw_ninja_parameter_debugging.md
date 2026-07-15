@@ -288,7 +288,7 @@ ManuMesh 当前简化管线可以看成四层：
 | `--smooth-curvature-min-persistent-scales N` | `smoothCurvatureMinPersistentScales` | 光滑特征候选至少需要 N 个尺度支持（默认 `2`）。 | `SmoothCurvature.cpp` | `mean_smooth_curvature_persistence`。 |
 | `--smooth-curvature-robust-iterations N` | `smoothCurvatureRobustFitIterations` | 确定性 Huber 重加权拟合轮数（默认 `2`）。 | `SmoothCurvature.cpp` | 拟合残差对离群三角形更稳健。 |
 | `--feature-graph-gap-ratio R` | `featureGraphGapLengthRatio` | cleanup 桥接 endpoint/junction gap 的局部边长倍数。 | `FeatureGraphCleanup.cpp` | `graph_cleanup_bridged_gaps`、`graph_cleanup_merged_junctions`。 |
-| `--feature-graph-max-weak-spur-edges N` | `featureGraphMaxWeakSpurEdges` | 删除最多 N 条边的 tensor-only 弱 spur。 | `FeatureGraphCleanup.cpp` | `graph_cleanup_removed_spurs`、`weak_feature_components`。 |
+| `--feature-graph-max-weak-spur-edges N` | `featureGraphMaxWeakSpurEdges` | 删除最多 N 条边、且仅由 normal-tensor 或 smooth-curvature 支持的弱 spur。 | `FeatureGraphCleanup.cpp:53-223` | `graph_cleanup_removed_spurs`、`weak_feature_components`。 |
 | `--feature-component-min-confidence C` | `featureComponentMinConfidence` | 报告 high-confidence component 的阈值。 | `FeatureGraphCleanup.cpp::summarizeFeatureComponents` | `high_confidence_feature_components`。 |
 | `--no-feature-graph-cleanup` | `cleanupFeatureGraph=false` | 关闭短 gap、短弱 spur 和近 junction cleanup。 | `FeatureDetector.cpp`、`FeatureGraphCleanup.cpp` | cleanup 计数为 0，loop closure 可能下降。 |
 

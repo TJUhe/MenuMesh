@@ -7,6 +7,8 @@
 | 文档 | 用途 |
 | --- | --- |
 | [`delivery/manumesh_kernel_developer_guide.html`](delivery/manumesh_kernel_developer_guide.html) | 商用内核交付级开发者手册，包含定位、架构、模块、API、C ABI、构建、验证、扩展边界和交付清单。 |
+| [`generated/notes/manumesh-feature-recognition-pipeline.html`](generated/notes/manumesh-feature-recognition-pipeline.html) | 当前特征识别源码级权威说明：7 段 pipeline、五类 evidence、normal-tensor/smooth-curvature 精确接受条件、graph cleanup、loop/primitive recovery、component confidence、CLI/QEM 边界、测试与逐函数源码定位。 |
+| [`generated/notes/manumesh-loop-construction.html`](generated/notes/manumesh-loop-construction.html) | FeatureLoop 五段恢复顺序、宽松 trace 与严格 recovered cycle 的差异、各 fallback 上限、primitive fitting 和 vertex ownership 源码对照。 |
 | [`guide/debug_util_usage.md`](guide/debug_util_usage.md) | 内部 Debug-only HTML wireframe 工具使用教程，包含开启方式、常用宏、颜色约定、插入位置和截图预览。 |
 | [`design/feature_detection_upgrade_2026_07_09.md`](design/feature_detection_upgrade_2026_07_09.md) | 本次特征识别升级记录，覆盖 loop trace 阈值、traced/untraced 诊断、common 局部尺度、normal-tensor persistence、QEM 联动、gtest 保护和后续算法计划。 |
 | [`design/mesh_edit_foundation.md`](design/mesh_edit_foundation.md) | 可供 simplification 与未来 remeshing/repair 复用的内部编辑层，说明动态拓扑、compact/remap 和扩展边界。 |
@@ -24,7 +26,7 @@
 - `delivery/` 是对外交付和内部正式评审入口。
 - `archive/` 保存阶段性材料，不再作为当前产品能力说明的主入口。
 - `design/` 和 `guide/` 可继续作为研发工作区使用，但如果内容与交付文档冲突，以 `delivery/` 为准。
-- `generated/notes/` 属于历史导出资料，适合追溯思路，不适合作为商用交付主文档。
+- `generated/notes/` 多数文件属于历史导出资料；其中 `manumesh-feature-recognition-pipeline.html` 和 `manumesh-loop-construction.html` 自 2026-07-15 起按当前源码持续维护，可作为特征识别与 loop recovery 的源码级补充。对外交付总边界仍以 `delivery/` 为准。
 - 交付文档已同步纹理感知 QEM、光滑曲率特征检测，以及 2026-07-12 架构/算法批次（`manumesh::analysis` 模块、`FeatureComparison` loop 匹配、placement 三级回退链、扩展 link condition、有向二面角、Taubin/Halíř-Flusser 拟合、C ABI/IO 加固）；`generated/notes/*.html` 此前补充的 `io/` 与 Debug-only `debugUtil/` 布局说明保持不变，PDF 二进制未重写。
 - 新增商业能力时，应先更新交付文档的能力边界、API、验证方法和限制说明，再补充研发细节。
 

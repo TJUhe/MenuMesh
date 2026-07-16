@@ -70,16 +70,23 @@ ManuMesh 当前支持 CMake 3.18.6 及以上版本，不依赖 `CMakePresets.jso
 | `build/mingw-ninja-debug-performance` | Ninja | MinGW `g++` | 性能测试 |
 | `build/mingw-ninja-release-performance` | Ninja | MinGW `g++` | Release 性能测试 |
 | `build/mingw-ninja-release-sdk` | Ninja | MinGW `g++` | 本地安装和 SDK consumer 测试 |
-| `build/msvc-vs2022` | Visual Studio 17 2022 | MSVC | VS2022 调试和发布构建 |
-| `build/msvc-vs2022-performance` | Visual Studio 17 2022 | MSVC | VS2022 性能测试 |
-| `build/msvc-vs2019` | Visual Studio 16 2019 | MSVC | VS2019 调试和发布构建 |
-| `build/msvc-vs2019-performance` | Visual Studio 16 2019 | MSVC | VS2019 性能测试 |
+| `build/msvc-v143` | Visual Studio 17 2022 | MSVC v143 | VS2022 调试和发布构建 |
+| `build/msvc-v143-performance` | Visual Studio 17 2022 | MSVC v143 | VS2022 性能测试 |
+| `build/msvc-v142` | Visual Studio 17 2022 + `-T v142` | MSVC v142 | VS2019 工具集兼容构建 |
+| `build/msvc-v142-performance` | Visual Studio 17 2022 + `-T v142` | MSVC v142 | VS2019 工具集性能测试 |
+
+MSVC 任务运行时会询问 `msvcToolset`：选择 `v143` 使用 MSVC 2022，选择 `v142` 使用 MSVC 2019。两者都使用 Visual Studio 2022 generator 和 x64 平台，但写入独立构建目录，避免切换工具集时发生 CMake 缓存冲突。选择 `v142` 前，必须在 Visual Studio Installer 的“单个组件”中安装 `MSVC v142 - VS 2019 C++ x64/x86 build tools`。
+
+安装入口：[Visual Studio 2022 Build Tools](https://aka.ms/vs/17/release/vs_BuildTools.exe)；需要完整旧版安装器时使用 [Visual Studio 旧版本下载页](https://visualstudio.microsoft.com/vs/older-downloads/)。
+
+MSVC 任务使用 `MANUMESH_GOOGLETEST_PROVIDER=source`，从仓库已有的 GoogleTest 源码在构建目录中生成测试库。这样不会向 `thirdParty` 新增文件，也不会依赖预编译 Debug 库缺失的 PDB。
 
 MinGW + Ninja 的 Release 配置命令：
 
 ```powershell
 $buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
@@ -123,6 +130,7 @@ Get-ChildItem "$buildDir\bin\*.dll"
 ```powershell
 $buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
@@ -137,53 +145,36 @@ cmake --build $buildDir --parallel
 在 `Terminal > Run Task...` 中可用的核心任务：
 
 - `build: mingw+ninja debug`
-- `build: mingw+ninja debug tests`
-- `build: mingw+ninja debug all`
 - `build: mingw+ninja release`
-- `build: mingw+ninja release all`
 - `test: mingw+ninja debug`
 - `test: mingw+ninja release`
-- `build: mingw+ninja debug performance tests`
+- `build: mingw+ninja debug performance`
 - `test: mingw+ninja debug performance`
-- `build: mingw+ninja release performance tests`
+- `build: mingw+ninja release performance`
 - `test: mingw+ninja release performance`
 - `test: mingw+ninja release sdk consumer`
 - `test: mingw+ninja release full`
-- `build: msvc+vs2022 debug`
-- `build: msvc+vs2022 debug tests`
-- `build: msvc+vs2022 debug all`
-- `build: msvc+vs2022 release`
-- `build: msvc+vs2022 release tests`
-- `build: msvc+vs2022 release all`
-- `test: msvc+vs2022 debug`
-- `test: msvc+vs2022 release`
-- `test: msvc+vs2022 debug performance`
-- `test: msvc+vs2022 release performance`
-- `test: msvc+vs2022 full`
-- `build: msvc+vs2019 debug`
-- `build: msvc+vs2019 debug tests`
-- `build: msvc+vs2019 debug all`
-- `build: msvc+vs2019 release`
-- `build: msvc+vs2019 release tests`
-- `build: msvc+vs2019 release all`
-- `test: msvc+vs2019 debug`
-- `test: msvc+vs2019 release`
-- `test: msvc+vs2019 debug performance`
-- `test: msvc+vs2019 release performance`
-- `test: msvc+vs2019 full`
-- `build: msvc custom debug`
-- `build: msvc custom debug tests`
-- `build: msvc custom debug all`
-- `build: msvc custom release`
-- `build: msvc custom release tests`
-- `build: msvc custom release all`
-- `test: msvc custom debug`
-- `test: msvc custom release`
+- `build: msvc selected debug`
+- `build: msvc selected release`
+- `build: msvc selected debug performance`
+- `build: msvc selected release performance`
+- `test: msvc selected debug`
+- `test: msvc selected release`
+- `test: msvc selected debug performance`
+- `test: msvc selected release performance`
+- `test: msvc selected full`
 - `check: format`
 - `format`
 - `build: docs-api`
+- `build: docs-internal`
 
-`test: mingw+ninja release full` 会按顺序运行 Release 非性能回归、Release 性能测试、SDK consumer 测试和 API 文档生成。MSVC 的 `full` 任务分别覆盖 Debug/Release 的非性能测试和性能测试；需要本机安装对应版本的 Visual Studio 生成器。
+configure 任务和演示输出目录准备任务作为隐藏依赖自动运行。MinGW configure 显式设置 `CMAKE_MAKE_PROGRAM=ninja`，可覆盖构建目录中缓存的失效 Ninja 绝对路径，而不依赖或补充 `thirdParty` 工具包。
+
+如果后续编译仍报错并指向已删除的 `thirdParty/packages/mingw64/bin/ar.exe`、`ranlib.exe` 或其他 binutils，说明旧 `CMakeCache.txt` 缓存了整套工具链，而不只是 Ninja。删除报错对应的单个 `build/<config>` 目录后重新运行任务；不要把缺失工具重新放回 `thirdParty`。
+
+`test: mingw+ninja release full` 会按顺序运行 Release 非性能回归、Release 性能测试、SDK consumer、格式检查、API 文档和内部源码文档生成。`test: msvc selected full` 使用本次选择的同一个工具集覆盖 Debug/Release 非性能测试和性能测试。
+
+`build: docs-internal` 生成 `docs/internal/html/index.html`，用于浏览 `src/` 内部文件、private/static/local/anonymous-namespace 符号、内联源码和调用关系。该站点允许未注释符号存在，适合在逐步补齐 Doxygen 注释期间作为内部源码索引。
 
 演示和验证任务：
 
@@ -191,10 +182,10 @@ cmake --build $buildDir --parallel
 - `demo: simplify feature curves selected mesh`
 - `demo: simplify normal tensor selected mesh`
 - `demo: feature report selected mesh`
+- `demo: feature benchmark selected mesh`
 - `demo: ratio sweep selected mesh`
 - `run: feature validation`
 - `run: external validation`
-- `open: vscode demo output`
 
 `demo:*` 任务会询问网格、简化比例、特征角度和采样数量。输出写入 `output/vscode_demo/`。
 
@@ -206,12 +197,10 @@ Run and Debug 面板中的配置：
 - `(MinGW Ninja) Debug CLI Feature Report`
 - `(MinGW Ninja) Debug Unit Tests Filter`
 - `(MinGW Ninja) Debug Performance Tests Filter`
-- `(MSVC VS2022) Debug CLI Feature Curves`
-- `(MSVC VS2022) Debug Unit Tests Filter`
-- `(MSVC VS2019) Debug CLI Feature Curves`
-- `(MSVC VS2019) Debug Unit Tests Filter`
+- `(MSVC Selected) Debug CLI Feature Curves`
+- `(MSVC Selected) Debug Unit Tests Filter`
 
-MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`，需要对应版本的 Visual Studio 调试组件。
+MinGW 调试需要 `gdb.exe` 在 `PATH` 中。MSVC 调试配置使用 `cppvsdbg`，需要 Visual Studio 2022 调试组件。MSVC 调试配置和它的 `preLaunchTask` 如果分别询问工具集，两次应选择相同的 `v143` 或 `v142`。
 
 推荐断点：
 

@@ -1,0 +1,37 @@
+/**
+ * @mainpage ManuMesh Internal Source Reference
+ *
+ * @section internal_scope Scope
+ *
+ * This site is the private engineering reference for ManuMesh implementation
+ * code. It includes the public declarations under `include/` for context and
+ * all implementation files under `src/`, including private, static, local,
+ * anonymous-namespace, and otherwise undocumented symbols.
+ *
+ * @section internal_navigation Navigation
+ *
+ * - Use **Files** to browse the implementation by source directory.
+ * - Use **Namespaces**, **Classes**, and **Class Members** for symbol lookup.
+ * - Open a file's **Source** view for inline code with cross-references.
+ * - Function pages include caller and callee graphs when Graphviz is present.
+ *
+ * @section internal_build Build
+ *
+ * @code{.powershell}
+ * cmake --build build/mingw-ninja-release --target docs-internal --parallel
+ * @endcode
+ *
+ * The generated entry point is `docs/internal/html/index.html`.
+ *
+ * @section internal_policy Documentation policy
+ *
+ * Internal documentation is generated with `EXTRACT_ALL=YES`, so missing
+ * Doxygen comments do not hide implementation symbols or fail the build.
+ * Add `///` or `/** ... */` comments when a symbol owns a non-obvious
+ * invariant, numerical assumption, lifecycle rule, concurrency constraint,
+ * or failure mode. Routine implementation details should remain readable in
+ * code rather than receiving repetitive comments.
+ *
+ * @warning This is an internal implementation view. It is not an installed
+ * SDK contract and can change without API or ABI compatibility guarantees.
+ */

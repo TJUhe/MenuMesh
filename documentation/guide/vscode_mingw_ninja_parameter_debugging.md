@@ -37,7 +37,9 @@ build/mingw-ninja-debug-performance
 build/mingw-ninja-release-performance
 ```
 
-VS Code 任务固定使用 `build/<config>` 这一层目录，不再把项目文件夹名插入到 `build/` 和配置名之间。这样目录更短，和手工命令保持一致；如果这些目录曾经由旧仓库路径生成过，第一次切换时需要删除对应子目录后重新 configure。
+VS Code 任务固定使用 `build/<config>` 这一层目录，不再把项目文件夹名插入到 `build/` 和配置名之间。这样目录更短，和手工命令保持一致。MinGW configure 还显式传入 `-DCMAKE_MAKE_PROGRAM=ninja`，会把旧缓存中已经失效的 Ninja 绝对路径改回当前 `PATH` 中的工具；如果缓存的源码目录本身不匹配，仍需删除对应子目录后重新 configure。
+
+同样地，如果错误路径不是 Ninja，而是旧的 `thirdParty/packages/mingw64/bin/ar.exe`、`ranlib.exe`、`ld.exe` 等 binutils，说明缓存保存了整套旧工具链。此时也应只删除报错的 `build/<config>` 目录再运行任务，不要向 `thirdParty` 回填工具。
 
 如果遇到：
 
@@ -58,6 +60,7 @@ Get-Content "$buildDir\CMakeCache.txt" | Select-String "CMAKE_HOME_DIRECTORY|CMA
 ```powershell
 Remove-Item -LiteralPath $buildDir -Recurse -Force
 cmake -S . -B $buildDir -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Debug `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
@@ -87,7 +90,7 @@ cmake -S . -B $buildDir -G Ninja `
 
 1. 选择 `(MinGW Ninja) Debug Performance Tests Filter`。
 2. 该配置使用 `build/mingw-ninja-debug-performance`。
-3. 它会先运行 `build: mingw+ninja debug performance tests`，也就是 configure 时带 `-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON`。
+3. 它会先运行 `build: mingw+ninja debug performance`，也就是 configure 时带 `-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON`。
 
 ## tasks.json 参数
 
@@ -100,27 +103,29 @@ cmake -S . -B $buildDir -G Ninja `
 | `-S .` | configure task | 源码目录是当前工作区根目录。 | CMakeCache 中 `CMAKE_HOME_DIRECTORY` 应指向当前仓库。 |
 | `-B build/...` | configure task | 构建目录固定在仓库根目录的 `build/<config>` 下，例如 `build/mingw-ninja-release`。 | CMake 输出应写到固定子目录，且 CMakeCache 的源目录指向当前仓库。 |
 | `-G Ninja` | MinGW configure task | 使用 Ninja 单配置生成器。 | `CMAKE_GENERATOR:INTERNAL=Ninja`。 |
+| `-DCMAKE_MAKE_PROGRAM=ninja` | MinGW configure task | 强制从 PATH 解析 Ninja，并覆盖缓存中过期的绝对路径。 | `CMAKE_MAKE_PROGRAM` 不再指向已删除的工具目录。 |
 | `-DCMAKE_BUILD_TYPE=Debug` | Debug configure task | 生成带调试信息、优化较低的构建。 | GDB 能进入源码，变量较容易观察。 |
 | `-DCMAKE_BUILD_TYPE=Release` | Release configure task | 生成优化构建，用于演示、指标和发布验证。 | STL/CSV 性能更接近实际使用。 |
 | `-DCMAKE_C_COMPILER=gcc` | MinGW configure task | C 编译器来自 PATH。 | `CMAKE_C_COMPILER` 应指向目标 MinGW。 |
 | `-DCMAKE_CXX_COMPILER=g++` | MinGW configure task | C++ 编译器来自 PATH。 | `CMAKE_CXX_COMPILER` 应与 `gdb.exe` 属于同一套 MinGW。 |
 | `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON` | configure task | 生成 `compile_commands.json`，供 C/C++ 扩展和静态分析使用。 | 构建目录下存在 `compile_commands.json`。 |
 | `-DMANUMESH_GOOGLETEST_PROVIDER=auto` | MinGW configure task | 让 CMake 为当前 MinGW 选择合适 GoogleTest，避免旧预编译 DLL 不匹配。 | 测试 exe 启动不应报 `0xc0000139`。 |
+| `-T ${input:msvcToolset}` | MSVC configure task | 运行时选择 `v143`（MSVC 2022）或 `v142`（MSVC 2019）。 | `CMAKE_GENERATOR_TOOLSET` 与所选值一致。 |
+| `build/msvc-${input:msvcToolset}` | MSVC build/test task | 为 v143 与 v142 隔离 CMake 缓存和产物。 | 两套工具集切换时不会出现 generator toolset mismatch。 |
 | `-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON/OFF` | performance configure task | 是否生成性能测试目标。 | `manumesh_performance_tests.exe` 是否存在。 |
 | `-DMANUMESH_ENABLE_DEBUG_UTIL=ON/OFF` | 手工 Debug configure 或临时 task | 是否编译内部 HTML wireframe 调试实现；默认关闭。 | Debug 构建中调用 `MANUMESH_DEBUG_UTIL_*` 宏会在临时目录生成 HTML。 |
 | `-DMANUMESH_ENABLE_INSTALL=ON` | release sdk task | 打开安装和 SDK 本地验证目标。 | `sdk-consumer-test` 可构建。 |
 | `-DMANUMESH_INSTALL_CMAKE_CONFIG=ON` | release sdk task | 安装 `ManuMeshConfig.cmake`，用于下游 `find_package`。 | SDK 目录下有 `lib/cmake/ManuMesh`。 |
-| `cmake --build <dir> --target manumesh --parallel` | build task | 只构建 CLI 和库所需目标。 | `bin/manumesh.exe` 更新。 |
-| `--target manumesh_tests` | test build task | 只构建单元测试 exe。 | `bin/manumesh_tests.exe` 更新。 |
+| `cmake --build <dir> --parallel` | 常规 build task | 构建该配置的库、CLI、示例和已启用测试，供 CTest 与调试共用。 | `bin/manumesh.exe` 和 `bin/manumesh_tests.exe` 更新。 |
 | `--target manumesh_performance_tests` | performance build task | 只构建性能测试 exe。 | `bin/manumesh_performance_tests.exe` 更新。 |
 | `cmake -E chdir <dir> ctest` | test task | 在构建目录内运行 CTest，不依赖脚本。 | CTest 能找到测试注册文件。 |
 | `ctest -LE performance` | 非性能测试 task | 排除 `performance` 标签。 | 快速回归，不跑大模型性能测试。 |
 | `ctest -L performance` | 性能测试 task | 只运行 `performance` 标签。 | 用于大模型和耗时指标。 |
 | `--output-on-failure` | CTest task | 失败时打印测试输出。 | 失败定位时能看到 CLI/stdout。 |
 | `dependsOn` | build/test/demo task | 确保运行前自动 configure 或 build。 | 第一次运行 task 会先生成构建目录。 |
-| `dependsOrder: sequence` | full/demo task | 多个依赖按顺序执行。 | Release full 会依次跑测试、SDK 和文档。 |
+| `dependsOrder: sequence` | full/demo task | 多个依赖按顺序执行。 | Release full 会依次跑测试、SDK、格式检查和文档。 |
 | `problemMatcher: "$gcc"` | MinGW build task | 将 GCC 编译错误映射到 VS Code Problems。 | 编译错误可点击跳转源码。 |
-| `inputs` | demo/debug task | VS Code 运行时弹出的参数选择。 | 改 `demoRatio` 或 `launchRatio` 会改变传给 CLI 的 `--ratio`。 |
+| `inputs` | demo/debug/MSVC task | VS Code 运行时弹出的参数选择。 | `msvcToolset` 决定使用 v143 还是 v142。 |
 
 ## launch.json 参数
 
@@ -178,6 +183,7 @@ cmake -S . -B $buildDir -G Ninja `
 
 ```powershell
 cmake -S . -B build/mingw-ninja-debug-debugutil -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Debug `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `

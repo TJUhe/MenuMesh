@@ -1,5 +1,5 @@
 option(MANUMESH_BUILD_DOCS
-  "Enable the Doxygen docs-api target when Doxygen is available"
+  "Enable the Doxygen docs-api and docs-internal targets when Doxygen is available"
   ON
 )
 option(MANUMESH_DOXYGEN_ENABLE_GRAPHS
@@ -67,6 +67,18 @@ if(MANUMESH_BUILD_DOCS)
     )
     string(JOIN " " MANUMESH_DOXYGEN_INPUT ${MANUMESH_DOXYGEN_INPUT_FILES})
     set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/doxygen")
+    set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh")
+    set(MANUMESH_DOXYGEN_PROJECT_BRIEF
+      "C++17 triangle-mesh analysis, feature detection, and simplification kernel"
+    )
+    set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_STATIC "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_LOCAL_CLASSES "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_ANON_NSPACES "NO")
+    set(MANUMESH_DOXYGEN_INTERNAL_DOCS "NO")
+    set(MANUMESH_DOXYGEN_WARN_IF_UNDOCUMENTED "YES")
+    set(MANUMESH_DOXYGEN_INLINE_SOURCES "NO")
     configure_file(
       "${PROJECT_SOURCE_DIR}/Doxyfile.in"
       "${PROJECT_BINARY_DIR}/Doxyfile"
@@ -79,10 +91,48 @@ if(MANUMESH_BUILD_DOCS)
       COMMENT "Generating API documentation with Doxygen"
       VERBATIM
     )
+
+    set(MANUMESH_DOXYGEN_INPUT_FILES
+      "${PROJECT_SOURCE_DIR}/documentation/doxygen-internal"
+      "${PROJECT_SOURCE_DIR}/documentation/doxygen/groups.dox"
+      "${PROJECT_SOURCE_DIR}/include"
+      "${PROJECT_SOURCE_DIR}/src"
+    )
+    string(JOIN " " MANUMESH_DOXYGEN_INPUT ${MANUMESH_DOXYGEN_INPUT_FILES})
+    set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/internal")
+    set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh Internal Source Reference")
+    set(MANUMESH_DOXYGEN_PROJECT_BRIEF
+      "Private implementation, source browser, and engineering call relationships"
+    )
+    set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_STATIC "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_LOCAL_CLASSES "YES")
+    set(MANUMESH_DOXYGEN_EXTRACT_ANON_NSPACES "YES")
+    set(MANUMESH_DOXYGEN_INTERNAL_DOCS "YES")
+    set(MANUMESH_DOXYGEN_WARN_IF_UNDOCUMENTED "NO")
+    set(MANUMESH_DOXYGEN_INLINE_SOURCES "YES")
+    configure_file(
+      "${PROJECT_SOURCE_DIR}/Doxyfile.in"
+      "${PROJECT_BINARY_DIR}/Doxyfile.internal"
+      @ONLY
+    )
+    add_custom_target(docs-internal
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
+      COMMAND "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile.internal"
+      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+      COMMENT "Generating internal source documentation with Doxygen"
+      VERBATIM
+    )
   else()
     add_custom_target(docs-api
       COMMAND "${CMAKE_COMMAND}" -E echo
         "Doxygen was not found; install it to enable API documentation generation."
+      VERBATIM
+    )
+    add_custom_target(docs-internal
+      COMMAND "${CMAKE_COMMAND}" -E echo
+        "Doxygen was not found; install it to enable internal source documentation generation."
       VERBATIM
     )
   endif()

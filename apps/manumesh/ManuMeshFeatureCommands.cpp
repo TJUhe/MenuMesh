@@ -207,6 +207,9 @@ readFeatureBenchmarkLabels(const fs::path& path, manumesh::feature::FeatureBench
         if (fields.empty()) {
             continue;
         }
+        if (fields.size() >= 2 && fields[0] == "a" && fields[1] == "b") {
+            continue;
+        }
         if ((fields[0] == "junction" || fields[0] == "junction_vertex") && fields.size() >= 2) {
             int id = -1;
             if (tryParseIntField(fields[1], id)) {

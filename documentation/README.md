@@ -1,7 +1,11 @@
 # ManuMesh 文档入口
 
 > `documentation/` 保存人工维护的设计记录、指南、论文资料和历史导出笔记。
-> `docs/` 专用于 `docs-api` 目标生成的 Doxygen 内容，不再存放手工文档。
+> `docs/` 专用于 `docs-api` 和 `docs-internal` 目标生成的 Doxygen 内容，不再存放手工文档。
+
+本地内部源码参考由 `docs-internal` 生成到 `docs/internal/html/index.html`。它覆盖
+`include/` 与 `src/` 的 private/static/local/anonymous-namespace 符号、源码页和调用关系；生成内容不纳入
+版本控制，也不构成安装 SDK 的 API/ABI 契约。
 
 本文档目录已经拆分为“交付文档”和“历史/研发材料”两层。面向客户、SDK 集成、商务交付和内核评审时，请优先使用交付文档。
 

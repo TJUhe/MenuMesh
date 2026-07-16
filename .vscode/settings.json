@@ -5,6 +5,7 @@
   "cmake.buildType": "Release",
   "cmake.buildDirectory": "${workspaceFolder}/build/mingw-ninja-release",
   "cmake.configureSettings": {
+    "CMAKE_MAKE_PROGRAM": "ninja",
     "CMAKE_C_COMPILER": "gcc",
     "CMAKE_CXX_COMPILER": "g++",
     "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",

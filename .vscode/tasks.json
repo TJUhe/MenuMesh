@@ -12,6 +12,7 @@
         "build/mingw-ninja-debug",
         "-G",
         "Ninja",
+        "-DCMAKE_MAKE_PROGRAM=ninja",
         "-DCMAKE_BUILD_TYPE=Debug",
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
@@ -19,12 +20,7 @@
         "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
         "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
       ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
+      "hide": true,
       "problemMatcher": []
     },
     {
@@ -38,6 +34,7 @@
         "build/mingw-ninja-release",
         "-G",
         "Ninja",
+        "-DCMAKE_MAKE_PROGRAM=ninja",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
@@ -45,12 +42,7 @@
         "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
         "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
       ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
+      "hide": true,
       "problemMatcher": []
     },
     {
@@ -64,6 +56,7 @@
         "build/mingw-ninja-debug-performance",
         "-G",
         "Ninja",
+        "-DCMAKE_MAKE_PROGRAM=ninja",
         "-DCMAKE_BUILD_TYPE=Debug",
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
@@ -71,12 +64,7 @@
         "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
         "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
       ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
+      "hide": true,
       "problemMatcher": []
     },
     {
@@ -90,6 +78,7 @@
         "build/mingw-ninja-release-performance",
         "-G",
         "Ninja",
+        "-DCMAKE_MAKE_PROGRAM=ninja",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
@@ -97,12 +86,7 @@
         "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
         "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
       ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
+      "hide": true,
       "problemMatcher": []
     },
     {
@@ -116,6 +100,7 @@
         "build/mingw-ninja-release-sdk",
         "-G",
         "Ninja",
+        "-DCMAKE_MAKE_PROGRAM=ninja",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_C_COMPILER=gcc",
         "-DCMAKE_CXX_COMPILER=g++",
@@ -125,168 +110,57 @@
         "-DMANUMESH_ENABLE_INSTALL=ON",
         "-DMANUMESH_INSTALL_CMAKE_CONFIG=ON"
       ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
+      "hide": true,
       "problemMatcher": []
     },
     {
-      "label": "configure: msvc+vs2022",
+      "label": "configure: msvc selected",
       "type": "process",
       "command": "cmake",
       "args": [
         "-S",
         ".",
         "-B",
-        "build/msvc-vs2022",
+        "build/msvc-${input:msvcToolset}",
         "-G",
         "Visual Studio 17 2022",
         "-A",
         "x64",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-T",
+        "${input:msvcToolset}",
+        "-DMANUMESH_GOOGLETEST_PROVIDER=source",
         "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
       ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
+      "hide": true,
       "problemMatcher": []
     },
     {
-      "label": "configure: msvc+vs2022 performance",
+      "label": "configure: msvc selected performance",
       "type": "process",
       "command": "cmake",
       "args": [
         "-S",
         ".",
         "-B",
-        "build/msvc-vs2022-performance",
+        "build/msvc-${input:msvcToolset}-performance",
         "-G",
         "Visual Studio 17 2022",
         "-A",
         "x64",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-T",
+        "${input:msvcToolset}",
+        "-DMANUMESH_GOOGLETEST_PROVIDER=source",
         "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
       ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: msvc+vs2019",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/msvc-vs2019",
-        "-G",
-        "Visual Studio 16 2019",
-        "-A",
-        "x64",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
-      ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: msvc+vs2019 performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/msvc-vs2019-performance",
-        "-G",
-        "Visual Studio 16 2019",
-        "-A",
-        "x64",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
-      ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: msvc custom visual studio",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "${input:msvcCustomBuildDir}",
-        "-G",
-        "${input:msvcGenerator}",
-        "-A",
-        "${input:msvcArch}",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=${input:msvcPerformanceTests}"
-      ],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
+      "hide": true,
       "problemMatcher": []
     },
     {
       "label": "build: mingw+ninja debug",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-debug",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "group": "build",
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja debug"
-    },
-    {
-      "label": "build: mingw+ninja debug tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-debug",
-        "--target",
-        "manumesh_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja debug"
-    },
-    {
-      "label": "build: mingw+ninja debug all",
-      "type": "process",
-      "command": "cmake",
       "args": ["--build", "build/mingw-ninja-debug", "--parallel"],
+      "group": "build",
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja debug"
     },
@@ -294,26 +168,16 @@
       "label": "build: mingw+ninja release",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-release",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja release"
-    },
-    {
-      "label": "build: mingw+ninja release all",
-      "type": "process",
-      "command": "cmake",
       "args": ["--build", "build/mingw-ninja-release", "--parallel"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": ["$gcc"],
       "dependsOn": "configure: mingw+ninja release"
     },
     {
-      "label": "build: mingw+ninja debug performance tests",
+      "label": "build: mingw+ninja debug performance",
       "type": "process",
       "command": "cmake",
       "args": [
@@ -327,7 +191,7 @@
       "dependsOn": "configure: mingw+ninja debug performance"
     },
     {
-      "label": "build: mingw+ninja release performance tests",
+      "label": "build: mingw+ninja release performance",
       "type": "process",
       "command": "cmake",
       "args": [
@@ -355,104 +219,41 @@
       "dependsOn": "configure: mingw+ninja release sdk"
     },
     {
-      "label": "build: msvc+vs2022 debug",
+      "label": "build: msvc selected debug",
       "type": "process",
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022"
-    },
-    {
-      "label": "build: msvc+vs2022 debug tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2022",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022"
-    },
-    {
-      "label": "build: msvc+vs2022 debug all",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2022",
+        "build/msvc-${input:msvcToolset}",
         "--config",
         "Debug",
         "--parallel"
       ],
+      "group": "build",
       "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022"
+      "dependsOn": "configure: msvc selected"
     },
     {
-      "label": "build: msvc+vs2022 release",
+      "label": "build: msvc selected release",
       "type": "process",
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022"
-    },
-    {
-      "label": "build: msvc+vs2022 release all",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2022",
+        "build/msvc-${input:msvcToolset}",
         "--config",
         "Release",
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022"
+      "dependsOn": "configure: msvc selected"
     },
     {
-      "label": "build: msvc+vs2022 release tests",
+      "label": "build: msvc selected debug performance",
       "type": "process",
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022"
-    },
-    {
-      "label": "build: msvc+vs2022 debug performance tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2022-performance",
+        "build/msvc-${input:msvcToolset}-performance",
         "--config",
         "Debug",
         "--target",
@@ -460,15 +261,15 @@
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022 performance"
+      "dependsOn": "configure: msvc selected performance"
     },
     {
-      "label": "build: msvc+vs2022 release performance tests",
+      "label": "build: msvc selected release performance",
       "type": "process",
       "command": "cmake",
       "args": [
         "--build",
-        "build/msvc-vs2022-performance",
+        "build/msvc-${input:msvcToolset}-performance",
         "--config",
         "Release",
         "--target",
@@ -476,223 +277,7 @@
         "--parallel"
       ],
       "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2022 performance"
-    },
-    {
-      "label": "build: msvc+vs2019 debug",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019"
-    },
-    {
-      "label": "build: msvc+vs2019 debug tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019"
-    },
-    {
-      "label": "build: msvc+vs2019 debug all",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019",
-        "--config",
-        "Debug",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019"
-    },
-    {
-      "label": "build: msvc+vs2019 release",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019"
-    },
-    {
-      "label": "build: msvc+vs2019 release all",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019",
-        "--config",
-        "Release",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019"
-    },
-    {
-      "label": "build: msvc+vs2019 release tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019"
-    },
-    {
-      "label": "build: msvc+vs2019 debug performance tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019-performance",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh_performance_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019 performance"
-    },
-    {
-      "label": "build: msvc+vs2019 release performance tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-vs2019-performance",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh_performance_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc+vs2019 performance"
-    },
-    {
-      "label": "build: msvc custom debug",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${input:msvcCustomBuildDir}",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc custom visual studio"
-    },
-    {
-      "label": "build: msvc custom release",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${input:msvcCustomBuildDir}",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc custom visual studio"
-    },
-    {
-      "label": "build: msvc custom release tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${input:msvcCustomBuildDir}",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc custom visual studio"
-    },
-    {
-      "label": "build: msvc custom debug tests",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${input:msvcCustomBuildDir}",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc custom visual studio"
-    },
-    {
-      "label": "build: msvc custom debug all",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${input:msvcCustomBuildDir}",
-        "--config",
-        "Debug",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc custom visual studio"
-    },
-    {
-      "label": "build: msvc custom release all",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${input:msvcCustomBuildDir}",
-        "--config",
-        "Release",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc custom visual studio"
+      "dependsOn": "configure: msvc selected performance"
     },
     {
       "label": "test: mingw+ninja debug",
@@ -708,7 +293,7 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja debug all"
+      "dependsOn": "build: mingw+ninja debug"
     },
     {
       "label": "test: mingw+ninja release",
@@ -724,7 +309,7 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release all"
+      "dependsOn": "build: mingw+ninja release"
     },
     {
       "label": "test: mingw+ninja debug performance",
@@ -740,7 +325,7 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja debug performance tests"
+      "dependsOn": "build: mingw+ninja debug performance"
     },
     {
       "label": "test: mingw+ninja release performance",
@@ -756,16 +341,16 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release performance tests"
+      "dependsOn": "build: mingw+ninja release performance"
     },
     {
-      "label": "test: msvc+vs2022 debug",
+      "label": "test: msvc selected debug",
       "type": "process",
       "command": "cmake",
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2022",
+        "build/msvc-${input:msvcToolset}",
         "ctest",
         "-C",
         "Debug",
@@ -774,16 +359,16 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2022 debug all"
+      "dependsOn": "build: msvc selected debug"
     },
     {
-      "label": "test: msvc+vs2022 release",
+      "label": "test: msvc selected release",
       "type": "process",
       "command": "cmake",
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2022",
+        "build/msvc-${input:msvcToolset}",
         "ctest",
         "-C",
         "Release",
@@ -792,88 +377,16 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2022 release all"
+      "dependsOn": "build: msvc selected release"
     },
     {
-      "label": "test: msvc+vs2022 debug performance",
+      "label": "test: msvc selected debug performance",
       "type": "process",
       "command": "cmake",
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2022-performance",
-        "ctest",
-        "-C",
-        "Debug",
-        "-L",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2022 debug performance tests"
-    },
-    {
-      "label": "test: msvc+vs2022 release performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-vs2022-performance",
-        "ctest",
-        "-C",
-        "Release",
-        "-L",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2022 release performance tests"
-    },
-    {
-      "label": "test: msvc+vs2019 debug",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-vs2019",
-        "ctest",
-        "-C",
-        "Debug",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2019 debug all"
-    },
-    {
-      "label": "test: msvc+vs2019 release",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-vs2019",
-        "ctest",
-        "-C",
-        "Release",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2019 release all"
-    },
-    {
-      "label": "test: msvc+vs2019 debug performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-vs2019-performance",
+        "build/msvc-${input:msvcToolset}-performance",
         "ctest",
         "-C",
         "Debug",
@@ -882,16 +395,16 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2019 debug performance tests"
+      "dependsOn": "build: msvc selected debug performance"
     },
     {
-      "label": "test: msvc+vs2019 release performance",
+      "label": "test: msvc selected release performance",
       "type": "process",
       "command": "cmake",
       "args": [
         "-E",
         "chdir",
-        "build/msvc-vs2019-performance",
+        "build/msvc-${input:msvcToolset}-performance",
         "ctest",
         "-C",
         "Release",
@@ -900,43 +413,7 @@
         "--output-on-failure"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: msvc+vs2019 release performance tests"
-    },
-    {
-      "label": "test: msvc custom debug",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "${input:msvcCustomBuildDir}",
-        "ctest",
-        "-C",
-        "Debug",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc custom debug all"
-    },
-    {
-      "label": "test: msvc custom release",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "${input:msvcCustomBuildDir}",
-        "ctest",
-        "-C",
-        "Release",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc custom release all"
+      "dependsOn": "build: msvc selected release performance"
     },
     {
       "label": "test: mingw+ninja release full",
@@ -945,29 +422,20 @@
         "test: mingw+ninja release",
         "test: mingw+ninja release performance",
         "test: mingw+ninja release sdk consumer",
-        "build: docs-api"
+        "check: format",
+        "build: docs-api",
+        "build: docs-internal"
       ],
       "problemMatcher": []
     },
     {
-      "label": "test: msvc+vs2022 full",
+      "label": "test: msvc selected full",
       "dependsOrder": "sequence",
       "dependsOn": [
-        "test: msvc+vs2022 debug",
-        "test: msvc+vs2022 release",
-        "test: msvc+vs2022 debug performance",
-        "test: msvc+vs2022 release performance"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "test: msvc+vs2019 full",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "test: msvc+vs2019 debug",
-        "test: msvc+vs2019 release",
-        "test: msvc+vs2019 debug performance",
-        "test: msvc+vs2019 release performance"
+        "test: msvc selected debug",
+        "test: msvc selected release",
+        "test: msvc selected debug performance",
+        "test: msvc selected release performance"
       ],
       "problemMatcher": []
     },
@@ -980,6 +448,7 @@
         "make_directory",
         "${workspaceFolder}/output/vscode_demo/ratio_sweep"
       ],
+      "hide": true,
       "problemMatcher": []
     },
     {
@@ -1289,12 +758,18 @@
       "dependsOn": "configure: mingw+ninja release"
     },
     {
-      "label": "open: vscode demo output",
+      "label": "build: docs-internal",
       "type": "process",
-      "command": "explorer.exe",
-      "args": ["${workspaceFolder}\\output\\vscode_demo"],
+      "command": "cmake",
+      "args": [
+        "--build",
+        "build/mingw-ninja-release",
+        "--target",
+        "docs-internal",
+        "--parallel"
+      ],
       "problemMatcher": [],
-      "dependsOn": "prepare: vscode demo output"
+      "dependsOn": "configure: mingw+ninja release"
     }
   ],
   "inputs": [
@@ -1356,41 +831,11 @@
       ]
     },
     {
-      "id": "msvcGenerator",
+      "id": "msvcToolset",
       "type": "pickString",
-      "description": "MSVC Visual Studio CMake generator",
-      "default": "Visual Studio 17 2022",
-      "options": [
-        "Visual Studio 17 2022",
-        "Visual Studio 16 2019",
-        "Visual Studio 15 2017"
-      ]
-    },
-    {
-      "id": "msvcArch",
-      "type": "pickString",
-      "description": "MSVC generator platform",
-      "default": "x64",
-      "options": ["x64", "Win32", "ARM64"]
-    },
-    {
-      "id": "msvcCustomBuildDir",
-      "type": "pickString",
-      "description": "MSVC custom build directory",
-      "default": "build/msvc-custom",
-      "options": [
-        "build/msvc-custom",
-        "build/msvc-vs2022",
-        "build/msvc-vs2019",
-        "build/msvc-vs2017"
-      ]
-    },
-    {
-      "id": "msvcPerformanceTests",
-      "type": "pickString",
-      "description": "Build performance tests in custom MSVC tree",
-      "default": "OFF",
-      "options": ["OFF", "ON"]
+      "description": "MSVC toolset (v143 = VS2022, v142 = VS2019)",
+      "default": "v143",
+      "options": ["v143", "v142"]
     }
   ]
 }

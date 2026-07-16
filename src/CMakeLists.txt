@@ -83,7 +83,13 @@ set(MANUMESH_FEATURE_DETECTION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureSegmentation.cpp"
 )
 
-if(MINGW)
+if(MSVC)
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
+    PROPERTIES COMPILE_OPTIONS "/bigobj"
+  )
+elseif(MINGW)
   set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"

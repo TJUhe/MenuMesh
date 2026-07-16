@@ -89,6 +89,8 @@ ManuMesh 当前是三角表面网格内核，不是完整 CAD/B-Rep 或实体建
 
 Windows 本地开发主路径为 MinGW + Ninja，MSVC + Ninja/Visual Studio generator 作为
 SDK 集成与兼容验证路径。源码与 CMake 目标不依赖 GUI 或 Node.js 运行环境。
+VS Code 的 `msvc selected` 任务可在执行时选择 `v143`（MSVC 2022）或
+`v142`（MSVC 2019）；v142 需要先通过 Visual Studio Installer 安装对应组件。
 
 ## 快速开始
 
@@ -97,6 +99,7 @@ SDK 集成与兼容验证路径。源码与 CMake 目标不依赖 GUI 或 Node.j
 ```powershell
 $buildDir = "build/mingw-ninja-release"
 cmake -S . -B $buildDir -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
@@ -119,6 +122,7 @@ cmake -E chdir $buildDir ctest -LE "performance|external" --output-on-failure
 
 ```powershell
 cmake -S . -B build/msvc-ninja-release -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_CXX_COMPILER=cl
 cmake --build build/msvc-ninja-release --parallel
@@ -128,6 +132,7 @@ cmake --build build/msvc-ninja-release --parallel
 
 ```powershell
 cmake -S . -B build/sdk-release -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
@@ -277,7 +282,7 @@ Eigen 是库的 header-only 编译依赖。GoogleTest 只用于仓库测试，�
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中启用内部 HTML 线框工具。 |
 | `MANUMESH_EIGEN_PROVIDER` | `auto` | `auto`、`system`、`vendored` 或 `fetch`。 |
 | `MANUMESH_GOOGLETEST_PROVIDER` | `auto` | `auto`、`source`、`prebuilt`、`system` 或 `fetch`。 |
-| `MANUMESH_BUILD_DOCS` | `ON` | 在可用时创建 Doxygen `docs-api` 目标。 |
+| `MANUMESH_BUILD_DOCS` | `ON` | 在可用时创建 Doxygen `docs-api` 和 `docs-internal` 目标。 |
 | `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 检测到 Graphviz `dot` 时生成关系图。 |
 
 ## 测试
@@ -308,6 +313,7 @@ cmake -E chdir build/mingw-ninja-release `
 ```powershell
 $perfBuildDir = "build/mingw-ninja-release-performance"
 cmake -S . -B $perfBuildDir -G Ninja `
+  -DCMAKE_MAKE_PROGRAM=ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=gcc `
   -DCMAKE_CXX_COMPILER=g++ `
@@ -320,23 +326,27 @@ cmake --build $perfBuildDir --target performance-tests --parallel
 测试结果之外，工业验证还要求检查 CLI 生成的 STL/CSV：拓扑、采样距离、三角形
 质量、feature component、拒绝计数和求解 fallback 应结合输入模型与目标比例解释。
 
-## API 文档
+## Doxygen 文档
 
-配置阶段检测到 Doxygen 后，执行：
+配置阶段检测到 Doxygen 后，可分别生成公开/API 参考和内部源码参考：
 
 ```powershell
 cmake --build build/mingw-ninja-release --target docs-api --parallel
+cmake --build build/mingw-ninja-release --target docs-internal --parallel
 ```
 
-生成首页位于：
+生成首页分别位于：
 
 ```text
 docs/doxygen/html/index.html
+docs/internal/html/index.html
 ```
 
-Doxygen 输入仅包括 `documentation/doxygen/` 中的页面/分组定义，以及 ManuMesh 自有的
-`include/`、`src/`、`apps/` 和 `examples/`。`thirdParty/` 不参与 API 文档抽取。
-Graphviz 不可用时仍可生成文档，只会省略关系图。
+`docs-api` 输入包括 `documentation/doxygen/` 页面、`include/`、`src/`、`apps/` 和
+`examples/`。`docs-internal` 专注于 `include/` 与 `src/`，启用 private/static/local/anonymous-namespace
+符号、内联源码、caller/callee 关系和 `@internal` 内容。内部站点使用
+`EXTRACT_ALL=YES`，因此尚未补齐 Doxygen 注释的实现仍可浏览，且不会因缺注释而构建
+失败。`thirdParty/` 不参与文档抽取；Graphviz 不可用时只会省略关系图。
 
 ## 版本记录
 

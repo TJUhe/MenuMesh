@@ -93,6 +93,9 @@ if(BUILD_TESTING)
   set_tests_properties(manumesh_cli_feature_report
     PROPERTIES PASS_REGULAR_EXPRESSION "surface_patches="
   )
+  set_tests_properties(manumesh_cli_feature_benchmark
+    PROPERTIES FAIL_REGULAR_EXPRESSION "unparsable label row"
+  )
 endif()
 
 if(MANUMESH_ENABLE_INSTALL)

@@ -1,5 +1,19 @@
 # 更新日志
 
+## 2026-07-16
+
+### VS Code 工作流
+
+- `.vscode/tasks.json` 从 70 个任务收敛到 38 个：隐藏 configure/prepare 依赖，合并重复构建入口，保留 MinGW + Ninja、VS2022、性能、SDK、演示、验证、格式和文档工作流。
+- 移除依赖完整 Visual Studio 2019 安装的固定任务和重复的自定义 MSVC 任务；统一的 `msvc selected` 任务可在执行时选择 v143（MSVC 2022）或 v142（MSVC 2019），并使用隔离构建目录。
+- MinGW configure 任务显式设置 `CMAKE_MAKE_PROGRAM=ninja`，可覆盖旧构建缓存中指向已删除 `thirdParty/packages` 工具目录的 Ninja 路径，不新增第三方文件。
+- `.vscode/launch.json` 收敛为 6 个 MinGW/MSVC 调试入口；MSVC 程序路径随 v143/v142 选择切换。
+- MSVC Debug 为 `PrimitiveFit.cpp` 和 `SmoothCurvature.cpp` 启用 `/bigobj`，修复特征检测对象库超过 COFF 节数限制的 `C1128`。
+- MSVC 任务使用仓库已有的 GoogleTest 源码在构建目录中生成测试库，避免预编译 Debug 库缺失 PDB 导致的 `LNK4099`，不向 `thirdParty` 新增文件。
+- 本机使用 VS2022 generator + v142 实际通过普通/性能 configure、Debug/Release build、Debug/Release CTest 与两个 MSVC launch 默认入口；非性能测试均为 267/267，性能测试均为 4/4。
+- `feature-benchmark` 识别现有标签 fixture 的 `a,b` 表头，不再把合法表头报告为无法解析的标签行；CLI CTest 增加对应防回归检查。
+- 新增独立 `docs-internal` Doxygen 目标和 VS Code 任务，输出 `docs/internal/html/index.html`；覆盖 `include/` 与 `src/` 的 private/static/local 符号、内联源码、调用关系和 `@internal` 内容，未注释实现仍可浏览。
+
 ## 2026-07-15
 
 ### 特征识别系统增强

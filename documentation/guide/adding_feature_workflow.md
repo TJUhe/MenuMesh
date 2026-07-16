@@ -17,7 +17,7 @@ src/CMakeLists.txt                manumesh_core、库源码列表、库安装规
 apps/manumesh/CMakeLists.txt      CLI target、CLI 测试、CLI 安装规则
 examples/CMakeLists.txt           SDK 示例 target 和示例测试
 tests/CMakeLists.txt              GoogleTest 解析、单元测试、性能测试
-adm/CMakeLists.txt                format/check-format、docs-api、SDK install/export/consumer test
+adm/CMakeLists.txt                format/check-format、docs-api/docs-internal、SDK install/export/consumer test
 
 include/core/                     稳定 core SDK 头
 include/algorithms/<domain>/      稳定算法 SDK 头
@@ -240,7 +240,7 @@ tests/unit/<domain>/*.cpp
 adm/CMakeLists.txt
 ```
 
-这里维护 `docs-api` 输入、SDK 安装文档、安装示例、`sdk-consumer-test`。
+这里维护 `docs-api` / `docs-internal` 输入、SDK 安装文档、安装示例、`sdk-consumer-test`。
 
 ### 5. 测试策略
 

@@ -107,7 +107,7 @@
       "externalConsole": false,
       "MIMode": "gdb",
       "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug tests"
+      "preLaunchTask": "build: mingw+ninja debug"
     },
     {
       "name": "(MinGW Ninja) Debug Performance Tests Filter",
@@ -123,13 +123,13 @@
       "externalConsole": false,
       "MIMode": "gdb",
       "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug performance tests"
+      "preLaunchTask": "build: mingw+ninja debug performance"
     },
     {
-      "name": "(MSVC VS2022) Debug CLI Feature Curves",
+      "name": "(MSVC Selected) Debug CLI Feature Curves",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-vs2022/bin/Debug/manumesh.exe",
+      "program": "${workspaceFolder}/build/msvc-${input:msvcToolset}/bin/Debug/manumesh.exe",
       "args": [
         "simplify",
         "${input:launchMesh}",
@@ -167,13 +167,13 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc+vs2022 debug"
+      "preLaunchTask": "build: msvc selected debug"
     },
     {
-      "name": "(MSVC VS2022) Debug Unit Tests Filter",
+      "name": "(MSVC Selected) Debug Unit Tests Filter",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-vs2022/bin/Debug/manumesh_tests.exe",
+      "program": "${workspaceFolder}/build/msvc-${input:msvcToolset}/bin/Debug/manumesh_tests.exe",
       "args": [
         "--gtest_filter=${input:gtestFilter}",
         "--gtest_color=yes"
@@ -181,65 +181,7 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc+vs2022 debug tests"
-    },
-    {
-      "name": "(MSVC VS2019) Debug CLI Feature Curves",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-vs2019/bin/Debug/manumesh.exe",
-      "args": [
-        "simplify",
-        "${input:launchMesh}",
-        "output/vscode_debug_msvc2019_feature_curves.stl",
-        "--method",
-        "line",
-        "--line-weight",
-        "1e-3",
-        "--weight-mode",
-        "dihedral",
-        "--feature-boost",
-        "0.08",
-        "--feature-angle-deg",
-        "${input:launchFeatureAngle}",
-        "--loop-trace-angle-deg",
-        "${input:launchLoopTraceAngle}",
-        "--preserve-feature-curves",
-        "--feature-curve-weight",
-        "0.08",
-        "--max-feature-curve-deviation-ratio",
-        "0.05",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
-        "--ratio",
-        "${input:launchRatio}",
-        "--samples",
-        "${input:launchSamples}",
-        "--metrics-csv",
-        "output/vscode_debug_msvc2019_feature_curves_metrics.csv"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc+vs2019 debug"
-    },
-    {
-      "name": "(MSVC VS2019) Debug Unit Tests Filter",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-vs2019/bin/Debug/manumesh_tests.exe",
-      "args": [
-        "--gtest_filter=${input:gtestFilter}",
-        "--gtest_color=yes"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc+vs2019 debug tests"
+      "preLaunchTask": "build: msvc selected debug"
     }
   ],
   "inputs": [
@@ -296,6 +238,13 @@
       "type": "promptString",
       "description": "Dataset GoogleTest filter",
       "default": "ManuMeshDataset.*"
+    },
+    {
+      "id": "msvcToolset",
+      "type": "pickString",
+      "description": "MSVC toolset (v143 = VS2022, v142 = VS2019; match the preLaunch task)",
+      "default": "v143",
+      "options": ["v143", "v142"]
     }
   ]
 }

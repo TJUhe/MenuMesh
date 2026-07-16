@@ -1,3 +1,16 @@
+/**
+ * @file src/simplification/Quadrics.cpp
+ * @brief Implements quadrics facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Builds plane, line, boundary, and feature-curve quadratic error terms.
+ * @algorithm Each valid face contributes an area-weighted homogeneous plane
+ * outer product. Boundary and feature constraints add perpendicular-plane or
+ * point-to-line quadrics; per-vertex sums make edge contraction cost additive.
+ * @invariants Every quadric is symmetric positive semidefinite up to floating-point roundoff.
+ * @failuremodes Degenerate faces use a bounded point fallback and never supply an unstable plane.
+ */
+
 #include "detail/Quadrics.h"
 
 #include "common/detail/MeshQueries.h"

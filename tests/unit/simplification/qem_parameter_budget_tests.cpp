@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/qem_parameter_budget_tests.cpp
+ * @brief Verifies qem parameter budget tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "QemParameterTestSupport.h"
 #include "TestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"

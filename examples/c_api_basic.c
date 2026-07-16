@@ -1,3 +1,11 @@
+/**
+ * @file examples/c_api_basic.c
+ * @brief Demonstrates c api basic through the ManuMesh SDK examples.
+ * @ingroup manumesh_examples
+ *
+ * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ */
+
 #include "api/CApi.h"
 
 #include <stdio.h>

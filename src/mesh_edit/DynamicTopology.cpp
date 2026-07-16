@@ -1,3 +1,13 @@
+/**
+ * @file src/mesh_edit/DynamicTopology.cpp
+ * @brief Implements dynamic topology facilities for ManuMesh's mesh-editing module.
+ * @ingroup manumesh_mesh_edit
+ *
+ * @details Maintains mutable vertex-face incidence and duplicate-face lookup under local edits.
+ * @invariants A face is registered in both caches or neither; invalid face
+ * indices never leave partial incidence behind.
+ */
+
 #include "mesh_edit/detail/DynamicTopology.h"
 
 #include <algorithm>

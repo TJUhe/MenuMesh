@@ -1,0 +1,59 @@
+/**
+ * @defgroup manumesh_core Core mesh model
+ * @brief Mesh storage, validation, topology handles, status values, and test generators.
+ */
+
+/**
+ * @defgroup manumesh_common Common geometry foundations
+ * @brief Predicates, mesh queries, distance acceleration, and spatial indexing shared by algorithms.
+ */
+
+/**
+ * @defgroup manumesh_analysis Mesh analysis
+ * @brief Topological, quality, and sampled surface-distance measurements.
+ */
+
+/**
+ * @defgroup manumesh_feature_detection Feature detection
+ * @brief Deterministic hard/weak evidence, feature graphs, curves, primitives, and patches.
+ */
+
+/**
+ * @defgroup manumesh_simplification Mesh simplification
+ * @brief Feature-aware QEM edge collapse, legality guards, and quality refinement.
+ */
+
+/**
+ * @defgroup manumesh_mesh_edit Mesh editing foundations
+ * @brief Stable-index dynamic topology and deterministic compaction utilities.
+ */
+
+/**
+ * @defgroup manumesh_io Mesh I/O
+ * @brief STL and OBJ import/export with validation and deterministic triangulation.
+ */
+
+/**
+ * @defgroup manumesh_c_api C ABI
+ * @brief Stable context-based C interface with size-aware option and report structures.
+ */
+
+/**
+ * @defgroup manumesh_cli Command-line application
+ * @brief CLI parsing, option binding, reporting, and workflow commands.
+ */
+
+/**
+ * @defgroup manumesh_examples SDK examples
+ * @brief Minimal C, C++, and installed-SDK usage examples.
+ */
+
+/**
+ * @defgroup manumesh_debug Debug visualization
+ * @brief Debug-only HTML wireframe snapshots and semantic overlays.
+ */
+
+/**
+ * @defgroup manumesh_tests Tests and fixtures
+ * @brief Deterministic unit, analytic, integration, and performance-regression coverage.
+ */

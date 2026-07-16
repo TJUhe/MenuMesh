@@ -1,3 +1,11 @@
+/**
+ * @file src/mesh_edit/detail/DynamicTopology.h
+ * @brief Declares dynamic topology facilities for ManuMesh's mesh-editing module.
+ * @ingroup manumesh_mesh_edit
+ *
+ * @details Edit-time indices remain stable while faces and vertices are marked inactive; deterministic compaction creates the final dense mesh.
+ */
+
 #pragma once
 
 #include "common/detail/MeshQueries.h"

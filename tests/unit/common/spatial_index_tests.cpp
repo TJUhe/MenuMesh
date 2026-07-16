@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/common/spatial_index_tests.cpp
+ * @brief Verifies spatial index tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "../../../src/common/detail/SpatialIndex.h"
 
 #include <algorithm>

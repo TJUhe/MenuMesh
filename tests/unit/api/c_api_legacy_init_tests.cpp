@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/api/c_api_legacy_init_tests.cpp
+ * @brief Verifies c api legacy init tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #define MANUMESH_DISABLE_SIZE_AWARE_ALIASES
 #include "api/CApi.h"
 

@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/common/geometry_predicates_tests.cpp
+ * @brief Verifies geometry predicates tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "../../../src/common/detail/GeometryPredicates.h"
 
 #include "core/Mesh.h"

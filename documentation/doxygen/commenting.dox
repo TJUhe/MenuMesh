@@ -1,0 +1,25 @@
+/**
+ * @page commenting_conventions Doxygen Commenting Conventions
+ *
+ * ManuMesh documentation follows one contract-oriented style:
+ *
+ * - Every owned C/C++ file has `@file`, `@brief`, and `@ingroup` metadata.
+ * - Public and cross-translation-unit declarations use Doxygen comments.
+ * - Parameters use `@param[in]`, `@param[out]`, or `@param[in,out]` whenever
+ *   mutation or ownership is not obvious.
+ * - Non-void functions state `@return`; status-valued functions also document
+ *   important `@retval` cases.
+ * - Exceptions, lifetime requirements, units, valid ranges, determinism, and
+ *   thread-safety are part of the API contract and are documented explicitly.
+ * - Algorithm entry points use `@algorithm`, `@complexity`, `@invariants`, and
+ *   `@failuremodes` sections where those facts affect correct use or review.
+ * - Data-member comments use `///<` when the explanation is short and a block
+ *   comment when units, range, ABI history, or interactions need more detail.
+ *
+ * Plain `//` comments inside a function are reserved for local proof
+ * obligations, numeric derivations, and non-obvious implementation choices.
+ * They intentionally remain ordinary source comments: changing them to
+ * `///` would make Doxygen bind documentation to a local statement or variable
+ * and would produce misleading API pages. Algorithm-wide explanations belong
+ * on the function declaration or file page instead.
+ */

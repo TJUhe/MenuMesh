@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/simplification_texture_tests.cpp
+ * @brief Verifies simplification texture tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"
 #include "io/MeshIo.h"

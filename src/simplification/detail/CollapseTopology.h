@@ -1,3 +1,11 @@
+/**
+ * @file src/simplification/detail/CollapseTopology.h
+ * @brief Declares collapse topology facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ */
+
 #pragma once
 
 #include "algorithms/simplification/SimplificationTypes.h"
@@ -14,6 +22,7 @@ using mesh_edit::collectActiveEdges;
 using mesh_edit::containsVertex;
 using mesh_edit::DynamicTopology;
 
+/// Local incidence and positions needed to decide an open-boundary contraction.
 struct BoundaryCollapseInput {
     CollapseEdge edge;
     const std::vector<FaceState>& faces;
@@ -22,6 +31,7 @@ struct BoundaryCollapseInput {
     const SimplifyOptions& options;
 };
 
+/// Classifies and, when possible, constrains a boundary collapse.
 BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input);
 
 std::vector<int> activeNeighborsOf(

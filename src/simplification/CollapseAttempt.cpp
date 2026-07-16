@@ -1,3 +1,16 @@
+/**
+ * @file src/simplification/CollapseAttempt.cpp
+ * @brief Implements collapse attempt facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Evaluates all pre-mutation policies for one current edge candidate.
+ * @algorithm Placement candidates are tried in ascending QEM cost. Each passes
+ * feature projection/budgets, boundary policy, optional UV planning, topology,
+ * normal/quality/error, and self-intersection checks. The first fully legal
+ * placement returns its prepared mutation plans.
+ * @invariants No mesh, topology, UV, or spatial-index state changes during evaluation.
+ */
+
 #include "detail/CollapseAttempt.h"
 
 #include "detail/Placement.h"

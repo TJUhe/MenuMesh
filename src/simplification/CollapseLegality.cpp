@@ -1,3 +1,16 @@
+/**
+ * @file src/simplification/CollapseLegality.cpp
+ * @brief Implements collapse legality facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Implements hard topology and geometry acceptance predicates.
+ * @algorithm Enforces the extended simplicial link condition including open
+ * boundaries, rejects duplicate/degenerate surviving faces, bounds normal and
+ * triangle-quality degradation, checks the reference-surface error envelope,
+ * and queries local triangle intersections through a broad phase.
+ * @failuremodes Ambiguous or numerically unsafe configurations fail closed.
+ */
+
 #include "detail/CollapseLegality.h"
 
 #include "common/detail/GeometryPredicates.h"

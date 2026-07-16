@@ -1,3 +1,14 @@
+/**
+ * @file src/feature_detection/FeatureTraceRecovery.cpp
+ * @brief Implements feature trace recovery facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Traces remaining degree-two chains and loops after stronger recovery stages.
+ * @algorithm Walks sorted adjacency while marking undirected edges visited;
+ * endpoints seed open chains before unvisited degree-two cycles are consumed.
+ * @invariants Every active graph edge is traced at most once by this stage.
+ */
+
 #include "detail/FeatureTraceRecovery.h"
 
 #include "common/detail/MeshQueries.h"

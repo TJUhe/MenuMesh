@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/feature_detection/feature_detection_analytic_tests.cpp
+ * @brief Verifies feature detection analytic tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 // Feature detection against analytic fixtures with closed-form ground truth.
 //
 // The assertions here are derived from the differential geometry of the
@@ -65,11 +73,9 @@ FeatureOptions rimDetectionOptions(double circleFitRelativeThreshold = 0.05) {
 }
 
 int countCircular(const FeatureAnalysis& analysis) {
-    return static_cast<int>(
-        std::count_if(analysis.loops.begin(), analysis.loops.end(), [](const FeatureLoop& loop) {
-            return loop.circular;
-        })
-    );
+    return static_cast<int>(std::count_if(analysis.loops.begin(), analysis.loops.end(), [](const FeatureLoop& loop) {
+        return loop.circular;
+    }));
 }
 
 const FeatureLoop* circularLoopNearestTo(const FeatureAnalysis& analysis, const Vec3& center) {
@@ -380,8 +386,7 @@ TEST(FeatureDetectionAnalytic, GradedDensityGaussianRidgeCrestSurvivesDensityTra
     // matching the fine half (2 / 64 = 0.03125 vs 0.0208).
     const analytic::GaussianRidgeSheetFixture uniform = analytic::makeGaussianRidgeSheet(64, 2.0, 0.50, 14.0);
     const auto uniformValues = feature::computeSmoothCurvatureFeatures(uniform.mesh, options, 0.008);
-    const double uniformRecall =
-        crestPersistentRecall(uniformValues, uniform.interiorCrestVertices(), 2, 0.008);
+    const double uniformRecall = crestPersistentRecall(uniformValues, uniform.interiorCrestVertices(), 2, 0.008);
 
     EXPECT_GT(uniformRecall, 0.90);
     EXPECT_GE(gradedRecall, uniformRecall - 0.10);

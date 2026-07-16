@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/feature_detection/feature_detection_pipeline_upgrade_tests.cpp
+ * @brief Verifies feature detection pipeline upgrade tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "AnalyticFixtures.h"
 #include "FeatureDetectionTestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"

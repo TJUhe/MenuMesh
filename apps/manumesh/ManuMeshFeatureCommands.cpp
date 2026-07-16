@@ -1,3 +1,11 @@
+/**
+ * @file apps/manumesh/ManuMeshFeatureCommands.cpp
+ * @brief Implements manu mesh feature commands facilities for the ManuMesh command-line application.
+ * @ingroup manumesh_cli
+ *
+ * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ */
+
 #include "ManuMeshFeatureCommands.h"
 
 #include "CliCsv.h"

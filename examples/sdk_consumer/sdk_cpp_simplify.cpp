@@ -1,3 +1,11 @@
+/**
+ * @file examples/sdk_consumer/sdk_cpp_simplify.cpp
+ * @brief Demonstrates sdk cpp simplify through the ManuMesh SDK examples.
+ * @ingroup manumesh_examples
+ *
+ * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ */
+
 #include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/Metrics.h"
@@ -30,8 +38,7 @@ int main() {
     if (stats.faces != static_cast<int>(output.faces.size())) {
         return 3;
     }
-    const manumesh::simplification::MeshStats legacyStats =
-        manumesh::simplification::computeMeshStats(output);
+    const manumesh::simplification::MeshStats legacyStats = manumesh::simplification::computeMeshStats(output);
     const manumesh::simplification::DistanceStats legacyDistance =
         manumesh::simplification::compareMeshesBySampledDistance(output, output, 16);
     const double distanceTolerance = 1e-9 * std::max(1.0, output.bboxDiag());

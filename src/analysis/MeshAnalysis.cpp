@@ -1,3 +1,11 @@
+/**
+ * @file src/analysis/MeshAnalysis.cpp
+ * @brief Implements mesh analysis facilities for ManuMesh's analysis module.
+ * @ingroup manumesh_analysis
+ *
+ * @details Analysis routines tolerate unusable faces where documented and report measurements without changing their input meshes.
+ */
+
 #include "algorithms/analysis/MeshAnalysis.h"
 
 #include "common/detail/GeometryPredicates.h"
@@ -185,9 +193,8 @@ MeshStats computeMeshStats(const Mesh& mesh) {
             variance += d * d;
         }
         variance /= static_cast<long double>(edgeLengths.size());
-        const double cv = stats.meanEdgeLength > 1e-30
-                              ? static_cast<double>(std::sqrt(variance) / stats.meanEdgeLength)
-                              : 0.0;
+        const double cv =
+            stats.meanEdgeLength > 1e-30 ? static_cast<double>(std::sqrt(variance) / stats.meanEdgeLength) : 0.0;
         stats.edgeLengthCv = std::isfinite(cv) ? cv : 0.0;
     }
 
@@ -240,18 +247,8 @@ DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& s
         maxValue = std::sqrt(maxSq);
     };
 
-    accumulate(
-        originalSurface,
-        simplifiedSurface,
-        stats.meanOriginalToSimplified,
-        stats.maxOriginalToSimplified
-    );
-    accumulate(
-        simplifiedSurface,
-        originalSurface,
-        stats.meanSimplifiedToOriginal,
-        stats.maxSimplifiedToOriginal
-    );
+    accumulate(originalSurface, simplifiedSurface, stats.meanOriginalToSimplified, stats.maxOriginalToSimplified);
+    accumulate(simplifiedSurface, originalSurface, stats.meanSimplifiedToOriginal, stats.maxSimplifiedToOriginal);
     return stats;
 }
 

@@ -1,3 +1,11 @@
+/**
+ * @file src/debugUtil/debugUtil.h
+ * @brief Declares debug util facilities for ManuMesh's debug-visualization module.
+ * @ingroup manumesh_debug
+ *
+ * @details Debug visualization is compiled out of release builds and must not affect algorithm results.
+ */
+
 #pragma once
 
 #include <string>

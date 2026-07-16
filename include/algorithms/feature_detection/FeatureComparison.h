@@ -1,3 +1,11 @@
+/**
+ * @file include/algorithms/feature_detection/FeatureComparison.h
+ * @brief Declares feature comparison facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ */
+
 #pragma once
 
 #include "Export.h"
@@ -91,6 +99,15 @@ struct LoopMatchReport {
 /// consumed by at most one original loop. Deterministic for identical inputs.
 /// Throws std::invalid_argument when `options` violates
 /// validateLoopMatchOptions().
+/// @param[in] original Feature analysis of the reference mesh.
+/// @param[in] simplifiedFeatures Feature analysis of `simplified`.
+/// @param[in] simplified Mesh containing candidate loop vertices.
+/// @param[in] options Plausible and strong matching gates.
+/// @return One deterministic match record per original circular loop.
+/// @algorithm Filters candidates by center, radius, and unoriented normal
+/// gates, then greedily consumes the lowest combined normalized error. The
+/// tighter gates classify accepted pairs as strong or weak matches.
+/// @complexity O(L_o * L_s), excluding directional curve measurement.
 MANUMESH_API LoopMatchReport matchCircularLoops(
     const FeatureAnalysis& original,
     const FeatureAnalysis& simplifiedFeatures,

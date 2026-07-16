@@ -1,3 +1,16 @@
+/**
+ * @file src/simplification/Placement.cpp
+ * @brief Implements placement facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Solves and ranks candidate positions for one edge contraction.
+ * @algorithm Attempts the full Garland-Heckbert 3x3 optimum under scale-aware
+ * spectral conditioning. Rank-deficient systems use a one-dimensional optimum
+ * on the collapsing edge, followed by endpoints and midpoint. Boundary and
+ * primitive constraints project or clamp candidates before final cost sorting.
+ * @failuremodes Non-finite or ill-conditioned solves are rejected, not returned as placements.
+ */
+
 #include "detail/Placement.h"
 
 #include <algorithm>

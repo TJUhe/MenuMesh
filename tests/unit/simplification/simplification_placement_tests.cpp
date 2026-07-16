@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/simplification_placement_tests.cpp
+ * @brief Verifies simplification placement tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "SimplificationTestSupport.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"

@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/simplification_quality_refinement_tests.cpp
+ * @brief Verifies simplification quality refinement tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "TestSupport.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -193,7 +201,7 @@ TEST(QualityRefinement, SoftProtectedPolygonalCreaseVerticesOnlySlideAlongTheCre
     // feature loops under PrimitiveCurves (only circles/ellipses are hard
     // protected), so quality refinement is allowed to move crease vertices.
     const double half = 1.0;
-    const manumesh::Mesh input = manumesh::generateWeldedCubeGrid(10, 2.0 * half);
+    const manumesh::Mesh input = manumesh::generateClosedCubeGrid(10, 2.0 * half);
 
     manumesh::simplification::SimplifyOptions baselineOptions;
     baselineOptions.targetRatio = 0.3;

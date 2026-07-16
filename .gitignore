@@ -9,7 +9,7 @@ dist-viewer/
 viewer-server.pid
 viewer/screenshots/
 build-*/
-docs/api/
+docs/
 Testing/
 CTestTestfile.cmake
 install_manifest.txt

@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/core/core_tests.cpp
+ * @brief Verifies core tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "algorithms/analysis/MeshAnalysis.h"
 #include "common/detail/MeshQueries.h"
 #include "common/detail/SpatialIndex.h"
@@ -69,8 +77,8 @@ TEST(ManuMesh, TopologyEdgeKeyIsOrderIndependentAndSharedWithDetail) {
     EXPECT_EQ(11, b);
 }
 
-TEST(ManuMesh, GenerateWeldedCubeGridIsClosedManifold) {
-    const manumesh::Mesh mesh = manumesh::generateWeldedCubeGrid(2, 2.0);
+TEST(ManuMesh, GenerateClosedCubeGridIsClosedManifold) {
+    const manumesh::Mesh mesh = manumesh::generateClosedCubeGrid(2, 2.0);
     EXPECT_EQ(26u, mesh.vertices.size());
 
     const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(mesh);
@@ -83,7 +91,7 @@ TEST(ManuMesh, GenerateWeldedCubeGridIsClosedManifold) {
 }
 
 TEST(ManuMesh, BuildVertexNeighborsReturnsAscendingLists) {
-    const manumesh::Mesh mesh = manumesh::generateWeldedCubeGrid(3, 2.0);
+    const manumesh::Mesh mesh = manumesh::generateClosedCubeGrid(3, 2.0);
     const std::vector<std::vector<int>> neighbors = manumesh::common::buildVertexNeighbors(mesh);
 
     ASSERT_EQ(mesh.vertices.size(), neighbors.size());

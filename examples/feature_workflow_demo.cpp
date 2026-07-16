@@ -1,3 +1,11 @@
+/**
+ * @file examples/feature_workflow_demo.cpp
+ * @brief Demonstrates feature workflow demo through the ManuMesh SDK examples.
+ * @ingroup manumesh_examples
+ *
+ * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ */
+
 #include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/QEMSimplifier.h"

@@ -59,40 +59,16 @@ if(MANUMESH_BUILD_DOCS)
     endif()
 
     set(MANUMESH_DOXYGEN_INPUT_FILES
-      "${PROJECT_SOURCE_DIR}/README.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/algorithm_essence.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/architecture.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/common_foundation.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/adding_new_algorithm.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/industrial_library.md"
-      "${PROJECT_SOURCE_DIR}/docs/guide/sdk_integration.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/industrial_validation.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/large_model_validation.md"
-      "${PROJECT_SOURCE_DIR}/docs/guide/adding_feature_workflow.md"
-      "${PROJECT_SOURCE_DIR}/docs/guide/vscode_setup.md"
-      "${PROJECT_SOURCE_DIR}/docs/guide/vscode_mingw_ninja_parameter_debugging.md"
-      "${PROJECT_SOURCE_DIR}/docs/guide/paper_guided_usage.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/feature_detection_upgrade_2026_07_09.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/feature_curve_constraints.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/feature_curve_experiment.md"
-      "${PROJECT_SOURCE_DIR}/docs/design/external_model_validation.md"
+      "${PROJECT_SOURCE_DIR}/documentation/doxygen"
       "${PROJECT_SOURCE_DIR}/include"
       "${PROJECT_SOURCE_DIR}/src"
-      "${PROJECT_SOURCE_DIR}/apps/manumesh/CliArguments.h"
-      "${PROJECT_SOURCE_DIR}/apps/manumesh/CliCommands.h"
-      "${PROJECT_SOURCE_DIR}/apps/manumesh/CliArguments.cpp"
-      "${PROJECT_SOURCE_DIR}/apps/manumesh/ManuMeshCommands.cpp"
-      "${PROJECT_SOURCE_DIR}/apps/manumesh/ManuMeshCli.h"
-      "${PROJECT_SOURCE_DIR}/apps/manumesh/ManuMeshCli.cpp"
-      "${PROJECT_SOURCE_DIR}/apps/manumesh/main.cpp"
-      "${PROJECT_SOURCE_DIR}/examples/basic_simplify.cpp"
-      "${PROJECT_SOURCE_DIR}/examples/c_api_basic.c"
-      "${PROJECT_SOURCE_DIR}/examples/feature_workflow_demo.cpp"
+      "${PROJECT_SOURCE_DIR}/apps"
+      "${PROJECT_SOURCE_DIR}/examples"
     )
     string(JOIN " " MANUMESH_DOXYGEN_INPUT ${MANUMESH_DOXYGEN_INPUT_FILES})
-    set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_BINARY_DIR}/docs/api")
+    set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/doxygen")
     configure_file(
-      "${PROJECT_SOURCE_DIR}/docs/Doxyfile.in"
+      "${PROJECT_SOURCE_DIR}/Doxyfile.in"
       "${PROJECT_BINARY_DIR}/Doxyfile"
       @ONLY
     )
@@ -161,10 +137,10 @@ if(MANUMESH_ENABLE_INSTALL)
 
   install(FILES
     "${PROJECT_SOURCE_DIR}/README.md"
-    "${PROJECT_SOURCE_DIR}/docs/design/architecture.md"
-    "${PROJECT_SOURCE_DIR}/docs/design/industrial_library.md"
-    "${PROJECT_SOURCE_DIR}/docs/guide/sdk_integration.md"
-    "${PROJECT_SOURCE_DIR}/docs/design/large_model_validation.md"
+    "${PROJECT_SOURCE_DIR}/documentation/design/architecture.md"
+    "${PROJECT_SOURCE_DIR}/documentation/design/industrial_library.md"
+    "${PROJECT_SOURCE_DIR}/documentation/guide/sdk_integration.md"
+    "${PROJECT_SOURCE_DIR}/documentation/design/large_model_validation.md"
     DESTINATION "${CMAKE_INSTALL_DOCDIR}"
   )
 

@@ -1,3 +1,11 @@
+/**
+ * @file apps/manumesh/CliArguments.cpp
+ * @brief Implements cli arguments facilities for the ManuMesh command-line application.
+ * @ingroup manumesh_cli
+ *
+ * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ */
+
 #include "CliArguments.h"
 
 #include <cmath>
@@ -10,9 +18,9 @@
 namespace manumesh::cli {
 namespace {
 
-// Single source of truth for CLI options. Each spec drives three things: help
-// text, the global known-flag union, and the per-command accepted-option sets.
-// A non-empty `arg` marks a value flag; an empty `arg` marks a switch flag.
+/// Single source of truth for CLI options. Each spec drives help text, the
+/// global known-flag union, and per-command accepted-option sets. A non-empty
+/// `arg` marks a value flag; an empty `arg` marks a switch flag.
 struct OptionSpec {
     const char* flag;
     const char* arg;
@@ -24,7 +32,7 @@ struct OptionGroup {
     std::vector<OptionSpec> options;
 };
 
-// Options shared by the simplify family (simplify, sweep, ratio-sweep, face-sweep).
+/// Options shared by simplify, sweep, ratio-sweep, and face-sweep.
 const std::vector<OptionSpec>& simplifyOptionSpecs() {
     static const std::vector<OptionSpec> specs = {
         {"--method", "standard|line", "Standard QEM or line-quadric QEM"},
@@ -92,7 +100,7 @@ const std::vector<OptionSpec>& simplifyOptionSpecs() {
     return specs;
 }
 
-// Options shared by the feature-analysis family (feature-report/benchmark/compare).
+/// Options shared by feature-report, feature-benchmark, and feature-compare.
 const std::vector<OptionSpec>& featureOptionSpecs() {
     static const std::vector<OptionSpec> specs = {
         {"--feature-angle-deg", "A", "Dihedral threshold for feature edges"},
@@ -163,8 +171,7 @@ const OptionSpec kPulleyInputSpec = {"--pulley-input", "path", "External pulley 
 const OptionSpec kFlangeInputSpec = {"--flange-input", "path", "External finished flange STL"};
 const OptionSpec kVerboseSpec = {"--verbose", "", "Verbose diagnostic logging"};
 
-// Help layout grouped by command family. Derived from the same specs used for
-// validation so the two never drift apart.
+/// Help layout grouped by command family and derived from validation specs.
 const std::vector<OptionGroup>& helpGroups() {
     static const std::vector<OptionGroup> groups = [] {
         std::vector<OptionGroup> g;
@@ -292,8 +299,7 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
     return sets;
 }
 
-// Global union of every known flag, used by getArg/positionalArgs where a
-// per-command context is not available.
+/// Global union used when a per-command option context is unavailable.
 const std::unordered_set<std::string>& valueFlags() {
     static const std::unordered_set<std::string> flags = [] {
         std::unordered_set<std::string> f;

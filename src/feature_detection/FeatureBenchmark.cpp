@@ -1,3 +1,14 @@
+/**
+ * @file src/feature_detection/FeatureBenchmark.cpp
+ * @brief Implements feature benchmark facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Computes edge, junction, continuation, and patch-label benchmark metrics.
+ * @algorithm Canonical undirected edge keys support exact set comparison;
+ * branch pairs are compared without orientation; patch labels use pairwise
+ * same/different-region agreement so numeric patch ids need not match.
+ */
+
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"

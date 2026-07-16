@@ -1,3 +1,11 @@
+/**
+ * @file src/core/MeshGenerators.cpp
+ * @brief Implements mesh generators facilities for ManuMesh's core-mesh module.
+ * @ingroup manumesh_core
+ *
+ * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ */
+
 #include "core/MeshGenerators.h"
 
 #include "core/MathConstants.h"
@@ -363,9 +371,9 @@ Mesh generateCubeGrid(int n, double size) {
     return mesh;
 }
 
-Mesh generateWeldedCubeGrid(int n, double size) {
+Mesh generateClosedCubeGrid(int n, double size) {
     n = std::max(1, n);
-    Mesh unwelded = generateCubeGrid(n, size);
+    Mesh patchMesh = generateCubeGrid(n, size);
 
     struct QuantizedPoint {
         long long x = 0;
@@ -401,19 +409,19 @@ Mesh generateWeldedCubeGrid(int n, double size) {
 
     Mesh mesh;
     mesh.vertices.reserve(static_cast<std::size_t>(6 * n * n + 2));
-    mesh.faces.reserve(unwelded.faces.size());
+    mesh.faces.reserve(patchMesh.faces.size());
     std::unordered_map<QuantizedPoint, int, QuantizedPointHash> indexByPoint;
-    indexByPoint.reserve(unwelded.vertices.size());
-    std::vector<int> remap(unwelded.vertices.size(), -1);
-    for (std::size_t vi = 0; vi < unwelded.vertices.size(); ++vi) {
+    indexByPoint.reserve(patchMesh.vertices.size());
+    std::vector<int> remap(patchMesh.vertices.size(), -1);
+    for (std::size_t vi = 0; vi < patchMesh.vertices.size(); ++vi) {
         const auto [it, inserted] =
-            indexByPoint.emplace(quantize(unwelded.vertices[vi]), static_cast<int>(mesh.vertices.size()));
+            indexByPoint.emplace(quantize(patchMesh.vertices[vi]), static_cast<int>(mesh.vertices.size()));
         if (inserted) {
-            mesh.vertices.push_back(unwelded.vertices[vi]);
+            mesh.vertices.push_back(patchMesh.vertices[vi]);
         }
         remap[vi] = it->second;
     }
-    for (Face face : unwelded.faces) {
+    for (Face face : patchMesh.faces) {
         for (int& id : face.v) {
             id = remap[id];
         }

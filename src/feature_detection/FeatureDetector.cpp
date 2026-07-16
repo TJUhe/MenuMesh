@@ -1,3 +1,18 @@
+/**
+ * @file src/feature_detection/FeatureDetector.cpp
+ * @brief Implements feature detector facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Orchestrates one complete feature-analysis run and owns the public
+ * option-validation boundary.
+ * @algorithm The pipeline validates input, builds one shared geometry cache,
+ * collects evidence, initializes and cleans the trace graph, performs optional
+ * consolidation, traces/reconstructs loops, fits primitives, summarizes
+ * components and junction branches, then optionally segments surface patches.
+ * @invariants Every stage consumes the same immutable mesh and cached normal,
+ * adjacency, and local-scale arrays; loop ids are allocated monotonically.
+ */
+
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"

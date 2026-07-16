@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/api/c_api_external_tests.cpp
+ * @brief Verifies c api external tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 // C API smoke test on a real external STL fixture (tests/data/external).
 // Lives in the `external` CTest label so the fast suite stays quick.
 #include "CApiTestSupport.h"

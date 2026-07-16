@@ -1,6 +1,6 @@
 # 简化 / QEM / Edge-Collapse / Remeshing 算法工程参考
 
-蒸馏自 `docs/papers/` 论文归档（M 编号见 `docs/papers/README.md`），面向 ManuMesh 简化算法的
+蒸馏自 `documentation/papers/` 论文归档（M 编号见 `documentation/papers/README.md`），面向 ManuMesh 简化算法的
 鲁棒性与性能强化。每条格式：
 
 > **技巧名** / 出处（M 编号 + 页码）/ 数学要点 / 为什么鲁棒或快 / 映射到 ManuMesh（file:line）
@@ -215,17 +215,17 @@
   （sharp(e) = 边是特征边，#sharp(v) = 顶点关联特征边数）：
   1. sharp(vs,vl) ∧ sharp(vt,vl)（左翼两条特征边将合并）；
   2. sharp(vs,vr) ∧ sharp(vt,vr)；
-  3. #sharp(vs)≥1 ∧ #sharp(vt)≥1 ∧ ¬sharp(vs,vt)（两条独立特征线被焊接）；
+  3. #sharp(vs)≥1 ∧ #sharp(vt)≥1 ∧ ¬sharp(vs,vt)（两条独立特征线被错误合并）；
   4. #sharp(vs)≥3 ∧ #sharp(vt)≥3 ∧ sharp(vs,vt)（两个 junction 被合并）；
   5. sharp(vs,vt) ∧ #sharp(vs)=1 ∧ #sharp(vt)≠2（曲线端点被内吞）；
   6. sharp(vs,vt) ∧ #sharp(vt)=1 ∧ #sharp(vs)≠2。
   Hoppe 对命中者不直接禁止、而是加显式惩罚或延迟（保持队列可行性）。
-- **为什么鲁棒**：纯组合判据，O(deg) 可查；覆盖了"特征线焊接/端点内吞/junction 合并"
+- **为什么鲁棒**：纯组合判据，O(deg) 可查；覆盖了"独立特征线误并/端点内吞/junction 合并"
   这些几何误差检测不到的拓扑事件。
 - **ManuMesh 映射**：`FeatureConstraints.cpp` 的 `collapseRejectKind` 基于
   loopId/junction/primitive 标记（`CollapseAttempt.cpp:60-66`），语义上覆盖判据 3/4 的
   大部分，但判据 1/2（**翼顶点 vl/vr 的特征边合并**）没有对应检查——两条平行特征边
-  折叠中间地带时会把翼上特征边焊接。建议把 6 条判据实现为
+  折叠中间地带时会把翼上特征边错误合并。建议把 6 条判据实现为
   `FeatureCollapsePolicy` 的独立组合检查（输入只需 per-edge sharp 标记 + 度数）。
 
 **§2 ManuMesh 行动清单**
@@ -477,7 +477,7 @@
   → `mesh_edit` 应暴露 `collapse(edge, position, policy)`，
   policy = {legality 检查集合, placement 策略}。
 - **ManuMesh 映射**：`CollapseLegalityInput` / `CollapseAttemptInput` 已是雏形，
-  但触发逻辑焊死在 `SimplificationRun`；解耦后 flip 是唯一净新增算子
+  但触发逻辑硬编码在 `SimplificationRun`；解耦后 flip 是唯一净新增算子
   （M029 §4.2 Fig.7 也在简化后处理用 flip 消近退化三角形）。
   flip 合法性：不产生重复边、不翻法向、**特征边禁 flip**。
 

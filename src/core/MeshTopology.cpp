@@ -1,3 +1,14 @@
+/**
+ * @file src/core/MeshTopology.cpp
+ * @brief Implements mesh topology facilities for ManuMesh's core-mesh module.
+ * @ingroup manumesh_core
+ *
+ * @details Builds immutable undirected-edge and per-vertex incidence caches.
+ * @algorithm Each triangle contributes three canonical edge keys. Dense edge
+ * records and vertex incidence are then sorted so traversal is deterministic.
+ * @invariants Face-corner arrays stay aligned with incident-face arrays.
+ */
+
 #include "core/MeshTopology.h"
 
 #include <algorithm>

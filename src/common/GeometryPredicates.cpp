@@ -1,3 +1,16 @@
+/**
+ * @file src/common/GeometryPredicates.cpp
+ * @brief Implements geometry predicates facilities for ManuMesh's common-geometry module.
+ * @ingroup manumesh_common
+ *
+ * @details Implements scale-normalized distance, AABB, and exact-narrow-phase triangle predicates.
+ * @algorithm Triangle intersection separates coplanar and non-coplanar cases,
+ * normalizes tolerances by local factor norms, and explicitly permits contact
+ * confined to declared shared topology while rejecting overlap beyond it.
+ * @invariants Uniformly scaling both triangles does not change the boolean result.
+ * @failuremodes Degenerate and numerically ambiguous cases are handled conservatively.
+ */
+
 #include "common/detail/GeometryPredicates.h"
 
 #include "core/Tolerances.h"

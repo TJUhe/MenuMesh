@@ -1,3 +1,11 @@
+/**
+ * @file examples/sdk_consumer/sdk_c_abi_legacy_init.c
+ * @brief Demonstrates sdk c abi legacy init through the ManuMesh SDK examples.
+ * @ingroup manumesh_examples
+ *
+ * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ */
+
 #define MANUMESH_DISABLE_SIZE_AWARE_ALIASES
 #include "api/CApi.h"
 

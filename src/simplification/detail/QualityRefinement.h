@@ -1,3 +1,11 @@
+/**
+ * @file src/simplification/detail/QualityRefinement.h
+ * @brief Declares quality refinement facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ */
+
 #pragma once
 
 #include "algorithms/simplification/SimplificationTypes.h"
@@ -10,6 +18,7 @@
 
 namespace manumesh::simplification {
 
+/// Immutable constraints and mutable mesh passed to fixed-topology refinement.
 struct QualityRefinementInput {
     const SimplifyOptions& options;
     std::vector<VertexState>& vertices;
@@ -26,6 +35,7 @@ struct QualityRefinementInput {
     double maxLocalError = 0.0;
 };
 
+/// Runs bounded tangential relocation and updates refinement diagnostics.
 void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& report);
 
 } // namespace manumesh::simplification

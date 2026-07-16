@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/api/c_api_diagnostics_tests.cpp
+ * @brief Verifies c api diagnostics tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "CApiTestSupport.h"
 
 #include <cstddef>

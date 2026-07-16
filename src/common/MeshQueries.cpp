@@ -1,3 +1,15 @@
+/**
+ * @file src/common/MeshQueries.cpp
+ * @brief Implements mesh queries facilities for ManuMesh's common-geometry module.
+ * @ingroup manumesh_common
+ *
+ * @details Builds deterministic edge incidence, normals, winding harmonization, and neighborhoods.
+ * @algorithm Edge and face keys are canonicalized; adjacency lists are sorted
+ * before reduction. Oriented dihedral signs use harmonized component winding
+ * and fall back to unsigned angles when orientation cannot be resolved.
+ * @complexity Expected O(V + F).
+ */
+
 #include "common/detail/MeshQueries.h"
 
 #include <algorithm>

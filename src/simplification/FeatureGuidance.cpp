@@ -1,3 +1,15 @@
+/**
+ * @file src/simplification/FeatureGuidance.cpp
+ * @brief Implements feature guidance facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Converts feature evidence into soft quadrics and queue-priority guidance.
+ * @algorithm Component confidence scales point-to-tangent line quadrics. In
+ * adaptive mode, Wang-style sensitivity is decoupled from placement quadrics
+ * and applied only as a candidate-priority multiplier.
+ * @invariants Soft guidance cannot bypass a hard feature policy.
+ */
+
 #include "detail/FeatureGuidance.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"

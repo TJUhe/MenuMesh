@@ -1,3 +1,11 @@
+/**
+ * @file include/core/PlainMesh.h
+ * @brief Declares plain mesh facilities for ManuMesh's core-mesh module.
+ * @ingroup manumesh_core
+ *
+ * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ */
+
 #pragma once
 
 #include "Export.h"
@@ -11,15 +19,15 @@ struct Mesh;
 
 /// Eigen-free vertex type for SDK boundaries that should not expose Eigen.
 struct PlainVec3 {
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    double x = 0.0; ///< X coordinate in model units.
+    double y = 0.0; ///< Y coordinate in model units.
+    double z = 0.0; ///< Z coordinate in model units.
 };
 
 /// Eigen-free texture coordinate used at SDK boundaries.
 struct PlainVec2 {
-    double u = 0.0;
-    double v = 0.0;
+    double u = 0.0; ///< U texture coordinate.
+    double v = 0.0; ///< V texture coordinate.
 };
 
 /// Eigen-free triangle face storing three zero-based vertex indices.
@@ -44,8 +52,12 @@ struct PlainMesh {
 };
 
 /// Converts a plain SDK mesh into the internal Eigen-backed mesh type.
+/// @param[in] plain Source data; indices and numeric values are copied verbatim.
+/// @return Independent Eigen-backed mesh copy.
 MANUMESH_API Mesh toMesh(const PlainMesh& plain);
 /// Converts the internal Eigen-backed mesh type into a plain SDK mesh.
+/// @param[in] mesh Source mesh.
+/// @return Independent Eigen-free mesh copy.
 MANUMESH_API PlainMesh toPlainMesh(const Mesh& mesh);
 
 } // namespace manumesh

@@ -1,3 +1,15 @@
+/**
+ * @file src/feature_detection/FeatureLoopBuilder.cpp
+ * @brief Implements feature loop builder facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Converts traced vertex sequences and edge evidence into public FeatureLoop records.
+ * @algorithm Computes evidence counts, closure, primitive fit, component
+ * ownership, and per-vertex tangent/projection data before appending a loop.
+ * @invariants A loop is published only after all referenced vertex ids and
+ * consecutive graph edges have been validated.
+ */
+
 #include "detail/FeatureLoopBuilder.h"
 
 #include "common/detail/MeshQueries.h"

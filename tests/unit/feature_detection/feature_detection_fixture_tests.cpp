@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/feature_detection/feature_detection_fixture_tests.cpp
+ * @brief Verifies feature detection fixture tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "FeatureDetectionTestSupport.h"
 #include "TestSupport.h"
 
@@ -283,7 +291,9 @@ TEST(FeatureDetection, FixtureDetectsBossPocketPlanesAndHardEdges) {
     // numbering. Fixture coordinates: boss footprint x in [-0.8, -0.2],
     // pocket footprint x in [0.25, 0.85], both with y in [-0.35, 0.35];
     // plate top z = 0.2, pocket floor z = -0.25.
-    const auto approx = [](double value, double target) { return std::abs(value - target) < 1e-9; };
+    const auto approx = [](double value, double target) {
+        return std::abs(value - target) < 1e-9;
+    };
     const auto isConcaveTruthEdge = [&](const Vec3& pa, const Vec3& pb) {
         // Pocket floor ring: both endpoints in the floor plane.
         if (approx(pa.z(), -0.25) && approx(pb.z(), -0.25)) {
@@ -309,8 +319,7 @@ TEST(FeatureDetection, FixtureDetectsBossPocketPlanesAndHardEdges) {
             continue;
         }
         const bool truthConcave = isConcaveTruthEdge(mesh.vertices[edge.a], mesh.vertices[edge.b]);
-        EXPECT_EQ(truthConcave ? -1 : 1, edge.signedKind)
-            << "edge (" << edge.a << ", " << edge.b << ") misclassified";
+        EXPECT_EQ(truthConcave ? -1 : 1, edge.signedKind) << "edge (" << edge.a << ", " << edge.b << ") misclassified";
     }
 
     const std::vector<PlaneCluster> planes = clusterCoplanarFaces(mesh, 1.0 - 1e-12, 1e-10);

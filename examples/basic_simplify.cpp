@@ -1,3 +1,11 @@
+/**
+ * @file examples/basic_simplify.cpp
+ * @brief Demonstrates basic simplify through the ManuMesh SDK examples.
+ * @ingroup manumesh_examples
+ *
+ * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ */
+
 #include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"

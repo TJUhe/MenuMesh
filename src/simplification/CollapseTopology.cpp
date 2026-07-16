@@ -1,3 +1,15 @@
+/**
+ * @file src/simplification/CollapseTopology.cpp
+ * @brief Implements collapse topology facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Computes local face rewrites and incidence changes for a proposed collapse.
+ * @algorithm Identifies removed shared faces, rewrites surviving remove-vertex
+ * incidence to the kept vertex, canonicalizes face keys, and provides the
+ * affected face/vertex sets consumed by legality and mutation stages.
+ * @invariants Planning is side-effect free; application updates both incidence caches atomically.
+ */
+
 #include "detail/CollapseTopology.h"
 
 #include "common/detail/MeshQueries.h"

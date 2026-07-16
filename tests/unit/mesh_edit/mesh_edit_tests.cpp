@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/mesh_edit/mesh_edit_tests.cpp
+ * @brief Verifies mesh edit tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "mesh_edit/detail/DynamicTopology.h"
 #include "mesh_edit/detail/MeshCompaction.h"
 

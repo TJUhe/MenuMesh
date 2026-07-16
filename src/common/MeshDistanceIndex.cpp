@@ -1,3 +1,15 @@
+/**
+ * @file src/common/MeshDistanceIndex.cpp
+ * @brief Implements mesh distance index facilities for ManuMesh's common-geometry module.
+ * @ingroup manumesh_common
+ *
+ * @details Builds a bounding-volume hierarchy for repeated point-to-surface distance queries.
+ * @algorithm Valid triangles are partitioned recursively by centroid along the
+ * longest AABB axis. Queries visit the nearer child first and prune nodes whose
+ * box distance exceeds the current best exact point-triangle distance.
+ * @complexity O(F log F) construction and expected O(log F) per query.
+ */
+
 #include "common/detail/MeshDistanceIndex.h"
 
 #include "common/detail/GeometryPredicates.h"

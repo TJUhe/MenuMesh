@@ -1,3 +1,16 @@
+/**
+ * @file src/feature_detection/FeatureGraphCleanup.cpp
+ * @brief Implements feature graph cleanup facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Removes weak graph noise and bridges short compatible local gaps.
+ * @algorithm Cleanup prunes dangling weak-only chains by edge count or
+ * integrated scale-normalized strength, then joins nearby endpoints only when
+ * distance, continuation alignment, evidence kind, and signed kind agree.
+ * @failuremodes A work cap bounds dense-graph recovery; skipped work is
+ * surfaced in analysis diagnostics instead of causing unbounded runtime.
+ */
+
 #include "detail/FeatureGraphCleanup.h"
 
 #include "common/detail/MeshQueries.h"
@@ -254,7 +267,7 @@ struct GapAlignment {
 /// Yoshizawa gap-jumping angle rule (M021 p.3, Fig.4): the connecting segment
 /// must continue both chain tangents (each within 60 degrees) and the two
 /// outward tangents must point away from each other, so only breaks along one
-/// underlying curve are bridged and parallel chains are never welded together.
+/// underlying curve are bridged and parallel chains are never merged into each other.
 GapAlignment endpointGapAlignment(const EndpointCandidate& a, const EndpointCandidate& b, const Mesh& mesh) {
     GapAlignment result;
     Vec3 direction = mesh.vertices[b.vertex] - mesh.vertices[a.vertex];

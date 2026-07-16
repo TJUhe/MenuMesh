@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/perf/pipeline_perf_guard_tests.cpp
+ * @brief Verifies pipeline perf guard tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 // Coarse wall-clock regression guards for the two pipeline entry points on a
 // ~16k-face analytic sphere. These are not benchmarks: the limits are loose
 // absolute ceilings whose only purpose is to fail fast when an accidental

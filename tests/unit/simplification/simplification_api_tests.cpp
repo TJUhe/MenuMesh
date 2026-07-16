@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/simplification_api_tests.cpp
+ * @brief Verifies simplification api tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "SimplificationTestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/Metrics.h"
@@ -74,8 +82,7 @@ TEST(ManuMesh, LegacyMetricsApiForwardsToAnalysisDuringMigration) {
     EXPECT_EQ(current.edges, legacy.edges);
     EXPECT_DOUBLE_EQ(current.area, legacy.area);
 
-    const simplification::DistanceStats distance =
-        simplification::compareMeshesBySampledDistance(mesh, mesh, 16);
+    const simplification::DistanceStats distance = simplification::compareMeshesBySampledDistance(mesh, mesh, 16);
     EXPECT_DOUBLE_EQ(0.0, distance.maxOriginalToSimplified);
     EXPECT_EQ(
         "label,vertices,faces,edges,boundary_edges,non_manifold_edges,area,"

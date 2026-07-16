@@ -1,3 +1,17 @@
+/**
+ * @file src/simplification/TextureProtection.cpp
+ * @brief Implements texture protection facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Adds local per-corner UV policy without increasing the 4x4 geometry quadric dimension.
+ * @algorithm Incident corners are clustered into deterministic local charts.
+ * A proposed placement interpolates surviving UV corners, rejects chart
+ * incompatibility, fold-over, and excessive signed-area loss, then adds a
+ * scalar distortion cost and returns concrete UV rewrites.
+ * @invariants Geometry placement remains three-dimensional and an accepted
+ * texture plan is applied verbatim with the collapse.
+ */
+
 #include "detail/TextureProtection.h"
 
 #include "common/detail/MeshQueries.h"

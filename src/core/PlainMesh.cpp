@@ -1,3 +1,11 @@
+/**
+ * @file src/core/PlainMesh.cpp
+ * @brief Implements plain mesh facilities for ManuMesh's core-mesh module.
+ * @ingroup manumesh_core
+ *
+ * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ */
+
 #include "core/PlainMesh.h"
 
 #include "core/Mesh.h"

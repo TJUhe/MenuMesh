@@ -1,3 +1,11 @@
+/**
+ * @file include/core/Tolerances.h
+ * @brief Declares tolerances facilities for ManuMesh's core-mesh module.
+ * @ingroup manumesh_core
+ *
+ * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ */
+
 #pragma once
 
 namespace manumesh {

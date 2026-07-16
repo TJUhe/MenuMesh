@@ -1,3 +1,11 @@
+/**
+ * @file include/algorithms/feature_detection/FeatureTypes.h
+ * @brief Declares feature types facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ */
+
 #pragma once
 
 #include "core/Mesh.h"
@@ -25,24 +33,24 @@ inline constexpr int kMaxFeatureNormalFilterIterations = 16;
 /// feature evidence can consume stabilized normals without silently replacing
 /// the caller's mesh.
 struct FeatureNormalFilterOptions {
-    bool enabled = false;
-    int iterations = 4;
-    double angleSigmaDeg = 20.0;
-    double preserveAngleDeg = 50.0;
-    double relaxation = 0.8;
+    bool enabled = false;           ///< Enables preprocessing in the full detector.
+    int iterations = 4;             ///< Relaxation passes in [0, kMaxFeatureNormalFilterIterations].
+    double angleSigmaDeg = 20.0;    ///< Bilateral angular bandwidth in degrees.
+    double preserveAngleDeg = 50.0; ///< Discontinuities at or above this angle are frozen.
+    double relaxation = 0.8;        ///< Blend toward the compatible-neighbor mean in [0,1].
 };
 
 /// Component-level recovery after local feature-graph cleanup.
 struct FeatureGraphConsolidationOptions {
-    bool enabled = false;
-    double maxGapLengthRatio = 3.0;
-    double minAlignment = 0.75;
+    bool enabled = false;           ///< Enables component-level recovery after cleanup.
+    double maxGapLengthRatio = 3.0; ///< Maximum endpoint gap in local edge-length units.
+    double minAlignment = 0.75;     ///< Minimum absolute continuation-tangent dot product.
 };
 
 /// Optional face partition induced by active feature-graph edges.
 struct SurfacePatchOptions {
-    bool enabled = false;
-    bool includeWeakEvidence = true;
+    bool enabled = false;            ///< Enables face segmentation after graph recovery.
+    bool includeWeakEvidence = true; ///< Treat tensor/curvature-only edges as patch boundaries.
 };
 
 /// Fitted primitive type for one detected feature loop.
@@ -151,12 +159,12 @@ struct FeatureOptions {
 
 /// Diagnostics from one normal-domain preprocessing run.
 struct FeatureNormalFilterReport {
-    int iterationsCompleted = 0;
-    int changedFaces = 0;
-    int preservedEdges = 0;
-    double meanAngularChangeDeg = 0.0;
-    double maxAngularChangeDeg = 0.0;
-    double meanEdgeIndicator = 0.0;
+    int iterationsCompleted = 0;       ///< Relaxation passes actually executed.
+    int changedFaces = 0;              ///< Faces whose output normal differs from the raw normal.
+    int preservedEdges = 0;            ///< Strong edges frozen by the preservation gate.
+    double meanAngularChangeDeg = 0.0; ///< Mean raw-to-filtered normal angle.
+    double maxAngularChangeDeg = 0.0;  ///< Maximum raw-to-filtered normal angle.
+    double meanEdgeIndicator = 0.0;    ///< Mean final bilateral edge indicator in [0,1].
 };
 
 /// Filtered face normals plus quantitative preprocessing diagnostics.
@@ -167,35 +175,35 @@ struct FeatureNormalFilterResult {
 
 /// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
 struct NormalTensorOptions {
-    int smoothingIterations = 0;
-    int scaleCount = 1;
+    int smoothingIterations = 0; ///< Face-normal smoothing passes before tensor voting.
+    int scaleCount = 1;          ///< Number of increasing topological scales.
 };
 
 /// Per-vertex normal-tensor decomposition and feature saliency.
 struct NormalTensorVertex {
-    Vec3 normal = Vec3(0.0, 0.0, 1.0);
-    Vec3 creaseTangent = Vec3(1.0, 0.0, 0.0);
-    double surfaceSaliency = 0.0;
-    double creaseSaliency = 0.0;
-    double cornerSaliency = 0.0;
-    double featureScore = 0.0;
+    Vec3 normal = Vec3(0.0, 0.0, 1.0);        ///< Dominant tensor eigenvector.
+    Vec3 creaseTangent = Vec3(1.0, 0.0, 0.0); ///< Tangent inferred from the middle eigendirection.
+    double surfaceSaliency = 0.0;             ///< Locally planar support.
+    double creaseSaliency = 0.0;              ///< Curve-like normal variation.
+    double cornerSaliency = 0.0;              ///< Isotropic multi-directional variation.
+    double featureScore = 0.0;                ///< Strongest single-scale accepted feature score.
     /// Mean of the per-scale feature scores over all sampled scales, whether
     /// or not a scale supported the winning candidate (sum of every scale's
     /// score divided by the scale count).
     double averageFeatureScore = 0.0;
-    double persistentFeatureScore = 0.0;
-    double localScale = 0.0;
-    int persistentScales = 0;
+    double persistentFeatureScore = 0.0; ///< Score after cross-scale persistence gating.
+    double localScale = 0.0;             ///< Selected neighborhood radius in model units.
+    int persistentScales = 0;            ///< Number of supporting scales.
 };
 
 /// Parameters for robust scale-normalized local quadric fitting.
 struct SmoothCurvatureOptions {
-    int baseNeighborhoodRings = 2;
-    int scaleCount = 3;
-    int robustFitIterations = 2;
-    double minTangentConsistency = 0.65;
-    bool useStableScaleSelection = false;
-    double minScaleStability = 0.0;
+    int baseNeighborhoodRings = 2;        ///< Topological radius of the finest fit.
+    int scaleCount = 3;                   ///< Number of successively larger fits.
+    int robustFitIterations = 2;          ///< Deterministic residual-reweighting passes.
+    double minTangentConsistency = 0.65;  ///< Cross-scale absolute tangent-dot gate.
+    bool useStableScaleSelection = false; ///< Prefer stable scale support over peak raw score.
+    double minScaleStability = 0.0;       ///< Minimum accepted scale-stability score.
 };
 
 /// Per-vertex smooth ridge/valley evidence from multiscale quadric fitting.
@@ -203,33 +211,34 @@ struct SmoothCurvatureOptions {
 /// Curvatures and scores are normalized by the fitted neighborhood radius, so
 /// thresholds remain stable under uniform mesh scaling.
 struct SmoothCurvatureVertex {
-    Vec3 normal = Vec3(0.0, 0.0, 1.0);
-    Vec3 curveTangent = Vec3(1.0, 0.0, 0.0);
-    Vec3 extremumDirection = Vec3(0.0, 1.0, 0.0);
-    double principalCurvature = 0.0;
-    double secondaryCurvature = 0.0;
-    double anisotropy = 0.0;
-    double extremumStrength = 0.0;
-    double featureScore = 0.0;
+    Vec3 normal = Vec3(0.0, 0.0, 1.0);            ///< Fitted Monge-frame surface normal.
+    Vec3 curveTangent = Vec3(1.0, 0.0, 0.0);      ///< Direction along the ridge/valley curve.
+    Vec3 extremumDirection = Vec3(0.0, 1.0, 0.0); ///< Principal direction across the curve.
+    double principalCurvature = 0.0;              ///< Signed curvature tested for an extremum.
+    double secondaryCurvature = 0.0;              ///< Signed orthogonal principal curvature.
+    double anisotropy = 0.0;                      ///< Dimensionless principal-curvature separation.
+    double extremumStrength = 0.0;                ///< Two-sided directional-extremum strength.
+    double featureScore = 0.0;                    ///< Strongest accepted scale-normalized score.
     /// Mean over all sampled scales of the scores from scales that support
     /// the winning candidate only (persistent sign and consistent tangent);
     /// unsupported scales contribute zero. This intentionally differs from
     /// NormalTensorVertex::averageFeatureScore, which averages every scale
     /// unconditionally.
     double averageFeatureScore = 0.0;
-    double persistentFeatureScore = 0.0;
-    double fitResidual = 0.0;
-    double localScale = 0.0;
-    int persistentScales = 0;
-    int selectedScale = -1;
-    double scaleStability = 0.0;
+    double persistentFeatureScore = 0.0; ///< Score after sign/tangent persistence gating.
+    double fitResidual = 0.0;            ///< Normalized robust quadric residual.
+    double localScale = 0.0;             ///< Selected fit radius in model units.
+    int persistentScales = 0;            ///< Number of supporting scales.
+    int selectedScale = -1;              ///< Zero-based reference scale, or -1 when invalid.
+    double scaleStability = 0.0;         ///< Agreement of neighboring scale fits in [0,1].
     /// Positive for a ridge, negative for a valley, zero when unclassified.
     int signedKind = 0;
 };
 
 /// One connected feature curve or loop detected in the mesh.
 struct FeatureLoop {
-    // Topology of the recovered chain/loop.
+    /// @name Recovered topology and ownership
+    /// @{
     int id = -1;
     int componentId = -1;
     std::vector<int> vertices;
@@ -240,8 +249,11 @@ struct FeatureLoop {
     bool weakFeature = false;
     double componentConfidence = 0.0;
     double primitiveResidual = 0.0;
+    /// @}
 
-    // Primitive fit. Circle and near-circle use radius; ellipse uses major/minor.
+    /// @name Primitive fit
+    /// Circle and near-circle use `radius`; ellipses use the major/minor pair.
+    /// @{
     FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
     Vec3 center = Vec3::Zero();
     Vec3 normal = Vec3(0.0, 0.0, 1.0);
@@ -257,16 +269,20 @@ struct FeatureLoop {
     double maxEllipseError = 0.0;
     double rmsPlaneError = 0.0;
     double maxPlaneError = 0.0;
+    /// @}
 
-    // Signed dihedral summary for the graph edges that make up this loop.
+    /// @name Signed dihedral summary
+    /// @{
     int convexEdges = 0;
     int concaveEdges = 0;
     int unknownSignedEdges = 0;
+    /// @}
 };
 
 /// Per-vertex feature classification used by feature-preserving simplification.
 struct VertexFeature {
-    // Ownership and graph role.
+    /// @name Ownership and graph role
+    /// @{
     bool isFeature = false;
     bool circular = false;
     bool junction = false;
@@ -276,19 +292,24 @@ struct VertexFeature {
     int componentId = -1;
     double confidence = 0.0;
     Vec3 tangent = Vec3::Zero();
+    /// @}
 
-    // Circle projection data for circular and near-circular feature vertices.
+    /// @name Circle projection data
+    /// @{
     Vec3 circleCenter = Vec3::Zero();
     Vec3 circleNormal = Vec3(0.0, 0.0, 1.0);
     double circleRadius = 0.0;
+    /// @}
 
-    // Ellipse projection data for fitted elliptical feature vertices.
+    /// @name Ellipse projection data
+    /// @{
     Vec3 ellipseCenter = Vec3::Zero();
     Vec3 ellipseNormal = Vec3(0.0, 0.0, 1.0);
     Vec3 ellipseMajorAxis = Vec3(1.0, 0.0, 0.0);
     Vec3 ellipseMinorAxis = Vec3(0.0, 1.0, 0.0);
     double ellipseMajorRadius = 0.0;
     double ellipseMinorRadius = 0.0;
+    /// @}
 };
 
 /// One edge in the explicit feature graph.

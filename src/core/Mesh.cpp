@@ -1,3 +1,14 @@
+/**
+ * @file src/core/Mesh.cpp
+ * @brief Implements mesh facilities for ManuMesh's core-mesh module.
+ * @ingroup manumesh_core
+ *
+ * @details Implements mesh bounds, validation, compaction, and elementary triangle geometry.
+ * @algorithm Strict and lenient validation share index, finiteness, repeated-index,
+ * and UV alignment checks; only the lenient path tolerates zero-area triangles.
+ * Compaction drops invalid faces and preserves first-use vertex order.
+ */
+
 #include "core/Mesh.h"
 
 #include "core/MeshTopology.h"

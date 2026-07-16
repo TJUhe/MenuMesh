@@ -1,3 +1,11 @@
+/**
+ * @file src/api/CApiConverters.cpp
+ * @brief Implements capi converters facilities for ManuMesh's C-ABI module.
+ * @ingroup manumesh_c_api
+ *
+ * @details The C boundary validates pointers and capacities, translates failures to status codes, and never permits a C++ exception to cross the ABI.
+ */
+
 #include "api/detail/CApiConverters.h"
 
 #include <cmath>
@@ -10,8 +18,7 @@ namespace {
 
 bool boolFromInt(int value) { return value != 0; }
 
-// Copies a double option field after rejecting NaN/Inf, mirroring the CLI's
-// parseDoubleStrict behavior so both entry points accept the same inputs.
+/// Copies a finite double option, mirroring the CLI's strict numeric contract.
 bool readFiniteDouble(double value, const char* fieldName, double& target, std::string& error) {
     if (!std::isfinite(value)) {
         error = std::string("ManuMeshSimplifyOptions.") + fieldName + " must be a finite number.";

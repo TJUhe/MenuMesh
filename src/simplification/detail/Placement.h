@@ -1,3 +1,11 @@
+/**
+ * @file src/simplification/detail/Placement.h
+ * @brief Declares placement facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ */
+
 #pragma once
 
 #include "detail/SimplificationTypes.h"
@@ -11,6 +19,7 @@ namespace manumesh::simplification {
 // merged vertex go" policies; legality lives in CollapseTopology/
 // CollapseLegality and feature-curve constraints live in FeatureConstraints.
 
+/// Directed boundary-chain geometry used by Lindstrom-Turk placement projection.
 struct BoundaryProjectionInput {
     CollapseEdge edge;
     const BoundaryCollapseDecision& decision;
@@ -25,6 +34,8 @@ struct BoundaryProjectionInput {
 /// incident boundary chain, then clamped to the collapsing edge's shadow on
 /// that line. Falls back to clamping onto the segment [keep, remove] when the
 /// local boundary chain is degenerate.
+/// Projects `position` to the local boundary objective and safety segment.
+/// @return true when a finite constrained position was produced.
 bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& position);
 
 } // namespace manumesh::simplification

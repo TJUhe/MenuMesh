@@ -1,3 +1,17 @@
+/**
+ * @file src/feature_detection/NormalTensor.cpp
+ * @brief Implements normal tensor facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Implements deterministic multiscale normal-tensor voting.
+ * @algorithm At each vertex and scale, incident face normals contribute
+ * weighted outer products. Ordered eigenvalue differences encode surface,
+ * crease, and corner saliency; the middle eigenvector supplies the crease
+ * tangent. Persistent support must survive the requested number of scales.
+ * @failuremodes Isolated, degenerate, or isotropic neighborhoods return zero
+ * saliency and a deterministic fallback frame.
+ */
+
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
 #include "detail/FeatureDetectionCache.h"

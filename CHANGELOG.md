@@ -42,7 +42,7 @@
 - `MeshAnalysis` 对损坏输入改为逐面筛选：非法索引、非有限坐标、重复索引、
   零面积及数值不安全面不进入统计或 BVH；无可用曲面时返回零测量值，原始
   container 数量仍保留。新增统计与双向距离的 4 个损坏输入回归。
-- STL 顶点焊接改用相对 `bboxMin` 的局部量化，并在量化桶内复核真实欧氏距离；
+- STL 重合顶点合并改用相对 `bboxMin` 的局部量化，并在量化桶内复核真实欧氏距离；
   避免大平移或极端坐标饱和后把不同顶点静默合并。新增 `1e12` 平移不变性与
   `1e30` 饱和碰撞测试。
 - 圆环比较先应用 center/radius/normal 三项 plausible 硬门控，再在合法候选中按
@@ -55,7 +55,7 @@
   `sdk_consumer_examples` 能从全新 SDK 目录通过 `find_package(ManuMesh)` 构建；
   显式关闭 package config 时不再注册依赖 `find_package` 的 consumer target/test，
   兼容旧 CMake cache。安装消费者同时覆盖旧 `Metrics.h` 的四个兼容导出符号。
-- STL 焊接对溢出的 bbox 范数保持有限容差，并搜索相邻量化桶；圆环匹配 options
+- STL 顶点合并对溢出的 bbox 范数保持有限容差，并搜索相邻量化桶；圆环匹配 options
   增加 finite、范围及 matched 不宽于 plausible 的公共校验，非法阈值不能绕过 hard gate。
 - 测试策略中的套件规模同步为当前实际发现结果：快速套件 225 个启用用例、
   external 11 个、全量非性能套件 236 个；墙钟 perf-guard 按设计继续属于快速
@@ -225,7 +225,7 @@
   解析失败路径错误信息加固。
 - 新增共享基础工具：`include/core/Tolerances.h`（统一退化三角形容差族，各检查
   共享同一最小面积尺度）、`include/core/MathConstants.h`（`kPi`）、
-  `generateWeldedCubeGrid()`（闭流形焊接立方体网格生成器，供测试与验证使用）。
+  `generateClosedCubeGrid()`（闭流形共享顶点立方体网格生成器，供测试与验证使用）。
 
 ### 架构升级 v2（R1–R7 第一至三批）
 
@@ -372,8 +372,8 @@
 
 ### 工程工具链
 
-- 参考 `TJUhe/WeldPathExtract` 对齐 `.clang-format`：切换为 4 空格缩进、120 列、参数/实参不 bin-pack、BlockIndent 参数换行、lambda/构造函数初始化列表等规则，并按新规则全量格式化 C/C++ 源码和测试。
-- 参考 `TJUhe/WeldPathExtract` 扩展 Doxygen：启用 UTF-8 输入、source browser、treeview、搜索、引用关系、private/static/local class 抽取，以及可选 Graphviz 图；新增 `MANUMESH_DOXYGEN_ENABLE_GRAPHS`，在检测到 `dot` 时生成类图、include 图和调用关系图。
+- 统一 `.clang-format`：切换为 4 空格缩进、120 列、参数/实参不 bin-pack、BlockIndent 参数换行、lambda/构造函数初始化列表等规则，并按新规则全量格式化 C/C++ 源码和测试。
+- 扩展 Doxygen：启用 UTF-8 输入、source browser、treeview、搜索、引用关系、private/static/local class 抽取，以及可选 Graphviz 图；新增 `MANUMESH_DOXYGEN_ENABLE_GRAPHS`，在检测到 `dot` 时生成类图、include 图和调用关系图。
 
 ### 解耦重构与边界收紧
 

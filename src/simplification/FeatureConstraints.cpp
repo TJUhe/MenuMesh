@@ -1,3 +1,16 @@
+/**
+ * @file src/simplification/FeatureConstraints.cpp
+ * @brief Implements feature constraints facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Builds and enforces hard feature-curve and primitive constraints.
+ * @algorithm Converts detected loops into segment indices and analytic circle/
+ * ellipse fits, classifies endpoint ownership, rejects incompatible merges or
+ * vertex-budget violations, and projects accepted placements to the protected
+ * curve selected by policy.
+ * @failuremodes Ambiguous multi-loop ownership is treated conservatively.
+ */
+
 #include "detail/FeatureConstraints.h"
 
 #include "common/detail/GeometryPredicates.h"

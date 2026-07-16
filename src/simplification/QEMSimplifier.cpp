@@ -1,3 +1,14 @@
+/**
+ * @file src/simplification/QEMSimplifier.cpp
+ * @brief Implements qemsimplifier facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Implements the public simplifier facade, option validation, and precomputed-feature overloads.
+ * @algorithm A run either computes feature analysis once or validates the
+ * caller-supplied analysis, constructs SimplificationRun, executes collapse
+ * and optional refinement stages, then stores/copies the resulting report.
+ */
+
 #include "algorithms/simplification/QEMSimplifier.h"
 
 #include "algorithms/simplification/PlainSimplifier.h"

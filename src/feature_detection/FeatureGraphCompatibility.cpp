@@ -1,3 +1,14 @@
+/**
+ * @file src/feature_detection/FeatureGraphCompatibility.cpp
+ * @brief Implements feature graph compatibility facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Defines the continuation and evidence-compatibility predicates shared by graph recovery.
+ * @algorithm Candidate branches are ranked by absolute tangent alignment with
+ * deterministic vertex-index tie breaking. Hard evidence classes and known
+ * convex/concave signs may not be bridged incompatibly.
+ */
+
 #include "detail/FeatureGraphCompatibility.h"
 
 #include "detail/FeatureGraph.h"

@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/feature_detection/FeatureDetectionTestSupport.cpp
+ * @brief Verifies feature detection test support behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "FeatureDetectionTestSupport.h"
 
 #include "core/MeshGenerators.h"

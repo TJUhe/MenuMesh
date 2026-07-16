@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/simplification_core_tests.cpp
+ * @brief Verifies simplification core tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MeshGenerators.h"
 
@@ -98,10 +106,6 @@ void expectDegenerateInputSimplifiesSafely(double collinearScale) {
 
 } // namespace
 
-TEST(ManuMesh, SimplifierToleratesZeroAreaTriangleFromDuplicateVertex) {
-    expectDegenerateInputSimplifiesSafely(-1.0);
-}
+TEST(ManuMesh, SimplifierToleratesZeroAreaTriangleFromDuplicateVertex) { expectDegenerateInputSimplifiesSafely(-1.0); }
 
-TEST(ManuMesh, SimplifierToleratesCollinearSliverTriangle) {
-    expectDegenerateInputSimplifiesSafely(1e-30);
-}
+TEST(ManuMesh, SimplifierToleratesCollinearSliverTriangle) { expectDegenerateInputSimplifiesSafely(1e-30); }

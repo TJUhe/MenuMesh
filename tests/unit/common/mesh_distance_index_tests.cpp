@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/common/mesh_distance_index_tests.cpp
+ * @brief Verifies mesh distance index tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "../../../src/common/detail/MeshDistanceIndex.h"
 
 #include <cmath>

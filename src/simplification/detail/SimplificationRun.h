@@ -1,3 +1,11 @@
+/**
+ * @file src/simplification/detail/SimplificationRun.h
+ * @brief Declares simplification run facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ */
+
 #pragma once
 
 #include "algorithms/simplification/SimplificationTypes.h"
@@ -23,11 +31,13 @@ struct FeatureAnalysis;
 
 namespace manumesh::simplification {
 
+/// Mutable, single-use execution object for one edge-collapse simplification.
 class SimplificationRun {
 public:
     SimplificationRun(const Mesh& input, const SimplifyOptions& options);
     SimplificationRun(const Mesh& input, const SimplifyOptions& options, const feature::FeatureAnalysis* features);
 
+    /// Executes initialization, collapse, optional refinement, and compaction.
     Mesh execute(SimplifyReport* outReport);
 
 private:

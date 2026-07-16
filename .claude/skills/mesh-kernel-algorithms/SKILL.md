@@ -5,7 +5,7 @@ description: ManuMesh 网格内核算法工程经验库——从 M001-M044 论�
 
 # ManuMesh 网格内核算法 Skill
 
-本 skill 汇集从 `docs/papers/`（M001-M044 索引见 `docs/papers/README.md`）精读蒸馏出的工程决策，
+本 skill 汇集从 `documentation/papers/`（M001-M044 索引见 `documentation/papers/README.md`）精读蒸馏出的工程决策，
 每条都映射到 ManuMesh 具体代码位置。修改算法前先查对应参考文件，避免重新发明或踩过论文已解决的坑。
 
 ## 参考文件

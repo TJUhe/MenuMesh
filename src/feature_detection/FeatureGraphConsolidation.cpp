@@ -1,3 +1,15 @@
+/**
+ * @file src/feature_detection/FeatureGraphConsolidation.cpp
+ * @brief Implements feature graph consolidation facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Performs component-level weak-feature recovery after local cleanup.
+ * @algorithm Endpoints from distinct compatible components are indexed by
+ * position and paired under local-scale distance, tangent alignment, and
+ * evidence/sign compatibility gates; accepted bridges merge graph support.
+ * @failuremodes Ambiguous dense endpoint sets are bounded by a recovery cap.
+ */
+
 #include "detail/FeatureGraphConsolidation.h"
 
 #include "detail/FeatureGraph.h"

@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/simplification_normal_tensor_tests.cpp
+ * @brief Verifies simplification normal tensor tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "SimplificationTestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/Metrics.h"

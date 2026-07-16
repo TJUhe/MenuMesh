@@ -1,0 +1,2435 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ManuMesh Kernel Developer Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --ink: #1e293b;
+      --muted: #64748b;
+      --line: #d9e2ec;
+      --line-strong: #b8c7d9;
+      --brand: #115e8a;
+      --brand-dark: #0f4262;
+      --brand-soft: #e6f3f9;
+      --accent: #2f855a;
+      --warn: #a16207;
+      --danger: #b42318;
+      --code-bg: #101828;
+      --code-ink: #eef2f7;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      --radius: 6px;
+      --max: 1180px;
+      font-family:
+        "Segoe UI",
+        "Microsoft YaHei",
+        "PingFang SC",
+        Arial,
+        sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    a {
+      color: var(--brand);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .topbar-inner {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .product {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 38px;
+      height: 38px;
+      border: 1px solid #8eb9cf;
+      background:
+        linear-gradient(135deg, #e9f6fb 0%, #ffffff 58%),
+        #ffffff;
+      display: grid;
+      place-items: center;
+      color: var(--brand-dark);
+      font-weight: 700;
+      letter-spacing: 0;
+      border-radius: 4px;
+      flex: 0 0 auto;
+    }
+
+    .product h1 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.15;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .product small {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: normal;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pill {
+      border: 1px solid var(--line-strong);
+      background: #f8fafc;
+      color: #334155;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      white-space: normal;
+    }
+
+    .layout {
+      max-width: var(--max);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 22px;
+      padding: 22px 20px 54px;
+    }
+
+    aside {
+      position: sticky;
+      top: 73px;
+      align-self: start;
+      max-height: calc(100vh - 94px);
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .toc-head {
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .toc-head strong {
+      display: block;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--brand-dark);
+    }
+
+    .toc-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    nav {
+      padding: 10px 8px 14px;
+    }
+
+    nav a {
+      display: block;
+      color: #334155;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+    }
+
+    nav a:hover {
+      background: var(--brand-soft);
+      border-left-color: var(--brand);
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    .hero {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .hero-banner {
+      background:
+        linear-gradient(90deg, rgba(17, 94, 138, 0.96), rgba(21, 70, 98, 0.96)),
+        #115e8a;
+      color: #ffffff;
+      padding: 30px 32px 26px;
+    }
+
+    .hero-banner h2 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      font-weight: 680;
+    }
+
+    .hero-banner p {
+      max-width: 850px;
+      margin: 0;
+      color: #eaf6fb;
+      font-size: 16px;
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      background: #ffffff;
+    }
+
+    .hero-meta div {
+      padding: 14px 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .hero-meta div:last-child {
+      border-right: 0;
+    }
+
+    .hero-meta dt {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 0 0 4px;
+    }
+
+    .hero-meta dd {
+      margin: 0;
+      font-weight: 650;
+      color: #243447;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-top: 18px;
+      padding: 26px 30px;
+    }
+
+    section h2 {
+      margin: 0 0 14px;
+      color: var(--brand-dark);
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section h3 {
+      margin: 22px 0 9px;
+      font-size: 18px;
+      color: #223449;
+      letter-spacing: 0;
+    }
+
+    section h4 {
+      margin: 18px 0 8px;
+      font-size: 15px;
+      color: #334155;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    ul,
+    ol {
+      padding-left: 22px;
+      margin: 10px 0;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .note {
+      border-left: 4px solid var(--brand);
+      background: #f4f9fc;
+      padding: 12px 14px;
+      margin: 14px 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .warning {
+      border-left-color: var(--warn);
+      background: #fff8e7;
+    }
+
+    .success {
+      border-left-color: var(--accent);
+      background: #eef8f2;
+    }
+
+    .danger {
+      border-left-color: var(--danger);
+      background: #fff1f0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 14px 0;
+    }
+
+    .module {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      background: #fbfdff;
+      min-height: 132px;
+    }
+
+    .module h3 {
+      margin-top: 0;
+      font-size: 16px;
+      color: var(--brand-dark);
+    }
+
+    .module p {
+      color: #475569;
+      margin-bottom: 0;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #14532d;
+      background: #dcfce7;
+      border: 1px solid #bbf7d0;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .status.partial {
+      color: #7c2d12;
+      background: #ffedd5;
+      border-color: #fed7aa;
+    }
+
+    .status.future {
+      color: #334155;
+      background: #eef2f7;
+      border-color: #d8dee9;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      table-layout: fixed;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      word-break: break-word;
+    }
+
+    th {
+      background: #edf5f9;
+      color: var(--brand-dark);
+      text-align: left;
+      font-weight: 650;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      background: #eef2f7;
+      color: #0f172a;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.94em;
+    }
+
+    pre {
+      margin: 14px 0;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      border-radius: var(--radius);
+      overflow: auto;
+      padding: 15px 16px;
+      font-size: 13px;
+      line-height: 1.55;
+      border: 1px solid #1f2937;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .diagram {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 14px 0;
+      overflow-x: auto;
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      white-space: pre-wrap;
+      color: #1f2937;
+      line-height: 1.55;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 22px 0 10px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        position: static;
+        max-height: none;
+      }
+
+      .hero-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        justify-content: flex-start;
+      }
+
+      .hero-banner,
+      section {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .hero-banner h2 {
+        font-size: 24px;
+      }
+
+      .hero-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-meta div {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .hero-meta div:last-child {
+        border-bottom: 0;
+      }
+    }
+  /* MANUMESH_RESPONSIVE_DOCS_FIX_BEGIN */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+*, *::before, *::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+body {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+body, .page, .content, .header, .footer, .topbar, .topbar-inner, .product, main, section, article,
+.hero, .metrics, .metric, .files, .file, .chips, .chip, .toc, .callout, .roadmap-note,
+.algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief,
+.algorithm-ref-grid, .algorithm-ref-card {
+  max-width: 100%;
+  min-width: 0;
+}
+p, li, dd, dt, div, span, a, strong, th, td {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+code, kbd, samp {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, pre code, .diagram, .formula, .math-block {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+pre, .diagram {
+  white-space: pre-wrap !important;
+  overflow-x: auto;
+}
+.formula, .math-block {
+  white-space: normal !important;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+thead, tbody, tr, th, td {
+  max-width: 100%;
+  min-width: 0 !important;
+  white-space: normal !important;
+}
+th, td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+img, svg, canvas, video {
+  max-width: 100%;
+  height: auto;
+}
+.product small, .pill, .tag, .badge, .chip {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.algorithm-reference-map, .algorithm-reading-guide {
+  margin: 18px 0 24px;
+  padding: 16px 18px;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #115e8a;
+  border-radius: 8px;
+  background: #f8fbfc;
+  color: #172126;
+  line-height: 1.72;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.algorithm-reading-guide {
+  border-left-color: #2563eb;
+  background: #f8faff;
+}
+.algorithm-reference-map h2, .algorithm-reading-guide h2 {
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 20px !important;
+  color: #0f4262 !important;
+}
+.algorithm-reading-guide h2 {
+  color: #1d4ed8 !important;
+}
+.algorithm-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.algorithm-ref-card {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+.algorithm-ref-card h3 {
+  margin: 0 0 6px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 15px !important;
+  color: #0f4262 !important;
+}
+.algorithm-ref-card p {
+  margin: 0 0 7px;
+}
+.doc-path {
+  display: block;
+  margin-top: 3px;
+  color: #475569;
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+  margin: 20px 0;
+  padding: 16px 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+.feature-deep-dive h2, .feature-recognition-brief h2, .feature-algorithm-walkthrough h2,
+.feature-algorithm-walkthrough h3 {
+  margin-top: 0 !important;
+}
+.feature-flow-list li {
+  margin: 7px 0;
+}
+@media (max-width: 760px) {
+  body {
+    max-width: 100%;
+  }
+  .content, .header, .footer, .hero, .topbar-inner {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .algorithm-reference-map, .algorithm-reading-guide, .feature-deep-dive, .feature-recognition-brief, .feature-algorithm-walkthrough {
+    padding: 13px 14px;
+  }
+  .algorithm-ref-grid, .metrics, .files {
+    grid-template-columns: 1fr !important;
+  }
+  table {
+    display: table;
+    overflow-x: hidden;
+    white-space: normal !important;
+  }
+  th, td {
+    min-width: 0 !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+/* MANUMESH_RESPONSIVE_DOCS_FIX_END */
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="product">
+        <div class="mark" aria-hidden="true">MM</div>
+        <div>
+          <h1>ManuMesh Kernel Developer Guide</h1>
+          <small>Commercial mesh geometry kernel delivery documentation</small>
+        </div>
+      </div>
+      <div class="top-actions" aria-label="Document metadata">
+        <span class="pill">Version 0.1.0</span>
+        <span class="pill">C++17 SDK</span>
+        <span class="pill">2026-07-12</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="toc-head">
+        <strong>Contents</strong>
+        <span>交付级开发文档目录</span>
+      </div>
+      <nav>
+        <a href="#intro">1. Introduction</a>
+        <a href="#scope">2. Kernel Scope</a>
+        <a href="#modules">3. Module Map</a>
+        <a href="#architecture">4. Architecture</a>
+        <a href="#data-model">5. Mesh Data Model</a>
+        <a href="#feature">6. Feature Detection</a>
+        <a href="#feature-smooth-curvature" style="padding-left: 26px; font-size: 13px;">6.1 Smooth Curvature Evidence</a>
+        <a href="#simplification">7. QEM Simplification</a>
+        <a href="#simplification-texture" style="padding-left: 26px; font-size: 13px;">7.1 Texture-Aware QEM</a>
+        <a href="#api">8. Public API</a>
+        <a href="#capi">9. C ABI</a>
+        <a href="#build">10. Build And Packaging</a>
+        <a href="#validation">11. Validation</a>
+        <a href="#extension">12. Extension Policy</a>
+        <a href="#limitations">13. Boundaries</a>
+        <a href="#delivery">14. Delivery Checklist</a>
+      </nav>
+    </aside>
+
+    <main>
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_BEGIN -->
+<section class="algorithm-reference-map">
+  <h2>ManuMesh 当前算法与论文引用地图</h2>
+  <p>本页所说算法以当前源码为准：<code>src/simplification</code> 负责 QEM/edge-collapse，<code>src/feature_detection</code> 负责特征证据、feature graph、cleanup、loop/primitive recovery，<code>src/common/detail</code> 提供局部边长、邻接和拓扑查询。论文引用使用 <code>Mxxx</code> 编号；完整索引在 <code>documentation/papers/README.md</code> 与 <code>documentation/design/feature_detection_upgrade_2026_07_09.md</code>。</p>
+  <div class="algorithm-ref-grid">
+    <article class="algorithm-ref-card"><h3>Plane QEM</h3><p><strong>代码：</strong><code>Quadrics.cpp</code> 按面面积累积点到平面二次型，作为 collapse 代价主项。</p><p><strong>引用：</strong>M002 Garland-Heckbert 1997。</p><span class="doc-path">documentation/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Boundary / Attribute QEM</h3><p><strong>代码：</strong><code>addBoundaryQuadrics()</code> 给边界附加约束；属性 QEM 仍作为后续扩展方向。</p><p><strong>引用：</strong>M003 Garland-Heckbert 1998。</p><span class="doc-path">documentation/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Line Quadrics</h3><p><strong>代码：</strong><code>lineQuadric()</code> 用切向正则化改善平坦区 QEM 排序退化；权重由 <code>lineWeight</code>、<code>featureBoost</code> 与 weight mode 调度。</p><p><strong>引用：</strong>M004 Liu-Rahimzadeh-Zordan 2025。</p><span class="doc-path">documentation/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Edge-Collapse 工程队列</h3><p><strong>代码：</strong><code>SimplificationRun.cpp</code>、<code>CandidateQueue.cpp</code>、<code>CollapseLegality.cpp</code>、<code>SpatialFaceIndex.cpp</code>、<code>src/common/GeometryPredicates.cpp</code>、<code>src/common/SpatialIndex.cpp</code> 组合队列、placement、拓扑/质量/误差/自交 guards。</p><p><strong>引用：</strong>M030-M033。</p><span class="doc-path">documentation/papers/edge_collapse/garland_shaffer_2002_efficient_adaptive_simplification_massive_meshes.pdf</span><span class="doc-path">documentation/papers/edge_collapse/hoppe_1996_progressive_meshes.pdf</span><span class="doc-path">documentation/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</span><span class="doc-path">documentation/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>CAD/STL Hard Feature Evidence</h3><p><strong>代码：</strong><code>FeatureEvidence.cpp</code> 收集 boundary、dihedral、non-manifold；<code>FeatureGraph.cpp</code> 把离散边转成 trace graph。</p><p><strong>引用：</strong>M007 C1/C2 discontinuity，M016 CAD feature line extraction，M018/M019 polygon crawling。</p><span class="doc-path">documentation/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</span><span class="doc-path">documentation/papers/feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Normal Tensor / Weak Feature Evidence</h3><p><strong>代码：</strong><code>NormalTensor.cpp</code> 使用局部边长归一化、多尺度 smoothing/persistence；<code>FeatureEvidence.cpp</code> 用 persistent score 和切线对齐接受弱边。</p><p><strong>引用：</strong>M015 normal tensor，M012/M013 normal voting，M009 multi-scale creases。</p><span class="doc-path">documentation/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</span><span class="doc-path">documentation/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</span><span class="doc-path">documentation/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</span><span class="doc-path">documentation/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Consolidation / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code>、<code>FeatureGraphCompatibility.cpp</code>、<code>FeatureGraphConsolidation.cpp</code> 做弱 spur、兼容 bridge 和跨 component recovery，并输出 confidence。</p><p><strong>引用：</strong>M016/M044 graph continuity，M024/M025 segmentation，M026 weak-feature consolidation。</p><span class="doc-path">documentation/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop（圆用 Taubin 代数拟合、Kåsa 回退；椭圆用 Halíř-Flusser 直接拟合，轴向取自 conic）；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">documentation/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">documentation/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
+    <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureAnalysis()</code> 输出 edge/junction/branch-pair F1、patch adjacency accuracy、loop closure 与 component confidence。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 curve-network 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
+    <article class="algorithm-ref-card"><h3>Smooth Curvature Evidence（opt-in）</h3><p><strong>代码：</strong><code>SmoothCurvature.cpp</code> 做逐顶点多尺度鲁棒 quadric 拟合、带符号主曲率方向极值验证与跨尺度 persistence，弱证据只在显式 feature graph 与硬证据汇合。</p><p><strong>引用：</strong>M014/M042-M044 曲率与 quadric 拟合；Yamakawa-Shimada 2017/2018、Lu 2019（M044）、Romanengo 2020、Xu 2024 CWF（M026）、Cai 2025 winding number。</p><span class="doc-path">documentation/design/smooth_curvature_feature_detection_2026_07_11.md</span><span class="doc-path">documentation/papers/recent_deterministic_feature_detection_2026-07-11.md</span></article>
+    <article class="algorithm-ref-card"><h3>Texture-Aware QEM（opt-in）</h3><p><strong>代码：</strong><code>TextureProtection.cpp</code> 做局部 UV chart 配对、定向/面积合法性检查与标量失真代价 <code>E_uv_local</code>；几何 quadric 保持 4×4，placement 求解不变。</p><p><strong>引用：</strong>M003 属性 QEM 为历史参照；采用 M033 建议的"几何排序 + 显式局部策略"工程拆分，与 M004/085 line-quadric 主干兼容。</p><span class="doc-path">documentation/design/texture_aware_qem.md</span></article>
+    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>确定性曲率 ridge/valley 已由 <code>SmoothCurvature.cpp</code> 作为 opt-in 弱证据路径落地（默认关闭）；wireframe/neural edge、learned QEM 仍作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">documentation/papers/feature_detection/</span><span class="doc-path">documentation/papers/neural_and_temporal_qem/</span><span class="doc-path">documentation/papers/mesh_generation/</span></article>
+  </div>
+  <p>一句话总览：默认路线仍是 <strong>CAD/STL evidence + normal-tensor + cleanup/confidence + QEM/line-quadrics + hard guards</strong>；normal filter、stable scale、component consolidation 和 surface patches 为 opt-in，neural/wireframe 只作对照。</p>
+<!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
+<section class="feature-recognition-brief qem-quadrics-expansion">
+  <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
+  <p>ManuMesh 当前把所有软几何成本统一累积到齐次二次型。设 <code>x</code> 是候选新顶点位置，<code>x_h=[x,1]^T</code>，每个顶点保存 <code>Q=[[A,b],[b^T,c]]</code>，则候选代价为 <code>E(x)=x_h^T Q x_h=x^T A x+2 b^T x+c</code>。折叠边 <code>(i,j)</code> 时先做 <code>Q_edge=Q_i+Q_j</code>，placement 采用三级回退链（GH97）：先解全空间最优 <code>A x=-b</code>；若矩阵病态或解被拒绝，再求沿折叠边 <code>a+t(b-a)</code> 的一维最优（rank-2 直棱/边界折痕的良定情形，使用尺度不变的相对阈值）；最后才回退到端点/中点候选。边界边折叠另有 Lindstrom-Turk 边界守恒约束的投影（<code>Placement.cpp::projectBoundaryPlacement</code>）。</p>
+  <table>
+    <thead><tr><th>二次型项</th><th>展开到 <code>A,b,c</code></th><th>参数与默认值</th><th>作用与引用</th></tr></thead>
+    <tbody>
+      <tr><td>面平面 QEM</td><td><code>pi=[n,-n.p]</code>，<code>Q += area/3 * pi*pi^T</code>。等价于 <code>E=a(n.x-n.p)^2</code>，所以 <code>A+=a nn^T</code>、<code>b+=-a(n.p)n</code>、<code>c+=a(n.p)^2</code>。</td><td>无独立开关；退化面使用 <code>1e-6 * representativeArea * pointQuadric</code>，保持与正常 QEM 相同的 L^4 缩放量纲。</td><td>主几何误差，来自 M002 Garland-Heckbert 1997。</td></tr>
+      <tr><td>普通 Line Quadric</td><td><code>lineQuadric(p,n)</code> 取两个与局部法线 <code>n</code> 垂直的单位方向 <code>u,v</code>，加入 <code>Q_l=pi_u*pi_u^T+pi_v*pi_v^T</code>。展开为 <code>E_l=||(I-nn^T)(x-p)||^2</code>，即惩罚切向漂移。</td><td><code>useLineQuadrics=true</code>，<code>lineWeight=1e-3</code>。默认分支：<code>Q_i += w_i area_i Q_l</code>。</td><td>补平坦区 QEM 切向不满秩问题，来自 M004 Liu-Rahimzadeh-Zordan 2025。</td></tr>
+      <tr><td>特征加权 Line Quadric</td><td>非 uniform 模式下 <code>w_i=lineWeight+featureBoost*s_i</code>；<code>s_i</code> 来自 dihedral、normal-tensor persistence、height 或 xband。normal-tensor 模式只给满足 <code>normalTensorMinPersistentScales</code> 的顶点写入 persistent score。</td><td><code>weightMode=uniform</code>，<code>featureBoost=0.05</code>；常用调试值 <code>dihedral/normal-tensor + 0.08</code>。<code>featureAngleDeg=40</code>，<code>normalTensorFeatureThreshold=0.16</code>，<code>normalTensorScaleCount=1</code>。</td><td>让硬边、弱 ridge 或指定区域获得更高排序成本；feature evidence 参考 M007/M012/M013/M015/M016，弱特征参考 M026。</td></tr>
+      <tr><td>Adaptive Scale 分支</td><td>若 <code>adaptiveScale=true</code>，placement 用干净的 <code>adaptiveBaseLineWeight*area_i*Q_l</code> line quadric（不再被 featureBoost 放大）；<code>featureBoost</code> 改为逐顶点队列优先级因子 <code>priorityScale_i=1+max(0,featureBoost)*s_i</code>，只乘候选排序代价（取折叠两端点的 max），不进入 quadric 或 placement 求解（Wang 2008 优先级解耦）。</td><td><code>adaptiveScale=false</code>，<code>adaptiveBaseLineWeight=1e-2</code>。非 adaptiveScale 路径保持旧行为。</td><td>把"特征敏感排序"与"几何 placement"解耦，参考 M029 Wang 2008 feature-sensitive metric；用于跨尺度模型的 line weight 可比性。</td></tr>
+      <tr><td>边界 Plane Quadric</td><td>边界边 <code>(a,b)</code> 只有一个邻接面时，取 <code>m=normalize(n_face x e_hat)</code>，加入 <code>Q_b=boundaryWeight*|e|^2*pi_m*pi_m^T</code> 到两个端点。它的 <code>A=boundaryWeight*|e|^2*mm^T</code>，秩 1；边长平方使该项与面积加权 face QEM 同为 L^4 缩放量纲。</td><td><code>boundaryWeight=0.0</code> 默认关闭；常用 <code>1-10</code>。硬边界保护另看 <code>preserveBoundary</code>。</td><td>减少开放边界沿面内法向漂移；扩展 QEM 思路参考 M003，工程 guards 参考 M030-M033。</td></tr>
+      <tr><td>特征曲线 Tangent-Line Quadric</td><td>当检测到 loop/primitive 后，对特征顶点用切线 <code>t</code> 调用 <code>lineQuadric(p,t)</code>，即 <code>E_curve=eta*rho*area*||(I-tt^T)(x-p)||^2</code>。这里 <code>rho=0.35+0.65*confidence</code>。</td><td><code>preserveFeatureCurves=false</code> 默认关闭；<code>featureCurveWeight=0.05</code>，常用 <code>0.08</code>；<code>featureComponentMinConfidence=0.35</code> 只影响 high-confidence component 报告计数，不过滤 component 或保护。</td><td>允许沿特征线滑动，惩罚离开曲线；组合 M004 line quadrics、M016 CAD feature line、M026 weak-feature consolidation、M028/M029 feature-preserving simplification。</td></tr>
+      <tr><td>Primitive 投影与硬过滤</td><td>圆/椭圆/多边形不是当前 <code>Quadrics.cpp</code> 里的单独径向二次型；当前代码用 tangent-line quadric 排序，再由 <code>projectToCircle/projectToEllipse/projectToPolygonal</code>、<code>maxFeatureCurveDeviationRatio</code> 和 <code>featureProtectionMode</code> 控制最终位置与是否拒绝折叠。</td><td><code>maxFeatureCurveDeviationRatio=0</code> 表示关闭曲线漂移预算；<code>featureProtectionMode=PrimitiveCurves</code>。圆/椭圆阈值默认均为 <code>0.05</code>。</td><td>把“软成本排序”和“硬合法性保护”分开，符合 M030-M033 edge-collapse 工程建议。</td></tr>
+    </tbody>
+  </table>
+  <div class="callout key">
+    <div class="callout-title">带合理参数的数值展开例子</div>
+    <p>为了看清量级，假设坐标单位是 mm，某顶点 <code>p=(10,5,0)</code>，barycentric 顶点面积 <code>a_i=2.0</code>，候选新位置写作 <code>x=(x,y,z)</code>。实际折叠候选会把两端点 <code>Q_i+Q_j</code> 相加；下面先看单个顶点的一项怎样进入 <code>A,b,c</code>。</p>
+    <table>
+      <thead><tr><th>例子</th><th>代入参数</th><th>展开后的二次型</th><th>读法</th></tr></thead>
+      <tbody>
+        <tr><td>面平面 QEM</td><td>平面 <code>z=0</code>，<code>n=(0,0,1)</code>，<code>a=2.0</code></td><td><code>E_plane=2*z^2</code>，<code>A=diag(0,0,2)</code>，<code>b=(0,0,0)</code>，<code>c=0</code></td><td>离开面法向 0.2 mm 的代价是 <code>2*0.2^2=0.08</code>。</td></tr>
+        <tr><td>普通 Line Quadric</td><td><code>lineWeight=1e-3</code>，<code>n=(0,0,1)</code>，<code>a_i=2.0</code>，所以 <code>alpha=0.002</code></td><td><code>E_line=0.002*((x-10)^2+(y-5)^2)</code>，<code>A=diag(0.002,0.002,0)</code>，<code>b=(-0.02,-0.01,0)</code>，<code>c=0.25</code></td><td>切向漂移 1 mm 只加 <code>0.002</code>，它是稳定排序的小正则项，不应压过平面 QEM。</td></tr>
+        <tr><td>特征加权 Line Quadric</td><td><code>weightMode=normal-tensor</code>，persistent score <code>s_i=0.6</code>，<code>lineWeight=0.001</code>，<code>featureBoost=0.08</code>，得 <code>w_i=0.001+0.08*0.6=0.049</code>，<code>alpha=0.098</code></td><td><code>E_feature_line=0.098*((x-10)^2+(y-5)^2)</code>，<code>A=diag(0.098,0.098,0)</code>，<code>b=(-0.98,-0.49,0)</code>，<code>c=12.25</code></td><td>同样 1 mm 切向漂移，代价从 <code>0.002</code> 升到 <code>0.098</code>，约 49 倍；这就是弱特征被 QEM 排序“看见”的方式。</td></tr>
+        <tr><td>边界 Plane Quadric</td><td>边长 <code>|e|=4</code>，<code>boundaryWeight=5</code>，边界面内法向 <code>m=(1,0,0)</code>，得 <code>alpha=20</code></td><td><code>E_boundary=20*(x-10)^2</code>，<code>A=diag(20,0,0)</code>，<code>b=(-200,0,0)</code>，<code>c=2000</code></td><td>边界沿面内法向漂移 0.2 mm 的代价是 <code>20*0.2^2=0.8</code>，明显比普通 line 正则强。</td></tr>
+        <tr><td>特征曲线 Tangent-Line Quadric</td><td>切线 <code>t=(0,1,0)</code>，<code>featureCurveWeight=0.08</code>，component confidence <code>0.8</code>，<code>rho=0.35+0.65*0.8=0.87</code>，<code>alpha=0.08*0.87*2=0.1392</code></td><td><code>E_curve=0.1392*((x-10)^2+z^2)</code>，<code>A=diag(0.1392,0,0.1392)</code>，<code>b=(-1.392,0,0)</code>，<code>c=13.92</code></td><td>沿 <code>y</code> 方向滑动不罚，离开特征线横向/法向才罚；这是“允许沿孔边走，但不要偏离孔边”。</td></tr>
+      </tbody>
+    </table>
+    <p>例如同一个候选位移 <code>x=(11,5,0.2)</code>：平面项给 <code>0.08</code>，普通 line 项只给 <code>0.002</code>，normal-tensor 特征加权 line 项给 <code>0.098</code>。所以默认 line quadric 是温和正则；一旦 feature score 和 <code>featureBoost</code> 介入，它才会变成明显影响 collapse 排序的特征保护成本。</p>
+  </div>
+  <p>因此当前总能量可读成：<code>E = E_plane + E_line(weightMode) + E_boundary + E_feature_curve</code>；拓扑、边界、特征保护、法向翻转、三角形质量、局部误差和自交检查不是二次型项，而是候选折叠通过 QEM 排序之后的硬过滤。开启 <code>preserveTexture</code>（默认关闭）时，排序还会追加标量项 <code>textureWeight * E_uv_local</code>，并新增 UV chart 配对/定向/面积硬过滤；该项不改变任何 <code>A,b,c</code> 的维度，也不进入 placement 求解（见 QEM Simplification 一节的 Texture-Aware 小节）。</p>
+</section>
+<!-- MANUMESH_QEM_QUADRIC_EXPANSION_END -->
+</section>
+<!-- MANUMESH_ALGORITHM_REFERENCE_MAP_END -->
+<!-- MANUMESH_DETAILED_READING_GUIDE_BEGIN -->
+<section class="algorithm-reading-guide">
+  <h2>读懂 ManuMesh 算法的推荐顺序</h2>
+  <p>如果从零看当前实现，先读 <a href="../generated/notes/manumesh-feature-recognition-pipeline.html">特征识别实现全链路</a>，再按需读 <a href="../generated/notes/manumesh-loop-construction.html">Feature Loop 构造详解</a>；当前契约是九阶段 pipeline，加按需 normal filter、component consolidation、junction branch pairing 和可选 surface patches。本文负责交付 API、集成边界与全内核上下文。</p>
+  <ol>
+    <li><strong>先看数据流：</strong><code>Mesh -> MeshEdgeInfoMap -> FeatureAnalysis -> quadrics -> candidate queue -> legality gates -> SimplifyReport</code>。</li>
+    <li><strong>再看特征识别：</strong><code>FeatureDetector.cpp</code> 固定九阶段调度；独立 normal/filter/compatibility/consolidation/segmentation/benchmark 单元把 evidence 变成 graph、branches、loop、component 和 patches。</li>
+    <li><strong>最后看简化消费：</strong><code>FeatureConstraints.cpp</code> 决定哪些 collapse 被拒绝，<code>Quadrics.cpp</code> 决定 feature curve soft quadric 如何加权，<code>feature_components</code>、<code>graph_cleanup_*</code>、<code>feature_rejected</code>、<code>quality_rejected</code>、<code>error_rejected</code> 解释算法为什么这样停。</li>
+  </ol>
+</section>
+<!-- MANUMESH_DETAILED_READING_GUIDE_END -->
+      <article class="hero" id="intro">
+        <div class="hero-banner">
+          <h2>ManuMesh Commercial Kernel Documentation</h2>
+          <p>
+            ManuMesh is a C++17 faceted mesh geometry kernel focused on
+            additive-manufacturing mesh analysis and constrained mesh
+            simplification. This guide is written as a delivery document for SDK
+            consumers, integrators, QA engineers, and kernel developers.
+          </p>
+        </div>
+        <dl class="hero-meta">
+          <div>
+            <dt>Primary Domain</dt>
+            <dd>Triangle Mesh Kernel</dd>
+          </div>
+          <div>
+            <dt>Delivery Form</dt>
+            <dd>C++ SDK / C ABI / CLI</dd>
+          </div>
+          <div>
+            <dt>Core Algorithm</dt>
+            <dd>QEM + Line Quadrics</dd>
+          </div>
+          <div>
+            <dt>Validation Profile</dt>
+            <dd>CTest + External STL</dd>
+          </div>
+        </dl>
+      </article>
+
+      <section id="scope">
+        <h2>1. Kernel Scope</h2>
+        <p>
+          ManuMesh provides a reusable geometry-processing kernel for triangular
+          surface meshes. It is designed for applications that need robust mesh
+          simplification, feature evidence extraction, topology-aware edge
+          collapse, and SDK-level integration into manufacturing or inspection
+          software.
+        </p>
+        <div class="note">
+          <strong>Commercial positioning:</strong> the current release is a
+          mesh kernel, not a full B-Rep CAD kernel. It operates on STL/OBJ-style
+          triangle data and infers manufacturing features from tessellated
+          geometry.
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th>Status</th>
+              <th>Delivery meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Mesh storage, IO utilities, topology queries</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Public C++ mesh types and internal topology helpers are usable by SDK examples and tests.</td>
+            </tr>
+            <tr>
+              <td>Feature evidence and feature loop recovery</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Boundary, dihedral, non-manifold, local-scale normal-tensor evidence and primitive loop classification are available.</td>
+            </tr>
+            <tr>
+              <td>QEM / line-quadrics simplification</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Edge-collapse simplification with plane quadrics, line quadrics, feature-curve quadrics, and diagnostic reports.</td>
+            </tr>
+            <tr>
+              <td>Texture-aware simplification (opt-in)</td>
+              <td><span class="status">Implemented</span></td>
+              <td>面向带逐角 UV 的网格：局部 chart 配对保护加标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式。<code>preserveTexture</code> 默认关闭，必须显式开启；当前仅通过 C++ <code>SimplifyOptions</code> 暴露，CLI <code>simplify</code> 未提供纹理选项。</td>
+            </tr>
+            <tr>
+              <td>Deterministic smooth curvature feature detection (opt-in)</td>
+              <td><span class="status">Implemented</span></td>
+              <td>基于多尺度 quadric 拟合的确定性 ridge/valley 弱证据路径，无任何神经/学习成分。<code>useSmoothCurvatureFeatures</code> 默认关闭，弱证据只在显式 <code>FeatureGraph</code> 与硬证据汇合；feature-analysis 命令与 <code>simplify</code> CLI 均已暴露 <code>--smooth-curvature-*</code> 参数。</td>
+            </tr>
+            <tr>
+              <td>Industrial legality gates</td>
+              <td><span class="status">Implemented</span></td>
+              <td>Topology, boundary, normal deviation, triangle quality, local error, and local self-intersection filters.</td>
+            </tr>
+            <tr>
+              <td>Global tolerance envelope / certified Hausdorff bounds</td>
+              <td><span class="status partial">Partial</span></td>
+              <td>Local error and sampled distance metrics exist; global certification should be added before safety-critical use.</td>
+            </tr>
+            <tr>
+              <td>B-Rep modeling, Boolean operations, offset, shape healing</td>
+              <td><span class="status future">Roadmap</span></td>
+              <td>Out of scope for this mesh-kernel delivery; should be documented as separate kernel modules if implemented.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>边界不变：</strong>纹理感知简化与光滑曲率特征检测都是 opt-in 能力，
+          不改变本交付的能力边界——ManuMesh 仍然不提供 B-Rep kernel、通用
+          Boolean/offset/healing、从 STL/OBJ 恢复 CAD feature tree、全局
+          Hausdorff/envelope 形式化认证或直接制造公差合规保证（见
+          <a href="#limitations">Boundaries</a> 一节）。
+        </div>
+      </section>
+
+      <section id="modules">
+        <h2>2. Module Map</h2>
+        <p>
+          The SDK follows a modular structure similar to mature CAD kernels:
+          stable public headers are separated from implementation details, and
+          command-line tools consume the public API instead of owning algorithm
+          logic.
+        </p>
+        <div class="grid">
+          <div class="module">
+            <h3>Core</h3>
+            <p>
+              Defines mesh exchange types, status objects, topology caches, and
+              mesh generators. Public headers live in <code>include/core</code>.
+              本轮新增公共工具头 <code>core/Tolerances.h</code>（统一退化三角形容差族，
+              如 <code>kMinTriangleArea=1e-24</code>、<code>kMinNormalLength</code>）与
+              <code>core/MathConstants.h</code>（<code>kPi</code>）；
+              <code>MeshGenerators.h</code> 新增闭流形共享顶点立方体
+              <code>generateClosedCubeGrid(n, size)</code>。
+            </p>
+          </div>
+          <div class="module">
+            <h3>I/O</h3>
+            <p>
+              Owns STL/OBJ loading and ASCII STL export through
+              <code>include/io/MeshIo.h</code>, keeping file format parsing out
+              of core mesh data structures. 解析器本轮重写：
+              <code>std::from_chars</code> 数值解析、缓冲扫描、ASCII/二进制 STL
+              探测（含三角形数预读）与加固的解析失败错误信息。
+            </p>
+          </div>
+          <div class="module">
+            <h3>Analysis</h3>
+            <p>
+              Cross-algorithm mesh statistics and comparison in
+              <code>manumesh::analysis</code>
+              (<code>include/algorithms/analysis/MeshAnalysis.h</code>):
+              <code>MeshStats</code>/<code>computeMeshStats</code> 与
+              <code>DistanceStats</code>/<code>compareMeshesBySampledDistance</code>。
+              旧 <code>algorithms/simplification/Metrics.h</code> 已是带弃用注释的转发头，
+              将在下一 minor 版本删除。
+            </p>
+          </div>
+          <div class="module">
+            <h3>Feature Detection</h3>
+            <p>
+              Produces <code>FeatureAnalysis</code> from triangle meshes:
+              feature edges, loops, primitive fits, tangents, local tensor scale,
+              persistence, and diagnostics. 本轮起还包含
+              <code>SmoothCurvature.cpp</code> 提供的确定性多尺度光滑曲率
+              ridge/valley 证据路径（opt-in）。
+            </p>
+          </div>
+          <div class="module">
+            <h3>Simplification</h3>
+            <p>
+              Runs QEM / line-quadrics edge collapse with feature policies and
+              hard legality filters. Public headers live in
+              <code>include/algorithms/simplification</code>. 纹理感知的 UV chart
+              保护由 <code>TextureProtection.cpp</code> 提供（opt-in）。
+            </p>
+          </div>
+          <div class="module">
+            <h3>C ABI</h3>
+            <p>
+              Provides opaque handles, explicit struct initialization, and ABI
+              versioning for non-C++ or compiler-boundary integrations.
+            </p>
+          </div>
+          <div class="module">
+            <h3>CLI</h3>
+            <p>
+              The <code>manumesh</code> executable demonstrates SDK workflows,
+              generates validation output, and supports automation. 选项由
+              <code>CliArguments.cpp</code> 中共享的 OptionSpec 选项表驱动：
+              help 文本（<code>optionsHelpText()</code>）与逐命令参数校验
+              （<code>validateArgsForCommand()</code>）来自同一张表；CSV 拼装
+              （<code>statsHeaderCsv</code>/<code>statsRowCsv</code>）属表现层，
+              位于 <code>apps/manumesh/CliCsv.h</code>，不再由 SDK 提供。
+            </p>
+          </div>
+          <div class="module">
+            <h3>Validation</h3>
+            <p>
+              GoogleTest, CTest, fixture meshes, external STL/OBJ data, and
+              metrics output form the acceptance basis for delivery.
+            </p>
+          </div>
+          <div class="module">
+            <h3>Debug Utility</h3>
+            <p>
+              Optional Debug-only HTML wireframe output in
+              <code>src/debugUtil</code>. It is private, disabled by default,
+              and is not part of the SDK contract.
+            </p>
+          </div>
+        </div>
+        <h3>Source Organization</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Role</th>
+              <th>Stability</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>include/core</code></td>
+              <td>SDK mesh, topology, status, generators, and plain exchange types.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>include/io</code></td>
+              <td>Public STL/OBJ mesh file I/O declarations.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>include/algorithms</code></td>
+              <td>Public algorithm options, result types, and object facades.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>include/api</code></td>
+              <td>C ABI for binary-stable client integration.</td>
+              <td>Public contract</td>
+            </tr>
+            <tr>
+              <td><code>src/common/detail</code></td>
+              <td>Internal reusable mesh queries and math constants. 内部命名空间已由 <code>manumesh::detail</code> 改名为 <code>manumesh::common</code>（保留 <code>namespace detail = common</code> 过渡别名一个 minor 版本）；这是内部层，不影响公共 API。</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/analysis</code></td>
+              <td>Implementation of the cross-algorithm <code>manumesh::analysis</code> statistics and sampled-distance comparison module.</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/io</code></td>
+              <td>STL/OBJ parsing and ASCII STL writing implementation.</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/feature_detection</code></td>
+              <td>Feature evidence, graph construction, loop recovery, primitive fitting. 其中 <code>SmoothCurvature.cpp</code> 负责确定性多尺度光滑曲率（ridge/valley）证据：逐顶点鲁棒 quadric 拟合、方向极值验证与跨尺度 persistence 过滤。</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/simplification</code></td>
+              <td>QEM, queue, dynamic topology, collapse policy, legality checks. 其中 <code>TextureProtection.cpp</code>（含 <code>detail/TextureProtection.h</code>）负责局部 UV chart 配对、UV 定向/面积合法性检查与标量失真代价。</td>
+              <td>Private implementation</td>
+            </tr>
+            <tr>
+              <td><code>src/debugUtil</code></td>
+              <td>Optional Debug-only HTML wireframe snapshots for internal algorithm inspection.</td>
+              <td>Private debug aid</td>
+            </tr>
+            <tr>
+              <td><code>apps/manumesh</code></td>
+              <td>Command-line application built on top of the SDK.</td>
+              <td>Application layer</td>
+            </tr>
+            <tr>
+              <td><code>tests</code></td>
+              <td>Regression, ABI, feature, simplification, and external-model validation.</td>
+              <td>Delivery gate</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="architecture">
+        <h2>3. Architecture</h2>
+        <p>
+          ManuMesh is organized around a narrow dependency direction. Core data
+          structures are the foundation. Feature detection consumes core mesh
+          data. Simplification may consume feature analysis, but feature
+          detection must not depend on simplification.
+        </p>
+        <div class="diagram">core
+  -> feature_detection
+  -> simplification
+
+core + common/detail
+  -> feature_detection
+  -> simplification
+
+applications
+  -> public SDK headers
+  -> C ABI when compiler or language boundaries require it
+
+debugUtil
+  -> internal implementation files only
+  -> disabled in normal builds and SDK delivery</div>
+        <h3>Run-Time Pipeline</h3>
+        <div class="diagram">Mesh
+  -> validate input
+  -> analyze feature evidence
+  -> build initial plane / line / boundary / feature quadrics
+  -> initialize dynamic topology and candidate queue
+  -> solve edge-collapse placements
+  -> apply feature, boundary, topology, normal, quality, error, intersection,
+     and optional texture-chart gates
+  -> update topology and queue
+  -> compact result and emit SimplifyReport</div>
+        <h3>Design Contracts</h3>
+        <ul>
+          <li>QEM and line quadrics rank collapse candidates; they do not replace hard legality checks.</li>
+          <li><code>FeatureAnalysis</code> is a reusable semantic support layer, not a private detail of the simplifier.</li>
+          <li>The CLI is a consumer of the SDK, not the owner of kernel behavior.</li>
+          <li>Public C++ types should remain stable and documented; algorithm internals stay in <code>src/.../detail</code>.</li>
+          <li>New production filters must report their first-rejection counters in <code>SimplifyReport</code>.</li>
+          <li>纹理保护是显式局部策略：<code>src/simplification/TextureProtection.cpp</code> 只负责 chart 配对、UV 定向/面积检查和标量失真排序代价，绝不改变几何 quadric 的维度或 placement 求解，符合"软成本排序 + 硬合法性过滤"的既有拆分。</li>
+          <li>光滑曲率检测是独立弱证据源：<code>src/feature_detection/SmoothCurvature.cpp</code> 产出逐顶点多尺度证据，只在显式 <code>FeatureGraph</code> 与硬证据汇合，不绕过 loop recovery、graph cleanup 或 QEM guards。</li>
+          <li>错误处理遵循统一政策（<code>documentation/design/error_handling_policy.md</code>）：数据错误走 Status/Result、编程错误抛异常、C 边界返回状态码、IO 向 <code>Result&lt;Mesh&gt;</code> 渐进迁移。</li>
+          <li>新增算法遵循机械化扩展协议（<code>documentation/design/algorithm_extension_protocol.md</code>）：7 步标准路径、<code>validateOptions</code> 协议与诊断字段命名规范；架构蓝图见 <code>documentation/design/architecture_v2_2026_07_12.md</code>。</li>
+          <li>跨算法统计属于 <code>manumesh::analysis</code>，不属于 simplification；CSV 拼装属于 CLI 表现层，不属于 SDK。</li>
+        </ul>
+      </section>
+
+      <section id="data-model">
+        <h2>4. Mesh Data Model</h2>
+        <p>
+          The kernel works on indexed triangle meshes. The main C++ type
+          <code>manumesh::Mesh</code> stores vertices and triangular faces and
+          is intended for in-process C++ SDK consumers. For ABI-sensitive
+          integration, use <code>PlainMesh</code> or the C API.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Purpose</th>
+              <th>Recommended use</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Mesh</code></td>
+              <td>Eigen-backed mesh convenience type.</td>
+              <td>C++ clients built with compatible compiler and ABI settings.</td>
+            </tr>
+            <tr>
+              <td><code>PlainMesh</code></td>
+              <td>Eigen-free exchange type.</td>
+              <td>Clients that want C++ ergonomics without exposing Eigen in exchange structs.</td>
+            </tr>
+            <tr>
+              <td><code>MeshTopology</code></td>
+              <td>Cached topology queries for boundary and non-manifold analysis.</td>
+              <td>SDK users that need read-only topology diagnostics.</td>
+            </tr>
+            <tr>
+              <td><code>ManuMeshMeshHandle</code></td>
+              <td>C ABI opaque mesh handle.</td>
+              <td>C, C#, Python bindings, plugins, and binary-boundary integrations.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Texture Coordinates (Corner-Owned UV)</h3>
+        <p>
+          本轮数据模型新增了逐面逐角纹理坐标。<code>Vec2</code> 是
+          <code>Eigen::Vector2d</code> 的公开别名；<code>FaceTexCoords</code>
+          为一个三角形保存 <code>std::array&lt;Vec2, 3&gt; uv</code> 与
+          <code>bool valid</code> 标记。<code>Mesh::faceTexCoords</code>
+          为空表示网格没有纹理坐标；非空时必须与 <code>Mesh::faces</code>
+          按面对齐，其中个别条目可以是 invalid（对应 OBJ 中未贴图的面，
+          textured/untextured 相邻面之间的过渡在简化阶段按受保护的 chart
+          边界处理）。<code>Mesh::hasTextureCoordinates()</code>
+          在至少一个面拥有有效逐角坐标时返回 true。
+        </p>
+        <p>
+          UV 采用"角拥有"（corner-owned）而不是"顶点拥有"语义：一个几何顶点可以同时属于多个
+          UV chart，纹理接缝（seam）两侧的角在同一个顶点上保留各自不同的坐标。
+          顶点拥有的 UV 无法表达 seam，这正是简化阶段局部 chart 保护策略成立的数据前提。
+        </p>
+        <h4>SDK 边界与 IO 行为</h4>
+        <ul>
+          <li>Eigen-free SDK 边界：<code>PlainVec2 { double u, v; }</code>、<code>PlainFaceTexCoords</code> 与 <code>PlainMesh::faceTexCoords</code> 与内部类型一一对应；<code>toMesh</code> / <code>toPlainMesh</code> 双向转换以及 compaction、validation、索引 remap 均已支持纹理数据。</li>
+          <li>OBJ 读取（<code>loadObj</code>）由"简单三角网格"升级为"多边形网格"：严格凸面保持确定性 fan 顺序，凹面先按主法向投影再做 ear clipping，并为三角化后的每个角点保留原始 <code>vt</code> 索引；重复位置、退化轮廓、自交轮廓以及同一个面混用贴图角与未贴图角都会作为格式错误被拒绝。</li>
+          <li>公开导出路径当前仍是 ASCII STL（<code>saveAsciiStl</code>），STL 格式本身不携带 UV；带 UV 的结果应通过 C++ <code>Mesh</code> / <code>PlainMesh</code> 边界在进程内继续消费。</li>
+          <li>C ABI 未暴露纹理数据，详见 <a href="#capi">C ABI</a> 一节。</li>
+        </ul>
+        <div class="warning note">
+          STL and OBJ meshes do not carry B-Rep semantics. Circles, holes,
+          fillets, pockets, and patch boundaries are inferred from tessellation
+          evidence and should be validated for the target data source.
+        </div>
+      </section>
+
+      <section id="feature">
+        <h2>5. Feature Detection</h2>
+        <p>
+          The feature module converts low-level mesh evidence into an explicit
+          feature graph and loop-level descriptors. This layer is designed to be
+          consumed by simplification today and by repair, remeshing, or
+          validation modules in future releases.
+        </p>
+        <h3>Feature Recognition Pipeline Narrative</h3>
+        <p>
+          当前实现是明确的九阶段管线：
+          <code>EdgeEvidence → DegenerateFilter → Graph → Cleanup → Consolidation → LoopRecovery → ComponentSummary → Finalize → Segmentation</code>。
+          调度顺序由 <code>FeatureDetectionPipeline::run</code> 固定；opt-in normal filter 在 evidence 读取法向时按需执行，只修改检测缓存。最终 <code>FeatureAnalysis</code> 包含 graph branches、loop/primitive、component confidence 和可选 patches；简化器只消费与曲线保护有关的部分。
+        </p>
+        <div class="note">
+          <strong>2026-07-15 源码审计入口：</strong>本节只保留交付级契约；逐条件、逐公式和测试对照见
+          <a href="../generated/notes/manumesh-feature-recognition-pipeline.html">特征识别实现全链路</a>，五段 loop recovery 细节见
+          <a href="../generated/notes/manumesh-loop-construction.html">Feature Loop 构造详解</a>。历史归档文档不代表当前行为。
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Stage</th>
+              <th>Implementation</th>
+              <th>Why it exists</th>
+              <th>Literature anchor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1. Edge evidence</td>
+              <td><code>FeatureEvidence.cpp</code>；可选 <code>FeatureNormalFilter.cpp</code></td>
+              <td>统一收集 boundary、signed dihedral、non-manifold、normal-tensor 与 smooth-curvature；normal filter 只稳定缓存法向，不改 mesh。</td>
+              <td>M007, M009, M012/M013, M015/M016, M018/M019, M011/M014/M021/M042-M044</td>
+            </tr>
+            <tr>
+              <td>2. Degenerate evidence filter</td>
+              <td><code>FeatureDetector.cpp</code></td>
+              <td>输入校验容许零面积面继续存在，但其零法向会制造 90° 伪二面角；本段撤销相邻 interior edge 的 dihedral/signed evidence，保留纯拓扑 boundary/non-manifold，并通过 <code>degenerateFaces</code> 报告降级覆盖。</td>
+              <td>工程健壮性边界；不是特征论文算法</td>
+            </tr>
+            <tr>
+              <td>3. Evidence-to-graph conversion</td>
+              <td><code>FeatureGraph.cpp</code></td>
+              <td><code>featureAngleDeg</code> controls dihedral evidence; <code>loopTraceAngleDeg</code> controls trace ownership, with negative values reusing the evidence threshold.</td>
+              <td>M016, M018/M019</td>
+            </tr>
+            <tr>
+              <td>4. Graph cleanup</td>
+              <td><code>FeatureGraphCleanup.cpp</code>；<code>FeatureGraphCompatibility.cpp</code></td>
+              <td>删除弱 spur；close-junction/endpoint bridge 均复核双端 continuation、source 和 signed kind。</td>
+              <td>M024/M025, M026</td>
+            </tr>
+            <tr>
+              <td>5. Component consolidation</td>
+              <td><code>FeatureGraphConsolidation.cpp</code></td>
+              <td>opt-in 连接不同 component 的兼容 degree-1 endpoints；bridge 独立标记与计数。</td>
+              <td>M026, M044</td>
+            </tr>
+            <tr>
+              <td>6. Loop and primitive recovery</td>
+              <td><code>FeatureLoopRecovery.cpp</code>；<code>FeatureLoopBuilder.cpp</code></td>
+              <td>Closed loops, circles, near-circles, ellipses, and polygonal chains are the units that QEM can protect or penalize.</td>
+              <td>M007, M016, M024/M025</td>
+            </tr>
+            <tr>
+              <td>7. Component summary</td>
+              <td><code>FeatureGraphCleanup.cpp</code></td>
+              <td>汇总 strong/weak channel counts、closure、endpoint/junction、persistence 与 primitive residual，并把 confidence 回写到 loop/vertex。<code>featureComponentMinConfidence</code> 只统计 high-confidence component，不过滤 component。</td>
+              <td>M026, M028/M029</td>
+            </tr>
+            <tr>
+              <td>8. Finalize graph markers</td>
+              <td><code>FeatureGraph.cpp</code></td>
+              <td>生成 endpoint/junction/shared、逐分支切向、continuation pairs 和 ambiguous junction。</td>
+              <td>M007, M044</td>
+            </tr>
+            <tr>
+              <td>9. Surface patch segmentation</td>
+              <td><code>FeatureSegmentation.cpp</code></td>
+              <td>opt-in 以活动真实 mesh feature edge 为 barrier 输出 face patches/adjacency；非 mesh-edge recovery bridge 被忽略并计数。</td>
+              <td>M024/M025</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          This design follows the literature tension rather than hiding it:
+          dihedral/CAD extraction is fast and precise for hard edges, normal
+          tensor and voting improve weak-feature recall, graph cleanup is needed
+          before segmentation or primitive fitting, and QEM should consume
+          feature support as both ranking information and hard legality where
+          the primitive is trusted.
+        </p>
+        <h3>Feature Detection Debug Contract</h3>
+        <p>
+          The detector deliberately separates evidence, trace ownership, graph
+          cleanup, primitive confidence, and simplification consumption. Keep
+          those layers separate when adding algorithms. A new detector may add
+          evidence, but it should not silently bypass loop recovery or QEM
+          guards; otherwise diagnostics will say a feature exists while the
+          simplifier has no stable curve to protect.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Contract</th>
+              <th>Do not mix with</th>
+              <th>Primary references</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Evidence</td>
+              <td>Report why an edge is suspicious: boundary, dihedral, non-manifold, normal tensor, smooth curvature, signed kind. 证据 source counter 是通道计数；同一 edge 可以同时带两个弱 source，因此不能默认相加后等于 unique edge 数。</td>
+              <td>Loop ownership or collapse rejection.</td>
+              <td><code>FeatureEvidence.cpp:330-430, 487-532</code>; M007, M016, M018/M019.</td>
+            </tr>
+            <tr>
+              <td>Trace ownership</td>
+              <td>Decide which evidence edges are coherent enough to enter the feature graph; keep <code>featureAngleDeg</code> and <code>loopTraceAngleDeg</code> meanings explicit.</td>
+              <td>QEM weights.</td>
+              <td>M016, M018/M019.</td>
+            </tr>
+            <tr>
+              <td>Graph cleanup</td>
+              <td>Remove weak-evidence spurs, then bridge close junctions/endpoints with bilateral continuation, source, and signed-kind compatibility; optional consolidation recovers compatible gaps across components.</td>
+              <td>Original evidence counts.</td>
+              <td><code>FeatureGraphCleanup.cpp:53-223, 247-413, 493-505</code>; M024/M025, M026.</td>
+            </tr>
+            <tr>
+              <td>Primitive fitting</td>
+              <td>Classify loops as circle, near-circle, ellipse, or polygon only when ordering, planarity, and residual checks pass.</td>
+              <td>Generic feature-edge protection.</td>
+              <td>M007, M016, M024/M025.</td>
+            </tr>
+            <tr>
+              <td>QEM consumption</td>
+              <td>Use confidence as soft feature-curve cost: <code>confidenceScale = 0.35 + 0.65 * clamp(confidence, 0, 1)</code>. Hard primitive guards remain a separate feature-protection policy.</td>
+              <td>Raw tensor score alone.</td>
+              <td><code>Quadrics.cpp:173-196</code>; M002, M004, M026, M028/M029, M033.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          This contract is the reason the benchmark plan measures precision and
+          recall, loop closure, junction correctness, primitive residual, and
+          feature drift after simplification. Counting detected edges alone is
+          not enough: a high edge count can still produce no protectable curve,
+          and an over-eager hard lock can preserve a feature while damaging
+          triangle quality.
+        </p>
+        <h3>Evidence Sources</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Evidence</th>
+              <th>Meaning</th>
+              <th>Main risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Boundary</td>
+              <td>Edge with only one adjacent face.</td>
+              <td>Open mesh boundaries may be intentional or defects.</td>
+            </tr>
+            <tr>
+              <td>Dihedral</td>
+              <td>Adjacent face normals exceed the angle threshold. 二面角为有向（signed）判定：两邻面绕向一致时使用带符号 dot，可正确识别超过 90° 的反折边；绕向不一致时回退到无符号角，并计入 <code>FeatureAnalysis::inconsistentWindingEdges</code> 诊断。</td>
+              <td>Threshold depends on tessellation and noise.</td>
+            </tr>
+            <tr>
+              <td>Non-manifold</td>
+              <td>Edge has more than two adjacent faces.</td>
+              <td>Often signals invalid input, not a design feature.</td>
+            </tr>
+            <tr>
+              <td>Normal tensor</td>
+              <td>Local normal distribution suggests crease or corner saliency.</td>
+              <td>Local edge scale, smoothing, multi-scale persistence, and minimum persistent scales dominate weak-feature behavior.</td>
+            </tr>
+            <tr>
+              <td>Smooth curvature (opt-in)</td>
+              <td>多尺度 quadric 拟合在局部光滑表面上发现带符号的 ridge/valley 方向极值。</td>
+              <td>默认关闭：干净 CAD/STL 硬边场景与扫描/自由曲面场景需要不同的阈值与验证集。</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Current Detection Pipeline And References</h3>
+        <p>
+          The implemented detector is a deterministic CAD/STL-first pipeline.
+          It does not try to infer a full CAD feature tree. It builds a
+          measurable feature graph from triangle evidence, cleans that graph,
+          then exposes loops and component confidence to simplification.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Stage</th>
+              <th>Exact implementation behavior</th>
+              <th>Code entry</th>
+              <th>Reference location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Discrete edge evidence</td>
+              <td>Classify mesh edges as boundary, dihedral crease, or non-manifold. Dihedral evidence uses <code>featureAngleDeg</code>; loop ownership can use <code>loopTraceAngleDeg</code>.</td>
+              <td><code>FeatureEvidence.cpp</code>, <code>FeatureGraph.cpp</code></td>
+              <td>M007 <code>documentation/papers/feature_detection/jiao_bayyana_2008_identification_c1_c2_discontinuities_surface_meshes_cad.pdf</code>; M016 <code>vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf</code>; M018/M019 polygon crawling PDFs.</td>
+            </tr>
+            <tr>
+              <td>Normal-tensor weak evidence</td>
+              <td>Compute per-vertex normal tensors, smooth by local edge-length scale, score crease/corner saliency over multiple scales, and accept weak feature edges only when persistent score and tangent alignment agree.</td>
+              <td><code>NormalTensor.cpp</code>, <code>FeatureEvidence.cpp</code></td>
+              <td>M015 <code>documentation/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf</code>; M012 <code>documentation/papers/feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf</code>; M013 <code>documentation/papers/feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf</code>; M009 <code>documentation/papers/feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf</code>.</td>
+            </tr>
+            <tr>
+              <td>Normal-domain preprocessing (opt-in)</td>
+              <td>Area/angle-weighted face-normal relaxation; large-angle edges are preserved and vertices/topology are unchanged.</td>
+              <td><code>FeatureNormalFilter.cpp</code></td>
+              <td>M009/M012/M013/M015; compare behavior against MeshLib/L0Denoising/NLLR/LSD without importing them.</td>
+            </tr>
+            <tr>
+              <td>Trace graph cleanup</td>
+              <td>删除弱 spur；close-junction 与 endpoint bridge 都要求双端 continuation、source 和 signed-kind 兼容；Yoshizawa 强度裁决保持可选。</td>
+              <td><code>FeatureGraphCleanup.cpp</code>；<code>FeatureGraphCompatibility.cpp</code></td>
+              <td>M016 for CAD feature graph continuity; M024/M025 for segmentation boundary closure; M026 <code>documentation/papers/weak_features/xu_2024_cwf_consolidating_weak_features_mesh_simplification.pdf</code> for weak-feature support consolidation.</td>
+            </tr>
+            <tr>
+              <td>Component consolidation</td>
+              <td>Opt-in cross-component degree-1 endpoint recovery with local-scale distance, bilateral alignment, source/sign compatibility, deterministic one-to-one selection, and a 512-endpoint cap.</td>
+              <td><code>FeatureGraphConsolidation.cpp</code></td>
+              <td>M026/M044; current implementation is local recovery, not full weak-feature relocation.</td>
+            </tr>
+            <tr>
+              <td>Loop and primitive recovery</td>
+              <td>固定五段恢复 chain/cycle/primitive。<code>minFeatureLoopVertices</code> 拒绝过短 recovered cycle，并限制 closed traced loop 的 primitive fit；直接 trace 的短链仍可报告。small-cycle 与 circular-cluster fallback 跳过含任一弱证据通道的 component。</td>
+              <td><code>FeatureLoopRecovery.cpp:10-17</code>；<code>FeatureLoopBuilder.cpp:158-250</code>；<code>FeatureCycleRecovery.cpp:105-117, 195-225</code>；<code>FeatureCircularRecovery.cpp:170-281</code></td>
+              <td>M007 and M016 for CAD feature boundaries; M024/M025 for loop closure as a segmentation prerequisite.</td>
+            </tr>
+            <tr>
+              <td>Component confidence</td>
+              <td><code>weakSupport=max(tensorScore, curvatureScore)</code>；<code>evidence=max(strongEvidenceRatio, 0.80·weakSupport)</code>；最终为 <code>0.45·evidence + 0.25·closure + 0.20·residual + 0.10·weakSupport - junctionPenalty</code> 并 clamp 到 [0,1]。<code>featureComponentMinConfidence</code> 只影响报告计数。</td>
+              <td><code>FeatureGraphCleanup.cpp:443-464, 568-650</code>；public <code>FeatureComponent</code></td>
+              <td>M026 weak feature consolidation; M028/M029 feature-preserving simplification references.</td>
+            </tr>
+            <tr>
+              <td>Junction branches and surface patches</td>
+              <td>Expose branch tangents/continuation pairs and optional feature-induced face partition/patch adjacency. Recovery bridges that are not mesh edges do not split faces.</td>
+              <td><code>FeatureGraph.cpp</code>；<code>FeatureSegmentation.cpp</code>；<code>FeatureBenchmark.cpp</code></td>
+              <td>M044 for curve networks; M024/M025 for patch-boundary validation.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="warning">
+          <strong>Bridge 风险边界：</strong>cleanup/consolidation 已复核双端方向、source 和 signed kind，但仍是局部一对一贪心，不含全局 curve identity/primitive 优化。计数异常升高时，应对照 branch-pair benchmark、component closure 和关闭 recovery 的结果。
+        </div>
+        <div class="note">
+          Algorithm boundary: 确定性光滑曲率 ridge/valley 提取已在本轮作为
+          opt-in 弱证据路径落地（见下节 <a href="#feature-smooth-curvature">Smooth
+          Curvature Evidence Path</a>），默认关闭，不改变默认的确定性 CAD/STL
+          生产路径。learned wireframe extraction 与 neural edge fields
+          仍然只作为后续对照路线记录，不进入生产管线，因为当前内核优先保证确定性行为、
+          可解释诊断与稳定的 C/C++ 集成。
+        </div>
+        <h3 id="feature-smooth-curvature">Smooth Curvature Evidence Path (Opt-In)</h3>
+        <p>
+          本轮新增了确定性光滑曲率特征检测，面向扫描件与自由曲面上的光滑
+          ridge/valley，不含任何神经网络或学习成分。实现位于
+          <code>src/feature_detection/SmoothCurvature.cpp</code>，权威设计文档为
+          <code>documentation/design/smooth_curvature_feature_detection_2026_07_11.md</code>，
+          文献综述见
+          <code>documentation/papers/recent_deterministic_feature_detection_2026-07-11.md</code>。
+        </p>
+        <h4>双证据路径理念</h4>
+        <p>
+          boundary、non-manifold、dihedral 边是离散网格上的不连续，属于硬证据；
+          光滑 ridge/valley 是局部光滑表面上的微分事件，属于弱证据。
+          把两类原始分数直接混合会让阈值难以解释，并让噪声与强拓扑证据直接竞争。
+          因此 ManuMesh 保持两条路径：硬证据路径（boundary / non-manifold /
+          dihedral）与弱光滑证据路径（normal tensor 与多尺度 quadric
+          曲率）。两条路径只在显式 <code>FeatureGraph</code> 汇合，在那里 source
+          ownership、连续性、junction、cleanup、component 与 confidence
+          统一提供给下游简化和未来的 remeshing 适配层。component 置信度把
+          normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据始终占主导。
+        </p>
+        <h4>算法（逐顶点、逐拓扑尺度）</h4>
+        <ol>
+          <li>构建 k-ring 邻域与面积加权局部法线；</li>
+          <li>用局部平均边长乘以 ring 数做坐标归一化；</li>
+          <li>带距离权与确定性 Huber 重加权拟合三次 Monge patch（9 系数：二次块承载曲率，三次块承载曲率导数）；</li>
+          <li>由第一/第二基本形式解广义自伴特征问题，得到两条带符号主曲率与主方向；</li>
+          <li>由三次项解析计算 extremality <code>e_i = ∇κ_i · t_i</code>，并用 Ohtake 边零交叉极值判据（邻居切向与 extremality 先做符号同步）确认中心是带符号的方向极值，才接受 ridge/valley 候选；</li>
+          <li>用尺度归一化曲率幅值、各向异性、极值对比度与拟合残差质量融合打分；</li>
+          <li>默认选择分数最高尺度；opt-in stable-scale 模式按跨尺度 sign/tangent/score 一致性选择并可拒绝低稳定性参考尺度。所有请求尺度独立投票，支持尺度不要求相邻，最粗尺度没有特殊否决权；</li>
+          <li>两端点在符号、切向、尺度支持、边对齐上都一致时，才把持久的顶点证据转成 mesh-edge 证据。</li>
+        </ol>
+        <p>
+          最终分数无量纲：对网格做均匀缩放不需要重新调曲率阈值。源码中的持久分数为
+          <code>(0.65 * referenceScore + 0.35 * meanSupportedScore) * (persistentScales / scaleCount) * meanSupportedAlignment</code>；
+          <code>averageFeatureScore</code> 则是 <code>supportedScoreSum / scaleCount</code>，未支持尺度按零贡献。实现位置：
+          <code>SmoothCurvature.cpp:579-639</code>。
+        </p>
+        <div class="note">
+          <strong>弱边 materialization 还有两层容易漏看的门控：</strong>normal-tensor 与 smooth-curvature 都跳过任何接触强离散特征顶点的边，形成一个顶点宽的排除区；normal-tensor 的网格边方向对齐使用
+          <code>max(|d·tA|, |d·tB|)</code>，允许一端满足，而 smooth-curvature 使用 <code>min(...)</code> 并额外要求两端 tangent consistency，因此后者更严格。
+          直接位置：<code>FeatureEvidence.cpp:330-430</code>。
+        </div>
+        <h4>FeatureOptions 新增参数</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>选项</th>
+              <th>默认值</th>
+              <th>含义</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>useSmoothCurvatureFeatures</code></td>
+              <td><code>false</code></td>
+              <td>启用光滑曲率弱证据路径；必须显式 opt-in。</td>
+            </tr>
+            <tr>
+              <td><code>smoothCurvatureFeatureThreshold</code></td>
+              <td><code>0.015</code></td>
+              <td>尺度归一化光滑特征分数的最小值。</td>
+            </tr>
+            <tr>
+              <td><code>smoothCurvatureMinEdgeAlignment</code></td>
+              <td><code>0.55</code></td>
+              <td>网格边与恢复出的曲线切向之间的最小对齐度。</td>
+            </tr>
+            <tr>
+              <td><code>smoothCurvatureMinTangentConsistency</code></td>
+              <td><code>0.65</code></td>
+              <td>跨尺度与两端点之间切向一致性的下限。</td>
+            </tr>
+            <tr>
+              <td><code>smoothCurvatureBaseNeighborhoodRings</code></td>
+              <td><code>2</code></td>
+              <td>局部 quadric 拟合的基础拓扑半径；one-ring 拟合对噪声过敏，故默认 2。</td>
+            </tr>
+            <tr>
+              <td><code>smoothCurvatureScaleCount</code></td>
+              <td><code>3</code></td>
+              <td>逐级放大的 quadric 拟合邻域（尺度）数量。</td>
+            </tr>
+            <tr>
+              <td><code>smoothCurvatureMinPersistentScales</code></td>
+              <td><code>2</code></td>
+              <td>一个光滑特征候选必须获得支持的最少尺度数。</td>
+            </tr>
+            <tr>
+              <td><code>smoothCurvatureRobustFitIterations</code></td>
+              <td><code>2</code></td>
+              <td>局部 quadric 拟合的确定性鲁棒（Huber）重加权轮数。</td>
+            </tr>
+          </tbody>
+        </table>
+        <h4>FeatureGraph 归属与诊断</h4>
+        <ul>
+          <li><code>FeatureGraphEdge</code> 区分 raw evidence、<code>cleanupBridge</code> 和 <code>consolidationBridge</code>，每条 graph edge 的来源保持可解释。</li>
+          <li><code>FeatureComponent</code> 统计新增 <code>smoothCurvatureEdges</code> 与 <code>meanCurvaturePersistence</code>；component 置信度把 smooth-curvature 与 normal-tensor 作为相互独立的弱支持计入。</li>
+          <li><code>FeatureAnalysis</code> 还报告 smooth scale stability、normal filter、consolidation、junction branch pairing 和 surface patches。</li>
+          <li>公开 smooth options/vertex 新增 stable-scale controls、<code>selectedScale</code> 和 <code>scaleStability</code>。</li>
+        </ul>
+        <div class="note">
+          <strong>为什么是 opt-in：</strong>干净 CAD/STL 硬边检测与含噪扫描/自由曲面的光滑特征检测需要不同的阈值和验证数据集，
+          因此该路径默认关闭。既有简化行为完全不变；启用时既可以由简化主入口现场检测，也可以复用带光滑特征的预计算
+          <code>FeatureAnalysis</code>。CLI 侧，<code>feature-report</code>、
+          <code>feature-benchmark</code>、<code>feature-compare</code> 与 <code>simplify</code> 通过
+          <code>--smooth-curvature-*</code> 选项暴露同样的控制；<code>simplify --smooth-curvature-features</code>
+          会自动开启 feature-curve policy（见 <a href="#validation">Validation</a> 一节）。
+        </div>
+        <div class="note">
+          <strong>CLI、C++ 与 C ABI 简化边界：</strong><code>simplify</code> 绑定 smooth/stable-scale、normal-filter 和 consolidation 参数；任一相关 opt-in 开关会启用 feature-curve policy。surface patches 只属于 feature analysis。C ABI 使用 size-aware 尾字段，旧短结构继续采用默认关闭行为。
+        </div>
+        <h3>Feature Analysis Output</h3>
+        <ul>
+          <li><code>FeatureGraphEdge</code>: explicit edge with raw source flags, cleanup/consolidation bridge, signed kind, and cleanup state.</li>
+          <li><code>FeatureLoop</code>: recovered chain or loop with closure, primitive type, fit errors, and loop statistics.</li>
+          <li><code>FeatureComponent</code>: connected support with confidence, raw/recovery counts, persistence, closure, junction and endpoint diagnostics.</li>
+          <li><code>FeatureGraphVertex</code>: incident branches, continuation pairs, endpoint/junction/shared/ambiguous semantics.</li>
+          <li><code>FeaturePatch</code> / adjacency: optional face partition with area/normal/boundary and neighboring patches.</li>
+          <li><code>VertexFeature</code>: per-vertex feature ownership, tangent, component id, confidence, circle data, and ellipse data.</li>
+          <li>Diagnostics additionally cover normal-filter angular change, smooth scale stability, consolidation bridges/cap, branch pairs/ambiguous junctions, patches/adjacency, ignored recovery barriers, winding, cleanup caps and circular recovery truncation.</li>
+        </ul>
+        <h3>Primitive Recovery</h3>
+        <p>
+          Closed loops can be classified as circle, near-circle, ellipse, or
+          polygonal loop. Primitive fitting is intentionally limited to
+          tessellated feature supports; it is not a replacement for exact CAD
+          feature recognition. 本轮拟合器升级：圆拟合改为一阶无偏的 Taubin
+          代数拟合（Kåsa 拟合保留为确定性回退）；椭圆拟合改为 Halíř-Flusser
+          直接最小二乘（保证输出为椭圆，轴向来自 conic 系数而非 PCA）。
+        </p>
+      </section>
+
+      <section id="simplification">
+        <h2>6. QEM Simplification</h2>
+        <p>
+          The simplification module is a constrained edge-collapse pipeline. It
+          uses Quadric Error Metrics for geometric ranking, line quadrics for
+          tangential regularization, and explicit filters for production safety.
+        </p>
+        <h3>Plane QEM</h3>
+        <p>
+          A face plane can be expressed as <code>n^T x + d = 0</code>. The
+          squared point-to-plane error is accumulated as a homogeneous quadric:
+        </p>
+        <pre><code>E_plane(x) = (n^T x + d)^2
+           = [x, 1]^T (p p^T) [x, 1]</code></pre>
+        <p>
+          Plane quadrics keep the simplified mesh close to local tangent
+          planes. In near-flat regions they may be underconstrained in tangential
+          directions, which is why the kernel also supports line quadrics.
+        </p>
+        <h3>Line Quadrics</h3>
+        <p>
+          A line quadric penalizes the distance from a placement to a local
+          support line. It behaves as a small regularizer that improves candidate
+          ordering and placement stability where plane QEM has weak tangential
+          constraints.
+        </p>
+        <pre><code>E_total = E_plane
+        + lambda_line * E_line
+        + lambda_boundary * E_boundary
+        + lambda_feature * E_feature_curve</code></pre>
+        <h3>Placement Solve, Fallback Chain, And Priority Decoupling</h3>
+        <ul>
+          <li><strong>三级 placement 回退链（GH97）：</strong>全空间最优解 <code>A x = -b</code> → 沿折叠边的一维最优（本轮新增，覆盖 rank-2 直棱/边界折痕的良定情形，使用尺度不变的相对阈值）→ 端点/中点候选（<code>Quadrics.cpp</code>）。</li>
+          <li><strong>边界边折叠 placement：</strong>采用 Lindstrom-Turk 边界守恒约束投影，实现在 <code>src/simplification/Placement.cpp</code>（<code>projectBoundaryPlacement</code>，自 <code>FeatureConstraints</code> 迁入并升级）。</li>
+          <li><strong>扩展 link condition：</strong>"边界弦"（内部边、两端点均为边界顶点）一律拒绝折叠，防止开边界被捏合成非流形 pinch 点（<code>CollapseTopology.cpp</code>）。该检查与 <code>preserveBoundary</code>（默认 <code>false</code>）无关，始终生效。</li>
+          <li><strong>Wang 2008 优先级解耦：</strong><code>adaptiveScale=true</code> 时 <code>featureBoost</code> 不再放大 quadric，而是作为逐顶点队列优先级因子 <code>priorityScale=1+featureBoost*score</code> 只乘排序代价（取两端点 max）；placement 使用干净的 <code>adaptiveBaseLineWeight</code>（默认 <code>1e-2</code>）line quadric。非 adaptiveScale 路径保持旧行为。</li>
+          <li><strong>尺度不变相交谓词：</strong>局部自交检查使用相对容差 <code>kRelativeIntersectionEps=1e-9</code>（<code>CollapseLegality.cpp</code>、<code>QualityRefinement.cpp</code>）。</li>
+        </ul>
+        <h3>Energy Terms And Source Papers</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Meaning in ManuMesh</th>
+              <th>Implemented in</th>
+              <th>Primary reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>E_plane</code></td>
+              <td>Area-weighted point-to-face-plane error accumulated per vertex and summed across collapse endpoints.</td>
+              <td><code>Quadrics.cpp::planeQuadric</code>, <code>computeInitialQuadrics</code></td>
+              <td>M002 Garland-Heckbert 1997, <code>documentation/papers/qem/garland_heckbert_1997_surface_simplification_qem.pdf</code></td>
+            </tr>
+            <tr>
+              <td><code>E_line</code></td>
+              <td>Small line-quadric regularizer that reduces tangential drift and improves candidate ranking in flat regions.</td>
+              <td><code>Quadrics.cpp::lineQuadric</code></td>
+              <td>M004 Liu-Rahimzadeh-Zordan 2025, <code>documentation/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf</code></td>
+            </tr>
+            <tr>
+              <td><code>E_boundary</code></td>
+              <td>Optional boundary plane constraints controlled by <code>boundaryWeight</code> (default 0, independent of <code>preserveBoundary</code>). Boundary-edge placement uses the Lindstrom-Turk boundary-preservation projection.</td>
+              <td><code>Quadrics.cpp::addBoundaryQuadrics</code>, <code>Placement.cpp::projectBoundaryPlacement</code></td>
+              <td>M003 Garland-Heckbert 1998 attribute/extended QEM path, <code>documentation/papers/qem/garland_heckbert_1998_color_texture_qem.pdf</code>; Lindstrom-Turk 1998, <code>documentation/papers/edge_collapse/lindstrom_turk_1998_fast_memory_efficient_simplification.pdf</code></td>
+            </tr>
+            <tr>
+              <td><code>E_feature_curve</code></td>
+              <td>Feature tangent line quadric. Its exact soft scale is <code>0.35 + 0.65 * clamp(VertexFeature::confidence, 0, 1)</code>, so confidence 0 still retains 35% soft guidance while confidence 1 uses full <code>featureCurveWeight</code>. This is independent of hard feature-protection guards.</td>
+              <td><code>Quadrics.cpp:173-196</code>, <code>FeatureConstraints.cpp</code></td>
+              <td>M026 weak-feature consolidation; M028 vertex-cover feature preservation; M029 feature-sensitive metric.</td>
+            </tr>
+            <tr>
+              <td>Hard legality gates</td>
+              <td>QEM ranks candidates, but topology, feature policy, boundary policy, normal deviation, triangle quality, local error, and local intersection guards decide whether a collapse is allowed.</td>
+              <td><code>CollapseLegality.cpp</code>, <code>FeatureConstraints.cpp</code>, <code>SpatialFaceIndex.cpp</code>, <code>src/common/GeometryPredicates.cpp</code>, <code>src/common/SpatialIndex.cpp</code></td>
+              <td>M030-M033 edge-collapse engineering references, especially M033 <code>documentation/papers/edge_collapse/rose_2025_mesh_simplification_edge_collapse_guide.pdf</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Collapse Acceptance</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Gate</th>
+              <th>Report field</th>
+              <th>Delivery purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Feature policy</td>
+              <td><code>featureRejectedCollapses</code></td>
+              <td>Protect primitive loops, junctions, and minimum loop vertices.</td>
+            </tr>
+            <tr>
+              <td>Boundary policy</td>
+              <td><code>boundaryRejectedCollapses</code></td>
+              <td>Prevent unwanted open-boundary merging or removal.</td>
+            </tr>
+            <tr>
+              <td>Topology link condition</td>
+              <td><code>topologyRejectedCollapses</code></td>
+              <td>Preserve local topological consistency during collapse. 含针对开边界网格的扩展 link condition：两端点均为边界顶点的内部边（边界弦）始终拒绝折叠，与 <code>preserveBoundary</code> 无关。</td>
+            </tr>
+            <tr>
+              <td>Normal deviation</td>
+              <td><code>normalFlipRejectedCollapses</code></td>
+              <td>Avoid foldover and severe local orientation changes.</td>
+            </tr>
+            <tr>
+              <td>Triangle quality</td>
+              <td><code>qualityRejectedCollapses</code></td>
+              <td>Reject triangles below the configured quality threshold.</td>
+            </tr>
+            <tr>
+              <td>Local error</td>
+              <td><code>errorRejectedCollapses</code></td>
+              <td>Reject collapses exceeding the configured local distance budget.</td>
+            </tr>
+            <tr>
+              <td>Local self-intersection</td>
+              <td><code>selfIntersectionRejectedCollapses</code></td>
+              <td>Avoid newly introduced intersections against active nearby faces.</td>
+            </tr>
+            <tr>
+              <td>Texture chart / UV area (opt-in)</td>
+              <td><code>textureRejectedCollapses</code></td>
+              <td><code>preserveTexture</code> 启用时，拒绝破坏 chart 配对、翻转 UV 定向或把有符号 UV 面积压到下限以下的坍缩。</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3 id="simplification-texture">Texture-Aware Ranking And UV Chart Protection (Opt-In)</h3>
+        <p>
+          本轮为带逐角 UV 的网格新增了纹理感知能力。实现位于
+          <code>src/simplification/TextureProtection.cpp</code> 与
+          <code>src/simplification/detail/TextureProtection.h</code>，权威设计文档为
+          <code>documentation/design/texture_aware_qem.md</code>。核心决定是<strong>不做属性扩维</strong>：
+          几何 quadric 保持 <code>Mat4</code>（作用在齐次坐标
+          <code>(x, y, z, 1)</code> 上），纹理坐标既不追加进该向量，也不放大
+          placement 求解。对一次 edge-collapse 的候选位置 <code>p</code>，队列使用：
+        </p>
+        <pre><code>E_total(p) = E_geometry_4x4(p) + textureWeight * E_uv_local(p)</code></pre>
+        <p>
+          其中 <code>E_uv_local</code> 是只在坍缩已触及的面上求值的标量；placement
+          候选仍然是既有的端点、中点与稳定 3D QEM 最优点，因此几何求解路径完全不变。
+        </p>
+        <h4>局部 chart 配对与拒绝规则</h4>
+        <p>
+          对坍缩两端点，用相对容差（<code>textureSeamTolerance</code>）网格哈希把入射角
+          UV 分组为局部 chart，再由坍缩边的入射面建立两端点 chart 之间的一一配对。
+          出现以下任一情况时坍缩被拒绝：
+        </p>
+        <ul>
+          <li>一端的某个 chart 在另一端没有对应 chart；</li>
+          <li>配对歧义，或配对会合并互不相关的 chart；</li>
+          <li>任一存活 UV 三角形的有符号定向发生翻转；</li>
+          <li>任一存活 UV 三角形的有符号面积低于旧面积的 <code>minTextureAreaRatio</code> 比例。</li>
+        </ul>
+        <p>
+          这套规则允许在双侧 seam 上坍缩——只要 seam 两侧的 chart 都一致配对；
+          跨 seam、或在 seam 顶点之外会合并 chart 归属的坍缩则被过滤。被接受的坍缩只更新受影响的存活面角，
+          不同配对 chart 在同一几何顶点上保留各自不同的合并 UV。
+        </p>
+        <h4>标量失真代价与尺度不变性</h4>
+        <pre><code>E_uv_local = edgeLength^2
+             * sum(faceArea * cornerUvDisplacement^2)
+             / meanLocalUvEdgeLength^2</code></pre>
+        <p>
+          面面积与边长因子让该项与面积加权几何 QEM 拥有相同的长度量纲；
+          除以局部 UV 边长尺度使结果对 UV atlas 的均匀缩放不变，因此
+          <code>textureWeight</code> 不需要随贴图分辨率或 atlas 缩放重新调参。
+        </p>
+        <h4>选项与诊断</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>选项 / 报告字段</th>
+              <th>默认值</th>
+              <th>含义</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>preserveTexture</code></td>
+              <td><code>false</code></td>
+              <td>网格带 UV 时启用 chart 与有符号 UV 面积保护；必须显式 opt-in。</td>
+            </tr>
+            <tr>
+              <td><code>textureWeight</code></td>
+              <td><code>1.0</code></td>
+              <td>仅缩放局部标量排序代价，绝不改变几何 quadric 维度或 placement 求解。</td>
+            </tr>
+            <tr>
+              <td><code>textureSeamTolerance</code></td>
+              <td><code>1e-8</code></td>
+              <td>把相等逐角 UV 分组为局部 chart 时使用的相对容差。</td>
+            </tr>
+            <tr>
+              <td><code>minTextureAreaRatio</code></td>
+              <td><code>1e-8</code></td>
+              <td>每个存活三角形有符号 UV 面积比例的硬下限。</td>
+            </tr>
+            <tr>
+              <td><code>SimplifyReport::textureProtectedEdges</code></td>
+              <td>诊断</td>
+              <td>初始就不存在合法中点纹理坍缩的边数。</td>
+            </tr>
+            <tr>
+              <td><code>SimplifyReport::textureRejectedCollapses</code></td>
+              <td>诊断</td>
+              <td>placement 评估之后被纹理检查否决的当前队列候选数。</td>
+            </tr>
+            <tr>
+              <td><code>SimplifyReport::textureApplyFailures</code></td>
+              <td>诊断</td>
+              <td>被接受的坍缩中纹理更新计划无法重放的次数（内部不一致指示，应保持为 0）。纹理路径本轮拆分为 evaluate / buildPlan / apply 三段。</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          默认 <code>preserveTexture = false</code> 时，候选排序与几何输出和旧的无纹理路径
+          <strong>完全一致（legacy bit-exact）</strong>；逐角 UV 仍会传播到输出，但不提供失真或接缝保证。
+          纹理保护启用时，当前会暂时跳过可选的固定拓扑质量精修轮
+          （<code>qualityRefinementIterations</code>），因为该顶点重定位阶段尚未优化或约束
+          UV 失真。
+        </div>
+        <h4>复杂度与文献定位</h4>
+        <p>
+          几何求解仍是由 4×4 齐次 quadric 支撑的固定 3D 求解；纹理工作只做期望
+          O(k) 的局部 chart 哈希与三角检查（k 为 one-ring 规模），随后是既有的优先队列工作。
+          没有全局参数化、atlas 遍历或属性空间矩阵分解，因此 edge-collapse
+          的渐近复杂度不变。文献上，Garland-Heckbert 的属性 QEM（M003）是把颜色/纹理纳入简化目标的历史参照；
+          ManuMesh 采用现代 edge-collapse 管线文献（M033）建议的工程拆分——几何 QEM
+          排序固定的 3D placement，拓扑/特征/属性合法性作为显式局部策略——并与
+          4×4 line-quadric 主干（M004/085）保持兼容。
+        </p>
+        <div class="warning note">
+          纹理保护当前只通过 C++ <code>SimplifyOptions</code> 暴露；CLI
+          <code>simplify</code> 命令没有 <code>--preserve-texture</code>
+          之类选项，请勿在自动化脚本中假设其存在。
+        </div>
+        <h3>Recommended Industrial Preset</h3>
+        <pre><code>manumesh::simplification::SimplifyOptions opt;
+opt.targetRatio = 0.25;
+opt.useLineQuadrics = true;
+opt.lineWeight = 1e-3;
+opt.weightMode = manumesh::simplification::WeightMode::Dihedral;
+opt.featureBoost = 0.05;
+opt.preserveFeatureCurves = true;
+opt.useSmoothCurvatureFeatures = true; // opt-in smooth ridge/valley evidence
+opt.featureGraphMinWeakSpurStrength = 0.02;
+opt.featureProtectionMode =
+    manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
+opt.featureCurveWeight = 0.05;
+opt.maxFeatureCurveDeviationRatio = 0.02;
+opt.maxNormalDeviationDeg = 60.0;
+opt.minTriangleQuality = 0.05;
+opt.maxLocalErrorRatio = 0.02;
+opt.preventLocalIntersections = true;</code></pre>
+        <div class="note">
+          The preset is conservative. For aggressive decimation, acceptance
+          should be based on <code>SimplifyReport</code>, metrics CSV output, and
+          visual review of representative production meshes.
+        </div>
+        <h3>Performance Notes (2026-07-12)</h3>
+        <p>
+          本轮在不改变折叠结果的前提下做了性能改造（collapse 计数逐用例验证不变）：
+          <code>FeatureDetectionCache</code> 一次构建、全特征管线复用；TraceGraph
+          合并为单表 <code>TraceEdgeAttrs</code>；队列 <code>Candidate</code> 携带
+          <code>std::array&lt;SolveResult,4&gt;</code> 消除三重求解；纹理路径拆分
+          evaluate/buildPlan/apply；<code>PolylineSegmentIndex</code> 对 ≥64 段的
+          loop 使用 AABB 树；VertexState 瘦身（primitive 拟合数据移入
+          <code>FeaturePrimitiveFit</code> side table）。Release 实测：bump64
+          特征分析 71.8ms，简化端到端提速约 30%。
+        </p>
+      </section>
+
+      <section id="api">
+        <h2>7. Public C++ API</h2>
+        <p>
+          The public API is intentionally small. Users configure an option
+          struct, call a stateless convenience function or a reusable object
+          facade, and inspect a report.
+        </p>
+        <h3>Minimal Simplification Example</h3>
+        <pre><code>#include "core/Mesh.h"
+#include "algorithms/simplification/QEMSimplifier.h"
+
+manumesh::Mesh input = loadUserMesh();
+
+manumesh::simplification::SimplifyOptions options;
+options.targetRatio = 0.25;
+options.useLineQuadrics = true;
+options.preserveFeatureCurves = true;
+options.useSmoothCurvatureFeatures = true;
+options.featureGraphMinWeakSpurStrength = 0.02;
+
+manumesh::simplification::SimplifyReport report;
+manumesh::simplification::QEMSimplifier simplifier(options);
+manumesh::Mesh output = simplifier.simplify(input, &report);</code></pre>
+        <h3>Texture-Aware Simplification Example</h3>
+        <pre><code>manumesh::Mesh textured = loadTexturedObjMesh();
+// textured.faceTexCoords 与 textured.faces 按面对齐；
+// 个别条目可为 invalid（OBJ 中未贴图的面）。
+
+manumesh::simplification::SimplifyOptions options;
+options.targetRatio = 0.25;
+options.preserveTexture = true;      // 默认 false，必须显式 opt-in
+options.textureWeight = 1.0;         // 仅缩放标量排序代价
+options.textureSeamTolerance = 1e-8; // 局部 chart 分组相对容差
+options.minTextureAreaRatio = 1e-8;  // 存活 UV 面积硬下限
+
+manumesh::simplification::SimplifyReport report;
+manumesh::simplification::QEMSimplifier simplifier(options);
+manumesh::Mesh output = simplifier.simplify(textured, &report);
+
+bool hasUv = output.hasTextureCoordinates();
+int protectedEdges = report.textureProtectedEdges;
+int rejected = report.textureRejectedCollapses;</code></pre>
+        <p>
+          <code>examples/sdk_consumer/sdk_cpp_simplify.cpp</code>
+          中包含一个带 UV 平面网格加 <code>preserveTexture = true</code>
+          的完整可编译用例，可作为集成模板。
+        </p>
+        <h3>Feature Analysis Example</h3>
+        <pre><code>#include "algorithms/feature_detection/FeatureDetector.h"
+
+manumesh::feature::FeatureOptions featureOptions;
+featureOptions.featureAngleDeg = 40.0;
+featureOptions.useNormalTensorFeatures = true;
+
+// 确定性光滑曲率弱证据路径（opt-in，默认关闭）
+featureOptions.useSmoothCurvatureFeatures = true;
+featureOptions.smoothCurvatureFeatureThreshold = 0.015;
+featureOptions.smoothCurvatureMinEdgeAlignment = 0.55;
+featureOptions.smoothCurvatureMinTangentConsistency = 0.65;
+featureOptions.smoothCurvatureBaseNeighborhoodRings = 2;
+featureOptions.smoothCurvatureScaleCount = 3;
+featureOptions.smoothCurvatureMinPersistentScales = 2;
+featureOptions.smoothCurvatureRobustFitIterations = 2;
+
+manumesh::feature::FeatureDetector detector(featureOptions);
+manumesh::feature::FeatureAnalysis analysis = detector.analyze(input);
+
+// 光滑曲率诊断字段
+int smoothEdges = analysis.smoothCurvatureFeatureEdges;
+int scoredVertices = analysis.smoothCurvatureScoredVertices;
+double maxScore = analysis.maxSmoothCurvatureFeatureScore;
+double maxPersistent = analysis.maxSmoothCurvaturePersistentScore;
+double meanLocalScale = analysis.meanSmoothCurvatureLocalScale;
+double meanPersistence = analysis.meanSmoothCurvaturePersistence;</code></pre>
+        <h3>New Public Feature Types</h3>
+        <p>
+          光滑曲率路径引入了两个新的公开类型。<code>SmoothCurvatureOptions</code>
+          汇总局部拟合参数：<code>baseNeighborhoodRings</code>、<code>scaleCount</code>、
+          <code>robustFitIterations</code>、<code>minTangentConsistency</code>。
+          逐顶点结果 <code>SmoothCurvatureVertex</code> 报告：
+        </p>
+        <ul>
+          <li>局部几何帧：<code>normal</code>、<code>curveTangent</code>、<code>extremumDirection</code>；</li>
+          <li>曲率量：<code>principalCurvature</code>、<code>secondaryCurvature</code>、<code>anisotropy</code>、<code>extremumStrength</code>；</li>
+          <li>分数与质量：<code>featureScore</code>、<code>averageFeatureScore</code>、<code>persistentFeatureScore</code>、<code>fitResidual</code>；</li>
+          <li>尺度支持：<code>localScale</code>、<code>persistentScales</code>；</li>
+          <li>分类：<code>signedKind</code>（<code>+1</code> ridge、<code>-1</code> valley、<code>0</code> 未分类）。</li>
+        </ul>
+        <p>
+          曲率与分数都按拟合邻域半径归一化，因此阈值在网格均匀缩放下保持稳定。
+          <code>FeatureGraphEdge::smoothCurvature</code>、
+          <code>FeatureComponent::smoothCurvatureEdges</code> 与
+          <code>FeatureComponent::meanCurvaturePersistence</code>
+          提供 graph 级的来源归属与置信度输入。
+        </p>
+        <h3>PlainMesh Entry Point</h3>
+        <pre><code>#include "algorithms/simplification/PlainSimplifier.h"
+
+manumesh::PlainMesh plainInput = getPlainMeshFromHost();
+manumesh::simplification::SimplifyReport report;
+manumesh::PlainMesh plainOutput =
+    manumesh::simplification::simplifyPlainMesh(
+        plainInput, options, &report);</code></pre>
+        <p>
+          <code>PlainMesh</code> 同样携带 <code>faceTexCoords</code>
+          （<code>PlainFaceTexCoords</code> / <code>PlainVec2</code>），
+          带 UV 的网格可以在不暴露 Eigen 的前提下跨 SDK 边界双向往返，
+          compaction、validation 与索引 remap 都会同步维护纹理数据。
+        </p>
+        <h3>Mesh Analysis Module</h3>
+        <p>
+          通用网格统计已从 simplification 提升为跨算法公共模块
+          <code>manumesh::analysis</code>（<code>include/algorithms/analysis/MeshAnalysis.h</code>）：
+        </p>
+        <pre><code>#include "algorithms/analysis/MeshAnalysis.h"
+
+manumesh::analysis::MeshStats stats =
+    manumesh::analysis::computeMeshStats(output);
+manumesh::analysis::DistanceStats distance =
+    manumesh::analysis::compareMeshesBySampledDistance(input, output, 800);</code></pre>
+        <ul>
+          <li>旧头 <code>algorithms/simplification/Metrics.h</code> 已改为带弃用注释的转发头（提供 <code>manumesh::simplification</code> 兼容别名），将在下一 minor 版本删除；新代码请直接使用 <code>manumesh::analysis</code>。</li>
+          <li>CSV 拼装函数 <code>statsHeaderCsv</code>/<code>statsRowCsv</code> 属表现层，已移入 CLI（<code>apps/manumesh/CliCsv.h</code>），不再是 SDK API。</li>
+          <li>两个入口接受任意 Mesh（含空/拓扑破损输入），按错误处理政策退化为零值字段而不抛异常；均为纯函数，可并发调用。</li>
+        </ul>
+        <h3>Feature Loop Comparison</h3>
+        <p>
+          新公共头 <code>include/algorithms/feature_detection/FeatureComparison.h</code>
+          提供简化前后特征 loop 的贪心圆环匹配：
+        </p>
+        <pre><code>#include "algorithms/feature_detection/FeatureComparison.h"
+
+manumesh::feature::LoopMatchOptions matchOptions; // 默认值即原 CLI feature-compare 硬编码阈值
+manumesh::feature::LoopMatchReport report =
+    manumesh::feature::matchCircularLoops(
+        referenceAnalysis, simplifiedAnalysis, simplifiedMesh, matchOptions);</code></pre>
+        <p>
+          每个匹配结果分类为 <code>Matched</code> / <code>WeakMatch</code> /
+          <code>Missing</code>（三级中心距/半径/法向阈值）。CLI 的
+          <code>feature-compare</code> 命令现在只是这套公共 API 的薄封装：
+          load → detect → <code>matchCircularLoops</code> → 格式化输出。
+        </p>
+      </section>
+
+      <section id="capi">
+        <h2>8. C ABI</h2>
+        <p>
+          The C ABI is the preferred boundary for plugins, other languages, or
+          clients that cannot share the same C++ compiler and standard-library
+          ABI. Input options must be initialized; report and stats outputs are initialized by capacity-aware calls.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Call the matching <code>*_init</code> function for every public C struct.</td>
+              <td>Sets ABI version, struct size, and default values.</td>
+            </tr>
+            <tr>
+              <td>Do not allocate or free opaque handles manually.</td>
+              <td>The library owns handle lifetime and internal representation.</td>
+            </tr>
+            <tr>
+              <td>Pass caller-owned buffers when copying mesh data out.</td>
+              <td>Avoids allocator mismatch across module boundaries.</td>
+            </tr>
+            <tr>
+              <td>Check returned status values instead of expecting exceptions.</td>
+              <td>C clients need explicit error paths and stable status codes.</td>
+            </tr>
+            <tr>
+              <td>Expect <code>MANUMESH_STATUS_OUT_OF_MEMORY</code> on allocation failure.</td>
+              <td>本轮异常映射新增 <code>std::bad_alloc</code> → OOM 状态码，内存耗尽不再归入通用错误。</td>
+            </tr>
+            <tr>
+              <td>Pass finite numeric parameters.</td>
+              <td>数值参数现做 finite 校验：如 <code>merge_relative_epsilon</code> 必须有限且非负，否则返回 <code>MANUMESH_STATUS_INVALID_ARGUMENT</code>。</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>2026-07-15 size-aware 尾字段：</strong><code>ManuMeshSimplifyOptions</code> 包含 smooth stable-scale、feature normal filter、graph consolidation 和 weak-spur controls；<code>ManuMeshSimplifyReport</code> 包含相应 stability/filter/consolidation 诊断，以及 winding/cleanup/recovery 字段。
+          转换器只读写 <code>struct_size</code> 覆盖到的字段，旧短结构仍兼容。C ABI 现场保护光滑特征时需同时设置
+          <code>preserve_feature_curves = 1</code> 与 <code>use_smooth_curvature_features = 1</code>。
+        </div>
+        <div class="note">
+          <strong>纹理数据当前不经过 C ABI：</strong><code>include/api/CApi.h</code>
+          顶部已明确声明 v1 ABI 不携带逐角纹理坐标。<code>manumesh_mesh_set_data</code>
+          与 <code>manumesh_mesh_copy_vertices</code> /
+          <code>manumesh_mesh_copy_faces</code> 只交换顶点坐标与三角形索引，
+          <code>ManuMeshSimplifyOptions</code> 也未包含 <code>preserveTexture</code>
+          等纹理字段。需要逐角 UV（<code>faceTexCoords</code>）的工作流请使用 C++
+          <code>Mesh</code> 或 Eigen-free 的 <code>PlainMesh</code> 边界；若未来在 C ABI
+          暴露纹理，应按既有规则新增带 <code>*_init</code> 的版本化结构体。
+        </div>
+      </section>
+
+      <section id="build">
+        <h2>9. Build And Packaging</h2>
+        <p>
+          ManuMesh uses CMake and supports static or shared library builds. The
+          recommended Windows development profile is MinGW + Ninja or a fully
+          initialized Visual Studio developer environment.
+        </p>
+        <h3>MinGW + Ninja</h3>
+        <pre><code>cmake -S . -B build/mingw-release -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_C_COMPILER=gcc ^
+  -DCMAKE_CXX_COMPILER=g++ ^
+  -DMANUMESH_EIGEN_PROVIDER=vendored ^
+  -DMANUMESH_GOOGLETEST_PROVIDER=source
+
+cmake --build build/mingw-release --parallel
+ctest --test-dir build/mingw-release -LE "performance|external" --output-on-failure</code></pre>
+        <p>
+          <code>-LE "performance|external"</code> 是快速套件（256 个启用用例，另有 1 个 disabled 手工性能测试）；<code>-LE performance</code> 追加 11 个 external 大网格用例（共 267 个启用用例）。
+        </p>
+        <h3>SDK Install Layout</h3>
+        <pre><code>cmake -S . -B build/sdk-release -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_C_COMPILER=gcc ^
+  -DCMAKE_CXX_COMPILER=g++ ^
+  -DMANUMESH_ENABLE_INSTALL=ON ^
+  -DMANUMESH_INSTALL_CMAKE_CONFIG=ON
+
+cmake --build build/sdk-release --target sdk-consumer-test --parallel</code></pre>
+        <h3>Optional Debug HTML Wireframe</h3>
+        <p>
+          <code>MANUMESH_ENABLE_DEBUG_UTIL</code> builds a private Debug-only
+          HTML wireframe helper for local algorithm inspection. It should not be
+          enabled for SDK delivery, release packaging, or acceptance evidence.
+        </p>
+        <pre><code>cmake -S . -B build/mingw-debug-debugutil -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Debug ^
+  -DCMAKE_C_COMPILER=gcc ^
+  -DCMAKE_CXX_COMPILER=g++ ^
+  -DMANUMESH_ENABLE_DEBUG_UTIL=ON
+
+cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></pre>
+        <p>
+          The internal macros <code>MANUMESH_DEBUG_UTIL_WIREFRAME</code>,
+          <code>MANUMESH_DEBUG_UTIL_EDGE</code>,
+          <code>MANUMESH_DEBUG_UTIL_EDGES</code>, and
+          <code>MANUMESH_DEBUG_UTIL_FEATURES</code> write standalone HTML under
+          <code>MANUMESH_DEBUG_UTIL_DIR</code> or the system temp
+          <code>manumesh-debugUtil</code> directory. Set
+          <code>MANUMESH_DEBUG_UTIL_OPEN=0</code> to suppress automatic browser
+          launch.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Installed path</th>
+              <th>Contents</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>bin/</code></td>
+              <td>Runtime library and command-line executable.</td>
+            </tr>
+            <tr>
+              <td><code>include/</code></td>
+              <td>Public SDK headers.</td>
+            </tr>
+            <tr>
+              <td><code>lib/</code></td>
+              <td>Import or static libraries and optional CMake package files.</td>
+            </tr>
+            <tr>
+              <td><code>share/manumesh/</code></td>
+              <td>MSVC property sheet, vendored Eigen headers, and samples when enabled.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="validation">
+        <h2>10. Validation</h2>
+        <p>
+          Delivery acceptance should be based on repeatable build, unit tests,
+          ABI tests, external mesh fixtures, metrics, and visual inspection of
+          generated STL files.
+        </p>
+        <h3>Regression Gate</h3>
+        <pre><code>cmake --build build/audit-mingw --target unit-tests --parallel</code></pre>
+        <div class="success note">
+          Latest local audit on 2026-07-15: 258 / 258 enabled non-performance tests
+          passed with the MinGW + Ninja release configuration (fast suite
+          <code>-LE "performance|external"</code>: 247 / 247; external: 11 / 11;
+          performance build: 4 / 4). 2026-07-12
+          起，下述新能力测试已注册进同一 <code>unit-tests</code>
+          目标（<code>tests/CMakeLists.txt</code>）；测试分层、解析 fixture
+          设计与新增测试注册方式的权威说明见
+          <code>documentation/design/testing_strategy.md</code>。
+        </div>
+        <h3>New Capability Test Coverage (2026-07-12)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>测试文件</th>
+              <th>覆盖点</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>tests/unit/simplification/simplification_texture_tests.cpp</code></td>
+              <td>几何 quadric 矩阵维度不扩维；<code>textureWeight</code> 标量加权；UV atlas 均匀缩放不变性；双侧 seam 兼容坍缩与跨 seam 拒绝；UV 退化（定向翻转 / 面积下限）拒绝；OBJ 逐角坐标归属；输出 UV 传播；<code>preserveTexture = false</code> 时与 legacy 无纹理路径几何输出完全一致。</td>
+            </tr>
+            <tr>
+              <td><code>tests/unit/feature_detection/feature_detection_smooth_curvature_tests.cpp</code></td>
+              <td>精确平面零响应；光滑凸起响应；均匀缩放不变性；多尺度 persistence 过滤；最终 feature-graph 阶段的噪声抑制；graph 来源归属（<code>smoothCurvature</code> 标记）；非法参数校验；既有硬特征回归套件不回退；带标注的 Gaussian ridge/valley fixture 以"一条局部边"的曲线漂移容差衡量 precision 与 segment recall。</td>
+            </tr>
+            <tr>
+              <td><code>tests/unit/feature_detection/feature_detection_analytic_tests.cpp</code>（8 个）</td>
+              <td>解析真值 fixture（<code>tests/support/AnalyticFixtures.{h,cpp}</code>：UV 球、（带盖）圆柱、环面、倒角盒、高斯脊薄板，全部带闭式曲率/真值特征边/真值圆访问器）上的定量断言：Dupin cyclide（球/柱/环面）光滑曲率通道精确沉默（含环面内侧 cyclideness 门控回归）；高斯脊 crest 曲率与解析值 2hs 的偏差界；带盖圆柱两 rim 圆精确恢复；倒角盒硬边 precision/recall ≥ 0.99 与 junction precision ≥ 0.99；确定性噪声（Knuth MMIX LCG，固定 seed 可复现）下 rim 圆仍恢复；特征边集精确尺度不变。所有断言界由微分几何推导给出，不抄录历史输出。</td>
+            </tr>
+            <tr>
+              <td><code>tests/unit/feature_detection/feature_detection_pipeline_upgrade_tests.cpp</code></td>
+              <td>noisy-normal stabilization/rim preservation、stable-scale、compatible/opposite-sign consolidation、junction continuation pairs、cylinder 三 patch partition 和新 options validation。</td>
+            </tr>
+            <tr>
+              <td><code>tests/unit/simplification/simplification_analytic_tests.cpp</code>（5 个）</td>
+              <td>球简化后顶点离球面偏差 &lt; 1% 半径（弦高误差界推导，约 9 倍余量）且拓扑不变；<code>PrimitiveCurves</code> 保护下圆柱 rim 圆 1e-6·r 保真（舍入容差而非几何允差）；带 UV 圆柱纹理简化后每个角点 UV 与解析参数化的偏差不超过一个局部网格步长的参数增量且无翻转；环面双向采样 Hausdorff &lt; 2% 小半径；detect + 特征保护 simplify 三次重复运行输出逐字节一致。</td>
+            </tr>
+            <tr>
+              <td><code>tests/unit/perf/pipeline_perf_guard_tests.cpp</code>（2 个）</td>
+              <td>约 1.6 万面解析球上 <code>detectFeatureCurves</code>（&lt; 2 s）与 <code>simplify</code>（&lt; 8 s）的墙钟护栏；上限取实测基准（约 0.18 s / 2.0 s）的 ≥3 倍，专门拦截意外 O(n²) 热路径（此规模下会慢 &gt;10 倍）。历史依据：主循环每次 collapse 重算包围盒对角线曾让 16k 面 simplify 从约 2 s 劣化到约 15 s，现已缓存为一次性计算。</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Feature Pipeline CLI Validation Path</h3>
+        <p>
+          <code>feature-report</code>、<code>feature-benchmark</code>、
+          <code>feature-compare</code> 与 <code>simplify</code> 暴露 smooth/stable-scale、normal-filter 和 consolidation 参数；feature-analysis 另有 surface-patch 参数。stdout/CSV 包含 stability/filter/consolidation/junction/patch 与既有 winding/cleanup/recovery 字段：
+        </p>
+        <pre><code>build/audit-mingw/bin/manumesh.exe feature-report input.stl --csv report.csv ^
+  --smooth-curvature-features ^
+  --smooth-curvature-threshold 0.015 ^
+  --smooth-curvature-edge-alignment 0.55 ^
+  --smooth-curvature-tangent-consistency 0.65 ^
+  --smooth-curvature-base-rings 2 ^
+  --smooth-curvature-scales 3 ^
+  --smooth-curvature-min-persistent-scales 2 ^
+  --smooth-curvature-robust-iterations 2 ^
+  --smooth-curvature-stable-scale ^
+  --feature-normal-filter ^
+  --feature-graph-consolidation ^
+  --surface-patches</code></pre>
+        <pre><code>build/audit-mingw/bin/manumesh.exe simplify input.obj output.stl --ratio 0.5 ^
+  --smooth-curvature-features ^
+  --smooth-curvature-threshold 0.015 ^
+  --feature-graph-min-weak-spur-strength 0.02 ^
+  --prevent-local-intersections ^
+  --metrics-csv smooth-simplify.csv</code></pre>
+        <div class="warning note">
+          <code>--smooth-curvature-features</code> 会自动开启 feature-curve policy，但默认仍关闭该路径；阈值应按 CAD/STL、扫描或自由曲面数据集分别校准。
+          <code>--prevent-local-intersections</code> 检查新一环内部和邻近活动面，并允许仅限声明共享顶点/边的拓扑接触；它是局部 guard，不是全局无自交认证。
+          <code>simplify</code> 仍未暴露纹理相关选项；纹理保护的验证路径是 GoogleTest
+          套件与 <code>examples/sdk_consumer/sdk_cpp_simplify.cpp</code> 示例。
+        </div>
+        <h3>External Model Gate</h3>
+        <pre><code>build/audit-mingw/bin/manumesh.exe validate-external --ratio 0.25 --samples 800</code></pre>
+        <p>
+          This command generates simplified STL outputs and metrics under
+          <code>tests/output/external_model_validation</code>. Review at least:
+        </p>
+        <ul>
+          <li>final face count and termination reason;</li>
+          <li>mean and maximum sampled original-to-simplified distance;</li>
+          <li>minimum triangle quality and edge-length variation;</li>
+          <li>feature loops and primitive preservation diagnostics;</li>
+          <li>topology, normal, quality, error, and self-intersection rejection counters.</li>
+        </ul>
+        <h3>Acceptance Matrix</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Required evidence</th>
+              <th>Pass signal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Build</td>
+              <td>Clean CMake configure and compile on the selected toolchain.</td>
+              <td>All requested SDK, CLI, examples, and tests build.</td>
+            </tr>
+            <tr>
+              <td>API</td>
+              <td>C++ and C ABI examples run without crashes or leaks visible to host tests.</td>
+              <td>Examples and ABI tests pass.</td>
+            </tr>
+            <tr>
+              <td>Algorithm</td>
+              <td>Fixture and external models reach target or report a meaningful blocking gate.</td>
+              <td><code>terminationReason</code> is explainable and diagnostics match parameter intent.</td>
+            </tr>
+            <tr>
+              <td>Geometry quality</td>
+              <td>Metrics CSV plus visual STL inspection.</td>
+              <td>No obvious holes, foldovers, unintended boundary merges, or severe sliver triangles under the acceptance preset.</td>
+            </tr>
+            <tr>
+              <td>Documentation</td>
+              <td>This HTML, API headers, examples, and archived prototype notes.</td>
+              <td>Integrator can build, call, validate, and diagnose the kernel without reading private source first.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="extension">
+        <h2>11. Extension Policy</h2>
+        <p>
+          New capabilities should enter the kernel as parallel modules with
+          explicit dependencies. Avoid turning the simplifier into a catch-all
+          geometry engine.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Future module</th>
+              <th>Recommended dependency</th>
+              <th>Public contract</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Repair</td>
+              <td><code>core</code>, <code>common/detail</code>, optional <code>FeatureAnalysis</code></td>
+              <td>Mesh validity repair, non-manifold cleanup, hole filling, boundary diagnostics.</td>
+            </tr>
+            <tr>
+              <td>Remeshing</td>
+              <td><code>core</code>, <code>feature_detection</code></td>
+              <td>Feature-aware isotropic or anisotropic remeshing.</td>
+            </tr>
+            <tr>
+              <td>Validation</td>
+              <td><code>core</code>, spatial indices, metrics</td>
+              <td>Global Hausdorff, envelope checks, manufacturability reports.</td>
+            </tr>
+            <tr>
+              <td>Data exchange</td>
+              <td><code>core</code></td>
+              <td>STL/OBJ/glTF/PLY readers and writers with status reporting.</td>
+            </tr>
+            <tr>
+              <td>B-Rep bridge</td>
+              <td>Separate geometry/topology model</td>
+              <td>Should not be bolted onto the current triangle-only mesh type.</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Contribution Rules</h3>
+        <ol>
+          <li>Expose only stable SDK types under <code>include</code>.</li>
+          <li>Keep implementation helpers under <code>src/&lt;domain&gt;/detail</code>.</li>
+          <li>Add diagnostics for every production filter or recovery path.</li>
+          <li>Write fixture tests for algorithm behavior and external tests for representative meshes.</li>
+          <li>Document parameter intent and failure modes before promoting a feature to default behavior.</li>
+        </ol>
+      </section>
+
+      <section id="limitations">
+        <h2>12. Boundaries</h2>
+        <p>
+          Commercial delivery documentation should be explicit about boundaries.
+          Clear boundaries protect both the integrator and the kernel roadmap.
+        </p>
+        <div class="danger note">
+          ManuMesh currently does not guarantee direct manufacturing tolerance
+          compliance, full CAD feature-tree recovery, B-Rep validity, Boolean
+          robustness, offset robustness, or global envelope certification.
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Boundary</th>
+              <th>Current behavior</th>
+              <th>Mitigation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No B-Rep semantics in STL/OBJ</td>
+              <td>Features are inferred from triangles.</td>
+              <td>Validate on customer fixture meshes and keep primitive-fit thresholds explicit.</td>
+            </tr>
+            <tr>
+              <td>Weak features depend on scale</td>
+              <td>Normal tensor scores are sensitive to smoothing and sampling.</td>
+              <td>Use controlled parameter presets and compare before/after feature reports.</td>
+            </tr>
+            <tr>
+              <td>Aggressive simplification can harm triangle quality</td>
+              <td>Low target ratios may force poor local candidates or rejection-limit termination.</td>
+              <td>Enable quality, normal, local-error, and intersection gates for production presets.</td>
+            </tr>
+            <tr>
+              <td>Global error is sampled today</td>
+              <td>Metrics provide evidence but not a formal certificate.</td>
+              <td>Add a global envelope/Hausdorff module for certified downstream use.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="delivery">
+        <h2>13. Delivery Checklist</h2>
+        <p>
+          Use this checklist when packaging ManuMesh for a commercial SDK
+          handoff.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Expected artifact</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Source package</td>
+              <td>Repository snapshot excluding generated build trees.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>SDK package</td>
+              <td><code>bin</code>, <code>include</code>, <code>lib</code>, <code>share/manumesh</code>.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>Developer guide</td>
+              <td><code>documentation/delivery/manumesh_kernel_developer_guide.html</code>.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>Prototype documentation archive</td>
+              <td><code>documentation/archive/prototype-docs-2026-07-09</code>.</td>
+              <td>Included</td>
+            </tr>
+            <tr>
+              <td>Regression evidence</td>
+              <td>CTest log, build configuration, compiler version, and test count.</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>External validation output</td>
+              <td>STL outputs, metrics CSV, and visual inspection notes.</td>
+              <td>Recommended</td>
+            </tr>
+            <tr>
+              <td>Known limitations</td>
+              <td>Explicit scope and boundary statement.</td>
+              <td>Included</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p class="footer">
+        ManuMesh Kernel Developer Guide. Generated for commercial delivery
+        review on 2026-07-09. Updated on 2026-07-12 with texture-aware QEM,
+        deterministic smooth-curvature feature detection, the
+        <code>manumesh::analysis</code> module, feature-loop comparison API,
+        placement fallback chain, and C ABI / IO hardening.
+      </p>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,3 +1,16 @@
+/**
+ * @file src/feature_detection/FeatureGraph.cpp
+ * @brief Implements feature graph facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Materializes candidate evidence as a deterministic undirected trace graph.
+ * @algorithm Evidence attributes are packed once per edge key, adjacency lists
+ * are deduplicated and sorted, and per-vertex graph markers are derived only
+ * after graph mutation is complete.
+ * @invariants `graphEdges`, adjacency, and the edge-attribute map describe the
+ * same active edge set after every rebuild.
+ */
+
 #include "detail/FeatureGraph.h"
 
 #include "common/detail/MeshQueries.h"

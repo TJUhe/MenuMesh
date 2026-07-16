@@ -1,3 +1,17 @@
+/**
+ * @file src/feature_detection/FeatureEvidence.cpp
+ * @brief Implements feature evidence facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Converts mesh-local observations into typed candidate-edge evidence.
+ * @algorithm Boundary and non-manifold incidence are recorded directly;
+ * manifold interior edges use winding-aware dihedral classification. Optional
+ * normal-tensor and smooth-curvature channels contribute only when endpoint
+ * persistence, tangent agreement, and edge alignment pass their thresholds.
+ * @failuremodes Inconsistent winding keeps unsigned strength but reports an
+ * unknown convex/concave sign. Degenerate faces contribute no normal evidence.
+ */
+
 #include "detail/FeatureEvidence.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"

@@ -1,3 +1,11 @@
+/**
+ * @file examples/sdk_consumer/sdk_c_abi_basic.c
+ * @brief Demonstrates sdk c abi basic through the ManuMesh SDK examples.
+ * @ingroup manumesh_examples
+ *
+ * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ */
+
 #include "api/CApi.h"
 
 #include <stddef.h>

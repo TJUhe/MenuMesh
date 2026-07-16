@@ -1,3 +1,14 @@
+/**
+ * @file src/simplification/SpatialFaceIndex.cpp
+ * @brief Implements spatial face index facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Maintains broad-phase AABB registrations for active faces during local edits.
+ * @algorithm The uniform grid removes stale registrations before insertion,
+ * updates only affected faces, and returns deduplicated potential intersection
+ * candidates for exact triangle predicates.
+ */
+
 #include "detail/SpatialFaceIndex.h"
 
 #include "common/detail/GeometryPredicates.h"

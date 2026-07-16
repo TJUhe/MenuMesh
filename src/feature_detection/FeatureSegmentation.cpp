@@ -1,3 +1,15 @@
+/**
+ * @file src/feature_detection/FeatureSegmentation.cpp
+ * @brief Implements feature segmentation facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Partitions faces into connected patches separated by active feature edges.
+ * @algorithm Flood fill crosses a manifold face adjacency only when the shared
+ * edge is not an enabled feature boundary. Patch areas, normals, boundary
+ * classes, closure, and neighboring-patch adjacency are accumulated afterward.
+ * @complexity Expected O(F + E).
+ */
+
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"

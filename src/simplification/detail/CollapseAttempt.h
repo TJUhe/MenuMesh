@@ -1,3 +1,11 @@
+/**
+ * @file src/simplification/detail/CollapseAttempt.h
+ * @brief Declares collapse attempt facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ */
+
 #pragma once
 
 #include "detail/CollapseLegality.h"
@@ -8,6 +16,7 @@
 
 namespace manumesh::simplification {
 
+/// Coarse outcome of evaluating all placements for one current candidate.
 enum class CollapseAttemptStatus {
     Accepted,
     FeatureRejected,
@@ -17,6 +26,7 @@ enum class CollapseAttemptStatus {
     LegalityRejected,
 };
 
+/// Immutable mesh state, policies, and cached placements needed for evaluation.
 struct CollapseAttemptInput {
     CollapseEdge edge;
     const Mat4& mergedQ;
@@ -43,6 +53,7 @@ struct CollapseAttemptInput {
     double maxLocalError = 0.0;
 };
 
+/// Accepted placement and prepared plans, or the first observable rejection class.
 struct CollapseAttemptResult {
     CollapseAttemptStatus status = CollapseAttemptStatus::LegalityRejected;
     Vec3 acceptedPosition = Vec3::Zero();
@@ -57,6 +68,11 @@ struct CollapseAttemptResult {
     bool accepted() const { return status == CollapseAttemptStatus::Accepted; }
 };
 
+/**
+ * @brief Tries cached placements in ascending cost order without mutating state.
+ * @param[in] input Complete evaluation view.
+ * @return First accepted placement, or a categorized rejection after all fail.
+ */
 CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input);
 
 } // namespace manumesh::simplification

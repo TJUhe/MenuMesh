@@ -1,3 +1,11 @@
+/**
+ * @file src/feature_detection/detail/PrimitiveFit.h
+ * @brief Declares primitive fit facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ */
+
 #pragma once
 
 #include "algorithms/feature_detection/FeatureTypes.h"
@@ -28,11 +36,15 @@ struct PrimitiveFit {
     double maxPlaneError = 0.0;
 };
 
+/// Fits the best supported analytic primitive in the loop's best-fit plane.
 PrimitiveFit fitPrimitive(const Mesh& mesh, const FeatureLoop& loop, const FeatureOptions& options);
+/// Copies a valid internal fit into the public loop representation.
 void applyPrimitiveFit(const PrimitiveFit& fit, FeatureLoop& loop);
+/// @return true when every consecutive cycle edge follows the fitted circle within policy.
 bool cycleEdgesFollowCircle(
     const std::vector<int>& vertices, const PrimitiveFit& fit, const Mesh& mesh, const FeatureOptions& options
 );
+/// Measures loop samples against a supplied circle without refitting it.
 DirectionalCurveError measureLoopAgainstCircle(
     const Mesh& mesh, const FeatureLoop& loop, const Vec3& center, const Vec3& normalIn, double radius
 );

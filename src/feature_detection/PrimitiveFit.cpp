@@ -1,3 +1,17 @@
+/**
+ * @file src/feature_detection/PrimitiveFit.cpp
+ * @brief Implements primitive fit facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Fits circle, near-circle, ellipse, or polygonal-loop models to recovered curves.
+ * @algorithm A best-fit plane defines 2D coordinates. Circle fitting uses the
+ * Taubin algebraic model with a Kasa fallback; ellipses use the direct
+ * Halir-Flusser conic fit and recover geometric axes from the conic. Models
+ * are accepted by normalized radial, plane, and directional residuals.
+ * @failuremodes Collinear, rank-deficient, non-elliptic, or undersampled loops
+ * fall back to a polygonal classification rather than an unstable primitive.
+ */
+
 #include "detail/PrimitiveFit.h"
 
 #include <Eigen/Eigenvalues>

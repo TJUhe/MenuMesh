@@ -1,3 +1,16 @@
+/**
+ * @file src/simplification/QualityRefinement.cpp
+ * @brief Implements quality refinement facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Performs optional fixed-topology tangential quality improvement after collapse.
+ * @algorithm Proposes area-weighted tangential vertex relocation and uses
+ * backtracking line search. A move is accepted only if local worst quality
+ * improves, mean quality does not regress, and boundary, feature, normal,
+ * error-envelope, and self-intersection constraints remain satisfied.
+ * @invariants Connectivity and protected feature ownership never change.
+ */
+
 #include "detail/QualityRefinement.h"
 
 #include "common/detail/GeometryPredicates.h"

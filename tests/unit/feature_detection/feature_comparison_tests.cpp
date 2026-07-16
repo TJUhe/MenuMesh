@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/feature_detection/feature_comparison_tests.cpp
+ * @brief Verifies feature comparison tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "algorithms/feature_detection/FeatureComparison.h"
 
 #include <cmath>

@@ -1,3 +1,16 @@
+/**
+ * @file src/common/SpatialIndex.cpp
+ * @brief Implements spatial index facilities for ManuMesh's common-geometry module.
+ * @ingroup manumesh_common
+ *
+ * @details Implements a mutable uniform grid for broad-phase AABB candidate queries.
+ * @algorithm Cell size is derived from domain extent and expected item count;
+ * large AABBs use an overflow set. Version stamps deduplicate query results
+ * without per-query set allocation.
+ * @failuremodes Invalid or impractically large grids disable acceleration and
+ * fall back to the overflow path without changing exact downstream results.
+ */
+
 #include "common/detail/SpatialIndex.h"
 
 #include <algorithm>

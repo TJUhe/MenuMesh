@@ -1,3 +1,11 @@
+/**
+ * @file src/api/CApi.cpp
+ * @brief Implements capi facilities for ManuMesh's C-ABI module.
+ * @ingroup manumesh_c_api
+ *
+ * @details The C boundary validates pointers and capacities, translates failures to status codes, and never permits a C++ exception to cross the ABI.
+ */
+
 #include "api/CApi.h"
 
 #include "algorithms/analysis/MeshAnalysis.h"

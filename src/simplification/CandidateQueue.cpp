@@ -1,3 +1,15 @@
+/**
+ * @file src/simplification/CandidateQueue.cpp
+ * @brief Implements candidate queue facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Maintains the min-cost candidate heap with cached, already-solved placements.
+ * @algorithm Candidates store endpoint version stamps and ascending placement
+ * costs. The queue does not solve quadrics; stale detection and local rebuild
+ * policy remain in SimplificationRun.
+ * @complexity Push and pop are O(log E).
+ */
+
 #include "detail/CandidateQueue.h"
 
 #include <algorithm>

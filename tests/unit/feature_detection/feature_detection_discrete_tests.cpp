@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/feature_detection/feature_detection_discrete_tests.cpp
+ * @brief Verifies feature detection discrete tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "FeatureDetectionTestSupport.h"
 
 #include <algorithm>

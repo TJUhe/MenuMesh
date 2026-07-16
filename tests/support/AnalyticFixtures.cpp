@@ -1,3 +1,11 @@
+/**
+ * @file tests/support/AnalyticFixtures.cpp
+ * @brief Verifies analytic fixtures behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "AnalyticFixtures.h"
 
 #include "core/MathConstants.h"
@@ -61,7 +69,8 @@ SphereFixture makeUvSphere(int rings, int segments, double radius) {
         for (int i = 0; i < fixture.segments; ++i) {
             const double theta = 2.0 * kPi * static_cast<double>(i) / fixture.segments;
             mesh.vertices.emplace_back(
-                radius * std::sin(phi) * std::cos(theta), radius * std::sin(phi) * std::sin(theta),
+                radius * std::sin(phi) * std::cos(theta),
+                radius * std::sin(phi) * std::sin(theta),
                 radius * std::cos(phi)
             );
         }
@@ -69,7 +78,9 @@ SphereFixture makeUvSphere(int rings, int segments, double radius) {
     mesh.vertices.emplace_back(0.0, 0.0, -radius);
     const int southPole = static_cast<int>(mesh.vertices.size()) - 1;
 
-    auto rowVertex = [&](int row, int i) { return 1 + (row - 1) * fixture.segments + i % fixture.segments; };
+    auto rowVertex = [&](int row, int i) {
+        return 1 + (row - 1) * fixture.segments + i % fixture.segments;
+    };
     for (int i = 0; i < fixture.segments; ++i) {
         mesh.faces.push_back({{0, rowVertex(1, i), rowVertex(1, i + 1)}});
     }
@@ -229,9 +240,7 @@ TorusFixture makeTorus(int majorSegments, int minorSegments, double majorRadius,
         for (int j = 0; j < fixture.minorSegments; ++j) {
             const double v = 2.0 * kPi * static_cast<double>(j) / fixture.minorSegments;
             const double ringRadius = majorRadius + minorRadius * std::cos(v);
-            mesh.vertices.emplace_back(
-                ringRadius * std::cos(u), ringRadius * std::sin(u), minorRadius * std::sin(v)
-            );
+            mesh.vertices.emplace_back(ringRadius * std::cos(u), ringRadius * std::sin(u), minorRadius * std::sin(v));
         }
     }
     for (int i = 0; i < fixture.majorSegments; ++i) {
@@ -399,9 +408,8 @@ makeGradedGaussianRidgeSheet(int fineColumns, double size, double height, double
     for (int row = 0; row <= fixture.rows; ++row) {
         const double y = (static_cast<double>(row) / fixture.rows - 0.5) * size;
         for (int col = 0; col < columns; ++col) {
-            const double x = col <= fixture.fineColumns
-                                 ? -0.5 * size + col * fineSpacing
-                                 : (col - fixture.fineColumns) * coarseSpacing;
+            const double x = col <= fixture.fineColumns ? -0.5 * size + col * fineSpacing
+                                                        : (col - fixture.fineColumns) * coarseSpacing;
             mesh.vertices.emplace_back(x, y, height * std::exp(-sharpness * x * x));
         }
     }

@@ -1,3 +1,11 @@
+/**
+ * @file src/simplification/Metrics.cpp
+ * @brief Implements metrics facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ */
+
 #include "algorithms/simplification/Metrics.h"
 
 #include <iomanip>
@@ -5,9 +13,7 @@
 
 namespace manumesh::simplification {
 
-MeshStats computeMeshStats(const Mesh& mesh) {
-    return manumesh::analysis::computeMeshStats(mesh);
-}
+MeshStats computeMeshStats(const Mesh& mesh) { return manumesh::analysis::computeMeshStats(mesh); }
 
 DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& simplified, int maxSamples) {
     return manumesh::analysis::compareMeshesBySampledDistance(original, simplified, maxSamples);

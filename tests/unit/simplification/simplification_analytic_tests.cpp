@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/simplification/simplification_analytic_tests.cpp
+ * @brief Verifies simplification analytic tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 // Simplification against analytic fixtures with closed-form ground truth.
 //
 // Assertion bounds are derived from the geometry of QEM edge collapse:

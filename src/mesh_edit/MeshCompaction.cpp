@@ -1,3 +1,15 @@
+/**
+ * @file src/mesh_edit/MeshCompaction.cpp
+ * @brief Implements mesh compaction facilities for ManuMesh's mesh-editing module.
+ * @ingroup manumesh_mesh_edit
+ *
+ * @details Converts stable-index edit state back to a dense public Mesh.
+ * @algorithm Active, index-valid faces are accepted in face order; vertices
+ * receive dense indices on first use and aligned texture coordinates follow
+ * surviving faces.
+ * @invariants Every output vertex is referenced and every output face index is valid.
+ */
+
 #include "mesh_edit/detail/MeshCompaction.h"
 
 namespace manumesh::mesh_edit {

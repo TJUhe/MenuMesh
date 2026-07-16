@@ -1,3 +1,14 @@
+/**
+ * @file src/feature_detection/FeatureComparison.cpp
+ * @brief Implements feature comparison facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Matches circular features across two analyses for preservation diagnostics.
+ * @algorithm Plausible center, radius, and unoriented-normal gates define
+ * candidates; deterministic greedy matching consumes the lowest normalized
+ * error and applies tighter gates for strong versus weak classification.
+ */
+
 #include "algorithms/feature_detection/FeatureComparison.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -25,11 +36,11 @@ std::vector<int> circularLoopIndices(const FeatureAnalysis& analysis) {
 } // namespace
 
 Status validateLoopMatchOptions(const LoopMatchOptions& options) {
-    auto finiteNonNegative = [](double value) { return std::isfinite(value) && value >= 0.0; };
-    if (!finiteNonNegative(options.plausibleCenterErrorRatio) ||
-        !finiteNonNegative(options.plausibleRadiusErrorRel) ||
-        !finiteNonNegative(options.matchedCenterErrorRatio) ||
-        !finiteNonNegative(options.matchedRadiusErrorRel)) {
+    auto finiteNonNegative = [](double value) {
+        return std::isfinite(value) && value >= 0.0;
+    };
+    if (!finiteNonNegative(options.plausibleCenterErrorRatio) || !finiteNonNegative(options.plausibleRadiusErrorRel) ||
+        !finiteNonNegative(options.matchedCenterErrorRatio) || !finiteNonNegative(options.matchedRadiusErrorRel)) {
         return Status::invalidArgument("Loop match distance and radius thresholds must be finite and non-negative.");
     }
     if (!finiteNonNegative(options.plausibleNormalAngleDeg) || options.plausibleNormalAngleDeg > 180.0 ||

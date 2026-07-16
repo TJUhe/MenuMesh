@@ -1,3 +1,14 @@
+/**
+ * @file src/simplification/SimplificationValidation.cpp
+ * @brief Implements simplification validation facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Validates mesh and option contracts before mutable run state is allocated.
+ * @failuremodes Invalid indices, non-finite geometry/options, repeated face
+ * vertices, impossible persistence counts, and inconsistent target ranges
+ * raise invalid_argument at the C++ boundary.
+ */
+
 #include "detail/SimplificationValidation.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"

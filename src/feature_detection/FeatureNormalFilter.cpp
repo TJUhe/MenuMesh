@@ -1,3 +1,16 @@
+/**
+ * @file src/feature_detection/FeatureNormalFilter.cpp
+ * @brief Implements feature normal filter facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Stabilizes face normals without changing mesh positions or topology.
+ * @algorithm Each iteration recomputes an angular edge indicator, preserves
+ * discontinuities above the configured angle, averages compatible neighboring
+ * normals with face-area weights, and applies bounded relaxation.
+ * @invariants Output normals stay finite and normalized; protected hard edges
+ * do not exchange smoothing support across the discontinuity.
+ */
+
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MathConstants.h"

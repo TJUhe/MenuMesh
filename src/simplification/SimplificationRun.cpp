@@ -1,3 +1,19 @@
+/**
+ * @file src/simplification/SimplificationRun.cpp
+ * @brief Implements simplification run facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Owns mutable state and schedules one complete simplification run.
+ * @algorithm Initializes vertex/face quadrics and dynamic topology, builds the
+ * candidate heap, repeatedly discards stale entries or evaluates current
+ * placements, applies accepted local edits, refreshes affected candidates,
+ * stops on target/no-candidate/rejection limits, then compacts and optionally
+ * refines the result.
+ * @invariants Candidate versions change whenever an endpoint neighborhood
+ * changes; active faces reference active vertices; report rejection counters
+ * record the first hard filter for each current candidate.
+ */
+
 #include "detail/SimplificationRun.h"
 
 #include "common/detail/MeshQueries.h"

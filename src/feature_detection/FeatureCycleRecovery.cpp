@@ -1,3 +1,15 @@
+/**
+ * @file src/feature_detection/FeatureCycleRecovery.cpp
+ * @brief Implements feature cycle recovery facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Recovers bounded cycles that pass through junctions or belong to a small cycle basis.
+ * @algorithm Uses deterministic shortest-path/cycle candidates, canonical
+ * undirected edge signatures for deduplication, and primitive/evidence gates
+ * before accepting a recovered cycle.
+ * @failuremodes Search depth and candidate counts are capped on dense graphs.
+ */
+
 #include "detail/FeatureCycleRecovery.h"
 
 #include "common/detail/MeshQueries.h"

@@ -1,3 +1,18 @@
+/**
+ * @file src/feature_detection/SmoothCurvature.cpp
+ * @brief Implements smooth curvature facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Implements robust, scale-normalized smooth ridge/valley evidence.
+ * @algorithm Deterministic k-rings are projected into a local Monge frame and
+ * normalized by neighborhood radius. A five-coefficient quadric is solved
+ * with spatial and robust residual weights; its Hessian yields principal
+ * curvatures/directions. Two-sided signed extrema and cross-scale sign/tangent
+ * persistence determine acceptance.
+ * @failuremodes Rank-deficient fits, missing two-sided samples, unstable
+ * eigendirections, or inconsistent signs produce no feature evidence.
+ */
+
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"

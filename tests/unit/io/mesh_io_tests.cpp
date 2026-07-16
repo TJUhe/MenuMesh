@@ -1,3 +1,11 @@
+/**
+ * @file tests/unit/io/mesh_io_tests.cpp
+ * @brief Verifies mesh io tests behavior in the ManuMesh tests.
+ * @ingroup manumesh_tests
+ *
+ * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ */
+
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
 
@@ -438,7 +446,7 @@ TEST(MeshIo, FiniteCoordinatesRemainDistinctWhenBoundingBoxNormOverflows) {
 
 TEST(MeshIo, StlVertexMergingSearchesAdjacentQuantizationBuckets) {
     const std::filesystem::path path = writeTempFile(
-        "manumesh_io_adjacent_weld_buckets.stl",
+        "manumesh_io_adjacent_merge_buckets.stl",
         "solid adjacent\n"
         "  facet normal 0 0 1\n"
         "    outer loop\n"

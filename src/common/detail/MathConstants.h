@@ -1,3 +1,11 @@
+/**
+ * @file src/common/detail/MathConstants.h
+ * @brief Declares math constants facilities for ManuMesh's common-geometry module.
+ * @ingroup manumesh_common
+ *
+ * @details The routines here are policy-free geometry foundations shared by feature detection, simplification, analysis, and mesh editing.
+ */
+
 #pragma once
 
 #include "core/MathConstants.h"

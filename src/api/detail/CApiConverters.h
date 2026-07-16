@@ -1,3 +1,11 @@
+/**
+ * @file src/api/detail/CApiConverters.h
+ * @brief Declares capi converters facilities for ManuMesh's C-ABI module.
+ * @ingroup manumesh_c_api
+ *
+ * @details The C boundary validates pointers and capacities, translates failures to status codes, and never permits a C++ exception to cross the ABI.
+ */
+
 #pragma once
 
 #include "algorithms/analysis/MeshAnalysis.h"

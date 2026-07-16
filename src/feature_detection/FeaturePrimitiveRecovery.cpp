@@ -1,3 +1,14 @@
+/**
+ * @file src/feature_detection/FeaturePrimitiveRecovery.cpp
+ * @brief Implements feature primitive recovery facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Applies primitive fitting to graph components that were not already represented by traced loops.
+ * @algorithm Component vertices are ordered under graph continuity, fitted,
+ * validated against graph edges, and assigned only when ownership does not
+ * conflict with an existing stronger loop.
+ */
+
 #include "detail/FeaturePrimitiveRecovery.h"
 
 #include "detail/FeatureGraph.h"

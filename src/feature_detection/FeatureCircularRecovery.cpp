@@ -1,3 +1,16 @@
+/**
+ * @file src/feature_detection/FeatureCircularRecovery.cpp
+ * @brief Implements feature circular recovery facilities for ManuMesh's feature-detection module.
+ * @ingroup manumesh_feature_detection
+ *
+ * @details Recovers sparse circular vertex clusters missed by strict graph tracing.
+ * @algorithm Groups compatible feature vertices in a fitted plane, orders them
+ * angularly around a circle candidate, and validates radial/planar residuals
+ * plus graph support before materializing a fallback loop.
+ * @failuremodes This bounded CAD-oriented fallback rejects partial arcs and
+ * clusters whose angular coverage or residuals do not support a closed circle.
+ */
+
 #include "detail/FeatureCircularRecovery.h"
 
 #include "detail/FeatureGraph.h"

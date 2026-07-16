@@ -1,3 +1,13 @@
+/**
+ * @file src/simplification/SimplificationPolicies.cpp
+ * @brief Implements simplification policies facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details Normalizes user options into immutable hot-loop policy switches and thresholds.
+ * @invariants Policy derivation performs no mesh-dependent work and every
+ * disabled optional channel has an explicit zero/false representation.
+ */
+
 #include "detail/SimplificationPolicies.h"
 
 #include "common/detail/MathConstants.h"

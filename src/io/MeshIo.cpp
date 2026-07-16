@@ -1,3 +1,17 @@
+/**
+ * @file src/io/MeshIo.cpp
+ * @brief Implements mesh io facilities for ManuMesh's mesh-I/O module.
+ * @ingroup manumesh_io
+ *
+ * @details Implements deterministic STL/OBJ parsing and ASCII STL serialization.
+ * @algorithm Binary STL is recognized by record layout, while ASCII STL uses
+ * token parsing. Coincident STL positions are merged with scale-aware quantization. OBJ
+ * polygons are projected to their dominant plane; convex faces use stable fan
+ * triangulation and concave faces use validated ear clipping.
+ * @failuremodes Repeated, degenerate, self-intersecting, non-finite, or
+ * truncated input is rejected with a diagnostic rather than partially emitted.
+ */
+
 #include "io/MeshIo.h"
 
 #include <algorithm>

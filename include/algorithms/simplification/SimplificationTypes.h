@@ -1,3 +1,11 @@
+/**
+ * @file include/algorithms/simplification/SimplificationTypes.h
+ * @brief Declares simplification types facilities for ManuMesh's simplification module.
+ * @ingroup manumesh_simplification
+ *
+ * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ */
+
 #pragma once
 
 #include "Export.h"
@@ -47,13 +55,16 @@ enum class FeatureProtectionMode {
 /// applies explicit filters for topology, boundary behavior, normals, triangle
 /// quality, local error, self-intersection, and feature-curve policy.
 struct SimplifyOptions {
-    // Target selection.
+    /// @name Target selection
+    /// @{
     /// Absolute output face target. When positive, this overrides targetRatio.
     int targetFaces = -1;
     /// Output face ratio used when targetFaces is not set.
     double targetRatio = 0.25;
+    /// @}
 
-    // QEM and line-quadric ranking costs.
+    /// @name QEM and line-quadric ranking costs
+    /// @{
     /// Adds line quadrics to reduce tangential drift in underconstrained regions.
     bool useLineQuadrics = true;
     /// Base line-quadric weight. Keep this small enough that plane quadrics and
@@ -75,8 +86,10 @@ struct SimplifyOptions {
     double boundaryWeight = 0.0;
     /// Rejects collapses that would merge or remove open-boundary structure.
     bool preserveBoundary = false;
+    /// @}
 
-    // Feature detection, feature projection, and hard feature policies.
+    /// @name Feature detection, projection, and hard policies
+    /// @{
     /// Enables feature detection, feature quadrics, projection, and protection.
     bool preserveFeatureCurves = false;
     /// Preferred hard feature policy. Defaults to primitive curves so generic
@@ -132,8 +145,10 @@ struct SimplifyOptions {
     bool consolidateFeatureGraph = false;
     double featureGraphConsolidationGapLengthRatio = 3.0;
     double featureGraphConsolidationMinAlignment = 0.75;
+    /// @}
 
-    // Hard post-placement filters and diagnostics.
+    /// @name Hard post-placement filters and diagnostics
+    /// @{
     /// Hard post-placement filters. Local-error budgets enforce an approximate
     /// bidirectional patch envelope and keep new samples near the original input surface.
     /// Zero local-error budgets disable those tests.
@@ -146,8 +161,10 @@ struct SimplifyOptions {
     /// Fixed-topology, tangential quality-improvement passes after edge collapse.
     /// Zero preserves the one-round simplification behavior exactly.
     int qualityRefinementIterations = 0;
+    /// @}
 
-    // Texture-aware ranking and hard UV-chart constraints.
+    /// @name Texture-aware ranking and hard UV-chart constraints
+    /// @{
     /// Enables per-corner UV protection when the input mesh carries texture coordinates.
     bool preserveTexture = false;
     /// Scalar local UV-distortion weight added to the 4x4 geometry-QEM cost.
@@ -157,6 +174,7 @@ struct SimplifyOptions {
     double textureSeamTolerance = 1e-8;
     /// Minimum allowed signed UV-area ratio for each surviving triangle.
     double minTextureAreaRatio = 1e-8;
+    /// @}
 };
 
 /// Diagnostics collected during simplification.
@@ -167,7 +185,8 @@ struct SimplifyOptions {
 /// tuning and regression tests, not as independent totals of every failed
 /// subcheck.
 struct SimplifyReport {
-    // Mesh-size summary.
+    /// @name Mesh-size summary
+    /// @{
     int initialVertices = 0;
     int initialFaces = 0;
     int finalVertices = 0;
@@ -178,8 +197,10 @@ struct SimplifyReport {
     /// degenerate face alive are rejected by the legality filters; the count
     /// makes tolerated dirty input visible instead of failing the run.
     int degenerateInputFaces = 0;
+    /// @}
 
-    // Queue and solve progress.
+    /// @name Queue and solve progress
+    /// @{
     int collapsedEdges = 0;
     int rejectedCollapses = 0;
     /// Number of current collapse candidates whose placement solve used fallback
@@ -188,8 +209,10 @@ struct SimplifyReport {
     /// Queue rebuilds triggered during the run by refills or stale-candidate
     /// recovery. The initial queue construction is not counted.
     int queueRebuilds = 0;
+    /// @}
 
-    // Feature-analysis summary captured at run start.
+    /// @name Feature-analysis summary captured at run start
+    /// @{
     int featureLoops = 0;
     int circularFeatureLoops = 0;
     int featureVertices = 0;
@@ -227,8 +250,10 @@ struct SimplifyReport {
     int graphConsolidationSkippedByCap = 0;
     int junctionBranchPairs = 0;
     int ambiguousFeatureJunctions = 0;
+    /// @}
 
-    // First-reject counters for current collapse candidates.
+    /// @name First-reject counters for current collapse candidates
+    /// @{
     int featureRejectedCollapses = 0;
     int primitiveFeatureRejectedCollapses = 0;
     int genericFeatureRejectedCollapses = 0;
@@ -240,34 +265,53 @@ struct SimplifyReport {
     int curveBudgetRejectedCollapses = 0;
     int errorRejectedCollapses = 0;
     int projectedFeaturePlacements = 0;
+    /// @}
 
-    // Final termination and applied weight range.
+    /// @name Final termination and applied weight range
+    /// @{
     SimplifyTerminationReason terminationReason = SimplifyTerminationReason::NotStarted;
     double minAppliedLineWeight = 0.0;
     double maxAppliedLineWeight = 0.0;
+    /// @}
 
-    // Fixed-topology second-round quality refinement.
+    /// @name Fixed-topology second-round quality refinement
+    /// @{
     int qualityRefinementIterationsCompleted = 0;
     int qualityRefinementAttemptedMoves = 0;
     int qualityRefinementAcceptedMoves = 0;
+    /// @}
 
-    // Texture-aware collapse diagnostics.
+    /// @name Texture-aware collapse diagnostics
+    /// @{
     int textureRejectedCollapses = 0;
     int textureProtectedEdges = 0;
     /// Accepted collapses whose texture update plan could not be re-applied.
     /// This indicates an internal inconsistency and should stay zero.
     int textureApplyFailures = 0;
+    /// @}
 };
 
 /// Parses a command/user string into a weight mode.
+/// @param[in] value Stable lowercase token.
+/// @return Matching mode.
+/// @throws std::invalid_argument for an unknown token.
 MANUMESH_API WeightMode parseWeightMode(const std::string& value);
 /// Converts a weight mode to its stable lowercase string representation.
+/// @param[in] mode Mode to serialize.
+/// @return Stable CLI/API token.
 MANUMESH_API std::string toString(WeightMode mode);
 /// Converts a termination reason to its stable lowercase string representation.
+/// @param[in] reason Termination value.
+/// @return Stable diagnostic token.
 MANUMESH_API std::string toString(SimplifyTerminationReason reason);
 /// Parses a feature-protection mode from a stable lowercase string.
+/// @param[in] value Stable lowercase token.
+/// @return Matching policy.
+/// @throws std::invalid_argument for an unknown token.
 MANUMESH_API FeatureProtectionMode parseFeatureProtectionMode(const std::string& value);
 /// Converts a feature-protection mode to its stable lowercase string representation.
+/// @param[in] mode Policy to serialize.
+/// @return Stable CLI/API token.
 MANUMESH_API std::string toString(FeatureProtectionMode mode);
 
 } // namespace manumesh::simplification

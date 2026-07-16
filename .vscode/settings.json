@@ -20,7 +20,7 @@
   "C_Cpp.default.includePath": [
     "${workspaceFolder}/include",
     "${workspaceFolder}/src",
-    "${workspaceFolder}/apps/manumesh",
+    "${workspaceFolder}/apps",
     "${workspaceFolder}/thirdParty/eigen/include",
     "${workspaceFolder}/thirdParty/googletest/prebuilt/mingw-x64-shared/include"
   ],

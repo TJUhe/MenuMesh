@@ -13,9 +13,13 @@
 
 namespace manumesh::simplification {
 
-/// @throws std::invalid_argument when any option or cross-field range is invalid.
+/**
+ * @throws std::invalid_argument when any option or cross-field range is invalid.
+ */
 void validateSimplifyOptions(const SimplifyOptions& options);
-/// @throws std::invalid_argument when input cannot be processed safely.
+/**
+ * @throws std::invalid_argument when input cannot be processed safely.
+ */
 void validateSimplifierInput(const Mesh& input);
 
 } // namespace manumesh::simplification

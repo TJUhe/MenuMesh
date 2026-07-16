@@ -16,35 +16,49 @@
 
 namespace manumesh::simplification {
 
+/**
+ * @brief Texture constraint result and scalar penalty for one placement.
+ */
 struct TextureCollapseEvaluation {
     TextureCollapseRejectReason rejectReason = TextureCollapseRejectReason::None;
     double cost = 0.0;
 
+    /** @brief Reports whether every enabled texture constraint passed. */
     bool allowed() const { return rejectReason == TextureCollapseRejectReason::None; }
 };
 
-/// One surviving face whose per-corner UVs change when a collapse is applied.
+/**
+ * @brief One surviving face whose per-corner UVs change when a collapse is applied.
+ */
 struct TextureFaceUpdate {
     int face = -1;
     FaceTexCoords texcoords;
 };
 
-/// Full texture outcome of one collapse placement: the evaluation used for
-/// ranking/rejection plus the concrete UV rewrites needed to apply it. A plan
-/// built for the accepted placement can be applied directly, which avoids
-/// rebuilding the same plan a second time inside applyCollapse.
+/**
+ * @brief Full texture outcome of one collapse placement: the evaluation used for
+ * ranking/rejection plus the concrete UV rewrites needed to apply it. A plan
+ * built for the accepted placement can be applied directly, which avoids
+ * rebuilding the same plan a second time inside applyCollapse.
+ */
 struct TextureUpdatePlan {
     TextureCollapseEvaluation evaluation;
     std::vector<TextureFaceUpdate> updates;
 };
 
-/// Local texture policy layered on top of the unchanged 4x4 geometry QEM.
+/**
+ * @brief Local texture policy layered on top of the unchanged 4x4 geometry QEM.
+ */
 class TextureProtection {
 public:
+    /** @brief Captures texture policy and scale tolerances for one input mesh. */
     TextureProtection(const Mesh& input, const SimplifyOptions& options);
 
+    /** @brief Reports whether texture constraints or penalties are enabled. */
     bool active() const;
-    /// Evaluates one collapse placement without materializing UV rewrites.
+    /**
+     * @brief Evaluates one collapse placement without materializing UV rewrites.
+     */
     TextureCollapseEvaluation evaluate(
         CollapseEdge edge,
         const Vec3& position,
@@ -53,8 +67,10 @@ public:
         const DynamicTopology& topology,
         const std::vector<FaceTexCoords>& faceTexCoords
     ) const;
-    /// Evaluates one collapse placement and, when allowed, returns the UV
-    /// rewrites needed to apply it.
+    /**
+     * @brief Evaluates one collapse placement and, when allowed, returns the UV
+     * rewrites needed to apply it.
+     */
     TextureUpdatePlan buildPlan(
         CollapseEdge edge,
         const Vec3& position,
@@ -63,7 +79,9 @@ public:
         const DynamicTopology& topology,
         const std::vector<FaceTexCoords>& faceTexCoords
     ) const;
-    /// Applies a plan previously built for the accepted placement.
+    /**
+     * @brief Applies a plan previously built for the accepted placement.
+     */
     bool apply(const TextureUpdatePlan& plan, std::vector<FaceTexCoords>& faceTexCoords) const;
 
 private:

@@ -18,7 +18,9 @@ namespace {
 
 bool boolFromInt(int value) { return value != 0; }
 
-/// Copies a finite double option, mirroring the CLI's strict numeric contract.
+/**
+ * @brief Copies a finite double option, mirroring the CLI's strict numeric contract.
+ */
 bool readFiniteDouble(double value, const char* fieldName, double& target, std::string& error) {
     if (!std::isfinite(value)) {
         error = std::string("ManuMeshSimplifyOptions.") + fieldName + " must be a finite number.";

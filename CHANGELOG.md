@@ -1,5 +1,13 @@
 # 更新日志
 
+## 2026-07-17
+
+### 二进制 STL 导出
+
+- 新增 C++ `saveBinaryStl()` 与 C ABI `manumesh_save_binary_stl()`，按标准 little-endian `84 + 50 * triangleCount` 布局写出 float32 坐标，并在落盘前拒绝超出格式范围的面数和坐标。
+- CLI 的 generate、simplify、sweep、ratio-sweep 与 face-sweep STL 输出改为二进制；原 ASCII 写出接口继续保留兼容。
+- 相关 GoogleTest 改为二进制 round-trip，并覆盖文件布局、C ABI 回读、float32 越界与既有网格错误路径。
+
 ## 2026-07-16
 
 ### VS Code 工作流
@@ -13,6 +21,8 @@
 - 本机使用 VS2022 generator + v142 实际通过普通/性能 configure、Debug/Release build、Debug/Release CTest 与两个 MSVC launch 默认入口；非性能测试均为 267/267，性能测试均为 4/4。
 - `feature-benchmark` 识别现有标签 fixture 的 `a,b` 表头，不再把合法表头报告为无法解析的标签行；CLI CTest 增加对应防回归检查。
 - 新增独立 `docs-internal` Doxygen 目标和 VS Code 任务，输出 `docs/internal/html/index.html`；覆盖 `include/` 与 `src/` 的 private/static/local 符号、内联源码、调用关系和 `@internal` 内容，未注释实现仍可浏览。
+- `src/` 的文档注释统一为显式 `/** ... */` 块：93/93 文件保留 `@file`、`@brief`、`@ingroup` 元数据，内部类型与头文件接口补齐说明；新增 `check-src-doxygen` 目标并作为两个 Doxygen 目标的前置检查，禁止重新混入 `///`、`//!`、`///<`。
+- 新增 vendored `thirdParty/doxygen` 与 `thirdParty/graphviz` 工具包；`docs-api` / `docs-internal` 现在优先使用仓库内 Doxygen 1.17.0 与 Graphviz 15.0.0，离线也可生成 UML、include、caller/callee 等关系图。
 
 ## 2026-07-15
 
@@ -149,7 +159,7 @@
 
 ### CLI
 
-- `apps/manumesh/CliArguments.cpp` 的 `--adaptive-scale` 帮助文本更正为
+- `apps/CliArguments.cpp` 的 `--adaptive-scale` 帮助文本更正为
   "Scale queue priority by local curvature (placement unchanged)"，与其当前
   优先级/placement 解耦语义一致（不再描述为面积自适应权重）。
 
@@ -229,7 +239,7 @@
 
 ### 工程加固（CLI / C API / IO / 基础工具）
 
-- CLI：`OptionSpec` 表驱动的 help 生成与逐命令参数校验（`apps/manumesh/
+- CLI：`OptionSpec` 表驱动的 help 生成与逐命令参数校验（`apps/
   CliArguments.cpp`），未知/拼错选项在命令入口统一报错而不是被静默忽略。
 - C API：异常映射增加 `std::bad_alloc` → OOM 状态码 guard；数值参数增加 finite
   校验（如 `merge_relative_epsilon` 必须有限且非负）；`CApi.h` 顶部明确 v1 ABI
@@ -253,7 +263,7 @@
 - 通用统计上浮（R1）：新增 `analysis` 模块（`include/algorithms/analysis/
   MeshAnalysis.h`、`manumesh::analysis`），承载 `MeshStats`/`DistanceStats`/
   `computeMeshStats`/`compareMeshesBySampledDistance`；CSV 拼装
-  （`statsHeaderCsv`/`statsRowCsv`）移入 CLI（`apps/manumesh/CliCsv.*`）；旧
+  （`statsHeaderCsv`/`statsRowCsv`）移入 CLI（`apps/CliCsv.*`）；旧
   `algorithms/simplification/Metrics.h` 保留为带弃用注释的转发头，下一个 minor
   版本删除；boundary checker 登记 `analysis -> {common, core}`。
 - placement 归位（R2）：`projectBoundaryPlacement`/`BoundaryProjectionInput` 从
@@ -449,7 +459,7 @@
 
 - 重构 CMake 组织方式，移除项目自有 `.cmake` 模块，改为按目录维护：
   顶层 `CMakeLists.txt` 只保留全局选项、Eigen 解析、通用 helper 和目录装配；
-  `src/`、`apps/manumesh/`、`tests/`、`examples/`、`adm/` 分别维护库、CLI、
+  `src/`、`apps/`、`tests/`、`examples/`、`adm/` 分别维护库、CLI、
   测试、示例和开发/安装规则。
 - 将 `manumesh_core`、CLI、GoogleTest provider、format/check-format、docs-api、
   SDK install/export/consumer test 等逻辑移动到对应目录级 `CMakeLists.txt`，

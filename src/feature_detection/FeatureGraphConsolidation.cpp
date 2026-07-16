@@ -23,12 +23,14 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
+/** @brief Consolidation endpoint with position-derived local scale. */
 struct Endpoint {
     int vertex = -1;
     int component = -1;
     double scale = 0.0;
 };
 
+/** @brief Ranked compatible component bridge considered by consolidation. */
 struct ConsolidationCandidate {
     int first = -1;
     int second = -1;

@@ -18,15 +18,23 @@
 
 namespace manumesh::common {
 
+/**
+ * @brief Integer coordinates of one uniform-grid cell.
+ */
 struct CellCoord {
     int x = 0;
     int y = 0;
     int z = 0;
 
+    /** @brief Compares all three integer coordinates. */
     bool operator==(const CellCoord& other) const { return x == other.x && y == other.y && z == other.z; }
 };
 
+/**
+ * @brief Stable hash for CellCoord keys used by the sparse grid.
+ */
 struct CellCoordHash {
+    /** @brief Combines all cell coordinates into one deterministic hash. */
     std::size_t operator()(const CellCoord& cell) const {
         std::size_t seed = 1469598103934665603ull;
         auto mix = [&](int value) {
@@ -40,26 +48,46 @@ struct CellCoordHash {
     }
 };
 
+/**
+ * @brief Sparse uniform grid for conservative AABB candidate lookup.
+ *
+ * Items spanning too many cells are kept in an overflow set so queries remain
+ * conservative. Query methods reuse mutable scratch storage and are therefore
+ * not safe to call concurrently on the same instance.
+ */
 class UniformAabbCandidateGrid {
 public:
+    /** @brief Removes all items and disables the grid. */
     void clear();
+    /** @brief Reinitializes the grid bounds and storage for a new item set. */
     void reset(const Vec3& lo, const Vec3& hi, int expectedItems);
-    /// Registers an item under its AABB. Re-inserting an already registered
-    /// itemId is idempotent: any stale cell registration from a previous
-    /// insert is removed first, so no cell keeps an outdated entry.
+    /**
+     * @brief Registers an item under its AABB. Re-inserting an already registered
+     * itemId is idempotent: any stale cell registration from a previous
+     * insert is removed first, so no cell keeps an outdated entry.
+     */
     void insert(int itemId, const Vec3& lo, const Vec3& hi);
+    /** @brief Removes an item from every occupied cell and the overflow set. */
     void remove(int itemId);
+    /** @brief Replaces an item's current AABB registration. */
     void update(int itemId, const Vec3& lo, const Vec3& hi);
+    /** @brief Returns deduplicated ids whose grid cells overlap an AABB. */
     std::vector<int> queryCandidates(const Vec3& lo, const Vec3& hi) const;
-    /// Allocation-friendly overload: writes the deduplicated candidate ids
-    /// into outCandidates (cleared first) reusing member scratch buffers.
-    /// Candidate order is unspecified, matching the by-value overload.
+    /**
+     * @brief Allocation-friendly overload: writes the deduplicated candidate ids
+     * into outCandidates (cleared first) reusing member scratch buffers.
+     * Candidate order is unspecified, matching the by-value overload.
+     */
     void queryCandidates(const Vec3& lo, const Vec3& hi, std::vector<int>& outCandidates) const;
+    /** @brief Reports whether reset() produced an active spatial grid. */
     bool enabled() const { return enabled_; }
 
 private:
+    /** @brief Maps a point to its containing integer grid cell. */
     CellCoord coordFor(const Vec3& p) const;
+    /** @brief Enumerates cells overlapped by an AABB into a new vector. */
     std::vector<CellCoord> cellsForAabb(const Vec3& lo, const Vec3& hi) const;
+    /** @brief Enumerates cells overlapped by an AABB into reusable storage. */
     void cellsForAabb(const Vec3& lo, const Vec3& hi, std::vector<CellCoord>& outCells) const;
 
     bool enabled_ = false;

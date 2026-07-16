@@ -16,8 +16,10 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Collects typed hard/weak edge evidence and updates source counters.
-/// @return Deterministically ordered candidate edges.
+/**
+ * @brief Collects typed hard/weak edge evidence and updates source counters.
+ * @return Deterministically ordered candidate edges.
+ */
 std::vector<CandidateEdge> collectFeatureEdges(
     const Mesh& mesh, const FeatureOptions& options, FeatureDetectionCache& cache, FeatureAnalysisBuilder& builder
 );

@@ -21,6 +21,7 @@
 namespace manumesh {
 namespace {
 
+/** @brief One indexed quadrilateral cell emitted by a grid generator. */
 struct GridCell {
     int n = 0;
     int base = 0;
@@ -29,6 +30,7 @@ struct GridCell {
     bool flip = false;
 };
 
+/** @brief Square grid patch with orientation and placement metadata. */
 struct GridPatch {
     int n = 0;
     double size = 0.0;
@@ -38,6 +40,7 @@ struct GridPatch {
     bool flip = false;
 };
 
+/** @brief Rectangular grid patch used for non-square generated surfaces. */
 struct RectGridPatch {
     int nx = 0;
     int ny = 0;

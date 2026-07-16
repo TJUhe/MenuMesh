@@ -961,7 +961,7 @@ img, svg, canvas, video {
               help 文本（<code>optionsHelpText()</code>）与逐命令参数校验
               （<code>validateArgsForCommand()</code>）来自同一张表；CSV 拼装
               （<code>statsHeaderCsv</code>/<code>statsRowCsv</code>）属表现层，
-              位于 <code>apps/manumesh/CliCsv.h</code>，不再由 SDK 提供。
+              位于 <code>apps/CliCsv.h</code>，不再由 SDK 提供。
             </p>
           </div>
           <div class="module">
@@ -1041,7 +1041,7 @@ img, svg, canvas, video {
               <td>Private debug aid</td>
             </tr>
             <tr>
-              <td><code>apps/manumesh</code></td>
+              <td><code>apps</code></td>
               <td>Command-line application built on top of the SDK.</td>
               <td>Application layer</td>
             </tr>
@@ -1975,7 +1975,7 @@ manumesh::analysis::DistanceStats distance =
     manumesh::analysis::compareMeshesBySampledDistance(input, output, 800);</code></pre>
         <ul>
           <li>旧头 <code>algorithms/simplification/Metrics.h</code> 已改为带弃用注释的转发头（提供 <code>manumesh::simplification</code> 兼容别名），将在下一 minor 版本删除；新代码请直接使用 <code>manumesh::analysis</code>。</li>
-          <li>CSV 拼装函数 <code>statsHeaderCsv</code>/<code>statsRowCsv</code> 属表现层，已移入 CLI（<code>apps/manumesh/CliCsv.h</code>），不再是 SDK API。</li>
+          <li>CSV 拼装函数 <code>statsHeaderCsv</code>/<code>statsRowCsv</code> 属表现层，已移入 CLI（<code>apps/CliCsv.h</code>），不再是 SDK API。</li>
           <li>两个入口接受任意 Mesh（含空/拓扑破损输入），按错误处理政策退化为零值字段而不抛异常；均为纯函数，可并发调用。</li>
         </ul>
         <h3>Feature Loop Comparison</h3>

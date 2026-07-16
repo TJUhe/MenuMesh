@@ -23,7 +23,7 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `src/simplification/detail/` | 简化专属私有头 | 只能被简化实现模块使用，不安装。 |
 | `src/<domain>/` | 未来平级算法实现，例如 `repair` | 按 public facade、validation、run、stage 拆分。 |
 | `src/<domain>/detail/` | 未来平级算法私有头 | 只给该模块内部使用；跨模块复用前先判断是否真属于 common。 |
-| `apps/manumesh/` | CLI | 薄入口加 command registry，像外部消费者一样调用库。 |
+| `apps/` | CLI | 薄入口加 command registry，像外部消费者一样调用库。 |
 | `examples/` | SDK 使用示例 | 只 include 公共头。 |
 | `tests/` | 回归和验证测试 | `support/` 放公共测试辅助，`unit/` 按功能分单元测试，`performance/` 放大模型/数据集测试，`data/` 放 fixture。 |
 | `documentation/` | 设计、指南、论文、生成笔记 | 必须描述当前代码，不写成愿景幻灯片。 |
@@ -62,13 +62,13 @@ src/simplification/SpatialFaceIndex.cpp       局部自交查询的空间哈希
 ## 当前 CLI 拆分
 
 ```text
-apps/manumesh/main.cpp        只保留进程入口，调用 manumesh::cli::run()
-apps/manumesh/CliArguments.cpp 通用 flag/value 解析和位置参数提取
-apps/manumesh/ManuMeshCli.cpp  帮助输出和 run() 派发
-apps/manumesh/ManuMeshCommands.cpp 命令 handler、command registry、CSV 输出和批处理辅助
-apps/manumesh/CliArguments.h   CLI 参数结构和解析 helper 声明
-apps/manumesh/CliCommands.h    command handler 类型和 registry 声明
-apps/manumesh/ManuMeshCli.h   CLI run() 声明
+apps/main.cpp        只保留进程入口，调用 manumesh::cli::run()
+apps/CliArguments.cpp 通用 flag/value 解析和位置参数提取
+apps/ManuMeshCli.cpp  帮助输出和 run() 派发
+apps/ManuMeshCommands.cpp 命令 handler、command registry、CSV 输出和批处理辅助
+apps/CliArguments.h   CLI 参数结构和解析 helper 声明
+apps/CliCommands.h    command handler 类型和 registry 声明
+apps/ManuMeshCli.h   CLI run() 声明
 ```
 
 新增命令时先在 `ManuMeshCommands.cpp` 新增 `int commandXxx(const Args&)` handler，再注册到 `commandRegistry()`；新增通用参数才改 `CliArguments.cpp`。不要在 `main.cpp` 加分支，也不要让 CLI 直接 include `src/.../detail/...`。

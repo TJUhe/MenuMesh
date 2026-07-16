@@ -24,6 +24,7 @@
 namespace manumesh::feature::primitive_fit_detail {
 namespace {
 
+/** @brief Orthonormal best-fit plane frame for one feature loop. */
 struct LoopFitFrame {
     bool valid = false;
     Vec3 mean = Vec3::Zero();
@@ -32,6 +33,7 @@ struct LoopFitFrame {
     Vec3 minorAxis = Vec3(0.0, 1.0, 0.0);
 };
 
+/** @brief Algebraic circle parameters in normalized plane coordinates. */
 struct PlaneCircleFit {
     bool valid = false;
     Vec3 center = Vec3::Zero();
@@ -43,9 +45,11 @@ struct PlaneCircleFit {
     double minorRadius = 0.0;
 };
 
-/// In-plane loop coordinates, centered on the loop centroid and scaled by the
-/// RMS radius so both algebraic fits below operate on well-conditioned data
-/// (the ellipse design matrix carries fourth-order monomials).
+/**
+ * @brief In-plane loop coordinates, centered on the loop centroid and scaled by the
+ * RMS radius so both algebraic fits below operate on well-conditioned data
+ * (the ellipse design matrix carries fourth-order monomials).
+ */
 struct PlanePoints {
     bool valid = false;
     std::vector<double> x;
@@ -117,6 +121,7 @@ PlanePoints projectLoopToPlane(const Mesh& mesh, const FeatureLoop& loop, const 
     return points;
 }
 
+/** @brief Validated circle and residuals in normalized plane coordinates. */
 struct PlaneCircle {
     bool valid = false;
     double cx = 0.0;
@@ -124,8 +129,10 @@ struct PlaneCircle {
     double radius = 0.0;
 };
 
-/// Kaasa algebraic fit, kept as the deterministic fallback when the Taubin
-/// Newton step degenerates. Exact on full uniform loops; biased on short arcs.
+/**
+ * @brief Kaasa algebraic fit, kept as the deterministic fallback when the Taubin
+ * Newton step degenerates. Exact on full uniform loops; biased on short arcs.
+ */
 PlaneCircle solveKasaCircle(const PlanePoints& points) {
     PlaneCircle circle;
     Eigen::Matrix3d ata = Eigen::Matrix3d::Zero();
@@ -156,12 +163,14 @@ PlaneCircle solveKasaCircle(const PlanePoints& points) {
     return circle;
 }
 
-/// Taubin algebraic circle fit (Taubin 1991; Newton form after Chernov,
-/// "Circular and Linear Regression", 2010). One order less essential bias than
-/// Kaasa (O(sigma^4) vs O(sigma^2)), so partial arcs and non-uniform sampling
-/// no longer collapse the radius estimate. The characteristic cubic is solved
-/// by a guarded Newton iteration from eta = 0; any degeneracy falls back to
-/// Kaasa so behavior on pathological input is unchanged.
+/**
+ * @brief Taubin algebraic circle fit (Taubin 1991; Newton form after Chernov,
+ * "Circular and Linear Regression", 2010). One order less essential bias than
+ * Kaasa (O(sigma^4) vs O(sigma^2)), so partial arcs and non-uniform sampling
+ * no longer collapse the radius estimate. The characteristic cubic is solved
+ * by a guarded Newton iteration from eta = 0; any degeneracy falls back to
+ * Kaasa so behavior on pathological input is unchanged.
+ */
 PlaneCircle solveTaubinCircle(const PlanePoints& points) {
     PlaneCircle circle;
     const std::size_t n = points.x.size();
@@ -243,6 +252,7 @@ PlaneCircle solveTaubinCircle(const PlanePoints& points) {
     return circle;
 }
 
+/** @brief Validated ellipse axes, center, and residuals in plane coordinates. */
 struct PlaneEllipse {
     bool valid = false;
     double cx = 0.0;
@@ -254,10 +264,12 @@ struct PlaneEllipse {
     double majorDirY = 0.0;
 };
 
-/// Halir-Flusser numerically stable direct least-squares ellipse fit
-/// (Fitzgibbon constraint 4ac - b^2 = 1, solved on the 3x3 reduced system).
-/// Unlike the previous second-moment axis estimate, this is exact for any
-/// vertex distribution on an exact ellipse and always returns a true ellipse.
+/**
+ * @brief Halir-Flusser numerically stable direct least-squares ellipse fit
+ * (Fitzgibbon constraint 4ac - b^2 = 1, solved on the 3x3 reduced system).
+ * Unlike the previous second-moment axis estimate, this is exact for any
+ * vertex distribution on an exact ellipse and always returns a true ellipse.
+ */
 PlaneEllipse solveHalirFlusserEllipse(const PlanePoints& points) {
     PlaneEllipse ellipse;
     const std::size_t n = points.x.size();

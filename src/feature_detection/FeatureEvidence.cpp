@@ -30,6 +30,7 @@ namespace {
 
 using DihedralAngle = manumesh::common::OrientedDihedralAngle;
 
+/** @brief Shared caches and option state used by every evidence strategy. */
 struct EdgeEvidenceContext {
     EdgeEvidenceContext(
         const Mesh& inputMesh,
@@ -79,9 +80,11 @@ struct EdgeEvidenceContext {
         markDiscreteFeatureVertices();
     }
 
-    /// Returns the cached oriented dihedral angle for a two-face edge.
-    /// markDiscreteFeatureVertices computes every interior-edge angle exactly
-    /// once; the dihedral evidence strategy reuses the same values.
+    /**
+     * @brief Returns the cached oriented dihedral angle for a two-face edge.
+     * markDiscreteFeatureVertices computes every interior-edge angle exactly
+     * once; the dihedral evidence strategy reuses the same values.
+     */
     const DihedralAngle* dihedralAngle(std::uint64_t key) const {
         const auto it = dihedralAngles.find(key);
         return it == dihedralAngles.end() ? nullptr : &it->second;
@@ -280,13 +283,16 @@ bool smoothCurvatureEdgeCandidate(
     return true;
 }
 
+/** @brief Polymorphic classifier for one independent edge-evidence channel. */
 class EdgeEvidenceStrategy {
 public:
     virtual ~EdgeEvidenceStrategy() = default;
+    /** @brief Updates `edge` when this strategy accepts the incident topology. */
     virtual void
     classify(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info, EdgeEvidenceContext& context) const = 0;
 };
 
+/** @brief Marks edges incident to exactly one face as boundary evidence. */
 class BoundaryEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void
@@ -295,6 +301,7 @@ public:
     }
 };
 
+/** @brief Marks edges with unsupported face incidence as non-manifold evidence. */
 class NonManifoldEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void
@@ -303,6 +310,7 @@ public:
     }
 };
 
+/** @brief Classifies signed sharp edges from winding-aware dihedral angles. */
 class DihedralEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void classify(
@@ -327,6 +335,7 @@ public:
     }
 };
 
+/** @brief Adds persistent multiscale normal-tensor evidence. */
 class NormalTensorEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void
@@ -340,6 +349,7 @@ public:
     }
 };
 
+/** @brief Adds persistent ridge and valley evidence from smooth curvature fits. */
 class SmoothCurvatureEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void

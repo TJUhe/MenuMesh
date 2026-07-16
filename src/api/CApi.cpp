@@ -28,16 +28,19 @@
 #define MANUMESH_VERSION "0.0.0"
 #endif
 
+/** @brief Opaque C API context that owns the latest diagnostic message. */
 struct ManuMeshContext {
     std::string lastError;
 };
 
+/** @brief Opaque C API handle owning one mutable C++ Mesh value. */
 struct ManuMeshMeshHandle {
     manumesh::Mesh mesh;
 };
 
 namespace {
 
+/** @brief Exact first-release prefix used to accept older options structs. */
 struct LegacyV1SimplifyOptionsLayout {
     std::size_t struct_size;
     unsigned int abi_version;
@@ -74,6 +77,7 @@ struct LegacyV1SimplifyOptionsLayout {
     ManuMeshFeatureProtectionMode feature_protection_mode;
 };
 
+/** @brief Exact first-release prefix used for bounded report writes. */
 struct LegacyV1SimplifyReportLayout {
     std::size_t struct_size;
     unsigned int abi_version;
@@ -105,6 +109,7 @@ struct LegacyV1SimplifyReportLayout {
     double max_applied_line_weight;
 };
 
+/** @brief Exact first-release prefix used for bounded mesh-statistics writes. */
 struct LegacyV1MeshStatsLayout {
     std::size_t struct_size;
     unsigned int abi_version;
@@ -412,6 +417,24 @@ ManuMeshStatus manumesh_save_ascii_stl(
     try {
         const char* name = solid_name ? solid_name : "mesh";
         if (!manumesh::saveAsciiStl(path, mesh->mesh, name, &error)) {
+            return fail(context, MANUMESH_STATUS_IO_ERROR, error);
+        }
+        return MANUMESH_STATUS_OK;
+    } catch (const std::exception& ex) {
+        return translateException(context, ex);
+    } catch (...) {
+        return translateUnknownException(context);
+    }
+}
+
+ManuMeshStatus manumesh_save_binary_stl(ManuMeshContext* context, const char* path, const ManuMeshMeshHandle* mesh) {
+    clearError(context);
+    if (!path || !mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Path and mesh handle must be valid.");
+    }
+    std::string error;
+    try {
+        if (!manumesh::saveBinaryStl(path, mesh->mesh, &error)) {
             return fail(context, MANUMESH_STATUS_IO_ERROR, error);
         }
         return MANUMESH_STATUS_OK;

@@ -1,25 +1,35 @@
-# Third-Party Binary And Header Bundles
+﻿# Third-Party Binary And Header Bundles
 
-This directory is for SDK-style dependency bundles, not for expanded upstream
-source repositories.
+This directory stores vendored dependency bundles and tool runtimes that the
+repository can consume offline.
 
 Current policy:
 
 - `eigen/` is an Eigen header bundle. Eigen is header-only, so there is no
   `.dll`, `.lib`, `.so`, or `.a` to link.
-- `googletest/` contains prebuilt GoogleTest binaries for repository tests.
-  GoogleTest is not an SDK runtime dependency.
-- Development tools, install templates, and editor extension files live under
-  `adm/`, not here.
+- `googletest/` contains repository test dependencies. The `source/` subtree is
+  used to build GoogleTest from source when prebuilt binaries are undesirable.
+- `doxygen/` vendors the documentation generator used by `docs-api` and
+  `docs-internal`.
+- `graphviz/` vendors the `dot` runtime and plugin/configuration files used by
+  Doxygen graphs.
+- Build scripts should prefer vendored bundles here and only fall back to
+  machine-global tools when a vendored bundle is absent.
 
-Preferred binary bundle shape:
+Preferred bundle shape:
 
 ```text
-thirdParty/<name>/prebuilt/<toolchain-platform-variant>/
-  include/
-  lib/
-  bin/
+thirdParty/<name>/
+  README.manumesh.md
+  prebuilt/<toolchain-platform-variant>/
+    include/
+    lib/
+    bin/
 ```
 
-The main library should not require downstream users to build third-party
-source trees just to consume the SDK.
+Notes:
+
+- Tool bundles may carry additional runtime folders such as `share/` when the
+  upstream program requires plugins, configuration, fonts, or sample assets.
+- The main library should not require downstream users to build third-party
+  source trees just to consume the SDK.

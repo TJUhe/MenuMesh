@@ -19,7 +19,9 @@ namespace manumesh::simplification {
 // merged vertex go" policies; legality lives in CollapseTopology/
 // CollapseLegality and feature-curve constraints live in FeatureConstraints.
 
-/// Directed boundary-chain geometry used by Lindstrom-Turk placement projection.
+/**
+ * @brief Directed boundary-chain geometry used by Lindstrom-Turk placement projection.
+ */
 struct BoundaryProjectionInput {
     CollapseEdge edge;
     const BoundaryCollapseDecision& decision;
@@ -28,14 +30,16 @@ struct BoundaryProjectionInput {
     const mesh_edit::DynamicTopology& topology;
 };
 
-/// Places a boundary-edge collapse using the Lindstrom-Turk boundary
-/// preservation constraint (M032 4.2.2): the placement is projected onto the
-/// line that minimizes the change of the boundary's directed area over the
-/// incident boundary chain, then clamped to the collapsing edge's shadow on
-/// that line. Falls back to clamping onto the segment [keep, remove] when the
-/// local boundary chain is degenerate.
-/// Projects `position` to the local boundary objective and safety segment.
-/// @return true when a finite constrained position was produced.
+/**
+ * @brief Places a boundary-edge collapse using the Lindstrom-Turk boundary
+ * preservation constraint (M032 4.2.2): the placement is projected onto the
+ * line that minimizes the change of the boundary's directed area over the
+ * incident boundary chain, then clamped to the collapsing edge's shadow on
+ * that line. Falls back to clamping onto the segment [keep, remove] when the
+ * local boundary chain is degenerate.
+ * Projects `position` to the local boundary objective and safety segment.
+ * @return true when a finite constrained position was produced.
+ */
 bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& position);
 
 } // namespace manumesh::simplification

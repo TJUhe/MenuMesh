@@ -65,5 +65,16 @@ loadMesh(const std::string& path, Mesh& mesh, std::string* error = nullptr, doub
 MANUMESH_API bool saveAsciiStl(
     const std::string& path, const Mesh& mesh, const std::string& solidName = "mesh", std::string* error = nullptr
 );
+/// Writes the mesh as a standard little-endian binary STL file.
+///
+/// Binary STL stores each coordinate as IEEE-754 float32 and stores at most
+/// UINT32_MAX triangles. Texture coordinates are not written. Returns false
+/// when the mesh is invalid, a coordinate is outside the float32 range, or the
+/// file cannot be created or fully written.
+/// @param[in] path Destination path.
+/// @param[in] mesh Strictly valid triangle mesh.
+/// @param[out] error Optional validation or I/O diagnostic.
+/// @return true only after the complete 84 + 50 * faceCount byte file is written.
+MANUMESH_API bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error = nullptr);
 
 } // namespace manumesh

@@ -13,25 +13,34 @@
 
 namespace manumesh::simplification {
 
-/// Normalized absolute/relative target selection.
+/**
+ * @brief Normalized absolute/relative target selection.
+ */
 struct TargetPolicy {
     int targetFaces = -1;
     double targetRatio = 0.25;
 
+    /** @brief Resolves the clamped target face count for an input mesh. */
     int resolveTargetFaceCount(int inputFaceCount) const;
 };
 
-/// Feature-analysis settings derived from simplification options.
+/**
+ * @brief Feature-analysis settings derived from simplification options.
+ */
 struct FeatureDetectionPolicy {
     bool enabled = false;
     feature::FeatureOptions options;
 };
 
-/// Converts simplification feature fields to the standalone detector contract.
+/**
+ * @brief Converts simplification feature fields to the standalone detector contract.
+ */
 feature::FeatureOptions
 featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeatureLoopVerticesFloor = 0);
 
-/// Pre-normalized hot-loop switches for hard collapse filters.
+/**
+ * @brief Pre-normalized hot-loop switches for hard collapse filters.
+ */
 struct LegalityPolicy {
     bool preserveBoundary = false;
     double minTriangleQuality = 0.0;
@@ -40,16 +49,21 @@ struct LegalityPolicy {
     double maxLocalErrorRatio = 0.0;
     bool preventLocalIntersections = false;
 
+    /** @brief Converts the angular normal limit to a cosine threshold. */
     double resolveMinNormalDot() const;
+    /** @brief Resolves the effective absolute local-error limit. */
     double resolveMaxLocalError(double bboxDiag) const;
 };
 
-/// Immutable normalized policies shared by every collapse attempt in one run.
+/**
+ * @brief Immutable normalized policies shared by every collapse attempt in one run.
+ */
 struct SimplificationPolicies {
     TargetPolicy target;
     FeatureDetectionPolicy features;
     LegalityPolicy legality;
 
+    /** @brief Normalizes all hot-loop policies from public simplify options. */
     static SimplificationPolicies fromOptions(const SimplifyOptions& options);
 };
 

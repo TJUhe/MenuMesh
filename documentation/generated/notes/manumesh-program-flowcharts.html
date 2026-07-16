@@ -170,7 +170,7 @@ footer {
   </div>
   <div class="tags">
     <span class="tag">源码日期：2026-07-12</span>
-    <span class="tag">入口：apps/manumesh/main.cpp</span>
+    <span class="tag">入口：apps/main.cpp</span>
     <span class="tag">核心：feature_detection + simplification</span>
     <span class="tag">格式：HTML + Mermaid</span>
   </div>
@@ -201,7 +201,7 @@ footer {
     <div class="source-map">
       <strong>主要源码阅读范围：</strong>
       <ul>
-        <li><code>apps/manumesh/main.cpp</code>、<code>ManuMeshCli.cpp</code>、<code>CliArguments.cpp</code>、<code>ManuMeshCommands.cpp</code>、<code>ManuMeshFeatureCommands.cpp</code>：CLI 入口、共享 <code>OptionSpec</code> 选项表（<code>optionsHelpText()</code> 生成 help、<code>validateArgsForCommand()</code> 逐命令校验）、命令注册和命令处理；CSV 拼装在 <code>CliCsv.cpp</code>。</li>
+        <li><code>apps/main.cpp</code>、<code>ManuMeshCli.cpp</code>、<code>CliArguments.cpp</code>、<code>ManuMeshCommands.cpp</code>、<code>ManuMeshFeatureCommands.cpp</code>：CLI 入口、共享 <code>OptionSpec</code> 选项表（<code>optionsHelpText()</code> 生成 help、<code>validateArgsForCommand()</code> 逐命令校验）、命令注册和命令处理；CSV 拼装在 <code>CliCsv.cpp</code>。</li>
         <li><code>src/io/MeshIo.cpp</code>：STL/OBJ 读取和 ASCII STL 写出；<code>probeStlFormat</code> 探测 ASCII/二进制，数值解析用 <code>std::from_chars</code>。</li>
         <li><code>src/feature_detection/*.cpp</code>：法线预处理、edge evidence、trace graph、cleanup/compatibility/consolidation、junction branches、loop/primitive、component confidence、patch segmentation 与 benchmark；辅助结构由 <code>FeatureDetectionCache</code> 复用。</li>
         <li><code>src/simplification/*.cpp</code>：QEM/line-quadrics 初始化、候选队列、动态拓扑、折叠合法性、placement 与边界投影（<code>Placement.cpp</code>）、结果 compact。</li>

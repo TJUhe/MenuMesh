@@ -43,6 +43,7 @@
 namespace manumesh::debugUtil {
 namespace {
 
+/** @brief Concrete HTML color and line width for one debug use case. */
 struct PaletteEntry {
     UseCase useCase;
     const char* name;
@@ -50,6 +51,7 @@ struct PaletteEntry {
     double width;
 };
 
+/** @brief Fully resolved edge overlay ready for HTML serialization. */
 struct RenderEdge {
     int a = -1;
     int b = -1;

@@ -14,7 +14,9 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Prunes weak spurs, bridges short compatible gaps, and rewrites graph diagnostics.
+/**
+ * @brief Prunes weak spurs, bridges short compatible gaps, and rewrites graph diagnostics.
+ */
 void cleanupTraceGraph(
     const Mesh& mesh,
     const FeatureOptions& options,
@@ -23,7 +25,9 @@ void cleanupTraceGraph(
     FeatureAnalysis& analysis
 );
 
-/// Computes connected-component evidence ratios, closure, and confidence.
+/**
+ * @brief Computes connected-component evidence ratios, closure, and confidence.
+ */
 void summarizeFeatureComponents(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis
 );

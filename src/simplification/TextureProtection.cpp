@@ -24,12 +24,14 @@
 namespace manumesh::simplification {
 namespace {
 
+/** @brief One endpoint UV sample and its matched chart cluster. */
 struct CornerSample {
     int face = -1;
     int corner = -1;
     int cluster = -1;
 };
 
+/** @brief Texture-chart samples collected around one collapse endpoint. */
 struct EndpointCharts {
     std::vector<Vec2> representatives;
     std::vector<CornerSample> samples;

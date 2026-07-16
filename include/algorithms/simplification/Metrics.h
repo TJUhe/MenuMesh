@@ -23,9 +23,9 @@ MANUMESH_API MeshStats computeMeshStats(const Mesh& mesh);
 /// manumesh::analysis::compareMeshesBySampledDistance.
 MANUMESH_API DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& simplified, int maxSamples);
 
-/// @deprecated CSV presentation moved to `apps/manumesh/CliCsv.h`.
+/// @deprecated CSV presentation moved to `apps/CliCsv.h`.
 MANUMESH_API std::string statsHeaderCsv();
-/// @deprecated CSV presentation moved to `apps/manumesh/CliCsv.h`.
+/// @deprecated CSV presentation moved to `apps/CliCsv.h`.
 MANUMESH_API std::string
 statsRowCsv(const std::string& label, const MeshStats& stats, const DistanceStats* distance = nullptr);
 

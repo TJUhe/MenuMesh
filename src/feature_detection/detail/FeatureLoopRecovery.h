@@ -13,7 +13,9 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Executes the ordered loop-recovery stages on a cleaned trace graph.
+/**
+ * @brief Executes the ordered loop-recovery stages on a cleaned trace graph.
+ */
 void recoverFeatureLoops(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );

@@ -57,7 +57,7 @@ def main():
     )
     check_case("src/simplification/Simplifier.cpp", "mesh_edit/detail/MeshCompaction.h")
     check_case("src/common/Common.cpp", "core/Mesh.h")
-    check_case("apps/manumesh/main.cpp", "core/Mesh.h")
+    check_case("apps/main.cpp", "core/Mesh.h")
     check_case("src/analysis/MeshAnalysis.cpp", "common/detail/MeshQueries.h")
     check_case("src/simplification/Simplifier.cpp", "algorithms/analysis/MeshAnalysis.h")
     check_case("src/api/CApi.cpp", "algorithms/analysis/MeshAnalysis.h")

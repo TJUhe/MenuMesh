@@ -95,7 +95,7 @@ manumesh::analysis::DistanceStats distance =
 
 - `MeshStats` 提供顶点/面/边计数、边界与非流形边、面积、三角形质量、边长统计；`DistanceStats` 是确定性采样的双向距离摘要。
 - 旧头 `algorithms/simplification/Metrics.h` 保留类型别名和旧函数符号作为一个迁移周期的兼容包装；新代码请直接 include `algorithms/analysis/MeshAnalysis.h`。
-- CSV 拼装函数 `statsHeaderCsv` / `statsRowCsv` 属表现层，主实现已移入 CLI（`apps/manumesh/CliCsv.h`）；旧库函数只为迁移保留，宿主程序的新代码应自行格式化 `MeshStats`。
+- CSV 拼装函数 `statsHeaderCsv` / `statsRowCsv` 属表现层，主实现已移入 CLI（`apps/CliCsv.h`）；旧库函数只为迁移保留，宿主程序的新代码应自行格式化 `MeshStats`。
 - 两个入口对空 mesh 或拓扑破损输入退化为零值字段而不抛异常，且为纯函数、可并发调用（见 `documentation/design/error_handling_policy.md`）。
 
 ## 特征 loop 匹配（FeatureComparison.h）
@@ -215,7 +215,7 @@ surface patches 不进入 QEM collapse；它们是验证、后续 region process
 3. 用 `manumesh_load_mesh()` 或 `manumesh_mesh_set_data()` 填充输入。
 4. 调用 `manumesh_simplify_options_init()` 初始化 `ManuMeshSimplifyOptions`。当前头文件会把该调用透明转发到带容量的安全入口。
 5. 调用 `manumesh_simplify_mesh()`。
-6. 用 `manumesh_mesh_copy_vertices()` / `manumesh_mesh_copy_faces()` 取回数据，或用 `manumesh_save_ascii_stl()` 保存。
+6. 用 `manumesh_mesh_copy_vertices()` / `manumesh_mesh_copy_faces()` 取回数据，或用 `manumesh_save_binary_stl()` 保存二进制 STL。
 7. 销毁 mesh handle 和 context。
 
 `ManuMeshSimplifyOptions` 是输入结构体，调用前必须初始化；同一 `MANUMESH_ABI_VERSION` 内，库接受尾部较短的旧 `struct_size`，只读取实际存在的字段，缺失尾字段使用库默认值，未初始化或 ABI 版本不匹配会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats` 是纯输出结构体：当前头文件会把普通调用转到显式容量入口，输出内存无需预初始化，库按调用方容量有界清零、写入 ABI 头和完整存在的字段。
@@ -272,4 +272,4 @@ cmake --build $buildDir --target sdk-consumer-test --parallel
 - 不要依赖 `src/feature_detection/detail/`，primitive fitting、trace/cycle 恢复等 helper 仍是私有实现。
 - 内部实现命名空间已由 `manumesh::detail` 改名为 `manumesh::common`（保留 `namespace detail = common` 过渡别名一个 minor 版本）；这是内部层调整，不影响任何公共 API。
 - 当前 ManuMesh SDK 不承诺通用布尔、offset、修复或去噪能力。
-- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持凸面 fan、凹面 ear clipping、逐角 `vt`，并拒绝重复/退化/自交 polygon；STL 输出仍是 ASCII STL（不携带 UV）。STL/OBJ 解析器使用 `std::from_chars` 数值解析加缓冲扫描，内部自动探测 ASCII/二进制 STL 并预读三角形数，解析失败的错误信息更明确。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。
+- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持凸面 fan、凹面 ear clipping、逐角 `vt`，并拒绝重复/退化/自交 polygon；CLI 默认输出标准 little-endian 二进制 STL（不携带 UV），SDK 同时保留 `saveAsciiStl()` / `manumesh_save_ascii_stl()` 兼容接口。STL/OBJ 解析器使用 `std::from_chars` 数值解析加缓冲扫描，内部自动探测 ASCII/二进制 STL 并预读三角形数，解析失败的错误信息更明确。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。

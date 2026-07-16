@@ -18,4 +18,4 @@
 | `documentation/papers/` | 论文归档与索引。 |
 | `README.md` | 项目入口说明。 |
 
-如果发现 HTML 中的任务名、命令、源码路径或结论与当前 `.vscode/tasks.json`、`apps/manumesh/main.cpp`、`include/algorithms/` 或测试结果不一致，应以当前源码为准更新。
+如果发现 HTML 中的任务名、命令、源码路径或结论与当前 `.vscode/tasks.json`、`apps/main.cpp`、`include/algorithms/` 或测试结果不一致，应以当前源码为准更新。

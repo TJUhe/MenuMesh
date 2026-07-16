@@ -199,9 +199,9 @@ core
 
 只有当 SDK API 稳定且测试覆盖足够后，再加 CLI：
 
-- `apps/manumesh/ManuMeshCommands.cpp` 新增 `commandRepair()`。
+- `apps/ManuMeshCommands.cpp` 新增 `commandRepair()`。
 - 在 `commandRegistry()` 注册 `repair`。
-- 在 `apps/manumesh/CliArguments.cpp` 的共享 `OptionSpec` 选项表中登记新命令的
+- 在 `apps/CliArguments.cpp` 的共享 `OptionSpec` 选项表中登记新命令的
   选项（help 文本由表生成，`validateArgsForCommand()` 会据此做逐命令参数校验，
   拼错或属于其他命令的选项在入口统一报错）。
 - CLI 参数只表达公共 `RepairOptions`，不要暴露内部 stage 开关。

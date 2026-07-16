@@ -28,6 +28,7 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
+/** @brief Open graph endpoint eligible for cleanup or gap bridging. */
 struct EndpointCandidate {
     int vertex = -1;
     int neighbor = -1;
@@ -35,12 +36,15 @@ struct EndpointCandidate {
     double scale = 0.0;
 };
 
+/** @brief Ranked pair of endpoints proposed for a cleanup bridge. */
 struct GapCandidate {
     int a = -1;
     int b = -1;
     double distance = 0.0;
-    /// Direction-aware ranking key: distance divided by the mean tangential
-    /// alignment of the two endpoint tangents with the connecting segment.
+    /**
+     * @brief Direction-aware ranking key: distance divided by the mean tangential
+     * alignment of the two endpoint tangents with the connecting segment.
+     */
     double score = 0.0;
     int signedKind = 0;
 };
@@ -111,12 +115,14 @@ std::vector<std::pair<int, int>> traceShortWeakSpur(const TraceGraph& trace, int
     return path;
 }
 
-/// Dimensionless Yoshizawa-style curve strength T = (integral ds) * (integral
-/// strength ds), with ds measured in local average-edge-length units and the
-/// per-edge strength taken as the persistence score relative to its channel
-/// threshold. Long-but-faint chains score high through the length factor while
-/// short-but-strong noise spikes stay low, matching the "long weak lines beat
-/// strong short spurs" design target (M021 Eq.5-6).
+/**
+ * @brief Dimensionless Yoshizawa-style curve strength T = (integral ds) * (integral
+ * strength ds), with ds measured in local average-edge-length units and the
+ * per-edge strength taken as the persistence score relative to its channel
+ * threshold. Long-but-faint chains score high through the length factor while
+ * short-but-strong noise spikes stay low, matching the "long weak lines beat
+ * strong short spurs" design target (M021 Eq.5-6).
+ */
 double weakSpurStrength(
     const std::vector<std::pair<int, int>>& path,
     const Mesh& mesh,
@@ -259,15 +265,18 @@ std::vector<EndpointCandidate> collectEndpoints(
     return endpoints;
 }
 
+/** @brief Tangent-alignment measurements for a proposed endpoint gap. */
 struct GapAlignment {
     bool compatible = false;
     double meanAlignment = 0.0;
 };
 
-/// Yoshizawa gap-jumping angle rule (M021 p.3, Fig.4): the connecting segment
-/// must continue both chain tangents (each within 60 degrees) and the two
-/// outward tangents must point away from each other, so only breaks along one
-/// underlying curve are bridged and parallel chains are never merged into each other.
+/**
+ * @brief Yoshizawa gap-jumping angle rule (M021 p.3, Fig.4): the connecting segment
+ * must continue both chain tangents (each within 60 degrees) and the two
+ * outward tangents must point away from each other, so only breaks along one
+ * underlying curve are bridged and parallel chains are never merged into each other.
+ */
 GapAlignment endpointGapAlignment(const EndpointCandidate& a, const EndpointCandidate& b, const Mesh& mesh) {
     GapAlignment result;
     Vec3 direction = mesh.vertices[b.vertex] - mesh.vertices[a.vertex];

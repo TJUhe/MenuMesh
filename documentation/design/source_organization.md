@@ -30,7 +30,7 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `src/debugUtil/` | Debug-only HTML wireframe 辅助工具 | 默认关闭，只给内部实现调试使用。 |
 | `src/<domain>/` | 未来平级算法实现，例如 `repair` | 按 public facade、validation、run、stage 拆分。 |
 | `src/<domain>/detail/` | 未来平级算法私有头 | 跨模块复用前先判断是否属于 common。 |
-| `apps/manumesh/` | CLI | 像外部消费者一样调 SDK，命令实现走 command registry。 |
+| `apps/` | CLI | 像外部消费者一样调 SDK，命令实现走 command registry。 |
 | `examples/` | SDK 使用示例 | 只 include 公共头。 |
 | `tests/` | 回归和验证测试 | `support/` 放公共测试辅助，`unit/` 按功能分单元测试。 |
 | `documentation/` | 设计、指南、论文、生成笔记 | 必须描述当前代码，不写成愿景幻灯片。 |
@@ -74,7 +74,7 @@ src/simplification/detail/TextureProtection.h   纹理保护私有接口，不�
 
 通用网格统计（`MeshStats`）与双 mesh 采样距离比较此前在 `src/simplification/Metrics.cpp`，
 现已上浮到 `src/analysis/MeshAnalysis.cpp`（`manumesh::analysis` 模块）；
-CSV 拼装（`statsHeaderCsv`/`statsRowCsv`）属于表现层，移入 `apps/manumesh/CliCsv.cpp`。
+CSV 拼装（`statsHeaderCsv`/`statsRowCsv`）属于表现层，移入 `apps/CliCsv.cpp`。
 
 ## 当前 mesh_edit 模块拆分
 
@@ -122,14 +122,14 @@ src/feature_detection/detail/*.h                   feature 检测私有类型、
 ## 当前 CLI 拆分
 
 ```text
-apps/manumesh/main.cpp             只保留进程入口，调用 manumesh::cli::run()
-apps/manumesh/CliArguments.cpp     通用 flag/value 解析、OptionSpec 共享选项表（表驱动 help 与逐命令参数校验 validateArgsForCommand）
-apps/manumesh/ManuMeshCli.cpp      帮助输出和 run() 派发
-apps/manumesh/ManuMeshCommands.cpp 基础简化、参数扫描和 command registry
-apps/manumesh/ManuMeshFeatureCommands.cpp 特征报告、特征基准和简化前后特征对比命令（loop 匹配算法已下沉为库函数 matchCircularLoops）
-apps/manumesh/ManuMeshWorkflowCommands.cpp demo、特征验证和外部模型验证工作流
-apps/manumesh/CliCsv.cpp           CSV 文件写出辅助与网格统计 CSV 拼装（statsHeaderCsv/statsRowCsv，自 simplification/Metrics 移入）
-apps/manumesh/CliOptionBinding.cpp CLI 参数到算法 options 的绑定
+apps/main.cpp             只保留进程入口，调用 manumesh::cli::run()
+apps/CliArguments.cpp     通用 flag/value 解析、OptionSpec 共享选项表（表驱动 help 与逐命令参数校验 validateArgsForCommand）
+apps/ManuMeshCli.cpp      帮助输出和 run() 派发
+apps/ManuMeshCommands.cpp 基础简化、参数扫描和 command registry
+apps/ManuMeshFeatureCommands.cpp 特征报告、特征基准和简化前后特征对比命令（loop 匹配算法已下沉为库函数 matchCircularLoops）
+apps/ManuMeshWorkflowCommands.cpp demo、特征验证和外部模型验证工作流
+apps/CliCsv.cpp           CSV 文件写出辅助与网格统计 CSV 拼装（statsHeaderCsv/statsRowCsv，自 simplification/Metrics 移入）
+apps/CliOptionBinding.cpp CLI 参数到算法 options 的绑定
 ```
 
 新增特征分析命令放入 `ManuMeshFeatureCommands.cpp`，其他命令按所属工作流拆分后注册到 `commandRegistry()`；新增通用参数才改 `CliArguments.cpp`。不要在 `main.cpp` 加分支，也不要让 CLI 直接 include `src/.../detail/...`。

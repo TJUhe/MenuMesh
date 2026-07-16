@@ -44,13 +44,16 @@ using detector_detail::FeatureAnalysisBuilder;
 using detector_detail::FeatureDetectionCache;
 using detector_detail::TraceGraph;
 
+/** @brief Shared immutable inputs and mutable products for one pipeline run. */
 struct FeatureDetectionContext {
+    /** @brief Initializes caches and result storage for one mesh analysis. */
     FeatureDetectionContext(const Mesh& inputMesh, const FeatureOptions& inputOptions)
         : mesh(inputMesh),
           options(inputOptions),
           cache(inputMesh, inputOptions.normalFilter),
           builder(static_cast<int>(inputMesh.vertices.size())) {}
 
+    /** @brief Returns the analysis accumulator shared by all stages. */
     FeatureAnalysis& analysis() { return builder.analysis(); }
 
     const Mesh& mesh;
@@ -173,28 +176,33 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
 
 void validateFeatureInput(const Mesh& mesh) { detector_detail::validateFeatureMeshInput(mesh); }
 
+/** @brief Collects boundary, dihedral, tensor, and curvature edge evidence. */
 class EdgeEvidenceStage {
 public:
+    /** @brief Populates candidate edges and evidence diagnostics. */
     void run(FeatureDetectionContext& context) const {
         context.featureEdges =
             detector_detail::collectFeatureEdges(context.mesh, context.options, context.cache, context.builder);
     }
 };
 
-/// Downgrades evidence that depends on unusable face normals.
-///
-/// Zero-area faces are tolerated by the lenient input validation, but their
-/// normals are zero vectors, so any dihedral angle computed against them is
-/// meaningless (the zero dot product reads as a 90-degree pseudo-crease).
-/// This stage strips dihedral evidence from every interior edge incident to
-/// a degenerate face and drops candidates left without any evidence, keeping
-/// the analysis counters consistent. Normal-tensor and smooth-curvature
-/// scoring already skip degenerate faces during accumulation, and boundary /
-/// non-manifold evidence is purely topological, so only the dihedral channel
-/// needs the downgrade. The tolerated faces stay visible through
-/// FeatureAnalysis::degenerateFaces.
+/**
+ * @brief Downgrades evidence that depends on unusable face normals.
+ *
+ * Zero-area faces are tolerated by the lenient input validation, but their
+ * normals are zero vectors, so any dihedral angle computed against them is
+ * meaningless (the zero dot product reads as a 90-degree pseudo-crease).
+ * This stage strips dihedral evidence from every interior edge incident to
+ * a degenerate face and drops candidates left without any evidence, keeping
+ * the analysis counters consistent. Normal-tensor and smooth-curvature
+ * scoring already skip degenerate faces during accumulation, and boundary /
+ * non-manifold evidence is purely topological, so only the dihedral channel
+ * needs the downgrade. The tolerated faces stay visible through
+ * FeatureAnalysis::degenerateFaces.
+ */
 class DegenerateEvidenceFilterStage {
 public:
+    /** @brief Removes normal-dependent evidence incident to degenerate faces. */
     void run(FeatureDetectionContext& context) const {
         if (context.analysis().degenerateFaces == 0) {
             return;
@@ -248,8 +256,10 @@ public:
     }
 };
 
+/** @brief Initializes vertex markers and builds the first trace graph. */
 class FeatureGraphStage {
 public:
+    /** @brief Converts accepted evidence edges into graph storage. */
     void run(FeatureDetectionContext& context) const {
         detector_detail::initializeFeatureGraph(context.featureEdges, context.analysis());
         context.trace =
@@ -257,8 +267,10 @@ public:
     }
 };
 
+/** @brief Applies spur pruning and compatible short-gap cleanup. */
 class FeatureGraphCleanupStage {
 public:
+    /** @brief Cleans the trace graph according to graph-cleanup options. */
     void run(FeatureDetectionContext& context) const {
         detector_detail::cleanupTraceGraph(
             context.mesh, context.options, context.cache, context.trace, context.analysis()
@@ -266,8 +278,10 @@ public:
     }
 };
 
+/** @brief Consolidates compatible components separated by supported gaps. */
 class FeatureGraphConsolidationStage {
 public:
+    /** @brief Adds accepted consolidation bridges and updates diagnostics. */
     void run(FeatureDetectionContext& context) const {
         detector_detail::consolidateFeatureGraph(
             context.mesh, context.options, context.cache, context.trace, context.analysis()
@@ -275,8 +289,10 @@ public:
     }
 };
 
+/** @brief Traces graph chains and recovers supported closed feature loops. */
 class LoopRecoveryStage {
 public:
+    /** @brief Appends recovered loops using monotonically allocated ids. */
     void run(FeatureDetectionContext& context) const {
         detector_detail::recoverFeatureLoops(
             context.mesh, context.options, context.trace, context.analysis(), context.builder.nextLoopId()
@@ -284,22 +300,28 @@ public:
     }
 };
 
+/** @brief Computes connected-component and junction continuation summaries. */
 class FeatureComponentSummaryStage {
 public:
+    /** @brief Writes component confidence and branch-pair diagnostics. */
     void run(FeatureDetectionContext& context) const {
         detector_detail::summarizeFeatureComponents(context.mesh, context.options, context.trace, context.analysis());
     }
 };
 
+/** @brief Finalizes per-vertex graph markers after loop and component recovery. */
 class FeatureGraphFinalizeStage {
 public:
+    /** @brief Synchronizes public vertex records with finalized graph state. */
     void run(FeatureDetectionContext& context) const {
         detector_detail::finalizeFeatureGraphMarkers(context.mesh, context.analysis());
     }
 };
 
+/** @brief Optionally partitions the surface into feature-bounded patches. */
 class FeatureSegmentationStage {
 public:
+    /** @brief Builds patches when surface-patch analysis is enabled. */
     void run(FeatureDetectionContext& context) const {
         if (context.options.surfacePatches.enabled) {
             detector_detail::buildFeaturePatches(context.mesh, context.analysis(), context.options.surfacePatches);
@@ -307,8 +329,15 @@ public:
     }
 };
 
+/** @brief Ordered coordinator for all feature-detection stages. */
 class FeatureDetectionPipeline {
 public:
+    /**
+     * @brief Validates input and executes one complete deterministic analysis.
+     * @param[in] mesh Triangle surface to analyze.
+     * @param[in] options Detection and recovery policy.
+     * @return Completed feature analysis.
+     */
     FeatureAnalysis run(const Mesh& mesh, const FeatureOptions& options) const {
         validateFeatureOptionsImpl(options);
         validateFeatureInput(mesh);
@@ -350,6 +379,7 @@ private:
 
 void validateFeatureOptions(const FeatureOptions& options) { validateFeatureOptionsImpl(options); }
 
+/** @brief Private option storage for the public FeatureDetector value type. */
 struct FeatureDetector::Impl {
     FeatureOptions options;
 };

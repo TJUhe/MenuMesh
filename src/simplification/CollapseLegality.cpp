@@ -25,12 +25,14 @@
 namespace manumesh::simplification {
 namespace {
 
+/** @brief Triangle positions produced by a proposed local collapse rewrite. */
 struct NewTriangle {
     int faceId = -1;
     std::array<int, 3> ids{};
     std::array<Vec3, 3> p{};
 };
 
+/** @brief Active pre-collapse triangle retained for local comparison tests. */
 struct OldTriangle {
     std::array<Vec3, 3> p{};
 };

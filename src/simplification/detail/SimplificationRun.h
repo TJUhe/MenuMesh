@@ -31,40 +31,75 @@ struct FeatureAnalysis;
 
 namespace manumesh::simplification {
 
-/// Mutable, single-use execution object for one edge-collapse simplification.
+/**
+ * @brief Mutable, single-use execution object for one edge-collapse simplification.
+ */
 class SimplificationRun {
 public:
+    /**
+     * @brief Creates a run that computes feature analysis from `options`.
+     * @param[in] input Immutable source mesh that must outlive the run.
+     * @param[in] options Immutable policy that must outlive the run.
+     */
     SimplificationRun(const Mesh& input, const SimplifyOptions& options);
+    /**
+     * @brief Creates a run that may reuse caller-provided feature analysis.
+     * @param[in] input Immutable source mesh that must outlive the run.
+     * @param[in] options Immutable policy that must outlive the run.
+     * @param[in] features Optional analysis whose mesh must match `input`.
+     */
     SimplificationRun(const Mesh& input, const SimplifyOptions& options, const feature::FeatureAnalysis* features);
 
-    /// Executes initialization, collapse, optional refinement, and compaction.
+    /**
+     * @brief Executes initialization, collapse, optional refinement, and compaction.
+     */
     Mesh execute(SimplifyReport* outReport);
 
 private:
+    /** @brief Resets all report fields and records input dimensions. */
     void initializeReport();
+    /** @brief Reuses or computes feature analysis and builds guidance tables. */
     void analyzeFeatures();
+    /** @brief Creates mutable vertex records and initial quadrics. */
     void initializeVertices();
+    /** @brief Copies feature ownership and constraints onto one vertex. */
     void initializeVertexFeature(int vertexId);
+    /** @brief Creates mutable face, UV, topology, and spatial-index state. */
     void initializeFaces();
+    /** @brief Resolves target counts and scale-dependent legality budgets. */
     void initializeBudget();
+    /** @brief Rebuilds the candidate heap from all current active edges. */
     void rebuildQueue();
-    /// Solves the edge's placements once, prices the texture protection from
-    /// the same solve, and pushes the candidate with the cached placements.
-    /// Returns true when the (near-)midpoint placement is texture-rejected,
-    /// which feeds the textureProtectedEdges diagnostic on the initial build.
+    /**
+     * @brief Solves the edge's placements once, prices the texture protection from
+     * the same solve, and pushes the candidate with the cached placements.
+     * Returns true when the (near-)midpoint placement is texture-rejected,
+     * which feeds the textureProtectedEdges diagnostic on the initial build.
+     */
     bool pushEdgeCandidate(int a, int b);
+    /** @brief Pops and evaluates candidates until a configured stop condition. */
     void collapseUntilTarget();
+    /** @brief Runs optional fixed-topology quality refinement. */
     void refineQuality();
+    /** @brief Rebuilds an exhausted heap when active topology can still progress. */
     bool ensureQueueHasCandidates();
+    /** @brief Checks endpoint activity and version stamps for a queued candidate. */
     bool isCurrentCandidate(const Candidate& candidate) const;
+    /** @brief Accounts for a stale queue entry and triggers periodic rebuilding. */
     void handleStaleCandidate();
+    /** @brief Evaluates and applies one current candidate when a placement passes. */
     bool tryCollapse(const Candidate& candidate);
+    /** @brief Maps a categorized failed attempt into report counters. */
     void recordRejectedCollapse(const CollapseAttemptResult& result);
+    /** @brief Invalidates queued candidates incident to either endpoint. */
     void bumpVersions(int keep, int remove);
+    /** @brief Commits topology, geometry, quadric, UV, and index updates. */
     void applyCollapse(
         int keep, int remove, const Vec3& position, const Mat4& mergedQ, const TextureUpdatePlan& texturePlan
     );
+    /** @brief Collects faces whose broad-phase registrations may change. */
     std::unordered_set<int> collectAffectedFacesForCollapse(int keep, int remove) const;
+    /** @brief Rewrites incident faces and removes duplicates after a collapse. */
     void rewriteIncidentFaces(int keep, int remove);
 
     const Mesh& input_;
@@ -81,8 +116,10 @@ private:
     SpatialFaceIndex spatialIndex_;
     std::unique_ptr<manumesh::common::MeshDistanceIndex> referenceSurface_;
     std::vector<int> activeLoopCounts_;
-    /// Compact side table of circle/ellipse fit data; only feature vertices on
-    /// fitted primitive loops own an entry (VertexState::primitiveFitId).
+    /**
+     * @brief Compact side table of circle/ellipse fit data; only feature vertices on
+     * fitted primitive loops own an entry (VertexState::primitiveFitId).
+     */
     std::vector<FeaturePrimitiveFit> primitiveFits_;
     CandidateQueue queue_;
     InitialQuadricBuilder quadrics_;
@@ -91,9 +128,11 @@ private:
     int activeFaceCount_ = 0;
     int targetFaces_ = 0;
     double areaEps_ = 0.0;
-    /// Input bounding-box diagonal, computed once in initializeBudget.
-    /// tryCollapse runs per collapse attempt, so it must not recompute this
-    /// O(V) scan (doing so made the whole run quadratic in the mesh size).
+    /**
+     * @brief Input bounding-box diagonal, computed once in initializeBudget.
+     * tryCollapse runs per collapse attempt, so it must not recompute this
+     * O(V) scan (doing so made the whole run quadratic in the mesh size).
+     */
     double meshDiagonal_ = 0.0;
     double minNormalDot_ = 0.0;
     double maxLocalError_ = 0.0;

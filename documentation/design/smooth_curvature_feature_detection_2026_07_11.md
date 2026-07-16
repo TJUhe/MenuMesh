@@ -42,7 +42,7 @@ The important source locations are:
 | Cross-scale support and reference-scale selection | `computeSmoothCurvatureFeaturesCached` | `src/feature_detection/SmoothCurvature.cpp` |
 | Vertex evidence to mesh-edge evidence | `smoothCurvatureEdgeCandidate` | `src/feature_detection/FeatureEvidence.cpp` |
 | Graph cleanup/consolidation | `cleanupTraceGraph`, `consolidateFeatureGraph` | `FeatureGraphCleanup.cpp`, `FeatureGraphCompatibility.cpp`, `FeatureGraphConsolidation.cpp` |
-| CLI option binding | `parseFeatureOptions` | `apps/manumesh/CliOptionBinding.cpp` |
+| CLI option binding | `parseFeatureOptions` | `apps/CliOptionBinding.cpp` |
 
 An earlier revision required the coarsest requested scale to support a candidate.
 That veto was removed because it suppressed real features whose physical width

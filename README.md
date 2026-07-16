@@ -42,7 +42,7 @@ src/common + src/mesh_edit       跨算法私有几何基础和动态拓扑
    +-- src/feature_detection
    `-- src/simplification
           |
-          `-- apps/manumesh      仅通过库接口组织 CLI 工作流
+          `-- apps      仅通过库接口组织 CLI 工作流
 ```
 
 核心模块：
@@ -56,7 +56,7 @@ src/common + src/mesh_edit       跨算法私有几何基础和动态拓扑
 | `feature_detection` | 特征证据提取、图清理/整合、追踪、原语拟合和曲面分区。 |
 | `simplification` | QEM/line-quadrics 排序、placement、合法性过滤和局部拓扑修改。 |
 | `api` | 不让 C++ 类型或异常穿越边界的 size-aware C ABI。 |
-| `apps/manumesh` | CLI 参数校验、命令分派、CSV 输出和批处理工作流。 |
+| `apps` | CLI 参数校验、命令分派、CSV 输出和批处理工作流。 |
 
 详细依赖方向和公共/私有边界见
 [架构设计](documentation/design/architecture.md)。
@@ -83,8 +83,8 @@ ManuMesh 当前是三角表面网格内核，不是完整 CAD/B-Rep 或实体建
 | Ninja | 推荐 | 单配置快速构建；也可使用 Visual Studio generator。 |
 | Eigen | 3.3 或更高 | 核心向量/矩阵计算；可使用 system、vendored 或 fetch provider。 |
 | GoogleTest | 测试时需要 | 可使用 system、vendored、prebuilt 或 fetch provider。 |
-| Doxygen | 可选 | 生成 API 与算法实现参考。 |
-| Graphviz | 可选 | 为 Doxygen 生成 include、调用和类型关系图。 |
+| Doxygen | 可选 | 优先使用 `thirdParty/doxygen` 中 vendored 的 1.17.0；缺失时回退到系统安装。 |
+| Graphviz | 可选 | 优先使用 `thirdParty/graphviz` 中 vendored 的 15.0.0 `dot` 运行时；缺失时回退到系统安装。 |
 | clang-format | 可选 | 执行 `format` 与 `check-format` 目标。 |
 
 Windows 本地开发主路径为 MinGW + Ninja，MSVC + Ninja/Visual Studio generator 作为
@@ -205,7 +205,7 @@ int main() {
     manumesh::simplification::QEMSimplifier simplifier(options);
     manumesh::Mesh output = simplifier.simplify(input, &report);
 
-    return manumesh::saveAsciiStl("output.stl", output, "simplified", &error)
+    return manumesh::saveBinaryStl("output.stl", output, &error)
                ? 0
                : 1;
 }
@@ -249,11 +249,11 @@ report/stats 应使用当前 size-aware wrapper 或显式 `*_with_size` 入口�
 ManuMesh/
 |-- include/                   # 可安装的 C++ SDK 与 C ABI 头文件
 |-- src/                       # core/common/mesh_edit/analysis/feature/simplification 实现
-|-- apps/manumesh/             # manumesh 命令行工具
+|-- apps/             # manumesh 命令行工具
 |-- examples/                  # C++、C ABI 和安装后 SDK consumer 示例
 |-- tests/                     # unit、external、performance、support 和测试数据
-|-- thirdParty/                # Eigen 与 GoogleTest 本地依赖包
-|-- adm/                       # Doxygen、格式化、安装和 SDK 辅助目标
+|-- thirdParty/                # Eigen、GoogleTest、Doxygen 与 Graphviz 本地依赖/工具包
+|-- adm/                       # 格式化、安装和 SDK 辅助目标
 |-- documentation/             # 人工维护的交付文档、设计、指南和论文资料
 |-- docs/                      # 仅存放生成的 Doxygen 输出；不纳入版本控制
 |-- .vscode/                   # MinGW/MSVC 构建、调试和验证任务
@@ -283,7 +283,7 @@ Eigen 是库的 header-only 编译依赖。GoogleTest 只用于仓库测试，�
 | `MANUMESH_EIGEN_PROVIDER` | `auto` | `auto`、`system`、`vendored` 或 `fetch`。 |
 | `MANUMESH_GOOGLETEST_PROVIDER` | `auto` | `auto`、`source`、`prebuilt`、`system` 或 `fetch`。 |
 | `MANUMESH_BUILD_DOCS` | `ON` | 在可用时创建 Doxygen `docs-api` 和 `docs-internal` 目标。 |
-| `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 检测到 Graphviz `dot` 时生成关系图。 |
+| `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 检测到 vendored 或系统 Graphviz `dot` 时生成关系图。 |
 
 ## 测试
 
@@ -331,6 +331,7 @@ cmake --build $perfBuildDir --target performance-tests --parallel
 配置阶段检测到 Doxygen 后，可分别生成公开/API 参考和内部源码参考：
 
 ```powershell
+cmake --build build/mingw-ninja-release --target check-src-doxygen
 cmake --build build/mingw-ninja-release --target docs-api --parallel
 cmake --build build/mingw-ninja-release --target docs-internal --parallel
 ```
@@ -344,9 +345,12 @@ docs/internal/html/index.html
 
 `docs-api` 输入包括 `documentation/doxygen/` 页面、`include/`、`src/`、`apps/` 和
 `examples/`。`docs-internal` 专注于 `include/` 与 `src/`，启用 private/static/local/anonymous-namespace
-符号、内联源码、caller/callee 关系和 `@internal` 内容。内部站点使用
-`EXTRACT_ALL=YES`，因此尚未补齐 Doxygen 注释的实现仍可浏览，且不会因缺注释而构建
-失败。`thirdParty/` 不参与文档抽取；Graphviz 不可用时只会省略关系图。
+符号、内联源码、caller/callee 关系和 `@internal` 内容。`src/` 统一使用显式
+`/** ... */` Doxygen 块：每个文件都有 `@file`、`@brief`、`@ingroup`，内部类型和头文件
+接口有独立说明，局部实现推导继续使用普通 `//`。`check-src-doxygen` 会拒绝混用
+`///`、`//!`、`///<`；两个文档目标生成前都会自动执行该检查。内部站点仍使用
+`EXTRACT_ALL=YES` 以完整展示短小局部辅助实现。`thirdParty/` 不参与文档抽取；Graphviz
+不可用时只会省略关系图。
 
 ## 版本记录
 

@@ -14,7 +14,9 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Bridges aligned, evidence-compatible endpoints across nearby graph components.
+/**
+ * @brief Bridges aligned, evidence-compatible endpoints across nearby graph components.
+ */
 void consolidateFeatureGraph(
     const Mesh& mesh,
     const FeatureOptions& options,

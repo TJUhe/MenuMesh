@@ -13,7 +13,9 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Fits and materializes primitive loops for unowned connected components.
+/**
+ * @brief Fits and materializes primitive loops for unowned connected components.
+ */
 void recoverPrimitiveComponents(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );

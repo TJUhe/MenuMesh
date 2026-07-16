@@ -13,7 +13,9 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Internal normal-filter entry that reuses precomputed edge incidence.
+/**
+ * @brief Internal normal-filter entry that reuses precomputed edge incidence.
+ */
 FeatureNormalFilterResult filterFeatureNormalsImpl(
     const Mesh& mesh, const common::MeshEdgeInfoMap& edgeInfo, const FeatureNormalFilterOptions& options
 );

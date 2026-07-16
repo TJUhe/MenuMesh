@@ -29,6 +29,7 @@ double f1(double precision, double recall) {
     return precision + recall > 0.0 ? 2.0 * precision * recall / (precision + recall) : 0.0;
 }
 
+/** @brief Canonical unordered pair of junction branches used for matching. */
 struct BranchPairKey {
     int junction = -1;
     int first = -1;
@@ -39,6 +40,7 @@ struct BranchPairKey {
     }
 };
 
+/** @brief Stable hash for canonical junction branch pairs. */
 struct BranchPairKeyHash {
     std::size_t operator()(const BranchPairKey& key) const {
         std::size_t seed = std::hash<int>{}(key.junction);

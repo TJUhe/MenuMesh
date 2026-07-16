@@ -21,6 +21,7 @@
 namespace manumesh::simplification {
 namespace {
 
+/** @brief Vertex and edge sets forming the active link of a simplex. */
 struct SimplicialLink {
     std::unordered_set<int> vertices;
     std::unordered_set<std::uint64_t> edges;

@@ -6,10 +6,10 @@
 
 - `.vscode/tasks.json`：VS Code 任务、CMake 参数、CTest 参数。
 - `.vscode/launch.json`：GDB 调试入口和默认 CLI 参数。
-- `apps/manumesh/main.cpp`：薄进程入口。
-- `apps/manumesh/CliArguments.cpp`：CLI flag/value 解析和位置参数提取。
-- `apps/manumesh/ManuMeshCli.cpp`：帮助输出和 `run()` 派发。
-- `apps/manumesh/ManuMeshCommands.cpp`：命令 handler、command registry、CSV 输出和批处理辅助。
+- `apps/main.cpp`：薄进程入口。
+- `apps/CliArguments.cpp`：CLI flag/value 解析和位置参数提取。
+- `apps/ManuMeshCli.cpp`：帮助输出和 `run()` 派发。
+- `apps/ManuMeshCommands.cpp`：命令 handler、command registry、CSV 输出和批处理辅助。
 - `include/algorithms/simplification/SimplificationTypes.h`：`SimplifyOptions` 和 `SimplifyReport`。
 - `include/algorithms/feature_detection/FeatureTypes.h`：`FeatureOptions` 和 `FeatureAnalysis`。
 - `src/simplification/` 与 `src/feature_detection/`：参数真正改变算法行为的位置。
@@ -136,7 +136,7 @@ cmake -S . -B $buildDir -G Ninja `
 | `type` | `cppdbg` | 使用 Microsoft C/C++ 扩展的 GDB/MI 调试器。 | 调试控制台显示 GDB/MI 启动信息。 |
 | `request` | `launch` | 启动新进程，而不是附加到已有进程。 | 每次 F5 都会新启动 `manumesh.exe`。 |
 | `program` | `build/mingw-ninja-debug/bin/manumesh.exe` | 被调试的 Debug CLI。 | 文件存在且时间戳随 Debug 构建更新。 |
-| `args` | CLI 参数数组 | 传给 `manumesh.exe` 的真实命令行。 | 在 `apps/manumesh/ManuMeshCli.cpp::run` 观察 `argv`。 |
+| `args` | CLI 参数数组 | 传给 `manumesh.exe` 的真实命令行。 | 在 `apps/ManuMeshCli.cpp::run` 观察 `argv`。 |
 | `cwd` | `${workspaceFolder}` | 程序运行目录是仓库根目录。 | 相对路径如 `tests/data/...` 能解析。 |
 | `stopAtEntry` | `false` | 不在进程入口自动暂停。 | 需要自己打断点。 |
 | `externalConsole` | `false` | 使用 VS Code 内部调试控制台。 | 不弹独立控制台窗口。 |
@@ -153,9 +153,9 @@ cmake -S . -B $buildDir -G Ninja `
 
 | 断点位置 | 用来观察什么 |
 | --- | --- |
-| `apps/manumesh/main.cpp::main` | 薄入口，可确认进程进入 CLI。 |
-| `apps/manumesh/ManuMeshCommands.cpp::parseSimplifyOptions` | CLI 参数如何进入 `SimplifyOptions`。 |
-| `apps/manumesh/ManuMeshCommands.cpp::parseFeatureOptions` | `feature-report` 参数如何进入 `FeatureOptions`。 |
+| `apps/main.cpp::main` | 薄入口，可确认进程进入 CLI。 |
+| `apps/ManuMeshCommands.cpp::parseSimplifyOptions` | CLI 参数如何进入 `SimplifyOptions`。 |
+| `apps/ManuMeshCommands.cpp::parseFeatureOptions` | `feature-report` 参数如何进入 `FeatureOptions`。 |
 | `src/simplification/SimplificationValidation.cpp` | 参数范围是否合法，例如角度、比例、质量阈值。 |
 | `src/simplification/SimplificationPolicies.cpp::makePolicies` | 公开 options 如何拆成 target、features、legality policy。 |
 | `src/feature_detection/FeatureDetector.cpp` | FeatureDetector 公开入口和 feature detection pipeline 编排。 |
@@ -215,12 +215,12 @@ ManuMesh 当前简化管线可以看成四层：
 
 | 参数 | 适用命令 | 进入位置 | 意义 | 校验方法 |
 | --- | --- | --- | --- | --- |
-| `--samples N` | `compare`、`simplify`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`validate-*` | `apps/manumesh/ManuMeshCommands.cpp` | 采样距离误差的采样数量，影响误差统计耗时和稳定性，不改变简化本身。 | 调大后 `mean_orig_to_simp`、`max_orig_to_simp` 更稳定但运行更慢。 |
-| `--csv path` | `feature-report`、`feature-compare` | `apps/manumesh/ManuMeshCommands.cpp` | 写出特征报告或特征比较 CSV。 | 文件中应有 `feature_edges`、`loops` 等字段。 |
-| `--metrics-csv path` | `simplify` | `apps/manumesh/ManuMeshCommands.cpp` | 写出一行简化指标 CSV。 | 文件中应有 `collapsed_edges`、`termination_reason`、拒绝计数。 |
-| `--input-dir dir` | `demo`、`validate-features`、`validate-external` | `apps/manumesh/ManuMeshCommands.cpp` | 指定批量验证输入目录。 | 输出日志应读取该目录下模型。 |
-| `--output-dir dir` | `demo`、`validate-features`、`validate-external` | `apps/manumesh/ManuMeshCommands.cpp` | 指定批量验证输出目录。 | STL/CSV 写到该目录。 |
-| `--quick` | `demo` | `apps/manumesh/ManuMeshCommands.cpp` | 快速 demo 模式，默认减少采样数。 | `samples` 默认从 `1000` 降为 `500`。 |
+| `--samples N` | `compare`、`simplify`、`sweep`、`ratio-sweep`、`face-sweep`、`demo`、`validate-*` | `apps/ManuMeshCommands.cpp` | 采样距离误差的采样数量，影响误差统计耗时和稳定性，不改变简化本身。 | 调大后 `mean_orig_to_simp`、`max_orig_to_simp` 更稳定但运行更慢。 |
+| `--csv path` | `feature-report`、`feature-compare` | `apps/ManuMeshCommands.cpp` | 写出特征报告或特征比较 CSV。 | 文件中应有 `feature_edges`、`loops` 等字段。 |
+| `--metrics-csv path` | `simplify` | `apps/ManuMeshCommands.cpp` | 写出一行简化指标 CSV。 | 文件中应有 `collapsed_edges`、`termination_reason`、拒绝计数。 |
+| `--input-dir dir` | `demo`、`validate-features`、`validate-external` | `apps/ManuMeshCommands.cpp` | 指定批量验证输入目录。 | 输出日志应读取该目录下模型。 |
+| `--output-dir dir` | `demo`、`validate-features`、`validate-external` | `apps/ManuMeshCommands.cpp` | 指定批量验证输出目录。 | STL/CSV 写到该目录。 |
+| `--quick` | `demo` | `apps/ManuMeshCommands.cpp` | 快速 demo 模式，默认减少采样数。 | `samples` 默认从 `1000` 降为 `500`。 |
 | `--verbose` | `simplify` 系列解析 | `SimplifyOptions::verbose` | 当前作为诊断开关保留，主要用于后续扩展详细日志。 | 在 `parseSimplifyOptions` 确认字段变为 `true`。 |
 
 ### 生成与扫描参数

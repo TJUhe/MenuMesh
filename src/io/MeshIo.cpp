@@ -3,7 +3,7 @@
  * @brief Implements mesh io facilities for ManuMesh's mesh-I/O module.
  * @ingroup manumesh_io
  *
- * @details Implements deterministic STL/OBJ parsing and ASCII STL serialization.
+ * @details Implements deterministic STL/OBJ parsing and ASCII/binary STL serialization.
  * @algorithm Binary STL is recognized by record layout, while ASCII STL uses
  * token parsing. Coincident STL positions are merged with scale-aware quantization. OBJ
  * polygons are projected to their dominant plane; convex faces use stable fan
@@ -33,6 +33,7 @@
 namespace manumesh {
 namespace {
 
+/** @brief Quantized three-dimensional position used for STL vertex welding. */
 struct QuantizedKey {
     long long x = 0;
     long long y = 0;
@@ -41,6 +42,7 @@ struct QuantizedKey {
     bool operator==(const QuantizedKey& other) const { return x == other.x && y == other.y && z == other.z; }
 };
 
+/** @brief Stable hash for quantized STL vertex positions. */
 struct QuantizedKeyHash {
     std::size_t operator()(const QuantizedKey& key) const {
         std::size_t h = 1469598103934665603ull;
@@ -88,6 +90,21 @@ uint32_t readUint32LE(const char* bytes) {
     return value;
 }
 
+void writeUint32LE(char* bytes, uint32_t value) {
+    bytes[0] = static_cast<char>(value & 0xffu);
+    bytes[1] = static_cast<char>((value >> 8u) & 0xffu);
+    bytes[2] = static_cast<char>((value >> 16u) & 0xffu);
+    bytes[3] = static_cast<char>((value >> 24u) & 0xffu);
+}
+
+void writeFloatLE(char* bytes, float value) {
+    uint32_t bits = 0;
+    static_assert(std::numeric_limits<float>::is_iec559, "Binary STL requires IEEE-754 floats.");
+    static_assert(sizeof(bits) == sizeof(value), "Binary STL requires 32-bit IEEE-754 floats.");
+    std::memcpy(&bits, &value, sizeof(bits));
+    writeUint32LE(bytes, bits);
+}
+
 float readFloatLE(const char* bytes) {
     float value = 0.0f;
     std::memcpy(&value, bytes, sizeof(float));
@@ -112,8 +129,10 @@ const char* findTokenEnd(const char* p, const char* end) {
     return p;
 }
 
-/// Parses a double at `p`, tolerating an explicit leading '+'. Returns the
-/// first unconsumed character, or nullptr when no double could be parsed.
+/**
+ * @brief Parses a double at `p`, tolerating an explicit leading '+'. Returns the
+ * first unconsumed character, or nullptr when no double could be parsed.
+ */
 const char* parseDoubleAt(const char* p, const char* end, double& value) {
     if (p != end && *p == '+') {
         ++p;
@@ -128,8 +147,10 @@ const char* parseDoubleAt(const char* p, const char* end, double& value) {
     return result.ptr;
 }
 
-/// Reads the whole file into `text`. Returns false when the file cannot be
-/// opened or read completely.
+/**
+ * @brief Reads the whole file into `text`. Returns false when the file cannot be
+ * opened or read completely.
+ */
 bool readFileToString(const std::string& path, std::string& text) {
     std::ifstream in(path, std::ios::binary);
     if (!in) {
@@ -153,13 +174,15 @@ bool readFileToString(const std::string& path, std::string& text) {
 
 enum class StlFormat { Binary, Ascii, Invalid };
 
-/// Decides whether an STL file is binary or ASCII.
-///
-/// A file whose size matches the exact binary layout (84 + 50 * n bytes) is
-/// binary even when its header starts with "solid". A file that does not
-/// start with "solid" is treated as binary as well; trailing padding bytes
-/// after the last record are tolerated, while a shorter file is reported as a
-/// truncated binary STL instead of falling through to the ASCII parser.
+/**
+ * @brief Decides whether an STL file is binary or ASCII.
+ *
+ * A file whose size matches the exact binary layout (84 + 50 * n bytes) is
+ * binary even when its header starts with "solid". A file that does not
+ * start with "solid" is treated as binary as well; trailing padding bytes
+ * after the last record are tolerated, while a shorter file is reported as a
+ * truncated binary STL instead of falling through to the ASCII parser.
+ */
 StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::string* error) {
     std::ifstream in(path, std::ios::binary);
     if (!in) {
@@ -426,9 +449,11 @@ std::string objLineError(int lineNumber, const char* message) {
     return "OBJ line " + std::to_string(lineNumber) + ": " + message;
 }
 
-/// Parses one OBJ index segment (for example the "3" in "3/1/2"), resolving
-/// negative indices relative to `valueCount`. The whole segment must be a
-/// valid integer and the resolved zero-based index must be in range.
+/**
+ * @brief Parses one OBJ index segment (for example the "3" in "3/1/2"), resolving
+ * negative indices relative to `valueCount`. The whole segment must be a
+ * valid integer and the resolved zero-based index must be in range.
+ */
 bool parseObjIndexText(const char* begin, const char* end, int valueCount, int& indexOut) {
     if (begin != end && *begin == '+') {
         ++begin;
@@ -449,6 +474,7 @@ bool parseObjIndexText(const char* begin, const char* end, int valueCount, int& 
     return true;
 }
 
+/** @brief Resolved vertex and optional texture-coordinate indices of one OBJ corner. */
 struct ObjCorner {
     int vertex = -1;
     int texcoord = -1;
@@ -702,8 +728,10 @@ bool triangulateObjPolygon(
     return true;
 }
 
-/// Parses one face corner token: `v`, `v/vt`, `v//vn`, or `v/vt/vn`.
-/// The normal index after the second slash is intentionally ignored.
+/**
+ * @brief Parses one face corner token: `v`, `v/vt`, `v//vn`, or `v/vt/vn`.
+ * The normal index after the second slash is intentionally ignored.
+ */
 bool parseObjCorner(const char* begin, const char* end, int vertexCount, int texcoordCount, ObjCorner& corner) {
     const char* firstSlash = static_cast<const char*>(std::memchr(begin, '/', static_cast<std::size_t>(end - begin)));
     const char* vertexEnd = firstSlash == nullptr ? end : firstSlash;
@@ -932,6 +960,80 @@ bool loadMesh(const std::string& path, Mesh& mesh, std::string* error, double me
         *error = "Unsupported mesh extension. Use .stl or .obj.";
     }
     return false;
+}
+
+bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error) {
+    if (!validateMeshGeometry(mesh, error)) {
+        return false;
+    }
+    if (mesh.faces.size() > std::numeric_limits<uint32_t>::max()) {
+        if (error) {
+            *error = "Binary STL supports at most UINT32_MAX triangles.";
+        }
+        return false;
+    }
+    const double maxFloat = static_cast<double>(std::numeric_limits<float>::max());
+    for (std::size_t vertexIndex = 0; vertexIndex < mesh.vertices.size(); ++vertexIndex) {
+        const Vec3& vertex = mesh.vertices[vertexIndex];
+        if (std::abs(vertex.x()) > maxFloat || std::abs(vertex.y()) > maxFloat || std::abs(vertex.z()) > maxFloat) {
+            if (error) {
+                *error = "Mesh vertex " + std::to_string(vertexIndex) +
+                         " contains a coordinate outside the binary STL float32 range.";
+            }
+            return false;
+        }
+    }
+
+    const std::filesystem::path outputPath(path);
+    if (outputPath.has_parent_path()) {
+        std::error_code ec;
+        std::filesystem::create_directories(outputPath.parent_path(), ec);
+        if (ec) {
+            if (error)
+                *error = "Failed to create output directory: " + ec.message();
+            return false;
+        }
+    }
+    std::ofstream out(path, std::ios::binary);
+    if (!out) {
+        if (error)
+            *error = "Failed to open output STL.";
+        return false;
+    }
+
+    std::array<char, 80> header{};
+    constexpr char kHeaderText[] = "ManuMesh binary STL";
+    std::copy_n(kHeaderText, sizeof(kHeaderText) - 1, header.begin());
+    out.write(header.data(), static_cast<std::streamsize>(header.size()));
+
+    std::array<char, 4> triangleCountBytes{};
+    writeUint32LE(triangleCountBytes.data(), static_cast<uint32_t>(mesh.faces.size()));
+    out.write(triangleCountBytes.data(), static_cast<std::streamsize>(triangleCountBytes.size()));
+
+    std::array<char, 50> record{};
+    for (const Face& face : mesh.faces) {
+        record.fill('\0');
+        const Vec3& a = mesh.vertices[face.v[0]];
+        const Vec3& b = mesh.vertices[face.v[1]];
+        const Vec3& c = mesh.vertices[face.v[2]];
+        const Vec3 normal = triangleNormal(a, b, c);
+        const std::array<Vec3, 4> values = {normal, a, b, c};
+        for (std::size_t valueIndex = 0; valueIndex < values.size(); ++valueIndex) {
+            const Vec3& value = values[valueIndex];
+            const std::size_t offset = valueIndex * 12;
+            writeFloatLE(record.data() + offset, static_cast<float>(value.x()));
+            writeFloatLE(record.data() + offset + 4, static_cast<float>(value.y()));
+            writeFloatLE(record.data() + offset + 8, static_cast<float>(value.z()));
+        }
+        out.write(record.data(), static_cast<std::streamsize>(record.size()));
+    }
+    out.flush();
+    if (!out) {
+        if (error)
+            *error = "Failed to write output STL: the stream reported an error (disk full or I/O failure).";
+        return false;
+    }
+    return true;
 }
 
 bool saveAsciiStl(const std::string& path, const Mesh& mesh, const std::string& solidName, std::string* error) {

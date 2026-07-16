@@ -29,6 +29,7 @@ namespace manumesh::feature {
 namespace detector_detail {
 namespace {
 
+/** @brief Adjacent face pair contributing to bilateral normal smoothing. */
 struct FacePair {
     int first = -1;
     int second = -1;

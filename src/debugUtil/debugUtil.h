@@ -21,63 +21,105 @@ struct FeatureAnalysis;
 
 namespace manumesh::debugUtil {
 
-/// Debug drawing intent for color and line-width selection.
-///
-/// The values are semantic rather than algorithm-specific, so callers can use
-/// the same palette when inspecting feature detection, collapse rejection,
-/// topology warnings, or before/after simplification snapshots.
+/**
+ * @brief Debug drawing intent for color and line-width selection.
+ *
+ * The values are semantic rather than algorithm-specific, so callers can use
+ * the same palette when inspecting feature detection, collapse rejection,
+ * topology warnings, or before/after simplification snapshots.
+ */
 enum class UseCase {
-    /// Ordinary mesh wireframe.
+    /**
+     * @brief Ordinary mesh wireframe.
+     */
     Mesh,
-    /// Boundary edge or open-border evidence.
+    /**
+     * @brief Boundary edge or open-border evidence.
+     */
     Boundary,
-    /// Strong feature edge such as dihedral evidence.
+    /**
+     * @brief Strong feature edge such as dihedral evidence.
+     */
     Feature,
-    /// Weak feature evidence, for example normal-tensor-only support.
+    /**
+     * @brief Weak feature evidence, for example normal-tensor-only support.
+     */
     WeakFeature,
-    /// Recovered or user-visible feature loop.
+    /**
+     * @brief Recovered or user-visible feature loop.
+     */
     FeatureLoop,
-    /// Candidate edge being inspected before acceptance/rejection.
+    /**
+     * @brief Candidate edge being inspected before acceptance/rejection.
+     */
     Candidate,
-    /// Accepted result edge, commonly used for simplified output.
+    /**
+     * @brief Accepted result edge, commonly used for simplified output.
+     */
     Accepted,
-    /// Rejected edge or failed collapse candidate.
+    /**
+     * @brief Rejected edge or failed collapse candidate.
+     */
     Rejected,
-    /// Suspicious edge that may need closer inspection.
+    /**
+     * @brief Suspicious edge that may need closer inspection.
+     */
     Warning,
-    /// Definite error evidence such as non-manifold topology.
+    /**
+     * @brief Definite error evidence such as non-manifold topology.
+     */
     Error,
 };
 
-/// Optional colored edge overlay drawn on top of the base wireframe.
-///
-/// Vertex indices are mesh-local. Invalid indices are ignored instead of
-/// failing the caller's debug run, because this utility is often placed inside
-/// error-handling paths.
+/**
+ * @brief Optional colored edge overlay drawn on top of the base wireframe.
+ *
+ * Vertex indices are mesh-local. Invalid indices are ignored instead of
+ * failing the caller's debug run, because this utility is often placed inside
+ * error-handling paths.
+ */
 struct EdgeOverlay {
-    /// First vertex index.
+    /**
+     * @brief First vertex index.
+     */
     int a = -1;
-    /// Second vertex index.
+    /**
+     * @brief Second vertex index.
+     */
     int b = -1;
-    /// Semantic color/width for this overlay.
+    /**
+     * @brief Semantic color/width for this overlay.
+     */
     UseCase useCase = UseCase::Feature;
-    /// Optional label drawn near the edge midpoint.
+    /**
+     * @brief Optional label drawn near the edge midpoint.
+     */
     std::string label;
 };
 
 #if defined(MANUMESH_ENABLE_DEBUG_UTIL) && !defined(NDEBUG)
 
-/// Write a local interactive HTML wireframe for a mesh.
+/**
+ * @brief Write a local interactive HTML wireframe for a mesh.
+ */
 void showWireframe(const char* tag, const Mesh& mesh, UseCase useCase = UseCase::Mesh);
-/// Write a local HTML snapshot with one highlighted edge.
+/**
+ * @brief Write a local HTML snapshot with one highlighted edge.
+ */
 void showEdge(const char* tag, const Mesh& mesh, int a, int b, UseCase useCase, const char* label = nullptr);
-/// Write a local HTML snapshot with multiple highlighted edges.
+/**
+ * @brief Write a local HTML snapshot with multiple highlighted edges.
+ */
 void showEdges(
     const char* tag, const Mesh& mesh, const std::vector<EdgeOverlay>& overlays, UseCase baseUseCase = UseCase::Mesh
 );
-/// Write a local HTML snapshot of feature graph and recovered loop overlays.
+/**
+ * @brief Write a local HTML snapshot of feature graph and recovered loop overlays.
+ */
 void showFeatures(const char* tag, const Mesh& mesh, const feature::FeatureAnalysis& analysis);
-/// Write a local HTML snapshot with before and after meshes side by side.
+/**
+ * @brief Write a local HTML snapshot with before and after meshes side by side.
+ */
 void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after);
 
 #endif

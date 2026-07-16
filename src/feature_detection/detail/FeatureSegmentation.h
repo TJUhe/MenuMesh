@@ -12,7 +12,9 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Flood-fills faces across non-feature manifold adjacencies and summarizes patches.
+/**
+ * @brief Flood-fills faces across non-feature manifold adjacencies and summarizes patches.
+ */
 void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const SurfacePatchOptions& options);
 
 } // namespace manumesh::feature::detector_detail

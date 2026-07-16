@@ -40,6 +40,7 @@ CycleSignature vertexSetSignature(const std::vector<int>& ids) {
     return signature;
 }
 
+/** @brief Circle reconstructed from a non-collinear three-point sample. */
 struct ThreePointCircle {
     bool valid = false;
     Vec3 center = Vec3::Zero();
@@ -115,23 +116,27 @@ double angularCoverage(const std::vector<int>& ids, const Mesh& mesh, const Vec3
     return 2.0 * kPi - maxGap;
 }
 
-/// Maximum fraction of the full turn that may be spanned by consecutive
-/// cluster vertices without a supporting feature edge between them. The
-/// recovery exists to close small evidence gaps (arc segments dropped by
-/// thresholding), not to invent circles, so most of the circle must already
-/// be linked by trace-graph edges. Angles make the bound dimensionless and
-/// invariant under uniform scaling; 0.25 matches the pre-existing 1.5*pi
-/// angular-coverage requirement (at most a quarter turn missing).
+/**
+ * @brief Maximum fraction of the full turn that may be spanned by consecutive
+ * cluster vertices without a supporting feature edge between them. The
+ * recovery exists to close small evidence gaps (arc segments dropped by
+ * thresholding), not to invent circles, so most of the circle must already
+ * be linked by trace-graph edges. Angles make the bound dimensionless and
+ * invariant under uniform scaling; 0.25 matches the pre-existing 1.5*pi
+ * angular-coverage requirement (at most a quarter turn missing).
+ */
 constexpr double kMaxCircularRecoveryGapFraction = 0.25;
 
-/// Evidence-connectivity gate for a recovered circle: walking the cluster in
-/// circular order (the caller passes it already sorted around the fitted
-/// circle), every consecutive pair should be a feature edge of the trace
-/// graph; the angular extents of the unsupported pairs are summed and bounded
-/// by kMaxCircularRecoveryGapFraction of the full turn. Purely geometric
-/// concyclicity is not evidence: vertex sets whose members are not linked by
-/// feature edges (e.g. the coplanar corner rows of a chamfered prism) must
-/// not be stitched into a circle.
+/**
+ * @brief Evidence-connectivity gate for a recovered circle: walking the cluster in
+ * circular order (the caller passes it already sorted around the fitted
+ * circle), every consecutive pair should be a feature edge of the trace
+ * graph; the angular extents of the unsupported pairs are summed and bounded
+ * by kMaxCircularRecoveryGapFraction of the full turn. Purely geometric
+ * concyclicity is not evidence: vertex sets whose members are not linked by
+ * feature edges (e.g. the coplanar corner rows of a chamfered prism) must
+ * not be stitched into a circle.
+ */
 bool clusterSupportedByTraceEdges(
     const std::vector<int>& sortedCluster,
     const Mesh& mesh,
@@ -170,6 +175,7 @@ bool clusterSupportedByTraceEdges(
     return true;
 }
 
+/** @brief Connected trace-graph component considered for circular recovery. */
 struct TraceComponent {
     std::vector<int> vertices;
     bool hasWeakEvidenceEdge = false;

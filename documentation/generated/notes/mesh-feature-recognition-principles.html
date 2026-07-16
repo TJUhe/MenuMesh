@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="三角表面网格中二面角特征与法向张量特征的原理说明。">
+  <title>三角表面网格中的特征识别</title>
+  <style>
+    :root {
+      --page: #f8fbf1;
+      --page-edge: #bfd2c2;
+      --ink: #26332a;
+      --muted: #5d6b61;
+      --green: #417d5a;
+      --green-dark: #315f45;
+      --green-line: #7fac8c;
+      --mint: #ecfaee;
+      --mint-strong: #e0f3e7;
+      --formula: #ffffff;
+      --formula-line: #cad8cb;
+      --neutral-line: #d5ddd5;
+      --warm: #f8f5eb;
+      --warm-line: #b69b67;
+      --font-body: "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+      --font-serif: "Songti SC", "SimSun", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      background: #dfeae1;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #dfeae1;
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.82;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: var(--green-dark);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .paper {
+      width: min(920px, calc(100% - 28px));
+      margin: 22px auto 46px;
+      background: var(--page);
+      border: 1px solid var(--page-edge);
+    }
+
+    .title-band {
+      padding: 34px 42px 31px;
+      color: #ffffff;
+      background: var(--green);
+      border-bottom: 1px solid var(--green-dark);
+    }
+
+    .title-band h1 {
+      margin: 0 0 9px;
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    .title-band p {
+      max-width: 700px;
+      margin: 0;
+      color: #edf7f0;
+      font-size: 1rem;
+    }
+
+    main {
+      padding: 34px 42px 44px;
+    }
+
+    .opening {
+      margin: 0 0 34px;
+      padding: 19px 22px;
+      background: var(--mint);
+      border-left: 4px solid var(--green);
+    }
+
+    .opening p:last-child { margin-bottom: 0; }
+
+    section {
+      margin-top: 38px;
+    }
+
+    .section-title {
+      display: grid;
+      grid-template-columns: 25px auto 1fr;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 19px;
+    }
+
+    .section-number {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      color: #ffffff;
+      background: var(--green);
+      font-size: 0.78rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.17rem;
+      font-weight: 700;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    .section-rule {
+      height: 1px;
+      background: var(--green-line);
+    }
+
+    h3 {
+      margin: 27px 0 10px;
+      color: var(--green-dark);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    p { margin: 0 0 13px; }
+
+    strong { font-weight: 700; }
+
+    code {
+      padding: 0 3px;
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 0.9em;
+      background: #eef3ee;
+    }
+
+    .formula {
+      position: relative;
+      margin: 16px 0 19px;
+      padding: 18px 50px 20px 26px;
+      min-height: 68px;
+      background: var(--formula);
+      border: 1px solid var(--formula-line);
+    }
+
+    .formula mjx-container[display="true"] {
+      margin: 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .eq-number {
+      position: absolute;
+      right: 13px;
+      bottom: 7px;
+      color: #788279;
+      font-family: var(--font-serif);
+      font-size: 0.78rem;
+    }
+
+    .formula-caption {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
+    .discovery {
+      margin: 18px 0;
+      padding: 15px 18px;
+      background: var(--mint-strong);
+      border-left: 4px solid var(--green);
+    }
+
+    .discovery strong {
+      color: var(--green-dark);
+    }
+
+    .caution {
+      margin: 18px 0;
+      padding: 15px 18px;
+      background: var(--warm);
+      border-left: 4px solid var(--warm-line);
+    }
+
+    .steps {
+      margin: 13px 0 18px;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+
+    .steps li {
+      position: relative;
+      margin: 0;
+      padding: 9px 0 9px 34px;
+      border-bottom: 1px solid var(--neutral-line);
+      counter-increment: step;
+    }
+
+    .steps li::before {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      width: 22px;
+      height: 22px;
+      color: var(--green-dark);
+      border: 1px solid var(--green-line);
+      content: counter(step);
+      font-size: 0.75rem;
+      font-weight: 700;
+      line-height: 20px;
+      text-align: center;
+    }
+
+    .spectrum-list {
+      margin: 17px 0 20px;
+      border-top: 1px solid var(--neutral-line);
+    }
+
+    .spectrum-item {
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      gap: 17px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--neutral-line);
+    }
+
+    .spectrum-item dt {
+      color: var(--green-dark);
+      font-weight: 700;
+    }
+
+    .spectrum-item dd { margin: 0; }
+
+    .gate {
+      margin: 17px 0 19px;
+      padding: 13px 17px;
+      background: #ffffff;
+      border-top: 1px solid var(--formula-line);
+      border-bottom: 1px solid var(--formula-line);
+    }
+
+    .gate ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    .gate li { margin: 6px 0; }
+
+    .references {
+      margin: 12px 0 0;
+      padding-left: 22px;
+      color: #435047;
+      font-size: 0.88rem;
+    }
+
+    .references li { margin: 8px 0; }
+
+    footer {
+      padding: 17px 42px 22px;
+      color: var(--muted);
+      background: #edf5ec;
+      border-top: 1px solid var(--page-edge);
+      font-size: 0.78rem;
+    }
+
+    footer p { margin: 0; }
+
+    @media (max-width: 680px) {
+      .paper {
+        width: 100%;
+        margin: 0;
+        border: 0;
+      }
+
+      .title-band, main, footer {
+        padding-left: 21px;
+        padding-right: 21px;
+      }
+
+      .title-band h1 { font-size: 1.58rem; }
+
+      .section-title {
+        grid-template-columns: 25px minmax(0, auto) 1fr;
+      }
+
+      .formula {
+        padding-left: 13px;
+        padding-right: 13px;
+        padding-bottom: 28px;
+      }
+
+      .spectrum-item {
+        grid-template-columns: 1fr;
+        gap: 3px;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 13mm 14mm 16mm;
+      }
+
+      html, body { background: #ffffff; }
+
+      body {
+        font-size: 10.3pt;
+        line-height: 1.65;
+      }
+
+      .paper {
+        width: auto;
+        margin: 0;
+        border: 0;
+      }
+
+      .title-band {
+        padding: 16mm 12mm 11mm;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      main {
+        padding: 9mm 12mm 12mm;
+      }
+
+      section { margin-top: 8mm; }
+
+      .section-title, .formula, .discovery, .caution, .gate, .spectrum-item {
+        break-inside: avoid;
+      }
+
+      .section-number, .opening, .discovery, .caution, .formula, footer {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      .formula mjx-container[display="true"] { overflow: visible; }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
+      },
+      chtml: {
+        scale: 0.96
+      },
+      options: {
+        enableMenu: false
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <article class="paper">
+    <header class="title-band">
+      <h1>三角表面网格中的特征识别</h1>
+      <p>从二面角的直接判断，到 normal tensor 对弱折痕的补充</p>
+    </header>
+
+    <main>
+      <div class="opening">
+        <p>如果把特征理解为“后续处理不应轻易抹去的几何结构”，最自然的出发点不是复杂曲率，而是一条网格边。边两侧三角面的朝向发生变化，这个变化由二面角直接给出。对于机械零件和 CAD 离散网格，大量重要轮廓正是这样显现出来的。</p>
+        <p>但二面角也很快暴露出边界：它擅长发现尖锐折线，却不擅长描述被圆角过渡削弱的折痕；它依赖面法向，而面法向又受绕序、退化面和噪声影响。normal tensor 的引入，正是沿着这个问题继续向前一步。</p>
+      </div>
+
+      <section id="dihedral-intuition">
+        <div class="section-title">
+          <span class="section-number">1</span>
+          <h2>从一条边开始：二面角为什么有效</h2>
+          <span class="section-rule" aria-hidden="true"></span>
+        </div>
+
+        <p>设三角面 \(f=(i,j,k)\)，其单位法向由两个边向量的叉积得到：</p>
+
+        <div class="formula">
+          \[
+          \mathbf n_f=
+          \frac{(\mathbf p_j-\mathbf p_i)\times(\mathbf p_k-\mathbf p_i)}
+          {\left\|(\mathbf p_j-\mathbf p_i)\times(\mathbf p_k-\mathbf p_i)\right\|}
+          \]
+          <span class="eq-number">(1)</span>
+        </div>
+
+        <p>对一条恰好连接两个面的内部边 \(e\)，若两侧法向分别为 \(\mathbf n_0,\mathbf n_1\)，最直接的夹角是：</p>
+
+        <div class="formula">
+          \[
+          \theta_e=arccos\!\left(operatorname{clamp}
+          (\mathbf n_0^{\mathsf T}\mathbf n_1,-1,1)\right)
+          \]
+          <span class="eq-number">(2)</span>
+        </div>
+
+        <p>当 \(\theta_e\) 超过阈值 \(\theta_{\mathrm{feature}}\) 时，这条边可被视为硬特征。当前默认阈值是 \(40^\circ\)。这条规则之所以对工程网格有效，是因为它不需要先估计高阶微分量；只要折角真实存在，即使三角形大小不均匀，法向跳变仍然清晰。</p>
+
+        <h3>拓扑先于角度</h3>
+        <p>并非所有边都需要计算二面角。当前实现先按相邻面数量区分边的角色：</p>
+
+        <div class="formula">
+          \[
+          |F\(e\)|=1\Rightarrow \text{边界边},\qquad
+          |F\(e\)|=2\Rightarrow \text{内部边},\qquad
+          |F\(e\)|>2\Rightarrow \text{非流形边}
+          \]
+          <span class="eq-number">(3)</span>
+        </div>
+
+        <p>边界和非流形本身就是强拓扑信号；只有内部边进入角度判定。这样做把“拓扑异常”与“几何折角”分开，也避免给无法定义唯一两侧面的边强行计算夹角。</p>
+
+        <div class="discovery">
+          <strong>当前实现的处理选择：</strong>强特征首先由边关联关系和二面角建立，而不是先计算曲率再反推折线。这使干净 CAD/STL 网格的主路径短、阈值含义直接，也让边界、非流形和折角分别保留自己的证据类型。
+        </div>
+      </section>
+
+      <section id="dihedral-orientation">
+        <div class="section-title">
+          <span class="section-number">2</span>
+          <h2>角度还不够：绕序、符号与退化</h2>
+          <span class="section-rule" aria-hidden="true"></span>
+        </div>
+
+        <p>式 (2) 隐含了一个条件：相邻面的法向必须采用一致的朝向。如果某个三角面被反向存储，它的法向会整体翻转，原本很小的夹角可能被读成接近 \(180^\circ\)。因此，角度计算之前必须先处理面绕序。</p>
+
+        <h3>先协调绕序，再计算角度</h3>
+        <p>当前实现沿双面邻接关系做确定性的广度优先传播，为每个面求一个符号 \(s_f\in\{-1,+1\}\)。协调法向写成 \(\widetilde{\mathbf n}_f=s_f\mathbf n_f\)。随后使用：</p>
+
+        <div class="formula">
+          \[
+          c_e=operatorname{clamp}
+          (\widetilde{\mathbf n}_0^{\mathsf T}\widetilde{\mathbf n}_1,-1,1),
+          \qquad
+          \theta_e=arccos(c_e)
+          \]
+          <span class="eq-number">(4)</span>
+        </div>
+
+        <p>这一步不是简单地对点积取绝对值。协调绕序尽量恢复一个局部可定向表面，使大角度和小角度仍保留原本的区别。</p>
+
+        <h3>同一个角度，还要区分折向</h3>
+        <p>二面角给出折叠强度，却没有说明折叠朝向。令 \(\mathbf d_e\) 为与第一侧协调绕序一致的单位边方向，则：</p>
+
+        <div class="formula">
+          \[
+          q_e=
+          \left(\widetilde{\mathbf n}_0\times
+          \widetilde{\mathbf n}_1\right)^{\mathsf T}\mathbf d_e
+          \]
+          <span class="eq-number">(5)</span>
+        </div>
+
+        <div class="formula">
+          \[
+          operatorname{kind}\(e\)=
+          \begin{cases}
+          +1, & q_e>10^{-12},\\
+          -1, & q_e<-10^{-12},\\
+          0, & |q_e|\le 10^{-12}.
+          \end{cases}
+          \]
+          <span class="eq-number">(6)</span>
+        </div>
+
+        <p>符号随后参与曲线延续和分支相容性判断：两个已有明确符号但折向相反的局部片段，不应被轻易接成同一条特征线。</p>
+
+        <h3>绕序无法协调时如何降级</h3>
+        <p>对于不可定向区域或局部拓扑冲突，程序不会伪造凸凹符号，而是退回无向角度：</p>
+
+        <div class="formula">
+          \[
+          \theta_e^{\mathrm{fallback}}=arccos(|c_e|),
+          \qquad operatorname{kind}\(e\)=0
+          \]
+          <span class="eq-number">(7)</span>
+        </div>
+
+        <p>这是一种可继续运行的降级，而不是完整修复。因为 \(\arccos(|c_e|)\) 的结果只落在 \(0^\circ\) 到 \(90^\circ\) 之间，真实的大折角可能被折回为补角。</p>
+
+        <div class="caution">
+          <strong>需要保留的边界：</strong>如果一个真实 (150^\circ) 折角进入无向降级，它会表现为 (30^\circ)，可能低于默认阈值。诊断中的绕序冲突计数因此不是普通统计项，而是解释漏检的重要依据。
+        </div>
+
+        <h3>退化面不是普通噪声</h3>
+        <p>零面积三角面的法向为零。若直接与正常面做点积，它会产生近似 \(90^\circ\) 的伪折角。当前实现允许这类脏输入继续分析，但会在证据汇集后撤销与退化面相邻内部边的二面角标记；边界和非流形证据不依赖法向，仍然保留。</p>
+
+        <div class="discovery">
+          <strong>当前实现的独到之处：</strong>它把“角度强度”“折向符号”和“输入可信度”拆成三个层次。正常情况下保留有向信息；绕序冲突时只保留无向强度；法向本身失效时再撤销角度证据。与简单的 <code>acos(abs(dot))</code> 相比，这种分层处理保留了更多可解释信息。
+        </div>
+
+        <h3>检测阈值与追踪阈值分开</h3>
+        <p>一条边先由 \(\theta_{\mathrm{feature}}\) 决定是否成为二面角证据，再由 \(\theta_{\mathrm{trace}}\) 决定是否进入曲线追踪。后者若未单独设置，就复用前者：</p>
+
+        <div class="formula">
+          \[
+          \theta_{mathrm{trace}}=
+          \begin{cases}
+          \theta_{mathrm{feature}}, & \text{未单独设置},\\
+          \theta_{mathrm{configured}}, & \text{其他情况}.
+          \end{cases}
+          \]
+          <span class="eq-number">(8)</span>
+        </div>
+
+        <p>这使“局部检测”和“曲线组织”可以采用不同严格度，但追踪阈值只能继续筛选已有证据，不能补回低于特征角阈值的边。</p>
+      </section>
+
+      <section id="normal-tensor">
+        <div class="section-title">
+          <span class="section-number">3</span>
+          <h2>当折痕不再尖锐：normal tensor</h2>
+          <span class="section-rule" aria-hidden="true"></span>
+        </div>
+
+        <p>二面角观察的是一条边两侧的法向跳变。若表面经过圆角过渡，变化会分散到一片邻域中，单条边的夹角可能都不够大。此时需要换一个问题：不再问“这两张面差多少”，而是问“这个顶点周围的法向总体分布成什么形状”。</p>
+
+        <h3>为什么使用法向外积</h3>
+        <p>对顶点 \(v\) 的每个相邻面 \(f\)，取单位法向 \(\mathbf n_f\) 和面积 \(A_f\)。面积加权 normal tensor 为：</p>
+
+        <div class="formula">
+          \[
+          \mathbf T_v=
+          \frac{\displaystyle\sum_{f\ni v}A_f\,
+          \mathbf n_f\mathbf n_f^{\mathsf T}}
+          {\displaystyle\sum_{f\ni v}A_f}
+          \]
+          <span class="eq-number">(9)</span>
+        </div>
+
+        <p>外积 \(\mathbf n\mathbf n^{\mathsf T}\) 有两个重要性质。第一，它把一个方向变成对称半正定矩阵，因而可以通过特征值分解读取主要方向。第二，\(\mathbf n\) 与 \(-\mathbf n\) 产生相同外积，所以张量天然不受法向正负翻转影响。这与二面角形成互补：二面角需要协调绕序，normal tensor 的局部分布本身不依赖法向符号。代价也由此产生：tensor 能判断“像不像折痕”，却不能单独区分凸脊与凹谷。</p>
+
+        <p>面积权重则抑制了细碎三角形的数量偏置。若不加权，一个大三角面与十个极小三角面会被当作 \(1:10\)；加入面积后，法向统计更接近实际表面覆盖。</p>
+
+        <h3>特征值谱在描述什么</h3>
+        <p>令张量的特征值按降序排列：</p>
+
+        <div class="formula">
+          \[
+          \lambda_0\ge\lambda_1\ge\lambda_2\ge0
+          \]
+          <span class="eq-number">(10)</span>
+        </div>
+
+        <p>当前实现使用三个谱差量：</p>
+
+        <div class="formula">
+          \[
+          S_{\mathrm{surface}}=\max(0,\lambda_0-\lambda_1),
+          \qquad
+          S_{\mathrm{crease}}=\max(0,\lambda_1-\lambda_2),
+          \qquad
+          S_{\mathrm{corner}}=\lambda_2
+          \]
+          <span class="eq-number">(11)</span>
+        </div>
+
+        <dl class="spectrum-list">
+          <div class="spectrum-item">
+            <dt>近似平面</dt>
+            <dd>法向集中在一个方向，\(\lambda_0\) 占主导，\(\lambda_1,\lambda_2\) 很小，因此 \(S_{\mathrm{surface}}\) 较大。</dd>
+          </div>
+          <div class="spectrum-item">
+            <dt>折痕邻域</dt>
+            <dd>法向主要分布在两个方向张成的平面中，\(\lambda_0,\lambda_1\) 有支撑而 \(\lambda_2\) 较小，因此 \(S_{\mathrm{crease}}\) 较大。</dd>
+          </div>
+          <div class="spectrum-item">
+            <dt>多向交汇</dt>
+            <dd>法向在三个方向上都有明显分量，最小特征值也不再接近零，因此 \(S_{\mathrm{corner}}\) 上升。</dd>
+          </div>
+        </dl>
+
+        <p>顶点的单尺度候选分数取：</p>
+
+        <div class="formula">
+          \[
+          S_v=\max(S_{\mathrm{crease}},S_{\mathrm{corner}})
+          \]
+          <span class="eq-number">(12)</span>
+        </div>
+
+        <p>不过，真正生成弱特征边时还要求 \(S_{\mathrm{crease}}\ge S_{\mathrm{corner}}\)。也就是说，角点响应可以进入诊断分数，但不会直接被当作普通折痕边延伸。</p>
+
+        <h3>折痕切向来自最小特征值方向</h3>
+        <p>在折痕邻域中，法向变化主要发生在垂直于折痕的截面内；沿折痕方向，法向变化最小。因此折痕切向取 \(\lambda_2\) 对应的特征向量：</p>
+
+        <div class="formula">
+          \[
+          \mathbf t_v=\mathbf e_{\lambda_2}
+          \]
+          <span class="eq-number">(13)</span>
+        </div>
+
+        <div class="discovery">
+          <strong>一个容易被旧描述掩盖的实现事实：</strong>当前执行代码取的是最小特征值方向，而不是中间特征值方向。这个选择与“沿折痕方向法向变化最小”的几何解释一致，也是后续边方向对齐判断的实际依据。
+        </div>
+      </section>
+
+      <section id="normal-tensor-scale">
+        <div class="section-title">
+          <span class="section-number">4</span>
+          <h2>一个邻域还不够：尺度与持久性</h2>
+          <span class="section-rule" aria-hidden="true"></span>
+        </div>
+
+        <p>单个一环邻域很容易把局部三角剖分误当成几何结构。为此，当前实现支持对张量进行空间平滑，并在逐步增大的尺度上重复分析。对顶点 \(i\) 的一次平滑可写成：</p>
+
+        <div class="formula">
+          \[
+          \mathbf T_i^{\prime}=
+          \frac{
+          \mathbf T_i+
+          \displaystyle\sum_{j\in N\(i\)}
+          \exp\!\left[-\left(\frac{\|\mathbf p_j-\mathbf p_i\|}{r_i}\right)^2\right]
+          \mathbf T_j}
+          {1+
+          \displaystyle\sum_{j\in N\(i\)}
+          \exp\!\left[-\left(\frac{\|\mathbf p_j-\mathbf p_i\|}{r_i}\right)^2\right]}
+          \]
+          <span class="eq-number">(14)</span>
+        </div>
+
+        <p>其中 \(r_i\) 由局部平均边长乘以尺度倍率得到。权重随距离平方指数衰减，避免远处结构以同样强度进入局部判断。这里平滑的是已经形成的张量场，而不是面法向本身；更大的尺度也不是每次回到原始张量独立重算，而是在上一尺度结果上继续扩散。各尺度因此构成一条确定的累计过程。</p>
+
+        <h3>不是取最大值，而是要求多尺度支持</h3>
+        <p>设总尺度数为 \(K\)，每个尺度的分数为 \(S_k\)，阈值为 \(\tau_T\)。支持尺度数为：</p>
+
+        <div class="formula">
+          \[
+          m=\sum_{k=1}^{K}\mathbf 1[S_k\ge\tau_T],
+          \qquad
+          \overline S=\frac{1}{K}\sum_{k=1}^{K}S_k,
+          \qquad
+          S_{\max}=\max_k S_k
+          \]
+          <span class="eq-number">(15)</span>
+        </div>
+
+        <p>最终持久分数不是单纯的峰值，而是峰值、尺度均值和支持比例的组合：</p>
+
+        <div class="formula">
+          \[
+          P_T=left(0.65S_{\max}+0.35\overline S\right)\frac{m}{K}
+          \]
+          <span class="eq-number">(16)</span>
+        </div>
+
+        <p>峰值保留局部显著性，均值惩罚只在某一尺度突出的偶然响应，\(m/K\) 则明确要求证据跨尺度存在。需要注意的是，程序虽然支持多尺度，但默认 \(K=1\)；只有提高尺度数时，式 (16) 的“持久性”才真正成为跨尺度约束。</p>
+
+        <h3>从顶点分数落到网格边</h3>
+        <p>normal tensor 在顶点上产生方向与分数，最终结果却要落在已有网格边上。对边 \(e=(a,b)\)，当前实现依次检查：</p>
+
+        <div class="gate">
+          <ol>
+            <li>该边不是边界、二面角或非流形强特征；</li>
+            <li>两个端点都没有被离散强特征顶点掩码覆盖；</li>
+            <li>\(\min(m_a,m_b)\) 达到最少支持尺度数；</li>
+            <li>\(\min(P_{T,a},P_{T,b})\ge\tau_T\)；</li>
+            <li>两端均满足 \(S_{\mathrm{crease}}\ge S_{\mathrm{corner}}\)；</li>
+            <li>网格边方向与至少一端折痕切向充分一致。</li>
+          </ol>
+        </div>
+
+        <p>最后一项的精确形式是：</p>
+
+        <div class="formula">
+          \[
+          \max\!\left(
+          |\widehat{\mathbf e}^{\mathsf T}\mathbf t_a|,
+          |\widehat{\mathbf e}^{\mathsf T}\mathbf t_b|
+          \right)\ge\eta_T
+          \]
+          <span class="eq-number">(17)</span>
+        </div>
+
+        <p>这里采用两端对齐度的最大值，而不是最小值，意味着只要一端给出可靠方向，边就有机会被接受。这对不规则三角剖分更宽容，但也比“双端都对齐”的规则更容易保留边缘候选。默认 \(\eta_T=0.45\)。</p>
+
+        <div class="discovery">
+          <strong>当前实现的组合策略：</strong>normal tensor 不在硬特征附近重复加分。只要一条边已经属于强证据，或任一端点已经接触离散强特征，张量通道就退出。这样做牺牲了一部分硬边邻域中的弱响应，却换来更清楚的证据归属：二面角解释尖锐折线，normal tensor 负责补充远离硬边的弱折痕。
+        </div>
+
+        <div class="discovery">
+          <strong>另一个有意保留的差异：</strong>可选面法向滤波会影响二面角，但 normal tensor 仍直接从原始三角形几何重新计算法向。两条通道因此不是对同一组平滑法向做重复判断。它增强了证据独立性，同时也意味着张量通道对原始噪声更敏感，需要通过空间尺度和持久性来补偿。
+        </div>
+      </section>
+
+      <section id="fusion">
+        <div class="section-title">
+          <span class="section-number">5</span>
+          <h2>两条路径最终如何协同</h2>
+          <span class="section-rule" aria-hidden="true"></span>
+        </div>
+
+        <p>从识别逻辑看，二面角和 normal tensor 并不是平行投票后简单相加，而是有明确优先级的两层判断：</p>
+
+        <ol class="steps">
+          <li><strong>先确认拓扑强信号。</strong>边界与非流形不依赖法向连续性，直接形成强证据。</li>
+          <li><strong>再判断硬折角。</strong>内部边经过绕序协调、有向二面角与退化过滤后，形成可解释的强几何证据。</li>
+          <li><strong>最后补充弱折痕。</strong>只有远离离散强特征的普通内部边，才进入 normal tensor 的持久性、谱型和方向门控。</li>
+        </ol>
+
+        <p>这种次序使两条方法各自承担最擅长的部分。二面角的优势是直接、稳定、阈值易解释；normal tensor 的优势是把一片邻域中的法向变化压缩成谱结构，并能借助尺度持久性识别单边角度不明显的折痕。它们的共同限制也很清楚：最终特征仍需落在现有网格边上，因此三角剖分方向与真实曲线方向偏离过大时，候选边可能断续。</p>
+
+        <div class="caution">
+          <strong>阅读结果时最重要的区分：</strong>二面角回答“这条边两侧是否发生明显折叠”；normal tensor 回答“这个邻域是否呈现折痕型法向分布”。前者是边局部的强判断，后者是顶点邻域的弱判断。把两者看成同一种分数，会丢失当前实现最有价值的可解释性。
+        </div>
+      </section>
+
+      <section id="references">
+        <div class="section-title">
+          <span class="section-number">6</span>
+          <h2>方法来源</h2>
+          <span class="section-rule" aria-hidden="true"></span>
+        </div>
+
+        <ol class="references">
+          <li>Jiao, X.; Bayyana, N. <em>Identification of C1 and C2 Discontinuities for Surface Meshes in CAD</em>, 2008. <a href="https://doi.org/10.1016/j.cad.2007.10.005">doi:10.1016/j.cad.2007.10.005</a>.</li>
+          <li>Page, D. L. et al. <em>Normal Vector Voting: Crease Detection and Curvature Estimation on Large, Noisy Meshes</em>, 2002. <a href="https://doi.org/10.1006/gmod.2002.0574">doi:10.1006/gmod.2002.0574</a>.</li>
+          <li>Tsuchie, S.; Higashi, M. <em>Extraction of Surface-Feature Lines on Meshes Using Normal Tensor Framework</em>, 2014. <a href="https://doi.org/10.1080/16864360.2014.846088">doi:10.1080/16864360.2014.846088</a>.</li>
+          <li><a href="https://gitlab.com/libeigen/eigen">Eigen</a> 用于对称矩阵特征分解及相关线性代数计算；特征图与证据融合逻辑由当前实现独立组织。</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer>
+      <p>讨论范围限于三角表面网格上的确定性特征边识别，不涉及实体拓扑、制造特征树或学习式语义识别。</p>
+    </footer>
+  </article>
+</body>
+</html>

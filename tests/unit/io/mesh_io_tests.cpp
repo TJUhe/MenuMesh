@@ -28,6 +28,30 @@ std::filesystem::path writeTempFile(const std::string& name, const std::string& 
     return path;
 }
 
+std::string readFileBytes(const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) {
+        return {};
+    }
+    in.seekg(0, std::ios::end);
+    const std::streamoff size = in.tellg();
+    if (size < 0) {
+        return {};
+    }
+    in.seekg(0, std::ios::beg);
+    std::string data(static_cast<std::size_t>(size), '\0');
+    if (size > 0) {
+        in.read(data.data(), static_cast<std::streamsize>(size));
+    }
+    return data;
+}
+
+std::uint32_t readUint32LE(const char* bytes) {
+    const auto* data = reinterpret_cast<const unsigned char*>(bytes);
+    return static_cast<std::uint32_t>(data[0]) | (static_cast<std::uint32_t>(data[1]) << 8u) |
+           (static_cast<std::uint32_t>(data[2]) << 16u) | (static_cast<std::uint32_t>(data[3]) << 24u);
+}
+
 void appendBytes(std::string& out, const void* data, std::size_t size) {
     out.append(static_cast<const char*>(data), size);
 }
@@ -365,7 +389,7 @@ TEST(MeshIo, BinaryStlWithTrailingPaddingLoads) {
     EXPECT_EQ(3u, mesh.vertices.size());
 }
 
-TEST(MeshIo, AsciiStlRoundTrip) {
+TEST(MeshIo, BinaryStlRoundTripUsesStandardLayout) {
     manumesh::Mesh mesh;
     mesh.vertices = {
         manumesh::Vec3(0.0, 0.0, 0.0),
@@ -377,7 +401,14 @@ TEST(MeshIo, AsciiStlRoundTrip) {
 
     const std::filesystem::path path = std::filesystem::temp_directory_path() / "manumesh_io_roundtrip.stl";
     std::string error;
-    ASSERT_TRUE(manumesh::saveAsciiStl(path.string(), mesh, "roundtrip", &error)) << error;
+    ASSERT_TRUE(manumesh::saveBinaryStl(path.string(), mesh, &error)) << error;
+
+    const std::string bytes = readFileBytes(path);
+    ASSERT_EQ(84u + 50u * mesh.faces.size(), bytes.size());
+    EXPECT_EQ("ManuMesh binary STL", bytes.substr(0, 19));
+    EXPECT_EQ(mesh.faces.size(), readUint32LE(bytes.data() + 80));
+    EXPECT_EQ('\0', bytes[84 + 48]);
+    EXPECT_EQ('\0', bytes[84 + 49]);
 
     manumesh::Mesh loaded;
     ASSERT_TRUE(manumesh::loadStl(path.string(), loaded, &error)) << error;
@@ -387,6 +418,24 @@ TEST(MeshIo, AsciiStlRoundTrip) {
     EXPECT_EQ(mesh.vertices.size(), loaded.vertices.size());
     EXPECT_NEAR(0.0, (loaded.bboxMin() - mesh.bboxMin()).norm(), 1e-12);
     EXPECT_NEAR(0.0, (loaded.bboxMax() - mesh.bboxMax()).norm(), 1e-12);
+}
+
+TEST(MeshIo, BinaryStlRejectsCoordinatesOutsideFloat32RangeBeforeOpeningFile) {
+    manumesh::Mesh mesh;
+    const double outsideFloatRange = static_cast<double>(std::numeric_limits<float>::max()) * 2.0;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(outsideFloatRange, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+    };
+    mesh.faces = {{{0, 1, 2}}};
+
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "manumesh_io_outside_float_range.stl";
+    std::filesystem::remove(path);
+    std::string error;
+    EXPECT_FALSE(manumesh::saveBinaryStl(path.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("float32")) << error;
+    EXPECT_FALSE(std::filesystem::exists(path));
 }
 
 TEST(MeshIo, LargeCoordinatesDoNotOverflowVertexMerging) {
@@ -589,7 +638,7 @@ TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
     invalid.faces = {{{0, 1, 2}}};
     error.clear();
     const std::filesystem::path stlPath = std::filesystem::temp_directory_path() / "mesh_io_invalid_indices.stl";
-    EXPECT_FALSE(manumesh::saveAsciiStl(stlPath.string(), invalid, "invalid", &error));
+    EXPECT_FALSE(manumesh::saveBinaryStl(stlPath.string(), invalid, &error));
     EXPECT_FALSE(error.empty());
 
     manumesh::Mesh nonFinite;
@@ -625,6 +674,6 @@ TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
     EXPECT_FALSE(manumesh::validateMeshGeometry(zeroArea, &error));
     EXPECT_FALSE(error.empty());
     error.clear();
-    EXPECT_FALSE(manumesh::saveAsciiStl(stlPath.string(), zeroArea, "zero_area", &error));
+    EXPECT_FALSE(manumesh::saveBinaryStl(stlPath.string(), zeroArea, &error));
     EXPECT_FALSE(error.empty());
 }

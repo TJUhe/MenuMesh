@@ -401,6 +401,16 @@ MANUMESH_API ManuMeshStatus manumesh_save_ascii_stl(
     ManuMeshContext* context, const char* path, const ManuMeshMeshHandle* mesh, const char* solid_name
 );
 /**
+ * @brief Writes a strictly valid mesh as standard little-endian binary STL.
+ * @param[in,out] context Error context.
+ * @param[in] path Null-terminated destination path.
+ * @param[in] mesh Source mesh.
+ * @return I/O, validation, allocation, or success status.
+ */
+MANUMESH_API ManuMeshStatus
+manumesh_save_binary_stl(ManuMeshContext* context, const char* path, const ManuMeshMeshHandle* mesh);
+
+/**
  * @brief Generates one built-in analytic/test mesh by stable name.
  * @param[in,out] context Error context.
  * @param[in] name Null-terminated generator name.

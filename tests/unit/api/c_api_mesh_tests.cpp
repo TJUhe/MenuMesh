@@ -9,6 +9,9 @@
 #include "CApiTestSupport.h"
 
 #include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <limits>
 #include <string>
@@ -160,5 +163,49 @@ TEST_F(CApiTest, RejectsDegenerateFacesWithoutReplacingMesh) {
     EXPECT_EQ(3u, vertexCount);
     EXPECT_EQ(1u, faceCount);
 
+    manumesh_mesh_destroy(mesh);
+}
+
+TEST_F(CApiTest, SavesBinaryStlWithStandardLayoutAndLoadsItBack) {
+    ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
+    ASSERT_NE(mesh, nullptr);
+
+    const ManuMeshVec3 vertices[] = {
+        {0.0, 0.0, 0.0},
+        {1.0, 0.0, 0.0},
+        {0.0, 1.0, 0.0},
+    };
+    const ManuMeshFace faces[] = {{{0, 1, 2}}};
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_set_data(context, mesh, vertices, 3, faces, 1));
+
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / "manumesh_c_api_binary_export.stl";
+    std::filesystem::remove(path);
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_save_binary_stl(context, path.string().c_str(), mesh));
+    ASSERT_EQ(134u, std::filesystem::file_size(path));
+
+    std::ifstream in(path, std::ios::binary);
+    ASSERT_TRUE(in);
+    in.seekg(80, std::ios::beg);
+    unsigned char countBytes[4] = {};
+    in.read(reinterpret_cast<char*>(countBytes), sizeof(countBytes));
+    ASSERT_EQ(static_cast<std::streamsize>(sizeof(countBytes)), in.gcount());
+    const std::uint32_t triangleCount =
+        static_cast<std::uint32_t>(countBytes[0]) | (static_cast<std::uint32_t>(countBytes[1]) << 8u) |
+        (static_cast<std::uint32_t>(countBytes[2]) << 16u) | (static_cast<std::uint32_t>(countBytes[3]) << 24u);
+    EXPECT_EQ(1u, triangleCount);
+    in.close();
+
+    ManuMeshMeshHandle* loaded = manumesh_mesh_create(context);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_load_mesh(context, path.string().c_str(), loaded, 1e-9));
+
+    size_t vertexCount = 0;
+    size_t faceCount = 0;
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_get_counts(context, loaded, &vertexCount, &faceCount));
+    EXPECT_EQ(3u, vertexCount);
+    EXPECT_EQ(1u, faceCount);
+
+    std::filesystem::remove(path);
+    manumesh_mesh_destroy(loaded);
     manumesh_mesh_destroy(mesh);
 }

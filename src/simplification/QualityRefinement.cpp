@@ -25,6 +25,7 @@
 namespace manumesh::simplification {
 namespace {
 
+/** @brief Incident triangle snapshot used to evaluate one vertex relocation. */
 struct LocalTriangle {
     int faceId = -1;
     std::array<int, 3> ids{};
@@ -240,11 +241,13 @@ Vec3 tangentialCentroidCandidate(int vertex, const QualityRefinementInput& input
     return input.vertices[vertex].p + displacement - normal * displacement.dot(normal);
 }
 
-/// Local curve tangent for a soft-protected feature vertex: the finite
-/// difference of its two same-loop neighbors in the current mesh. Returns
-/// false for endpoints, junction-like configurations (neighbor count != 2),
-/// and degenerate spans. Neighbors come from activeNeighborsOf, which sorts
-/// ascending, so the difference order is deterministic.
+/**
+ * @brief Local curve tangent for a soft-protected feature vertex: the finite
+ * difference of its two same-loop neighbors in the current mesh. Returns
+ * false for endpoints, junction-like configurations (neighbor count != 2),
+ * and degenerate spans. Neighbors come from activeNeighborsOf, which sorts
+ * ascending, so the difference order is deterministic.
+ */
 bool localFeatureCurveTangent(int vertex, const QualityRefinementInput& input, Vec3& outTangent) {
     const VertexState& state = input.vertices[vertex];
     if (state.featureLoopId < 0) {
@@ -278,12 +281,14 @@ bool localFeatureCurveTangent(int vertex, const QualityRefinementInput& input, V
     return true;
 }
 
-/// Relaxation displacement for one vertex with the feature constraint tier
-/// applied (see skill note on remeshing constraints): free vertices move in
-/// the tangent plane, soft-protected feature-curve vertices are restricted
-/// to the one-dimensional local curve tangent so repeated refinement passes
-/// can only slide along the crease instead of rounding it, and junction or
-/// endpoint feature vertices stay frozen (zero displacement).
+/**
+ * @brief Relaxation displacement for one vertex with the feature constraint tier
+ * applied (see skill note on remeshing constraints): free vertices move in
+ * the tangent plane, soft-protected feature-curve vertices are restricted
+ * to the one-dimensional local curve tangent so repeated refinement passes
+ * can only slide along the crease instead of rounding it, and junction or
+ * endpoint feature vertices stay frozen (zero displacement).
+ */
 Vec3 refinementDisplacement(int vertex, const QualityRefinementInput& input) {
     const VertexState& state = input.vertices[vertex];
     const Vec3 target = tangentialCentroidCandidate(vertex, input);

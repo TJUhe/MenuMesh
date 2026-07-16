@@ -18,7 +18,9 @@
 
 namespace manumesh::simplification {
 
-/// Immutable constraints and mutable mesh passed to fixed-topology refinement.
+/**
+ * @brief Immutable constraints and mutable mesh passed to fixed-topology refinement.
+ */
 struct QualityRefinementInput {
     const SimplifyOptions& options;
     std::vector<VertexState>& vertices;
@@ -35,7 +37,9 @@ struct QualityRefinementInput {
     double maxLocalError = 0.0;
 };
 
-/// Runs bounded tangential relocation and updates refinement diagnostics.
+/**
+ * @brief Runs bounded tangential relocation and updates refinement diagnostics.
+ */
 void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& report);
 
 } // namespace manumesh::simplification

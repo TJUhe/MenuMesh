@@ -23,7 +23,9 @@ namespace manumesh::simplification {
 
 struct FeatureDetectionPolicy;
 
-/// Soft feature attributes copied onto one simplification vertex.
+/**
+ * @brief Soft feature attributes copied onto one simplification vertex.
+ */
 struct FeatureVertexGuidance {
     bool isFeature = false;
     bool circular = false;
@@ -45,7 +47,9 @@ struct FeatureVertexGuidance {
     double ellipseMinorRadius = 0.0;
 };
 
-/// Aggregate feature-analysis diagnostics copied into SimplifyReport.
+/**
+ * @brief Aggregate feature-analysis diagnostics copied into SimplifyReport.
+ */
 struct FeatureGuidanceSummary {
     int featureLoops = 0;
     int circularFeatureLoops = 0;
@@ -81,7 +85,9 @@ struct FeatureGuidanceSummary {
     int ambiguousFeatureJunctions = 0;
 };
 
-/// Per-vertex soft guidance and primitive fits derived from one feature analysis.
+/**
+ * @brief Per-vertex soft guidance and primitive fits derived from one feature analysis.
+ */
 struct FeatureGuidance {
     bool enabled = false;
     std::vector<FeatureVertexGuidance> vertices;
@@ -89,7 +95,9 @@ struct FeatureGuidance {
     FeatureGuidanceSummary summary;
 };
 
-/// Queue-priority sensitivity factors decoupled from placement quadrics.
+/**
+ * @brief Queue-priority sensitivity factors decoupled from placement quadrics.
+ */
 struct FeatureWeightScores {
     std::vector<double> values;
     int normalTensorScoredVertices = 0;
@@ -98,16 +106,22 @@ struct FeatureWeightScores {
     double meanNormalTensorPersistence = 0.0;
 };
 
-/// Detects features and converts them to simplification guidance.
+/**
+ * @brief Detects features and converts them to simplification guidance.
+ */
 FeatureGuidance buildFeatureGuidance(const Mesh& mesh, const FeatureDetectionPolicy& policy);
 FeatureGuidance buildFeatureGuidance(
     const Mesh& mesh, const FeatureDetectionPolicy& policy, const feature::FeatureAnalysis* precomputed
 );
 
-/// Computes optional feature-sensitive queue weights without changing quadrics.
+/**
+ * @brief Computes optional feature-sensitive queue weights without changing quadrics.
+ */
 FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyOptions& options);
 
-/// Copies feature diagnostics into the run report.
+/**
+ * @brief Copies feature diagnostics into the run report.
+ */
 void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, SimplifyReport& report);
 
 } // namespace manumesh::simplification

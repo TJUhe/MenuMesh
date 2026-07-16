@@ -23,6 +23,7 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
+/** @brief Ordered graph chain and closure state used during cycle recovery. */
 struct FeatureChain {
     std::vector<int> vertices;
     int loEndpoint = -1;

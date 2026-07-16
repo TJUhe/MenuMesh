@@ -94,6 +94,7 @@ PREDEFINED             = MANUMESH_API= \
 # Configuration options related to Graphviz dot
 #---------------------------------------------------------------------------
 HAVE_DOT               = @MANUMESH_DOXYGEN_HAVE_DOT@
+DOT_PATH               = @MANUMESH_DOXYGEN_DOT_PATH@
 DOT_NUM_THREADS        = 4
 CLASS_GRAPH            = YES
 COLLABORATION_GRAPH    = YES

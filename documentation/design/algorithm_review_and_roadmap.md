@@ -1,6 +1,6 @@
 # 算法现状复核与路线图
 
-本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/manumesh/` 和当前 CTest 发现结果（267 个启用的非性能测试全部通过，另有 1 个手工性能测试默认禁用；2026-07-15 复核）。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。本轮完整特征识别增强见 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md)；更早的演进记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md) 和 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
+本文按 ManuMesh 当前源码复核，而不是按早期设想描述。核对对象包括 `include/algorithms/feature_detection/FeatureDetector.h`、`include/algorithms/simplification/`、`src/feature_detection/`、`src/simplification/`、`apps/` 和当前 CTest 发现结果（267 个启用的非性能测试全部通过，另有 1 个手工性能测试默认禁用；2026-07-15 复核）。算法本质和数学直觉见 [`algorithm_essence.md`](algorithm_essence.md)。本轮完整特征识别增强见 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md)；更早的演进记录见 [`feature_detection_upgrade_2026_07_09.md`](feature_detection_upgrade_2026_07_09.md) 和 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)；纹理感知 4×4 QEM 设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。
 
 ## 当前理解框架
 

@@ -13,7 +13,9 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Traces all remaining open chains and degree-two cycles exactly once.
+/**
+ * @brief Traces all remaining open chains and degree-two cycles exactly once.
+ */
 void traceRemainingFeatureLoops(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );

@@ -16,7 +16,9 @@
 
 namespace manumesh::simplification {
 
-/// Coarse outcome of evaluating all placements for one current candidate.
+/**
+ * @brief Coarse outcome of evaluating all placements for one current candidate.
+ */
 enum class CollapseAttemptStatus {
     Accepted,
     FeatureRejected,
@@ -26,12 +28,16 @@ enum class CollapseAttemptStatus {
     LegalityRejected,
 };
 
-/// Immutable mesh state, policies, and cached placements needed for evaluation.
+/**
+ * @brief Immutable mesh state, policies, and cached placements needed for evaluation.
+ */
 struct CollapseAttemptInput {
     CollapseEdge edge;
     const Mat4& mergedQ;
-    /// Placement candidates sorted by ascending quadric cost. Usually these
-    /// come straight from the popped Candidate's cached solve.
+    /**
+     * @brief Placement candidates sorted by ascending quadric cost. Usually these
+     * come straight from the popped Candidate's cached solve.
+     */
     const SolveResult* placements = nullptr;
     int placementCount = 0;
     const SimplifyOptions& options;
@@ -53,7 +59,9 @@ struct CollapseAttemptInput {
     double maxLocalError = 0.0;
 };
 
-/// Accepted placement and prepared plans, or the first observable rejection class.
+/**
+ * @brief Accepted placement and prepared plans, or the first observable rejection class.
+ */
 struct CollapseAttemptResult {
     CollapseAttemptStatus status = CollapseAttemptStatus::LegalityRejected;
     Vec3 acceptedPosition = Vec3::Zero();
@@ -61,10 +69,13 @@ struct CollapseAttemptResult {
     FeatureCollapseRejectKind featureRejectKind = FeatureCollapseRejectKind::None;
     TextureCollapseRejectReason textureRejectReason = TextureCollapseRejectReason::None;
     CollapseRejectReason legalityReason = CollapseRejectReason::None;
-    /// Texture update plan built for the accepted placement, so applyCollapse
-    /// can reuse it instead of rebuilding the same plan.
+    /**
+     * @brief Texture update plan built for the accepted placement, so applyCollapse
+     * can reuse it instead of rebuilding the same plan.
+     */
     TextureUpdatePlan texturePlan;
 
+    /** @brief Reports whether evaluation produced an applicable placement. */
     bool accepted() const { return status == CollapseAttemptStatus::Accepted; }
 };
 

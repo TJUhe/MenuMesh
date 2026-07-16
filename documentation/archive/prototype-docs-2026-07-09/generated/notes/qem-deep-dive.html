@@ -1485,7 +1485,7 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
 
 <p><strong>参数说明</strong>：</p>
 <ul>
-<li><code>--industrial-safe</code>：按当前 <code>apps/manumesh/ManuMeshCommands.cpp</code> 设置 <code>--preserve-boundary</code>，并把 <code>minTriangleQuality</code> 至少提高到 <code>1e-4</code>、<code>maxNormalDeviationDeg</code> 至多收紧到 <code>75</code>、<code>maxLocalErrorRatio</code> 至少提高到 <code>0.02</code>，同时开启 <code>--prevent-local-intersections</code>。它不会自动开启 <code>--preserve-feature-curves</code>。</li>
+<li><code>--industrial-safe</code>：按当前 <code>apps/ManuMeshCommands.cpp</code> 设置 <code>--preserve-boundary</code>，并把 <code>minTriangleQuality</code> 至少提高到 <code>1e-4</code>、<code>maxNormalDeviationDeg</code> 至多收紧到 <code>75</code>、<code>maxLocalErrorRatio</code> 至少提高到 <code>0.02</code>，同时开启 <code>--prevent-local-intersections</code>。它不会自动开启 <code>--preserve-feature-curves</code>。</li>
 <li>这些保护的矩阵/数学含义：
 <ul>
 <li>preserve-boundary：对边界边加 $A_{\text{bdry}}$（秩1约束）</li>

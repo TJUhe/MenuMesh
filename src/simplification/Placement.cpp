@@ -21,10 +21,12 @@
 namespace manumesh::simplification {
 namespace {
 
-/// Directed boundary chain summary around a collapsing boundary edge:
-/// e1 = sum of directed boundary half-edges (v1 - v0), e2 = sum of v0 x v1,
-/// following Lindstrom-Turk's boundary-preservation constraint. Half-edge
-/// direction comes from the (consistent) face orientation.
+/**
+ * @brief Directed boundary chain summary around a collapsing boundary edge:
+ * e1 = sum of directed boundary half-edges (v1 - v0), e2 = sum of v0 x v1,
+ * following Lindstrom-Turk's boundary-preservation constraint. Half-edge
+ * direction comes from the (consistent) face orientation.
+ */
 struct BoundaryChainSums {
     Vec3 e1 = Vec3::Zero();
     Vec3 e2 = Vec3::Zero();

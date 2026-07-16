@@ -11,6 +11,25 @@ option(MANUMESH_INSTALL_CMAKE_CONFIG
   ON
 )
 
+
+set(MANUMESH_VENDORED_DOXYGEN_EXECUTABLE
+  "${PROJECT_SOURCE_DIR}/thirdParty/doxygen/prebuilt/windows-x64/bin/doxygen.exe"
+)
+set(MANUMESH_VENDORED_GRAPHVIZ_ROOT
+  "${PROJECT_SOURCE_DIR}/thirdParty/graphviz/prebuilt/windows-x64"
+)
+set(MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE
+  "${MANUMESH_VENDORED_GRAPHVIZ_ROOT}/bin/dot.exe"
+)
+add_custom_target(check-src-doxygen
+  COMMAND "${CMAKE_COMMAND}"
+    -DMANUMESH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckSrcDoxygen.cmake"
+  WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+  COMMENT "Checking src Doxygen comment conventions"
+  VERBATIM
+)
+
 find_program(CLANG_FORMAT_EXE NAMES clang-format)
 file(GLOB_RECURSE MANUMESH_FORMAT_FILES CONFIGURE_DEPENDS
   "${PROJECT_SOURCE_DIR}/include/*.h"
@@ -50,14 +69,28 @@ else()
 endif()
 
 if(MANUMESH_BUILD_DOCS)
+  if(EXISTS "${MANUMESH_VENDORED_DOXYGEN_EXECUTABLE}")
+    set(DOXYGEN_EXECUTABLE "${MANUMESH_VENDORED_DOXYGEN_EXECUTABLE}"
+      CACHE FILEPATH "Vendored Doxygen executable" FORCE
+    )
+  endif()
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)
-    find_program(MANUMESH_DOXYGEN_DOT_EXE NAMES dot)
+    if(EXISTS "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}")
+      set(MANUMESH_DOXYGEN_DOT_EXE "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}"
+        CACHE FILEPATH "Vendored Graphviz dot executable" FORCE
+      )
+    else()
+      find_program(MANUMESH_DOXYGEN_DOT_EXE NAMES dot)
+    endif()
     set(MANUMESH_DOXYGEN_HAVE_DOT "NO")
+    set(MANUMESH_DOXYGEN_DOT_PATH "")
     if(MANUMESH_DOXYGEN_ENABLE_GRAPHS AND MANUMESH_DOXYGEN_DOT_EXE)
       set(MANUMESH_DOXYGEN_HAVE_DOT "YES")
+      get_filename_component(MANUMESH_DOXYGEN_DOT_PATH
+        "${MANUMESH_DOXYGEN_DOT_EXE}" DIRECTORY
+      )
     endif()
-
     set(MANUMESH_DOXYGEN_INPUT_FILES
       "${PROJECT_SOURCE_DIR}/documentation/doxygen"
       "${PROJECT_SOURCE_DIR}/include"
@@ -86,7 +119,10 @@ if(MANUMESH_BUILD_DOCS)
     )
     add_custom_target(docs-api
       COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
-      COMMAND "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile"
+      COMMAND "${CMAKE_COMMAND}" -E env
+        "PATH=${MANUMESH_DOXYGEN_DOT_PATH};$ENV{PATH}"
+        "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
+        "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile"
       WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
       COMMENT "Generating API documentation with Doxygen"
       VERBATIM
@@ -119,7 +155,10 @@ if(MANUMESH_BUILD_DOCS)
     )
     add_custom_target(docs-internal
       COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
-      COMMAND "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile.internal"
+      COMMAND "${CMAKE_COMMAND}" -E env
+        "PATH=${MANUMESH_DOXYGEN_DOT_PATH};$ENV{PATH}"
+        "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
+        "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile.internal"
       WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
       COMMENT "Generating internal source documentation with Doxygen"
       VERBATIM
@@ -136,6 +175,9 @@ if(MANUMESH_BUILD_DOCS)
       VERBATIM
     )
   endif()
+
+  add_dependencies(docs-api check-src-doxygen)
+  add_dependencies(docs-internal check-src-doxygen)
 endif()
 
 if(MANUMESH_ENABLE_INSTALL)
@@ -259,3 +301,6 @@ if(MANUMESH_ENABLE_INSTALL)
     endif()
   endif()
 endif()
+
+
+

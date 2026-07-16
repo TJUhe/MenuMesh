@@ -14,7 +14,7 @@
 ```text
 CMakeLists.txt                    全局选项、Eigen 解析、通用 warning/runtime helper、add_subdirectory
 src/CMakeLists.txt                manumesh_core、库源码列表、库安装规则
-apps/manumesh/CMakeLists.txt      CLI target、CLI 测试、CLI 安装规则
+apps/CMakeLists.txt      CLI target、CLI 测试、CLI 安装规则
 examples/CMakeLists.txt           SDK 示例 target 和示例测试
 tests/CMakeLists.txt              GoogleTest 解析、单元测试、性能测试
 adm/CMakeLists.txt                format/check-format、docs-api/docs-internal、SDK install/export/consumer test
@@ -71,7 +71,7 @@ documentation/                             当前设计事实和使用指南
 
 判断标准是：它是否有自己的 `Options`、`Report`、`Result`，是否会被 CLI、SDK 示例、C API 或其他算法独立消费。如果是，就新建平级模块。
 
-现成范例是 `manumesh::analysis`（`include/algorithms/analysis/MeshAnalysis.h` + `src/analysis/`）：通用网格统计与采样距离比较原来住在 simplification 里，因为会被 CLI、示例和未来 repair/remeshing 独立消费，被提升为平级公共模块；CSV 拼装这类表现层代码则同步下放到 CLI（`apps/manumesh/CliCsv.{h,cpp}`），不进 SDK。
+现成范例是 `manumesh::analysis`（`include/algorithms/analysis/MeshAnalysis.h` + `src/analysis/`）：通用网格统计与采样距离比较原来住在 simplification 里，因为会被 CLI、示例和未来 repair/remeshing 独立消费，被提升为平级公共模块；CSV 拼装这类表现层代码则同步下放到 CLI（`apps/CliCsv.{h,cpp}`），不进 SDK。
 
 ### 3. 它是否需要公开 API？
 
@@ -203,9 +203,9 @@ src/CMakeLists.txt
 改：
 
 ```text
-apps/manumesh/CMakeLists.txt
-apps/manumesh/ManuMeshCommands.cpp
-apps/manumesh/CliArguments.cpp
+apps/CMakeLists.txt
+apps/ManuMeshCommands.cpp
+apps/CliArguments.cpp
 ```
 
 一般不需要动 `main.cpp`。新增 handler 后注册到 command registry。CLI 选项现在由 `CliArguments.cpp` 中共享的 `OptionSpec` 选项表单一来源驱动：把新选项加进对应命令族的 spec 列表（或新建列表并挂到 `commandOptionSets()` / `helpGroups()`），help 文本（`optionsHelpText()`）与逐命令参数校验（`validateArgsForCommand()`，含"未知选项/属于其他命令的选项"报错）会自动跟随，不要在 handler 里手写选项校验。

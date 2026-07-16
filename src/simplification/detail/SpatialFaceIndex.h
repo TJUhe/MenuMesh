@@ -16,16 +16,24 @@
 
 namespace manumesh::simplification {
 
-/// Dynamic broad-phase AABB grid for exact local self-intersection checks.
+/**
+ * @brief Dynamic broad-phase AABB grid for exact local self-intersection checks.
+ */
 class SpatialFaceIndex {
 public:
+    /** @brief Rebuilds the broad phase from every active face. */
     void rebuild(const std::vector<FaceState>& faces, const std::vector<VertexState>& vertices);
+    /** @brief Removes a face from the broad phase. */
     void removeFace(int faceId);
+    /** @brief Replaces a face's current AABB registration. */
     void updateFace(int faceId, const FaceState& face, const std::vector<VertexState>& vertices);
+    /** @brief Returns broad-phase face candidates overlapping an AABB. */
     std::vector<int> query(const Vec3& lo, const Vec3& hi) const;
+    /** @brief Reports whether the underlying grid is active. */
     bool enabled() const { return grid_.enabled(); }
 
 private:
+    /** @brief Inserts one active valid face into the broad phase. */
     void insertFace(int faceId, const FaceState& face, const std::vector<VertexState>& vertices);
 
     manumesh::common::UniformAabbCandidateGrid grid_;

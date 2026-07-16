@@ -17,7 +17,7 @@ CGAL Polygon Mesh Processing（PMP）。
 >   `ctest -LE "performance|external"` 成为约 17.5 秒的快速套件。
 > - R1：新增 `manumesh::analysis` 模块（`include/algorithms/analysis/MeshAnalysis.h`
 >   + `src/analysis/`），旧 `algorithms/simplification/Metrics.h` 变为带弃用注释的
->   转发头；CSV 拼装迁入 `apps/manumesh/CliCsv.{h,cpp}`。
+>   转发头；CSV 拼装迁入 `apps/CliCsv.{h,cpp}`。
 > - R2：`projectBoundaryPlacement` 迁入 `src/simplification/detail/Placement.{h,cpp}`，
 >   并同时升级为 Lindstrom-Turk 边界守恒约束解（超出本蓝图原定的纯搬迁范围）。
 > - R3：`matchCircularLoops()` 下沉为公共库函数
@@ -172,7 +172,7 @@ OpenMesh/pmp 的独有优势，保留并继续作为 CTest `architecture` 标签
 3. options 校验：实现 `Status validateOptions(const RepairOptions&)` 公共函数
    （协议见 3.7-a），对象入口在构造时调用。
 4. 诊断：report 字段按 3.7-b 命名规范填写；每个拒绝/降级路径必须有对应计数字段。
-5. CLI 注册：`apps/manumesh/` 新增 `commandRepair()` 并注册到 command registry；
+5. CLI 注册：`apps/` 新增 `commandRepair()` 并注册到 command registry；
    CLI 只绑定公共 options 与格式化 report，禁止出现算法逻辑（R3 的教训）。
 6. 测试：`tests/unit/repair/` 按行为拆文件；黑盒用例进 `manumesh_tests`；
    需要 `detail` 符号的白盒用例进内部测试目标（见 3.4）；外部数据用例打 `external` 标签。
@@ -195,7 +195,7 @@ include boundary check 通过。
 - 方案：新建 `include/algorithms/analysis/MeshAnalysis.h` 与 `src/analysis/`，
   namespace `manumesh::analysis`，承载 `MeshStats`/`DistanceStats` 与两个计算函数
   （实现从 `src/simplification/Metrics.cpp` 迁移，底层继续用 `common/detail` 查询）。
-  CSV 两函数迁入 `apps/manumesh/CliCsv.cpp`。旧头 `Metrics.h` 保留一个过渡版本，
+  CSV 两函数迁入 `apps/CliCsv.cpp`。旧头 `Metrics.h` 保留一个过渡版本，
   内容只剩 `#include` 转发 + `using` 别名并标注 deprecated，下一个 minor 版本删除。
 - 涉及文件：`include/algorithms/simplification/Metrics.h`、
   `src/simplification/Metrics.cpp`、新 `include/algorithms/analysis/MeshAnalysis.h`、
@@ -203,7 +203,7 @@ include boundary check 通过。
   `manumesh_analysis_objects`，依赖 common+geometry；simplification 依赖它）、
   `tests/support/check_include_boundaries.py`（`analysis` 登记：依赖
   `{common, core}`；`simplification`、`api` 可依赖 `analysis`）、
-  `apps/manumesh/ManuMeshCommands.cpp`、`CliCsv.cpp`、
+  `apps/ManuMeshCommands.cpp`、`CliCsv.cpp`、
   `examples/sdk_consumer/sdk_cpp_simplify.cpp`、相关测试。
 - 验收：`simplification` 模块内不再有通用 mesh 统计实现；`grep -r statsRowCsv src/`
   为空（只存在于 apps）；boundary checker 含 `analysis` 且通过；SDK consumer 示例
@@ -230,7 +230,7 @@ include boundary check 通过。
 
 ### R3（a）matchCircularLoops 下沉为库函数
 
-- 现状：`apps/manumesh/ManuMeshFeatureCommands.cpp` 的 `compare()`
+- 现状：`apps/ManuMeshFeatureCommands.cpp` 的 `compare()`
   （约 251–380 行）内嵌完整算法：圆环 loop 贪心匹配（center/radius/normal 组合评分）、
   plausible/matched/weak_match 三级阈值（0.08·diag / 0.20 radiusRel / 30°，
   0.04·diag / 0.08 / 15°）与 `measureLoopAgainstCircle` 调用。这是库能力
@@ -243,7 +243,7 @@ include boundary check 通过。
   实现放 `src/feature_detection/FeatureComparison.cpp`。CLI `compare()` 只剩
   load→detect→match→格式化。
 - 涉及文件：新公共头与实现、`src/CMakeLists.txt`、
-  `apps/manumesh/ManuMeshFeatureCommands.cpp`、新
+  `apps/ManuMeshFeatureCommands.cpp`、新
   `tests/unit/feature_detection/feature_comparison_tests.cpp`、
   `documentation/design/architecture.md`。
 - 验收：CLI `compare()` 函数体 ≤ 80 行且无数值算法；新库函数有独立单测

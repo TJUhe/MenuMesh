@@ -33,34 +33,41 @@
 namespace manumesh::feature {
 namespace {
 
-/// Minimum ratio of the interpolated cyclideness (mean |extremality| at the
-/// two ends of a zero-crossing edge) to the squared dominant curvature for a
-/// crossing to count as a curvature extremum. Both quantities are estimated
-/// in the same radius-normalized units, so the ratio is dimensionless and
-/// invariant under uniform mesh scaling. Measured landmarks (2026-07): true
-/// crests (Gaussian ridge/bump fixtures) sit at >= 0.38 with medians well
-/// above 1; the spurious valley band on a torus (a Dupin cyclide, where the
-/// extremality vanishes identically) peaks at 0.06 across 24-48 minor
-/// segments. 0.15 keeps a 2.5x margin to both populations.
+/**
+ * @brief Minimum ratio of the interpolated cyclideness (mean |extremality| at the
+ * two ends of a zero-crossing edge) to the squared dominant curvature for a
+ * crossing to count as a curvature extremum. Both quantities are estimated
+ * in the same radius-normalized units, so the ratio is dimensionless and
+ * invariant under uniform mesh scaling. Measured landmarks (2026-07): true
+ * crests (Gaussian ridge/bump fixtures) sit at >= 0.38 with medians well
+ * above 1; the spurious valley band on a torus (a Dupin cyclide, where the
+ * extremality vanishes identically) peaks at 0.06 across 24-48 minor
+ * segments. 0.15 keeps a 2.5x margin to both populations.
+ */
 constexpr double kMinCrossingCyclidenessRatio = 0.15;
 
+/** @brief Vertex id and ring depth collected around one fitting seed. */
 struct NeighborhoodVertex {
     int id = -1;
     int depth = 0;
 };
 
+/** @brief Curvature fit and confidence diagnostics at one neighborhood scale. */
 struct ScaleEstimate {
     bool valid = false;
     Vec3 normal = Vec3(0.0, 0.0, 1.0);
     std::array<Vec3, 2> directions = {Vec3(1.0, 0.0, 0.0), Vec3(0.0, 1.0, 0.0)};
     std::array<double, 2> curvatures = {0.0, 0.0};
-    /// Extremality e_i = grad(kappa_i) . t_i from the cubic Monge terms, in
-    /// the same radius-normalized units as the curvatures (M021 Yoshizawa).
+    /**
+     * @brief Extremality e_i = grad(kappa_i) . t_i from the cubic Monge terms, in
+     * the same radius-normalized units as the curvatures (M021 Yoshizawa).
+     */
     std::array<double, 2> extremalities = {0.0, 0.0};
     double fitResidual = 0.0;
     double localScale = 0.0;
 };
 
+/** @brief Valid scale estimate together with persistence-selection metadata. */
 struct ScaleCandidate {
     bool valid = false;
     Vec3 normal = Vec3(0.0, 0.0, 1.0);
@@ -76,15 +83,18 @@ struct ScaleCandidate {
     int signedKind = 0;
 };
 
+/** @brief Stable multiscale estimate selected for one mesh vertex. */
 struct ScaleSelection {
     int scale = -1;
     double stability = 0.0;
 };
 
-/// Reusable per-call scratch buffers for the multiscale fitting hot path.
-/// Earlier revisions allocated fresh vectors, queues, and Eigen matrices for
-/// every vertex and robust iteration; one workspace per analysis removes that
-/// churn without changing any numerical result.
+/**
+ * @brief Reusable per-call scratch buffers for the multiscale fitting hot path.
+ * Earlier revisions allocated fresh vectors, queues, and Eigen matrices for
+ * every vertex and robust iteration; one workspace per analysis removes that
+ * churn without changing any numerical result.
+ */
 struct FitWorkspace {
     std::vector<NeighborhoodVertex> neighborhood;
     std::vector<Eigen::Matrix<double, 1, 9>> rows;
@@ -120,8 +130,10 @@ std::vector<Vec3> computeAreaWeightedVertexNormals(const Mesh& mesh, const std::
     return normals;
 }
 
-/// Breadth-first ring gathering into a reused buffer. The seed is stored at
-/// index 0 with depth 0; consumers iterate from index 1.
+/**
+ * @brief Breadth-first ring gathering into a reused buffer. The seed is stored at
+ * index 0 with depth 0; consumers iterate from index 1.
+ */
 void gatherNeighborhood(
     const std::vector<std::vector<int>>& neighbors,
     int seed,
@@ -445,8 +457,10 @@ ScaleEstimate fitScale(
     return result;
 }
 
-/// Ridge/valley dominance test (Ohtake M011): the ridge branch requires
-/// kappa_max > |kappa_min|, the valley branch kappa_min < -|kappa_max|.
+/**
+ * @brief Ridge/valley dominance test (Ohtake M011): the ridge branch requires
+ * kappa_max > |kappa_min|, the valley branch kappa_min < -|kappa_max|.
+ */
 bool principalDominant(const ScaleEstimate& estimate, int principal) {
     const double curvature = estimate.curvatures[principal];
     const double other = estimate.curvatures[1 - principal];

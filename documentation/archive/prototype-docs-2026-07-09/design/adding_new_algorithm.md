@@ -184,7 +184,7 @@ core
 
 只有当 SDK API 稳定且测试覆盖足够后，再加 CLI：
 
-- `apps/manumesh/ManuMeshCommands.cpp` 新增 `commandRepair()`。
+- `apps/ManuMeshCommands.cpp` 新增 `commandRepair()`。
 - 在 `commandRegistry()` 注册 `repair`。
 - CLI 参数只表达公共 `RepairOptions`，不要暴露内部 stage 开关。
 - 若需要 CSV，字段对应 `RepairReport`。

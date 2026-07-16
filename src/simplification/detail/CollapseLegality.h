@@ -17,14 +17,18 @@
 
 namespace manumesh::simplification {
 
-/// Read-only active vertex/face/topology view used by legality predicates.
+/**
+ * @brief Read-only active vertex/face/topology view used by legality predicates.
+ */
 struct MeshStateView {
     const std::vector<FaceState>& faces;
     const std::vector<VertexState>& vertices;
     const DynamicTopology& topology;
 };
 
-/// Proposed edge placement plus every enabled geometric acceptance threshold.
+/**
+ * @brief Proposed edge placement plus every enabled geometric acceptance threshold.
+ */
 struct CollapseLegalityInput {
     CollapseEdge edge;
     Vec3 newPosition = Vec3::Zero();
@@ -38,10 +42,12 @@ struct CollapseLegalityInput {
     const manumesh::common::MeshDistanceIndex* referenceSurface = nullptr;
 };
 
-/// Evaluates placement-dependent legality after the edge topology has already
-/// passed collapseWouldPreserveLinkCondition().
-/// Evaluates topology, degeneracy, normal, quality, error, and intersection gates.
-/// @return None when every enabled hard check passes, otherwise the first rejection.
+/**
+ * @brief Evaluates placement-dependent legality after the edge topology has already
+ * passed collapseWouldPreserveLinkCondition().
+ * Evaluates topology, degeneracy, normal, quality, error, and intersection gates.
+ * @return None when every enabled hard check passes, otherwise the first rejection.
+ */
 CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input);
 
 } // namespace manumesh::simplification

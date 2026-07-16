@@ -15,18 +15,28 @@
 
 namespace manumesh::simplification {
 
-/// Min-heap of versioned collapse candidates with cached placement solutions.
+/**
+ * @brief Min-heap of versioned collapse candidates with cached placement solutions.
+ */
 class CandidateQueue {
 public:
-    /// Removes every queued candidate.
+    /**
+     * @brief Removes every queued candidate.
+     */
     void clear();
-    /// @return true when no candidate is queued.
+    /**
+     * @return true when no candidate is queued.
+     */
     bool empty() const;
-    /// Removes and returns the lowest-cost candidate.
-    /// @pre empty() is false.
+    /**
+     * @brief Removes and returns the lowest-cost candidate.
+     * @pre empty() is false.
+     */
     Candidate pop();
-    /// Pushes an edge candidate that reuses placements already solved by the
-    /// caller (sorted by ascending cost). No quadric solve happens here.
+    /**
+     * @brief Pushes an edge candidate that reuses placements already solved by the
+     * caller (sorted by ascending cost). No quadric solve happens here.
+     */
     void pushEdge(
         int a,
         int b,

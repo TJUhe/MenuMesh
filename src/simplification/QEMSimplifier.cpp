@@ -21,6 +21,7 @@
 
 namespace manumesh::simplification {
 
+/** @brief Private options and latest report owned by QEMSimplifier. */
 struct QEMSimplifier::Impl {
     SimplifyOptions options;
     SimplifyReport report;

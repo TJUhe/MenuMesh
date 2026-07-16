@@ -14,12 +14,17 @@
 
 namespace manumesh::feature::primitive_fit_detail {
 
+/**
+ * @brief Internal plane, circle, and ellipse fit returned by primitive fitting.
+ */
 struct PrimitiveFit {
     bool valid = false;
     FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
     Vec3 center = Vec3::Zero();
-    /// Center of the directly fitted ellipse (Halir-Flusser); coincides with
-    /// `center` for symmetric loops but not for asymmetric vertex sampling.
+    /**
+     * @brief Center of the directly fitted ellipse (Halir-Flusser); coincides with
+     * `center` for symmetric loops but not for asymmetric vertex sampling.
+     */
     Vec3 ellipseCenter = Vec3::Zero();
     Vec3 normal = Vec3(0.0, 0.0, 1.0);
     Vec3 majorAxis = Vec3(1.0, 0.0, 0.0);
@@ -36,15 +41,23 @@ struct PrimitiveFit {
     double maxPlaneError = 0.0;
 };
 
-/// Fits the best supported analytic primitive in the loop's best-fit plane.
+/**
+ * @brief Fits the best supported analytic primitive in the loop's best-fit plane.
+ */
 PrimitiveFit fitPrimitive(const Mesh& mesh, const FeatureLoop& loop, const FeatureOptions& options);
-/// Copies a valid internal fit into the public loop representation.
+/**
+ * @brief Copies a valid internal fit into the public loop representation.
+ */
 void applyPrimitiveFit(const PrimitiveFit& fit, FeatureLoop& loop);
-/// @return true when every consecutive cycle edge follows the fitted circle within policy.
+/**
+ * @return true when every consecutive cycle edge follows the fitted circle within policy.
+ */
 bool cycleEdgesFollowCircle(
     const std::vector<int>& vertices, const PrimitiveFit& fit, const Mesh& mesh, const FeatureOptions& options
 );
-/// Measures loop samples against a supplied circle without refitting it.
+/**
+ * @brief Measures loop samples against a supplied circle without refitting it.
+ */
 DirectionalCurveError measureLoopAgainstCircle(
     const Mesh& mesh, const FeatureLoop& loop, const Vec3& center, const Vec3& normalIn, double radius
 );

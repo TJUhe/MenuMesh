@@ -16,13 +16,19 @@
 
 namespace manumesh::simplification {
 
+/** @copydoc mesh_edit::activeIncidentFaceCountForEdge */
 using mesh_edit::activeIncidentFaceCountForEdge;
+/** @copydoc mesh_edit::areAdjacent */
 using mesh_edit::areAdjacent;
+/** @copydoc mesh_edit::collectActiveEdges */
 using mesh_edit::collectActiveEdges;
+/** @copydoc mesh_edit::containsVertex */
 using mesh_edit::containsVertex;
 using mesh_edit::DynamicTopology;
 
-/// Local incidence and positions needed to decide an open-boundary contraction.
+/**
+ * @brief Local incidence and positions needed to decide an open-boundary contraction.
+ */
 struct BoundaryCollapseInput {
     CollapseEdge edge;
     const std::vector<FaceState>& faces;
@@ -31,9 +37,12 @@ struct BoundaryCollapseInput {
     const SimplifyOptions& options;
 };
 
-/// Classifies and, when possible, constrains a boundary collapse.
+/**
+ * @brief Classifies and, when possible, constrains a boundary collapse.
+ */
 BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input);
 
+/** @brief Returns sorted active one-ring neighbors of a vertex. */
 std::vector<int> activeNeighborsOf(
     int vertex,
     const std::vector<FaceState>& faces,
@@ -41,10 +50,12 @@ std::vector<int> activeNeighborsOf(
     const DynamicTopology& topology
 );
 
-/// Checks the simplicial link condition link(keep) intersect link(remove) =
-/// link(edge), including both vertices and edges in the endpoint links. The
-/// boundary extension rejects interior chords whose endpoints are both on an
-/// open boundary and collapses that would erase an isolated open triangle.
+/**
+ * @brief Checks the simplicial link condition link(keep) intersect link(remove) =
+ * link(edge), including both vertices and edges in the endpoint links. The
+ * boundary extension rejects interior chords whose endpoints are both on an
+ * open boundary and collapses that would erase an isolated open triangle.
+ */
 bool collapseWouldPreserveLinkCondition(
     int keep,
     int remove,

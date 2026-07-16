@@ -20,7 +20,7 @@
    自由函数（协议见第 2 节），对象构造与函数入口内部调用它。
 4. **诊断**：report 字段按第 3 节命名规范填写；每个拒绝/降级路径必须有对应
    计数字段（"诊断跟着分支走"）。
-5. **CLI 注册**：`apps/manumesh/` 新增 `commandRepair()` 并注册到 command
+5. **CLI 注册**：`apps/` 新增 `commandRepair()` 并注册到 command
    registry；CLI 只绑定公共 options 与格式化 report，禁止出现算法逻辑
    （R3 圆环匹配下沉的教训：算法进库并配单测，CLI 只做 load→run→格式化）。
 6. **测试**：`tests/unit/repair/` 按行为拆文件；黑盒与白盒用例都进

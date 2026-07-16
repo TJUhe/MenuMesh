@@ -13,12 +13,16 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Finds primitive-valid cycles that traverse vertices with degree greater than two.
+/**
+ * @brief Finds primitive-valid cycles that traverse vertices with degree greater than two.
+ */
 void recoverCircularCyclesThroughJunctions(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );
 
-/// Recovers a bounded deterministic cycle basis for still-unowned graph edges.
+/**
+ * @brief Recovers a bounded deterministic cycle basis for still-unowned graph edges.
+ */
 void recoverSmallCycleBasis(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );

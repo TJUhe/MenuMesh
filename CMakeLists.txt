@@ -171,7 +171,7 @@ endfunction()
 add_subdirectory(src)
 
 if(MANUMESH_BUILD_CLI)
-  add_subdirectory(apps/manumesh)
+  add_subdirectory(apps)
 endif()
 
 if(MANUMESH_BUILD_EXAMPLES)

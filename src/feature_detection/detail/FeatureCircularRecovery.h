@@ -13,12 +13,14 @@
 
 namespace manumesh::feature::detector_detail {
 
-/// Recovers closed circular loops from spatially coherent feature-vertex clusters.
-/// @param[in] mesh Source mesh.
-/// @param[in] options Primitive residual and minimum-size gates.
-/// @param[in] trace Cleaned feature graph.
-/// @param[in,out] analysis Destination loop/ownership records and diagnostics.
-/// @param[in,out] loopId Monotonic id assigned to accepted loops.
+/**
+ * @brief Recovers closed circular loops from spatially coherent feature-vertex clusters.
+ * @param[in] mesh Source mesh.
+ * @param[in] options Primitive residual and minimum-size gates.
+ * @param[in] trace Cleaned feature graph.
+ * @param[in,out] analysis Destination loop/ownership records and diagnostics.
+ * @param[in,out] loopId Monotonic id assigned to accepted loops.
+ */
 void recoverCircularVertexClusters(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );

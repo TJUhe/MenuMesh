@@ -22,7 +22,7 @@ src/simplification/             简化实现，可消费 FeatureAnalysis
 src/simplification/detail/      简化专属私有状态、policy 分组和策略
 src/<domain>/                   未来平级算法实现，例如 repair
 src/<domain>/detail/            未来平级算法私有状态和阶段 helper
-apps/manumesh/              CLI，按外部用户方式调用 SDK
+apps/              CLI，按外部用户方式调用 SDK
 examples/                       C/C++ SDK 使用示例
 tests/                          GoogleTest 和 CTest 回归验证
 documentation/                           当前设计、指南、论文索引和历史生成资料
@@ -42,7 +42,7 @@ documentation/                           当前设计、指南、论文索引和
 
 简化内部也按 pipeline/strategy 分层：`QEMSimplifier.cpp` 是 public facade；`SimplificationRun.cpp` 负责编排单次运行、队列和状态应用；`SimplificationPolicies.cpp` 把扁平 options 转成内部 policy；`CollapseAttempt.cpp` 负责把 feature、boundary、curve budget 和 legality filters 组合成一次候选坍缩的接受/拒绝结果；`Quadrics.cpp`、`FeatureConstraints.cpp`、`CollapseLegality.cpp` 等模块只表达各自策略。新增 collapse 过滤器优先进入对应 policy/evaluator，而不是继续扩张 `SimplificationRun.cpp`。
 
-CLI 是应用层消费者，不承载算法状态。`apps/manumesh/main.cpp` 只调用 `manumesh::cli::run()`；`CliArguments.cpp` 负责通用参数解析；`ManuMeshCli.cpp` 负责帮助输出和 `run()` 派发；`ManuMeshCommands.cpp` 承载命令 handler 与 command registry。新增 CLI 命令应新增 handler 并注册到 registry，公共算法能力仍优先进入 SDK 层。
+CLI 是应用层消费者，不承载算法状态。`apps/main.cpp` 只调用 `manumesh::cli::run()`；`CliArguments.cpp` 负责通用参数解析；`ManuMeshCli.cpp` 负责帮助输出和 `run()` 派发；`ManuMeshCommands.cpp` 承载命令 handler 与 command registry。新增 CLI 命令应新增 handler 并注册到 registry，公共算法能力仍优先进入 SDK 层。
 
 ## 公共私有层
 

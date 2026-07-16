@@ -20,6 +20,9 @@ namespace manumesh::feature::detector_detail {
 
 using manumesh::common::kPi;
 
+/**
+ * @brief One mesh edge carrying the evidence channels collected by detection.
+ */
 struct CandidateEdge {
     int a = -1;
     int b = -1;
@@ -38,11 +41,13 @@ struct CandidateEdge {
     int curvaturePersistentScales = 0;
 };
 
-/// Per-edge evidence attributes stored once per trace-graph edge.
-///
-/// Earlier revisions kept eleven parallel hash maps with identical keys; one
-/// struct per key halves memory traffic and lets hot loops fetch every
-/// attribute with a single lookup.
+/**
+ * @brief Per-edge evidence attributes stored once per trace-graph edge.
+ *
+ * Earlier revisions kept eleven parallel hash maps with identical keys; one
+ * struct per key halves memory traffic and lets hot loops fetch every
+ * attribute with a single lookup.
+ */
 struct TraceEdgeAttrs {
     bool boundary = false;
     bool dihedral = false;
@@ -58,6 +63,9 @@ struct TraceEdgeAttrs {
     int curvaturePersistentScales = 0;
 };
 
+/**
+ * @brief Compact feature graph used by cleanup, tracing, and loop recovery.
+ */
 struct TraceGraph {
     std::vector<std::vector<int>> adjacency;
     std::vector<char> traceVertex;
@@ -65,6 +73,9 @@ struct TraceGraph {
     std::vector<std::pair<int, int>> graphEdges;
 };
 
+/**
+ * @brief Evidence counters accumulated while traversing one graph chain.
+ */
 struct TraceLoopStats {
     int edgeCount = 0;
     int boundaryEdges = 0;
@@ -79,22 +90,34 @@ struct TraceLoopStats {
     bool closed = false;
 };
 
+/**
+ * @brief Recovery source used to select acceptance policy for a cycle.
+ */
 enum class RecoveredCycleKind {
     Circular,
     Polygonal,
 };
 
+/**
+ * @brief Mutable accumulator that centralizes FeatureAnalysis bookkeeping.
+ */
 class FeatureAnalysisBuilder {
 public:
+    /** @brief Allocates one public feature record per mesh vertex. */
     explicit FeatureAnalysisBuilder(int vertexCount) { analysis_.vertices.assign(vertexCount, VertexFeature{}); }
 
+    /** @brief Returns the analysis currently being accumulated. */
     FeatureAnalysis& analysis() { return analysis_; }
+    /** @brief Returns a read-only view of the accumulated analysis. */
     const FeatureAnalysis& analysis() const { return analysis_; }
 
+    /** @brief Returns the monotonic loop-id counter used by recovery stages. */
     int& nextLoopId() { return nextLoopId_; }
 
+    /** @brief Transfers the completed analysis to the caller. */
     FeatureAnalysis build() { return std::move(analysis_); }
 
+    /** @brief Adds one accepted edge to all matching evidence counters. */
     void recordFeatureEdge(const CandidateEdge& edge) {
         ++analysis_.featureEdges;
         if (edge.boundary)

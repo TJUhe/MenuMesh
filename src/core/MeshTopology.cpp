@@ -20,12 +20,14 @@
 namespace manumesh {
 namespace {
 
+/** @brief Temporary incidence and winding data accumulated for one edge. */
 struct EdgeBuildRecord {
     int edgeId = -1;
 };
 
 } // namespace
 
+/** @brief Private adjacency and edge-incidence storage for MeshTopology. */
 struct MeshTopology::Impl {
     int vertexCount = 0;
     int faceCount = 0;

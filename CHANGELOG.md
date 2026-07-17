@@ -1,6 +1,14 @@
 # 更新日志
 
-## 2026-07-17
+## 0.2.0 - 2026-07-17
+
+### 离线发布加固
+
+- 安装型 MinGW SDK 现在把 GCC C++ 运行时 DLL 一并安装到 `bin/`；MSVC 安装型 SDK 通过 CMake 的系统运行时模块携带对应 VC/UCRT 文件。
+- 新增安装后隔离 `PATH` 启动检查，`sdk-consumer-test` 不再被开发机编译器目录中的 DLL 隐式兜底。
+- Windows CLI 从宽字符命令行生成 UTF-8 参数，STL/OBJ 和 CLI CSV/目录路径统一通过 UTF-8 与原生 `std::filesystem::path` 转换，支持完整 Unicode 路径。
+- 新增 `manumesh --version`，版本升级为 `0.2.0`；增加 Unicode CLI 输出和 UTF-8 STL round-trip 回归测试。
+- `ManuMesh.props` 只随 MSVC SDK 安装，并复制 SDK `bin/` 内完整运行时 DLL 集合。
 
 ### 二进制 STL 导出
 

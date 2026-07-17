@@ -155,6 +155,7 @@ cmake --build build/sdk-release --target sdk-consumer-test --parallel
 
 ```powershell
 $exe = "build/mingw-ninja-release/bin/manumesh.exe"
+& $exe --version
 & $exe simplify input.stl output.stl `
   --method line `
   --ratio 0.25 `
@@ -269,7 +270,9 @@ ManuMesh/
 ## 依赖与构建选项
 
 Eigen 是库的 header-only 编译依赖。GoogleTest 只用于仓库测试，不是 ManuMesh SDK
-运行时依赖。CMake 会根据 provider 选择 system、仓库内依赖或网络拉取版本。
+运行时依赖。安装型 Windows SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在
+`sdk-consumer-test` 中使用隔离 `PATH` 验证可启动性。CMake 会根据 provider 选择
+system、仓库内依赖或网络拉取版本。
 
 | 选项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -354,5 +357,5 @@ docs/internal/html/index.html
 
 ## 版本记录
 
-当前项目版本由顶层 CMake 定义。各批次的功能、兼容性调整、算法修复和验证记录见
+当前项目版本为 `0.2.0`，由顶层 CMake 定义。各批次的功能、兼容性调整、算法修复和验证记录见
 [CHANGELOG.md](CHANGELOG.md)。

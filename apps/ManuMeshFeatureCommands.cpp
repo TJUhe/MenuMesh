@@ -10,6 +10,7 @@
 
 #include "CliCsv.h"
 #include "CliOptionBinding.h"
+#include "CliPath.h"
 #include "algorithms/feature_detection/FeatureComparison.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "core/Mesh.h"
@@ -28,6 +29,9 @@
 namespace fs = std::filesystem;
 
 namespace manumesh::cli::feature_commands {
+
+using manumesh::cli::pathFromUtf8;
+using manumesh::cli::pathToUtf8;
 
 static int countCircularLoops(const manumesh::feature::FeatureAnalysis& analysis) {
     int count = 0;
@@ -121,11 +125,11 @@ int report(const Args& args) {
 
     const std::string csvPath = getArg(args, "--csv");
     if (!csvPath.empty()) {
-        const fs::path output(csvPath);
+        const fs::path output = pathFromUtf8(csvPath);
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv(csvPath);
+        std::ofstream csv(output);
         csv << "feature_edges,traced_edges,untraced_edges,boundary_edges,"
                "dihedral_edges,normal_tensor_edges,smooth_curvature_edges,non_manifold_edges,"
                "feature_components,weak_feature_components,"
@@ -194,7 +198,7 @@ static void
 readFeatureBenchmarkLabels(const fs::path& path, manumesh::feature::FeatureBenchmarkLabels& labels, int faceCount) {
     std::ifstream in(path);
     if (!in) {
-        throw std::runtime_error("Cannot open feature label CSV: " + path.string());
+        throw std::runtime_error("Cannot open feature label CSV: " + pathToUtf8(path));
     }
 
     int skippedRows = 0;
@@ -256,7 +260,7 @@ readFeatureBenchmarkLabels(const fs::path& path, manumesh::feature::FeatureBench
     }
     if (skippedRows > 0) {
         std::cout << "feature-benchmark: skipped " << skippedRows << " unparsable label row"
-                  << (skippedRows == 1 ? "" : "s") << " in " << path.string() << "\n";
+                  << (skippedRows == 1 ? "" : "s") << " in " << pathToUtf8(path) << "\n";
     }
 }
 
@@ -273,7 +277,7 @@ int benchmark(const Args& args) {
     }
 
     manumesh::feature::FeatureBenchmarkLabels labels;
-    readFeatureBenchmarkLabels(positional[1], labels, static_cast<int>(input.faces.size()));
+    readFeatureBenchmarkLabels(pathFromUtf8(positional[1]), labels, static_cast<int>(input.faces.size()));
 
     manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
     if (!labels.facePatchIds.empty()) {
@@ -309,11 +313,11 @@ int benchmark(const Args& args) {
     std::cout << header << "\n" << row.str() << "\n";
     const std::string csvPath = getArg(args, "--csv");
     if (!csvPath.empty()) {
-        const fs::path output(csvPath);
+        const fs::path output = pathFromUtf8(csvPath);
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv(csvPath);
+        std::ofstream csv(output);
         csv << header << "\n" << row.str() << "\n";
     }
     return 0;
@@ -366,11 +370,11 @@ int compare(const Args& args) {
 
     const std::string csvPath = getArg(args, "--csv");
     if (!csvPath.empty()) {
-        const fs::path output(csvPath);
+        const fs::path output = pathFromUtf8(csvPath);
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv(csvPath);
+        std::ofstream csv(output);
         csv << "original_circular_loops,simplified_circular_loops,matched,missing\n";
         csv << matchReport.originalCircularLoops << "," << matchReport.simplifiedCircularLoops << ","
             << matchReport.matchedLoops << "," << matchReport.missingLoops << "\n\n";

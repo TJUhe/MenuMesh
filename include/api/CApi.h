@@ -382,7 +382,7 @@ MANUMESH_API ManuMeshStatus manumesh_mesh_copy_faces(
 /**
  * @brief Loads STL or OBJ geometry selected by file extension.
  * @param[in,out] context Error context.
- * @param[in] path Null-terminated input path.
+ * @param[in] path Null-terminated UTF-8 input path.
  * @param[in,out] mesh Destination mesh, replaced on success.
  * @param[in] merge_relative_epsilon Relative STL coincident-vertex merge tolerance.
  * @return I/O, validation, allocation, or success status.
@@ -392,7 +392,7 @@ manumesh_load_mesh(ManuMeshContext* context, const char* path, ManuMeshMeshHandl
 /**
  * @brief Writes a strictly valid mesh as ASCII STL.
  * @param[in,out] context Error context.
- * @param[in] path Null-terminated destination path.
+ * @param[in] path Null-terminated UTF-8 destination path.
  * @param[in] mesh Source mesh.
  * @param[in] solid_name Optional STL solid label; NULL selects the default.
  * @return I/O, validation, allocation, or success status.
@@ -403,7 +403,7 @@ MANUMESH_API ManuMeshStatus manumesh_save_ascii_stl(
 /**
  * @brief Writes a strictly valid mesh as standard little-endian binary STL.
  * @param[in,out] context Error context.
- * @param[in] path Null-terminated destination path.
+ * @param[in] path Null-terminated UTF-8 destination path.
  * @param[in] mesh Source mesh.
  * @return I/O, validation, allocation, or success status.
  */

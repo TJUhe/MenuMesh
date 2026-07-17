@@ -33,6 +33,8 @@
 namespace manumesh {
 namespace {
 
+std::filesystem::path pathFromUtf8(const std::string& path) { return std::filesystem::u8path(path); }
+
 /** @brief Quantized three-dimensional position used for STL vertex welding. */
 struct QuantizedKey {
     long long x = 0;
@@ -152,7 +154,7 @@ const char* parseDoubleAt(const char* p, const char* end, double& value) {
  * opened or read completely.
  */
 bool readFileToString(const std::string& path, std::string& text) {
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(pathFromUtf8(path), std::ios::binary);
     if (!in) {
         return false;
     }
@@ -184,7 +186,8 @@ enum class StlFormat { Binary, Ascii, Invalid };
  * truncated binary STL instead of falling through to the ASCII parser.
  */
 StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::string* error) {
-    std::ifstream in(path, std::ios::binary);
+    const std::filesystem::path inputPath = pathFromUtf8(path);
+    std::ifstream in(inputPath, std::ios::binary);
     if (!in) {
         if (error)
             *error = "Failed to open STL.";
@@ -225,7 +228,7 @@ StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::
 
     triangleCount = readUint32LE(header.data() + 80);
     std::error_code ec;
-    const std::uintmax_t fileSize = std::filesystem::file_size(path, ec);
+    const std::uintmax_t fileSize = std::filesystem::file_size(inputPath, ec);
     if (ec) {
         if (startsWithSolid) {
             return StlFormat::Ascii;
@@ -257,7 +260,7 @@ StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::
 bool readBinaryTriangles(
     const std::string& path, uint32_t triangleCount, std::vector<std::array<Vec3, 3>>& triangles, std::string* error
 ) {
-    std::ifstream in(path, std::ios::binary);
+    std::ifstream in(pathFromUtf8(path), std::ios::binary);
     if (!in) {
         if (error)
             *error = "Failed to open binary STL.";
@@ -945,7 +948,7 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
 }
 
 bool loadMesh(const std::string& path, Mesh& mesh, std::string* error, double mergeRelativeEpsilon) {
-    std::string extension = std::filesystem::path(path).extension().string();
+    std::string extension = pathFromUtf8(path).extension().u8string();
     for (char& ch : extension) {
         ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
     }
@@ -984,7 +987,7 @@ bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error
         }
     }
 
-    const std::filesystem::path outputPath(path);
+    const std::filesystem::path outputPath = pathFromUtf8(path);
     if (outputPath.has_parent_path()) {
         std::error_code ec;
         std::filesystem::create_directories(outputPath.parent_path(), ec);
@@ -994,7 +997,7 @@ bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error
             return false;
         }
     }
-    std::ofstream out(path, std::ios::binary);
+    std::ofstream out(outputPath, std::ios::binary);
     if (!out) {
         if (error)
             *error = "Failed to open output STL.";
@@ -1040,7 +1043,7 @@ bool saveAsciiStl(const std::string& path, const Mesh& mesh, const std::string& 
     if (!validateMeshGeometry(mesh, error)) {
         return false;
     }
-    const std::filesystem::path outputPath(path);
+    const std::filesystem::path outputPath = pathFromUtf8(path);
     if (outputPath.has_parent_path()) {
         std::error_code ec;
         std::filesystem::create_directories(outputPath.parent_path(), ec);
@@ -1050,7 +1053,7 @@ bool saveAsciiStl(const std::string& path, const Mesh& mesh, const std::string& 
             return false;
         }
     }
-    std::ofstream out(path);
+    std::ofstream out(outputPath);
     if (!out) {
         if (error)
             *error = "Failed to open output STL.";

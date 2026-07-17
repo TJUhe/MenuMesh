@@ -34,6 +34,8 @@ cmake --build $buildDir --target sdk-install-local --parallel
 ```
 
 默认本地 SDK 前缀在构建目录的 `sdk/` 下，可通过 `MANUMESH_LOCAL_SDK_PREFIX` 修改。
+`sdk-consumer-test` 会先用只包含 SDK `bin/` 和 Windows 系统目录的隔离 `PATH` 启动
+`manumesh --version`，再编译并运行安装后 consumer，避免开发机工具链目录掩盖缺失 DLL。
 
 ## C++ API 最小用法
 
@@ -247,7 +249,14 @@ Windows + MinGW 使用共享库时，应用目录需要：
 - `libmanumesh.dll`
 - 当前 MinGW 工具链对应的 `libstdc++-6.dll`、`libgcc_s_*.dll`、`libwinpthread-1.dll` 等运行时 DLL
 
-当前 CMake 会在构建目标时把必要 MinGW 运行时复制到构建目录 `bin`。MinGW 下 `MANUMESH_GOOGLETEST_PROVIDER=auto` 默认从仓库源码为当前编译器构建 GoogleTest，测试程序不再依赖仓库历史预编译的 `libgtest.dll` 和 `libgtest_main.dll`。外部分发时仍要确保运行库 DLL 和 exe 放在同一目录，或由部署系统提供。
+当前 CMake 会在普通构建时把必要 MinGW 运行时复制到构建目录 `bin`，并在安装型 SDK
+中把这些运行时安装到 SDK `bin/`。MSVC 安装型 SDK 同样携带当前构建工具集对应的
+VC/UCRT 运行时。安装后的 CMake helper 和 MSVC props 会把 SDK `bin/` 中的 DLL 集合
+复制到消费程序旁。MinGW 下 `MANUMESH_GOOGLETEST_PROVIDER=auto` 默认从仓库源码为当前
+编译器构建 GoogleTest，测试程序不依赖历史预编译的 GoogleTest DLL。
+
+Windows CLI、C++ `std::string` 路径参数和 C ABI `const char*` 路径参数都使用 UTF-8。
+消费方不要把本地 ANSI code page 字节串传给路径接口。
 
 ## 示例工程
 

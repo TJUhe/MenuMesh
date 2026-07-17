@@ -10,6 +10,7 @@
 
 #include "CliCommands.h"
 #include "CliCsv.h"
+#include "CliPath.h"
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
 
@@ -48,7 +49,7 @@ Args makeArgs(std::initializer_list<std::string> values) {
     return args;
 }
 
-std::string pathString(const fs::path& path) { return path.string(); }
+std::string pathString(const fs::path& path) { return pathToUtf8(path); }
 
 void runGenerate(const fs::path& inputDir, const std::string& name, const std::string& type, int n) {
     runRegisteredCommand(
@@ -59,7 +60,7 @@ void runGenerate(const fs::path& inputDir, const std::string& name, const std::s
 
 fs::path copyExternalInput(const fs::path& inputDir, const std::string& name, const fs::path& source) {
     if (!fs::exists(source)) {
-        throw std::runtime_error("External input does not exist: " + source.string());
+        throw std::runtime_error("External input does not exist: " + pathToUtf8(source));
     }
     fs::create_directories(inputDir);
     const fs::path destination = inputDir / (name + ".stl");
@@ -69,7 +70,7 @@ fs::path copyExternalInput(const fs::path& inputDir, const std::string& name, co
     fs::copy_file(source, destination, fs::copy_options::none, ec);
     if (ec) {
         throw std::runtime_error(
-            "Failed to copy external input from " + source.string() + " to " + destination.string() + ": " +
+            "Failed to copy external input from " + pathToUtf8(source) + " to " + pathToUtf8(destination) + ": " +
             ec.message()
         );
     }
@@ -134,9 +135,10 @@ void runSummarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath
 } // namespace
 
 int demo(const Args& args) {
-    const fs::path inputDir = getArg(args, "--input-dir", "output/demo_input");
-    const fs::path outputDir = getArg(args, "--output-dir", "output/demo");
-    const fs::path flangeSource = getArg(args, "--flange-input", "tests/data/external/openfoam_flange.stl");
+    const fs::path inputDir = pathFromUtf8(getArg(args, "--input-dir", "output/demo_input"));
+    const fs::path outputDir = pathFromUtf8(getArg(args, "--output-dir", "output/demo"));
+    const fs::path flangeSource =
+        pathFromUtf8(getArg(args, "--flange-input", "tests/data/external/openfoam_flange.stl"));
     const bool quick = hasFlag(args, "--quick");
     const std::string samples = getArg(args, "--samples", quick ? "500" : "1000");
     fs::create_directories(inputDir);
@@ -448,18 +450,21 @@ int validateFeatures(const Args& args) {
         std::string name;
         fs::path externalInput;
     };
-    const fs::path inputDir = getArg(args, "--input-dir", "tests/output/generated_inputs");
-    const fs::path outDir = getArg(args, "--output-dir", "tests/output/feature_curve_validation");
-    const fs::path spindleSource = getArg(
+    const fs::path inputDir = pathFromUtf8(getArg(args, "--input-dir", "tests/output/generated_inputs"));
+    const fs::path outDir = pathFromUtf8(getArg(args, "--output-dir", "tests/output/feature_curve_validation"));
+    const fs::path spindleSource = pathFromUtf8(getArg(
         args,
         "--spindle-input",
         "tests/data/external/thingi10k/"
         "thingi10k_79361_zheng3_tinkeriffic_40mm_spool_spindle.stl"
+    ));
+    const fs::path ringSource =
+        pathFromUtf8(getArg(args, "--ring-input", "tests/data/external/nasa_antenna_azimuth_track.stl"));
+    const fs::path pulleySource = pathFromUtf8(
+        getArg(args, "--pulley-input", "tests/data/external/thingi10k/thingi10k_318045_moko_mini_pulley.stl")
     );
-    const fs::path ringSource = getArg(args, "--ring-input", "tests/data/external/nasa_antenna_azimuth_track.stl");
-    const fs::path pulleySource =
-        getArg(args, "--pulley-input", "tests/data/external/thingi10k/thingi10k_318045_moko_mini_pulley.stl");
-    const fs::path flangeSource = getArg(args, "--flange-input", "tests/data/external/openfoam_flange.stl");
+    const fs::path flangeSource =
+        pathFromUtf8(getArg(args, "--flange-input", "tests/data/external/openfoam_flange.stl"));
     const std::string ratio = getArg(args, "--ratio", "0.20");
     const std::string samples = getArg(args, "--samples", "1000");
     const std::vector<CaseSpec> cases = {
@@ -560,7 +565,7 @@ int validateFeatures(const Args& args) {
         );
     }
 
-    std::cout << "Feature validation outputs written to " << outDir << "\n";
+    std::cout << "Feature validation outputs written to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 
@@ -570,8 +575,8 @@ int validateExternal(const Args& args) {
         std::vector<std::string> candidates;
         std::string notes;
     };
-    const fs::path inputDir = getArg(args, "--input-dir", "tests/data/external/common_3d_test_models");
-    const fs::path outDir = getArg(args, "--output-dir", "tests/output/external_model_validation");
+    const fs::path inputDir = pathFromUtf8(getArg(args, "--input-dir", "tests/data/external/common_3d_test_models"));
+    const fs::path outDir = pathFromUtf8(getArg(args, "--output-dir", "tests/output/external_model_validation"));
     const std::string ratio = getArg(args, "--ratio", "0.25");
     const std::string samples = getArg(args, "--samples", "800");
     const std::vector<ExternalSpec> models = {
@@ -599,7 +604,7 @@ int validateExternal(const Args& args) {
             }
         }
         if (input.empty()) {
-            std::cout << "Skipping " << model.name << ": OBJ not found in " << inputDir << "\n";
+            std::cout << "Skipping " << model.name << ": OBJ not found in " << pathToUtf8(inputDir) << "\n";
             continue;
         }
 
@@ -696,7 +701,7 @@ int validateExternal(const Args& args) {
 
         manumesh::Mesh mesh;
         std::string error;
-        if (!manumesh::loadMesh(input.string(), mesh, &error)) {
+        if (!manumesh::loadMesh(pathToUtf8(input), mesh, &error)) {
             throw std::runtime_error(error);
         }
         const auto lineMetricRow = readFirstCsvRow(lineMetrics);
@@ -706,9 +711,9 @@ int validateExternal(const Args& args) {
         const std::vector<std::string> fields = {
             model.name,
             model.notes,
-            input.generic_string(),
-            lineOut.generic_string(),
-            curveOut.generic_string(),
+            pathToUtf8(input),
+            pathToUtf8(lineOut),
+            pathToUtf8(curveOut),
             std::to_string(mesh.faces.size()),
             csvValue(lineMetricRow, "faces"),
             csvValue(curveMetricRow, "faces"),
@@ -729,10 +734,10 @@ int validateExternal(const Args& args) {
 
     if (processed == 0) {
         throw std::runtime_error(
-            "No external OBJ files found. Place common-3d-test-models OBJ files in " + inputDir.string() + " first."
+            "No external OBJ files found. Place common-3d-test-models OBJ files in " + pathToUtf8(inputDir) + " first."
         );
     }
-    std::cout << "External validation outputs written to " << outDir << "\n";
+    std::cout << "External validation outputs written to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 

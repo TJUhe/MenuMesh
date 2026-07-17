@@ -420,6 +420,30 @@ TEST(MeshIo, BinaryStlRoundTripUsesStandardLayout) {
     EXPECT_NEAR(0.0, (loaded.bboxMax() - mesh.bboxMax()).norm(), 1e-12);
 }
 
+TEST(MeshIo, BinaryStlRoundTripsThroughUtf8WindowsPath) {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+    };
+    mesh.faces = {{{0, 1, 2}}};
+
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() / std::filesystem::u8path("manumesh_路径_🚀.stl");
+    const std::string utf8Path = path.u8string();
+    std::filesystem::remove(path);
+
+    std::string error;
+    ASSERT_TRUE(manumesh::saveBinaryStl(utf8Path, mesh, &error)) << error;
+    ASSERT_TRUE(std::filesystem::exists(path));
+
+    manumesh::Mesh loaded;
+    ASSERT_TRUE(manumesh::loadStl(utf8Path, loaded, &error)) << error;
+    EXPECT_EQ(mesh.faces.size(), loaded.faces.size());
+    EXPECT_EQ(mesh.vertices.size(), loaded.vertices.size());
+}
+
 TEST(MeshIo, BinaryStlRejectsCoordinatesOutsideFloat32RangeBeforeOpeningFile) {
     manumesh::Mesh mesh;
     const double outsideFloatRange = static_cast<double>(std::numeric_limits<float>::max()) * 2.0;

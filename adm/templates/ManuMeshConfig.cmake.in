@@ -19,18 +19,34 @@ endif()
 include("${CMAKE_CURRENT_LIST_DIR}/ManuMeshTargets.cmake")
 
 set(MANUMESH_SHARED @MANUMESH_BUILD_SHARED_LIBRARY@)
-set(MANUMESH_MSVC_PROPS
-  "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/manumesh/msvc/ManuMesh.props"
+set(MANUMESH_RUNTIME_DIR
+  "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_BINDIR@"
 )
+set(MANUMESH_MSVC_PROPS "")
+if(@MANUMESH_HAS_MSVC_PROPS@)
+  set(MANUMESH_MSVC_PROPS
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/manumesh/msvc/ManuMesh.props"
+  )
+endif()
 
 function(manumesh_copy_runtime_dependencies target)
   if(WIN32 AND MANUMESH_SHARED AND TARGET ManuMesh::manumesh)
-    add_custom_command(TARGET ${target} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-        "$<TARGET_FILE:ManuMesh::manumesh>"
-        "$<TARGET_FILE_DIR:${target}>"
-      COMMENT "Copying manumesh runtime library next to ${target}"
-      VERBATIM
+    file(GLOB MANUMESH_RUNTIME_DLLS
+      "${MANUMESH_RUNTIME_DIR}/*.dll"
     )
+    if(MANUMESH_RUNTIME_DLLS)
+      add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+          ${MANUMESH_RUNTIME_DLLS}
+          "$<TARGET_FILE_DIR:${target}>"
+        COMMENT "Copying ManuMesh and compiler runtime libraries next to ${target}"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+      )
+    else()
+      message(FATAL_ERROR
+        "No ManuMesh runtime DLLs were found in '${MANUMESH_RUNTIME_DIR}'."
+      )
+    endif()
   endif()
 endfunction()

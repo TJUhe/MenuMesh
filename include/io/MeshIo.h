@@ -22,7 +22,7 @@ namespace manumesh {
 /// coordinates already stored in `mesh` are cleared because STL carries no
 /// UVs. When the function returns false, the contents of `mesh` are
 /// unspecified.
-/// @param[in] path Input file path.
+/// @param[in] path UTF-8 input file path.
 /// @param[out] mesh Replaced with parsed geometry on success.
 /// @param[out] error Optional diagnostic, cleared on success.
 /// @param[in] mergeRelativeEpsilon Relative coincident-vertex merge tolerance; zero uses only the numeric floor.
@@ -37,7 +37,7 @@ loadStl(const std::string& path, Mesh& mesh, std::string* error = nullptr, doubl
 /// triangles.
 /// Vertex normals (`vn`) and unknown directives are ignored. When the
 /// function returns false, the contents of `mesh` are unspecified.
-/// @param[in] path Input file path.
+/// @param[in] path UTF-8 input file path.
 /// @param[out] mesh Replaced with triangulated OBJ geometry on success.
 /// @param[out] error Optional diagnostic, cleared on success.
 /// @return true on complete parse and triangulation.
@@ -45,7 +45,7 @@ MANUMESH_API bool loadObj(const std::string& path, Mesh& mesh, std::string* erro
 /// Loads a mesh by file extension. Supported formats are STL and OBJ.
 ///
 /// When the function returns false, the contents of `mesh` are unspecified.
-/// @param[in] path Input path whose case-insensitive extension selects the loader.
+/// @param[in] path UTF-8 input path whose case-insensitive extension selects the loader.
 /// @param[out] mesh Replaced on success.
 /// @param[out] error Optional diagnostic.
 /// @param[in] mergeRelativeEpsilon STL coincident-vertex merge tolerance; ignored for OBJ.
@@ -57,7 +57,7 @@ loadMesh(const std::string& path, Mesh& mesh, std::string* error = nullptr, doub
 /// ASCII STL stores geometry only, so texture coordinates are not written.
 /// Returns false and sets `error` when the mesh is invalid or when the file
 /// cannot be created or fully written (for example on a full disk).
-/// @param[in] path Destination path.
+/// @param[in] path UTF-8 destination path.
 /// @param[in] mesh Strictly valid triangle mesh.
 /// @param[in] solidName ASCII STL solid label.
 /// @param[out] error Optional validation or I/O diagnostic.
@@ -71,7 +71,7 @@ MANUMESH_API bool saveAsciiStl(
 /// UINT32_MAX triangles. Texture coordinates are not written. Returns false
 /// when the mesh is invalid, a coordinate is outside the float32 range, or the
 /// file cannot be created or fully written.
-/// @param[in] path Destination path.
+/// @param[in] path UTF-8 destination path.
 /// @param[in] mesh Strictly valid triangle mesh.
 /// @param[out] error Optional validation or I/O diagnostic.
 /// @return true only after the complete 84 + 50 * faceCount byte file is written.

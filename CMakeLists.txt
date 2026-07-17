@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 
 project(ManuMesh
-  VERSION 0.1.0
+  VERSION 0.2.0
   DESCRIPTION "Additive-manufacturing mesh geometry library"
   LANGUAGES C CXX
 )
@@ -21,6 +21,12 @@ option(MANUMESH_BUILD_EXAMPLES "Build example programs that consume the library"
 option(MANUMESH_BUILD_TESTS "Build GoogleTest based tests" ON)
 option(MANUMESH_ENABLE_INSTALL "Enable SDK install rules" OFF)
 option(MANUMESH_ENABLE_DEBUG_UTIL "Enable Debug-only internal HTML wireframe debug utility" OFF)
+
+if(MANUMESH_ENABLE_INSTALL AND MSVC)
+  set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION "${CMAKE_INSTALL_BINDIR}")
+  set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+  include(InstallRequiredSystemLibraries)
+endif()
 
 set(MANUMESH_EIGEN_PROVIDER "auto" CACHE STRING
   "Eigen provider: auto, system, vendored, or fetch"
@@ -108,40 +114,54 @@ function(manumesh_apply_warnings target)
   endif()
 endfunction()
 
+function(manumesh_collect_mingw_runtime_dependencies output_var)
+  if(WIN32 AND MINGW)
+    get_filename_component(MANUMESH_MINGW_COMPILER_DIR "${CMAKE_CXX_COMPILER}"
+      DIRECTORY
+    )
+    set(MANUMESH_MINGW_RUNTIME_CANDIDATES
+      "${MANUMESH_MINGW_COMPILER_DIR}/libatomic-1.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_dw2-1.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_seh-1.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_sjlj-1.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libgomp-1.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libquadmath-0.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libssp-0.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libstdc++-6.dll"
+      "${MANUMESH_MINGW_COMPILER_DIR}/libwinpthread-1.dll"
+    )
+    file(GLOB MANUMESH_MINGW_GCC_RUNTIME_FILES CONFIGURE_DEPENDS
+      "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_*.dll"
+    )
+    list(APPEND MANUMESH_MINGW_RUNTIME_CANDIDATES ${MANUMESH_MINGW_GCC_RUNTIME_FILES})
+    list(REMOVE_DUPLICATES MANUMESH_MINGW_RUNTIME_CANDIDATES)
+
+    set(MANUMESH_MINGW_RUNTIME_FILES)
+    foreach(mingw_runtime_file IN LISTS MANUMESH_MINGW_RUNTIME_CANDIDATES)
+      if(EXISTS "${mingw_runtime_file}")
+        list(APPEND MANUMESH_MINGW_RUNTIME_FILES "${mingw_runtime_file}")
+      endif()
+    endforeach()
+    set(${output_var} "${MANUMESH_MINGW_RUNTIME_FILES}" PARENT_SCOPE)
+  else()
+    set(${output_var} "" PARENT_SCOPE)
+  endif()
+endfunction()
+
 function(manumesh_copy_mingw_runtime_dependencies target)
   if(WIN32 AND MINGW)
     if(NOT TARGET manumesh_mingw_runtime_dependencies)
-      get_filename_component(MANUMESH_MINGW_COMPILER_DIR "${CMAKE_CXX_COMPILER}"
-        DIRECTORY
-      )
-      set(MANUMESH_MINGW_RUNTIME_FILES
-        "${MANUMESH_MINGW_COMPILER_DIR}/libatomic-1.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_dw2-1.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_seh-1.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_sjlj-1.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libgomp-1.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libquadmath-0.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libssp-0.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libstdc++-6.dll"
-        "${MANUMESH_MINGW_COMPILER_DIR}/libwinpthread-1.dll"
-      )
-      file(GLOB MANUMESH_MINGW_GCC_RUNTIME_FILES CONFIGURE_DEPENDS
-        "${MANUMESH_MINGW_COMPILER_DIR}/libgcc_s_*.dll"
-      )
-      list(APPEND MANUMESH_MINGW_RUNTIME_FILES ${MANUMESH_MINGW_GCC_RUNTIME_FILES})
-      list(REMOVE_DUPLICATES MANUMESH_MINGW_RUNTIME_FILES)
+      manumesh_collect_mingw_runtime_dependencies(MANUMESH_MINGW_RUNTIME_FILES)
 
       set(MANUMESH_MINGW_RUNTIME_COPY_COMMANDS
         COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:manumesh_core>"
       )
       foreach(mingw_runtime_file IN LISTS MANUMESH_MINGW_RUNTIME_FILES)
-        if(EXISTS "${mingw_runtime_file}")
-          list(APPEND MANUMESH_MINGW_RUNTIME_COPY_COMMANDS
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-              "${mingw_runtime_file}"
-              "$<TARGET_FILE_DIR:manumesh_core>"
-          )
-        endif()
+        list(APPEND MANUMESH_MINGW_RUNTIME_COPY_COMMANDS
+          COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${mingw_runtime_file}"
+            "$<TARGET_FILE_DIR:manumesh_core>"
+        )
       endforeach()
 
       add_custom_target(manumesh_mingw_runtime_dependencies
@@ -154,6 +174,15 @@ function(manumesh_copy_mingw_runtime_dependencies target)
     add_dependencies(${target} manumesh_mingw_runtime_dependencies)
   endif()
 endfunction()
+
+if(MANUMESH_ENABLE_INSTALL AND WIN32 AND MINGW)
+  manumesh_collect_mingw_runtime_dependencies(MANUMESH_INSTALL_MINGW_RUNTIME_FILES)
+  if(MANUMESH_INSTALL_MINGW_RUNTIME_FILES)
+    install(FILES ${MANUMESH_INSTALL_MINGW_RUNTIME_FILES}
+      DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    )
+  endif()
+endif()
 
 function(manumesh_copy_runtime_dependencies target)
   if(WIN32 AND MANUMESH_BUILD_SHARED_LIBRARY)

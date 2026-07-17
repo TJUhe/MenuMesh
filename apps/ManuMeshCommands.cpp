@@ -10,6 +10,7 @@
 #include "CliCommands.h"
 #include "CliCsv.h"
 #include "CliOptionBinding.h"
+#include "CliPath.h"
 #include "ManuMeshFeatureCommands.h"
 #include "ManuMeshWorkflowCommands.h"
 #include "algorithms/analysis/MeshAnalysis.h"
@@ -44,6 +45,8 @@ using manumesh::cli::hasFlag;
 using manumesh::cli::parseFaceCounts;
 using manumesh::cli::parseSimplifyOptions;
 using manumesh::cli::parseWeights;
+using manumesh::cli::pathFromUtf8;
+using manumesh::cli::pathToUtf8;
 using manumesh::cli::positionalArgs;
 using manumesh::cli::quoteCsv;
 using manumesh::cli::readFirstCsvRow;
@@ -96,7 +99,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
     std::vector<std::map<std::string, std::string>> rows;
 
     if (!fs::exists(outputRoot)) {
-        throw std::runtime_error("Output directory not found: " + outputRoot.string());
+        throw std::runtime_error("Output directory not found: " + pathToUtf8(outputRoot));
     }
 
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(outputRoot)) {
@@ -117,7 +120,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
         }
 
         std::string line;
-        const std::string caseName = entry.path().parent_path().filename().string();
+        const std::string caseName = pathToUtf8(entry.path().parent_path().filename());
         while (std::getline(in, line)) {
             if (line.empty()) {
                 continue;
@@ -150,7 +153,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
         }
         out << "\n";
     }
-    std::cout << "Wrote " << summaryPath << " with " << rows.size() << " rows\n";
+    std::cout << "Wrote " << pathToUtf8(summaryPath) << " with " << rows.size() << " rows\n";
 }
 
 int commandGenerate(const Args& args) {
@@ -293,11 +296,11 @@ int commandSimplify(const Args& args) {
               << " max=" << distance.maxOriginalToSimplified << "\n";
 
     if (!metricsCsv.empty()) {
-        const fs::path metricsPath(metricsCsv);
+        const fs::path metricsPath = pathFromUtf8(metricsCsv);
         if (metricsPath.has_parent_path()) {
             fs::create_directories(metricsPath.parent_path());
         }
-        std::ofstream csv(metricsCsv);
+        std::ofstream csv(metricsPath);
         csv << manumesh::cli::statsHeaderCsv()
             << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
                "feature_loops,circular_feature_loops,feature_vertices,"
@@ -375,7 +378,7 @@ int commandSweep(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const fs::path outDir = positional[1];
+    const fs::path outDir = pathFromUtf8(positional[1]);
     fs::create_directories(outDir);
     const int samples = getIntArg(args, "--samples", 3000);
     const std::vector<double> weights = parseWeights(getArg(args, "--weights", "0,1e-5,1e-4,1e-3,1e-2,1e-1"));
@@ -397,7 +400,7 @@ int commandSweep(const Args& args) {
         const std::string method = options.useLineQuadrics ? "line" : "standard";
         const std::string label = method + "_w_" + sanitizeWeight(weight);
         const fs::path outStl = outDir / (label + ".stl");
-        if (!manumesh::saveBinaryStl(outStl.string(), output, &error)) {
+        if (!manumesh::saveBinaryStl(pathToUtf8(outStl), output, &error)) {
             throw std::runtime_error(error);
         }
 
@@ -411,7 +414,7 @@ int commandSweep(const Args& args) {
         printStats(label, stats);
     }
 
-    std::cout << "Wrote sweep outputs to " << outDir << "\n";
+    std::cout << "Wrote sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 
@@ -427,7 +430,7 @@ int commandRatioSweep(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const fs::path outDir = positional[1];
+    const fs::path outDir = pathFromUtf8(positional[1]);
     fs::create_directories(outDir);
     const int samples = getIntArg(args, "--samples", 3000);
     const std::vector<double> ratios = parseWeights(getArg(args, "--ratios", "0.8,0.5,0.25,0.1,0.05"));
@@ -453,7 +456,7 @@ int commandRatioSweep(const Args& args) {
         const std::string method = options.useLineQuadrics ? "line" : "standard";
         const std::string label = method + "_r_" + sanitizeRatio(ratio) + "_w_" + sanitizeWeight(options.lineWeight);
         const fs::path outStl = outDir / (label + ".stl");
-        if (!manumesh::saveBinaryStl(outStl.string(), output, &error)) {
+        if (!manumesh::saveBinaryStl(pathToUtf8(outStl), output, &error)) {
             throw std::runtime_error(error);
         }
 
@@ -467,7 +470,7 @@ int commandRatioSweep(const Args& args) {
         printStats(label, stats);
     }
 
-    std::cout << "Wrote ratio-sweep outputs to " << outDir << "\n";
+    std::cout << "Wrote ratio-sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 
@@ -483,7 +486,7 @@ int commandFaceSweep(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const fs::path outDir = positional[1];
+    const fs::path outDir = pathFromUtf8(positional[1]);
     fs::create_directories(outDir);
     const int samples = getIntArg(args, "--samples", 3000);
     const std::vector<int> faceCounts =
@@ -510,7 +513,7 @@ int commandFaceSweep(const Args& args) {
         const std::string label =
             method + "_f_" + std::to_string(targetFaces) + "_w_" + sanitizeWeight(options.lineWeight);
         const fs::path outStl = outDir / (label + ".stl");
-        if (!manumesh::saveBinaryStl(outStl.string(), output, &error)) {
+        if (!manumesh::saveBinaryStl(pathToUtf8(outStl), output, &error)) {
             throw std::runtime_error(error);
         }
 
@@ -524,14 +527,14 @@ int commandFaceSweep(const Args& args) {
         printStats(label, stats);
     }
 
-    std::cout << "Wrote face-sweep outputs to " << outDir << "\n";
+    std::cout << "Wrote face-sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 
 int commandSummarizeMetrics(const Args& args) {
     const auto positional = positionalArgs(args);
-    const fs::path outputRoot = positional.empty() ? fs::path("output/demo") : fs::path(positional[0]);
-    const fs::path summaryPath = positional.size() < 2 ? outputRoot / "demo_summary.csv" : fs::path(positional[1]);
+    const fs::path outputRoot = positional.empty() ? fs::path("output/demo") : pathFromUtf8(positional[0]);
+    const fs::path summaryPath = positional.size() < 2 ? outputRoot / "demo_summary.csv" : pathFromUtf8(positional[1]);
     summarizeMetrics(outputRoot, summaryPath);
     return 0;
 }

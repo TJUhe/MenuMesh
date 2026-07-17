@@ -10,6 +10,7 @@
 
 #include "CliArguments.h"
 #include "CliCommands.h"
+#include "api/CApi.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -37,6 +38,8 @@ void printUsage() {
               << "  manumesh validate-external [--input-dir dir] [--ratio R] "
                  "[--output-dir dir]\n";
     std::cout << optionsHelpText();
+    std::cout << "\nVersion options:\n"
+              << "  --version                             Print the ManuMesh version\n";
     std::cout << "\nGenerator types:\n"
               << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
               << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
@@ -60,6 +63,10 @@ int run(int argc, char** argv) {
 
         if (command == "--help" || command == "-h" || command == "help") {
             printUsage();
+            return 0;
+        }
+        if (command == "--version" || command == "version") {
+            std::cout << "ManuMesh " << manumesh_version() << "\n";
             return 0;
         }
 

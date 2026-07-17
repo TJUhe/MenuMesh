@@ -9,6 +9,10 @@
     <ManuMeshEigenIncludeDir Condition="'$(ManuMeshEigenIncludeDir)' == ''">$(ManuMeshSdkRoot)\share\manumesh\thirdParty\eigen\include</ManuMeshEigenIncludeDir>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ManuMeshRuntimeDll Include="$(ManuMeshSdkRuntimeDir)\*.dll" />
+  </ItemGroup>
+
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ManuMeshSdkIncludeDir);$(ManuMeshEigenIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -21,8 +25,8 @@
 
   <Target Name="ManuMeshCopyRuntime"
           AfterTargets="Build"
-          Condition="Exists('$(ManuMeshSdkRuntimeDir)\manumesh.dll')">
-    <Copy SourceFiles="$(ManuMeshSdkRuntimeDir)\manumesh.dll"
+          Condition="'@(ManuMeshRuntimeDll)' != ''">
+    <Copy SourceFiles="@(ManuMeshRuntimeDll)"
           DestinationFolder="$(OutDir)"
           SkipUnchangedFiles="true" />
   </Target>

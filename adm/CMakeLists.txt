@@ -190,16 +190,20 @@ if(MANUMESH_ENABLE_INSTALL)
     CACHE PATH "Build directory for the installed-SDK consumer examples"
   )
 
-  configure_file(
-    "${PROJECT_SOURCE_DIR}/adm/templates/ManuMesh.props.in"
-    "${PROJECT_BINARY_DIR}/ManuMesh.props"
-    @ONLY
-  )
+  set(MANUMESH_HAS_MSVC_PROPS FALSE)
+  if(MSVC)
+    configure_file(
+      "${PROJECT_SOURCE_DIR}/adm/templates/ManuMesh.props.in"
+      "${PROJECT_BINARY_DIR}/ManuMesh.props"
+      @ONLY
+    )
 
-  install(FILES
-    "${PROJECT_BINARY_DIR}/ManuMesh.props"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/manumesh/msvc"
-  )
+    install(FILES
+      "${PROJECT_BINARY_DIR}/ManuMesh.props"
+      DESTINATION "${CMAKE_INSTALL_DATADIR}/manumesh/msvc"
+    )
+    set(MANUMESH_HAS_MSVC_PROPS TRUE)
+  endif()
 
   if(MANUMESH_INSTALL_CMAKE_CONFIG)
     include(CMakePackageConfigHelpers)
@@ -257,6 +261,16 @@ if(MANUMESH_ENABLE_INSTALL)
     VERBATIM
   )
 
+  add_custom_target(sdk-runtime-test
+    COMMAND "${CMAKE_COMMAND}"
+      "-DMANUMESH_SDK_ROOT=${MANUMESH_LOCAL_SDK_PREFIX}"
+      "-DMANUMESH_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+      -P "${PROJECT_SOURCE_DIR}/adm/CheckInstalledRuntime.cmake"
+    DEPENDS sdk-install-local
+    COMMENT "Testing the installed CLI with an isolated runtime PATH"
+    VERBATIM
+  )
+
   if(MANUMESH_INSTALL_CMAKE_CONFIG)
     set(MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS
       "-S" "${PROJECT_SOURCE_DIR}/examples/sdk_consumer"
@@ -287,7 +301,7 @@ if(MANUMESH_ENABLE_INSTALL)
       COMMAND "${CMAKE_COMMAND}" -E chdir "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
         "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
         --output-on-failure
-      DEPENDS sdk-install-local
+      DEPENDS sdk-runtime-test
       COMMENT "Building and running examples against the installed SDK"
       VERBATIM
     )

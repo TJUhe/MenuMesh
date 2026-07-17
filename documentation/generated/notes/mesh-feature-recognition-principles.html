@@ -7,20 +7,20 @@
   <title>三角表面网格中的特征识别</title>
   <style>
     :root {
-      --page: #f8fbf1;
-      --page-edge: #bfd2c2;
-      --ink: #26332a;
-      --muted: #5d6b61;
-      --green: #417d5a;
-      --green-dark: #315f45;
-      --green-line: #7fac8c;
-      --mint: #ecfaee;
-      --mint-strong: #e0f3e7;
-      --formula: #ffffff;
-      --formula-line: #cad8cb;
-      --neutral-line: #d5ddd5;
-      --warm: #f8f5eb;
-      --warm-line: #b69b67;
+      --page: #ecfaee;
+      --page-edge: #c5d6c7;
+      --ink: #222222;
+      --muted: #555555;
+      --green: #207f4c;
+      --green-dark: #17683d;
+      --green-line: #3ba776;
+      --mint: #e0f4ee;
+      --mint-strong: #dff3e3;
+      --formula: #f8fbf1;
+      --formula-line: #c5d6c7;
+      --neutral-line: #c5d6c7;
+      --warm: #f7eedb;
+      --warm-line: #9a6422;
       --font-body: "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif;
       --font-serif: "Songti SC", "SimSun", serif;
       --font-math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Noto Serif Math", serif;
@@ -29,14 +29,14 @@
     * { box-sizing: border-box; }
 
     html {
-      background: #dfeae1;
+      background: #cdd9cf;
       scroll-behavior: smooth;
     }
 
     body {
       margin: 0;
       color: var(--ink);
-      background: #dfeae1;
+      background: #cdd9cf;
       font-family: var(--font-body);
       font-size: 15px;
       line-height: 1.82;
@@ -59,7 +59,7 @@
     .title-band {
       padding: 34px 42px 31px;
       color: #ffffff;
-      background: var(--green);
+      background: linear-gradient(135deg, #657b69, var(--green));
       border-bottom: 1px solid var(--green-dark);
     }
 
@@ -91,6 +91,32 @@
 
     .opening p:last-child { margin-bottom: 0; }
 
+    .toc {
+      margin: 0 0 30px;
+      padding: 16px 21px 17px;
+      background: var(--formula);
+      border: 1px solid var(--page-edge);
+    }
+
+    .toc-title {
+      margin: 0 0 8px;
+      color: var(--green-dark);
+      font-size: 0.96rem;
+      font-weight: 700;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    .toc li { margin: 4px 0; }
+
+    .toc a {
+      color: var(--green-dark);
+      text-decoration: none;
+    }
+
     section {
       margin-top: 38px;
     }
@@ -110,6 +136,7 @@
       place-items: center;
       color: #ffffff;
       background: var(--green);
+      border-radius: 4px;
       font-size: 0.78rem;
       font-weight: 700;
       line-height: 1;
@@ -350,12 +377,14 @@
     @media print {
       @page {
         size: A4;
-        margin: 13mm 14mm 16mm;
+        margin: 7mm 8mm 9mm;
+        background: var(--page);
       }
 
-      html, body { background: #ffffff; }
+      html { background: var(--page); }
 
       body {
+        background: var(--page);
         font-size: 10.3pt;
         line-height: 1.65;
       }
@@ -364,21 +393,33 @@
         width: auto;
         margin: 0;
         border: 0;
+        background: var(--page);
       }
 
       .title-band {
-        padding: 16mm 12mm 11mm;
+        padding: 13mm 11mm 9mm;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
 
       main {
-        padding: 9mm 12mm 12mm;
+        padding: 9mm 11mm 11mm;
       }
 
       section { margin-top: 8mm; }
 
-      .section-title, .formula, .discovery, .caution, .gate, .spectrum-item {
+      #references { break-before: page; }
+
+      p, li {
+        orphans: 3;
+        widows: 3;
+      }
+
+      .section-title, h3 {
+        break-after: avoid;
+      }
+
+      .toc, .section-title, .formula, .discovery, .caution, .gate, .spectrum-item, footer {
         break-inside: avoid;
       }
 
@@ -407,6 +448,18 @@
     </header>
 
     <main>
+      <nav class="toc" aria-label="目录">
+        <p class="toc-title">目录</p>
+        <ol>
+          <li><a href="#dihedral-intuition">从一条边开始：二面角为什么有效</a></li>
+          <li><a href="#dihedral-orientation">角度还不够：绕序、折向与退化</a></li>
+          <li><a href="#normal-tensor">当折痕不再尖锐：法向张量</a></li>
+          <li><a href="#normal-tensor-scale">一个邻域还不够：尺度与持久性</a></li>
+          <li><a href="#fusion">两条路径最终如何协同</a></li>
+          <li><a href="#references">方法来源</a></li>
+        </ol>
+      </nav>
+
       <div class="opening">
         <p>如果把特征理解为“后续处理不应轻易抹去的几何结构”，最自然的出发点不是复杂曲率，而是一条网格边。边两侧三角面的朝向发生变化，这个变化由二面角直接给出。对于机械零件和 CAD 离散网格，大量重要轮廓正是这样显现出来的。</p>
         <p>但二面角也很快暴露出边界：它擅长发现尖锐折线，却不擅长描述被圆角过渡削弱的折痕；它依赖面法向，而面法向又受绕序、退化面和噪声影响。法向张量（normal tensor）的引入，正是沿着这个问题继续向前一步。</p>

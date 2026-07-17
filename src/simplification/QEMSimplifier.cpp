@@ -108,6 +108,7 @@ QEMSimplifier::QEMSimplifier()
 
 QEMSimplifier::QEMSimplifier(SimplifyOptions options)
     : impl_(std::make_unique<Impl>()) {
+    validateSimplifyOptions(options);
     impl_->options = std::move(options);
 }
 
@@ -124,33 +125,39 @@ QEMSimplifier& QEMSimplifier::operator=(const QEMSimplifier& other) {
 }
 
 QEMSimplifier::QEMSimplifier(QEMSimplifier&& other) noexcept
-    : impl_(std::move(other.impl_)) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>();
-    }
-    other.impl_ = std::make_unique<Impl>();
-}
+    : impl_(std::move(other.impl_)) {}
 
 QEMSimplifier& QEMSimplifier::operator=(QEMSimplifier&& other) noexcept {
     if (this != &other) {
         impl_ = std::move(other.impl_);
-        if (!impl_) {
-            impl_ = std::make_unique<Impl>();
-        }
-        other.impl_ = std::make_unique<Impl>();
     }
     return *this;
 }
 
-const SimplifyOptions& QEMSimplifier::options() const { return impl_->options; }
+const SimplifyOptions& QEMSimplifier::options() const {
+    static const SimplifyOptions defaultOptions;
+    return impl_ ? impl_->options : defaultOptions;
+}
 
-void QEMSimplifier::setOptions(SimplifyOptions options) { impl_->options = std::move(options); }
+void QEMSimplifier::setOptions(SimplifyOptions options) {
+    validateSimplifyOptions(options);
+    if (!impl_) {
+        impl_ = std::make_unique<Impl>();
+    }
+    impl_->options = std::move(options);
+}
 
-const SimplifyReport& QEMSimplifier::report() const { return impl_->report; }
+const SimplifyReport& QEMSimplifier::report() const {
+    static const SimplifyReport emptyReport;
+    return impl_ ? impl_->report : emptyReport;
+}
 
 Mesh QEMSimplifier::simplify(const Mesh& input) { return simplify(input, nullptr); }
 
 Mesh QEMSimplifier::simplify(const Mesh& input, SimplifyReport* outReport) {
+    if (!impl_) {
+        impl_ = std::make_unique<Impl>();
+    }
     validateSimplifyOptions(impl_->options);
     validateSimplifierInput(input);
     SimplificationRun run(input, impl_->options);
@@ -166,6 +173,9 @@ Mesh QEMSimplifier::simplify(const Mesh& input, const feature::FeatureAnalysis& 
 }
 
 Mesh QEMSimplifier::simplify(const Mesh& input, const feature::FeatureAnalysis& features, SimplifyReport* outReport) {
+    if (!impl_) {
+        impl_ = std::make_unique<Impl>();
+    }
     validateSimplifyOptions(impl_->options);
     validateSimplifierInput(input);
     SimplificationRun run(input, impl_->options, &features);

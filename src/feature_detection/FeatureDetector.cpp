@@ -386,6 +386,7 @@ struct FeatureDetector::Impl {
 
 FeatureDetector::FeatureDetector(FeatureOptions options)
     : impl_(std::make_unique<Impl>()) {
+    validateFeatureOptions(options);
     impl_->options = std::move(options);
 }
 
@@ -402,29 +403,29 @@ FeatureDetector& FeatureDetector::operator=(const FeatureDetector& other) {
 }
 
 FeatureDetector::FeatureDetector(FeatureDetector&& other) noexcept
-    : impl_(std::move(other.impl_)) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>();
-    }
-    other.impl_ = std::make_unique<Impl>();
-}
+    : impl_(std::move(other.impl_)) {}
 
 FeatureDetector& FeatureDetector::operator=(FeatureDetector&& other) noexcept {
     if (this != &other) {
         impl_ = std::move(other.impl_);
-        if (!impl_) {
-            impl_ = std::make_unique<Impl>();
-        }
-        other.impl_ = std::make_unique<Impl>();
     }
     return *this;
 }
 
-const FeatureOptions& FeatureDetector::options() const { return impl_->options; }
+const FeatureOptions& FeatureDetector::options() const {
+    static const FeatureOptions defaultOptions;
+    return impl_ ? impl_->options : defaultOptions;
+}
 
-void FeatureDetector::setOptions(FeatureOptions options) { impl_->options = std::move(options); }
+void FeatureDetector::setOptions(FeatureOptions options) {
+    validateFeatureOptions(options);
+    if (!impl_) {
+        impl_ = std::make_unique<Impl>();
+    }
+    impl_->options = std::move(options);
+}
 
-FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const { return detectFeatureCurves(mesh, impl_->options); }
+FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const { return detectFeatureCurves(mesh, options()); }
 
 FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options) {
     return FeatureDetectionPipeline{}.run(mesh, options);

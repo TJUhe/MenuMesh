@@ -32,6 +32,9 @@ bool finiteTexCoord(const Vec2& uv) { return std::isfinite(uv.x()) && std::isfin
 bool Mesh::empty() const { return vertices.empty() || faces.empty(); }
 
 Vec3 Mesh::bboxMin() const {
+    if (vertices.empty()) {
+        return Vec3::Zero();
+    }
     Vec3 lo(
         std::numeric_limits<double>::infinity(),
         std::numeric_limits<double>::infinity(),
@@ -44,6 +47,9 @@ Vec3 Mesh::bboxMin() const {
 }
 
 Vec3 Mesh::bboxMax() const {
+    if (vertices.empty()) {
+        return Vec3::Zero();
+    }
     Vec3 hi(
         -std::numeric_limits<double>::infinity(),
         -std::numeric_limits<double>::infinity(),
@@ -129,6 +135,9 @@ void Mesh::removeUnusedVertices() {
 }
 
 bool validateMeshIndices(const Mesh& mesh, std::string* error) {
+    if (error) {
+        error->clear();
+    }
     if (mesh.vertices.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         if (error)
             *error = "Vertex count exceeds the supported int-index range.";

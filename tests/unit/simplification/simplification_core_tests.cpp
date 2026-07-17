@@ -37,6 +37,13 @@ TEST(ManuMesh, SimplifierRejectsInvalidOptionsAndMeshes) {
         std::invalid_argument
     );
 
+    manumesh::Mesh facesWithoutVertices;
+    facesWithoutVertices.faces = {{{0, 1, 2}}};
+    EXPECT_THROW(
+        manumesh::simplification::simplifyMesh(facesWithoutVertices, manumesh::simplification::SimplifyOptions{}),
+        std::invalid_argument
+    );
+
     manumesh::Mesh nonFinite = input;
     nonFinite.vertices[0].x() = std::numeric_limits<double>::quiet_NaN();
     EXPECT_THROW(

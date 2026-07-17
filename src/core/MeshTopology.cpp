@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 namespace manumesh {
@@ -59,20 +60,11 @@ MeshTopology& MeshTopology::operator=(const MeshTopology& other) {
 }
 
 MeshTopology::MeshTopology(MeshTopology&& other) noexcept
-    : impl_(std::move(other.impl_)) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>();
-    }
-    other.impl_ = std::make_unique<Impl>();
-}
+    : impl_(std::move(other.impl_)) {}
 
 MeshTopology& MeshTopology::operator=(MeshTopology&& other) noexcept {
     if (this != &other) {
         impl_ = std::move(other.impl_);
-        if (!impl_) {
-            impl_ = std::make_unique<Impl>();
-        }
-        other.impl_ = std::make_unique<Impl>();
     }
     return *this;
 }
@@ -84,6 +76,21 @@ std::uint64_t topologyEdgeKey(int a, int b) {
 }
 
 Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
+    if (validate) {
+        std::string error;
+        if (!validateMeshIndices(mesh, &error)) {
+            return Status::invalidArgument(error.empty() ? "Mesh contains an invalid vertex index." : error);
+        }
+        for (const Face& face : mesh.faces) {
+            if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
+                return Status::topologyError("Mesh contains a degenerate face.");
+            }
+        }
+        if (!validateMeshGeometryLenient(mesh, &error)) {
+            return Status::invalidArgument(error.empty() ? "Mesh geometry is invalid." : error);
+        }
+    }
+
     MeshTopology topology;
     topology.impl_->vertexCount = static_cast<int>(mesh.vertices.size());
     topology.impl_->faceCount = static_cast<int>(mesh.faces.size());
@@ -144,22 +151,27 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
     return topology;
 }
 
-int MeshTopology::vertexCount() const { return impl_->vertexCount; }
+int MeshTopology::vertexCount() const { return impl_ ? impl_->vertexCount : 0; }
 
-int MeshTopology::faceCount() const { return impl_->faceCount; }
+int MeshTopology::faceCount() const { return impl_ ? impl_->faceCount : 0; }
 
-int MeshTopology::edgeCount() const { return static_cast<int>(impl_->edges.size()); }
+int MeshTopology::edgeCount() const { return impl_ ? static_cast<int>(impl_->edges.size()) : 0; }
 
-int MeshTopology::boundaryEdgeCount() const { return impl_->boundaryEdgeCount; }
+int MeshTopology::boundaryEdgeCount() const { return impl_ ? impl_->boundaryEdgeCount : 0; }
 
-int MeshTopology::nonManifoldEdgeCount() const { return impl_->nonManifoldEdgeCount; }
+int MeshTopology::nonManifoldEdgeCount() const { return impl_ ? impl_->nonManifoldEdgeCount : 0; }
 
-const std::vector<TopologyEdge>& MeshTopology::edges() const { return impl_->edges; }
+const std::vector<TopologyEdge>& MeshTopology::edges() const {
+    static const std::vector<TopologyEdge> empty;
+    return impl_ ? impl_->edges : empty;
+}
 
-bool MeshTopology::hasEdge(EdgeId id) const { return id.id >= 0 && id.id < static_cast<int>(impl_->edges.size()); }
+bool MeshTopology::hasEdge(EdgeId id) const {
+    return impl_ && id.id >= 0 && id.id < static_cast<int>(impl_->edges.size());
+}
 
 bool MeshTopology::hasVertex(VertexId id) const {
-    return id.id >= 0 && id.id < static_cast<int>(impl_->vertices.size());
+    return impl_ && id.id >= 0 && id.id < static_cast<int>(impl_->vertices.size());
 }
 
 const TopologyEdge& MeshTopology::edge(EdgeId id) const {

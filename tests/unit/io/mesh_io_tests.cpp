@@ -97,6 +97,33 @@ std::string singleAsciiStlTriangle() {
 
 } // namespace
 
+TEST(MeshIo, SuccessfulLoadsClearStaleError) {
+    const std::filesystem::path objPath = writeTempFile(
+        "mesh_io_clear_stale_error.obj",
+        "v 0 0 0\n"
+        "v 1 0 0\n"
+        "v 0 1 0\n"
+        "f 1 2 3\n"
+    );
+    const std::filesystem::path stlPath = writeTempFile("mesh_io_clear_stale_error.stl", singleAsciiStlTriangle());
+
+    manumesh::Mesh mesh;
+    std::string error = "stale error";
+    EXPECT_TRUE(manumesh::loadObj(objPath.string(), mesh, &error));
+    EXPECT_TRUE(error.empty());
+
+    error = "stale error";
+    EXPECT_TRUE(manumesh::loadStl(stlPath.string(), mesh, &error));
+    EXPECT_TRUE(error.empty());
+
+    error = "stale error";
+    EXPECT_TRUE(manumesh::loadMesh(objPath.string(), mesh, &error));
+    EXPECT_TRUE(error.empty());
+
+    std::filesystem::remove(objPath);
+    std::filesystem::remove(stlPath);
+}
+
 TEST(MeshIo, MalformedObjVertexLineIsAnErrorWithLineNumber) {
     const std::filesystem::path path = writeTempFile(
         "manumesh_io_bad_vertex.obj",

@@ -21,6 +21,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -39,6 +40,29 @@ bool containsItem(const std::vector<int>& items, int itemId) {
 std::vector<int> sorted(std::vector<int> items) {
     std::sort(items.begin(), items.end());
     return items;
+}
+
+TEST(ManuMesh, EmptyMeshBoundsAreZero) {
+    const manumesh::Mesh mesh;
+    EXPECT_TRUE(mesh.bboxMin().isZero());
+    EXPECT_TRUE(mesh.bboxMax().isZero());
+    EXPECT_DOUBLE_EQ(0.0, mesh.bboxDiag());
+}
+
+TEST(ManuMesh, SuccessfulMeshValidationClearsStaleError) {
+    const manumesh::Mesh mesh = manumesh::generatePlaneGrid(2, 1.0, false);
+    std::string error = "stale error";
+
+    ASSERT_TRUE(manumesh::validateMeshIndices(mesh, &error));
+    EXPECT_TRUE(error.empty());
+
+    error = "stale error";
+    ASSERT_TRUE(manumesh::validateMeshGeometry(mesh, &error));
+    EXPECT_TRUE(error.empty());
+
+    error = "stale error";
+    ASSERT_TRUE(manumesh::validateMeshGeometryLenient(mesh, &error));
+    EXPECT_TRUE(error.empty());
 }
 
 TEST(ManuMesh, RemoveUnusedVerticesDropsInvalidFacesWithTheirExclusiveVertices) {
@@ -380,6 +404,9 @@ TEST(ManuMesh, MeshTopologyRejectsOutOfRangeHandles) {
 }
 
 TEST(ManuMesh, MeshTopologyCopiesAndMovesPimplCache) {
+    static_assert(std::is_nothrow_move_constructible_v<manumesh::MeshTopology>);
+    static_assert(std::is_nothrow_move_assignable_v<manumesh::MeshTopology>);
+
     const manumesh::Mesh mesh = manumesh::generatePlaneGrid(4, 1.0, false);
     const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(mesh);
     ASSERT_TRUE(topologyResult.ok()) << topologyResult.status().message();
@@ -394,6 +421,45 @@ TEST(ManuMesh, MeshTopologyCopiesAndMovesPimplCache) {
     EXPECT_GT(moved.edgeCount(), 0);
     EXPECT_GT(moved.boundaryEdgeCount(), 0);
     EXPECT_EQ(0, copied.vertexCount());
+    EXPECT_EQ(0, copied.faceCount());
+    EXPECT_TRUE(copied.edges().empty());
+    EXPECT_FALSE(copied.hasEdge(manumesh::EdgeId{0}));
+    EXPECT_THROW(copied.edge(manumesh::EdgeId{0}), std::out_of_range);
+    copied = topologyResult.value();
+    EXPECT_EQ(static_cast<int>(mesh.vertices.size()), copied.vertexCount());
+    EXPECT_GT(copied.edgeCount(), 0);
+
+    manumesh::MeshTopology moveAssigned;
+    moveAssigned = std::move(moved);
+    EXPECT_EQ(static_cast<int>(mesh.vertices.size()), moveAssigned.vertexCount());
+    EXPECT_EQ(0, moved.vertexCount());
+    EXPECT_TRUE(moved.edges().empty());
+}
+
+TEST(ManuMesh, MeshTopologyValidationUsesLenientGeometryContract) {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(2.0, 0.0, 0.0),
+    };
+    mesh.faces = {{{0, 1, 2}}};
+
+    const manumesh::Result<manumesh::MeshTopology> zeroArea = manumesh::MeshTopology::build(mesh);
+    ASSERT_TRUE(zeroArea.ok()) << zeroArea.status().message();
+
+    manumesh::Mesh nonFinite = mesh;
+    nonFinite.vertices[0].x() = std::numeric_limits<double>::infinity();
+    const manumesh::Result<manumesh::MeshTopology> rejectedNonFinite = manumesh::MeshTopology::build(nonFinite);
+    EXPECT_FALSE(rejectedNonFinite.ok());
+    EXPECT_EQ(manumesh::StatusCode::InvalidArgument, rejectedNonFinite.status().code());
+    EXPECT_TRUE(manumesh::MeshTopology::build(nonFinite, false).ok());
+
+    manumesh::Mesh misalignedTexture = mesh;
+    misalignedTexture.faceTexCoords.resize(2);
+    const manumesh::Result<manumesh::MeshTopology> rejectedTexture = manumesh::MeshTopology::build(misalignedTexture);
+    EXPECT_FALSE(rejectedTexture.ok());
+    EXPECT_EQ(manumesh::StatusCode::InvalidArgument, rejectedTexture.status().code());
 }
 
 TEST(ManuMesh, MeshTopologyRejectsInvalidFaces) {

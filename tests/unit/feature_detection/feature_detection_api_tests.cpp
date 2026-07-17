@@ -81,6 +81,9 @@ TEST(FeatureDetection, FeatureDetectorObjectStoresOptions) {
 }
 
 TEST(FeatureDetection, FeatureDetectorCopiesAndMovesPimplOptions) {
+    static_assert(std::is_nothrow_move_constructible_v<FeatureDetector>);
+    static_assert(std::is_nothrow_move_assignable_v<FeatureDetector>);
+
     FeatureOptions originalOptions = discreteOnlyOptions();
     originalOptions.featureAngleDeg = 25.0;
     originalOptions.minFeatureLoopVertices = 5;
@@ -108,11 +111,18 @@ TEST(FeatureDetection, FeatureDetectorCopiesAndMovesPimplOptions) {
     FeatureDetector moved(std::move(assigned));
     EXPECT_DOUBLE_EQ(25.0, moved.options().featureAngleDeg);
     EXPECT_EQ(5, moved.options().minFeatureLoopVertices);
+    EXPECT_DOUBLE_EQ(FeatureOptions{}.featureAngleDeg, assigned.options().featureAngleDeg);
+    EXPECT_NO_THROW(assigned.analyze(Mesh{}));
 
     FeatureDetector moveAssigned;
     moveAssigned = std::move(moved);
     EXPECT_DOUBLE_EQ(25.0, moveAssigned.options().featureAngleDeg);
     EXPECT_EQ(5, moveAssigned.options().minFeatureLoopVertices);
+    EXPECT_DOUBLE_EQ(FeatureOptions{}.featureAngleDeg, moved.options().featureAngleDeg);
+
+    moved.setOptions(originalOptions);
+    EXPECT_DOUBLE_EQ(25.0, moved.options().featureAngleDeg);
+    EXPECT_NO_THROW(moved.analyze(Mesh{}));
 }
 
 TEST(FeatureDetection, RejectsInvalidOptionsAndMeshes) {
@@ -130,8 +140,12 @@ TEST(FeatureDetection, RejectsInvalidOptionsAndMeshes) {
 
     invalidOptions = discreteOnlyOptions();
     invalidOptions.minFeatureLoopVertices = 2;
-    FeatureDetector detector(invalidOptions);
-    EXPECT_THROW(detector.analyze(mesh), std::invalid_argument);
+    EXPECT_THROW((void)FeatureDetector{invalidOptions}, std::invalid_argument);
+
+    FeatureDetector detector(discreteOnlyOptions());
+    const double originalAngle = detector.options().featureAngleDeg;
+    EXPECT_THROW(detector.setOptions(invalidOptions), std::invalid_argument);
+    EXPECT_DOUBLE_EQ(originalAngle, detector.options().featureAngleDeg);
 
     Mesh invalidMesh = mesh;
     invalidMesh.faces = {{{0, 1, 9}}};

@@ -174,6 +174,9 @@ TEST(ManuMesh, QEMSimplifierConsumesPrecomputedFeatureAnalysis) {
 }
 
 TEST(ManuMesh, QEMSimplifierCopiesPimplStateIndependently) {
+    static_assert(std::is_nothrow_move_constructible_v<manumesh::simplification::QEMSimplifier>);
+    static_assert(std::is_nothrow_move_assignable_v<manumesh::simplification::QEMSimplifier>);
+
     manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.60);
     manumesh::simplification::QEMSimplifier original(options);
 
@@ -187,6 +190,8 @@ TEST(ManuMesh, QEMSimplifierCopiesPimplStateIndependently) {
 
     manumesh::simplification::QEMSimplifier moved = std::move(copied);
     EXPECT_EQ(original.report().finalFaces, moved.report().finalFaces);
+    EXPECT_DOUBLE_EQ(manumesh::simplification::SimplifyOptions{}.targetRatio, copied.options().targetRatio);
+    EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::NotStarted, copied.report().terminationReason);
 
     manumesh::simplification::SimplifyOptions movedFromOptions;
     movedFromOptions.targetRatio = 0.75;
@@ -199,4 +204,23 @@ TEST(ManuMesh, QEMSimplifierCopiesPimplStateIndependently) {
 
     EXPECT_DOUBLE_EQ(0.60, original.options().targetRatio);
     EXPECT_DOUBLE_EQ(0.25, copied.options().targetRatio);
+    const manumesh::Mesh reusedOutput = copied.simplify(manumesh::generatePlaneGrid(4, 1.0, false));
+    EXPECT_FALSE(reusedOutput.empty());
+
+    manumesh::simplification::QEMSimplifier moveAssigned;
+    moveAssigned = std::move(moved);
+    EXPECT_EQ(original.report().finalFaces, moveAssigned.report().finalFaces);
+    EXPECT_DOUBLE_EQ(manumesh::simplification::SimplifyOptions{}.targetRatio, moved.options().targetRatio);
+    EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::NotStarted, moved.report().terminationReason);
+}
+
+TEST(ManuMesh, QEMSimplifierValidatesOptionsWhenConfigured) {
+    manumesh::simplification::SimplifyOptions invalidOptions;
+    invalidOptions.targetRatio = 0.0;
+    EXPECT_THROW((void)manumesh::simplification::QEMSimplifier{invalidOptions}, std::invalid_argument);
+
+    manumesh::simplification::QEMSimplifier simplifier;
+    const double originalRatio = simplifier.options().targetRatio;
+    EXPECT_THROW(simplifier.setOptions(invalidOptions), std::invalid_argument);
+    EXPECT_DOUBLE_EQ(originalRatio, simplifier.options().targetRatio);
 }

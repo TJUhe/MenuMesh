@@ -44,6 +44,7 @@ public:
     const SimplifyOptions& options() const;
     /// Replaces the options used by subsequent simplification runs.
     /// @param[in] options New validated policy.
+    /// @throws std::invalid_argument when options are inconsistent.
     void setOptions(SimplifyOptions options);
     /// Returns diagnostics from the most recent simplification run.
     const SimplifyReport& report() const;

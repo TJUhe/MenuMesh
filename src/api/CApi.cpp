@@ -246,6 +246,7 @@ ManuMeshStatus manumesh_mesh_clear(ManuMeshContext* context, ManuMeshMeshHandle*
     }
     mesh->mesh.vertices.clear();
     mesh->mesh.faces.clear();
+    mesh->mesh.faceTexCoords.clear();
     return MANUMESH_STATUS_OK;
 }
 

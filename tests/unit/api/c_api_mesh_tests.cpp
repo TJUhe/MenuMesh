@@ -49,6 +49,45 @@ TEST_F(CApiTest, CopiesMeshDataOnlyIntoCallerOwnedBuffers) {
     manumesh_mesh_destroy(mesh);
 }
 
+TEST_F(CApiTest, ClearsTextureCoordinatesAlongWithLoadedGeometry) {
+    const std::filesystem::path objPath = std::filesystem::temp_directory_path() / "manumesh_c_api_clear_textured.obj";
+    const std::filesystem::path stlPath = std::filesystem::temp_directory_path() / "manumesh_c_api_clear_empty.stl";
+    std::filesystem::remove(objPath);
+    std::filesystem::remove(stlPath);
+
+    {
+        std::ofstream obj(objPath);
+        ASSERT_TRUE(obj);
+        obj << "v 0 0 0\n"
+               "v 1 0 0\n"
+               "v 0 1 0\n"
+               "vt 0 0\n"
+               "vt 1 0\n"
+               "vt 0 1\n"
+               "f 1/1 2/2 3/3\n";
+    }
+
+    ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
+    ASSERT_NE(mesh, nullptr);
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_load_mesh(context, objPath.string().c_str(), mesh, 1e-9));
+
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_clear(context, mesh));
+    size_t vertexCount = 1;
+    size_t faceCount = 1;
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_get_counts(context, mesh, &vertexCount, &faceCount));
+    EXPECT_EQ(0u, vertexCount);
+    EXPECT_EQ(0u, faceCount);
+
+    // Saving exercises the full Mesh invariant: stale per-face UVs would no
+    // longer be aligned with the cleared face array and make this call fail.
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_save_binary_stl(context, stlPath.string().c_str(), mesh));
+    EXPECT_EQ(84u, std::filesystem::file_size(stlPath));
+
+    manumesh_mesh_destroy(mesh);
+    std::filesystem::remove(stlPath);
+    std::filesystem::remove(objPath);
+}
+
 TEST_F(CApiTest, RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh) {
     ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
     ASSERT_NE(mesh, nullptr);

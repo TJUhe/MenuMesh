@@ -757,6 +757,9 @@ bool parseObjCorner(const char* begin, const char* end, int vertexCount, int tex
 } // namespace
 
 bool loadStl(const std::string& path, Mesh& mesh, std::string* error, double mergeRelativeEpsilon) {
+    if (error) {
+        error->clear();
+    }
     if (!std::isfinite(mergeRelativeEpsilon) || mergeRelativeEpsilon < 0.0) {
         if (error)
             *error = "mergeRelativeEpsilon must be finite and non-negative.";
@@ -795,6 +798,9 @@ bool loadStl(const std::string& path, Mesh& mesh, std::string* error, double mer
 }
 
 bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
+    if (error) {
+        error->clear();
+    }
     std::string text;
     if (!readFileToString(path, text)) {
         if (error)
@@ -948,6 +954,9 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
 }
 
 bool loadMesh(const std::string& path, Mesh& mesh, std::string* error, double mergeRelativeEpsilon) {
+    if (error) {
+        error->clear();
+    }
     std::string extension = pathFromUtf8(path).extension().u8string();
     for (char& ch : extension) {
         ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));

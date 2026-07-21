@@ -356,6 +356,7 @@ public:
         featureGraph_.run(context);
         cleanup_.run(context);
         consolidation_.run(context);
+        MANUMESH_DEBUG_UTIL_FEATURES("05_consolidation" , mesh , context.analysis());
         loopRecovery_.run(context);
         componentSummary_.run(context);
         finalize_.run(context);
@@ -428,6 +429,7 @@ void FeatureDetector::setOptions(FeatureOptions options) {
 FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const { return detectFeatureCurves(mesh, options()); }
 
 FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options) {
+    MANUMESH_DEBUG_UTIL_WIREFRAME("03_graph" , mesh);
     return FeatureDetectionPipeline{}.run(mesh, options);
 }
 

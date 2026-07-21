@@ -109,6 +109,24 @@ cmake --build $buildDir --parallel
 cmake -E chdir $buildDir ctest -LE "performance|external" --output-on-failure
 ```
 
+在离线机器上使用固定 MinGW 工具链时，可以直接把完整工具链根目录交给 CMake，
+不需要永久修改系统 `PATH`：
+
+```powershell
+$buildDir = "build/mingw-offline-release"
+cmake -S . -B $buildDir -G Ninja `
+  -DMANUMESH_MINGW_ROOT="D:/tools/mingw64" `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DMANUMESH_EIGEN_PROVIDER=vendored `
+  -DMANUMESH_GOOGLETEST_PROVIDER=source
+```
+
+`MANUMESH_MINGW_ROOT` 必须指向同时包含 `bin/g++.exe` 和
+`libexec/gcc/.../cc1plus.exe` 的完整工具链。CMake 会在 `project()` 前固定
+`gcc`、`g++` 和 `windres` 的绝对路径；如果工具链目录带有 `bin/ninja.exe`，也会使用
+该 Ninja，否则继续使用生成器已找到的 Ninja。配置时还会清理 ID、版本或 C++17
+feature 为空的旧 compiler state，并重新执行编译器识别。
+
 查看 CLI 帮助：
 
 ```powershell
@@ -283,6 +301,8 @@ system、仓库内依赖或网络拉取版本。
 | `MANUMESH_BUILD_PERFORMANCE_TESTS` | `OFF` | 构建独立的大模型性能套件。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中启用内部 HTML 线框工具。 |
+| `MANUMESH_MINGW_ROOT` | 空 | 可选的完整 MinGW 根目录；在 `project()` 前固定编译器绝对路径。 |
+| `MANUMESH_RECOVER_INVALID_COMPILER_STATE` | `ON` | 自动删除 ID、版本或 C++17 feature 不完整的 CMake compiler state。 |
 | `MANUMESH_EIGEN_PROVIDER` | `auto` | `auto`、`system`、`vendored` 或 `fetch`。 |
 | `MANUMESH_GOOGLETEST_PROVIDER` | `auto` | `auto`、`source`、`prebuilt`、`system` 或 `fetch`。 |
 | `MANUMESH_BUILD_DOCS` | `ON` | 在可用时创建 Doxygen `docs-api` 和 `docs-internal` 目标。 |

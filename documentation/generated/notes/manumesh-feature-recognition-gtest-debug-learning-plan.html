@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ManuMesh 特征识别：GTest 调试学习规划与 debugUtil 使用指南</title>
+<link rel="stylesheet" href="eye-care.css">
+<style>
+:root {
+  --bg: #edf7ef;
+  --paper: #fbfcf4;
+  --panel: #e7f1e8;
+  --text: #172119;
+  --dim: #56635a;
+  --border: #bdd3c2;
+  --accent: #237348;
+  --code: #dce9de;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: #cedbd1; }
+body {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.75;
+}
+header { padding: 42px 44px 32px; background: #315e43; color: #f7fbf4; }
+h1 { margin: 0 0 10px; font-size: 30px; line-height: 1.3; }
+.subtitle { max-width: 930px; color: #e0eee3; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.tag { padding: 3px 9px; border: 1px solid rgba(255,255,255,.32); border-radius: 4px; font-size: 12px; }
+main { padding: 30px 44px 66px; }
+h2 { margin: 42px 0 14px; padding-bottom: 7px; border-bottom: 2px solid var(--accent); font-size: 23px; }
+h3 { margin: 28px 0 9px; color: var(--accent); font-size: 18px; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { padding: 1px 5px; border-radius: 3px; background: var(--code); color: #075c31; font: .92em Consolas, monospace; }
+pre { overflow-x: auto; margin: 12px 0 18px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 7px; background: #d7e4d9; line-height: 1.55; }
+pre code { padding: 0; color: #183121; background: transparent; }
+.toc, .callout, .unit { margin: 15px 0; padding: 16px 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--paper); }
+.callout.warn { background: #fbf1da; border-color: #d6b873; }
+.callout.info { background: #e8f1f8; border-color: #a9c2d6; }
+.callout.success { background: #e1f1e3; border-color: #8ebc95; }
+.unit { border-left: 5px solid var(--accent); }
+.unit h3 { margin-top: 0; }
+.meta { color: var(--dim); font-size: 13px; }
+.test-name { display: block; margin: 5px 0; color: #1d5f39; font-family: Consolas, monospace; overflow-wrap: anywhere; }
+.flow { padding: 14px 18px; border-radius: 7px; background: #183023; color: #eff8f0; font-family: Consolas, monospace; white-space: pre-wrap; }
+table { width: 100%; margin: 14px 0 24px; border-collapse: collapse; background: var(--paper); font-size: 14px; }
+th, td { padding: 9px 11px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { background: var(--panel); border-bottom: 2px solid var(--accent); color: #203c29; }
+tr:nth-child(even) td { background: #f2f8f1; }
+ul, ol { margin-top: 4px; padding-left: 23px; }
+li { margin: 4px 0; }
+.status { display: inline-block; min-width: 74px; color: var(--accent); font-weight: 650; }
+.swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border: 1px solid rgba(0,0,0,.2); vertical-align: -1px; }
+.gray { background: #808080; }.blue { background: #3d79c5; }.orange { background: #e28a2b; }
+.purple { background: #8a5bc2; }.green { background: #35a65a; }.cyan { background: #27aab5; }
+.yellow { background: #e0ba31; }.red { background: #d94747; }
+footer { padding: 22px 44px 34px; border-top: 1px solid var(--border); color: var(--dim); background: #e4efe6; font-size: 13px; }
+@media (max-width: 760px) { header, main, footer { padding-left: 20px; padding-right: 20px; } h1 { font-size: 25px; } table { font-size: 12px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>ManuMesh 特征识别：GTest 调试学习规划与 debugUtil 使用指南</h1>
+  <p class="subtitle">从最小测试案例进入特征识别源码，以“预测结果、单步调试、观察状态、可视化、解释断言”为固定循环，逐步掌握硬边、特征图、环恢复、弱特征、图修复、面片分区和 QEM 消费。</p>
+  <div class="tags"><span class="tag">GoogleTest</span><span class="tag">VS Code + GDB</span><span class="tag">FeatureGraph</span><span class="tag">debugUtil</span><span class="tag">约 28-32 小时</span></div>
+</header>
+<main>
+  <section class="toc">
+    <strong>目录</strong>
+    <ol>
+      <li><a href="#method">学习方法与完成标准</a></li>
+      <li><a href="#setup">Debug 构建与 VS Code 启动</a></li>
+      <li><a href="#plan">10 个调试学习单元</a></li>
+      <li><a href="#breakpoints">固定断点和观察变量</a></li>
+      <li><a href="#debugutil">debugUtil 开启与使用</a></li>
+      <li><a href="#troubleshooting">常见问题</a></li>
+      <li><a href="#references">源码与测试索引</a></li>
+    </ol>
+  </section>
+
+  <section id="method">
+    <h2>1. 学习方法与完成标准</h2>
+    <p>不要按文件大小或目录顺序阅读。每次只选择一个 gtest，让测试输入限定问题范围，再沿这一条调用链进入源码。</p>
+    <div class="flow">读测试输入与 options
+-> 不运行，先预测 FeatureAnalysis
+-> 只运行一个 gtest
+-> 在相关阶段单步调试
+-> 观察 CandidateEdge / TraceGraph / FeatureAnalysis
+-> 生成 debugUtil HTML
+-> 对照断言解释结果
+-> 写半页案例总结</div>
+    <h3>每个案例必须回答的五个问题</h3>
+    <ol>
+      <li>输入网格的顶点、面和 edge-face incidence 是什么？</li>
+      <li>该案例启用了哪些 evidence source，关闭了哪些 source？</li>
+      <li>哪些候选边进入了 <code>FeatureGraph</code>，哪些进入了 <code>TraceGraph</code>？</li>
+      <li>最终得到 open chain、closed loop、primitive、component 或 patch 中的哪些结构？</li>
+      <li>最后的断言是在验证算法正确性、鲁棒性，还是仅验证诊断字段？</li>
+    </ol>
+    <div class="callout success"><strong>完成标准：</strong>你能在不看断言的情况下预测主要计数，并能指出计数在哪个阶段发生变化。只会让测试通过，不等于已经理解该案例。</div>
+  </section>
+
+  <section id="setup">
+    <h2>2. Debug 构建与 VS Code 启动</h2>
+    <h3>2.1 配置 Debug 测试程序</h3>
+    <pre><code>cmake -S . -B build/mingw-ninja-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DMANUMESH_BUILD_TESTS=ON -DMANUMESH_ENABLE_DEBUG_UTIL=ON
+
+cmake --build build/mingw-ninja-debug --target manumesh_tests --parallel</code></pre>
+    <div class="callout warn"><strong>必须检查缓存：</strong>目录名包含 <code>debug</code> 不代表 debugUtil 已开启。运行 <code>rg "MANUMESH_ENABLE_DEBUG_UTIL" build/mingw-ninja-debug/CMakeCache.txt</code>，结果必须为 <code>ON</code>。此外，Release 构建定义了 <code>NDEBUG</code>，宏仍会成为 no-op。</div>
+
+    <h3>2.2 使用 VS Code 过滤调试</h3>
+    <p>仓库已经提供 <a href="../../../.vscode/launch.json"><code>(MinGW Ninja) Debug Unit Tests Filter</code></a>。在“运行和调试”中选择它，按 F5 后输入完整测试名：</p>
+    <pre><code>FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle</code></pre>
+    <p>该配置运行 <code>build/mingw-ninja-debug/bin/manumesh_tests.exe</code>，参数为 <code>--gtest_filter=&lt;测试名&gt;</code>，工作目录是仓库根目录。</p>
+
+    <h3>2.3 不进调试器时的快速运行</h3>
+    <pre><code>$tests = ".\build\mingw-ninja-debug\bin\manumesh_tests.exe"
+& $tests "--gtest_filter=FeatureDetection.DihedralThresholdControlsCreaseEdges" --gtest_break_on_failure</code></pre>
+  </section>
+
+  <section id="plan">
+    <h2>3. 10 个调试学习单元</h2>
+    <table>
+      <thead><tr><th>单元</th><th>建议时间</th><th>主题</th><th>阶段结果</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>1 小时</td><td>API 与 gtest 调试入口</td><td>能单独启动测试并找到 <code>detectFeatureCurves()</code></td></tr>
+        <tr><td>1</td><td>2 小时</td><td>boundary / non-manifold</td><td>理解 edge-face incidence</td></tr>
+        <tr><td>2</td><td>3 小时</td><td>有向二面角</td><td>理解阈值、convex/concave 和绕向</td></tr>
+        <tr><td>3</td><td>3 小时</td><td>FeatureGraph / TraceGraph</td><td>理解 evidence 与 trace ownership 的区别</td></tr>
+        <tr><td>4</td><td>4 小时</td><td>chain / cycle / loop</td><td>理解五段 loop recovery</td></tr>
+        <tr><td>5</td><td>2 小时</td><td>圆和椭圆 primitive</td><td>理解拟合、残差和分类</td></tr>
+        <tr><td>6</td><td>3 小时</td><td>normal tensor</td><td>理解弱 crease、切向和 persistence</td></tr>
+        <tr><td>7</td><td>5-6 小时</td><td>smooth curvature</td><td>理解 Monge、主曲率、extremality 和多尺度</td></tr>
+        <tr><td>8</td><td>3-4 小时</td><td>cleanup / consolidation / patch</td><td>理解图级工程恢复与分区</td></tr>
+        <tr><td>9</td><td>3 小时</td><td>benchmark 与 QEM 消费</td><td>理解精度验证及下游保护</td></tr>
+      </tbody>
+    </table>
+
+    <article class="unit">
+      <h3>单元 0：先跑通 API 和调试器</h3>
+      <span class="test-name">FeatureDetection.FeatureNamespaceApiIsProjectScoped</span>
+      <p class="meta">测试位置：<a href="../../../tests/unit/feature_detection/feature_detection_api_tests.cpp">feature_detection_api_tests.cpp:31</a></p>
+      <p><span class="status">学习目标</span>认识 <code>FeatureOptions</code>、<code>FeatureDetector</code>、<code>FeatureAnalysis</code> 和自由函数入口。</p>
+      <p><span class="status">断点</span><code>FeatureDetector::analyze</code>、<code>detectFeatureCurves</code>、<code>FeatureDetectionPipeline::run</code>。</p>
+      <p><span class="status">完成标准</span>能解释对象入口与自由函数为何得到相同结果，并能独立切换 gtest filter。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 1：最小拓扑证据</h3>
+      <span class="test-name">FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle</span>
+      <span class="test-name">FeatureDetection.ClassifiesNonManifoldEdgesSeparately</span>
+      <p class="meta">测试位置：<a href="../../../tests/unit/feature_detection/feature_detection_discrete_tests.cpp">feature_detection_discrete_tests.cpp:140、192</a></p>
+      <p><span class="status">学习目标</span>一侧邻面是 boundary；超过两侧邻面是 non-manifold；二者都是拓扑证据，不依赖曲率。</p>
+      <p><span class="status">断点</span><code>collectFeatureEdges</code>、<code>BoundaryEvidenceStrategy::classify</code>、<code>NonManifoldEvidenceStrategy::classify</code>。</p>
+      <p><span class="status">观察</span><code>context.edges</code>、<code>info.faces.size()</code>、<code>CandidateEdge::boundary/nonManifold</code>。</p>
+      <p><span class="status">练习</span>先预测单三角形应产生几条 boundary edge，再运行验证。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 2：有向二面角、凸脊与凹谷</h3>
+      <span class="test-name">FeatureDetection.DihedralThresholdControlsCreaseEdges</span>
+      <span class="test-name">FeatureDetection.ClassifiesRightAngleConvexRidgePerEdge</span>
+      <span class="test-name">FeatureDetection.ClassifiesRightAngleConcaveValleyPerEdge</span>
+      <p><span class="status">学习目标</span>理解 <code>featureAngleDeg</code>、面绕向协调、<code>angleRad</code> 和 <code>signedKind</code>。</p>
+      <p><span class="status">断点</span><code>harmonizeFaceWindings</code>、<code>computeOrientedDihedralAngle</code>、<code>DihedralEvidenceStrategy::classify</code>。</p>
+      <p><span class="status">观察</span><code>dihedralThreshold</code>、<code>dihedral.angleRad</code>、<code>dihedral.signedKind</code>、<code>analysis.convexFeatureEdges</code>。</p>
+      <p><span class="status">进阶</span>随后运行 <code>FeatureDetection.DetectsKnifeEdgeFoldBeyondNinetyDegrees</code> 和 <code>HarmonizesInconsistentWindingOnFlatSurface</code>。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 3：FeatureGraph 与 TraceGraph</h3>
+      <span class="test-name">FeatureDetection.SplitsBranchedFeatureGraphAndMarksJunctions</span>
+      <span class="test-name">FeatureDetection.TracesShallowDihedralLoopAtRequestedAngle</span>
+      <span class="test-name">FeatureDetection.ReportsUntracedDihedralEdgesWhenTraceAngleIsStricter</span>
+      <p><span class="status">学习目标</span>被识别为 evidence 的边不一定进入 trace；<code>loopTraceAngleDeg</code> 决定二面角边是否参加 loop ownership。</p>
+      <p><span class="status">断点</span><code>initializeFeatureGraph</code>、<code>buildTraceGraph</code>、<code>finalizeFeatureGraphMarkers</code>。</p>
+      <p><span class="status">观察</span><code>analysis.graph.edges</code>、<code>trace.graphEdges</code>、<code>tracedFeatureEdges</code>、<code>untracedFeatureEdges</code>、顶点 degree。</p>
+      <p><span class="status">完成标准</span>能解释“有 feature edge 但没有 loop”为什么不是矛盾。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 4：从图恢复 chain、cycle 与 loop</h3>
+      <span class="test-name">FeatureDetection.DetectsCircularCylinderBoundaryLoops</span>
+      <span class="test-name">FeatureDetection.RecoversCircularLoopFromBranchedFeatureGraph</span>
+      <span class="test-name">FeatureDetection.RecoversPolygonalCycleThroughMultipleJunctions</span>
+      <p><span class="status">学习目标</span>掌握五段恢复顺序：junction circle、small cycle basis、remaining trace、primitive component、circular cluster。</p>
+      <p><span class="status">断点</span><code>recoverFeatureLoops</code> 的五次调用、<code>addTracedLoop</code>、<code>addRecoveredCycle</code>、<code>assignLoopToVertices</code>。</p>
+      <p><span class="status">观察</span><code>loopId</code>、<code>TraceLoopStats</code>、<code>analysis.loops</code>、<code>loop.closed</code>、<code>graph.vertices[id].loopIds</code>。</p>
+      <p><span class="status">可视化</span>在 graph、cleanup 和 loop recovery 后各输出一次 <code>MANUMESH_DEBUG_UTIL_FEATURES</code>，比较绿色 loop 何时出现。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 5：primitive 拟合</h3>
+      <span class="test-name">FeatureDetectionPrimitiveFit.TaubinMatchesExactCircleUnderNonUniformSampling</span>
+      <span class="test-name">FeatureDetectionPrimitiveFit.HalirFlusserRecoversEllipseUnderNonUniformSampling</span>
+      <p><span class="status">学习目标</span>先把图恢复隔离出去，单独理解 PCA 平面、Taubin 圆、Halíř-Flusser 椭圆、回退和 residual。</p>
+      <p><span class="status">断点</span><code>fitPrimitive</code>、<code>measurePrimitiveFitErrors</code>、<code>classifyPrimitiveFit</code>、<code>applyPrimitiveFit</code>。</p>
+      <p><span class="status">观察</span><code>radius</code>、<code>majorRadius</code>、<code>minorRadius</code>、<code>axisRatio</code> 和各种 RMS/max error。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 6：normal tensor 弱 crease</h3>
+      <span class="test-name">ManuMesh.NormalTensorScoresSeparatePlaneFromRidge</span>
+      <span class="test-name">ManuMesh.NormalTensorAddsFeatureEdgesWhenDihedralThresholdIsStrict</span>
+      <span class="test-name">ManuMesh.NormalTensorPersistenceRequiresSignificantScaleSupport</span>
+      <p class="meta">测试位置：<a href="../../../tests/unit/simplification/simplification_normal_tensor_tests.cpp">simplification_normal_tensor_tests.cpp:79、101、147</a></p>
+      <p><span class="status">学习目标</span>理解面法向外积张量、特征值差、crease tangent、多尺度平滑和 persistence。</p>
+      <p><span class="status">断点</span><code>analyzeNormalTensor</code>、<code>computeNormalTensorFeaturesCached</code>、<code>normalTensorEdgeCandidate</code>。</p>
+      <p><span class="status">观察</span><code>surfaceSaliency</code>、<code>creaseSaliency</code>、<code>cornerSaliency</code>、<code>persistentFeatureScore</code>、edge/tangent alignment。</p>
+      <p><span class="status">关键区别</span>顶点有 tensor 分数只是诊断；两端点通过 persistence 和 alignment 后，mesh edge 才成为可消费证据。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 7：smooth-curvature ridge / valley</h3>
+      <span class="test-name">FeatureDetection.SmoothCurvatureRejectsExactPlaneAndFindsSmoothBump</span>
+      <span class="test-name">FeatureDetection.SmoothCurvatureGraphRecoversLabeledGaussianRidge</span>
+      <span class="test-name">FeatureDetectionAnalytic.SphereAndCylinderProduceNoSmoothCurvatureFeatures</span>
+      <span class="test-name">FeatureDetectionAnalytic.TorusInnerSideProducesNoSmoothCurvatureFeatures</span>
+      <p><span class="status">学习目标</span>理解 k-ring、局部尺度归一化、三次 Monge patch、基本形式、主曲率、extremality 零交叉、cyclideness 和跨尺度投票。</p>
+      <p><span class="status">阅读顺序</span>先看 <code>computeSmoothCurvatureFeaturesCached</code> 总循环，再看 <code>fitScale</code>，最后看 <code>classifyScaleCandidate</code>；不要从文件第一行顺读。</p>
+      <p><span class="status">观察</span><code>ScaleEstimate</code>、<code>ScaleCandidate</code>、<code>selectedScale</code>、<code>persistentScales</code>、<code>signedKind</code>、<code>scaleStability</code>。</p>
+      <p><span class="status">完成标准</span>能解释为何“曲率大”不等于“存在 ridge/valley 特征线”，以及 sphere/cylinder/torus 为什么是重要负样本。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 8：图级工程恢复与 surface patch</h3>
+      <span class="test-name">FeatureDetectionCleanup.StrengthFilterKeepsLongWeakLinesAndStrongBranches</span>
+      <span class="test-name">FeatureDetectionUpgrade.ConsolidationBridgesOnlyCompatibleComponents</span>
+      <span class="test-name">FeatureDetectionUpgrade.JunctionsExposeBranchContinuationPairs</span>
+      <span class="test-name">FeatureDetectionUpgrade.CappedCylinderPartitionsIntoSideAndCapPatches</span>
+      <p><span class="status">学习目标</span>理解 weak spur 删除、局部 gap bridge、跨 component consolidation、junction continuation 以及 feature barrier flood fill。</p>
+      <p><span class="status">断点</span><code>cleanupTraceGraph</code>、<code>compatibleFeatureEvidence</code>、<code>consolidateFeatureGraph</code>、<code>finalizeFeatureGraphMarkers</code>、<code>buildFeaturePatches</code>。</p>
+      <p><span class="status">注意</span>consolidation 的白盒测试直接调用内部函数，不代表单次完整 detector 一定产生 bridge；是否触发取决于图中真实存在的跨 component 缺口。</p>
+    </article>
+
+    <article class="unit">
+      <h3>单元 9：真值 benchmark 与 QEM 消费</h3>
+      <span class="test-name">FeatureDetection.FixtureBenchmarkUsesCoaxialHoleGroundTruthLabels</span>
+      <span class="test-name">ManuMesh.QEMSimplifierConsumesPrecomputedFeatureAnalysis</span>
+      <span class="test-name">SimplificationAnalytic.DetectAndSimplifyPipelineIsByteStableAcrossRuns</span>
+      <p><span class="status">学习目标</span>学习 edge/junction 真值标签、precision/recall/closure，并理解检测结果怎样转成 <code>FeatureGuidance</code> 和简化约束。</p>
+      <p><span class="status">断点</span><code>benchmarkFeatureAnalysis</code>、<code>buildFeatureGuidanceFromAnalysis</code>、<code>effectiveFeatureProtectionMode</code>、collapse feature constraint。</p>
+      <p><span class="status">可视化</span>识别后使用 <code>FEATURES</code>，简化后使用 <code>BEFORE_AFTER</code>；不要用 HTML 图代替 benchmark 数值。</p>
+    </article>
+  </section>
+
+  <section id="breakpoints">
+    <h2>4. 固定断点和观察变量</h2>
+    <h3>4.1 九阶段总入口</h3>
+    <p>总调度位于 <a href="../../../src/feature_detection/FeatureDetector.cpp"><code>FeatureDetector.cpp:333</code></a>。第一次学习每个案例时，可在以下阶段调用处下断点：</p>
+    <pre><code>edgeEvidence_.run(context);
+degenerateFilter_.run(context);
+featureGraph_.run(context);
+cleanup_.run(context);
+consolidation_.run(context);
+loopRecovery_.run(context);
+componentSummary_.run(context);
+finalize_.run(context);
+segmentation_.run(context);</code></pre>
+    <h3>4.2 推荐 Watch 表达式</h3>
+    <table>
+      <thead><tr><th>阶段</th><th>观察表达式</th><th>要回答的问题</th></tr></thead>
+      <tbody>
+        <tr><td>options</td><td><code>context.options</code></td><td>本案例究竟启用了什么？</td></tr>
+        <tr><td>evidence</td><td><code>context.featureEdges.size()</code></td><td>有多少原始证据边？</td></tr>
+        <tr><td>graph</td><td><code>context.analysis().graph.edges.size()</code></td><td>公共图保存了什么？</td></tr>
+        <tr><td>trace</td><td><code>context.trace.graphEdges.size()</code></td><td>有多少边真正参与追踪？</td></tr>
+        <tr><td>cleanup</td><td><code>graphCleanupRemovedSpurs</code>、<code>graphCleanupBridgedGaps</code></td><td>图发生了哪些人工恢复？</td></tr>
+        <tr><td>loop</td><td><code>context.analysis().loops</code></td><td>恢复了 chain 还是 closed loop？</td></tr>
+        <tr><td>component</td><td><code>context.analysis().components</code></td><td>闭合率、强弱证据比和 confidence 是多少？</td></tr>
+        <tr><td>finalize</td><td><code>junctionVertices</code>、<code>endpointVertices</code></td><td>图的顶点角色是什么？</td></tr>
+        <tr><td>patch</td><td><code>facePatchIds</code>、<code>patches</code></td><td>特征边把表面分成了几块？</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="debugutil">
+    <h2>5. debugUtil 使用指南</h2>
+    <p><code>debugUtil</code> 是 Debug-only 本地 HTML 线框工具。它用于定位网格、特征边、loop、异常边和简化差异，不是正式 viewer，也不属于 SDK API。</p>
+    <h3>5.1 开启条件</h3>
+    <ul>
+      <li>CMake 必须配置 <code>-DMANUMESH_ENABLE_DEBUG_UTIL=ON</code>。</li>
+      <li>必须是非 <code>NDEBUG</code> 的 Debug 构建。</li>
+      <li>内部源码由 CMake force-include <code>debugUtil/debugUtil.h</code>，可直接使用宏。</li>
+      <li>未满足条件时所有宏静默展开为 <code>((void)0)</code>。</li>
+    </ul>
+
+    <h3>5.2 推荐环境变量</h3>
+    <pre><code>$env:MANUMESH_DEBUG_UTIL_DIR = "$PWD\output\debugUtil"
+$env:MANUMESH_DEBUG_UTIL_OPEN = "0"
+$env:MANUMESH_DEBUG_UTIL_MAX_EDGES = "50000"</code></pre>
+    <p><code>OPEN=0</code> 可防止一次 gtest 打开多个页面。每次调用仍会在标准错误输出中打印 HTML 路径。未设置目录时，默认写到 <code>%TEMP%\manumesh-debugUtil</code>。</p>
+
+    <h3>5.3 常用宏</h3>
+    <pre><code>MANUMESH_DEBUG_UTIL_WIREFRAME("input_mesh", mesh);
+
+MANUMESH_DEBUG_UTIL_FEATURES("feature_detection", mesh, analysis);
+
+MANUMESH_DEBUG_UTIL_EDGE_LABEL(
+    "candidate_edge", mesh, a, b,
+    manumesh::debugUtil::UseCase::Candidate,
+    "edge being checked");
+
+MANUMESH_DEBUG_UTIL_BEFORE_AFTER(
+    "simplify_before_after", input, simplified);</code></pre>
+
+    <h3>5.4 特征识别中的阶段快照</h3>
+    <p>临时调试时可以在 <code>FeatureDetectionPipeline::run()</code> 中插入快照；诊断完成后应删除临时插桩：</p>
+    <pre><code>featureGraph_.run(context);
+MANUMESH_DEBUG_UTIL_FEATURES("03_graph", mesh, context.analysis());
+
+cleanup_.run(context);
+MANUMESH_DEBUG_UTIL_FEATURES("04_cleanup", mesh, context.analysis());
+
+consolidation_.run(context);
+MANUMESH_DEBUG_UTIL_FEATURES("05_consolidation", mesh, context.analysis());
+
+loopRecovery_.run(context);
+MANUMESH_DEBUG_UTIL_FEATURES("06_loops", mesh, context.analysis());</code></pre>
+    <div class="callout info"><strong>图像解释：</strong><code>showFeatures</code> 同时绘制公共 <code>FeatureGraph</code> 和已恢复 loop。cleanup 从活动 <code>TraceGraph</code> 移除边时，公共图中的边保留但会标为 <code>removedByCleanup</code>，便于诊断来源与最终活动状态。</div>
+
+    <h3>5.5 颜色语义</h3>
+    <table>
+      <thead><tr><th>显示</th><th>UseCase / 来源</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><span class="swatch gray"></span>灰色</td><td><code>Mesh</code></td><td>基础线框</td></tr>
+        <tr><td><span class="swatch blue"></span>蓝色</td><td><code>Boundary</code></td><td>开放边界</td></tr>
+        <tr><td><span class="swatch orange"></span>橙色</td><td><code>Feature</code></td><td>普通强特征；当前 smooth-curvature 也可能落入此色</td></tr>
+        <tr><td><span class="swatch purple"></span>紫色</td><td><code>WeakFeature</code></td><td>normal-tensor-only 弱特征</td></tr>
+        <tr><td><span class="swatch green"></span>绿色</td><td><code>FeatureLoop</code></td><td>恢复后的可见 loop</td></tr>
+        <tr><td><span class="swatch cyan"></span>青色</td><td><code>Candidate</code></td><td>候选或 cleanup bridge</td></tr>
+        <tr><td><span class="swatch yellow"></span>黄色</td><td><code>Warning</code></td><td>被 cleanup 移除或可疑的边</td></tr>
+        <tr><td><span class="swatch red"></span>红色</td><td><code>Error / Rejected</code></td><td>非流形错误或被拒绝的候选</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn"><strong>不要只凭颜色判断 evidence source：</strong>当前 <code>useCaseForFeatureEdge()</code> 没有给 smooth-curvature 独立配色。需要同时检查 <code>FeatureGraphEdge::smoothCurvature</code>、<code>normalTensor</code> 和 <code>dihedral</code> 标志。</div>
+
+    <h3>5.6 debugUtil 与 gtest 的职责边界</h3>
+    <ul>
+      <li>gtest 负责可重复的数值、拓扑和语义断言。</li>
+      <li>debugUtil 负责回答“错误发生在模型的什么位置”和“图在哪个阶段发生变化”。</li>
+      <li>HTML 带时间戳，不应提交为测试基线。</li>
+      <li>大网格优先画单边或少量 overlay，不要在循环中无条件输出全量线框。</li>
+    </ul>
+  </section>
+
+  <section id="troubleshooting">
+    <h2>6. 常见问题</h2>
+    <table>
+      <thead><tr><th>现象</th><th>优先检查</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>宏执行后没有 HTML</td><td><code>CMakeCache.txt</code> 是否为 ON；是否 Debug</td><td>重新 configure 并重建相关对象和测试程序</td></tr>
+        <tr><td>F5 提示找不到测试程序</td><td><code>build/mingw-ninja-debug/bin/manumesh_tests.exe</code></td><td>先运行 VS Code 的 debug build task</td></tr>
+        <tr><td>断点为灰色或不命中</td><td>是否误用 release 目录；源码与二进制是否一致</td><td>区分 debug/release 构建目录并重新构建</td></tr>
+        <tr><td>一次打开很多页面</td><td><code>MANUMESH_DEBUG_UTIL_OPEN</code></td><td>设置为 <code>0</code></td></tr>
+        <tr><td>输出 HTML 太大或卡顿</td><td>边数是否超过默认上限</td><td>调低 <code>MANUMESH_DEBUG_UTIL_MAX_EDGES</code> 或只画局部 overlay</td></tr>
+        <tr><td>看到 feature edge 却没有 loop</td><td><code>loopTraceAngleDeg</code>、<code>untracedFeatureEdges</code></td><td>区分 evidence graph 与 active trace graph</td></tr>
+        <tr><td>smooth 顶点有分数但图中无边</td><td>端点 persistence、符号、切向和 edge alignment</td><td>在 <code>smoothCurvatureEdgeCandidate</code> 逐门检查</td></tr>
+        <tr><td>cleanup 后图像仍显示被删除边</td><td><code>removedByCleanup</code> 标志</td><td>黄色表示公共诊断记录仍保留，不代表边仍在活动 TraceGraph</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="references">
+    <h2>7. 源码与测试索引</h2>
+    <table>
+      <thead><tr><th>位置</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><a href="../../../include/algorithms/feature_detection/FeatureTypes.h">FeatureTypes.h</a></td><td>公开 options、graph、loop、component、patch 和 analysis 契约</td></tr>
+        <tr><td><a href="../../../src/feature_detection/FeatureDetector.cpp">FeatureDetector.cpp</a></td><td>验证、context 和九阶段调度</td></tr>
+        <tr><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">FeatureEvidence.cpp</a></td><td>五类 edge evidence 及弱特征 edge gate</td></tr>
+        <tr><td><a href="../../../src/feature_detection/FeatureGraph.cpp">FeatureGraph.cpp</a></td><td>公共图、TraceGraph、endpoint/junction/branch pair</td></tr>
+        <tr><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">FeatureLoopRecovery.cpp</a></td><td>五段 loop recovery 调度</td></tr>
+        <tr><td><a href="../../../src/feature_detection/NormalTensor.cpp">NormalTensor.cpp</a></td><td>normal tensor 多尺度评分</td></tr>
+        <tr><td><a href="../../../src/feature_detection/SmoothCurvature.cpp">SmoothCurvature.cpp</a></td><td>Monge、ridge/valley、persistence</td></tr>
+        <tr><td><a href="../../../src/debugUtil/debugUtil.h">debugUtil.h</a></td><td>Debug-only 可视化宏和 UseCase</td></tr>
+        <tr><td><a href="../../../src/debugUtil/debugUtil.cpp">debugUtil.cpp</a></td><td>HTML 生成、配色、输出路径和自动打开</td></tr>
+        <tr><td><a href="../../guide/debug_util_usage.md">debug_util_usage.md</a></td><td>debugUtil 专项使用说明</td></tr>
+        <tr><td><a href="manumesh-feature-recognition-pipeline.html">特征识别完整管线</a></td><td>九阶段公式、伪代码和实现对照</td></tr>
+        <tr><td><a href="manumesh-loop-construction.html">FeatureLoop 构造说明</a></td><td>五段恢复及 primitive ownership 详解</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+<footer>
+  本指南基于 2026-07-19 仓库源码、测试注册、VS Code 配置和 debugUtil 实现整理。测试名、源码路径、CMake 开关或可视化语义发生变化时，应同步更新本文。
+</footer>
+</body>
+</html>

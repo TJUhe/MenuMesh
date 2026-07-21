@@ -146,6 +146,36 @@ cmake -S . -B build/msvc-ninja-release -G Ninja `
 cmake --build build/msvc-ninja-release --parallel
 ```
 
+### Visual Studio 2019 Presets
+
+仓库根目录的 `CMakePresets.json` 仅包含 Visual Studio 2019 配置，固定使用 x64、
+`Visual Studio 16 2019` generator 和 `v142` toolset。项目基础配置仍支持 CMake 3.18，
+使用该 preset 文件需要 CMake 3.21 或更高版本。
+
+```powershell
+# 日常 Debug 和快速回归
+cmake --preset vs2019-debug
+cmake --build --preset vs2019-debug-tests
+ctest --preset vs2019-debug-unit
+
+# 开启内部 HTML wireframe 调试工具
+cmake --preset vs2019-debug-debugutil
+cmake --build --preset vs2019-debug-debugutil
+
+# Release 性能测试
+cmake --preset vs2019-release-performance
+cmake --build --preset vs2019-release-performance
+ctest --preset vs2019-release-performance
+
+# 安装并验证独立 SDK consumer
+cmake --preset vs2019-release-sdk
+cmake --build --preset vs2019-release-sdk
+```
+
+此外还提供 `vs2019-release`、`vs2019-release-static` 以及 unit、external、full、
+performance、SDK 等对应 build/test preset。每类配置使用独立构建目录，切换
+debugUtil、静态/动态库、性能和安装选项时不会污染已有 CMake cache。
+
 ### 安装 SDK
 
 ```powershell
@@ -252,6 +282,10 @@ report/stats 应使用当前 size-aware wrapper 或显式 `*_with_size` 入口�
 | [架构设计](documentation/design/architecture.md) | 模块职责、依赖方向、公开/私有边界和数据策略。 |
 | [算法本质](documentation/design/algorithm_essence.md) | QEM/line quadrics、特征图和合法性过滤之间的关系。 |
 | [特征识别管线](documentation/generated/notes/manumesh-feature-recognition-pipeline.html) | 特征证据、graph、loop、primitive、junction 和 patch 的实现级说明。 |
+| [特征识别调试学习计划](documentation/generated/notes/manumesh-feature-recognition-gtest-debug-learning-plan.html) | 按 GTest 案例学习特征识别九阶段流程与 debugUtil。 |
+| [网格简化调试学习计划](documentation/generated/notes/manumesh-simplification-gtest-debug-learning-plan.html) | 按 GTest 案例学习 QEM、edge collapse、保护策略和质量验证。 |
+| [基础与 IO 调试学习计划](documentation/generated/notes/manumesh-core-io-analysis-gtest-debug-learning-plan.html) | 学习 Mesh/Topology、动态编辑、空间查询、OBJ/STL 和分析模块。 |
+| [API 与 SDK 调试学习计划](documentation/generated/notes/manumesh-api-sdk-gtest-debug-learning-plan.html) | 学习 C++/C ABI、CLI、安装布局和独立 consumer 验证。 |
 | [SDK 集成指南](documentation/guide/sdk_integration.md) | 安装目录、C++/C ABI、CMake 和 Visual Studio 接入。 |
 | [工业验证](documentation/design/industrial_validation.md) | 能力、数据集、命令、CSV 指标和验收口径。 |
 | [测试策略](documentation/design/testing_strategy.md) | 测试分层、解析 fixture、标签、确定性和性能用例。 |

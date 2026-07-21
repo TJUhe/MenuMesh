@@ -16,6 +16,9 @@
 | [`delivery/manumesh_kernel_developer_guide.html`](delivery/manumesh_kernel_developer_guide.html) | 商用内核交付级开发者手册，包含定位、架构、模块、API、C ABI、构建、验证、扩展边界和交付清单。 |
 | [`generated/notes/manumesh-feature-recognition-pipeline.html`](generated/notes/manumesh-feature-recognition-pipeline.html) | 当前特征识别源码级权威 HTML：9 阶段 pipeline、MathJax 公式推导、normal-filter 实际数据流、normal tensor、三次 Monge ridge/valley、graph cleanup/consolidation、junction/patch、Taubin/Halíř-Flusser primitive、component confidence、伪代码、数值算例和可复现 CLI 实验。 |
 | [`generated/notes/manumesh-feature-recognition-gtest-debug-learning-plan.html`](generated/notes/manumesh-feature-recognition-gtest-debug-learning-plan.html) | 特征识别 GTest 调试学习指南：10 个递进学习单元、逐案例断点与观察量、VS Code 过滤调试、debugUtil 开启/插桩/颜色语义和常见问题。 |
+| [`generated/notes/manumesh-simplification-gtest-debug-learning-plan.html`](generated/notes/manumesh-simplification-gtest-debug-learning-plan.html) | 网格简化 GTest 调试学习指南：QEM、placement、候选队列、link condition、合法性、边界/特征/纹理保护、质量优化与工业验证。 |
+| [`generated/notes/manumesh-core-io-analysis-gtest-debug-learning-plan.html`](generated/notes/manumesh-core-io-analysis-gtest-debug-learning-plan.html) | 基础设施 GTest 调试学习指南：Mesh/Topology、动态编辑、几何谓词、空间索引、OBJ/STL 和分析指标。 |
+| [`generated/notes/manumesh-api-sdk-gtest-debug-learning-plan.html`](generated/notes/manumesh-api-sdk-gtest-debug-learning-plan.html) | API/SDK GTest 调试学习指南：C++ API、PlainMesh、C ABI、size-aware 兼容、CLI 和安装后 consumer 闭环。 |
 | [`design/feature_recognition_system_upgrade_2026_07_15.md`](design/feature_recognition_system_upgrade_2026_07_15.md) | 本轮系统增强的设计与实现对照：模块职责、默认兼容策略、C++/CLI/C ABI、benchmark 标签、论文/开源程序依据和仍未实现的边界。 |
 | [`generated/notes/manumesh-loop-construction.html`](generated/notes/manumesh-loop-construction.html) | FeatureLoop 五段恢复顺序、宽松 trace 与严格 recovered cycle 的差异、各 fallback 上限、primitive fitting 和 vertex ownership 源码对照。 |
 | [`guide/debug_util_usage.md`](guide/debug_util_usage.md) | 内部 Debug-only HTML wireframe 工具使用教程，包含开启方式、常用宏、颜色约定、插入位置和截图预览。 |

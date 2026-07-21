@@ -1,20 +1,7 @@
 {
-  "cmake.useCMakePresets": "never",
+  "cmake.useCMakePresets": "always",
   "cmake.configureOnOpen": false,
-  "cmake.generator": "Ninja",
-  "cmake.buildType": "Release",
-  "cmake.buildDirectory": "${workspaceFolder}/build/mingw-ninja-release",
-  "cmake.configureSettings": {
-    "CMAKE_MAKE_PROGRAM": "ninja",
-    "CMAKE_C_COMPILER": "gcc",
-    "CMAKE_CXX_COMPILER": "g++",
-    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-    "MANUMESH_GOOGLETEST_PROVIDER": "auto",
-    "MANUMESH_BUILD_PERFORMANCE_TESTS": "OFF"
-  },
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/mingw-ninja-release/compile_commands.json",
-  "C_Cpp.default.compilerPath": "g++",
   "C_Cpp.default.cStandard": "c17",
   "C_Cpp.default.cppStandard": "c++17",
   "C_Cpp.default.includePath": [
@@ -22,14 +9,14 @@
     "${workspaceFolder}/src",
     "${workspaceFolder}/apps",
     "${workspaceFolder}/thirdParty/eigen/include",
-    "${workspaceFolder}/thirdParty/googletest/prebuilt/mingw-x64-shared/include"
+    "${workspaceFolder}/thirdParty/googletest/source/googletest/include"
   ],
   "C_Cpp.default.browse.path": [
     "${workspaceFolder}/include",
     "${workspaceFolder}/src",
     "${workspaceFolder}/apps",
     "${workspaceFolder}/thirdParty/eigen/include",
-    "${workspaceFolder}/thirdParty/googletest/prebuilt/mingw-x64-shared/include"
+    "${workspaceFolder}/thirdParty/googletest/source/googletest/include"
   ],
   "C_Cpp.errorSquiggles": "enabled",
   "files.associations": {

@@ -1,0 +1,356 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vs2019-base",
+      "hidden": true,
+      "generator": "Visual Studio 16 2019",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      },
+      "toolset": {
+        "value": "v142",
+        "strategy": "set"
+      },
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3 /FS",
+        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /FS",
+        "BUILD_TESTING": "ON",
+        "MANUMESH_BUILD_SHARED_LIBRARY": "ON",
+        "MANUMESH_BUILD_CLI": "ON",
+        "MANUMESH_BUILD_EXAMPLES": "ON",
+        "MANUMESH_BUILD_TESTS": "ON",
+        "MANUMESH_BUILD_PERFORMANCE_TESTS": "OFF",
+        "MANUMESH_ENABLE_INSTALL": "OFF",
+        "MANUMESH_ENABLE_DEBUG_UTIL": "OFF",
+        "MANUMESH_BUILD_DOCS": "OFF",
+        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": "OFF",
+        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON",
+        "MANUMESH_EIGEN_PROVIDER": "vendored",
+        "MANUMESH_GOOGLETEST_PROVIDER": "source"
+      }
+    },
+    {
+      "name": "vs2019-debug",
+      "displayName": "VS2019 x64 - Debug",
+      "description": "Daily VS2019 Debug build with CLI, examples and all non-performance tests.",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-debug"
+    },
+    {
+      "name": "vs2019-debug-debugutil",
+      "displayName": "VS2019 x64 - Debug + debugUtil",
+      "description": "Debug build with the internal HTML wireframe diagnostics enabled.",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-debug-debugutil",
+      "cacheVariables": {
+        "MANUMESH_ENABLE_DEBUG_UTIL": "ON"
+      }
+    },
+    {
+      "name": "vs2019-release",
+      "displayName": "VS2019 x64 - Release",
+      "description": "Optimized shared-library build with CLI, examples and regression tests.",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-release"
+    },
+    {
+      "name": "vs2019-release-static",
+      "displayName": "VS2019 x64 - Release Static",
+      "description": "Optimized static-library variant for static consumer validation.",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-release-static",
+      "cacheVariables": {
+        "MANUMESH_BUILD_SHARED_LIBRARY": "OFF"
+      }
+    },
+    {
+      "name": "vs2019-release-performance",
+      "displayName": "VS2019 x64 - Release Performance",
+      "description": "Isolated optimized build that enables large-mesh performance tests.",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-release-performance",
+      "cacheVariables": {
+        "MANUMESH_BUILD_EXAMPLES": "OFF",
+        "MANUMESH_BUILD_PERFORMANCE_TESTS": "ON"
+      }
+    },
+    {
+      "name": "vs2019-release-sdk",
+      "displayName": "VS2019 x64 - Release SDK",
+      "description": "Installable shared SDK with CMake package metadata and consumer tests.",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-release-sdk",
+      "cacheVariables": {
+        "MANUMESH_ENABLE_INSTALL": "ON",
+        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON"
+      }
+    },
+    {
+      "name": "vs2019-release-docs",
+      "displayName": "VS2019 x64 - Release Docs",
+      "description": "Isolated configuration for API and internal Doxygen targets.",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-release-docs",
+      "cacheVariables": {
+        "MANUMESH_BUILD_DOCS": "ON",
+        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2019-debug",
+      "displayName": "Build VS2019 Debug - all",
+      "configurePreset": "vs2019-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2019-debug-tests",
+      "displayName": "Build VS2019 Debug - test executables",
+      "configurePreset": "vs2019-debug",
+      "configuration": "Debug",
+      "targets": [
+        "manumesh_tests",
+        "manumesh_external_tests",
+        "manumesh",
+        "manumesh_basic_simplify",
+        "manumesh_c_api_basic",
+        "manumesh_feature_workflow_demo"
+      ]
+    },
+    {
+      "name": "vs2019-debug-debugutil",
+      "displayName": "Build VS2019 Debug + debugUtil - tests",
+      "configurePreset": "vs2019-debug-debugutil",
+      "configuration": "Debug",
+      "targets": [
+        "manumesh_tests",
+        "manumesh_external_tests",
+        "manumesh",
+        "manumesh_basic_simplify",
+        "manumesh_c_api_basic",
+        "manumesh_feature_workflow_demo"
+      ]
+    },
+    {
+      "name": "vs2019-release",
+      "displayName": "Build VS2019 Release - all",
+      "configurePreset": "vs2019-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2019-release-tests",
+      "displayName": "Build VS2019 Release - test executables",
+      "configurePreset": "vs2019-release",
+      "configuration": "Release",
+      "targets": [
+        "manumesh_tests",
+        "manumesh_external_tests",
+        "manumesh",
+        "manumesh_basic_simplify",
+        "manumesh_c_api_basic",
+        "manumesh_feature_workflow_demo"
+      ]
+    },
+    {
+      "name": "vs2019-release-static",
+      "displayName": "Build VS2019 Release Static - all",
+      "configurePreset": "vs2019-release-static",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2019-release-performance",
+      "displayName": "Build VS2019 Release - performance executable",
+      "configurePreset": "vs2019-release-performance",
+      "configuration": "Release",
+      "targets": [
+        "manumesh_performance_tests"
+      ]
+    },
+    {
+      "name": "vs2019-release-sdk",
+      "displayName": "Build and validate VS2019 Release SDK",
+      "configurePreset": "vs2019-release-sdk",
+      "configuration": "Release",
+      "targets": [
+        "sdk-consumer-test",
+        "manumesh_tests",
+        "manumesh_external_tests",
+        "manumesh_basic_simplify",
+        "manumesh_c_api_basic",
+        "manumesh_feature_workflow_demo"
+      ]
+    },
+    {
+      "name": "vs2019-release-docs",
+      "displayName": "Build VS2019 API and internal docs",
+      "configurePreset": "vs2019-release-docs",
+      "configuration": "Release",
+      "targets": [
+        "docs-api",
+        "docs-internal"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "vs2019-debug-unit",
+      "displayName": "Test VS2019 Debug - fast unit and architecture",
+      "configurePreset": "vs2019-debug",
+      "configuration": "Debug",
+      "filter": {
+        "exclude": {
+          "label": "performance|external"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-debug-external",
+      "displayName": "Test VS2019 Debug - external meshes",
+      "configurePreset": "vs2019-debug",
+      "configuration": "Debug",
+      "filter": {
+        "include": {
+          "label": "external"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-debug-debugutil-unit",
+      "displayName": "Test VS2019 Debug + debugUtil - fast suite",
+      "configurePreset": "vs2019-debug-debugutil",
+      "configuration": "Debug",
+      "filter": {
+        "exclude": {
+          "label": "performance|external"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-release-unit",
+      "displayName": "Test VS2019 Release - fast unit and architecture",
+      "configurePreset": "vs2019-release",
+      "configuration": "Release",
+      "filter": {
+        "exclude": {
+          "label": "performance|external"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-release-external",
+      "displayName": "Test VS2019 Release - external meshes",
+      "configurePreset": "vs2019-release",
+      "configuration": "Release",
+      "filter": {
+        "include": {
+          "label": "external"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-release-full",
+      "displayName": "Test VS2019 Release - all configured tests",
+      "configurePreset": "vs2019-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-release-static-unit",
+      "displayName": "Test VS2019 Release Static - fast suite",
+      "configurePreset": "vs2019-release-static",
+      "configuration": "Release",
+      "filter": {
+        "exclude": {
+          "label": "performance|external"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-release-performance",
+      "displayName": "Test VS2019 Release - performance",
+      "configurePreset": "vs2019-release-performance",
+      "configuration": "Release",
+      "filter": {
+        "include": {
+          "label": "performance"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
+    },
+    {
+      "name": "vs2019-release-sdk",
+      "displayName": "Test VS2019 Release - SDK and full regression",
+      "configurePreset": "vs2019-release-sdk",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    }
+  ]
+}

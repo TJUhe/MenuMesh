@@ -148,9 +148,9 @@ cmake --build build/msvc-ninja-release --parallel
 
 ### Visual Studio 2019 Presets
 
-仓库根目录的 `CMakePresets.json` 仅包含 Visual Studio 2019 配置，固定使用 x64、
-`Visual Studio 16 2019` generator 和 `v142` toolset。项目基础配置仍支持 CMake 3.18，
-使用该 preset 文件需要 CMake 3.21 或更高版本。
+仓库根目录的 `CMakePresets.json` 仅包含 Visual Studio 2019 配置，覆盖 x64、v142
+环境下的 `Visual Studio 16 2019` 和 `Ninja Multi-Config` 两种 generator。项目基础配置
+仍支持 CMake 3.18，使用该 preset 文件需要 CMake 3.21 或更高版本。
 
 ```powershell
 # 日常 Debug 和快速回归
@@ -172,9 +172,37 @@ cmake --preset vs2019-release-sdk
 cmake --build --preset vs2019-release-sdk
 ```
 
+Ninja preset 必须从 VS2019 x64 Developer Command Prompt（或已经执行对应
+`VsDevCmd.bat` 的终端）运行，确保 `cl`、`rc` 和 `mt` 来自 v142 环境：
+
+```powershell
+# Ninja Multi-Config 日常 Debug 和快速回归
+cmake --preset vs2019-ninja-debug
+cmake --build --preset vs2019-ninja-debug-tests --parallel
+ctest --preset vs2019-ninja-debug-unit
+
+# Ninja Debug + HTML wireframe 调试工具
+cmake --preset vs2019-ninja-debug-debugutil
+cmake --build --preset vs2019-ninja-debug-debugutil --parallel
+ctest --preset vs2019-ninja-debug-debugutil-unit
+
+# Ninja Release、性能和 SDK
+cmake --preset vs2019-ninja-release
+cmake --build --preset vs2019-ninja-release --parallel
+ctest --preset vs2019-ninja-release-unit
+
+cmake --preset vs2019-ninja-release-performance
+cmake --build --preset vs2019-ninja-release-performance --parallel
+ctest --preset vs2019-ninja-release-performance
+
+cmake --preset vs2019-ninja-release-sdk
+cmake --build --preset vs2019-ninja-release-sdk --parallel
+```
+
 此外还提供 `vs2019-release`、`vs2019-release-static` 以及 unit、external、full、
-performance、SDK 等对应 build/test preset。每类配置使用独立构建目录，切换
-debugUtil、静态/动态库、性能和安装选项时不会污染已有 CMake cache。
+performance、SDK，以及同名的 `vs2019-ninja-*` build/test preset。每类配置使用独立
+构建目录，切换 generator、debugUtil、静态/动态库、性能和安装选项时不会污染已有
+CMake cache。
 
 ### 安装 SDK
 

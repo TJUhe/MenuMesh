@@ -156,6 +156,46 @@
       "problemMatcher": []
     },
     {
+      "label": "configure: vs2019+ninja debug preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "vs2019-ninja-debug"],
+      "hide": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: vs2019+ninja debug debugutil preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "vs2019-ninja-debug-debugutil"],
+      "hide": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: vs2019+ninja release preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "vs2019-ninja-release"],
+      "hide": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: vs2019+ninja release performance preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "vs2019-ninja-release-performance"],
+      "hide": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "configure: vs2019+ninja release sdk preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "vs2019-ninja-release-sdk"],
+      "hide": true,
+      "problemMatcher": []
+    },
+    {
       "label": "build: mingw+ninja debug",
       "type": "process",
       "command": "cmake",
@@ -278,6 +318,49 @@
       ],
       "problemMatcher": ["$msCompile"],
       "dependsOn": "configure: msvc selected performance"
+    },
+    {
+      "label": "build: vs2019+ninja debug preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "vs2019-ninja-debug-tests", "--parallel"],
+      "group": "build",
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: vs2019+ninja debug preset"
+    },
+    {
+      "label": "build: vs2019+ninja debug debugutil preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "vs2019-ninja-debug-debugutil", "--parallel"],
+      "group": "build",
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: vs2019+ninja debug debugutil preset"
+    },
+    {
+      "label": "build: vs2019+ninja release preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "vs2019-ninja-release", "--parallel"],
+      "group": "build",
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: vs2019+ninja release preset"
+    },
+    {
+      "label": "build: vs2019+ninja release performance preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "vs2019-ninja-release-performance", "--parallel"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: vs2019+ninja release performance preset"
+    },
+    {
+      "label": "build: vs2019+ninja release sdk preset",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "vs2019-ninja-release-sdk", "--parallel"],
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "configure: vs2019+ninja release sdk preset"
     },
     {
       "label": "test: mingw+ninja debug",
@@ -414,6 +497,56 @@
       ],
       "problemMatcher": [],
       "dependsOn": "build: msvc selected release performance"
+    },
+    {
+      "label": "test: vs2019+ninja debug preset",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-ninja-debug-unit"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019+ninja debug preset"
+    },
+    {
+      "label": "test: vs2019+ninja debug debugutil preset",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-ninja-debug-debugutil-unit"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019+ninja debug debugutil preset"
+    },
+    {
+      "label": "test: vs2019+ninja release preset",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-ninja-release-unit"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019+ninja release preset"
+    },
+    {
+      "label": "test: vs2019+ninja release performance preset",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-ninja-release-performance"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019+ninja release performance preset"
+    },
+    {
+      "label": "test: vs2019+ninja release sdk preset",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-ninja-release-sdk"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019+ninja release sdk preset"
+    },
+    {
+      "label": "test: vs2019+ninja release full",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "test: vs2019+ninja release preset",
+        "test: vs2019+ninja release performance preset",
+        "test: vs2019+ninja release sdk preset"
+      ],
+      "problemMatcher": []
     },
     {
       "label": "test: mingw+ninja release full",

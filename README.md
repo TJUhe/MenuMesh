@@ -199,6 +199,11 @@ cmake --preset vs2019-ninja-release-sdk
 cmake --build --preset vs2019-ninja-release-sdk --parallel
 ```
 
+VS Code 的 `Terminal > Run Task...` 中提供对应的
+`configure/build/test: vs2019+ninja ... preset` 任务；运行和断点调试可在 Run and Debug 中选择
+`(VS2019 Ninja Preset)` 或 `(VS2019 Ninja Preset + debugUtil)` 配置。启动 VS Code
+前同样需要进入 VS2019 x64 Developer Command Prompt。
+
 此外还提供 `vs2019-release`、`vs2019-release-static` 以及 unit、external、full、
 performance、SDK，以及同名的 `vs2019-ninja-*` build/test preset。每类配置使用独立
 构建目录，切换 generator、debugUtil、静态/动态库、性能和安装选项时不会污染已有

@@ -1,13 +1,12 @@
 /**
  * @file src/feature_detection/FeatureLoopBuilder.cpp
- * @brief Implements feature loop builder facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征环构建功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Converts traced vertex sequences and edge evidence into public FeatureLoop records.
- * @algorithm Computes evidence counts, closure, primitive fit, component
- * ownership, and per-vertex tangent/projection data before appending a loop.
- * @invariants A loop is published only after all referenced vertex ids and
- * consecutive graph edges have been validated.
+ * @details 将追踪到的顶点序列和边证据转换为公共 FeatureLoop 记录。
+ * @algorithm 在追加环之前计算证据计数、闭合状态、图元拟合、分量归属以及
+ *            每个顶点的切线/投影数据。
+ * @invariants 只有在所有顶点 ID 及相邻图边都通过校验后，才会发布特征环。
  */
 
 #include "detail/FeatureLoopBuilder.h"
@@ -56,11 +55,10 @@ bool cycleHasUniqueVertices(const std::vector<int>& vertices) {
     return true;
 }
 
-} // namespace
+} // 匿名命名空间
 
 std::size_t CycleSignatureHash::operator()(const CycleSignature& signature) const {
-    // FNV-1a over the sorted edge keys; the vector itself is the exact
-    // identity, the hash only spreads buckets.
+    // 对已排序的无向边键执行 FNV-1a；向量本身才是精确身份，哈希仅用于均匀分桶。
     std::uint64_t hash = 1469598103934665603ull;
     for (std::uint64_t key : signature) {
         for (int shift = 0; shift < 64; shift += 8) {
@@ -99,12 +97,10 @@ void assignLoopToVertices(
             vf.circular = loop.circular;
             vf.primitive = loop.primitive;
         }
-        // Per-vertex protection flag: true branch points (degree > 2) and
-        // vertices shared between recovered loops are pinned; a degree-1
-        // chain endpoint is not. Loop sharing stays in this flag because the
-        // simplification layer must not collapse a curve that several
-        // recovered loops depend on. Topological junction reporting is
-        // stricter (graph valence only) -- see finalizeFeatureGraphMarkers.
+        // 顶点保护标记：真实分叉点（度数 > 2）及多个恢复环共享的顶点会被固定，
+        // 度数为 1 的链端点不会被固定。环共享状态保存在该标记中，
+        // 因为简化阶段不能折叠多个恢复环共同依赖的曲线；拓扑分叉报告则更严格，
+        // 仅依据图度数（见 finalizeFeatureGraphMarkers）。
         vf.junction = vf.junction || alreadyFeature || adjacency[id].size() > 2;
         if (loop.circular && (!alreadyFeature || !vf.circular)) {
             vf.loopId = loop.id;
@@ -262,4 +258,4 @@ bool addRecoveredCycle(
     return true;
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

@@ -1,12 +1,12 @@
 /**
  * @file src/feature_detection/FeatureTraceRecovery.cpp
- * @brief Implements feature trace recovery facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征轨迹恢复功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Traces remaining degree-two chains and loops after stronger recovery stages.
- * @algorithm Walks sorted adjacency while marking undirected edges visited;
- * endpoints seed open chains before unvisited degree-two cycles are consumed.
- * @invariants Every active graph edge is traced at most once by this stage.
+ * @details 在更强证据恢复阶段之后，追踪剩余的二度顶点链和环。
+ * @algorithm 遍历已排序的邻接表并标记已访问的无向边；先由端点生成开放链，
+ *            再消耗尚未访问的二度顶点环。
+ * @invariants 本阶段每条活动图边最多被追踪一次。
  */
 
 #include "detail/FeatureTraceRecovery.h"
@@ -149,7 +149,7 @@ std::vector<int> traceClosedLoop(
     return vertices;
 }
 
-} // namespace
+} // 匿名命名空间
 
 void traceRemainingFeatureLoops(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
@@ -181,4 +181,4 @@ void traceRemainingFeatureLoops(
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

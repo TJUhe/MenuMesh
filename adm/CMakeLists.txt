@@ -1,13 +1,13 @@
 option(MANUMESH_BUILD_DOCS
-  "Enable the Doxygen docs-api and docs-internal targets when Doxygen is available"
+  "Doxygen 可用时启用 docs-api 和 docs-internal 目标"
   ON
 )
 option(MANUMESH_DOXYGEN_ENABLE_GRAPHS
-  "Enable Graphviz-backed diagrams in generated Doxygen documentation when dot is available"
+  "dot 可用时在生成的 Doxygen 文档中启用 Graphviz 图表"
   ON
 )
 option(MANUMESH_INSTALL_CMAKE_CONFIG
-  "Install optional CMake config files for CMake consumers"
+  "为 CMake consumer 安装可选的 CMake 配置文件"
   ON
 )
 
@@ -26,7 +26,7 @@ add_custom_target(check-src-doxygen
     -DMANUMESH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
     -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckSrcDoxygen.cmake"
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-  COMMENT "Checking src Doxygen comment conventions"
+  COMMENT "正在检查 src Doxygen 注释约定"
   VERBATIM
 )
 
@@ -46,24 +46,24 @@ if(CLANG_FORMAT_EXE)
   add_custom_target(format
     COMMAND "${CLANG_FORMAT_EXE}" -i ${MANUMESH_FORMAT_FILES}
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-    COMMENT "Formatting C++ sources with clang-format"
+    COMMENT "正在使用 clang-format 格式化 C++ 源码"
     VERBATIM
   )
   add_custom_target(check-format
     COMMAND "${CLANG_FORMAT_EXE}" --dry-run --Werror ${MANUMESH_FORMAT_FILES}
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-    COMMENT "Checking C++ source formatting"
+    COMMENT "正在检查 C++ 源码格式"
     VERBATIM
   )
 else()
   add_custom_target(format
     COMMAND "${CMAKE_COMMAND}" -E echo
-      "clang-format was not found; install it to enable the format target."
+      "未找到 clang-format；请安装后启用 format 目标。"
     VERBATIM
   )
   add_custom_target(check-format
     COMMAND "${CMAKE_COMMAND}" -E echo
-      "clang-format was not found; install it to enable the check-format target."
+      "未找到 clang-format；请安装后启用 check-format 目标。"
     VERBATIM
   )
 endif()
@@ -71,14 +71,14 @@ endif()
 if(MANUMESH_BUILD_DOCS)
   if(EXISTS "${MANUMESH_VENDORED_DOXYGEN_EXECUTABLE}")
     set(DOXYGEN_EXECUTABLE "${MANUMESH_VENDORED_DOXYGEN_EXECUTABLE}"
-      CACHE FILEPATH "Vendored Doxygen executable" FORCE
+      CACHE FILEPATH "Vendored Doxygen 可执行文件" FORCE
     )
   endif()
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)
     if(EXISTS "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}")
       set(MANUMESH_DOXYGEN_DOT_EXE "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}"
-        CACHE FILEPATH "Vendored Graphviz dot executable" FORCE
+        CACHE FILEPATH "Vendored Graphviz dot 可执行文件" FORCE
       )
     else()
       find_program(MANUMESH_DOXYGEN_DOT_EXE NAMES dot)
@@ -102,7 +102,7 @@ if(MANUMESH_BUILD_DOCS)
     set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/doxygen")
     set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh")
     set(MANUMESH_DOXYGEN_PROJECT_BRIEF
-      "C++17 triangle-mesh analysis, feature detection, and simplification kernel"
+      "C++17 三角网格分析、特征检测与简化内核"
     )
     set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
     set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
@@ -124,7 +124,7 @@ if(MANUMESH_BUILD_DOCS)
         "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
         "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile"
       WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-      COMMENT "Generating API documentation with Doxygen"
+      COMMENT "正在使用 Doxygen 生成 API 文档"
       VERBATIM
     )
 
@@ -138,7 +138,7 @@ if(MANUMESH_BUILD_DOCS)
     set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/internal")
     set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh Internal Source Reference")
     set(MANUMESH_DOXYGEN_PROJECT_BRIEF
-      "Private implementation, source browser, and engineering call relationships"
+      "私有实现、源码浏览和工程调用关系"
     )
     set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
     set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
@@ -160,18 +160,18 @@ if(MANUMESH_BUILD_DOCS)
         "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
         "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile.internal"
       WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-      COMMENT "Generating internal source documentation with Doxygen"
+      COMMENT "正在使用 Doxygen 生成内部源码文档"
       VERBATIM
     )
   else()
     add_custom_target(docs-api
       COMMAND "${CMAKE_COMMAND}" -E echo
-        "Doxygen was not found; install it to enable API documentation generation."
+        "未找到 Doxygen；请安装后启用 API 文档生成。"
       VERBATIM
     )
     add_custom_target(docs-internal
       COMMAND "${CMAKE_COMMAND}" -E echo
-        "Doxygen was not found; install it to enable internal source documentation generation."
+        "未找到 Doxygen；请安装后启用内部源码文档生成。"
       VERBATIM
     )
   endif()
@@ -183,11 +183,11 @@ endif()
 if(MANUMESH_ENABLE_INSTALL)
   set(MANUMESH_LOCAL_SDK_PREFIX
     "${CMAKE_BINARY_DIR}/sdk"
-    CACHE PATH "Local installed SDK root used by sdk-install-local and sdk-consumer-test"
+    CACHE PATH "供 sdk-install-local 和 sdk-consumer-test 使用的本地已安装 SDK 根目录"
   )
   set(MANUMESH_SDK_CONSUMER_BUILD_DIR
     "${CMAKE_BINARY_DIR}/sdk-consumer-build"
-    CACHE PATH "Build directory for the installed-SDK consumer examples"
+    CACHE PATH "已安装 SDK consumer 示例的构建目录"
   )
 
   set(MANUMESH_HAS_MSVC_PROPS FALSE)
@@ -257,7 +257,7 @@ if(MANUMESH_ENABLE_INSTALL)
       --config "$<CONFIG>"
       --prefix "${MANUMESH_LOCAL_SDK_PREFIX}"
     DEPENDS ${MANUMESH_SDK_INSTALL_DEPENDS}
-    COMMENT "Installing local SDK layout to ${MANUMESH_LOCAL_SDK_PREFIX}"
+    COMMENT "正在将本地 SDK 布局安装到 ${MANUMESH_LOCAL_SDK_PREFIX}"
     VERBATIM
   )
 
@@ -267,7 +267,7 @@ if(MANUMESH_ENABLE_INSTALL)
       "-DMANUMESH_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
       -P "${PROJECT_SOURCE_DIR}/adm/CheckInstalledRuntime.cmake"
     DEPENDS sdk-install-local
-    COMMENT "Testing the installed CLI with an isolated runtime PATH"
+    COMMENT "正在使用隔离运行时 PATH 测试已安装 CLI"
     VERBATIM
   )
 
@@ -302,7 +302,7 @@ if(MANUMESH_ENABLE_INSTALL)
         "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
         --output-on-failure
       DEPENDS sdk-runtime-test
-      COMMENT "Building and running examples against the installed SDK"
+      COMMENT "正在针对已安装 SDK 构建并运行示例"
       VERBATIM
     )
 

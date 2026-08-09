@@ -1,12 +1,11 @@
 /**
  * @file src/feature_detection/FeatureBenchmark.cpp
- * @brief Implements feature benchmark facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征基准测试功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Computes edge, junction, continuation, and patch-label benchmark metrics.
- * @algorithm Canonical undirected edge keys support exact set comparison;
- * branch pairs are compared without orientation; patch labels use pairwise
- * same/different-region agreement so numeric patch ids need not match.
+ * @details 计算边、分叉、延续关系和面片标签的基准指标。
+ * @algorithm 使用规范化无向边键进行精确集合比较；分支对不考虑方向；
+ *            面片标签采用“同区/异区”的成对一致性，因此数值标签无需一致。
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -29,7 +28,7 @@ double f1(double precision, double recall) {
     return precision + recall > 0.0 ? 2.0 * precision * recall / (precision + recall) : 0.0;
 }
 
-/** @brief Canonical unordered pair of junction branches used for matching. */
+/** @brief 返回无向边集合的精确差异计数。 */
 struct BranchPairKey {
     int junction = -1;
     int first = -1;
@@ -40,7 +39,7 @@ struct BranchPairKey {
     }
 };
 
-/** @brief Stable hash for canonical junction branch pairs. */
+/** @brief 比较两份特征分析并生成可复现的基准指标。 */
 struct BranchPairKeyHash {
     std::size_t operator()(const BranchPairKey& key) const {
         std::size_t seed = std::hash<int>{}(key.junction);
@@ -54,7 +53,7 @@ BranchPairKey branchPairKey(int junction, int first, int second) {
     return BranchPairKey{junction, std::min(first, second), std::max(first, second)};
 }
 
-} // namespace
+} // 匿名命名空间
 
 FeatureEdgeBenchmark benchmarkFeatureEdges(
     const FeatureAnalysis& analysis,
@@ -213,4 +212,4 @@ benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, cons
     return result;
 }
 
-} // namespace manumesh::feature
+} // 命名空间 manumesh::feature

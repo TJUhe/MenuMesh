@@ -1,9 +1,9 @@
 /**
  * @file apps/CliArguments.h
- * @brief Declares cli arguments facilities for the ManuMesh command-line application.
+ * @brief 声明命令行参数解析、校验和取值辅助函数。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 参数表同时驱动帮助文本、选项归属校验和严格的数值解析。
  */
 
 #pragma once
@@ -14,35 +14,35 @@
 namespace manumesh::cli {
 
 struct Args {
-    std::vector<std::string> values; ///< Raw arguments excluding the executable name.
+    std::vector<std::string> values; ///< 不含可执行文件名的原始参数令牌。
 };
 
-/// @return true when the exact switch/value flag occurs in `args`.
+/// @return `args` 中存在精确开关或值选项时返回 true。
 bool hasFlag(const Args& args, const std::string& name);
-/// @return true when `value` is registered by any command.
+/// @return 任意命令注册了 `value` 时返回 true。
 bool isKnownFlag(const std::string& value);
-/// @return true when the registered option consumes the following token.
+/// @return 已注册选项需要消费后续令牌时返回 true。
 bool takesValue(const std::string& value);
-/// Validates that every option belongs to `command` and every value is present.
-/// @throws std::invalid_argument with the owning commands for misplaced flags.
+/// 校验所有选项是否属于 `command`，并确认值选项都有对应值。
+/// @throws 选项属于其他命令或缺少值时抛出 `std::invalid_argument`。
 void validateArgsForCommand(const std::string& command, const Args& args);
-/// @return Grouped help generated from the same table used for validation.
+/// @return 根据同一校验表生成的分组帮助文本。
 std::string optionsHelpText();
-/// Returns a flag value or caller-supplied default when absent.
+/// 返回选项值；选项缺失时返回调用方提供的默认值。
 std::string getArg(const Args& args, const std::string& name, const std::string& defaultValue = "");
-/// Parses a complete decimal integer token or throws an option-named diagnostic.
+/// 解析完整的十进制整数令牌；失败时抛出带选项名的诊断。
 int parseIntStrict(const std::string& value, const std::string& name);
-/// Parses a complete finite floating-point token or throws an option-named diagnostic.
+/// 解析完整且有限的浮点令牌；失败时抛出带选项名的诊断。
 double parseDoubleStrict(const std::string& value, const std::string& name);
-/// Fetches and strictly parses an integer option.
+/// 获取并严格解析整数选项。
 int getIntArg(const Args& args, const std::string& name, int defaultValue);
-/// Fetches and strictly parses a floating-point option.
+/// 获取并严格解析浮点选项。
 double getDoubleArg(const Args& args, const std::string& name, double defaultValue);
-/// @return Tokens not consumed as registered options or option values.
+/// @return 未被注册选项或其值消费的剩余令牌。
 std::vector<std::string> positionalArgs(const Args& args);
-/// Parses a comma-separated finite weight list.
+/// 解析逗号分隔的有限权重列表。
 std::vector<double> parseWeights(const std::string& text);
-/// Parses a comma-separated positive face-count list.
+/// 解析逗号分隔的正整数面数列表。
 std::vector<int> parseFaceCounts(const std::string& text);
 
-} // namespace manumesh::cli
+} // 命令行参数命名空间

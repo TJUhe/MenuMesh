@@ -1,9 +1,9 @@
 /**
  * @file examples/sdk_consumer/sdk_cpp_simplify.cpp
- * @brief Demonstrates sdk cpp simplify through the ManuMesh SDK examples.
+ * @brief 通过 ManuMesh SDK 示例演示SDK C++ 简化。
  * @ingroup manumesh_examples
  *
- * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ * @details 示例只使用已安装 SDK 的公共 C++ 入口，作为可执行的集成文档。
  */
 
 #include "algorithms/analysis/MeshAnalysis.h"

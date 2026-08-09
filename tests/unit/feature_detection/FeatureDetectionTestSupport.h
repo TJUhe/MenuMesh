@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/FeatureDetectionTestSupport.h
- * @brief Verifies feature detection test support behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 测试支持行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once
@@ -51,4 +51,4 @@ Mesh makeFragmentedCircleWithTensorRidgeMesh();
 
 bool hasClosedLoopWithVertices(const FeatureAnalysis& features, const std::vector<int>& expectedVertices);
 
-} // namespace manumesh::test::feature_detection
+} // 命名空间

@@ -312,31 +312,31 @@ add_library(ManuMesh::manumesh ALIAS manumesh_core)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 source_group(TREE "${PROJECT_SOURCE_DIR}/include"
-  PREFIX "Public Headers"
+  PREFIX "公共头文件"
   FILES ${MANUMESH_PUBLIC_HEADERS}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
-  PREFIX "Source"
+  PREFIX "源文件"
   FILES ${MANUMESH_LIBRARY_SOURCES}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/common/detail"
-  PREFIX "Common Private Headers"
+  PREFIX "公共模块私有头文件"
   FILES ${MANUMESH_COMMON_PRIVATE_HEADERS}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/mesh_edit/detail"
-  PREFIX "Mesh Edit Private Headers"
+  PREFIX "网格编辑私有头文件"
   FILES ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/debugUtil"
-  PREFIX "Debug Util"
+  PREFIX "调试工具"
   FILES ${MANUMESH_DEBUG_UTIL_SOURCES} ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail"
-  PREFIX "Feature Detection Private Headers"
+  PREFIX "特征检测私有头文件"
   FILES ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail"
-  PREFIX "Simplification Private Headers"
+  PREFIX "简化私有头文件"
   FILES ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
 )
 
@@ -403,7 +403,7 @@ elseif(DEFINED eigen_SOURCE_DIR)
   endforeach()
 else()
   message(FATAL_ERROR
-    "Eigen3 was not found and FetchContent did not provide eigen_SOURCE_DIR."
+    "未找到 Eigen3，且 FetchContent 未提供 eigen_SOURCE_DIR。"
   )
 endif()
 
@@ -424,12 +424,10 @@ target_compile_definitions(manumesh_core
   PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
 )
 
-# Internal STATIC aggregate for white-box tests. It reuses the object
-# libraries above (every source still compiles exactly once), so tests link
-# one single definition of each internal symbol instead of recompiling
-# src/*.cpp next to the DLL (ODR safety). Never exported or installed;
-# consumers do not get MANUMESH_USING_DLL, so MANUMESH_API expands to nothing
-# in their translation units and symbols resolve statically.
+# 供白盒测试使用的内部 STATIC 聚合库。它复用上面的对象库（每个源文件仍只编译一次），
+# 因此测试链接每个内部符号的唯一副本，而不是在 DLL 旁重复编译 src/*.cpp（避免 ODR 风险）。
+# 该库不会导出或安装；consumer 不定义 MANUMESH_USING_DLL，因此其翻译单元中的 MANUMESH_API 展开为空，
+# 符号通过静态方式解析。
 add_library(manumesh_internal STATIC ${MANUMESH_LIBRARY_OBJECTS})
 add_library(ManuMesh::internal ALIAS manumesh_internal)
 target_compile_features(manumesh_internal PUBLIC cxx_std_17)

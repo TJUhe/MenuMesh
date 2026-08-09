@@ -1,15 +1,13 @@
 /**
  * @file src/feature_detection/NormalTensor.cpp
- * @brief Implements normal tensor facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的法向张量功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Implements deterministic multiscale normal-tensor voting.
- * @algorithm At each vertex and scale, incident face normals contribute
- * weighted outer products. Ordered eigenvalue differences encode surface,
- * crease, and corner saliency; the middle eigenvector supplies the crease
- * tangent. Persistent support must survive the requested number of scales.
- * @failuremodes Isolated, degenerate, or isotropic neighborhoods return zero
- * saliency and a deterministic fallback frame.
+ * @details 实现确定性的多尺度法向张量投票。
+ * @algorithm 在每个顶点和尺度上，对相邻面法向累加加权外积；有序特征值差编码
+ *            曲面、折痕和角点显著性，中间特征向量提供折痕切线；持久性支持必须
+ *            持续达到配置的尺度数量。
+ * @failuremodes 孤立、退化或各向同性邻域返回零显著性及确定性的备用坐标系。
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -43,7 +41,7 @@ NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
     return result;
 }
 
-} // namespace
+} // 匿名命名空间
 
 namespace detector_detail {
 
@@ -90,8 +88,8 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
     const double persistenceThreshold =
         std::isfinite(requestedPersistenceThreshold) ? std::max(1e-12, requestedPersistenceThreshold) : 1e-12;
 
-    // Ping-pong buffer: reuse one scratch vector across smoothing passes
-    // instead of copying the full tensor array every call.
+    // 双缓冲平滑：在各次平滑迭代之间复用一个临时张量数组，
+    // 避免每次调用都复制完整张量集合。
     std::vector<Eigen::Matrix3d> smoothScratch(tensors.size(), Eigen::Matrix3d::Zero());
     auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current, double radiusMultiplier) {
         std::vector<Eigen::Matrix3d>& next = smoothScratch;
@@ -152,7 +150,7 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
     return result;
 }
 
-} // namespace detector_detail
+} // 命名空间 manumesh::feature::detector_detail
 
 std::vector<NormalTensorVertex> computeNormalTensorFeatures(
     const Mesh& mesh, const NormalTensorOptions& options, double requestedPersistenceThreshold
@@ -165,4 +163,4 @@ std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, co
     return computeNormalTensorFeatures(mesh, options, 0.0);
 }
 
-} // namespace manumesh::feature
+} // 命名空间 manumesh::feature

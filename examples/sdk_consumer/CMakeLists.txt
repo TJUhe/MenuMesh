@@ -4,9 +4,9 @@ project(manumesh_sdk_consumer
   LANGUAGES C CXX
 )
 
-set(MANUMESH_SDK_ROOT "" CACHE PATH "Installed manumesh SDK root")
+set(MANUMESH_SDK_ROOT "" CACHE PATH "已安装 manumesh SDK 根目录")
 if(NOT MANUMESH_SDK_ROOT)
-  message(FATAL_ERROR "Set MANUMESH_SDK_ROOT to an installed manumesh SDK root.")
+  message(FATAL_ERROR "请将 MANUMESH_SDK_ROOT 设置为已安装的 manumesh SDK 根目录。")
 endif()
 
 list(PREPEND CMAKE_PREFIX_PATH "${MANUMESH_SDK_ROOT}")

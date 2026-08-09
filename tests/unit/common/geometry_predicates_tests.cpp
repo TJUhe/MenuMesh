@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/common/geometry_predicates_tests.cpp
- * @brief Verifies geometry predicates tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的几何谓词测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "../../../src/common/detail/GeometryPredicates.h"
@@ -81,11 +81,10 @@ std::array<manumesh::Vec3, 3> scaleTriangle(const std::array<manumesh::Vec3, 3>&
     return {scale * tri[0], scale * tri[1], scale * tri[2]};
 }
 
-} // namespace
+} // 匿名命名空间
 
-// The intersection predicate takes a RELATIVE tolerance and normalizes by the
-// local geometric scale, so the same intersecting / non-intersecting
-// configuration must produce identical decisions at 1e-3 and 1e+3 scale.
+// 相交谓词接收相对容差，并按局部几何尺度归一化，因此同一组相交/不相交配置
+// 在 1e-3 和 1e+3 两种尺度下都必须得到相同判定。
 TEST(ManuMesh, GeometryPredicatesTriangleIntersectionIsScaleInvariant) {
     const std::array<manumesh::Vec3, 3> base = {
         manumesh::Vec3(0.0, 0.0, 0.0),
@@ -107,8 +106,8 @@ TEST(ManuMesh, GeometryPredicatesTriangleIntersectionIsScaleInvariant) {
         manumesh::Vec3(0.25, 0.25, 1.0),
         manumesh::Vec3(0.75, 0.25, 0.0),
     };
-    // Near-touching but strictly separated parallel triangle: a gap of 1e-6
-    // of the local scale stays separated at every scale.
+    // 与其平行且近乎接触、但严格分离的三角形：间隙为局部尺度的 1e-6，
+    // 在所有缩放下都应保持分离。
     const std::array<manumesh::Vec3, 3> hovering = {
         manumesh::Vec3(0.1, 0.1, 1e-6),
         manumesh::Vec3(0.9, 0.1, 1e-6),
@@ -128,21 +127,21 @@ TEST(ManuMesh, GeometryPredicatesTriangleIntersectionIsScaleInvariant) {
     }
 }
 
-// Collinear-overlap and inside-point decisions in the coplanar path mix
-// length- and area-dimensioned comparisons; both must scale consistently.
+// 共线重叠和点内判定在共面路径中同时涉及长度量纲与面积量纲的比较，
+// 两者都必须随尺度一致变化。
 TEST(ManuMesh, GeometryPredicatesCoplanarOverlapIsScaleInvariant) {
     const std::array<manumesh::Vec3, 3> base = {
         manumesh::Vec3(0.0, 0.0, 0.0),
         manumesh::Vec3(2.0, 0.0, 0.0),
         manumesh::Vec3(0.0, 2.0, 0.0),
     };
-    // Coplanar triangle overlapping the base across an edge.
+    // 与基准三角形共面并跨越其一条边发生重叠。
     const std::array<manumesh::Vec3, 3> crossing = {
         manumesh::Vec3(1.0, -0.5, 0.0),
         manumesh::Vec3(1.0, 0.5, 0.0),
         manumesh::Vec3(2.5, 0.5, 0.0),
     };
-    // Coplanar triangle fully outside the base: no overlap.
+    // 完全位于基准三角形外部的共面三角形，不应发生重叠。
     const std::array<manumesh::Vec3, 3> disjointCoplanar = {
         manumesh::Vec3(3.0, 0.0, 0.0),
         manumesh::Vec3(4.0, 0.0, 0.0),

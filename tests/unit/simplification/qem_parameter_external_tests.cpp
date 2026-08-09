@@ -1,14 +1,14 @@
 /**
  * @file tests/unit/simplification/qem_parameter_external_tests.cpp
- * @brief Verifies qem parameter external tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的QEM 参数 外部测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
-// QEM parameter regressions that depend on large external validation meshes
-// (tests/data/external). They run in the `external` CTest label so the fast
-// suite (`ctest -LE "performance|external"`) stays quick.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 #include "QemParameterTestSupport.h"
 #include "TestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"

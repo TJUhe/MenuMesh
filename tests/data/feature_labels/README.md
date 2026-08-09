@@ -1,24 +1,13 @@
-# Feature Label Fixtures
+# 特征标签 Fixture
 
-These CSV files are small ground-truth labels for `manumesh feature-benchmark`.
+这些 CSV 文件是 `manumesh feature-benchmark` 使用的小型真实值标签。
 
-- Edge rows use `edge,a,b`, or the backward-compatible short form `a,b`, with
-  0-based vertex indices after the fixture is loaded
-  by ManuMesh. OBJ fixtures may be remapped by `Mesh::removeUnusedVertices()`,
-  so these are not necessarily raw OBJ line numbers minus one.
-- Optional junction rows use `junction,id`.
-- Optional continuation rows use `branch,junction,neighborA,neighborB`.
-- Optional face labels use `face_patch,faceId,patchId`. Patch ids are arbitrary;
-  the benchmark compares whether labeled adjacent faces agree on same/different
-  patch ownership, so a detector may renumber patches without being penalized.
-- `coaxial_hole_plate_inner_top_edges.csv` labels the top inner circular hole
-  loop of `tests/data/feature_fixtures/coaxial_hole_plate.obj`.
-- `FeatureDetection.FixtureBenchmarkUsesCoaxialHoleGroundTruthLabels` consumes
-  this file as a labeled accuracy test. Dataset smoke tests intentionally do
-  not replace this precision/recall assertion.
-- `elliptical_hole_plate_inner_top_edges.csv` labels the 40-edge top inner
-  ellipse, providing a non-circular primitive benchmark.
-- `boss_pocket_primary_edges.csv` labels all 60 non-coplanar manifold edges in
-  the axis-aligned boss/pocket fixture, covering convex and concave CAD edges.
-- `multi_junction_polygon_edges.csv` labels an eight-edge polygonal loop and
-  three known branch junctions in the deterministic synthetic fixture.
+- 边行使用 `edge,a,b`，或向后兼容的简写 `a,b`；fixture 由 ManuMesh 加载后，顶点索引从 0 开始。OBJ fixture 可能被 `Mesh::removeUnusedVertices()` 重映射，因此这些索引不一定等于原始 OBJ 行号减一。
+- 可选的 junction 行使用 `junction,id`。
+- 可选的 continuation 行使用 `branch,junction,neighborA,neighborB`。
+- 可选的面标签使用 `face_patch,faceId,patchId`。Patch ID 可任意指定；基准测试比较带标签的相邻面是否属于相同/不同 patch，因此检测器重新编号 patch 不会受罚。
+- `coaxial_hole_plate_inner_top_edges.csv` 标记 `tests/data/feature_fixtures/coaxial_hole_plate.obj` 中顶部内侧圆孔的环。
+- `FeatureDetection.FixtureBenchmarkUsesCoaxialHoleGroundTruthLabels` 使用此文件执行带标签的精度测试。数据集冒烟测试不会取代这项 precision/recall 断言。
+- `elliptical_hole_plate_inner_top_edges.csv` 标记顶部内侧椭圆的 40 条边，用于非圆形 primitive 基准测试。
+- `boss_pocket_primary_edges.csv` 标记轴对齐 boss/pocket fixture 中全部 60 条非共面流形边，覆盖凸面和凹面 CAD 边。
+- `multi_junction_polygon_edges.csv` 标记确定性合成 fixture 中一个八边形环和三个已知分支 junction。

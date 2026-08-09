@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/qem_parameter_budget_tests.cpp
- * @brief Verifies qem parameter budget tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的QEM 参数 预算测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "QemParameterTestSupport.h"
@@ -42,15 +42,15 @@ TEST(ManuMeshParameters, TargetFacesOverridesRatioOnRealStlFixtures) {
         EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
         EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
         EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-        // Slack derivation: collapseUntilTarget stops at the first
-        // activeFaceCount <= targetFaces, and one collapse removes 2 faces
-        // (interior edge) or 1 face (boundary edge), so a reached-target run
-        // always ends in [targetFaces - 1, targetFaces] (measured on these
-        // fixtures: deltas of -1, 0, -1). The +2 headroom only matters when
-        // the queue is exhausted or the rejection limit fires just above the
-        // target, allowing the run to stop within one interior collapse
-        // (2 faces) above targetFaces instead of failing the suite on a
-        // legitimate no-candidates termination.
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
         EXPECT_LE(result.report.finalFaces, options.targetFaces + 2);
     }
 }

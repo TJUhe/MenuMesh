@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SimplificationPolicies.h
- * @brief Declares simplification policies facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的简化 策略功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -14,18 +14,18 @@
 namespace manumesh::simplification {
 
 /**
- * @brief Normalized absolute/relative target selection.
+ * @brief 归一化的绝对/相对目标选择策略。
  */
 struct TargetPolicy {
     int targetFaces = -1;
     double targetRatio = 0.25;
 
-    /** @brief Resolves the clamped target face count for an input mesh. */
+    /** @brief 解析输入网格的目标面数并进行夹紧。*/
     int resolveTargetFaceCount(int inputFaceCount) const;
 };
 
 /**
- * @brief Feature-analysis settings derived from simplification options.
+ * @brief 从简化选项派生的特征分析设置。
  */
 struct FeatureDetectionPolicy {
     bool enabled = false;
@@ -33,13 +33,13 @@ struct FeatureDetectionPolicy {
 };
 
 /**
- * @brief Converts simplification feature fields to the standalone detector contract.
+ * @brief 将简化特征字段转换为独立检测器的契约。
  */
 feature::FeatureOptions
 featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeatureLoopVerticesFloor = 0);
 
 /**
- * @brief Pre-normalized hot-loop switches for hard collapse filters.
+ * @brief 供硬折叠过滤器使用的预归一化热循环开关。
  */
 struct LegalityPolicy {
     bool preserveBoundary = false;
@@ -49,22 +49,22 @@ struct LegalityPolicy {
     double maxLocalErrorRatio = 0.0;
     bool preventLocalIntersections = false;
 
-    /** @brief Converts the angular normal limit to a cosine threshold. */
+    /** @brief 将法向角度上限转换为余弦阈值。*/
     double resolveMinNormalDot() const;
-    /** @brief Resolves the effective absolute local-error limit. */
+    /** @brief 解析有效的绝对局部误差上限。*/
     double resolveMaxLocalError(double bboxDiag) const;
 };
 
 /**
- * @brief Immutable normalized policies shared by every collapse attempt in one run.
+ * @brief 一次运行中所有折叠尝试共享的不可变归一化策略。
  */
 struct SimplificationPolicies {
     TargetPolicy target;
     FeatureDetectionPolicy features;
     LegalityPolicy legality;
 
-    /** @brief Normalizes all hot-loop policies from public simplify options. */
+    /** @brief 根据公开的简化选项归一化所有热循环策略。*/
     static SimplificationPolicies fromOptions(const SimplifyOptions& options);
 };
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

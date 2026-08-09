@@ -1,4 +1,4 @@
-# Closed industrial/CAD-like fixtures where simplification should not open boundaries.
+# 封闭的工业/CAD 类 fixture；简化不应打开边界。
 external/casting_aimshape_2014.stl
 external/nasa_antenna_azimuth_track.stl
 external/nasa_cubesat_middle.stl

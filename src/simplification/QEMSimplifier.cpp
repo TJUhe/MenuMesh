@@ -1,12 +1,10 @@
 /**
  * @file src/simplification/QEMSimplifier.cpp
- * @brief Implements qemsimplifier facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的QEM 简化器功能。
  * @ingroup manumesh_simplification
  *
- * @details Implements the public simplifier facade, option validation, and precomputed-feature overloads.
- * @algorithm A run either computes feature analysis once or validates the
- * caller-supplied analysis, constructs SimplificationRun, executes collapse
- * and optional refinement stages, then stores/copies the resulting report.
+ * @details 实现公开的简化器外观、选项校验以及预计算特征的重载接口。
+ * @algorithm 一次运行要么只计算一次特征分析，要么校验调用方提供的分析结果；随后构建 SimplificationRun，执行折叠和可选的细化阶段，并保存或复制最终报告。
  */
 
 #include "algorithms/simplification/QEMSimplifier.h"
@@ -21,7 +19,7 @@
 
 namespace manumesh::simplification {
 
-/** @brief Private options and latest report owned by QEMSimplifier. */
+/** @brief QEMSimplifier 所拥有的私有选项和最新报告。*/
 struct QEMSimplifier::Impl {
     SimplifyOptions options;
     SimplifyReport report;
@@ -205,4 +203,4 @@ PlainMesh simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& optio
     return toPlainMesh(simplifyMesh(toMesh(input), options, outReport));
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

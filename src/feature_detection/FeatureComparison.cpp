@@ -1,12 +1,11 @@
 /**
  * @file src/feature_detection/FeatureComparison.cpp
- * @brief Implements feature comparison facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征比较功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Matches circular features across two analyses for preservation diagnostics.
- * @algorithm Plausible center, radius, and unoriented-normal gates define
- * candidates; deterministic greedy matching consumes the lowest normalized
- * error and applies tighter gates for strong versus weak classification.
+ * @details 匹配两份分析中的圆形特征，用于评估特征保持情况。
+ * @algorithm 先按中心、半径和无向法向的可行范围筛选候选；确定性贪心匹配
+ *            每次消耗归一化误差最低的候选，并对强证据与弱证据使用不同的门限。
  */
 
 #include "algorithms/feature_detection/FeatureComparison.h"
@@ -33,7 +32,7 @@ std::vector<int> circularLoopIndices(const FeatureAnalysis& analysis) {
     return indices;
 }
 
-} // namespace
+} // 匿名命名空间
 
 Status validateLoopMatchOptions(const LoopMatchOptions& options) {
     auto finiteNonNegative = [](double value) {
@@ -158,4 +157,4 @@ std::string toString(LoopMatchStatus status) {
     return "missing";
 }
 
-} // namespace manumesh::feature
+} // 命名空间 manumesh::feature

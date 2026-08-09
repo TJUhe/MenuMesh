@@ -1,13 +1,11 @@
 /**
  * @file src/simplification/CandidateQueue.cpp
- * @brief Implements candidate queue facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的候选队列功能。
  * @ingroup manumesh_simplification
  *
- * @details Maintains the min-cost candidate heap with cached, already-solved placements.
- * @algorithm Candidates store endpoint version stamps and ascending placement
- * costs. The queue does not solve quadrics; stale detection and local rebuild
- * policy remain in SimplificationRun.
- * @complexity Push and pop are O(log E).
+ * @details 维护带缓存放置解的最小代价候选堆。
+ * @algorithm 候选项保存端点版本戳和按升序排列的放置代价。队列本身不求解二次误差；过期候选的检测和局部重建策略由 SimplificationRun 负责。
+ * @complexity 入队和出队的复杂度均为 O(log E)。
  */
 
 #include "detail/CandidateQueue.h"
@@ -39,8 +37,7 @@ void CandidateQueue::pushEdge(
     }
     const int first = std::min(a, b);
     const int second = std::max(a, b);
-    // Feature-priority boost only reorders the queue (Wang 2008 decoupling);
-    // it never touches the quadric used for the placement solve.
+    // 特征优先级增益只会重新排序队列（Wang 2008 的解耦策略），不会修改用于放置求解的二次误差矩阵。
     const double priorityScale = std::max(vertices[first].priorityScale, vertices[second].priorityScale);
     Candidate candidate{
         placements.front().cost * priorityScale + additionalCost,
@@ -59,4 +56,4 @@ void CandidateQueue::pushEdge(
     queue_.push(candidate);
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

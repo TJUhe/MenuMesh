@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/FeatureGuidance.h
- * @brief Declares feature guidance facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的特征引导功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -24,7 +24,7 @@ namespace manumesh::simplification {
 struct FeatureDetectionPolicy;
 
 /**
- * @brief Soft feature attributes copied onto one simplification vertex.
+ * @brief 复制到一个简化顶点上的软特征属性。
  */
 struct FeatureVertexGuidance {
     bool isFeature = false;
@@ -48,7 +48,7 @@ struct FeatureVertexGuidance {
 };
 
 /**
- * @brief Aggregate feature-analysis diagnostics copied into SimplifyReport.
+ * @brief 复制到 SimplifyReport 的特征分析诊断汇总。
  */
 struct FeatureGuidanceSummary {
     int featureLoops = 0;
@@ -86,7 +86,7 @@ struct FeatureGuidanceSummary {
 };
 
 /**
- * @brief Per-vertex soft guidance and primitive fits derived from one feature analysis.
+ * @brief 从一次特征分析派生的逐顶点软引导和解析图元拟合。
  */
 struct FeatureGuidance {
     bool enabled = false;
@@ -96,7 +96,7 @@ struct FeatureGuidance {
 };
 
 /**
- * @brief Queue-priority sensitivity factors decoupled from placement quadrics.
+ * @brief 与放置二次误差解耦的队列优先级敏感度因子。
  */
 struct FeatureWeightScores {
     std::vector<double> values;
@@ -107,7 +107,7 @@ struct FeatureWeightScores {
 };
 
 /**
- * @brief Detects features and converts them to simplification guidance.
+ * @brief 检测特征并将其转换为简化引导。
  */
 FeatureGuidance buildFeatureGuidance(const Mesh& mesh, const FeatureDetectionPolicy& policy);
 FeatureGuidance buildFeatureGuidance(
@@ -115,13 +115,13 @@ FeatureGuidance buildFeatureGuidance(
 );
 
 /**
- * @brief Computes optional feature-sensitive queue weights without changing quadrics.
+ * @brief 计算可选的特征敏感队列权重，不修改二次误差矩阵。
  */
 FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyOptions& options);
 
 /**
- * @brief Copies feature diagnostics into the run report.
+ * @brief 将特征诊断复制到运行报告中。
  */
 void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, SimplifyReport& report);
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

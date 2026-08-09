@@ -1,12 +1,11 @@
 /**
  * @file src/core/Mesh.cpp
- * @brief Implements mesh facilities for ManuMesh's core-mesh module.
+ * @brief 实现 ManuMesh 核心网格模块的网格设施。
  * @ingroup manumesh_core
  *
- * @details Implements mesh bounds, validation, compaction, and elementary triangle geometry.
- * @algorithm Strict and lenient validation share index, finiteness, repeated-index,
- * and UV alignment checks; only the lenient path tolerates zero-area triangles.
- * Compaction drops invalid faces and preserves first-use vertex order.
+ * @details 实现网格边界、校验、压缩和基本三角形几何运算。
+ * @algorithm 严格和宽松校验共用索引、有限性、重复索引和 UV 对齐检查；
+ * 只有宽松路径允许零面积三角形。压缩会丢弃无效面，并保留顶点首次使用顺序。
  */
 
 #include "core/Mesh.h"
@@ -27,7 +26,7 @@ bool finitePoint(const Vec3& p) { return std::isfinite(p.x()) && std::isfinite(p
 
 bool finiteTexCoord(const Vec2& uv) { return std::isfinite(uv.x()) && std::isfinite(uv.y()); }
 
-} // namespace
+} // 命名空间
 
 bool Mesh::empty() const { return vertices.empty() || faces.empty(); }
 
@@ -80,8 +79,7 @@ void Mesh::removeUnusedVertices() {
     newVertices.reserve(vertices.size());
     std::vector<char> validFace(faces.size(), 1);
 
-    // First pass: classify each face as a whole so vertices referenced only
-    // by dropped faces never enter the remap.
+    // 第一遍：按整个面进行分类，确保仅被丢弃面引用的顶点不会进入重映射表。
     for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
         const Face& face = faces[faceIndex];
         for (int id : face.v) {
@@ -92,7 +90,7 @@ void Mesh::removeUnusedVertices() {
         }
     }
 
-    // Second pass: build the vertex remap from valid faces only.
+    // 第二遍：仅根据有效面构建顶点重映射表。
     for (std::size_t faceIndex = 0; faceIndex < faces.size(); ++faceIndex) {
         if (!validFace[faceIndex]) {
             continue;
@@ -215,7 +213,7 @@ bool validateMeshGeometryImpl(const Mesh& mesh, std::string* error, bool rejectZ
     return true;
 }
 
-} // namespace
+} // 命名空间
 
 bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
     return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/true);
@@ -275,4 +273,4 @@ std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh) {
     return edges;
 }
 
-} // namespace manumesh
+} // 命名空间 manumesh

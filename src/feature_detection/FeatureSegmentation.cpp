@@ -1,13 +1,12 @@
 /**
  * @file src/feature_detection/FeatureSegmentation.cpp
- * @brief Implements feature segmentation facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征分割功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Partitions faces into connected patches separated by active feature edges.
- * @algorithm Flood fill crosses a manifold face adjacency only when the shared
- * edge is not an enabled feature boundary. Patch areas, normals, boundary
- * classes, closure, and neighboring-patch adjacency are accumulated afterward.
- * @complexity Expected O(F + E).
+ * @details 将由活动特征边分隔的面划分为连通面片。
+ * @algorithm 仅当共享边不是启用的特征边界时，泛洪填充才跨越流形面邻接；
+ *            随后累计面片面积、法向、边界类别、闭合状态和相邻面片关系。
+ * @complexity 预期复杂度为 O(F + E)。
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -167,7 +166,7 @@ void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const Surf
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail
 
 namespace manumesh::feature {
 
@@ -176,4 +175,4 @@ void segmentFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const Su
     detector_detail::buildFeaturePatches(mesh, analysis, options);
 }
 
-} // namespace manumesh::feature
+} // 命名空间 manumesh::feature

@@ -1,12 +1,12 @@
 /**
  * @file src/core/MeshTopology.cpp
- * @brief Implements mesh topology facilities for ManuMesh's core-mesh module.
+ * @brief 实现 ManuMesh 核心网格模块的网格拓扑设施。
  * @ingroup manumesh_core
  *
- * @details Builds immutable undirected-edge and per-vertex incidence caches.
- * @algorithm Each triangle contributes three canonical edge keys. Dense edge
- * records and vertex incidence are then sorted so traversal is deterministic.
- * @invariants Face-corner arrays stay aligned with incident-face arrays.
+ * @details 构建不可变的无向边和逐顶点入射缓存。
+ * @algorithm 每个三角形贡献三个规范边键；随后对稠密边记录和顶点入射关系排序，
+ * 使遍历具有确定性。
+ * @invariants 面角数组始终与入射面数组保持对齐。
  */
 
 #include "core/MeshTopology.h"
@@ -21,14 +21,14 @@
 namespace manumesh {
 namespace {
 
-/** @brief Temporary incidence and winding data accumulated for one edge. */
+/** @brief 为一条边累积的临时入射和绕序数据。 */
 struct EdgeBuildRecord {
     int edgeId = -1;
 };
 
-} // namespace
+} // 命名空间
 
-/** @brief Private adjacency and edge-incidence storage for MeshTopology. */
+/** @brief MeshTopology 的私有邻接和边入射存储。 */
 struct MeshTopology::Impl {
     int vertexCount = 0;
     int faceCount = 0;
@@ -188,4 +188,4 @@ const VertexTopology& MeshTopology::vertex(VertexId id) const {
     return impl_->vertices[id.id];
 }
 
-} // namespace manumesh
+} // 命名空间 manumesh

@@ -1,9 +1,9 @@
 /**
  * @file include/core/PlainMesh.h
- * @brief Declares plain mesh facilities for ManuMesh's core-mesh module.
+ * @brief 声明 ManuMesh 核心网格模块的纯数据网格设施。
  * @ingroup manumesh_core
  *
- * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
  */
 
 #pragma once
@@ -17,47 +17,47 @@ namespace manumesh {
 
 struct Mesh;
 
-/// Eigen-free vertex type for SDK boundaries that should not expose Eigen.
+/// 不暴露 Eigen 的 SDK 边界所使用的无 Eigen 顶点类型。
 struct PlainVec3 {
-    double x = 0.0; ///< X coordinate in model units.
-    double y = 0.0; ///< Y coordinate in model units.
-    double z = 0.0; ///< Z coordinate in model units.
+    double x = 0.0; ///< 模型单位下的 X 坐标。
+    double y = 0.0; ///< 模型单位下的 Y 坐标。
+    double z = 0.0; ///< 模型单位下的 Z 坐标。
 };
 
-/// Eigen-free texture coordinate used at SDK boundaries.
+/// SDK 边界使用的无 Eigen 纹理坐标。
 struct PlainVec2 {
-    double u = 0.0; ///< U texture coordinate.
-    double v = 0.0; ///< V texture coordinate.
+    double u = 0.0; ///< U 纹理坐标。
+    double v = 0.0; ///< V 纹理坐标。
 };
 
-/// Eigen-free triangle face storing three zero-based vertex indices.
+/// 存储三个从零开始顶点索引的无 Eigen 三角形面。
 struct PlainFace {
     std::array<int, 3> v{};
 };
 
-/// Eigen-free per-corner texture coordinates for one triangle.
+/// 一个三角形的无 Eigen 逐角纹理坐标。
 struct PlainFaceTexCoords {
     std::array<PlainVec2, 3> uv{};
     bool valid = false;
 };
 
-/// Eigen-free triangle mesh exchange container.
+/// 无 Eigen 三角网格交换容器。
 ///
-/// Algorithms still use `Mesh` internally. This type gives host applications a
-/// plain C++ data boundary when they do not want Eigen in their own public API.
+/// 算法内部仍使用 `Mesh`。当宿主应用不希望在自己的公共 API 中暴露 Eigen 时，
+/// 此类型提供纯 C++ 数据边界。
 struct PlainMesh {
     std::vector<PlainVec3> vertices;
     std::vector<PlainFace> faces;
     std::vector<PlainFaceTexCoords> faceTexCoords;
 };
 
-/// Converts a plain SDK mesh into the internal Eigen-backed mesh type.
-/// @param[in] plain Source data; indices and numeric values are copied verbatim.
-/// @return Independent Eigen-backed mesh copy.
+/// 将纯 SDK 网格转换为内部基于 Eigen 的网格类型。
+/// @param[in] plain 源数据；索引和数值按原样复制。
+/// @return 独立的基于 Eigen 的网格副本。
 MANUMESH_API Mesh toMesh(const PlainMesh& plain);
-/// Converts the internal Eigen-backed mesh type into a plain SDK mesh.
-/// @param[in] mesh Source mesh.
-/// @return Independent Eigen-free mesh copy.
+/// 将内部基于 Eigen 的网格类型转换为纯 SDK 网格。
+/// @param[in] mesh 源网格。
+/// @return 独立的无 Eigen 网格副本。
 MANUMESH_API PlainMesh toPlainMesh(const Mesh& mesh);
 
-} // namespace manumesh
+} // 命名空间 manumesh

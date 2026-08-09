@@ -1,13 +1,11 @@
 /**
  * @file src/simplification/CollapseTopology.cpp
- * @brief Implements collapse topology facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的折叠拓扑功能。
  * @ingroup manumesh_simplification
  *
- * @details Computes local face rewrites and incidence changes for a proposed collapse.
- * @algorithm Identifies removed shared faces, rewrites surviving remove-vertex
- * incidence to the kept vertex, canonicalizes face keys, and provides the
- * affected face/vertex sets consumed by legality and mutation stages.
- * @invariants Planning is side-effect free; application updates both incidence caches atomically.
+ * @details 计算候选折叠对应的局部面重写和关联变化。
+ * @algorithm 识别被移除的共享面，将保留面中对 remove 顶点的引用改写为 keep 顶点，规范化面键，并提供合法性检查与修改阶段所需的受影响面/顶点集合。
+ * @invariants 规划阶段无副作用；应用阶段以原子方式更新两个关联缓存。
  */
 
 #include "detail/CollapseTopology.h"
@@ -21,7 +19,7 @@
 namespace manumesh::simplification {
 namespace {
 
-/** @brief Vertex and edge sets forming the active link of a simplex. */
+/** @brief 构成一个单纯形活动链接的顶点集合和边集合。*/
 struct SimplicialLink {
     std::unordered_set<int> vertices;
     std::unordered_set<std::uint64_t> edges;
@@ -107,7 +105,7 @@ bool isIsolatedOpenTriangleEdge(
            activeIncidentFaceCountForEdge(remove, opposite, faces, topology) == 1;
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input) {
     const int keep = input.edge.keep;
@@ -150,8 +148,7 @@ std::vector<int> activeNeighborsOf(
             }
         }
     }
-    // Sort so downstream queue updates and centroid sums are deterministic
-    // regardless of the unordered_set iteration order.
+    // 排序后再更新下游队列和计算质心，使结果不依赖 unordered_set 的遍历顺序。
     std::vector<int> neighbors(seen.begin(), seen.end());
     std::sort(neighbors.begin(), neighbors.end());
     return neighbors;
@@ -200,19 +197,12 @@ bool collapseWouldPreserveLinkCondition(
         return false;
     }
 
-    // Capping an isolated open triangle with the virtual boundary vertex
-    // produces a tetrahedron. Collapsing any of its real edges would otherwise
-    // erase the entire two-dimensional component in the triangle-only mesh.
+    // 用虚拟边界顶点封闭孤立开放三角形会形成四面体。在仅含三角形的网格中，折叠其任意真实边都会删除整个二维连通分量。
     if (incidentFaceCount == 1 && isIsolatedOpenTriangleEdge(keep, remove, *edgeLink.begin(), faces, topology)) {
         return false;
     }
 
-    // Extended link condition for meshes with open boundary (Hoppe et al.,
-    // Progressive Meshes): close the surface with a virtual vertex joined to
-    // every boundary vertex. If both endpoints lie on the boundary but the
-    // edge itself is interior (two incident faces), the virtual vertex is in
-    // both vertex links yet not in the edge link, so collapsing this boundary
-    // chord would pinch the surface into a non-manifold vertex.
+    // 开放边界网格的扩展链接条件（Hoppe 等人的 Progressive Meshes）：用连接到每个边界顶点的虚拟顶点封闭曲面。若两个端点都在边界上但边本身位于内部（有两个相邻面），则虚拟顶点同时出现在两个顶点链接中，却不在边链接中；折叠这条边界弦会把曲面挤压成非流形顶点。
     if (incidentFaceCount == 2 && vertices[keep].isBoundary && vertices[remove].isBoundary) {
         return false;
     }
@@ -223,4 +213,4 @@ bool collapseWouldPreserveLinkCondition(
            !endpointLinksShareEdge(keepLink, removeLink);
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

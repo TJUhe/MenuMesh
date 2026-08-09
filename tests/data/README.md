@@ -1,13 +1,12 @@
-# Test Data Layout
+# 测试数据目录结构
 
-Small deterministic fixtures and larger external validation meshes.
+小型确定性 fixture 和较大的外部验证网格。
 
-| Path | Purpose |
+| 路径 | 用途 |
 | --- | --- |
-| `feature_fixtures/` | Small handcrafted OBJ fixtures for focused feature-detection tests. |
-| `qem_test/` | Case-list files used by dataset and parameterized QEM tests. |
-| `external/` | Tracked external STL validation meshes, including larger regression inputs. |
+| `feature_fixtures/` | 用于针对性特征检测测试的小型手工 OBJ fixture。 |
+| `qem_test/` | 数据集测试和参数化 QEM 测试使用的案例列表文件。 |
+| `external/` | 纳入版本控制的外部 STL 验证网格，包括较大的回归输入。 |
 
-New unit-test geometry belongs in `feature_fixtures/` or a focused subdirectory
-under `qem_test/`. Large or third-party meshes belong in `external/` when they
-are project regression assets.
+新的单元测试几何应放在 `feature_fixtures/` 或 `qem_test/` 下的专用子目录中。
+大型网格或第三方网格如果作为项目回归资产，应放在 `external/` 中。

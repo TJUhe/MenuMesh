@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_comparison_tests.cpp
- * @brief Verifies feature comparison tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征比较测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "algorithms/feature_detection/FeatureComparison.h"
@@ -27,8 +27,8 @@ using manumesh::feature::matchCircularLoops;
 
 constexpr double kTestPi = 3.141592653589793238462643383279502884;
 
-/// Appends `count` vertices on the circle (center, normal +Z, radius) to the
-/// mesh and returns a circular FeatureLoop that references them.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 FeatureLoop appendCircleLoop(Mesh& mesh, int id, const Vec3& center, double radius, int count) {
     FeatureLoop loop;
     loop.id = id;
@@ -47,10 +47,10 @@ FeatureLoop appendCircleLoop(Mesh& mesh, int id, const Vec3& center, double radi
     return loop;
 }
 
-} // namespace
+} // 命名空间
 
-// Two identical circular loops must both come back as strong matches with
-// zero errors and exact directional agreement, in original loop order.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, IdenticalLoopsMatchStronglyWithZeroErrors) {
     Mesh original;
     Mesh simplified;
@@ -83,15 +83,15 @@ TEST(FeatureComparison, IdenticalLoopsMatchStronglyWithZeroErrors) {
     }
 }
 
-// Radius drift inside the plausible band but outside the strong band must be
-// classified weak_match, and the directional error must report the drift.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, RadiusDriftInsidePlausibleBandIsWeakMatch) {
     Mesh original;
     Mesh simplified;
     FeatureAnalysis originalFeatures;
     FeatureAnalysis simplifiedFeatures;
     originalFeatures.loops.push_back(appendCircleLoop(original, 0, Vec3(0.0, 0.0, 0.0), 1.0, 12));
-    // 15% radius drift: > matchedRadiusErrorRel (8%), < plausibleRadiusErrorRel (20%).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.15, 12));
 
     LoopMatchOptions options;
@@ -108,7 +108,7 @@ TEST(FeatureComparison, RadiusDriftInsidePlausibleBandIsWeakMatch) {
     EXPECT_NEAR(0.15, match.directional.radialMax, 1e-12);
     EXPECT_EQ(0, static_cast<int>(std::lround(match.normalAngleDeg)));
 
-    // The same drift with a tighter plausible band becomes missing.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     LoopMatchOptions strict = options;
     strict.plausibleRadiusErrorRel = 0.10;
     const LoopMatchReport strictReport = matchCircularLoops(originalFeatures, simplifiedFeatures, simplified, strict);
@@ -116,8 +116,8 @@ TEST(FeatureComparison, RadiusDriftInsidePlausibleBandIsWeakMatch) {
     EXPECT_EQ(LoopMatchStatus::Missing, strictReport.matches.front().status);
 }
 
-// A vanished loop must be reported missing with zeroed errors while the
-// surviving loop still matches; each simplified loop is consumed only once.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, VanishedLoopIsMissingAndSimplifiedLoopsAreConsumedOnce) {
     Mesh original;
     Mesh simplified;
@@ -125,7 +125,7 @@ TEST(FeatureComparison, VanishedLoopIsMissingAndSimplifiedLoopsAreConsumedOnce) 
     FeatureAnalysis simplifiedFeatures;
     originalFeatures.loops.push_back(appendCircleLoop(original, 0, Vec3(0.0, 0.0, 0.0), 1.0, 12));
     originalFeatures.loops.push_back(appendCircleLoop(original, 1, Vec3(0.2, 0.0, 0.0), 1.0, 12));
-    // Only one simplified loop survives; both originals would pick it first.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.0, 8));
 
     LoopMatchOptions options;
@@ -150,8 +150,8 @@ TEST(FeatureComparison, VanishedLoopIsMissingAndSimplifiedLoopsAreConsumedOnce) 
     EXPECT_EQ(0, missing.directional.samples);
 }
 
-// A lower combined score must not hide a slightly higher-scoring candidate
-// that satisfies all three plausible thresholds.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, ChoosesBestPlausibleCandidateAfterThresholdFiltering) {
     Mesh original;
     Mesh simplified;
@@ -159,8 +159,8 @@ TEST(FeatureComparison, ChoosesBestPlausibleCandidateAfterThresholdFiltering) {
     FeatureAnalysis simplifiedFeatures;
     originalFeatures.loops.push_back(appendCircleLoop(original, 0, Vec3(0.0, 0.0, 0.0), 1.0, 12));
 
-    // With referenceDiagonal=10, candidate 0 scores 0.081 but exceeds the
-    // plausible center limit (0.8). Candidate 1 scores 0.09 and is plausible.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.81, 0.0, 0.0), 1.0, 8));
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 1, Vec3(0.7, 0.0, 0.0), 1.02, 8));
 
@@ -210,7 +210,7 @@ TEST(FeatureComparison, RejectsInvalidLoopMatchOptionsBeforeMatching) {
     EXPECT_THROW(matchCircularLoops(analysis, analysis, mesh, options), std::invalid_argument);
 }
 
-// Non-circular loops must be ignored on both sides.
+// 命名空间
 TEST(FeatureComparison, NonCircularLoopsAreIgnored) {
     Mesh original;
     Mesh simplified;

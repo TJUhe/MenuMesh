@@ -1,6 +1,6 @@
 # boss_pocket_plate.obj
-# units: arbitrary; base_top=0.2 boss_top=0.7 pocket_floor=-0.25 bottom=-0.45
-# contains one rectangular raised boss and one rectangular recessed pocket
+# 单位：任意；base_top=0.2 boss_top=0.7 pocket_floor=-0.25 bottom=-0.45
+# 包含一个矩形凸台和一个矩形凹槽
 v -1.5 -1 0.2
 v -0.8 -1 0.2
 v -0.8 -0.35 0.2

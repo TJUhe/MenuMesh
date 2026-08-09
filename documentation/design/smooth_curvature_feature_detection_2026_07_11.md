@@ -1,134 +1,94 @@
-# Deterministic Smooth Curvature Feature Detection
+# 确定性平滑曲率特征检测
 
-Date: 2026-07-11 (updated 2026-07-12: cubic Monge fit, analytic extremality,
-Ohtake edge zero-crossing criterion, Yoshizawa component-strength filter;
-updated 2026-07-13: per-crossing cyclideness gate against spurious responses
-on Dupin cyclides, exposed by the analytic torus fixture; updated 2026-07-15:
-current-source audit, pure supporting-scale vote semantics, exact edge acceptance,
-source locator, CLI/simplifier boundary, and current performance evidence;
-updated again 2026-07-15 with opt-in stable-scale selection and stability diagnostics)
+日期：2026-07-11（2026-07-12 更新：三次 Monge 拟合、解析极值性、Ohtake 边零交叉判据、
+Yoshizawa 组件强度过滤器；2026-07-13 更新：针对 Dupin cyclide 虚假响应的逐交叉
+cyclideness 门禁，由解析环面 fixture 暴露；2026-07-15 更新：当前源码审计、纯支持尺度
+投票语义、精确边接受规则、源码定位、CLI/简化器边界和当前性能证据；2026-07-15 再次更新：
+可选的稳定尺度选择和稳定性诊断）
 
-This upgrade is limited to triangle and polygon surface meshes. It does not
-introduce B-Rep entities, solid modeling, CAD feature trees, learned scoring,
-neural networks, or training data.
+此升级仅限于三角形和多边形表面网格，不引入 B-Rep 实体、实体建模、CAD 特征树、学习式
+评分、神经网络或训练数据。
 
-## Why a separate evidence path
+## 为什么采用独立证据通道
 
-Boundary, non-manifold, and dihedral edges are discontinuities in the discrete
-mesh. Smooth ridges and valleys are differential events on a locally smooth
-surface. Combining their raw scores makes thresholds hard to interpret and lets
-noise compete directly with strong topology evidence.
+边界、非流形和二面角边是离散网格中的不连续处；平滑 ridge 和 valley 是局部光滑曲面上的
+微分事件。将它们的原始分数混合会使阈值难以解释，并让噪声直接与强拓扑证据竞争。
 
-ManuMesh therefore keeps two paths:
+因此 ManuMesh 保留两条通道：
 
-1. Hard evidence: boundary, non-manifold, and dihedral edges.
-2. Weak smooth evidence: normal tensor and multiscale quadric curvature.
+1. 强证据：边界、非流形和二面角边。
+2. 弱平滑证据：法向张量和多尺度 quadric 曲率。
 
-Both paths meet only at the explicit `FeatureGraph`, where source ownership,
-continuity, junctions, cleanup, components, and confidence are available to
-downstream simplification and future remeshing adapters.
+两条通道仅在显式的 `FeatureGraph` 处汇合；在这里可以记录来源归属、连续性、junction、
+清理、组件和置信度，供下游简化及未来 remeshing 适配器使用。
 
-## Current source contract
+## 当前源码契约
 
-The implementation, not an earlier design sketch, defines the current behavior.
-The important source locations are:
+当前行为以实现为准，而不是以早期设计草图为准。重要源码位置如下：
 
-| Responsibility | Source symbol | Current location |
+| 职责 | 源码符号 | 当前所在位置 |
 | --- | --- | --- |
-| Public controls and per-vertex result | `FeatureOptions`, `SmoothCurvatureOptions`, `SmoothCurvatureVertex` | `include/algorithms/feature_detection/FeatureTypes.h` |
-| Local normal and k-ring gathering | `computeAreaWeightedVertexNormals`, `gatherNeighborhood` | `src/feature_detection/SmoothCurvature.cpp` |
-| Cubic Monge fit and robust solve | `fitScale` | `src/feature_detection/SmoothCurvature.cpp` |
-| Per-scale ridge/valley classification | `classifyScaleCandidate` | `src/feature_detection/SmoothCurvature.cpp` |
-| Cross-scale support and reference-scale selection | `computeSmoothCurvatureFeaturesCached` | `src/feature_detection/SmoothCurvature.cpp` |
-| Vertex evidence to mesh-edge evidence | `smoothCurvatureEdgeCandidate` | `src/feature_detection/FeatureEvidence.cpp` |
-| Graph cleanup/consolidation | `cleanupTraceGraph`, `consolidateFeatureGraph` | `FeatureGraphCleanup.cpp`, `FeatureGraphCompatibility.cpp`, `FeatureGraphConsolidation.cpp` |
-| CLI option binding | `parseFeatureOptions` | `apps/CliOptionBinding.cpp` |
+| 公共控制项和逐顶点结果 | `FeatureOptions`、`SmoothCurvatureOptions`、`SmoothCurvatureVertex` | `include/algorithms/feature_detection/FeatureTypes.h` |
+| 局部法向和 k-ring 收集 | `computeAreaWeightedVertexNormals`、`gatherNeighborhood` | `src/feature_detection/SmoothCurvature.cpp` |
+| 三次 Monge 拟合和鲁棒求解 | `fitScale` | `src/feature_detection/SmoothCurvature.cpp` |
+| 按尺度的 ridge/valley 分类 | `classifyScaleCandidate` | `src/feature_detection/SmoothCurvature.cpp` |
+| 跨尺度支持和参考尺度选择 | `computeSmoothCurvatureFeaturesCached` | `src/feature_detection/SmoothCurvature.cpp` |
+| 顶点证据到网格边证据 | `smoothCurvatureEdgeCandidate` | `src/feature_detection/FeatureEvidence.cpp` |
+| 图清理/整合 | `cleanupTraceGraph`、`consolidateFeatureGraph` | `FeatureGraphCleanup.cpp`、`FeatureGraphCompatibility.cpp`、`FeatureGraphConsolidation.cpp` |
+| CLI 选项绑定 | `parseFeatureOptions` | `apps/CliOptionBinding.cpp` |
 
-An earlier revision required the coarsest requested scale to support a candidate.
-That veto was removed because it suppressed real features whose physical width
-is smaller than the coarsest neighborhood. The current implementation is a pure
-supporting-scale vote: supporting scales need not be adjacent and the coarsest
-scale is not special. The regression
-`FeatureDetectionAnalytic.NarrowRidgeOnDenseSheetSurvivesCoarsestScale`
-protects this behavior.
+早期版本要求最粗的请求尺度必须支持候选。由于这会压制物理宽度小于最粗邻域的真实特征，
+该否决规则已移除。当前实现采用纯支持尺度投票：支持尺度不必相邻，最粗尺度也没有特殊地位。
+回归测试 `FeatureDetectionAnalytic.NarrowRidgeOnDenseSheetSurvivesCoarsestScale` 保证该行为。
 
-## Algorithm
+## 算法
 
-For every vertex and every requested topological scale:
+对每个顶点和每个请求的拓扑尺度执行以下步骤：
 
-1. Build a k-ring neighborhood and an area-weighted local normal, using the
-   shared `FeatureDetectionCache` (neighbors, edge info, average edge lengths
-   are built once per detection run and reused across all evidence stages).
-2. Normalize coordinates by the local average edge length times the ring count.
-3. Fit the cubic Monge patch (Yoshizawa, M021)
+1. 使用共享的 `FeatureDetectionCache` 构建 k-ring 邻域和面积加权局部法向（每次检测运行只构建一次
+   邻接、边信息和平均边长，并在所有证据阶段复用）。
+2. 用局部平均边长乘环数对坐标归一化。
+3. 拟合三次 Monge patch（Yoshizawa，M021）
 
    `w = a*u^2 + b*u*v + c*v^2 + d*u + e*v
         + c0*u^3 + c1*u^2*v + c2*u*v^2 + c3*v^3`
 
-   with Gaussian distance weights and deterministic Huber reweighting. The
-   nine-unknown system is solved through incrementally accumulated weighted
-   normal equations (upper triangle only), which replaces one dense QR per
-   robust iteration; the radius normalization keeps the 9x9 system well
-   conditioned. Fits with fewer than nine usable neighbors are rejected as
-   underdetermined.
-4. Form the first and second fundamental forms from the quadratic block and
-   solve the generalized self-adjoint eigenproblem for two signed principal
-   curvatures and directions.
-5. Evaluate the analytic extremality `e_i = grad(kappa_i) . t_i` for each
-   principal direction directly from the cubic block as the third-order
-   directional form `e ~ 6*(c0*t1^3 + c1*t1^2*t2 + c2*t1*t2^2 + c3*t2^3)`.
-   No finite differencing against neighbor curvatures is involved.
-6. Classify ridge/valley support with the Ohtake edge zero-crossing criterion
-   (M011 Eq. 3-4): principal directions form a line field, so the neighbor's
-   tangent and extremality are sign-synchronized first; a vertex supports a
-   candidate only when (a) both edge endpoints pass the curvature dominance
-   test (`kappa_max > |kappa_min|` for ridges, `kappa_min < -|kappa_max|` for
-   valleys), (b) the extremality changes sign along an incident edge roughly
-   following the principal direction, and (c) the first-order maximum test
-   holds at both endpoints (the practical replacement Ohtake recommends for
-   the second-order derivative test). Sub-vertex ownership uses Ohtake's
-   inverse interpolation: only the endpoint with the smaller |e| claims the
-   crossing, which keeps the detected band one vertex wide.
-7. Gate each accepted crossing by its cyclideness (Yoshizawa, M021 Eq. 5-6).
-   On a Dupin cyclide (sphere, cylinder, cone, torus) the extremality field
-   vanishes identically, so a detected sign change there is discretization
-   noise rather than a curvature extremum: the whole extremal circle is a
-   stationary set of kappa and carries no crest. Near a genuine crest |e|
-   grows like |de/dt| times the distance off the crest line, so the mean
-   endpoint magnitude of |e| — which linearly interpolates Yoshizawa's
-   cyclideness C at the crossing — measures the extremal significance. The
-   gate requires
+   使用高斯距离权重和确定性的 Huber 重加权。九未知量系统通过增量累积加权正规方程（仅上三角）求解，
+   取代每次鲁棒迭代中的一次稠密 QR；半径归一化使 9x9 系统保持良好条件数。可用邻居少于九个的拟合
+   会因欠定而被拒绝。
+4. 从二次项构造第一、第二基本形式，并求解广义自伴特征问题，得到两个带符号主曲率及其方向。
+5. 对每个主方向直接从三次项计算解析极值性 `e_i = grad(kappa_i) . t_i`，其三阶方向形式为
+   `e ~ 6*(c0*t1^3 + c1*t1^2*t2 + c2*t1*t2^2 + c3*t2^3)`。
+   不使用相邻曲率的有限差分。
+6. 使用 Ohtake 边零交叉判据（M011 公式 3-4）分类 ridge/valley 支持：主方向构成线场，因此先对邻居的
+   切线和极值性进行符号同步；仅当以下条件同时满足时，顶点才支持候选：(a) 边的两个端点都通过曲率
+   支配性测试（ridge 为 `kappa_max > |kappa_min|`，valley 为 `kappa_min < -|kappa_max|`）；(b) 沿着大致
+   遵循主方向的入射边，极值性发生符号变化；(c) 两个端点都通过一阶极大值测试（Ohtake 推荐用它实际
+   替代二阶导数测试）。子顶点归属使用 Ohtake 的逆插值：仅 `|e|` 较小的端点认领交叉点，使检测带宽
+   保持为一个顶点。
+7. 使用 cyclideness（Yoshizawa，M021 公式 5-6）对每个接受的交叉进行门控。在 Dupin cyclide（球、圆柱、
+   圆锥、环面）上，极值性场恒等为零，因此其中检测到的符号变化是离散化噪声，而非曲率极值：整个极值
+   圆是 kappa 的驻集，不携带 crest。靠近真实 crest 时，`|e|` 随偏离 crest 线的距离按 `|de/dt|` 增长；
+   因此端点 `|e|` 的平均值（在交叉点处对 Yoshizawa 的 cyclideness C 进行线性插值）可衡量极值显著性。
+   门控条件为
 
    `0.5 * (|e_center| + |e_neighbor|) >= kMinCrossingCyclidenessRatio * kappa^2`
 
-   with `kMinCrossingCyclidenessRatio = 0.15`. Dividing by kappa^2 makes the
-   ratio dimensionless (both e and kappa^2 scale as 1/L^2 and are estimated
-   in the same radius-normalized units) and exactly invariant under uniform
-   scaling: it asks whether kappa varies by at least a fixed fraction of
-   itself over one curvature radius along its own line of curvature — zero on
-   cyclides, O(1) on true crests. Measured landmarks (2026-07): true crests
-   on the Gaussian ridge/bump fixtures sit at ratios >= 0.38 (p10) with
-   medians well above 1, while the spurious inner-side valley band of a torus
-   peaks at 0.06 across 24-48 minor segments, so 0.15 keeps a 2.5x margin to
-   both populations. Before this gate the torus produced a persistent
-   spurious valley with max persistent scores 0.097/0.038/0.026/0.011 at
-   24/32/36/48 minor segments against the working threshold 0.008; after it
-   the torus is exactly silent (max persistent score 0.0) at all tested
-   densities, and the Gaussian ridge response is bit-identical.
-8. Score the candidate with scale-normalized curvature magnitude, anisotropy,
-   zero-crossing strength (mean |e| times the tangential edge extent, in
-   radius-normalized units), and fit residual quality.
-9. Select a reference scale. The default keeps the highest-score scale for
-   backward compatibility. With `useStableScaleSelection`, valid candidates
-   are ranked by cross-scale sign/tangent/score consistency and candidates below
-   `minScaleStability` are rejected. Every
-   requested scale casts one support vote when all of the following hold:
-   (a) it is valid, (b) its score is at least
-   `max(persistenceThreshold, 0.30 * referenceScore)`, (c) its signed ridge/valley
-   kind matches the reference, and (d) the absolute tangent dot product with
-   the reference is at least `minTangentConsistency`. Supporting scales do not
-   have to be adjacent, and the coarsest requested scale does not have to vote.
-   The implementation then computes
+    其中 `kMinCrossingCyclidenessRatio = 0.15`。除以 `kappa^2` 后比值无量纲（e 和 `kappa^2` 都按 `1/L^2`
+    缩放，并在相同的半径归一化单位中估计），并且对统一缩放严格不变：它询问沿自身曲率线的一个曲率
+    半径内，kappa 是否至少变化其自身的固定比例，在 cyclide 上为零，在真实 crest 上为 O(1)。2026 年
+    7 月测得的标志值：Gaussian ridge/bump fixture 的真实 crest 比值 >= 0.38（p10），中位数远高于 1；
+    环面的虚假内侧 valley 带在 24-48 个小段上峰值为 0.06，因此 0.15 对两类数据都保留 2.5 倍余量。
+    在此门控前，环面在工作阈值 0.008 下于 24/32/36/48 个小段产生持久虚假 valley，最大持久分数分别为
+    0.097/0.038/0.026/0.011；门控后，所有测试密度下环面都完全静默（最大持久分数 0.0），Gaussian ridge
+    响应逐位一致。
+8. 使用尺度归一化曲率幅值、各向异性、零交叉强度（平均 `|e|` 乘切向边延伸量，以半径归一化单位计）
+   和拟合残差质量为候选评分。
+9. 选择参考尺度。默认保留最高分尺度以保持向后兼容。启用 `useStableScaleSelection` 后，依据跨尺度
+   符号/切线/分数一致性对有效候选排序，并拒绝低于 `minScaleStability` 的候选。请求的每个尺度在以下
+   条件全部满足时投一票：(a) 有效；(b) 分数至少为 `max(persistenceThreshold, 0.30 * referenceScore)`；
+   (c) 带符号 ridge/valley 类型与参考一致；(d) 与参考切线的绝对点积至少为 `minTangentConsistency`。
+   支持尺度不必相邻，最粗请求尺度也不必投票。实现随后计算
 
    `persistenceRatio = persistentScales / scaleCount`
 
@@ -136,182 +96,134 @@ For every vertex and every requested topological scale:
       (0.65 * referenceScore + 0.35 * meanSupportedScore)
       * persistenceRatio * meanSupportedAlignment`
 
-   Unsupported scales contribute zero to `averageFeatureScore`, whose stored
-   value is `supportedScoreSum / scaleCount`.
-10. Convert persistent vertices to mesh-edge evidence only when both endpoints
-    agree on sign, tangent, scale support, and edge alignment.
+    不支持的尺度对 `averageFeatureScore` 贡献零，其存储值为 `supportedScoreSum / scaleCount`。
+10. 仅当两个端点在符号、切线、尺度支持和边对齐方面一致时，才将持久顶点转换为网格边证据。
 
-The resulting score is dimensionless. Uniformly scaling a mesh does not require
-retuning the curvature threshold.
+最终分数无量纲。统一缩放网格无需重新调整曲率阈值。
 
-## Mesh-edge acceptance
+## 网格边接受规则
 
-Per-vertex evidence is diagnostic until it is converted into an explicit mesh
-edge by `smoothCurvatureEdgeCandidate`:
+顶点证据在通过 `smoothCurvatureEdgeCandidate` 转换为显式网格边之前，仅用于诊断：
 
-| Gate | Exact current rule |
+| 门控 | 当前精确规则 |
 | --- | --- |
-| Strong-evidence exclusion | Reject when the edge is already boundary, dihedral, or non-manifold. Also reject when either endpoint was marked as a discrete-feature vertex, producing a one-vertex exclusion zone around strong CAD evidence. |
-| Scale count | `min(endpointA.persistentScales, endpointB.persistentScales) >= smoothCurvatureMinPersistentScales`. |
-| Score | Both endpoint persistent scores must reach `smoothCurvatureFeatureThreshold`. |
-| Signed kind | Both endpoints must be nonzero and agree: ridge with ridge or valley with valley. |
-| Edge alignment | The edge direction must align with both endpoint curve tangents: `min(|d.tA|, |d.tB|) >= smoothCurvatureMinEdgeAlignment`. |
-| Endpoint tangent consistency | `|tA.tB| >= smoothCurvatureMinTangentConsistency`. |
+| 强证据排除 | 如果该边已经是 boundary、dihedral 或 non-manifold，则拒绝；如果任一端点被标记为离散特征顶点也拒绝，从而在强 CAD 证据周围形成一个顶点宽度的排除区。 |
+| 尺度数 | `min(endpointA.persistentScales, endpointB.persistentScales) >= smoothCurvatureMinPersistentScales`。 |
+| 分数 | 两个端点的持久分数都必须达到 `smoothCurvatureFeatureThreshold`。 |
+| 带符号类型 | 两个端点都必须非零且一致：ridge 对 ridge 或 valley 对 valley。 |
+| 边对齐 | 边方向必须与两个端点的曲线切线对齐：`min(|d.tA|, |d.tB|) >= smoothCurvatureMinEdgeAlignment`。 |
+| 端点切线一致性 | `|tA.tB| >= smoothCurvatureMinTangentConsistency`。 |
 
-This is intentionally stricter than the current normal-tensor edge rule, which
-accepts direction alignment when the better-aligned endpoint reaches its
-threshold. A mesh edge may still carry both normal-tensor and smooth-curvature
-flags because the two weak strategies are evaluated independently after the
-strong-evidence gates.
+这有意比当前 normal-tensor 边规则更严格；后者只要对齐更好的端点达到阈值即可接受方向对齐。一条网格边
+仍可能同时带有 normal-tensor 和 smooth-curvature 标记，因为两种弱策略在强证据门控后独立评估。
 
-## Public controls
+## 公共控制项
 
-`FeatureOptions` exposes an opt-in smooth path:
+`FeatureOptions` 提供可选启用的平滑通道：
 
 - `useSmoothCurvatureFeatures`
 - `smoothCurvatureFeatureThreshold`
 - `smoothCurvatureMinEdgeAlignment`
 - `smoothCurvatureMinTangentConsistency`
-- `smoothCurvatureBaseNeighborhoodRings` (default 2; one-ring fits are too noise-sensitive for general use)
+- `smoothCurvatureBaseNeighborhoodRings`（默认 2；单环拟合对噪声过于敏感，不适合一般用途）
 - `smoothCurvatureScaleCount`
 - `smoothCurvatureMinPersistentScales`
 - `smoothCurvatureRobustFitIterations`
-- `smoothCurvatureUseStableScaleSelection` (default false)
-- `smoothCurvatureMinScaleStability` (default 0.0)
+- `smoothCurvatureUseStableScaleSelection`（默认 false）
+- `smoothCurvatureMinScaleStability`（默认 0.0）
 
-Graph cleanup additionally exposes `featureGraphMinWeakSpurStrength`
-(default 0.0) through C++ `FeatureOptions`, C++ `SimplifyOptions`, both CLI
-option tables (`--feature-graph-min-weak-spur-strength`), and the size-aware C
-ABI tail. When
-positive, dangling weak-evidence chains are judged by the dimensionless
-Yoshizawa curve strength `T = (integral ds) * (integral strength ds)` — ds in
-local average-edge-length units, per-edge strength as the persistence score
-divided by the matching channel threshold — instead of the legacy edge-count
-cap. Long-but-faint smooth ridges then survive cleanup while short-but-strong
-noise spikes are pruned. The default keeps legacy behavior exactly.
+图清理还通过 C++ `FeatureOptions`、C++ `SimplifyOptions`、两个 CLI 选项表（`--feature-graph-min-weak-spur-strength`）
+以及带大小信息的 C ABI 尾部暴露 `featureGraphMinWeakSpurStrength`（默认 0.0）。启用正值时，悬空的弱证据链
+按无量纲的 Yoshizawa 曲线强度 `T = (integral ds) * (integral strength ds)` 判断：`ds` 使用局部平均边长单位，
+每条边的强度为持久分数除以匹配的通道阈值，不再使用旧的边数上限。因此较长但微弱的平滑 ridge 会在清理后
+保留，而短但强烈的噪声尖峰会被剪除。默认值完全保持旧行为。
 
-The path is opt-in because clean CAD/STL hard-edge detection and noisy/free-form
-smooth-feature detection require different validation sets. Existing
-simplification behavior remains unchanged unless the smooth channel is enabled
-or a caller supplies a precomputed analysis with smooth features.
+该通道默认关闭，因为干净 CAD/STL 的硬边检测与噪声/自由形状的平滑特征检测需要不同的验证集。除非启用平滑
+通道，或调用方提供包含平滑特征的预计算分析，否则现有简化行为保持不变。
 
-The CLI exposes the same controls to `feature-report`, `feature-benchmark`,
-`feature-compare`, and `simplify`. On `simplify`,
-`--smooth-curvature-features` also enables `preserveFeatureCurves`, so the
-detected graph is consumed by the protection policy instead of being computed
-and discarded. Stable-scale controls are exposed as
+CLI 将相同控制项提供给 `feature-report`、`feature-benchmark`、`feature-compare` 和 `simplify`。在 `simplify` 中，
+`--smooth-curvature-features` 还会启用 `preserveFeatureCurves`，因此检测到的图会被保护策略消费，而不是计算后
+丢弃。稳定尺度控制项以
 `--smooth-curvature-stable-scale` and
 `--smooth-curvature-min-scale-stability`.
 
-## Diagnostics
+## 诊断
 
-`FeatureAnalysis` now reports:
+`FeatureAnalysis` 现在报告：
 
-- smooth-curvature scored vertices and graph edges;
-- maximum raw and persistent scores;
-- mean local scale, persistence, and scale stability;
-- per-vertex `selectedScale` and `scaleStability`;
-- per-edge `smoothCurvature` ownership;
-- per-component smooth-edge count and mean curvature persistence.
+- 平滑曲率评分顶点和图边；
+- 最大原始分数和持久分数；
+- 平均局部尺度、持久性和尺度稳定性；
+- 每个顶点的 `selectedScale` 和 `scaleStability`；
+- 每条边的 `smoothCurvature` 归属；
+- 每个组件的平滑边数量和平均曲率持久性。
 
-Component confidence treats normal-tensor and smooth-curvature evidence as
-separate weak support. Hard evidence remains dominant.
+组件置信度将 normal-tensor 和 smooth-curvature 证据视为分离的弱支持，强证据仍占主导。
 
-The per-source edge counters are evidence-channel counts. Because one graph edge
-may carry both weak flags, `normalTensorFeatureEdges + smoothCurvatureFeatureEdges`
-is not guaranteed to equal the number of unique weak graph edges. Likewise,
-cleanup bridges are appended to `FeatureGraph` but are not included in the
-original `featureEdges` evidence count.
+按来源统计的边计数是证据通道计数。由于一条图边可能同时带有两种弱标志，
+`normalTensorFeatureEdges + smoothCurvatureFeatureEdges` 不保证等于唯一弱图边的数量。同样，清理阶段添加的
+桥接边会附加到 `FeatureGraph`，但不计入原始 `featureEdges` 证据数。
 
-`featureComponentMinConfidence` is a reporting threshold only: it controls the
-`highConfidenceFeatureComponents` counter and does not delete a component or
-turn hard protection on/off. Simplification continuously scales the feature
-curve soft quadric by `0.35 + 0.65 * confidence` in
-`src/simplification/Quadrics.cpp`.
+`featureComponentMinConfidence` 仅是报告阈值：它控制 `highConfidenceFeatureComponents` 计数，不会删除组件，
+也不会开启/关闭硬保护。简化在 `src/simplification/Quadrics.cpp` 中持续将特征曲线软 quadric 按
+`0.35 + 0.65 * confidence` 缩放。
 
-## Open-source implementation lessons
+## 开源实现经验
 
-- libigl: use a local tangent frame, k-ring or radius neighborhoods, quadric
-  fitting, and explicit principal directions. ManuMesh adds robust reweighting,
-  scale normalization, directional extrema, and persistence.
-- pmp-library: keep curvature as a mesh property with explicit boundary and
-  smoothing policy. ManuMesh keeps scoring separate from graph ownership.
-- CGAL PMP: materialize feature edges as an explicit constrained edge map before
-  patch or remeshing operations. `FeatureGraphEdge` is the ManuMesh equivalent.
-- OpenMesh: keep topology/status/property storage separate from feature policy.
-  The detector depends on core mesh queries and does not own edit operations.
+- libigl：使用局部切线框架、k-ring 或半径邻域、quadric 拟合和显式主方向。ManuMesh 增加鲁棒重加权、尺度归一化、
+  方向极值和持久性。
+- pmp-library：将曲率作为具有显式边界和平滑策略的网格属性。ManuMesh 将评分与图归属分离。
+- CGAL PMP：在 patch 或 remeshing 操作消费特征边之前，将其具体化为显式约束边图。`FeatureGraphEdge` 是 ManuMesh 的等价物。
+- OpenMesh：将拓扑/状态/属性存储与特征策略分离。检测器依赖核心网格查询，不拥有编辑操作。
 
-## Recent deterministic literature
+## 近期确定性文献
 
-The implementation is anchored by the local Ohtake (M011) and Yoshizawa (M021)
-crest-line recipes — cubic fit, analytic extremality, edge zero-crossing,
-curve-strength filtering — together with the M014/M042-M044 curvature and
-quadric references, then checked against recent non-AI work:
+实现以局部 Ohtake（M011）和 Yoshizawa（M021）的 crest-line 方法（三次拟合、解析极值性、边零交叉、曲线强度
+过滤）为基础，并结合 M014/M042-M044 曲率和 quadric 参考，再与近期非 AI 工作进行核对：
 
-| Year | Work | Engineering lesson used here |
+| 年份 | 工作 | 本处采用的工程经验 |
 | --- | --- | --- |
-| 2017/2018 | Yamakawa and Shimada, *Feature Edge Extraction Via Angle-Based Edge Collapsing and Recovery*, DOI `10.1115/1.4037227` | Multiscale simplification can expose small fillet centers; a single local angle threshold is not enough. |
-| 2019 | Lu et al., *Feature Curve Network Extraction via Quadric Surface Fitting*, M044 | Quadric fits must feed curve continuity and junction/network reasoning. |
-| 2020 | Romanengo et al., *HT-Based Identification of 3D Feature Curves and Their Insertion into 3D Meshes*, DOI `10.1016/j.cag.2020.05.012` | Detected curves should become explicit mesh constraints rather than remain detached samples. |
-| 2024 | Xu et al., *CWF: Consolidating Weak Features in High-quality Mesh Simplification*, M026 | Weak evidence needs consolidation and confidence before hard downstream protection. |
-| 2025 | Cai et al., *Feature Line Extraction Based on Winding Number*, DOI `10.1016/j.gmod.2025.101296` | Global curve evidence is a useful future complement when local differential evidence fragments. |
+| 2017/2018 | Yamakawa and Shimada, *Feature Edge Extraction Via Angle-Based Edge Collapsing and Recovery*, DOI `10.1115/1.4037227` | 多尺度简化可以暴露小型圆角中心；单一局部角度阈值并不足够。 |
+| 2019 | Lu et al., *Feature Curve Network Extraction via Quadric Surface Fitting*, M044 | Quadric 拟合必须服务于曲线连续性和 junction/网络推理。 |
+| 2020 | Romanengo et al., *HT-Based Identification of 3D Feature Curves and Their Insertion into 3D Meshes*, DOI `10.1016/j.cag.2020.05.012` | 检测到的曲线应成为显式网格约束，而不是停留为分离的采样点。 |
+| 2024 | Xu et al., *CWF: Consolidating Weak Features in High-quality Mesh Simplification*, M026 | 弱证据在用于下游硬保护前需要整合和置信度。 |
+| 2025 | Cai et al., *Feature Line Extraction Based on Winding Number*, DOI `10.1016/j.gmod.2025.101296` | 当局部微分证据碎片化时，全局曲线证据是有用的未来补充。 |
 
-No neural or learned method is used or recommended by this implementation.
+此实现不使用也不推荐神经或学习式方法。
 
-## Tests and remaining limits
+## 测试与剩余限制
 
-Tests cover exact-plane rejection, smooth-bump response, uniform-scale
-invariance, multiscale persistence, noisy-response suppression at the final
-feature-graph stage, graph-source ownership, parameter validation, and existing
-hard-feature regression suites. Raw curvature candidates remain diagnostic input;
-the graph constraints decide which responses become reusable feature edges.
-The labeled Gaussian ridge/valley fixture measures precision and segment recall
-with a one-local-edge curve-drift tolerance, matching how remeshing constraints
-consume a discrete approximation rather than an exact analytic curve.
+测试覆盖精确平面拒绝、平滑 bump 响应、统一尺度不变性、多尺度持久性、最终特征图阶段的噪声响应抑制、图来源
+归属、参数校验以及现有硬特征回归套件。原始曲率候选仍是诊断输入；图约束决定哪些响应会成为可复用的特征边。
+带标签的 Gaussian ridge/valley fixture 以单个局部边的曲线漂移容差测量精度和片段召回率，这与 remeshing 约束
+消费离散近似曲线而非精确解析曲线的方式一致。
 
-Since 2026-07 the path is additionally validated against analytic ground-truth
-fixtures (`tests/support/AnalyticFixtures.{h,cpp}`,
-`tests/unit/feature_detection/feature_detection_analytic_tests.cpp`): spheres,
-cylinders, and tori — all Dupin cyclides with identically vanishing
-extremality — must stay exactly silent, and the Gaussian ridge sheet checks
-the quantitative crest-curvature accuracy of the Monge fit (|f''(0)| = 2hs,
-median relative deviation bound 15% derived from the neighborhood-averaging
-bias). The torus fixture is what exposed the spurious inner-side valley band
-fixed by the cyclideness gate above.
+自 2026-07 起，该通道还使用解析真实值 fixture（`tests/support/AnalyticFixtures.{h,cpp}`、
+`tests/unit/feature_detection/feature_detection_analytic_tests.cpp`）进行验证：球、圆柱和环面都是极值性恒等
+为零的 Dupin cyclide，必须完全静默；Gaussian ridge sheet 用于检查 Monge 拟合的定量 crest 曲率精度
+（`|f''(0)| = 2hs`，中位相对偏差上限 15%，由邻域平均偏差推导）。环面 fixture 暴露了上文通过 cyclideness
+门控修复的虚假内侧 valley 带。
 
-Remaining limitations:
+剩余限制：
 
-- one dominant smooth tangent is stored per vertex, so very tight smooth
-  multi-branch junctions remain difficult;
-- the detector does not yet perform global Hough or winding-number curve
-  recovery;
-- incremental neighborhood updates after split/collapse are not implemented;
-- scan-specific benchmark fixtures with labeled ridge/valley curves are still
-  needed before enabling this path by default;
-- the channel is deliberately excluded from the mandatory 16k-face fast-suite
-  wall-clock guard because its cost depends strongly on requested rings, scale
-  count, robust iterations, and local valence. The disabled manual Release
-  benchmark (`FeatureDetectionPerf.DISABLED_AnalyzeTiming`) measured about
-  92 ms for the three-scale/two-robust-pass smooth stage on the current
-  8192-face bump fixture on the 2026-07-15 development machine. This number is
-  a local observation, not an API performance guarantee; mandatory tests keep
-  functional coverage on analytic fixtures and a separate fast guard for the
-  default dihedral + normal-tensor path.
+- 每个顶点只存储一个主导平滑切线，因此非常紧凑的平滑多分支 junction 仍然难以处理；
+- 检测器尚未执行全局 Hough 或 winding-number 曲线恢复；
+- 尚未实现 split/collapse 后的增量邻域更新；
+- 在默认启用该通道前，仍需要带标签 ridge/valley 曲线的扫描专用基准 fixture；
+- 由于成本高度依赖请求的环数、尺度数量、鲁棒迭代次数和局部价数，该通道有意排除在强制 16k 面快速套件的
+  墙钟保护之外。禁用的手动 Release 基准（`FeatureDetectionPerf.DISABLED_AnalyzeTiming`）在 2026-07-15
+  开发机上的当前 8192 面 bump fixture 中测得三尺度/两次鲁棒迭代平滑阶段约 92 ms。该数字是本地观测值，
+  不是 API 性能保证；强制测试仍在解析 fixture 上保持功能覆盖，并为默认 dihedral + normal-tensor 通道提供
+  独立快速保护。
 
-## Simplification boundary
+## 简化边界
 
-`SimplifyOptions` mirrors the smooth-curvature controls, including stable-scale
-selection and minimum stability, plus
-`featureGraphMinWeakSpurStrength`; `featureOptionsFromSimplifyOptions` maps them
-without changing thresholds. C++ callers enable both
-`preserveFeatureCurves = true` and `useSmoothCurvatureFeatures = true`. The CLI
-does the first part automatically when `--smooth-curvature-features` is present.
-`SimplifyReport`, simplify stdout/metrics CSV, and the size-aware C ABI report
-carry smooth edge/scored-vertex/persistence diagnostics together with winding,
-cleanup-cap, and circular-recovery diagnostics.
+`SimplifyOptions` 镜像平滑曲率控制项，包括稳定尺度选择和最小稳定性，以及 `featureGraphMinWeakSpurStrength`；
+`featureOptionsFromSimplifyOptions` 在不改变阈值的情况下完成映射。C++ 调用方同时启用
+`preserveFeatureCurves = true` 和 `useSmoothCurvatureFeatures = true`。CLI 在出现 `--smooth-curvature-features`
+时会自动完成前一项。`SimplifyReport`、简化标准输出/指标 CSV 和带大小信息的 C ABI 报告，携带平滑边、评分顶点
+及持久性诊断，并与 winding、清理上限和圆形恢复诊断一起输出。
 
-The precomputed `FeatureAnalysis` overload remains supported when detection is
-shared with repair/remeshing/validation. Both routes converge at
-`buildFeatureGuidanceFromAnalysis`; feature policy therefore remains outside the
-topology-edit loop, consistent with the constrained-edge/data-adapter practice
-represented by CGAL PMP and OpenMesh.
+当检测结果在 repair/remeshing/validation 之间共享时，仍支持预计算 `FeatureAnalysis` 的重载。两条路径都汇合
+到 `buildFeatureGuidanceFromAnalysis`；因此特征策略保持在拓扑编辑循环之外，符合 CGAL PMP 和 OpenMesh 所代表的
+约束边/数据适配器实践。

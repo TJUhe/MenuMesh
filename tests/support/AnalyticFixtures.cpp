@@ -1,9 +1,9 @@
 /**
  * @file tests/support/AnalyticFixtures.cpp
- * @brief Verifies analytic fixtures behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的解析夹具行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "AnalyticFixtures.h"
@@ -18,10 +18,10 @@ namespace {
 
 std::pair<int, int> sortedEdge(int a, int b) { return a < b ? std::make_pair(a, b) : std::make_pair(b, a); }
 
-} // namespace
+} // 匿名命名空间
 
 // ---------------------------------------------------------------------------
-// Sphere
+// 球体
 // ---------------------------------------------------------------------------
 
 bool SphereFixture::isPole(int vertex) const {
@@ -48,8 +48,7 @@ PrincipalCurvatures SphereFixture::analyticPrincipalCurvatures(int vertex) const
     result.kappaMax = 1.0 / radius;
     result.kappaMin = 1.0 / radius;
     result.normal = mesh.vertices[vertex].normalized();
-    // Umbilic point: every tangent direction is principal. Report an
-    // arbitrary orthonormal tangent pair.
+    // 脐点处任意切向都可以作为主方向，因此构造一组任意的正交归一切向基。
     const Vec3 seed = std::abs(result.normal.z()) < 0.9 ? Vec3(0.0, 0.0, 1.0) : Vec3(1.0, 0.0, 0.0);
     result.directionMax = result.normal.cross(seed).normalized();
     result.directionMin = result.normal.cross(result.directionMax).normalized();
@@ -101,7 +100,7 @@ SphereFixture makeUvSphere(int rings, int segments, double radius) {
 }
 
 // ---------------------------------------------------------------------------
-// Cylinder
+// 圆柱
 // ---------------------------------------------------------------------------
 
 bool CylinderFixture::isRimVertex(int vertex) const {
@@ -125,8 +124,8 @@ PrincipalCurvatures CylinderFixture::analyticPrincipalCurvatures(int vertex) con
     result.normal = radial;
     result.kappaMax = 1.0 / radius;
     result.kappaMin = 0.0;
-    result.directionMax = Vec3(-radial.y(), radial.x(), 0.0); // circumferential
-    result.directionMin = Vec3(0.0, 0.0, 1.0);                // axial
+    result.directionMax = Vec3(-radial.y(), radial.x(), 0.0); // 周向
+    result.directionMin = Vec3(0.0, 0.0, 1.0);                // 轴向
     return result;
 }
 
@@ -192,7 +191,7 @@ CylinderFixture makeCylinder(int segments, int rings, double radius, double heig
 }
 
 // ---------------------------------------------------------------------------
-// Torus
+// 环面
 // ---------------------------------------------------------------------------
 
 double TorusFixture::minorAngle(int vertex) const {
@@ -259,13 +258,13 @@ TorusFixture makeTorus(int majorSegments, int minorSegments, double majorRadius,
 }
 
 // ---------------------------------------------------------------------------
-// Chamfer box (octagonal prism)
+// 倒角盒（八棱柱）
 // ---------------------------------------------------------------------------
 
 std::vector<std::pair<int, int>> ChamferBoxFixture::groundTruthHardEdges() const {
     std::vector<std::pair<int, int>> edges;
-    // Vertical crease lines: one column of `divisions` edges per octagon
-    // corner (8 corners), plus the two octagon rims (8 edges each).
+    // 竖直折痕线：每个八边形角点（共 8 个）对应一列 divisions 条边，
+    // 另加上下两条八边形边界（每条 8 条边）。
     for (int corner = 0; corner < 8; ++corner) {
         for (int row = 0; row < divisions; ++row) {
             edges.push_back(sortedEdge(row * 8 + corner, (row + 1) * 8 + corner));
@@ -288,9 +287,8 @@ ChamferBoxFixture makeChamferBox(double size, double chamfer, int divisions) {
 
     const double h = 0.5 * size;
     const double c = fixture.chamfer;
-    // Octagon corners in counter-clockwise order (outward normals point away
-    // from the axis): the square [-h, h]^2 with each corner cut back by `c`
-    // along both incident sides at 45 degrees.
+    // 八边形角点按逆时针顺序排列（外法向背离轴线）：以 [-h, h]^2 为基础，
+    // 沿每条相邻边以 45 度方向向内切去长度为 c 的角。
     const double corners[8][2] = {
         {h, -h + c},
         {h, h - c},
@@ -332,7 +330,7 @@ ChamferBoxFixture makeChamferBox(double size, double chamfer, int divisions) {
 }
 
 // ---------------------------------------------------------------------------
-// Gaussian ridge sheet
+// 高斯脊面
 // ---------------------------------------------------------------------------
 
 std::vector<int> GaussianRidgeSheetFixture::interiorCrestVertices() const {
@@ -352,7 +350,7 @@ double GaussianRidgeSheetFixture::analyticCrestCurvature() const { return 2.0 * 
 
 GaussianRidgeSheetFixture makeGaussianRidgeSheet(int subdivisions, double size, double height, double sharpness) {
     GaussianRidgeSheetFixture fixture;
-    // Even subdivision count keeps a vertex column exactly on the crest x=0.
+    // 使用偶数细分数，使某一列顶点恰好位于脊线 x = 0 上。
     fixture.subdivisions = std::max(4, subdivisions + (subdivisions % 2));
     fixture.size = size;
     fixture.height = height;
@@ -381,15 +379,15 @@ GaussianRidgeSheetFixture makeGaussianRidgeSheet(int subdivisions, double size, 
 }
 
 // ---------------------------------------------------------------------------
-// Graded-density Gaussian ridge sheet
+// 分级密度高斯脊面
 // ---------------------------------------------------------------------------
 
 GradedGaussianRidgeSheetFixture
 makeGradedGaussianRidgeSheet(int fineColumns, double size, double height, double sharpness, int densityRatio) {
     GradedGaussianRidgeSheetFixture fixture;
     const int ratio = std::max(1, densityRatio);
-    // Round the fine half up to a multiple of the ratio so the coarse half
-    // has an integral interval count and one column lands exactly on x = 0.
+    // 将细网格半区向上取整为 densityRatio 的整数倍，从而使粗网格半区的区间数为整数，
+    // 并确保某一列恰好落在 x = 0 上。
     fixture.fineColumns = std::max(ratio, ((std::max(2, fineColumns) + ratio - 1) / ratio) * ratio);
     fixture.coarseColumns = fixture.fineColumns / ratio;
     fixture.size = size;
@@ -399,8 +397,7 @@ makeGradedGaussianRidgeSheet(int fineColumns, double size, double height, double
 
     const double fineSpacing = fixture.fineSpacing();
     const double coarseSpacing = fineSpacing * ratio;
-    // Row spacing at the geometric mean of the two column spacings keeps the
-    // triangle aspect ratio bounded by sqrt(ratio) on both halves.
+    // 行间距取两种列间距的几何平均值，使两侧三角形的长宽比均受 sqrt(ratio) 约束。
     const double rowSpacing = fineSpacing * std::sqrt(static_cast<double>(ratio));
     fixture.rows = std::max(4, static_cast<int>(std::lround(size / rowSpacing)));
 
@@ -427,11 +424,11 @@ makeGradedGaussianRidgeSheet(int fineColumns, double size, double height, double
 }
 
 // ---------------------------------------------------------------------------
-// Utilities
+// 工具函数
 // ---------------------------------------------------------------------------
 
 Mesh withDeterministicNoise(const Mesh& mesh, double amplitude, std::uint64_t seed) {
-    // Knuth MMIX LCG: full 64-bit state, top 53 bits mapped to [-1, 1].
+    // Knuth MMIX LCG：使用完整的 64 位状态，并将最高 53 位映射到 [-1, 1]。
     std::uint64_t state = seed * 6364136223846793005ull + 1442695040888963407ull;
     auto nextSymmetric = [&state]() {
         state = state * 6364136223846793005ull + 1442695040888963407ull;
@@ -467,4 +464,4 @@ double meanEdgeLength(const Mesh& mesh) {
     return total / static_cast<double>(edges.size());
 }
 
-} // namespace manumesh::test::analytic
+} // manumesh::test::analytic 命名空间

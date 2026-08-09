@@ -1,5 +1,5 @@
 # coaxial_hole_plate.obj
-# units: arbitrary; outer_radius=2.0 inner_radius=0.6 thickness=1.0 segments=24
+# 单位：任意；outer_radius=2.0 inner_radius=0.6 thickness=1.0 segments=24
 v 2 0 0.5
 v 1.93185165258 0.517638090205 0.5
 v 1.73205080757 1 0.5

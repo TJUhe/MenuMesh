@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_api_tests.cpp
- * @brief Verifies feature detection api tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 API测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -26,7 +26,7 @@ using Mesh = manumesh::Mesh;
 using Vec3 = manumesh::Vec3;
 using manumesh::test::feature_detection::discreteOnlyOptions;
 
-} // namespace
+} // 命名空间
 
 TEST(FeatureDetection, FeatureNamespaceApiIsProjectScoped) {
     static_assert(std::is_same_v<FeatureAnalysis, manumesh::feature::FeatureAnalysis>);

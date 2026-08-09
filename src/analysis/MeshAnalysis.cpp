@@ -1,9 +1,9 @@
 /**
  * @file src/analysis/MeshAnalysis.cpp
- * @brief Implements mesh analysis facilities for ManuMesh's analysis module.
+ * @brief 实现 ManuMesh 分析模块的网格分析设施。
  * @ingroup manumesh_analysis
  *
- * @details Analysis routines tolerate unusable faces where documented and report measurements without changing their input meshes.
+ * @details 分析例程在文档说明处允许不可用面，并在不修改输入网格的情况下报告测量结果。
  */
 
 #include "algorithms/analysis/MeshAnalysis.h"
@@ -130,7 +130,7 @@ std::vector<Vec3> sampleSurfacePoints(const Mesh& mesh, int maxSamples) {
     return points;
 }
 
-} // namespace
+} // 命名空间
 
 MeshStats computeMeshStats(const Mesh& mesh) {
     MeshStats stats;
@@ -252,4 +252,4 @@ DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& s
     return stats;
 }
 
-} // namespace manumesh::analysis
+} // 命名空间 manumesh::analysis

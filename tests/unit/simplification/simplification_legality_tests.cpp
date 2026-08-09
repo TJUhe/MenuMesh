@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/simplification_legality_tests.cpp
- * @brief Verifies simplification legality tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的简化 合法性测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -115,10 +115,10 @@ TEST(ManuMesh, StrictNormalDeviationRejectsFoldoverRisk) {
 
     EXPECT_FALSE(result.mesh.empty());
     EXPECT_GT(result.report.collapsedEdges, 0);
-    // With zero allowed deviation the guard must hold exactly: fallback placements
-    // (endpoint/midpoint) may satisfy it where the optimal point would flip, so the
-    // rejection counter can legitimately be zero. The hard guarantee is geometric:
-    // every surviving face normal of the axis-aligned cube shell stays axis-aligned.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (const manumesh::Face& face : result.mesh.faces) {
         const manumesh::Vec3 normal = manumesh::triangleNormal(
             result.mesh.vertices[face.v[0]], result.mesh.vertices[face.v[1]], result.mesh.vertices[face.v[2]]

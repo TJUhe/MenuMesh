@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SpatialFaceIndex.h
- * @brief Declares spatial face index facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的空间面索引功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -17,26 +17,26 @@
 namespace manumesh::simplification {
 
 /**
- * @brief Dynamic broad-phase AABB grid for exact local self-intersection checks.
+ * @brief 用于精确局部自相交检查的动态宽相位 AABB 网格。
  */
 class SpatialFaceIndex {
 public:
-    /** @brief Rebuilds the broad phase from every active face. */
+    /** @brief 根据所有活动面重建宽相位结构。*/
     void rebuild(const std::vector<FaceState>& faces, const std::vector<VertexState>& vertices);
-    /** @brief Removes a face from the broad phase. */
+    /** @brief 从宽相位结构中移除一个面。*/
     void removeFace(int faceId);
-    /** @brief Replaces a face's current AABB registration. */
+    /** @brief 替换一个面的当前 AABB 登记。*/
     void updateFace(int faceId, const FaceState& face, const std::vector<VertexState>& vertices);
-    /** @brief Returns broad-phase face candidates overlapping an AABB. */
+    /** @brief 返回与给定 AABB 重叠的宽相位面候选。*/
     std::vector<int> query(const Vec3& lo, const Vec3& hi) const;
-    /** @brief Reports whether the underlying grid is active. */
+    /** @brief 判断底层网格是否处于活动状态。*/
     bool enabled() const { return grid_.enabled(); }
 
 private:
-    /** @brief Inserts one active valid face into the broad phase. */
+    /** @brief 将一个活动且有效的面插入宽相位结构。*/
     void insertFace(int faceId, const FaceState& face, const std::vector<VertexState>& vertices);
 
     manumesh::common::UniformAabbCandidateGrid grid_;
 };
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

@@ -1,15 +1,13 @@
 /**
  * @file src/feature_detection/FeatureEvidence.cpp
- * @brief Implements feature evidence facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征证据功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Converts mesh-local observations into typed candidate-edge evidence.
- * @algorithm Boundary and non-manifold incidence are recorded directly;
- * manifold interior edges use winding-aware dihedral classification. Optional
- * normal-tensor and smooth-curvature channels contribute only when endpoint
- * persistence, tangent agreement, and edge alignment pass their thresholds.
- * @failuremodes Inconsistent winding keeps unsigned strength but reports an
- * unknown convex/concave sign. Degenerate faces contribute no normal evidence.
+ * @details 将网格局部观测转换为带类型的候选边证据。
+ * @algorithm 边界和非流形关联直接记录；流形内部边使用考虑绕序的二面角分类。
+ *            可选的法向张量和光顺曲率通道仅在端点持久性、切线一致性与边对齐度
+ *            均通过门限时贡献证据。
+ * @failuremodes 绕序不一致时保留无符号强度，并报告未知凸/凹符号；退化面不贡献法向证据。
  */
 
 #include "detail/FeatureEvidence.h"
@@ -30,7 +28,7 @@ namespace {
 
 using DihedralAngle = manumesh::common::OrientedDihedralAngle;
 
-/** @brief Shared caches and option state used by every evidence strategy. */
+/** @brief 供所有证据策略共享的缓存和选项状态。 */
 struct EdgeEvidenceContext {
     EdgeEvidenceContext(
         const Mesh& inputMesh,
@@ -81,9 +79,9 @@ struct EdgeEvidenceContext {
     }
 
     /**
-     * @brief Returns the cached oriented dihedral angle for a two-face edge.
-     * markDiscreteFeatureVertices computes every interior-edge angle exactly
-     * once; the dihedral evidence strategy reuses the same values.
+     * @brief 返回一条双面边缓存的有向二面角。
+     * markDiscreteFeatureVertices 会为每条内部边精确计算一次二面角，
+     * 二面角证据策略复用该结果。
      */
     const DihedralAngle* dihedralAngle(std::uint64_t key) const {
         const auto it = dihedralAngles.find(key);
@@ -283,16 +281,16 @@ bool smoothCurvatureEdgeCandidate(
     return true;
 }
 
-/** @brief Polymorphic classifier for one independent edge-evidence channel. */
+/** @brief 单个独立边证据通道的多态分类器。 */
 class EdgeEvidenceStrategy {
 public:
     virtual ~EdgeEvidenceStrategy() = default;
-    /** @brief Updates `edge` when this strategy accepts the incident topology. */
+    /** @brief 当策略接受关联拓扑时更新 edge。 */
     virtual void
     classify(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info, EdgeEvidenceContext& context) const = 0;
 };
 
-/** @brief Marks edges incident to exactly one face as boundary evidence. */
+/** @brief 将只关联一个面的边标记为边界证据。 */
 class BoundaryEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void
@@ -301,7 +299,7 @@ public:
     }
 };
 
-/** @brief Marks edges with unsupported face incidence as non-manifold evidence. */
+/** @brief 将面关联数超过两个的边标记为非流形证据。 */
 class NonManifoldEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void
@@ -310,7 +308,7 @@ public:
     }
 };
 
-/** @brief Classifies signed sharp edges from winding-aware dihedral angles. */
+/** @brief 根据考虑绕序的二面角，将尖锐边分类为带符号证据。 */
 class DihedralEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void classify(
@@ -335,7 +333,7 @@ public:
     }
 };
 
-/** @brief Adds persistent multiscale normal-tensor evidence. */
+/** @brief 添加多尺度持久法向张量证据。 */
 class NormalTensorEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void
@@ -349,7 +347,7 @@ public:
     }
 };
 
-/** @brief Adds persistent ridge and valley evidence from smooth curvature fits. */
+/** @brief 添加由光顺曲率拟合得到的持久脊线/谷线证据。 */
 class SmoothCurvatureEvidenceStrategy final : public EdgeEvidenceStrategy {
 public:
     void
@@ -363,7 +361,7 @@ public:
     }
 };
 
-} // namespace
+} // 匿名命名空间
 
 std::vector<CandidateEdge> collectFeatureEdges(
     const Mesh& mesh, const FeatureOptions& options, FeatureDetectionCache& cache, FeatureAnalysisBuilder& builder
@@ -394,9 +392,8 @@ std::vector<CandidateEdge> collectFeatureEdges(
         }
     }
 
-    // The edge-info map iterates in an unspecified order; sort by the edge key
-    // once so downstream graph construction, tracing, and loop recovery see a
-    // deterministic candidate sequence.
+    // edge-info 映射的遍历顺序未指定；先按边键排序，
+    // 使后续图构建、追踪和环恢复看到确定性的候选序列。
     std::sort(result.begin(), result.end(), [](const CandidateEdge& lhs, const CandidateEdge& rhs) {
         return lhs.a != rhs.a ? lhs.a < rhs.a : lhs.b < rhs.b;
     });
@@ -406,4 +403,4 @@ std::vector<CandidateEdge> collectFeatureEdges(
     return result;
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

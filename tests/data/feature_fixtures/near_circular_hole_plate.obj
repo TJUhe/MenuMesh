@@ -1,5 +1,5 @@
 # near_circular_hole_plate.obj
-# units: arbitrary
+# 单位：任意
 # major_radius=0.62 minor_radius=0.59 half_thickness=0.5 segments=40
 v 2 0 0.5
 v 1.97537668119 0.31286893008 0.5

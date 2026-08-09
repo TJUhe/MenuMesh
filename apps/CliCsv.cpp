@@ -1,9 +1,9 @@
 /**
  * @file apps/CliCsv.cpp
- * @brief Implements cli csv facilities for the ManuMesh command-line application.
+ * @brief 实现 CLI 使用的 CSV 解析、转义和统计数据序列化。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 解析器支持双引号字段和双引号转义，统计列顺序保持稳定。
  */
 
 #include "CliCsv.h"

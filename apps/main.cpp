@@ -1,9 +1,9 @@
 /**
  * @file apps/main.cpp
- * @brief Implements main facilities for the ManuMesh command-line application.
+ * @brief 命令行程序入口及 Windows 参数编码适配。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details Windows 下将宽字符命令行转换为 UTF-8，再交给 CLI 入口处理。
  */
 
 #include "ManuMeshCli.h"
@@ -35,7 +35,7 @@ bool wideToUtf8(const wchar_t* value, std::string& output) {
     return true;
 }
 
-} // namespace
+} // 命名空间
 
 int main() {
     int argc = 0;

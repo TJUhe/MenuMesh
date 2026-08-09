@@ -58,15 +58,15 @@
     },
     {
       "name": "vs2019-debug",
-      "displayName": "VS2019 x64 - Debug",
-      "description": "Daily VS2019 Debug build with CLI, examples and all non-performance tests.",
+      "displayName": "VS2019 x64 - 调试",
+      "description": "日常 VS2019 Debug 构建，包含 CLI、示例和全部非性能测试。",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-debug"
     },
     {
       "name": "vs2019-debug-debugutil",
-      "displayName": "VS2019 x64 - Debug + debugUtil",
-      "description": "Debug build with the internal HTML wireframe diagnostics enabled.",
+      "displayName": "VS2019 x64 - 调试 + debugUtil",
+      "description": "启用内部 HTML 线框诊断工具的 Debug 构建。",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-debug-debugutil",
       "cacheVariables": {
@@ -75,15 +75,15 @@
     },
     {
       "name": "vs2019-release",
-      "displayName": "VS2019 x64 - Release",
-      "description": "Optimized shared-library build with CLI, examples and regression tests.",
+      "displayName": "VS2019 x64 - 发布",
+      "description": "优化的共享库构建，包含 CLI、示例和回归测试。",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-release"
     },
     {
       "name": "vs2019-release-static",
-      "displayName": "VS2019 x64 - Release Static",
-      "description": "Optimized static-library variant for static consumer validation.",
+      "displayName": "VS2019 x64 - 发布静态库",
+      "description": "用于静态消费者验证的优化静态库变体。",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-static",
       "cacheVariables": {
@@ -92,8 +92,8 @@
     },
     {
       "name": "vs2019-release-performance",
-      "displayName": "VS2019 x64 - Release Performance",
-      "description": "Isolated optimized build that enables large-mesh performance tests.",
+      "displayName": "VS2019 x64 - 发布性能测试",
+      "description": "启用大网格性能测试的隔离优化构建。",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-performance",
       "cacheVariables": {
@@ -103,8 +103,8 @@
     },
     {
       "name": "vs2019-release-sdk",
-      "displayName": "VS2019 x64 - Release SDK",
-      "description": "Installable shared SDK with CMake package metadata and consumer tests.",
+      "displayName": "VS2019 x64 - 发布 SDK",
+      "description": "可安装的共享 SDK，包含 CMake 包元数据和消费者测试。",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-sdk",
       "cacheVariables": {
@@ -114,8 +114,8 @@
     },
     {
       "name": "vs2019-release-docs",
-      "displayName": "VS2019 x64 - Release Docs",
-      "description": "Isolated configuration for API and internal Doxygen targets.",
+      "displayName": "VS2019 x64 - 发布文档",
+      "description": "用于 API 和内部 Doxygen 目标的隔离配置。",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-docs",
       "cacheVariables": {
@@ -125,15 +125,15 @@
     },
     {
       "name": "vs2019-ninja-debug",
-      "displayName": "VS2019 v142 x64 - Ninja Debug",
-      "description": "Daily VS2019 Debug build through Ninja Multi-Config.",
+      "displayName": "VS2019 v142 x64 - Ninja 调试",
+      "description": "通过 Ninja Multi-Config 执行的日常 VS2019 Debug 构建。",
       "inherits": "vs2019-ninja-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-debug"
     },
     {
       "name": "vs2019-ninja-debug-debugutil",
-      "displayName": "VS2019 v142 x64 - Ninja Debug + debugUtil",
-      "description": "Ninja Debug build with the internal HTML wireframe diagnostics enabled.",
+      "displayName": "VS2019 v142 x64 - Ninja 调试 + debugUtil",
+      "description": "启用内部 HTML 线框诊断工具的 Ninja Debug 构建。",
       "inherits": "vs2019-ninja-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-debug-debugutil",
       "cacheVariables": {
@@ -142,15 +142,15 @@
     },
     {
       "name": "vs2019-ninja-release",
-      "displayName": "VS2019 v142 x64 - Ninja Release",
-      "description": "Optimized shared-library Ninja build with CLI, examples and regression tests.",
+      "displayName": "VS2019 v142 x64 - Ninja 发布",
+      "description": "优化的 Ninja 共享库构建，包含 CLI、示例和回归测试。",
       "inherits": "vs2019-ninja-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release"
     },
     {
       "name": "vs2019-ninja-release-static",
-      "displayName": "VS2019 v142 x64 - Ninja Release Static",
-      "description": "Optimized static-library Ninja variant for consumer validation.",
+      "displayName": "VS2019 v142 x64 - Ninja 发布静态库",
+      "description": "用于消费者验证的优化 Ninja 静态库变体。",
       "inherits": "vs2019-ninja-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-static",
       "cacheVariables": {
@@ -159,8 +159,8 @@
     },
     {
       "name": "vs2019-ninja-release-performance",
-      "displayName": "VS2019 v142 x64 - Ninja Release Performance",
-      "description": "Isolated optimized Ninja build for large-mesh performance tests.",
+      "displayName": "VS2019 v142 x64 - Ninja 发布性能测试",
+      "description": "用于大网格性能测试的隔离优化 Ninja 构建。",
       "inherits": "vs2019-ninja-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-performance",
       "cacheVariables": {
@@ -170,8 +170,8 @@
     },
     {
       "name": "vs2019-ninja-release-sdk",
-      "displayName": "VS2019 v142 x64 - Ninja Release SDK",
-      "description": "Installable shared SDK built and validated through Ninja.",
+      "displayName": "VS2019 v142 x64 - Ninja 发布 SDK",
+      "description": "通过 Ninja 构建并验证的可安装共享 SDK。",
       "inherits": "vs2019-ninja-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-sdk",
       "cacheVariables": {
@@ -181,8 +181,8 @@
     },
     {
       "name": "vs2019-ninja-release-docs",
-      "displayName": "VS2019 v142 x64 - Ninja Release Docs",
-      "description": "Isolated Ninja configuration for API and internal Doxygen targets.",
+      "displayName": "VS2019 v142 x64 - Ninja 发布文档",
+      "description": "用于 API 和内部 Doxygen 目标的隔离 Ninja 配置。",
       "inherits": "vs2019-ninja-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-docs",
       "cacheVariables": {
@@ -194,13 +194,13 @@
   "buildPresets": [
     {
       "name": "vs2019-debug",
-      "displayName": "Build VS2019 Debug - all",
+      "displayName": "构建 VS2019 调试 - 全部",
       "configurePreset": "vs2019-debug",
       "configuration": "Debug"
     },
     {
       "name": "vs2019-debug-tests",
-      "displayName": "Build VS2019 Debug - test executables",
+      "displayName": "构建 VS2019 调试 - 测试可执行文件",
       "configurePreset": "vs2019-debug",
       "configuration": "Debug",
       "targets": [
@@ -214,7 +214,7 @@
     },
     {
       "name": "vs2019-debug-debugutil",
-      "displayName": "Build VS2019 Debug + debugUtil - tests",
+      "displayName": "构建 VS2019 调试 + debugUtil - 测试",
       "configurePreset": "vs2019-debug-debugutil",
       "configuration": "Debug",
       "targets": [
@@ -228,13 +228,13 @@
     },
     {
       "name": "vs2019-release",
-      "displayName": "Build VS2019 Release - all",
+      "displayName": "构建 VS2019 发布 - 全部",
       "configurePreset": "vs2019-release",
       "configuration": "Release"
     },
     {
       "name": "vs2019-release-tests",
-      "displayName": "Build VS2019 Release - test executables",
+      "displayName": "构建 VS2019 发布 - 测试可执行文件",
       "configurePreset": "vs2019-release",
       "configuration": "Release",
       "targets": [
@@ -248,13 +248,13 @@
     },
     {
       "name": "vs2019-release-static",
-      "displayName": "Build VS2019 Release Static - all",
+      "displayName": "构建 VS2019 发布静态库 - 全部",
       "configurePreset": "vs2019-release-static",
       "configuration": "Release"
     },
     {
       "name": "vs2019-release-performance",
-      "displayName": "Build VS2019 Release - performance executable",
+      "displayName": "构建 VS2019 发布 - 性能可执行文件",
       "configurePreset": "vs2019-release-performance",
       "configuration": "Release",
       "targets": [
@@ -263,7 +263,7 @@
     },
     {
       "name": "vs2019-release-sdk",
-      "displayName": "Build and validate VS2019 Release SDK",
+      "displayName": "构建并验证 VS2019 发布 SDK",
       "configurePreset": "vs2019-release-sdk",
       "configuration": "Release",
       "targets": [
@@ -277,7 +277,7 @@
     },
     {
       "name": "vs2019-release-docs",
-      "displayName": "Build VS2019 API and internal docs",
+      "displayName": "构建 VS2019 API 和内部文档",
       "configurePreset": "vs2019-release-docs",
       "configuration": "Release",
       "targets": [
@@ -287,13 +287,13 @@
     },
     {
       "name": "vs2019-ninja-debug",
-      "displayName": "Build VS2019 Ninja Debug - all",
+      "displayName": "构建 VS2019 Ninja 调试 - 全部",
       "configurePreset": "vs2019-ninja-debug",
       "configuration": "Debug"
     },
     {
       "name": "vs2019-ninja-debug-tests",
-      "displayName": "Build VS2019 Ninja Debug - test executables",
+      "displayName": "构建 VS2019 Ninja 调试 - 测试可执行文件",
       "configurePreset": "vs2019-ninja-debug",
       "configuration": "Debug",
       "targets": [
@@ -307,7 +307,7 @@
     },
     {
       "name": "vs2019-ninja-debug-debugutil",
-      "displayName": "Build VS2019 Ninja Debug + debugUtil - tests",
+      "displayName": "构建 VS2019 Ninja 调试 + debugUtil - 测试",
       "configurePreset": "vs2019-ninja-debug-debugutil",
       "configuration": "Debug",
       "targets": [
@@ -321,13 +321,13 @@
     },
     {
       "name": "vs2019-ninja-release",
-      "displayName": "Build VS2019 Ninja Release - all",
+      "displayName": "构建 VS2019 Ninja 发布 - 全部",
       "configurePreset": "vs2019-ninja-release",
       "configuration": "Release"
     },
     {
       "name": "vs2019-ninja-release-tests",
-      "displayName": "Build VS2019 Ninja Release - test executables",
+      "displayName": "构建 VS2019 Ninja 发布 - 测试可执行文件",
       "configurePreset": "vs2019-ninja-release",
       "configuration": "Release",
       "targets": [
@@ -341,13 +341,13 @@
     },
     {
       "name": "vs2019-ninja-release-static",
-      "displayName": "Build VS2019 Ninja Release Static - all",
+      "displayName": "构建 VS2019 Ninja 发布静态库 - 全部",
       "configurePreset": "vs2019-ninja-release-static",
       "configuration": "Release"
     },
     {
       "name": "vs2019-ninja-release-performance",
-      "displayName": "Build VS2019 Ninja Release - performance executable",
+      "displayName": "构建 VS2019 Ninja 发布 - 性能可执行文件",
       "configurePreset": "vs2019-ninja-release-performance",
       "configuration": "Release",
       "targets": [
@@ -356,7 +356,7 @@
     },
     {
       "name": "vs2019-ninja-release-sdk",
-      "displayName": "Build and validate VS2019 Ninja Release SDK",
+      "displayName": "构建并验证 VS2019 Ninja 发布 SDK",
       "configurePreset": "vs2019-ninja-release-sdk",
       "configuration": "Release",
       "targets": [
@@ -370,7 +370,7 @@
     },
     {
       "name": "vs2019-ninja-release-docs",
-      "displayName": "Build VS2019 Ninja API and internal docs",
+      "displayName": "构建 VS2019 Ninja API 和内部文档",
       "configurePreset": "vs2019-ninja-release-docs",
       "configuration": "Release",
       "targets": [
@@ -382,7 +382,7 @@
   "testPresets": [
     {
       "name": "vs2019-debug-unit",
-      "displayName": "Test VS2019 Debug - fast unit and architecture",
+      "displayName": "测试 VS2019 调试 - 快速单元和架构",
       "configurePreset": "vs2019-debug",
       "configuration": "Debug",
       "filter": {
@@ -400,7 +400,7 @@
     },
     {
       "name": "vs2019-debug-external",
-      "displayName": "Test VS2019 Debug - external meshes",
+      "displayName": "测试 VS2019 调试 - 外部网格",
       "configurePreset": "vs2019-debug",
       "configuration": "Debug",
       "filter": {
@@ -418,7 +418,7 @@
     },
     {
       "name": "vs2019-debug-debugutil-unit",
-      "displayName": "Test VS2019 Debug + debugUtil - fast suite",
+      "displayName": "测试 VS2019 调试 + debugUtil - 快速套件",
       "configurePreset": "vs2019-debug-debugutil",
       "configuration": "Debug",
       "filter": {
@@ -436,7 +436,7 @@
     },
     {
       "name": "vs2019-release-unit",
-      "displayName": "Test VS2019 Release - fast unit and architecture",
+      "displayName": "测试 VS2019 发布 - 快速单元和架构",
       "configurePreset": "vs2019-release",
       "configuration": "Release",
       "filter": {
@@ -454,7 +454,7 @@
     },
     {
       "name": "vs2019-release-external",
-      "displayName": "Test VS2019 Release - external meshes",
+      "displayName": "测试 VS2019 发布 - 外部网格",
       "configurePreset": "vs2019-release",
       "configuration": "Release",
       "filter": {
@@ -472,7 +472,7 @@
     },
     {
       "name": "vs2019-release-full",
-      "displayName": "Test VS2019 Release - all configured tests",
+      "displayName": "测试 VS2019 发布 - 全部已配置测试",
       "configurePreset": "vs2019-release",
       "configuration": "Release",
       "output": {
@@ -485,7 +485,7 @@
     },
     {
       "name": "vs2019-release-static-unit",
-      "displayName": "Test VS2019 Release Static - fast suite",
+      "displayName": "测试 VS2019 发布静态库 - 快速套件",
       "configurePreset": "vs2019-release-static",
       "configuration": "Release",
       "filter": {
@@ -503,7 +503,7 @@
     },
     {
       "name": "vs2019-release-performance",
-      "displayName": "Test VS2019 Release - performance",
+      "displayName": "测试 VS2019 发布 - 性能",
       "configurePreset": "vs2019-release-performance",
       "configuration": "Release",
       "filter": {
@@ -521,7 +521,7 @@
     },
     {
       "name": "vs2019-release-sdk",
-      "displayName": "Test VS2019 Release - SDK and full regression",
+      "displayName": "测试 VS2019 发布 - SDK 和完整回归",
       "configurePreset": "vs2019-release-sdk",
       "configuration": "Release",
       "output": {
@@ -534,7 +534,7 @@
     },
     {
       "name": "vs2019-ninja-debug-unit",
-      "displayName": "Test VS2019 Ninja Debug - fast unit and architecture",
+      "displayName": "测试 VS2019 Ninja 调试 - 快速单元和架构",
       "configurePreset": "vs2019-ninja-debug",
       "configuration": "Debug",
       "filter": {
@@ -552,7 +552,7 @@
     },
     {
       "name": "vs2019-ninja-debug-external",
-      "displayName": "Test VS2019 Ninja Debug - external meshes",
+      "displayName": "测试 VS2019 Ninja 调试 - 外部网格",
       "configurePreset": "vs2019-ninja-debug",
       "configuration": "Debug",
       "filter": {
@@ -570,7 +570,7 @@
     },
     {
       "name": "vs2019-ninja-debug-debugutil-unit",
-      "displayName": "Test VS2019 Ninja Debug + debugUtil - fast suite",
+      "displayName": "测试 VS2019 Ninja 调试 + debugUtil - 快速套件",
       "configurePreset": "vs2019-ninja-debug-debugutil",
       "configuration": "Debug",
       "filter": {
@@ -588,7 +588,7 @@
     },
     {
       "name": "vs2019-ninja-release-unit",
-      "displayName": "Test VS2019 Ninja Release - fast unit and architecture",
+      "displayName": "测试 VS2019 Ninja 发布 - 快速单元和架构",
       "configurePreset": "vs2019-ninja-release",
       "configuration": "Release",
       "filter": {
@@ -606,7 +606,7 @@
     },
     {
       "name": "vs2019-ninja-release-external",
-      "displayName": "Test VS2019 Ninja Release - external meshes",
+      "displayName": "测试 VS2019 Ninja 发布 - 外部网格",
       "configurePreset": "vs2019-ninja-release",
       "configuration": "Release",
       "filter": {
@@ -624,7 +624,7 @@
     },
     {
       "name": "vs2019-ninja-release-full",
-      "displayName": "Test VS2019 Ninja Release - all configured tests",
+      "displayName": "测试 VS2019 Ninja 发布 - 全部已配置测试",
       "configurePreset": "vs2019-ninja-release",
       "configuration": "Release",
       "output": {
@@ -637,7 +637,7 @@
     },
     {
       "name": "vs2019-ninja-release-static-unit",
-      "displayName": "Test VS2019 Ninja Release Static - fast suite",
+      "displayName": "测试 VS2019 Ninja 发布静态库 - 快速套件",
       "configurePreset": "vs2019-ninja-release-static",
       "configuration": "Release",
       "filter": {
@@ -655,7 +655,7 @@
     },
     {
       "name": "vs2019-ninja-release-performance",
-      "displayName": "Test VS2019 Ninja Release - performance",
+      "displayName": "测试 VS2019 Ninja 发布 - 性能",
       "configurePreset": "vs2019-ninja-release-performance",
       "configuration": "Release",
       "filter": {
@@ -673,7 +673,7 @@
     },
     {
       "name": "vs2019-ninja-release-sdk",
-      "displayName": "Test VS2019 Ninja Release - SDK and full regression",
+      "displayName": "测试 VS2019 Ninja 发布 - SDK 和完整回归",
       "configurePreset": "vs2019-ninja-release-sdk",
       "configuration": "Release",
       "output": {

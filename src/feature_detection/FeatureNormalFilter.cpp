@@ -1,14 +1,12 @@
 /**
  * @file src/feature_detection/FeatureNormalFilter.cpp
- * @brief Implements feature normal filter facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征法向过滤功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Stabilizes face normals without changing mesh positions or topology.
- * @algorithm Each iteration recomputes an angular edge indicator, preserves
- * discontinuities above the configured angle, averages compatible neighboring
- * normals with face-area weights, and applies bounded relaxation.
- * @invariants Output normals stay finite and normalized; protected hard edges
- * do not exchange smoothing support across the discontinuity.
+ * @details 在不改变网格位置和拓扑的前提下稳定面法向。
+ * @algorithm 每次迭代重新计算基于边角度的指示量，保留超过配置角度的间断，
+ *            按面面积加权平均兼容邻面法向，并应用有界松弛。
+ * @invariants 输出法向始终有限且已归一化；受保护的硬边不会跨间断交换平滑支持。
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -29,7 +27,7 @@ namespace manumesh::feature {
 namespace detector_detail {
 namespace {
 
-/** @brief Adjacent face pair contributing to bilateral normal smoothing. */
+/** @brief 参与双边法向平滑的相邻面对。 */
 struct FacePair {
     int first = -1;
     int second = -1;
@@ -91,7 +89,7 @@ std::vector<FacePair> manifoldFacePairs(const common::MeshEdgeInfoMap& edgeInfo)
     return result;
 }
 
-} // namespace
+} // 匿名命名空间
 
 FeatureNormalFilterResult filterFeatureNormalsImpl(
     const Mesh& mesh, const common::MeshEdgeInfoMap& edgeInfo, const FeatureNormalFilterOptions& options
@@ -210,7 +208,7 @@ const FeatureNormalFilterReport& FeatureDetectionCache::normalFilterReport() {
     return normalFilterReport_;
 }
 
-} // namespace detector_detail
+} // 命名空间 manumesh::feature::detector_detail
 
 FeatureNormalFilterResult filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options) {
     detector_detail::validateFeatureMeshInput(mesh);
@@ -234,4 +232,4 @@ FeatureNormalFilterResult filterFeatureNormals(const Mesh& mesh, const FeatureNo
     return detector_detail::filterFeatureNormalsImpl(mesh, edgeInfo, options);
 }
 
-} // namespace manumesh::feature
+} // 命名空间 manumesh::feature

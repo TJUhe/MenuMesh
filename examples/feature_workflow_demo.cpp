@@ -1,9 +1,9 @@
 /**
  * @file examples/feature_workflow_demo.cpp
- * @brief Demonstrates feature workflow demo through the ManuMesh SDK examples.
+ * @brief 通过 ManuMesh SDK 示例演示特征工作流示例。
  * @ingroup manumesh_examples
  *
- * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ * @details 示例只使用受支持的公共入口，同时作为特征分析与简化集成流程的可执行文档。
  */
 
 #include "algorithms/analysis/MeshAnalysis.h"
@@ -60,9 +60,8 @@ QualityGateResult runManufacturingQualityGate(const manumesh::Mesh& input, const
     simplifyOptions.boundaryWeight = 1.0;
 
     manumesh::simplification::SimplifyReport simplifyReport;
-    // Reuse the FeatureAnalysis computed above instead of letting the
-    // simplifier re-detect features internally: the (input, features, report)
-    // overload avoids running feature analysis twice on the same mesh.
+    // 复用上面已经计算的 FeatureAnalysis，避免简化器在内部再次检测特征；
+    // (input, features, report) 重载确保同一网格不会重复运行特征分析。
     const manumesh::Mesh output =
         manumesh::simplification::QEMSimplifier(simplifyOptions).simplify(input, features, &simplifyReport);
 
@@ -85,7 +84,7 @@ QualityGateResult runManufacturingQualityGate(const manumesh::Mesh& input, const
     return result;
 }
 
-} // namespace
+} // 命名空间
 
 int main() {
     const manumesh::Mesh input = manumesh::generateCylinderGrid(48, 12, 1.0, 2.0);

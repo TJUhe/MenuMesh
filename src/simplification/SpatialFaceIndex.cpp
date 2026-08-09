@@ -1,12 +1,10 @@
 /**
  * @file src/simplification/SpatialFaceIndex.cpp
- * @brief Implements spatial face index facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的空间面索引功能。
  * @ingroup manumesh_simplification
  *
- * @details Maintains broad-phase AABB registrations for active faces during local edits.
- * @algorithm The uniform grid removes stale registrations before insertion,
- * updates only affected faces, and returns deduplicated potential intersection
- * candidates for exact triangle predicates.
+ * @details 在局部编辑期间维护活动面的宽相位 AABB 登记。
+ * @algorithm 均匀网格会在插入前移除过期登记，只更新受影响的面，并返回去重后的潜在相交候选，供精确三角形谓词检查。
  */
 
 #include "detail/SpatialFaceIndex.h"
@@ -69,4 +67,4 @@ void SpatialFaceIndex::insertFace(int faceId, const FaceState& face, const std::
     grid_.insert(faceId, lo, hi);
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

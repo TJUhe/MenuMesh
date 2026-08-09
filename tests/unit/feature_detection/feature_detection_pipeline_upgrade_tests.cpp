@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_pipeline_upgrade_tests.cpp
- * @brief Verifies feature detection pipeline upgrade tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 流水线升级测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "AnalyticFixtures.h"
@@ -71,7 +71,7 @@ void addWeakEdge(
     feature::detector_detail::addTraceGraphEdge(trace, analysis, edge);
 }
 
-} // namespace
+} // 命名空间
 
 TEST(FeatureDetectionUpgrade, NormalFilterStabilizesNoisyNormalsAndPreservesRims) {
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 12, 1.0, 2.0, true);
@@ -300,4 +300,4 @@ TEST(FeatureDetectionUpgrade, RejectsInvalidUpgradeOptions) {
     EXPECT_THROW(feature::filterFeatureNormals(mesh, filterOptions), std::invalid_argument);
 }
 
-} // namespace manumesh::tests
+} // 命名空间

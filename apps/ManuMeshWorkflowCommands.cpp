@@ -1,9 +1,9 @@
 /**
  * @file apps/ManuMeshWorkflowCommands.cpp
- * @brief Implements manu mesh workflow commands facilities for the ManuMesh command-line application.
+ * @brief 实现演示、验证和批量工作流 CLI 命令。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 工作流组合多个底层命令，负责准备输入、组织输出目录并汇总结果。
  */
 
 #include "ManuMeshWorkflowCommands.h"
@@ -31,9 +31,7 @@ void runRegisteredCommand(const std::string& name, const Args& args) {
     const auto handler = commandRegistry().find(name);
     if (handler == commandRegistry().end())
         throw std::logic_error("CLI workflow references unregistered command: " + name);
-    // Internally constructed Args must pass the same per-command option
-    // validation as user input so option typos in workflows are not silently
-    // ignored.
+    // 工作流复用正式命令注册表，先校验参数，再执行对应处理函数。
     validateArgsForCommand(name, args);
     const int code = handler->second(args);
     if (code != 0) {
@@ -132,7 +130,7 @@ void runSummarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath
     runRegisteredCommand("summarize-metrics", args);
 }
 
-} // namespace
+} // 命名空间
 
 int demo(const Args& args) {
     const fs::path inputDir = pathFromUtf8(getArg(args, "--input-dir", "output/demo_input"));

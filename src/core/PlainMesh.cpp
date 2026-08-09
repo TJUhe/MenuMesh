@@ -1,9 +1,9 @@
 /**
  * @file src/core/PlainMesh.cpp
- * @brief Implements plain mesh facilities for ManuMesh's core-mesh module.
+ * @brief 实现 ManuMesh 核心网格模块的纯数据网格设施。
  * @ingroup manumesh_core
  *
- * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
  */
 
 #include "core/PlainMesh.h"
@@ -56,4 +56,4 @@ PlainMesh toPlainMesh(const Mesh& mesh) {
     return plain;
 }
 
-} // namespace manumesh
+} // 命名空间 manumesh

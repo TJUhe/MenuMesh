@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/api/c_api_simplify_abi_tests.cpp
- * @brief Verifies c api simplify abi tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的 C API 简化 ABI 测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "CApiTestSupport.h"
@@ -98,7 +98,7 @@ void expectSizeAwareInitializerRejectsInvalidCapacity(ManuMeshStatus (*initializ
     EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, initializer(nullptr, sizeof(T)));
 }
 
-} // namespace
+} // 命名空间
 
 TEST_F(CApiTest, MapsInvalidSimplifyOptionsToInvalidArgumentStatus) {
     ManuMeshMeshHandle* input = manumesh_mesh_create(context);

@@ -1,9 +1,9 @@
 /**
  * @file tests/performance/qem_dataset_tests.cpp
- * @brief Verifies qem dataset tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的QEM 数据集测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "TestSupport.h"
@@ -36,7 +36,7 @@ double elapsedMs(std::chrono::steady_clock::time_point start, std::chrono::stead
     return std::chrono::duration<double, std::milli>(end - start).count();
 }
 
-} // namespace
+} // 命名空间
 
 TEST(ManuMeshDataset, AllQemTestStlInputsSimplifyAtSmokeBudget) {
     const std::vector<CaseLine> cases = readCaseLines("all_stl/cases.txt");

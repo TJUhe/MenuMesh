@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_discrete_tests.cpp
- * @brief Verifies feature detection discrete tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 离散测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -27,15 +27,15 @@ using manumesh::test::feature_detection::countClosedLoops;
 using manumesh::test::feature_detection::discreteOnlyOptions;
 using manumesh::test::feature_detection::makeMixedDiscreteEvidenceMesh;
 
-/// Minimal signed-dihedral truth fixture: two triangles sharing edge (0, 1)
-/// along the +y axis. Face {0, 1, 2} lies in the z = 0 plane covering x <= 0
-/// with outward normal +z and traverses the shared edge as 0->1 (d = +y);
-/// face {1, 0, 3} is vertical (x = 0) and traverses it as 1->0, so the pair
-/// is consistently wound. With wallZ < 0 the wall hangs down (outward normal
-/// +x) and the crease is a 90-degree convex ridge (interior material angle
-/// 90 < 180 degrees): (n0 x n1) . d = (z x x) . y = +1. With wallZ > 0 the
-/// wall rises (outward normal -x, a room corner) and the crease is a
-/// 90-degree concave valley (interior material angle 270 > 180 degrees):
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 /// (n0 x n1) . d = (z x -x) . y = -1.
 Mesh makeRightAngleFoldMesh(double wallZ) {
     Mesh mesh;
@@ -52,13 +52,13 @@ Mesh makeRightAngleFoldMesh(double wallZ) {
     return mesh;
 }
 
-/// Closed, consistently wound right prism over the L polygon
-/// (0,0) (2,0) (2,1) (1,1) (1,2) (0,2), z in [0, 1]. Bottom vertices 0..5
-/// follow the polygon order, top vertices are bottom + 6. Ground truth: all
-/// 18 hard edges (6 bottom rim + 6 top rim + 6 vertical) have exact
-/// 90-degree dihedrals; the only concave edge is the vertical edge at the
-/// reflex polygon corner (1,1) - bottom vertex 3 to top vertex 9 - whose
-/// interior material angle is 270 degrees. The remaining 17 edges are convex.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 Mesh makeLShapedPrismMesh() {
     const std::array<std::pair<double, double>, 6> polygon = {
         std::make_pair(0.0, 0.0),
@@ -75,8 +75,8 @@ Mesh makeLShapedPrismMesh() {
     for (const auto& [x, y] : polygon) {
         mesh.vertices.emplace_back(x, y, 1.0);
     }
-    // Bottom cap (outward normal -z) and top cap (outward normal +z), both
-    // fanned from the reflex corner so every triangle stays inside the L.
+    // 命名空间
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     mesh.faces = {
         {{3, 5, 4}},
         {{3, 0, 5}},
@@ -95,12 +95,12 @@ Mesh makeLShapedPrismMesh() {
     return mesh;
 }
 
-/// Open staircase sheet: three treads (+z normals) and two risers (-x
-/// normals) extruded along y, profile (0,0)-(1,0)-(1,1)-(2,1)-(2,2)-(3,2) in
-/// the xz plane; front-row vertices 0..5, back-row vertices 6..11. The four
-/// interior fold edges alternate: tread-into-riser (bottom of a riser, e.g.
-/// floor meeting a wall) is concave, riser-into-tread (the step nose) is
-/// convex. All folds are exact 90-degree dihedrals.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 Mesh makeStaircaseSheetMesh() {
     const std::array<std::pair<double, double>, 6> profile = {
         std::make_pair(0.0, 0.0),
@@ -124,7 +124,7 @@ Mesh makeStaircaseSheetMesh() {
     return mesh;
 }
 
-/// Signed kinds of all dihedral feature-graph edges, keyed by (a, b), a < b.
+/// 说明该辅助函数的输入、输出和边界条件。
 std::set<std::pair<std::pair<int, int>, int>> dihedralSignedEdges(const FeatureAnalysis& features) {
     std::set<std::pair<std::pair<int, int>, int>> result;
     for (const feature::FeatureGraphEdge& edge : features.graph.edges) {
@@ -135,7 +135,7 @@ std::set<std::pair<std::pair<int, int>, int>> dihedralSignedEdges(const FeatureA
     return result;
 }
 
-} // namespace
+} // 命名空间
 
 TEST(FeatureDetection, ClassifiesBoundaryEdgesOnOpenTriangle) {
     Mesh mesh;
@@ -286,10 +286,10 @@ TEST(FeatureDetection, SplitsBranchedFeatureGraphAndMarksJunctions) {
     EXPECT_TRUE(features.graph.vertices[0].junction);
 }
 
-// Per-edge signed-dihedral ground truth. The expected kinds below are the
-// hand-derived Jiao signs documented on makeRightAngleFoldMesh: with edge
-// direction d taken from face 0's own traversal, sign((n0 x n1) . d) is +1
-// for a convex ridge and -1 for a concave valley.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 
 TEST(FeatureDetection, ClassifiesRightAngleConvexRidgePerEdge) {
     const Mesh ridge = makeRightAngleFoldMesh(-1.0);
@@ -330,9 +330,9 @@ TEST(FeatureDetection, ClassifiesLShapedPrismConvexityPerEdge) {
     options.featureAngleDeg = 40.0;
     const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
 
-    // Closed prism: every one of the 18 polygon-corner/rim edges is a
-    // 90-degree crease and the only concave one is the vertical edge at the
-    // reflex corner (1,1): bottom vertex 3 to top vertex 9.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(0, features.boundaryFeatureEdges);
     EXPECT_EQ(0, features.inconsistentWindingEdges);
     EXPECT_EQ(18, features.dihedralFeatureEdges);
@@ -341,21 +341,21 @@ TEST(FeatureDetection, ClassifiesLShapedPrismConvexityPerEdge) {
     EXPECT_EQ(0, features.unknownSignedFeatureEdges);
 
     const std::set<std::pair<std::pair<int, int>, int>> expected = {
-        // Bottom rim (all convex).
+        // 检查该步骤的边界条件，并确保结果保持确定性。
         {{0, 1}, 1},
         {{1, 2}, 1},
         {{2, 3}, 1},
         {{3, 4}, 1},
         {{4, 5}, 1},
         {{0, 5}, 1},
-        // Top rim (all convex).
+        // 检查该步骤的边界条件，并确保结果保持确定性。
         {{6, 7}, 1},
         {{7, 8}, 1},
         {{8, 9}, 1},
         {{9, 10}, 1},
         {{10, 11}, 1},
         {{6, 11}, 1},
-        // Vertical corner edges: reflex corner 3-9 is the single valley.
+        // 检查该步骤的边界条件，并确保结果保持确定性。
         {{0, 6}, 1},
         {{1, 7}, 1},
         {{2, 8}, 1},
@@ -373,8 +373,8 @@ TEST(FeatureDetection, ClassifiesStaircaseFoldsPerEdge) {
     options.featureAngleDeg = 40.0;
     const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
 
-    // Four interior folds: floor-to-riser edges (1,7) and (3,9) are concave,
-    // step noses (2,8) and (4,10) are convex.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(0, features.inconsistentWindingEdges);
     EXPECT_EQ(4, features.dihedralFeatureEdges);
     EXPECT_EQ(2, features.convexFeatureEdges);

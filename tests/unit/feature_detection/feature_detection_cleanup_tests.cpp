@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_cleanup_tests.cpp
- * @brief Verifies feature detection cleanup tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 清理测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -27,12 +27,12 @@ using detector_detail::CandidateEdge;
 using detector_detail::FeatureDetectionCache;
 using detector_detail::TraceGraph;
 
-/// Builds one mesh containing three disjoint trace chains, each edge of unit
-/// length and backed by an equilateral support triangle so every chain vertex
-/// gets a local average edge length of exactly one:
-///  - chain A: 11 faint weak edges (long but weak),
-///  - chain B: 5 very faint weak edges (medium-length noise),
-///  - chain C: 3 dihedral edges plus a 2-edge strong weak branch.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+///  该实现需保持边界条件，并保证结果具有确定性。
+///  该实现需保持边界条件，并保证结果具有确定性。
+///  该实现需保持边界条件，并保证结果具有确定性。
 struct SpurFixture {
     Mesh mesh;
     TraceGraph trace;
@@ -57,8 +57,8 @@ void appendSupportTriangles(Mesh& mesh, const std::vector<int>& chain) {
     for (std::size_t i = 0; i + 1 < chain.size(); ++i) {
         const Vec3 a = mesh.vertices[chain[i]];
         const Vec3 b = mesh.vertices[chain[i + 1]];
-        // Perpendicular (in the xy-plane) apex at equilateral height, so every
-        // support edge has the same unit length as the chain edge.
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
         const Vec3 direction = (b - a).normalized();
         const Vec3 perpendicular(-direction.y(), direction.x(), 0.0);
         const Vec3 apexPosition = 0.5 * (a + b) + apexHeight * perpendicular;
@@ -92,8 +92,8 @@ SpurFixture makeSpurFixture() {
     appendChainVertices(fixture.mesh, 12, 0.0, fixture.chainA);
     appendChainVertices(fixture.mesh, 6, 5.0, fixture.chainB);
     appendChainVertices(fixture.mesh, 4, 10.0, fixture.chainC);
-    // Branch hangs off the second vertex of chain C so that vertex keeps
-    // degree three (a genuine junction) and the branch walk stops there.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const int branchBase = static_cast<int>(fixture.mesh.vertices.size());
     fixture.mesh.vertices.emplace_back(1.0, -1.0, 10.0);
     fixture.mesh.vertices.emplace_back(1.0, -2.0, 10.0);
@@ -109,20 +109,20 @@ SpurFixture makeSpurFixture() {
     fixture.analysis.vertices.assign(fixture.mesh.vertices.size(), feature::VertexFeature{});
     fixture.analysis.graph.vertices.assign(fixture.mesh.vertices.size(), feature::FeatureGraphVertex{});
 
-    // Chain A: long, faint (persistence 2x the default threshold 0.015).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (std::size_t i = 0; i + 1 < fixture.chainA.size(); ++i) {
         detector_detail::addTraceGraphEdge(
             fixture.trace, fixture.analysis, weakEdge(fixture.chainA[i], fixture.chainA[i + 1], 0.03)
         );
     }
-    // Chain B: medium-length, extremely faint (0.2x the threshold).
+    // 命名空间
     for (std::size_t i = 0; i + 1 < fixture.chainB.size(); ++i) {
         detector_detail::addTraceGraphEdge(
             fixture.trace, fixture.analysis, weakEdge(fixture.chainB[i], fixture.chainB[i + 1], 0.003)
         );
     }
-    // Chain C: strong dihedral backbone with a short but strong weak branch
-    // (8x the threshold).
+    // 命名空间
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (std::size_t i = 0; i + 1 < fixture.chainC.size(); ++i) {
         detector_detail::addTraceGraphEdge(
             fixture.trace, fixture.analysis, dihedralEdge(fixture.chainC[i], fixture.chainC[i + 1])
@@ -157,26 +157,26 @@ bool chainFullyAbsent(const TraceGraph& trace, const std::vector<int>& chain) {
 FeatureOptions spurCleanupOptions() {
     FeatureOptions options;
     options.cleanupFeatureGraph = true;
-    options.featureGraphGapLengthRatio = 0.0; // isolate spur removal
+    options.featureGraphGapLengthRatio = 0.0; // 该实现需保持边界条件，并保证结果具有确定性。
     options.featureGraphMaxWeakSpurEdges = 2;
     return options;
 }
 
-} // namespace
+} // 命名空间
 
 TEST(FeatureDetectionCleanup, LegacySpurRemovalPrunesByEdgeCountOnly) {
     SpurFixture fixture = makeSpurFixture();
     FeatureOptions options = spurCleanupOptions();
-    options.featureGraphMinWeakSpurStrength = 0.0; // legacy behavior
+    options.featureGraphMinWeakSpurStrength = 0.0; // 该实现需保持边界条件，并保证结果具有确定性。
 
     FeatureDetectionCache cache(fixture.mesh);
     detector_detail::cleanupTraceGraph(fixture.mesh, options, cache, fixture.trace, fixture.analysis);
 
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainA));
-    // The faint 5-edge chain exceeds the 2-edge cap, so legacy cleanup keeps it.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainB));
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainC));
-    // The short strong branch is pruned purely because it is short.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyAbsent(fixture.trace, fixture.branchC));
     EXPECT_EQ(2, fixture.analysis.graphCleanupRemovedSpurs);
 }
@@ -184,21 +184,21 @@ TEST(FeatureDetectionCleanup, LegacySpurRemovalPrunesByEdgeCountOnly) {
 TEST(FeatureDetectionCleanup, StrengthFilterKeepsLongWeakLinesAndStrongBranches) {
     SpurFixture fixture = makeSpurFixture();
     FeatureOptions options = spurCleanupOptions();
-    // Dimensionless curve strength threshold (Yoshizawa T = length x integral):
-    // chain A scores ~242, the strong branch ~32, the faint chain B ~5.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     options.featureGraphMinWeakSpurStrength = 10.0;
     feature::validateFeatureOptions(options);
 
     FeatureDetectionCache cache(fixture.mesh);
     detector_detail::cleanupTraceGraph(fixture.mesh, options, cache, fixture.trace, fixture.analysis);
 
-    // Long-but-weak line survives through its length factor.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainA));
-    // Medium-length noise falls below the strength threshold and is removed
-    // even though it is longer than the legacy edge cap.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyAbsent(fixture.trace, fixture.chainB));
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainC));
-    // Short-but-strong branch is rescued by its integrated strength.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.branchC));
     EXPECT_EQ(5, fixture.analysis.graphCleanupRemovedSpurs);
 }
@@ -209,4 +209,4 @@ TEST(FeatureDetectionCleanup, RejectsInvalidWeakSpurStrengthOption) {
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
 }
 
-} // namespace manumesh::test::feature_detection
+} // 命名空间

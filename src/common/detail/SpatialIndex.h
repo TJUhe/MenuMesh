@@ -1,9 +1,9 @@
 /**
  * @file src/common/detail/SpatialIndex.h
- * @brief Declares spatial index facilities for ManuMesh's common-geometry module.
+ * @brief 声明 ManuMesh 公共几何模块的空间索引设施。
  * @ingroup manumesh_common
  *
- * @details The routines here are policy-free geometry foundations shared by feature detection, simplification, analysis, and mesh editing.
+ * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。
  */
 
 #pragma once
@@ -19,22 +19,22 @@
 namespace manumesh::common {
 
 /**
- * @brief Integer coordinates of one uniform-grid cell.
+ * @brief 一个均匀网格单元的整数坐标。
  */
 struct CellCoord {
     int x = 0;
     int y = 0;
     int z = 0;
 
-    /** @brief Compares all three integer coordinates. */
+    /** @brief 比较三个整数坐标。 */
     bool operator==(const CellCoord& other) const { return x == other.x && y == other.y && z == other.z; }
 };
 
 /**
- * @brief Stable hash for CellCoord keys used by the sparse grid.
+ * @brief 稀疏网格使用的 CellCoord 键的稳定哈希。
  */
 struct CellCoordHash {
-    /** @brief Combines all cell coordinates into one deterministic hash. */
+    /** @brief 将所有单元坐标组合为一个确定性哈希。 */
     std::size_t operator()(const CellCoord& cell) const {
         std::size_t seed = 1469598103934665603ull;
         auto mix = [&](int value) {
@@ -49,45 +49,42 @@ struct CellCoordHash {
 };
 
 /**
- * @brief Sparse uniform grid for conservative AABB candidate lookup.
+ * @brief 用于保守 AABB 候选查找的稀疏均匀网格。
  *
- * Items spanning too many cells are kept in an overflow set so queries remain
- * conservative. Query methods reuse mutable scratch storage and are therefore
- * not safe to call concurrently on the same instance.
+ * 跨越过多单元的项目保存在溢出集合中，以保持查询的保守性。查询方法复用可变
+ * 临时存储，因此不能在同一实例上并发调用。
  */
 class UniformAabbCandidateGrid {
 public:
-    /** @brief Removes all items and disables the grid. */
+    /** @brief 移除所有项目并禁用网格。 */
     void clear();
-    /** @brief Reinitializes the grid bounds and storage for a new item set. */
+    /** @brief 为新的项目集合重新初始化网格边界和存储。 */
     void reset(const Vec3& lo, const Vec3& hi, int expectedItems);
     /**
-     * @brief Registers an item under its AABB. Re-inserting an already registered
-     * itemId is idempotent: any stale cell registration from a previous
-     * insert is removed first, so no cell keeps an outdated entry.
+     * @brief 根据项目的 AABB 注册项目。重新插入已注册的 itemId 是幂等操作：
+     * 会先移除之前插入留下的过期单元注册，因此不会有单元保留旧条目。
      */
     void insert(int itemId, const Vec3& lo, const Vec3& hi);
-    /** @brief Removes an item from every occupied cell and the overflow set. */
+    /** @brief 从每个占用单元和溢出集合中移除项目。 */
     void remove(int itemId);
-    /** @brief Replaces an item's current AABB registration. */
+    /** @brief 替换项目当前的 AABB 注册。 */
     void update(int itemId, const Vec3& lo, const Vec3& hi);
-    /** @brief Returns deduplicated ids whose grid cells overlap an AABB. */
+    /** @brief 返回网格单元与 AABB 重叠的去重 id。 */
     std::vector<int> queryCandidates(const Vec3& lo, const Vec3& hi) const;
     /**
-     * @brief Allocation-friendly overload: writes the deduplicated candidate ids
-     * into outCandidates (cleared first) reusing member scratch buffers.
-     * Candidate order is unspecified, matching the by-value overload.
+     * @brief 节省分配的重载：复用成员临时缓冲区，将去重后的候选 id 写入
+     * outCandidates（先清空）。候选顺序未指定，与按值返回的重载一致。
      */
     void queryCandidates(const Vec3& lo, const Vec3& hi, std::vector<int>& outCandidates) const;
-    /** @brief Reports whether reset() produced an active spatial grid. */
+    /** @brief 报告 reset() 是否生成了活动空间网格。 */
     bool enabled() const { return enabled_; }
 
 private:
-    /** @brief Maps a point to its containing integer grid cell. */
+    /** @brief 将点映射到其所在的整数网格单元。 */
     CellCoord coordFor(const Vec3& p) const;
-    /** @brief Enumerates cells overlapped by an AABB into a new vector. */
+    /** @brief 将与 AABB 重叠的单元枚举到新向量中。 */
     std::vector<CellCoord> cellsForAabb(const Vec3& lo, const Vec3& hi) const;
-    /** @brief Enumerates cells overlapped by an AABB into reusable storage. */
+    /** @brief 将与 AABB 重叠的单元枚举到可复用存储中。 */
     void cellsForAabb(const Vec3& lo, const Vec3& hi, std::vector<CellCoord>& outCells) const;
 
     bool enabled_ = false;
@@ -97,19 +94,18 @@ private:
     std::unordered_set<int> overflowItems_;
     std::unordered_set<int> activeItems_;
     std::vector<std::vector<CellCoord>> itemCells_;
-    // Query scratch state: reused by the const query paths, hence mutable.
-    // The version-stamp array deduplicates candidates without per-query
-    // allocation; a query only treats stamps equal to queryStamp_ as seen.
+    // 查询临时状态：由 const 查询路径复用，因此声明为 mutable。
+    // 版本戳数组无需为每次查询分配内存即可去重候选；查询仅将等于 queryStamp_
+    // 的戳视为已见。
     mutable std::vector<CellCoord> queryCellsScratch_;
     mutable std::vector<std::uint32_t> candidateStamps_;
     mutable std::uint32_t queryStamp_ = 0;
 };
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common
 
 namespace manumesh {
-// Transitional alias: manumesh::detail was renamed to manumesh::common
-// (architecture v2, R6). New code must use manumesh::common; this alias is
-// removed after one minor version.
+// 过渡别名：manumesh::detail 已重命名为 manumesh::common
+// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
 namespace detail = common;
-} // namespace manumesh
+} // 命名空间 manumesh

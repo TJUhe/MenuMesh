@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/Metrics.cpp
- * @brief Implements metrics facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的度量功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #include "algorithms/simplification/Metrics.h"
@@ -41,4 +41,4 @@ std::string statsRowCsv(const std::string& label, const MeshStats& stats, const 
     return out.str();
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

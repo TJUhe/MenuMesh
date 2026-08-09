@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/core/core_tests.cpp
- * @brief Verifies core tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的核心测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "algorithms/analysis/MeshAnalysis.h"
@@ -73,8 +73,8 @@ TEST(ManuMesh, RemoveUnusedVerticesDropsInvalidFacesWithTheirExclusiveVertices) 
         manumesh::Vec3(0.0, 1.0, 0.0),
         manumesh::Vec3(2.0, 2.0, 0.0),
     };
-    // Face 1 references an out-of-range index and must be dropped as a whole;
-    // vertex 3 is only used by that invalid face and must be removed too.
+    // 面 1 引用了越界索引，必须整体丢弃；顶点 3 只被这个无效面使用，
+    // 因此也必须一并移除。
     mesh.faces = {manumesh::Face{{0, 1, 2}}, manumesh::Face{{2, 3, 9}}};
 
     mesh.removeUnusedVertices();
@@ -146,7 +146,7 @@ TEST(ManuMesh, UniformAabbCandidateGridInsertIsIdempotent) {
     ASSERT_TRUE(grid.enabled());
 
     grid.insert(1, manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(1.0, 1.0, 1.0));
-    // Re-inserting the same item at a new location must drop the stale cells.
+    // 在新位置重新插入同一条目时，必须清除旧位置中的过期单元。
     grid.insert(1, manumesh::Vec3(5.0, 5.0, 5.0), manumesh::Vec3(6.0, 6.0, 6.0));
 
     const std::vector<int> oldLocation =
@@ -178,7 +178,7 @@ TEST(ManuMesh, UniformAabbCandidateGridBufferedQueryMatchesByValueQuery) {
         const std::vector<int> byValue = grid.queryCandidates(query[0], query[1]);
         grid.queryCandidates(query[0], query[1], buffered);
         EXPECT_EQ(sorted(byValue), sorted(buffered));
-        // Buffered results must be duplicate-free as well.
+        // 缓冲查询的结果同样不能包含重复项。
         const std::vector<int> unique = sorted(buffered);
         EXPECT_TRUE(std::adjacent_find(unique.begin(), unique.end()) == unique.end());
     }
@@ -268,12 +268,12 @@ TEST(ManuMesh, MeshAnalysisSkipsMalformedFacesAndKeepsRawContainerCounts) {
         manumesh::Vec3(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0),
     };
     mesh.faces = {
-        {{0, 1, 2}}, // usable
-        {{0, 1, 9}}, // out of range
+        {{0, 1, 2}}, // 可用面
+        {{0, 1, 9}}, // 索引越界
         {{0, 1, -1}},
-        {{0, 1, 4}}, // non-finite coordinate
-        {{0, 0, 2}}, // repeated index
-        {{0, 1, 3}}, // zero area
+        {{0, 1, 4}}, // 坐标包含非有限值
+        {{0, 0, 2}}, // 索引重复
+        {{0, 1, 3}}, // 零面积
     };
 
     manumesh::analysis::MeshStats stats;
@@ -326,7 +326,7 @@ TEST(ManuMesh, SampledDistanceSkipsMalformedFacesOnBothSides) {
     malformed.vertices.push_back(manumesh::Vec3(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0));
     malformed.faces.push_back({{0, 1, 7}});
     malformed.faces.push_back({{0, 0, 2}});
-    malformed.faces.push_back({{0, 1, 3}}); // zero area with distinct indices
+    malformed.faces.push_back({{0, 1, 3}}); // 不同索引但面积为零
     malformed.faces.push_back({{0, 1, 4}});
     malformed.faces.push_back({{0, 1, 1}});
 
@@ -478,4 +478,4 @@ TEST(ManuMesh, MeshTopologyRejectsInvalidFaces) {
     EXPECT_THROW(topologyResult.value(), std::logic_error);
 }
 
-} // namespace
+} // 命名空间

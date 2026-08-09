@@ -1,9 +1,9 @@
 /**
  * @file apps/ManuMeshCli.cpp
- * @brief Implements manu mesh cli facilities for the ManuMesh command-line application.
+ * @brief 实现 ManuMesh 命令行入口的帮助、版本和命令调度。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 入口只负责解析顶层命令；具体参数校验和业务操作由命令模块完成。
  */
 
 #include "ManuMeshCli.h"
@@ -20,8 +20,8 @@ namespace manumesh::cli {
 namespace {
 
 void printUsage() {
-    std::cout << "ManuMesh mesh simplification CLI\n\n"
-              << "Commands:\n"
+    std::cout << "ManuMesh 网格简化命令行工具\n\n"
+              << "命令：\n"
               << "  manumesh generate --type clustered-plane --n 50 --out input.stl\n"
               << "  manumesh simplify input.stl output.stl [options]\n"
               << "  manumesh compare original.stl simplified.stl [--samples 3000]\n"
@@ -38,15 +38,15 @@ void printUsage() {
               << "  manumesh validate-external [--input-dir dir] [--ratio R] "
                  "[--output-dir dir]\n";
     std::cout << optionsHelpText();
-    std::cout << "\nVersion options:\n"
-              << "  --version                             Print the ManuMesh version\n";
-    std::cout << "\nGenerator types:\n"
+    std::cout << "\n版本选项：\n"
+              << "  --version                             显示 ManuMesh 版本\n";
+    std::cout << "\n生成器类型：\n"
               << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
               << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
               << "  stepped-shaft, pipe-coupling, pulley\n";
 }
 
-} // namespace
+} // 命名空间
 
 int run(int argc, char** argv) {
     try {

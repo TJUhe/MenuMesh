@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/simplification/PlainSimplifier.h
- * @brief Declares plain simplifier facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 简化模块的纯数据简化设施。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 此文件属于面向特征的边坍缩管线。二次误差代价负责候选排序；拓扑、几何、特征、边界、误差和可选纹理策略共同决定位置是否可以修改网格。
  */
 
 #pragma once
@@ -14,16 +14,15 @@
 
 namespace manumesh::simplification {
 
-/// Simplifies a mesh through the Eigen-free C++ exchange type.
+/// 通过无 Eigen 的 C++ 交换类型简化网格。
 ///
-/// This entry point keeps host-facing C++ boundaries independent from Eigen.
-/// The implementation converts to the internal Eigen-backed mesh, runs the same
-/// simplifier as `simplifyMesh`, and converts the result back to `PlainMesh`.
-/// @param[in] input Eigen-free triangle mesh exchange value.
-/// @param[in] options Simplification target, costs, and hard policies.
-/// @param[out] report Optional run diagnostics.
-/// @return Simplified Eigen-free mesh.
-/// @throws std::invalid_argument when input or options violate the C++ API contract.
+/// 此入口使面向宿主的 C++ 边界不依赖 Eigen。实现会先转换为内部 Eigen 网格，
+/// 使用与 `simplifyMesh` 相同的简化器，再将结果转换回 `PlainMesh`。
+/// @param[in] input 无 Eigen 的三角网格交换值。
+/// @param[in] options 简化目标、代价和硬性策略。
+/// @param[out] report 可选的运行诊断信息。
+/// @return 简化后的无 Eigen 网格。
+/// @throws std::invalid_argument 当输入或选项违反 C++ API 约定时抛出。
 MANUMESH_API PlainMesh
 simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& options, SimplifyReport* report = nullptr);
 

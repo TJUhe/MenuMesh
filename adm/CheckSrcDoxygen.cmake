@@ -1,5 +1,5 @@
 if(NOT DEFINED MANUMESH_SOURCE_DIR)
-  message(FATAL_ERROR "MANUMESH_SOURCE_DIR is required")
+  message(FATAL_ERROR "必须设置 MANUMESH_SOURCE_DIR")
 endif()
 
 file(GLOB_RECURSE MANUMESH_SRC_DOXYGEN_FILES
@@ -19,7 +19,7 @@ foreach(source_file IN LISTS MANUMESH_SRC_DOXYGEN_FILES)
   string(FIND "${source_text}" "*/" header_end)
   if(NOT has_block_header OR header_end LESS 0)
     list(APPEND MANUMESH_SRC_DOXYGEN_ERRORS
-      "${relative_file}: file must begin with a /** ... */ Doxygen header"
+      "${relative_file}：文件必须以 /** ... */ Doxygen 头开始"
     )
   else()
     math(EXPR header_length "${header_end} + 2")
@@ -31,7 +31,7 @@ foreach(source_file IN LISTS MANUMESH_SRC_DOXYGEN_FILES)
       string(FIND "${file_header}" "${required_tag}" tag_index)
       if(tag_index LESS 0)
         list(APPEND MANUMESH_SRC_DOXYGEN_ERRORS
-          "${relative_file}: file header is missing ${required_tag}"
+          "${relative_file}：文件头缺少 ${required_tag}"
         )
       endif()
     endforeach()
@@ -44,17 +44,17 @@ foreach(source_file IN LISTS MANUMESH_SRC_DOXYGEN_FILES)
   if(has_triple_slash OR has_bang_line OR
      has_trailing_slash GREATER -1 OR has_trailing_bang GREATER -1)
     list(APPEND MANUMESH_SRC_DOXYGEN_ERRORS
-      "${relative_file}: use /** ... */ or /**< ... */ for Doxygen comments; line-style forms are forbidden"
+      "${relative_file}：Doxygen 注释必须使用 /** ... */ 或 /**< ... */，禁止使用行式写法"
     )
   endif()
 endforeach()
 
 if(MANUMESH_SRC_DOXYGEN_ERRORS)
   list(JOIN MANUMESH_SRC_DOXYGEN_ERRORS "\n  " formatted_errors)
-  message(FATAL_ERROR "src Doxygen convention check failed:\n  ${formatted_errors}")
+  message(FATAL_ERROR "src Doxygen 约定检查失败：\n  ${formatted_errors}")
 endif()
 
 list(LENGTH MANUMESH_SRC_DOXYGEN_FILES checked_file_count)
 message(STATUS
-  "Validated block-style Doxygen metadata in ${checked_file_count} src files"
+  "已在 ${checked_file_count} 个 src 文件中验证块式 Doxygen 元数据"
 )

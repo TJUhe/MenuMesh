@@ -1,9 +1,9 @@
 /**
  * @file apps/CliArguments.cpp
- * @brief Implements cli arguments facilities for the ManuMesh command-line application.
+ * @brief 实现命令行参数解析、校验、帮助文本和严格取值逻辑。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 选项规格表同时驱动帮助文本、命令归属校验和数值解析，避免多处规则漂移。
  */
 
 #include "CliArguments.h"
@@ -18,9 +18,8 @@
 namespace manumesh::cli {
 namespace {
 
-/// Single source of truth for CLI options. Each spec drives help text, the
-/// global known-flag union, and per-command accepted-option sets. A non-empty
-/// `arg` marks a value flag; an empty `arg` marks a switch flag.
+/// CLI 选项的唯一规格来源；每条规格同时驱动帮助文本、全局已知选项集合
+/// 和各命令的可用选项集合。非空 `arg` 表示值选项，空 `arg` 表示开关选项。
 struct OptionSpec {
     const char* flag;
     const char* arg;
@@ -32,159 +31,159 @@ struct OptionGroup {
     std::vector<OptionSpec> options;
 };
 
-/// Options shared by simplify, sweep, ratio-sweep, and face-sweep.
+/// simplify、sweep、ratio-sweep 和 face-sweep 共用的选项。
 const std::vector<OptionSpec>& simplifyOptionSpecs() {
     static const std::vector<OptionSpec> specs = {
-        {"--method", "standard|line", "Standard QEM or line-quadric QEM"},
-        {"--ratio", "0.25", "Target face ratio"},
-        {"--target-faces", "N", "Overrides --ratio"},
-        {"--line-weight", "W", "Paper default is around 1e-3"},
-        {"--weight-mode", "uniform|dihedral|normal-tensor|height|xband", "Line-quadric weighting mode"},
-        {"--feature-boost", "W", "Added line weight for feature modes"},
-        {"--feature-angle-deg", "A", "Dihedral threshold for feature mode"},
-        {"--loop-trace-angle-deg", "A", "Dihedral threshold for loop tracing; negative reuses feature angle"},
-        {"--adaptive-base-line-weight", "W", "Base line-quadric weight added before adaptive Q scaling"},
-        {"--boundary-weight", "W", "Optional boundary plane quadrics"},
-        {"--feature-curve-weight", "W", "Tangent-line quadric weight for loops"},
+        {"--method", "standard|line", "标准 QEM 或线二次型 QEM"},
+        {"--ratio", "0.25", "目标面数比例"},
+        {"--target-faces", "N", "覆盖 --ratio"},
+        {"--line-weight", "W", "论文默认值约为 1e-3"},
+        {"--weight-mode", "uniform|dihedral|normal-tensor|height|xband", "线二次型权重模式"},
+        {"--feature-boost", "W", "特征模式额外增加的线权重"},
+        {"--feature-angle-deg", "A", "特征模式的二面角阈值"},
+        {"--loop-trace-angle-deg", "A", "环追踪的二面角阈值；负值时复用特征角度"},
+        {"--adaptive-base-line-weight", "W", "自适应 Q 缩放前加入的基础线二次型权重"},
+        {"--boundary-weight", "W", "可选的边界平面二次型权重"},
+        {"--feature-curve-weight", "W", "环的切线二次型权重"},
         {"--max-feature-curve-deviation-ratio",
          "R",
-         "Reject polygonal feature collapses whose raw placement drifts beyond R*bbox_diag"},
-        {"--circle-fit-threshold", "R", "Relative fit threshold for circular loops"},
-        {"--ellipse-fit-threshold", "R", "Relative fit threshold for ellipse reports"},
-        {"--near-circle-axis-ratio-tolerance", "R", "Axis-ratio tolerance for near-circles"},
-        {"--min-feature-loop-vertices", "N", "Stop collapsing a loop below N vertices"},
-        {"--min-circular-feature-loop-vertices", "N", "Stop circular loops below N"},
+         "拒绝原始放置偏移超过 R*bbox_diag 的多边形特征折叠"},
+        {"--circle-fit-threshold", "R", "圆环的相对拟合阈值"},
+        {"--ellipse-fit-threshold", "R", "椭圆报告的相对拟合阈值"},
+        {"--near-circle-axis-ratio-tolerance", "R", "近圆的轴比容差"},
+        {"--min-feature-loop-vertices", "N", "环顶点少于 N 时停止折叠"},
+        {"--min-circular-feature-loop-vertices", "N", "圆环顶点少于 N 时停止折叠"},
         {"--feature-protection-mode",
          "none|circular-only|primitive-curves|all-feature-edges",
-         "Hard policy for detected features; default primitive-curves"},
-        {"--normal-tensor-threshold", "S", "Feature score threshold for tensor edges"},
-        {"--normal-tensor-edge-alignment", "A", "Minimum edge/tangent alignment"},
-        {"--normal-tensor-smoothing", "N", "Optional tensor smoothing iterations"},
-        {"--normal-tensor-scales", "N", "Number of tensor smoothing scales"},
-        {"--normal-tensor-min-persistent-scales", "N", "Required supporting tensor scales"},
-        {"--smooth-curvature-threshold", "S", "Scale-normalized quadric feature threshold"},
-        {"--smooth-curvature-edge-alignment", "A", "Minimum edge/curve-tangent alignment"},
-        {"--smooth-curvature-tangent-consistency", "A", "Cross-scale tangent agreement"},
-        {"--smooth-curvature-base-rings", "N", "Smallest quadric-fit neighborhood"},
-        {"--smooth-curvature-scales", "N", "Number of quadric-fit scales"},
-        {"--smooth-curvature-min-persistent-scales", "N", "Required supporting smooth scales"},
-        {"--smooth-curvature-robust-iterations", "N", "Robust fit reweighting passes"},
-        {"--feature-graph-gap-ratio", "R", "Bridge endpoint gaps up to R local edges"},
-        {"--feature-graph-max-weak-spur-edges", "N", "Remove weak-evidence spurs up to N edges"},
-        {"--feature-graph-min-weak-spur-strength", "S", "Keep weak spurs whose integrated strength reaches S"},
-        {"--feature-component-min-confidence", "C", "Component confidence report threshold"},
-        {"--min-triangle-quality", "Q", "Reject collapses below quality Q in [0,1]"},
-        {"--max-normal-deviation-deg", "A", "Reject local face normal changes above A"},
-        {"--max-local-error", "D", "Reject local collapse drift above D"},
-        {"--max-local-error-ratio", "R", "Reject local drift above R*bbox diagonal"},
-        {"--quality-refinement-iterations", "N", "Run N fixed-topology quality passes"},
-        {"--adaptive-scale", "", "Scale queue priority by local curvature (placement unchanged)"},
-        {"--preserve-boundary", "", "Preserve open boundary topology"},
-        {"--preserve-feature-curves", "", "Protect detected crease/boundary loops"},
-        {"--prevent-local-intersections", "", "Reject local triangle intersections"},
-        {"--industrial-safe", "", "Enable conservative boundary/quality guards"},
-        {"--no-normal-tensor-features", "", "Disable tensor candidates in feature detection"},
-        {"--smooth-curvature-features", "", "Enable deterministic smooth ridge/valley preservation"},
-        {"--smooth-curvature-stable-scale", "", "Select smooth-feature scale by cross-scale stability"},
-        {"--smooth-curvature-min-scale-stability", "S", "Reject smooth evidence below scale stability S"},
-        {"--feature-normal-filter", "", "Stabilize noisy face normals before feature detection"},
-        {"--feature-normal-filter-iterations", "N", "Normal-filter iterations"},
-        {"--feature-normal-filter-angle-sigma-deg", "A", "Normal-filter angular bandwidth"},
-        {"--feature-normal-filter-preserve-angle-deg", "A", "Do not smooth across edges sharper than A"},
-        {"--feature-normal-filter-relaxation", "R", "Normal-filter relaxation in [0,1]"},
-        {"--feature-graph-consolidation", "", "Recover compatible gaps between weak components"},
-        {"--feature-graph-consolidation-gap-ratio", "R", "Component recovery gap in local-edge units"},
-        {"--feature-graph-consolidation-alignment", "A", "Minimum continuation alignment for recovery"},
-        {"--no-feature-graph-cleanup", "", "Disable weak spur/gap graph cleanup"},
+         "检测特征的强制保护策略；默认值为 primitive-curves"},
+        {"--normal-tensor-threshold", "S", "张量边的特征得分阈值"},
+        {"--normal-tensor-edge-alignment", "A", "边与切线的最小对齐度"},
+        {"--normal-tensor-smoothing", "N", "可选的张量平滑迭代次数"},
+        {"--normal-tensor-scales", "N", "张量平滑尺度数量"},
+        {"--normal-tensor-min-persistent-scales", "N", "所需的支持张量尺度数量"},
+        {"--smooth-curvature-threshold", "S", "尺度归一化二次型特征阈值"},
+        {"--smooth-curvature-edge-alignment", "A", "边与曲线切线的最小对齐度"},
+        {"--smooth-curvature-tangent-consistency", "A", "跨尺度切线一致性"},
+        {"--smooth-curvature-base-rings", "N", "二次型拟合的最小邻域环数"},
+        {"--smooth-curvature-scales", "N", "二次型拟合尺度数量"},
+        {"--smooth-curvature-min-persistent-scales", "N", "所需的支持平滑尺度数量"},
+        {"--smooth-curvature-robust-iterations", "N", "稳健拟合重新加权次数"},
+        {"--feature-graph-gap-ratio", "R", "桥接不超过 R 个局部边长的端点间隙"},
+        {"--feature-graph-max-weak-spur-edges", "N", "移除不超过 N 条边的弱证据毛刺"},
+        {"--feature-graph-min-weak-spur-strength", "S", "保留积分强度达到 S 的弱毛刺"},
+        {"--feature-component-min-confidence", "C", "特征分量置信度报告阈值"},
+        {"--min-triangle-quality", "Q", "拒绝质量低于 Q（范围 [0,1]）的折叠"},
+        {"--max-normal-deviation-deg", "A", "拒绝局部面法线变化超过 A 的折叠"},
+        {"--max-local-error", "D", "拒绝局部折叠偏移超过 D 的折叠"},
+        {"--max-local-error-ratio", "R", "拒绝局部偏移超过 R*bbox 对角线的折叠"},
+        {"--quality-refinement-iterations", "N", "执行 N 次固定拓扑质量优化"},
+        {"--adaptive-scale", "", "按局部曲率调整队列优先级（不改变放置位置）"},
+        {"--preserve-boundary", "", "保留开放边界拓扑"},
+        {"--preserve-feature-curves", "", "保护检测到的折痕/边界环"},
+        {"--prevent-local-intersections", "", "拒绝局部三角形相交"},
+        {"--industrial-safe", "", "启用保守的边界/质量保护"},
+        {"--no-normal-tensor-features", "", "在特征检测中禁用张量候选"},
+        {"--smooth-curvature-features", "", "启用确定性的平滑脊线/谷线保护"},
+        {"--smooth-curvature-stable-scale", "", "按跨尺度稳定性选择平滑特征尺度"},
+        {"--smooth-curvature-min-scale-stability", "S", "拒绝尺度稳定性低于 S 的平滑证据"},
+        {"--feature-normal-filter", "", "在特征检测前稳定含噪面法线"},
+        {"--feature-normal-filter-iterations", "N", "法线滤波迭代次数"},
+        {"--feature-normal-filter-angle-sigma-deg", "A", "法线滤波角带宽"},
+        {"--feature-normal-filter-preserve-angle-deg", "A", "不跨越大于 A 的锐边进行平滑"},
+        {"--feature-normal-filter-relaxation", "R", "法线滤波松弛系数（范围 [0,1]）"},
+        {"--feature-graph-consolidation", "", "恢复弱分量之间的兼容间隙"},
+        {"--feature-graph-consolidation-gap-ratio", "R", "以局部边长为单位的分量恢复间隙"},
+        {"--feature-graph-consolidation-alignment", "A", "恢复所需的最小延续对齐度"},
+        {"--no-feature-graph-cleanup", "", "禁用弱毛刺/间隙图清理"},
     };
     return specs;
 }
 
-/// Options shared by feature-report, feature-benchmark, and feature-compare.
+/// feature-report、feature-benchmark 和 feature-compare 共用的选项。
 const std::vector<OptionSpec>& featureOptionSpecs() {
     static const std::vector<OptionSpec> specs = {
-        {"--feature-angle-deg", "A", "Dihedral threshold for feature edges"},
-        {"--loop-trace-angle-deg", "A", "Dihedral threshold for loop tracing; negative reuses feature angle"},
-        {"--circle-fit-threshold", "R", "Relative fit threshold for circular loops"},
-        {"--ellipse-fit-threshold", "R", "Relative fit threshold for ellipse reports"},
-        {"--near-circle-axis-ratio-tolerance", "R", "Axis-ratio tolerance for near-circles"},
+        {"--feature-angle-deg", "A", "特征边的二面角阈值"},
+        {"--loop-trace-angle-deg", "A", "环追踪二面角阈值；负值时复用特征角度"},
+        {"--circle-fit-threshold", "R", "圆环的相对拟合阈值"},
+        {"--ellipse-fit-threshold", "R", "椭圆报告的相对拟合阈值"},
+        {"--near-circle-axis-ratio-tolerance", "R", "近圆的轴比容差"},
         {"--min-feature-loop-vertices",
          "N",
-         "Minimum recovered-cycle/primitive-fit vertices; traced chains are still reported"},
-        {"--normal-tensor-threshold", "S", "Feature score threshold for tensor edges"},
-        {"--normal-tensor-edge-alignment", "A", "Minimum edge/tangent alignment"},
-        {"--normal-tensor-smoothing", "N", "Optional tensor smoothing iterations"},
-        {"--normal-tensor-scales", "N", "Number of tensor smoothing scales"},
-        {"--normal-tensor-min-persistent-scales", "N", "Required supporting tensor scales"},
-        {"--smooth-curvature-threshold", "S", "Scale-normalized quadric feature threshold"},
-        {"--smooth-curvature-edge-alignment", "A", "Minimum edge/curve-tangent alignment"},
-        {"--smooth-curvature-tangent-consistency", "A", "Cross-scale tangent agreement"},
-        {"--smooth-curvature-base-rings", "N", "Smallest quadric-fit neighborhood"},
-        {"--smooth-curvature-scales", "N", "Number of quadric-fit scales"},
-        {"--smooth-curvature-min-persistent-scales", "N", "Required supporting scales"},
-        {"--smooth-curvature-robust-iterations", "N", "Robust fit reweighting passes"},
-        {"--smooth-curvature-stable-scale", "", "Select reference scale by stability, not peak score"},
-        {"--smooth-curvature-min-scale-stability", "S", "Minimum accepted reference-scale stability"},
-        {"--feature-normal-filter", "", "Stabilize noisy face normals before evidence extraction"},
-        {"--feature-normal-filter-iterations", "N", "Normal-filter iterations"},
-        {"--feature-normal-filter-angle-sigma-deg", "A", "Normal-filter angular bandwidth"},
-        {"--feature-normal-filter-preserve-angle-deg", "A", "Preserved crease angle"},
-        {"--feature-normal-filter-relaxation", "R", "Normal-filter relaxation in [0,1]"},
-        {"--feature-graph-gap-ratio", "R", "Bridge endpoint gaps up to R local edges"},
-        {"--feature-graph-max-weak-spur-edges", "N", "Remove weak-evidence spurs up to N edges"},
-        {"--feature-graph-min-weak-spur-strength", "S", "Keep weak spurs whose integrated strength reaches S"},
-        {"--feature-component-min-confidence", "C", "Component confidence report threshold"},
-        {"--feature-graph-consolidation", "", "Recover compatible gaps between weak components"},
-        {"--feature-graph-consolidation-gap-ratio", "R", "Recovery gap in local-edge units"},
-        {"--feature-graph-consolidation-alignment", "A", "Minimum continuation alignment"},
-        {"--surface-patches", "", "Partition faces using active feature edges"},
-        {"--surface-patches-strong-only", "", "Exclude tensor/curvature-only barriers from patches"},
-        {"--csv", "path", "Write the feature report/compare CSV"},
-        {"--smooth-curvature-features", "", "Enable deterministic smooth ridge/valley detection"},
-        {"--no-normal-tensor-features", "", "Disable tensor candidates in feature detection"},
-        {"--no-feature-graph-cleanup", "", "Disable weak spur/gap graph cleanup"},
+         "恢复循环/基本体拟合所需的最小顶点数；仍会报告追踪到的链"},
+        {"--normal-tensor-threshold", "S", "张量边的特征得分阈值"},
+        {"--normal-tensor-edge-alignment", "A", "边与切线的最小对齐度"},
+        {"--normal-tensor-smoothing", "N", "可选的张量平滑迭代次数"},
+        {"--normal-tensor-scales", "N", "张量平滑尺度数量"},
+        {"--normal-tensor-min-persistent-scales", "N", "所需的支持张量尺度数量"},
+        {"--smooth-curvature-threshold", "S", "尺度归一化二次型特征阈值"},
+        {"--smooth-curvature-edge-alignment", "A", "边与曲线切线的最小对齐度"},
+        {"--smooth-curvature-tangent-consistency", "A", "跨尺度切线一致性"},
+        {"--smooth-curvature-base-rings", "N", "二次型拟合的最小邻域环数"},
+        {"--smooth-curvature-scales", "N", "二次型拟合尺度数量"},
+        {"--smooth-curvature-min-persistent-scales", "N", "所需的支持尺度数量"},
+        {"--smooth-curvature-robust-iterations", "N", "稳健拟合重新加权次数"},
+        {"--smooth-curvature-stable-scale", "", "按稳定性而非峰值分数选择参考尺度"},
+        {"--smooth-curvature-min-scale-stability", "S", "可接受的最小参考尺度稳定性"},
+        {"--feature-normal-filter", "", "在证据提取前稳定含噪面法线"},
+        {"--feature-normal-filter-iterations", "N", "法线滤波迭代次数"},
+        {"--feature-normal-filter-angle-sigma-deg", "A", "法线滤波角带宽"},
+        {"--feature-normal-filter-preserve-angle-deg", "A", "保留的折痕角度"},
+        {"--feature-normal-filter-relaxation", "R", "法线滤波松弛系数（范围 [0,1]）"},
+        {"--feature-graph-gap-ratio", "R", "桥接不超过 R 个局部边长的端点间隙"},
+        {"--feature-graph-max-weak-spur-edges", "N", "移除不超过 N 条边的弱证据毛刺"},
+        {"--feature-graph-min-weak-spur-strength", "S", "保留积分强度达到 S 的弱毛刺"},
+        {"--feature-component-min-confidence", "C", "特征分量置信度报告阈值"},
+        {"--feature-graph-consolidation", "", "恢复弱分量之间的兼容间隙"},
+        {"--feature-graph-consolidation-gap-ratio", "R", "以局部边长为单位的恢复间隙"},
+        {"--feature-graph-consolidation-alignment", "A", "最小延续对齐度"},
+        {"--surface-patches", "", "使用启用的特征边划分面片"},
+        {"--surface-patches-strong-only", "", "从面片中排除仅由张量/曲率形成的屏障"},
+        {"--csv", "path", "写入特征报告/比较 CSV"},
+        {"--smooth-curvature-features", "", "启用确定性的平滑脊线/谷线检测"},
+        {"--no-normal-tensor-features", "", "在特征检测中禁用张量候选"},
+        {"--no-feature-graph-cleanup", "", "禁用弱毛刺/间隙图清理"},
     };
     return specs;
 }
 
 const std::vector<OptionSpec>& generateOptionSpecs() {
     static const std::vector<OptionSpec> specs = {
-        {"--type", "TYPE", "Generator type (see generator list)"},
-        {"--n", "N", "Generator resolution parameter"},
-        {"--out", "path", "Output STL path"},
+        {"--type", "TYPE", "生成器类型（参见生成器列表）"},
+        {"--n", "N", "生成器分辨率参数"},
+        {"--out", "path", "输出 STL 路径"},
     };
     return specs;
 }
 
-const OptionSpec kSamplesSpec = {"--samples", "N", "Distance sample count"};
-const OptionSpec kMetricsCsvSpec = {"--metrics-csv", "path", "Write one-row CSV metrics"};
-const OptionSpec kWeightsSpec = {"--weights", "list", "For sweep, e.g. 0,1e-5,1e-4,1e-3,1e-2"};
-const OptionSpec kRatiosSpec = {"--ratios", "list", "For ratio-sweep, e.g. 0.8,0.5,0.25,0.1"};
-const OptionSpec kFacesSpec = {"--faces", "list", "For face-sweep, e.g. 1000,900,800"};
-const OptionSpec kInputDirSpec = {"--input-dir", "dir", "Workflow input directory"};
-const OptionSpec kOutputDirSpec = {"--output-dir", "dir", "Workflow output directory"};
-const OptionSpec kRatioSpec = {"--ratio", "R", "Target face ratio for workflow runs"};
-const OptionSpec kQuickSpec = {"--quick", "", "Run a reduced/faster workflow"};
-const OptionSpec kSpindleInputSpec = {"--spindle-input", "path", "External spindle/shaft STL"};
-const OptionSpec kRingInputSpec = {"--ring-input", "path", "External ring/track STL"};
-const OptionSpec kPulleyInputSpec = {"--pulley-input", "path", "External pulley STL"};
-const OptionSpec kFlangeInputSpec = {"--flange-input", "path", "External finished flange STL"};
-const OptionSpec kVerboseSpec = {"--verbose", "", "Verbose diagnostic logging"};
+const OptionSpec kSamplesSpec = {"--samples", "N", "距离采样数量"};
+const OptionSpec kMetricsCsvSpec = {"--metrics-csv", "path", "写入单行 CSV 指标"};
+const OptionSpec kWeightsSpec = {"--weights", "list", "用于 sweep，例如 0,1e-5,1e-4,1e-3,1e-2"};
+const OptionSpec kRatiosSpec = {"--ratios", "list", "用于 ratio-sweep，例如 0.8,0.5,0.25,0.1"};
+const OptionSpec kFacesSpec = {"--faces", "list", "用于 face-sweep，例如 1000,900,800"};
+const OptionSpec kInputDirSpec = {"--input-dir", "dir", "工作流输入目录"};
+const OptionSpec kOutputDirSpec = {"--output-dir", "dir", "工作流输出目录"};
+const OptionSpec kRatioSpec = {"--ratio", "R", "工作流运行的目标面数比例"};
+const OptionSpec kQuickSpec = {"--quick", "", "运行精简的快速工作流"};
+const OptionSpec kSpindleInputSpec = {"--spindle-input", "path", "外部主轴/轴 STL"};
+const OptionSpec kRingInputSpec = {"--ring-input", "path", "外部环/轨道 STL"};
+const OptionSpec kPulleyInputSpec = {"--pulley-input", "path", "外部滑轮 STL"};
+const OptionSpec kFlangeInputSpec = {"--flange-input", "path", "外部成品法兰 STL"};
+const OptionSpec kVerboseSpec = {"--verbose", "", "输出详细诊断日志"};
 
-/// Help layout grouped by command family and derived from validation specs.
+/// 按命令族分组的帮助布局，来源于同一套校验规格。
 const std::vector<OptionGroup>& helpGroups() {
     static const std::vector<OptionGroup> groups = [] {
         std::vector<OptionGroup> g;
-        g.push_back({"Generate options (generate):", generateOptionSpecs()});
-        g.push_back({"Simplify options (simplify, sweep, ratio-sweep, face-sweep):", simplifyOptionSpecs()});
+        g.push_back({"生成选项（generate）：", generateOptionSpecs()});
+        g.push_back({"简化选项（simplify、sweep、ratio-sweep、face-sweep）：", simplifyOptionSpecs()});
         g.push_back(
-            {"Sweep / distance options:", {kSamplesSpec, kMetricsCsvSpec, kWeightsSpec, kRatiosSpec, kFacesSpec}}
+            {"扫描/距离选项：", {kSamplesSpec, kMetricsCsvSpec, kWeightsSpec, kRatiosSpec, kFacesSpec}}
         );
         g.push_back(
-            {"Feature-analysis options (feature-report, feature-benchmark, feature-compare):", featureOptionSpecs()}
+            {"特征分析选项（feature-report、feature-benchmark、feature-compare）：", featureOptionSpecs()}
         );
         g.push_back(
-            {"Workflow options (demo, validate-features, validate-external):",
+            {"工作流选项（demo、validate-features、validate-external）：",
              {kInputDirSpec,
               kOutputDirSpec,
               kRatioSpec,
@@ -195,7 +194,7 @@ const std::vector<OptionGroup>& helpGroups() {
               kFlangeInputSpec,
               kQuickSpec}}
         );
-        g.push_back({"Common options (all commands):", {kVerboseSpec}});
+        g.push_back({"通用选项（所有命令）：", {kVerboseSpec}});
         return g;
     }();
     return groups;
@@ -299,7 +298,7 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
     return sets;
 }
 
-/// Global union used when a per-command option context is unavailable.
+/// 当无法取得命令上下文时使用的全局值选项集合。
 const std::unordered_set<std::string>& valueFlags() {
     static const std::unordered_set<std::string> flags = [] {
         std::unordered_set<std::string> f;
@@ -339,7 +338,7 @@ std::string commandsAcceptingFlag(const std::string& flag) {
     return owners;
 }
 
-} // namespace
+} // 命令行命名空间
 
 bool hasFlag(const Args& args, const std::string& name) {
     for (const std::string& value : args.values) {
@@ -358,7 +357,7 @@ bool takesValue(const std::string& value) { return valueFlags().find(value) != v
 void validateArgsForCommand(const std::string& command, const Args& args) {
     const auto it = commandOptionSets().find(command);
     if (it == commandOptionSets().end()) {
-        // Unknown commands are reported by the dispatcher, not here.
+        // 未知命令由分发器报告，这里只校验已知命令的选项。
         return;
     }
     const CommandOptionSet& set = it->second;
@@ -500,4 +499,4 @@ std::vector<int> parseFaceCounts(const std::string& text) {
     return counts;
 }
 
-} // namespace manumesh::cli
+} // 命令行命名空间

@@ -595,15 +595,15 @@ build/mingw-ninja-debug/bin/manumesh.exe
 每次调参建议记录这几项：
 
 ```text
-mesh:
-command:
-changed parameter:
-expected layer: target / ranking / feature graph / feature protection / legality / diagnostics
-breakpoint observation:
-feature-report summary:
-metrics csv:
-stl visual observation:
-conclusion:
+网格：
+命令：
+变更参数：
+预期层：目标 / 排序 / 特征图 / 特征保护 / 合法性 / 诊断
+断点观察：
+feature-report 摘要：
+metrics CSV：
+STL 可视化观察：
+结论：
 ```
 
 这样能避免把“参数确实生效”和“这次模型刚好看不出差异”混在一起。ManuMesh 的参数调试，本质上是在验证一条受约束边坍缩管线：QEM/line quadrics 负责候选排序，feature graph 负责识别要保护的几何语义，硬过滤器负责把不可接受的坍缩拦下。

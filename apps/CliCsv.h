@@ -1,9 +1,9 @@
 /**
  * @file apps/CliCsv.h
- * @brief Declares cli csv facilities for the ManuMesh command-line application.
+ * @brief 声明 CLI CSV 解析和网格统计行格式化辅助函数。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 解析遵循 RFC-4180 风格的引号与逗号规则，统计字段保持稳定顺序。
  */
 
 #pragma once
@@ -17,22 +17,22 @@
 
 namespace manumesh::cli {
 
-/// Parses one RFC-4180-style row including quoted commas and doubled quotes.
+/// 解析一行 RFC-4180 风格 CSV，支持带引号逗号和双引号转义。
 std::vector<std::string> splitCsvLine(const std::string& line);
-/// Quotes and escapes one CSV field when required.
+/// 必要时为一个 CSV 字段添加引号并转义。
 std::string quoteCsv(const std::string& value);
-/// Reads the header and first data row into a name/value map.
+/// 读取表头和首行数据，返回列名到值的映射。
 std::map<std::string, std::string> readFirstCsvRow(const std::filesystem::path& path);
-/// Returns a required value or throws when the column is absent.
+/// 返回必需列的值；缺少列时抛出异常。
 std::string csvValue(const std::map<std::string, std::string>& row, const std::string& key);
 
-/// CSV header for mesh statistics rows.
+/// 返回网格统计数据行的 CSV 表头。
 std::string statsHeaderCsv();
-/// CSV row for a labeled mesh-statistics record.
+/// 将网格统计数据格式化为一行 CSV，可选附带距离统计。
 std::string statsRowCsv(
     const std::string& label,
     const manumesh::analysis::MeshStats& stats,
     const manumesh::analysis::DistanceStats* distance = nullptr
 );
 
-} // namespace manumesh::cli
+} // 命令行命名空间

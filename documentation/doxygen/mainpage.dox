@@ -1,73 +1,47 @@
 /**
- * @mainpage ManuMesh Developer Reference
+ * @mainpage ManuMesh 开发者参考
  *
- * ManuMesh is a C++17 kernel for triangle-surface meshes. Its current
- * production pipeline covers mesh validation and topology queries, geometric
- * analysis, deterministic feature-curve extraction, feature-aware quadric
- * error simplification, and STL/OBJ exchange. Point-cloud reconstruction,
- * B-Rep feature trees, solid modeling, and volumetric meshing are outside the
- * scope of this codebase.
+ * ManuMesh 是面向三角表面网格的 C++17 内核。当前生产管线覆盖网格校验与拓扑查询、几何
+ * 分析、确定性特征曲线提取、面向特征的二次误差简化以及 STL/OBJ 交换。点云重建、B-Rep
+ * 特征树、实体建模和体网格不在本代码库的范围内。
  *
- * @section architecture Architecture
+ * @section architecture 架构
  *
- * The public SDK in `include/` owns stable data types and entry points. The
- * implementation in `src/` is split into reusable geometry foundations and
- * two algorithm pipelines:
+ * `include/` 中的公共 SDK 负责稳定的数据类型和入口；`src/` 中的实现拆分为可复用的几何
+ * 基础设施和两条算法管线：
  *
- * - @ref manumesh_core stores triangle meshes, validates input, and builds
- *   immutable topology.
- * - @ref manumesh_common provides predicates, neighborhood queries, distance
- *   indices, and broad-phase spatial acceleration.
- * - @ref manumesh_feature_detection converts local hard and weak evidence into
- *   a coherent feature graph, loops, components, and surface patches.
- * - @ref manumesh_simplification ranks edge collapses with QEM/line quadrics,
- *   then applies topology, geometry, feature, boundary, texture, and error
- *   guards before modifying the mesh.
- * - @ref manumesh_analysis, @ref manumesh_mesh_edit, and @ref manumesh_io
- *   provide cross-pipeline analysis, edit-time topology, and file exchange.
- * - @ref manumesh_c_api exposes a size-aware ABI that never lets C++
- *   exceptions cross the language boundary.
+ * - @ref manumesh_core 存储三角网格、校验输入并构建不可变拓扑。
+ * - @ref manumesh_common 提供谓词、邻域查询、距离索引和宽相空间加速。
+ * - @ref manumesh_feature_detection 将局部强证据和弱证据转换为一致的特征图、环、组件和曲面分区。
+ * - @ref manumesh_simplification 使用 QEM/line quadrics 对边坍缩排序，然后在修改网格前应用拓扑、几何、
+ *   特征、边界、纹理和误差保护条件。
+ * - @ref manumesh_analysis、@ref manumesh_mesh_edit 和 @ref manumesh_io 提供跨管线分析、编辑期拓扑和文件交换。
+ * - @ref manumesh_c_api 暴露带大小信息的 ABI，绝不让 C++ 异常越过语言边界。
  *
- * @section feature_pipeline Feature-detection pipeline
+ * @section feature_pipeline 特征检测管线
  *
- * The detector operates on triangle or polygon-derived triangle surface
- * meshes. It first records boundary, non-manifold, oriented-dihedral,
- * normal-tensor, and optional smooth-curvature evidence. The weak channels are
- * sampling-scale aware and require directional or multiscale persistence.
- * Evidence is materialized as a graph; cleanup and consolidation remove weak
- * spurs, bridge compatible gaps, and organize junction branches. Tracing,
- * cycle recovery, primitive fitting, component confidence, and patch
- * segmentation consume that graph rather than recomputing local evidence.
+ * 检测器处理三角网格或由多边形派生的三角表面网格。它首先记录边界、非流形、有向二面角、法向张量
+ * 和可选的平滑曲率证据。弱证据通道感知采样尺度，并要求方向性或多尺度持久性。证据会具体化为图；
+ * 清理与整合阶段删除弱 spur、桥接兼容间隙并组织连接点分支。追踪、环恢复、基本体拟合、组件置信度
+ * 和分区阶段都消费该图，而不是重新计算局部证据。
  *
- * @failuremodes Irregular neighborhoods can make curvature fits rank
- * deficient; inconsistent winding can make the signed dihedral unknown; weak
- * thresholds can create a dense fragmented graph; and a single local tangent
- * cannot represent every tight multi-branch junction. Diagnostics in
- * `FeatureAnalysis` make these cases observable.
+ * @failuremodes 不规则邻域可能导致曲率拟合秩亏；不一致的绕序可能使带符号二面角未知；过低的弱证据阈值
+ * 可能产生稠密而碎片化的图；单个局部切线也无法表示所有紧凑的多分支连接点。`FeatureAnalysis` 中的
+ * 诊断信息会显式报告这些情况。
  *
- * @section simplify_pipeline Simplification pipeline
+ * @section simplify_pipeline 简化管线
  *
- * The simplifier accumulates face-plane quadrics and optional boundary,
- * feature-curve, and line regularizers. Candidate placement follows the
- * Garland-Heckbert solve with rank-aware edge/end-point fallbacks. QEM is only
- * the ranking objective: an accepted collapse must also satisfy the extended
- * link condition, boundary policy, normal and triangle-quality bounds, local
- * self-intersection and distance budgets, feature-curve budgets, and optional
- * UV chart checks. Queue versions invalidate stale candidates after each
- * local topology edit. A fixed-topology refinement pass may improve triangle
- * quality after the target face budget is reached.
+ * 简化器累积面平面 quadrics，以及可选的边界、特征曲线和线约束正则项。候选位置采用 Garland-Heckbert
+ * 求解，并提供感知秩的边/端点回退。QEM 仅负责排序：接受的坍缩还必须满足扩展 link condition、边界策略、
+ * 法向和三角形质量界限、局部自交与距离预算、特征曲线预算以及可选的 UV 图表检查。每次局部拓扑编辑后，
+ * 队列版本会使旧候选失效。达到目标面数后，还可以执行固定拓扑的精修以改善三角形质量。
  *
- * @invariants Active faces always reference active vertices; dynamic incidence
- * caches are updated atomically with face rewrites; protected feature and
- * boundary constraints are checked before mutation; and every accepted
- * placement has a precomputed legality and texture plan.
+ * @invariants 活动面始终引用活动顶点；动态关联缓存与面重写以原子方式更新；保护的特征和边界约束在变更前
+ * 检查；每个接受的位置都有预先计算的合法性和纹理计划。
  *
- * @section docs Documentation layout
+ * @section docs 文档布局
  *
- * `docs/doxygen/html/index.html` is generated by the `docs-api` CMake target
- * and is intentionally not versioned. Design records, guides, paper PDFs, and
- * historical generated notes live under `documentation/`; they are supporting
- * engineering material rather than Doxygen input. The separate internal source
- * reference is generated by `docs-internal` at
- * `docs/internal/html/index.html`.
+ * `docs/doxygen/html/index.html` 由 `docs-api` CMake 目标生成，并且有意不纳入版本控制。设计记录、指南、
+ * 论文 PDF 和历史生成笔记位于 `documentation/` 下；这些内容是辅助工程资料，而不是 Doxygen 输入。独立的
+ * 内部源码参考由 `docs-internal` 生成到 `docs/internal/html/index.html`。
  */

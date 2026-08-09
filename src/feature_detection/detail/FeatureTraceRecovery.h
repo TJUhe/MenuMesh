@@ -1,9 +1,10 @@
 /**
  * @file src/feature_detection/detail/FeatureTraceRecovery.h
- * @brief Declares feature trace recovery facilities for ManuMesh's feature-detection module.
+ * @brief 声明 ManuMesh 特征检测模块的轨迹追踪恢复功能。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
+ *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once
@@ -14,10 +15,10 @@
 namespace manumesh::feature::detector_detail {
 
 /**
- * @brief Traces all remaining open chains and degree-two cycles exactly once.
+ * @brief 对剩余开放链和二度顶点环各追踪一次。
  */
 void traceRemainingFeatureLoops(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

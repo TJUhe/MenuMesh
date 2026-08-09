@@ -1,13 +1,12 @@
 /**
  * @file src/common/MeshQueries.cpp
- * @brief Implements mesh queries facilities for ManuMesh's common-geometry module.
+ * @brief 实现 ManuMesh 公共几何模块的网格查询设施。
  * @ingroup manumesh_common
  *
- * @details Builds deterministic edge incidence, normals, winding harmonization, and neighborhoods.
- * @algorithm Edge and face keys are canonicalized; adjacency lists are sorted
- * before reduction. Oriented dihedral signs use harmonized component winding
- * and fall back to unsigned angles when orientation cannot be resolved.
- * @complexity Expected O(V + F).
+ * @details 构建确定性的边入射、法向、绕序协调和邻域。
+ * @algorithm 对边键和面键规范化；归约前对邻接列表排序。有向二面角符号使用
+ * 协调后的连通分量绕序，无法解析方向时回退到无符号角度。
+ * @complexity 预期为 O(V + F)。
  */
 
 #include "common/detail/MeshQueries.h"
@@ -33,7 +32,7 @@ int faceEdgeDirection(const Face& face, int a, int b) {
     return 0;
 }
 
-} // namespace
+} // 命名空间
 
 std::pair<int, int> unpackMeshEdgeKey(std::uint64_t key) {
     return {static_cast<int>(key >> 32u), static_cast<int>(key & 0xffffffffu)};
@@ -181,8 +180,7 @@ std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh) {
         }
     }
 
-    // Sort and deduplicate so each adjacency list is ascending; this keeps
-    // downstream iteration and floating-point reduction order deterministic.
+// 排序并去重，使每个邻接列表升序排列；这可保持下游遍历和浮点归约顺序的确定性。
     for (std::vector<int>& list : neighbors) {
         std::sort(list.begin(), list.end());
         list.erase(std::unique(list.begin(), list.end()), list.end());
@@ -194,8 +192,7 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
     std::vector<double> sums(mesh.vertices.size(), 0.0);
     std::vector<int> counts(mesh.vertices.size(), 0);
 
-    // Accumulate in ascending edge-key order so the floating-point reduction
-    // order is stable across platforms and hash-map implementations.
+    // 按升序边键累积，使浮点归约顺序在不同平台和哈希表实现之间保持稳定。
     const MeshEdgeInfoMap edgeInfo = buildMeshEdgeInfo(mesh);
     std::vector<std::uint64_t> edgeKeys;
     edgeKeys.reserve(edgeInfo.size());
@@ -253,4 +250,4 @@ std::vector<char> computeBoundaryVertices(const Mesh& mesh) {
     return boundary;
 }
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common

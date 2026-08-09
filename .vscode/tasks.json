@@ -909,7 +909,7 @@
     {
       "id": "demoMesh",
       "type": "pickString",
-      "description": "Demo mesh",
+      "description": "演示网格",
       "default": "tests/data/feature_fixtures/coaxial_hole_plate.obj",
       "options": [
         "tests/data/feature_fixtures/coaxial_hole_plate.obj",
@@ -923,41 +923,41 @@
     {
       "id": "demoRatio",
       "type": "pickString",
-      "description": "Target face ratio",
+      "description": "目标面数比例",
       "default": "0.25",
       "options": ["0.80", "0.50", "0.25", "0.20", "0.10"]
     },
     {
       "id": "demoRatios",
       "type": "promptString",
-      "description": "Ratio sweep list",
+      "description": "比例扫描列表",
       "default": "0.8,0.5,0.25,0.1"
     },
     {
       "id": "demoSamples",
       "type": "pickString",
-      "description": "Sampled-distance count",
+      "description": "采样距离数量",
       "default": "512",
       "options": ["128", "512", "1000", "3000"]
     },
     {
       "id": "demoFeatureAngle",
       "type": "pickString",
-      "description": "Feature angle in degrees",
+      "description": "特征角度（度）",
       "default": "25",
       "options": ["15", "25", "35", "45", "179"]
     },
     {
       "id": "demoLoopTraceAngle",
       "type": "pickString",
-      "description": "Loop trace angle in degrees (-1 reuses feature angle)",
+      "description": "环追踪角度（度，-1 表示复用特征角度）",
       "default": "-1",
       "options": ["-1", "15", "25", "35", "45", "179"]
     },
     {
       "id": "demoFeatureLabels",
       "type": "pickString",
-      "description": "Feature benchmark label CSV",
+      "description": "特征基准标签 CSV",
       "default": "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv",
       "options": [
         "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv"
@@ -966,7 +966,7 @@
     {
       "id": "msvcToolset",
       "type": "pickString",
-      "description": "MSVC toolset (v143 = VS2022, v142 = VS2019)",
+      "description": "MSVC 工具集（v143 = VS2022，v142 = VS2019）",
       "default": "v143",
       "options": ["v143", "v142"]
     }

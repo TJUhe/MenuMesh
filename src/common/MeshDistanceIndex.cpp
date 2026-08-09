@@ -1,13 +1,12 @@
 /**
  * @file src/common/MeshDistanceIndex.cpp
- * @brief Implements mesh distance index facilities for ManuMesh's common-geometry module.
+ * @brief 实现 ManuMesh 公共几何模块的网格距离索引设施。
  * @ingroup manumesh_common
  *
- * @details Builds a bounding-volume hierarchy for repeated point-to-surface distance queries.
- * @algorithm Valid triangles are partitioned recursively by centroid along the
- * longest AABB axis. Queries visit the nearer child first and prune nodes whose
- * box distance exceeds the current best exact point-triangle distance.
- * @complexity O(F log F) construction and expected O(log F) per query.
+ * @details 为重复的点到表面距离查询构建包围体层次结构。
+ * @algorithm 有效三角形沿最长 AABB 轴按质心递归划分。查询优先访问较近子节点，
+ * 并剪枝盒距离大于当前精确点到三角形最佳距离的节点。
+ * @complexity 构建复杂度 O(F log F)，每次查询预期为 O(log F)。
  */
 
 #include "common/detail/MeshDistanceIndex.h"
@@ -141,4 +140,4 @@ void MeshDistanceIndex::queryRecursive(int nodeId, const Vec3& point, double& be
     }
 }
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common

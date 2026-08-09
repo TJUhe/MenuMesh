@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/api/CApiTestSupport.h
- * @brief Verifies capi test support behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的 C API 测试支持行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once

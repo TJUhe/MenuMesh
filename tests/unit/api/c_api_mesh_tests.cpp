@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/api/c_api_mesh_tests.cpp
- * @brief Verifies c api mesh tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的 C API 网格测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "CApiTestSupport.h"
@@ -78,8 +78,8 @@ TEST_F(CApiTest, ClearsTextureCoordinatesAlongWithLoadedGeometry) {
     EXPECT_EQ(0u, vertexCount);
     EXPECT_EQ(0u, faceCount);
 
-    // Saving exercises the full Mesh invariant: stale per-face UVs would no
-    // longer be aligned with the cleared face array and make this call fail.
+    // 保存操作会检查完整的 Mesh 不变量：清空后的面数组不应再与陈旧的面级 UV
+    // 数据错位，否则该调用会失败。
     ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_save_binary_stl(context, stlPath.string().c_str(), mesh));
     EXPECT_EQ(84u, std::filesystem::file_size(stlPath));
 
@@ -186,9 +186,8 @@ TEST_F(CApiTest, RejectsDegenerateFacesWithoutReplacingMesh) {
     );
     EXPECT_NE('\0', manumesh_context_last_error(context)[0]);
 
-    // Zero-area (collinear) faces are tolerated at the ABI boundary since the
-    // lenient validation change: algorithms carry them as counted degenerate
-    // faces instead of failing hard.
+    // 宽松校验变更后，ABI 边界允许零面积（共线）面；算法会将其作为计数中的
+    // 退化面继续传递，而不是直接失败。
     const ManuMeshVec3 collinearVertices[] = {
         {0.0, 0.0, 0.0},
         {1.0, 0.0, 0.0},

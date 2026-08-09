@@ -1,11 +1,10 @@
 /**
  * @file src/mesh_edit/DynamicTopology.cpp
- * @brief Implements dynamic topology facilities for ManuMesh's mesh-editing module.
+ * @brief 实现 ManuMesh 的网格编辑模块的动态拓扑功能。
  * @ingroup manumesh_mesh_edit
  *
- * @details Maintains mutable vertex-face incidence and duplicate-face lookup under local edits.
- * @invariants A face is registered in both caches or neither; invalid face
- * indices never leave partial incidence behind.
+ * @details 在局部编辑过程中维护可变的顶点-面关联和重复面查找表。
+ * @invariants 每个面要么同时登记在两个缓存中，要么都不登记；无效面索引不会留下不完整的关联记录。
  */
 
 #include "mesh_edit/detail/DynamicTopology.h"
@@ -29,8 +28,7 @@ DynamicTopology::DynamicTopology(const std::vector<EditableFace>& faces, int ver
 }
 
 void DynamicTopology::addFace(int faceId, const EditableFace& face) {
-    // Reject faces with any out-of-range vertex entirely so vertexFaces and
-    // facesByKey never disagree about which faces are registered.
+    // 只要面包含越界顶点，就整体拒绝，避免顶点关联表与面键表对已登记面产生分歧。
     for (int vertex : face.v) {
         if (vertex < 0 || vertex >= static_cast<int>(vertexFaces.size())) {
             return;
@@ -134,4 +132,4 @@ int activeIncidentFaceCountForEdge(
     return count;
 }
 
-} // namespace manumesh::mesh_edit
+} // 结束 manumesh::mesh_edit 命名空间

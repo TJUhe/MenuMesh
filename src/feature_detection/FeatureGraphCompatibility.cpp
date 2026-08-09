@@ -1,12 +1,11 @@
 /**
  * @file src/feature_detection/FeatureGraphCompatibility.cpp
- * @brief Implements feature graph compatibility facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征图兼容性功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Defines the continuation and evidence-compatibility predicates shared by graph recovery.
- * @algorithm Candidate branches are ranked by absolute tangent alignment with
- * deterministic vertex-index tie breaking. Hard evidence classes and known
- * convex/concave signs may not be bridged incompatibly.
+ * @details 定义图恢复共用的延续分支和证据兼容性判定。
+ * @algorithm 候选分支按绝对切线对齐度排序，并以顶点索引作确定性平局决胜；
+ *            强证据类别以及已知凸/凹符号不允许不兼容地桥接。
  */
 
 #include "detail/FeatureGraphCompatibility.h"
@@ -26,7 +25,7 @@ int weakSourceMask(const TraceEdgeAttrs& attrs) {
     return (attrs.normalTensor ? 1 : 0) | (attrs.smoothCurvature ? 2 : 0);
 }
 
-} // namespace
+} // 匿名命名空间
 
 ContinuationBranch
 bestContinuationBranch(const Mesh& mesh, const TraceGraph& trace, int vertex, int target, double minAlignment) {
@@ -95,4 +94,4 @@ int compatibleSignedKind(const TraceEdgeAttrs* lhs, const TraceEdgeAttrs* rhs) {
     return lhs->signedKind != 0 ? lhs->signedKind : rhs->signedKind;
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

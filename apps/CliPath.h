@@ -1,6 +1,6 @@
 /**
  * @file apps/CliPath.h
- * @brief Converts CLI UTF-8 path text to and from native filesystem paths.
+ * @brief 在 CLI UTF-8 路径文本与本机文件系统路径之间转换。
  * @ingroup manumesh_cli
  */
 
@@ -15,4 +15,4 @@ inline std::filesystem::path pathFromUtf8(const std::string& value) { return std
 
 inline std::string pathToUtf8(const std::filesystem::path& value) { return value.u8string(); }
 
-} // namespace manumesh::cli
+} // 命令行命名空间

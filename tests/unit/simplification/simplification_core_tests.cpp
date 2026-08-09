@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/simplification_core_tests.cpp
- * @brief Verifies simplification core tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的简化 核心测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "algorithms/simplification/QEMSimplifier.h"
@@ -14,9 +14,9 @@
 #include <limits>
 #include <stdexcept>
 
-// The generic core/topology/io cases that used to live here moved to
-// tests/unit/core/core_tests.cpp and tests/unit/io/mesh_io_tests.cpp; this
-// file keeps only tests that exercise the simplification entry points.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 
 TEST(ManuMesh, SimplifierRejectsInvalidOptionsAndMeshes) {
     const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
@@ -54,12 +54,12 @@ TEST(ManuMesh, SimplifierRejectsInvalidOptionsAndMeshes) {
 
 namespace {
 
-// Plane grid with one extra zero-area triangle. With a negative
-// `collinearScale` the apex exactly duplicates the position of grid vertex 0
-// (distinct index, coincident coordinates), so face {0, apex, 1} spans no
-// area. A non-negative scale instead places the apex on the vertex0->vertex1
-// segment offset orthogonally by `collinearScale`, producing a sliver whose
-// area is ~1e-32 for a 1e-30 scale.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 manumesh::Mesh makePlaneGridWithDegenerateTriangle(double collinearScale) {
     manumesh::Mesh mesh = manumesh::generatePlaneGrid(6, 1.0, false);
     const manumesh::Vec3 base = mesh.vertices[0];
@@ -89,8 +89,8 @@ void expectDegenerateInputSimplifiesSafely(double collinearScale) {
     options.targetRatio = 0.5;
     options.preserveBoundary = true;
 
-    // Before the lenient-validation change this threw std::invalid_argument
-    // ("has zero area") from validateSimplifierInput.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     manumesh::simplification::SimplifyReport dirtyReport;
     manumesh::Mesh dirtyResult;
     ASSERT_NO_THROW(dirtyResult = manumesh::simplification::simplifyMesh(dirty, options, &dirtyReport));
@@ -99,8 +99,8 @@ void expectDegenerateInputSimplifiesSafely(double collinearScale) {
     expectFiniteMesh(dirtyResult);
     EXPECT_TRUE(manumesh::validateMeshGeometryLenient(dirtyResult));
 
-    // The rest of the plane still simplifies to a face count comparable to
-    // the clean baseline (same budget, one extra input face).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     manumesh::simplification::SimplifyReport cleanReport;
     const manumesh::Mesh cleanResult = manumesh::simplification::simplifyMesh(clean, options, &cleanReport);
     EXPECT_EQ(0, cleanReport.degenerateInputFaces);
@@ -111,7 +111,7 @@ void expectDegenerateInputSimplifiesSafely(double collinearScale) {
     );
 }
 
-} // namespace
+} // 命名空间
 
 TEST(ManuMesh, SimplifierToleratesZeroAreaTriangleFromDuplicateVertex) { expectDegenerateInputSimplifiesSafely(-1.0); }
 

@@ -1,17 +1,17 @@
-# Doxyfile - ManuMesh API and internal engineering documentation
+# Doxyfile - ManuMesh API 和内部工程文档
 
 #---------------------------------------------------------------------------
-# Project related configuration options
+# 项目相关配置选项
 #---------------------------------------------------------------------------
 PROJECT_NAME           = "@MANUMESH_DOXYGEN_PROJECT_NAME@"
 PROJECT_NUMBER         = @PROJECT_VERSION@
 PROJECT_BRIEF          = "@MANUMESH_DOXYGEN_PROJECT_BRIEF@"
 OUTPUT_DIRECTORY       = @MANUMESH_DOXYGEN_OUTPUT_DIR@
 CREATE_SUBDIRS         = NO
-OUTPUT_LANGUAGE        = English
+OUTPUT_LANGUAGE        = Chinese
 
 #---------------------------------------------------------------------------
-# Build related configuration options
+# 构建相关配置选项
 #---------------------------------------------------------------------------
 EXTRACT_ALL            = @MANUMESH_DOXYGEN_EXTRACT_ALL@
 EXTRACT_PRIVATE        = @MANUMESH_DOXYGEN_EXTRACT_PRIVATE@
@@ -33,7 +33,7 @@ WARN_IF_DOC_ERROR      = YES
 QUIET                  = NO
 
 #---------------------------------------------------------------------------
-# Configuration options related to the input files
+# 与输入文件相关的配置选项
 #---------------------------------------------------------------------------
 INPUT                  = @MANUMESH_DOXYGEN_INPUT@
 INPUT_ENCODING         = UTF-8
@@ -47,7 +47,7 @@ FULL_PATH_NAMES        = YES
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@
 
 #---------------------------------------------------------------------------
-# Configuration options related to source browsing
+# 与源码浏览相关的配置选项
 #---------------------------------------------------------------------------
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = @MANUMESH_DOXYGEN_INLINE_SOURCES@
@@ -59,7 +59,7 @@ REFERENCES_LINK_SOURCE = YES
 ALPHABETICAL_INDEX     = YES
 
 #---------------------------------------------------------------------------
-# Configuration options related to the HTML output
+# 与 HTML 输出相关的配置选项
 #---------------------------------------------------------------------------
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
@@ -73,13 +73,13 @@ SEARCHENGINE           = YES
 SERVER_BASED_SEARCH    = NO
 
 #---------------------------------------------------------------------------
-# Configuration options related to the LaTeX and XML output
+# 与 LaTeX 和 XML 输出相关的配置选项
 #---------------------------------------------------------------------------
 GENERATE_LATEX         = NO
 GENERATE_XML           = NO
 
 #---------------------------------------------------------------------------
-# Configuration options related to the preprocessor
+# 与预处理器相关的配置选项
 #---------------------------------------------------------------------------
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
@@ -91,7 +91,7 @@ PREDEFINED             = MANUMESH_API= \
                          WIN32=1
 
 #---------------------------------------------------------------------------
-# Configuration options related to Graphviz dot
+# 与 Graphviz dot 相关的配置选项
 #---------------------------------------------------------------------------
 HAVE_DOT               = @MANUMESH_DOXYGEN_HAVE_DOT@
 DOT_PATH               = @MANUMESH_DOXYGEN_DOT_PATH@
@@ -111,7 +111,7 @@ DOT_IMAGE_FORMAT       = svg
 INTERACTIVE_SVG        = YES
 
 #---------------------------------------------------------------------------
-# Miscellaneous
+# 其他选项
 #---------------------------------------------------------------------------
 MARKDOWN_SUPPORT       = YES
 AUTOLINK_SUPPORT       = YES

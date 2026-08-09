@@ -1,14 +1,11 @@
 /**
  * @file src/simplification/CollapseLegality.cpp
- * @brief Implements collapse legality facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的折叠合法性功能。
  * @ingroup manumesh_simplification
  *
- * @details Implements hard topology and geometry acceptance predicates.
- * @algorithm Enforces the extended simplicial link condition including open
- * boundaries, rejects duplicate/degenerate surviving faces, bounds normal and
- * triangle-quality degradation, checks the reference-surface error envelope,
- * and queries local triangle intersections through a broad phase.
- * @failuremodes Ambiguous or numerically unsafe configurations fail closed.
+ * @details 实现拓扑和几何层面的硬性接受谓词。
+ * @algorithm 强制执行包含开放边界的扩展单纯形链接条件，拒绝重复或退化的保留面，限制法向和三角形质量的下降，检查参考曲面误差包络，并通过宽相位查询局部三角形相交。
+ * @failuremodes 对有歧义或数值不安全的配置采取保守拒绝。
  */
 
 #include "detail/CollapseLegality.h"
@@ -25,14 +22,14 @@
 namespace manumesh::simplification {
 namespace {
 
-/** @brief Triangle positions produced by a proposed local collapse rewrite. */
+/** @brief 局部折叠重写生成的新三角形顶点位置。*/
 struct NewTriangle {
     int faceId = -1;
     std::array<int, 3> ids{};
     std::array<Vec3, 3> p{};
 };
 
-/** @brief Active pre-collapse triangle retained for local comparison tests. */
+/** @brief 用于局部比较测试的折叠前活动三角形。*/
 struct OldTriangle {
     std::array<Vec3, 3> p{};
 };
@@ -212,13 +209,8 @@ CollapseRejectReason checkLocalIntersections(
         return CollapseRejectReason::None;
     }
 
-    // Dimension chain: input.areaEps is an absolute AREA threshold
-    // (bboxDiag^2 * 1e-18, see SimplificationRun::initializeBudget) used for
-    // degenerate-face rejection. trianglesIntersect instead takes a
-    // dimensionless RELATIVE tolerance and normalizes by the local triangle
-    // scale internally, so the same constant is valid at any mesh scale.
-    // 1e-9 = sqrt(1e-18) keeps the effective slack at the same order the old
-    // diagonal-derived absolute epsilon had for diagonal-sized geometry.
+    // 维度说明：input.areaEps 是用于拒绝退化面的绝对面积阈值（bboxDiag^2 * 1e-18，见 SimplificationRun::initializeBudget）。而 trianglesIntersect 接受无量纲的相对容差，并在内部按局部三角形尺度归一化，因此同一个常数适用于任意网格尺度。
+    // 取 1e-9 = sqrt(1e-18)，可使有效松弛量与旧版针对对角线尺度几何体的绝对 epsilon 保持同阶。
     constexpr double kRelativeIntersectionEps = 1e-9;
     const std::vector<FaceState>& faces = input.mesh.faces;
     const std::vector<VertexState>& vertices = input.mesh.vertices;
@@ -240,8 +232,7 @@ CollapseRejectReason checkLocalIntersections(
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const NewTriangle& tri : newTriangles) {
         auto [triLo, triHi] = manumesh::common::triangleAabb(tri.p, 0.0);
-        // Pad the spatial query window by the same relative slack the
-        // predicate uses (length dimension: eps * local extent).
+        // 用与谓词相同的相对松弛量扩展空间查询窗口（长度维度为 eps * 局部尺度）。
         const double pad = kRelativeIntersectionEps * (triHi - triLo).maxCoeff();
         triLo -= Vec3::Constant(pad);
         triHi += Vec3::Constant(pad);
@@ -270,7 +261,7 @@ CollapseRejectReason checkLocalIntersections(
     return CollapseRejectReason::None;
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input) {
     std::vector<NewTriangle> newTriangles;
@@ -301,4 +292,4 @@ CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& 
     return CollapseRejectReason::None;
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

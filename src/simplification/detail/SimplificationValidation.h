@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SimplificationValidation.h
- * @brief Declares simplification validation facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的简化 校验功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -14,12 +14,12 @@
 namespace manumesh::simplification {
 
 /**
- * @throws std::invalid_argument when any option or cross-field range is invalid.
+ * @throws 任一选项或跨字段范围无效时抛出 std::invalid_argument。
  */
 void validateSimplifyOptions(const SimplifyOptions& options);
 /**
- * @throws std::invalid_argument when input cannot be processed safely.
+ * @throws 输入无法安全处理时抛出 std::invalid_argument。
  */
 void validateSimplifierInput(const Mesh& input);
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

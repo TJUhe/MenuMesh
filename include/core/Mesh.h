@@ -1,9 +1,9 @@
 /**
  * @file include/core/Mesh.h
- * @brief Declares mesh facilities for ManuMesh's core-mesh module.
+ * @brief 声明 ManuMesh 核心网格模块的网格设施。
  * @ingroup manumesh_core
  *
- * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
  */
 
 #pragma once
@@ -18,96 +18,91 @@
 
 namespace manumesh {
 
-/// Double precision 3D vector used throughout the public geometry API.
+/// 公共几何 API 中使用的双精度三维向量。
 using Vec3 = Eigen::Vector3d;
-/// Double precision 2D vector used for texture coordinates.
+/// 用于纹理坐标的双精度二维向量。
 using Vec2 = Eigen::Vector2d;
-/// Homogeneous 4x4 matrix (e.g. quadric accumulation or affine transforms).
+/// 齐次 4x4 矩阵（例如二次误差累积或仿射变换）。
 using Mat4 = Eigen::Matrix4d;
 
-/// Triangle face storing three zero-based vertex indices.
+/// 存储三个从零开始顶点索引的三角形面。
 struct Face {
-    std::array<int, 3> v{}; ///< Counter-clockwise zero-based vertex indices.
+    std::array<int, 3> v{}; ///< 按逆时针顺序排列的从零开始顶点索引。
 };
 
-/// Per-corner texture coordinates for one triangle.
+/// 一个三角形的逐角纹理坐标。
 ///
-/// Texture coordinates are corner-owned rather than vertex-owned so one
-/// geometric vertex can retain different coordinates on adjacent UV charts.
+/// 纹理坐标归属于面角而非顶点，因此同一个几何顶点可在相邻 UV 图表中
+/// 保留不同坐标。
 struct FaceTexCoords {
-    std::array<Vec2, 3> uv{}; ///< UV value corresponding to each face corner.
-    bool valid = false;       ///< Whether this face owns usable UV coordinates.
+    std::array<Vec2, 3> uv{}; ///< 每个面角对应的 UV 值。
+    bool valid = false;       ///< 此面是否拥有可用的 UV 坐标。
 };
 
-/// Minimal triangle mesh container used by the simplifier and utilities.
+/// 简化器和工具使用的最小三角网格容器。
 struct Mesh {
-    std::vector<Vec3> vertices; ///< Vertex positions in model units.
-    std::vector<Face> faces;    ///< Triangle connectivity into `vertices`.
-    /// Empty when the mesh has no texture coordinates. Otherwise this vector
-    /// is face-aligned; individual entries may be invalid for untextured faces.
+    std::vector<Vec3> vertices; ///< 模型单位下的顶点位置。
+    std::vector<Face> faces;    ///< 指向 `vertices` 的三角形连接关系。
+    /// 网格没有纹理坐标时为空；否则此向量与面对齐，未纹理化的面对应条目
+    /// 可能无效。
     std::vector<FaceTexCoords> faceTexCoords;
 
-    /// @return true when either vertex or face storage is empty.
+    /// @return 当顶点或面存储为空时返回 true。
     MANUMESH_API bool empty() const;
-    /// @return Axis-aligned bounding-box minimum, or zero for no vertices.
+    /// @return 轴对齐包围盒最小点；没有顶点时返回零向量。
     MANUMESH_API Vec3 bboxMin() const;
-    /// @return Axis-aligned bounding-box maximum, or zero for no vertices.
+    /// @return 轴对齐包围盒最大点；没有顶点时返回零向量。
     MANUMESH_API Vec3 bboxMax() const;
-    /// @return Length of the axis-aligned bounding-box diagonal in model units.
+    /// @return 模型单位下轴对齐包围盒对角线长度。
     MANUMESH_API double bboxDiag() const;
-    /// @return true when at least one face has valid per-corner coordinates.
+    /// @return 当至少一个面拥有有效逐角坐标时返回 true。
     MANUMESH_API bool hasTextureCoordinates() const;
-    /// Compacts vertex storage and rewrites face indices after deletions.
+    /// 删除数据后压缩顶点存储并重写面索引。
     ///
-    /// Faces referencing an out-of-range vertex index are silently dropped,
-    /// and vertices referenced only by such dropped faces are removed as well:
-    /// afterwards every remaining vertex is used by at least one valid face.
+    /// 引用越界顶点索引的面会被静默丢弃，仅被这些面引用的顶点也会移除；
+    /// 完成后每个剩余顶点至少被一个有效面使用。
     MANUMESH_API void removeUnusedVertices();
 };
 
-/// Checks that every face index addresses `mesh.vertices`.
-/// @param[in] mesh Mesh to inspect.
-/// @param[out] error Optional diagnostic, cleared on success.
-/// @return true when all indices are valid.
+/// 检查每个面索引是否都指向 `mesh.vertices`。
+/// @param[in] mesh 要检查的网格。
+/// @param[out] error 可选诊断信息；成功时清空。
+/// @return 当所有索引有效时返回 true。
 MANUMESH_API bool validateMeshIndices(const Mesh& mesh, std::string* error = nullptr);
-/// Strict validation: returns false when indices are invalid, vertex
-/// coordinates are not finite, a face repeats a vertex index, or a face has
-/// (numerically) zero area. Used where degenerate geometry cannot be
-/// represented downstream (e.g. STL export).
-/// @param[in] mesh Mesh to validate.
-/// @param[out] error Optional diagnostic, cleared on success.
-/// @return true only when indices, coordinates, topology-per-face, UVs, and
-/// triangle areas satisfy the strict storage contract.
+/// 严格校验：当索引无效、顶点坐标非有限、一个面重复顶点索引，或一个面的
+/// 面积（数值上）为零时返回 false。用于下游无法表示退化几何的场景
+/// （例如 STL 导出）。
+/// @param[in] mesh 要校验的网格。
+/// @param[out] error 可选诊断信息；成功时清空。
+/// @return 仅当索引、坐标、逐面拓扑、UV 和三角形面积满足严格存储契约时返回 true。
 MANUMESH_API bool validateMeshGeometry(const Mesh& mesh, std::string* error = nullptr);
-/// Lenient validation for analysis/simplification entry points: rejects the
-/// inputs no algorithm can process (invalid indices, non-finite coordinates,
-/// misaligned or non-finite texture coordinates, faces repeating a vertex
-/// index) but tolerates zero-area faces. Callers should report tolerated
-/// degeneracies via countDegenerateFaces.
-/// @param[in] mesh Mesh to validate.
-/// @param[out] error Optional diagnostic, cleared on success.
-/// @return true when the mesh is algorithm-safe apart from tolerated zero-area faces.
+/// 面向分析/简化入口的宽松校验：拒绝任何算法都无法处理的输入（索引无效、
+/// 坐标非有限、纹理坐标未对齐或非有限、面重复顶点索引），但允许零面积面。
+/// 调用方应通过 countDegenerateFaces 报告被容忍的退化情况。
+/// @param[in] mesh 要校验的网格。
+/// @param[out] error 可选诊断信息；成功时清空。
+/// @return 除允许的零面积面外，当网格对算法安全时返回 true。
 MANUMESH_API bool validateMeshGeometryLenient(const Mesh& mesh, std::string* error = nullptr);
-/// @param[in] mesh Mesh whose indices have already been validated.
-/// @return Number of faces with repeated indices or numerically zero area.
+/// @param[in] mesh 索引已经校验过的网格。
+/// @return 重复索引或（数值上）零面积的面数量。
 ///
-/// Counts faces that are degenerate: repeated vertex index or (numerically)
-/// zero area. Assumes indices are valid (see validateMeshIndices).
+/// 统计退化面：重复顶点索引或（数值上）零面积。
+/// 假定索引有效（参见 validateMeshIndices）。
 MANUMESH_API int countDegenerateFaces(const Mesh& mesh);
 
-/// @param[in] a First triangle position.
-/// @param[in] b Second triangle position.
-/// @param[in] c Third triangle position.
-/// @return Unsigned triangle area in squared model units.
+/// @param[in] a 三角形第一个位置。
+/// @param[in] b 三角形第二个位置。
+/// @param[in] c 三角形第三个位置。
+/// @return 模型平方单位下的无符号三角形面积。
 MANUMESH_API double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c);
-/// @param[in] a First triangle position.
-/// @param[in] b Second triangle position.
-/// @param[in] c Third triangle position.
-/// @return Unit normal following `(b-a) x (c-a)`, or zero when degenerate.
+/// @param[in] a 三角形第一个位置。
+/// @param[in] b 三角形第二个位置。
+/// @param[in] c 三角形第三个位置。
+/// @return 遵循 `(b-a) x (c-a)` 的单位法向量；退化时返回零向量。
 MANUMESH_API Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c);
-/// @param[in] mesh Mesh with valid face indices.
-/// @return Each undirected edge once as an ascending vertex-index pair.
-/// @complexity Expected O(F), with F the number of faces.
+/// @param[in] mesh 面索引有效的网格。
+/// @return 每条无向边仅出现一次，并表示为升序顶点索引对。
+/// @complexity 预期为 O(F)，其中 F 为面数量。
 MANUMESH_API std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh);
 
-} // namespace manumesh
+} // 命名空间 manumesh

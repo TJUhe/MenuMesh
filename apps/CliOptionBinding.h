@@ -1,9 +1,9 @@
 /**
  * @file apps/CliOptionBinding.h
- * @brief Declares cli option binding facilities for the ManuMesh command-line application.
+ * @brief 声明 CLI 选项到特征检测和网格简化配置的绑定函数。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 绑定逻辑复用统一的严格解析器，并将 CLI 值转换为公共选项结构。
  */
 
 #pragma once
@@ -14,9 +14,9 @@
 
 namespace manumesh::cli {
 
-/// Binds validated CLI tokens to the public simplification option structure.
+/// 将已校验的参数绑定到简化选项结构。
 simplification::SimplifyOptions parseSimplifyOptions(const Args& args);
-/// Binds validated CLI tokens to the standalone feature option structure.
+/// 将已校验的参数绑定到独立的特征检测选项结构。
 feature::FeatureOptions parseFeatureOptions(const Args& args);
 
-} // namespace manumesh::cli
+} // 命令行命名空间

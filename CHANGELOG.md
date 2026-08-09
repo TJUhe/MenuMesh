@@ -297,32 +297,27 @@
 
 ## 2026-07-11
 
-### Texture-aware 4x4 QEM
+### 纹理感知 4x4 QEM
 
-- Added face-corner UV ownership to `Mesh` and `PlainMesh`, including OBJ `vt`
-  parsing, validation, compaction, conversion, and simplification output.
-- Kept the geometry quadric and placement solve at 4x4. Opt-in texture preservation is
-  implemented as a scale-normalized local scalar cost plus explicit UV-chart,
-  seam, signed-area, and degeneration checks.
-- Added deterministic seam-chart pairing so compatible collapses along a seam
-  remain possible while collapses that merge unrelated charts are filtered.
-- Added focused tests for matrix dimension, scalar weighting, UV-scale
-  invariance, seam compatibility, UV degeneration, OBJ corner ownership,
-  output propagation, and exact legacy geometry when protection is disabled.
+- 为 `Mesh` 和 `PlainMesh` 增加面角 UV 所有权，覆盖 OBJ `vt` 解析、校验、压实、
+  转换和简化输出。
+- 保持几何 quadric 和 placement 求解为 4x4。可选的纹理保护通过尺度归一化的局部
+  标量代价实现，并显式检查 UV chart、接缝、有向面积和退化情况。
+- 增加确定性的接缝 chart 配对，使接缝上的兼容折叠仍可执行，同时过滤合并无关 chart
+  的折叠。
+- 增加矩阵维度、标量权重、UV 尺度不变性、接缝兼容性、UV 退化、OBJ 面角所有权、
+  输出传播以及禁用保护时精确保持旧几何结果的专项测试。
 
-### Deterministic smooth feature detection
+### 确定性光滑特征检测
 
-- Added opt-in multiscale smooth ridge/valley evidence based on robust local
-  quadric fitting, generalized principal-curvature estimation, signed
-  directional extrema, tangent consistency, and scale persistence.
-- Kept smooth-curvature edges distinct from boundary, dihedral, non-manifold,
-  and normal-tensor evidence throughout `FeatureGraph`, component confidence,
-  cleanup, diagnostics, CSV output, and the feature CLI.
-- Added focused tests for exact-plane rejection, smooth-feature response,
-  scale invariance, persistence filtering, graph ownership, and invalid options.
-- Added recent 2017-2025 deterministic literature notes and a source-level map to
-  OpenMesh, CGAL PMP, pmp-library, libigl, and geometry-central. AI and learned
-  feature scoring remain explicitly outside this implementation.
+- 增加可选的多尺度光滑 ridge/valley 证据，基于稳健局部 quadric 拟合、广义主曲率估计、
+  有符号方向极值、切向一致性和尺度 persistence。
+- 在 `FeatureGraph`、组件置信度、清理、诊断、CSV 输出和特征 CLI 的整个流程中，保持
+  smooth-curvature 边与 boundary、dihedral、non-manifold 及 normal-tensor 证据相互独立。
+- 增加精确平面拒绝、光滑特征响应、尺度不变性、persistence 过滤、图所有权和无效选项
+  的专项测试。
+- 增加 2017-2025 年确定性文献笔记，以及对 OpenMesh、CGAL PMP、pmp-library、libigl
+  和 geometry-central 的源码级映射。AI 和学习式特征评分明确不属于当前实现范围。
 
 ### 可复用网格编辑基础层
 

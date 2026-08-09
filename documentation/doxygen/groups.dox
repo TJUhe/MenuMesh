@@ -1,59 +1,59 @@
 /**
- * @defgroup manumesh_core Core mesh model
- * @brief Mesh storage, validation, topology handles, status values, and test generators.
+ * @defgroup manumesh_core 核心网格模型
+ * @brief 网格存储、校验、拓扑句柄、状态值和测试生成器。
  */
 
 /**
- * @defgroup manumesh_common Common geometry foundations
- * @brief Predicates, mesh queries, distance acceleration, and spatial indexing shared by algorithms.
+ * @defgroup manumesh_common 通用几何基础
+ * @brief 算法共享的谓词、网格查询、距离加速和空间索引。
  */
 
 /**
- * @defgroup manumesh_analysis Mesh analysis
- * @brief Topological, quality, and sampled surface-distance measurements.
+ * @defgroup manumesh_analysis 网格分析
+ * @brief 拓扑、质量和采样表面距离测量。
  */
 
 /**
- * @defgroup manumesh_feature_detection Feature detection
- * @brief Deterministic hard/weak evidence, feature graphs, curves, primitives, and patches.
+ * @defgroup manumesh_feature_detection 特征检测
+ * @brief 确定性的强/弱证据、特征图、曲线、基本体和分区。
  */
 
 /**
- * @defgroup manumesh_simplification Mesh simplification
- * @brief Feature-aware QEM edge collapse, legality guards, and quality refinement.
+ * @defgroup manumesh_simplification 网格简化
+ * @brief 面向特征的 QEM 边坍缩、合法性保护和质量精修。
  */
 
 /**
- * @defgroup manumesh_mesh_edit Mesh editing foundations
- * @brief Stable-index dynamic topology and deterministic compaction utilities.
+ * @defgroup manumesh_mesh_edit 网格编辑基础
+ * @brief 稳定索引的动态拓扑和确定性压缩工具。
  */
 
 /**
- * @defgroup manumesh_io Mesh I/O
- * @brief STL and OBJ import/export with validation and deterministic triangulation.
+ * @defgroup manumesh_io 网格 I/O
+ * @brief 带校验和确定性三角化的 STL、OBJ 导入/导出。
  */
 
 /**
  * @defgroup manumesh_c_api C ABI
- * @brief Stable context-based C interface with size-aware option and report structures.
+ * @brief 基于稳定上下文的 C 接口，提供带大小信息的选项和报告结构。
  */
 
 /**
- * @defgroup manumesh_cli Command-line application
- * @brief CLI parsing, option binding, reporting, and workflow commands.
+ * @defgroup manumesh_cli 命令行应用
+ * @brief CLI 解析、选项绑定、报告和工作流命令。
  */
 
 /**
- * @defgroup manumesh_examples SDK examples
- * @brief Minimal C, C++, and installed-SDK usage examples.
+ * @defgroup manumesh_examples SDK 示例
+ * @brief 最小 C、C++ 和已安装 SDK 使用示例。
  */
 
 /**
- * @defgroup manumesh_debug Debug visualization
- * @brief Debug-only HTML wireframe snapshots and semantic overlays.
+ * @defgroup manumesh_debug 调试可视化
+ * @brief 仅调试使用的 HTML 线框快照和语义叠加层。
  */
 
 /**
- * @defgroup manumesh_tests Tests and fixtures
- * @brief Deterministic unit, analytic, integration, and performance-regression coverage.
+ * @defgroup manumesh_tests 测试和 Fixture
+ * @brief 确定性的单元、解析、集成和性能回归覆盖。
  */

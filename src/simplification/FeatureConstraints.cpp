@@ -1,14 +1,11 @@
 /**
  * @file src/simplification/FeatureConstraints.cpp
- * @brief Implements feature constraints facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的特征约束功能。
  * @ingroup manumesh_simplification
  *
- * @details Builds and enforces hard feature-curve and primitive constraints.
- * @algorithm Converts detected loops into segment indices and analytic circle/
- * ellipse fits, classifies endpoint ownership, rejects incompatible merges or
- * vertex-budget violations, and projects accepted placements to the protected
- * curve selected by policy.
- * @failuremodes Ambiguous multi-loop ownership is treated conservatively.
+ * @details 构建并执行硬性特征曲线约束和解析图元约束。
+ * @algorithm 将检测到的环转换为线段索引，并拟合解析圆/椭圆；判断端点归属，拒绝不兼容的合并或违反顶点预算的操作，并将接受的放置点投影到策略选定的受保护曲线。
+ * @failuremodes 对多环归属不明确的情况采取保守处理。
  */
 
 #include "detail/FeatureConstraints.h"
@@ -193,7 +190,7 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
     return false;
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 Vec3 projectToCircle(const Vec3& p, const VertexState& feature, const FeaturePrimitiveFit& fit) {
     Vec3 normal = fit.circleNormal;
@@ -345,8 +342,7 @@ void buildPolylineSegmentIndex(FeatureCurveConstraint& curve) {
 
     constexpr int kLeafSegments = 8;
     index.nodes.reserve(static_cast<std::size_t>(2 * segmentCount / kLeafSegments + 2));
-    // Deterministic median-split build: nth_element with an index tie-break,
-    // split axis = largest centroid extent. Recursion depth is O(log L).
+    // 确定性的中位数划分构建：nth_element 使用索引作为平局打破规则，划分轴取质心范围最大的坐标轴。递归深度为 O(log L)。
     const std::function<int(int, int)> buildNode = [&](int begin, int end) -> int {
         PolylineSegmentIndex::Node node;
         node.begin = begin;
@@ -424,9 +420,7 @@ Vec3 closestPointOnFeatureCurve(const FeatureCurveConstraint& curve, const Vec3&
         return best;
     }
 
-    // Depth-first descent that visits the nearer child first and prunes with
-    // the current best distance; the balanced median-split tree bounds the
-    // stack by its depth (comfortably below 64 levels).
+    // 深度优先下降时优先访问较近的子节点，并用当前最佳距离进行剪枝；平衡的中位数划分树将栈深限制在树深以内（远低于 64 层）。
     std::array<int, 64> stack{};
     int stackSize = 0;
     stack[static_cast<std::size_t>(stackSize++)] = 0;
@@ -492,4 +486,4 @@ bool FeatureConstraintPolicy::projectPlacement(const FeatureProjectionInput& inp
     return projectFeaturePlacement(input, options_, position);
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

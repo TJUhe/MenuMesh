@@ -1,16 +1,14 @@
 /**
  * @file src/feature_detection/SmoothCurvature.cpp
- * @brief Implements smooth curvature facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的平滑曲率功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Implements robust, scale-normalized smooth ridge/valley evidence.
- * @algorithm Deterministic k-rings are projected into a local Monge frame and
- * normalized by neighborhood radius. A five-coefficient quadric is solved
- * with spatial and robust residual weights; its Hessian yields principal
- * curvatures/directions. Two-sided signed extrema and cross-scale sign/tangent
- * persistence determine acceptance.
- * @failuremodes Rank-deficient fits, missing two-sided samples, unstable
- * eigendirections, or inconsistent signs produce no feature evidence.
+ * @details 实现稳健、按尺度归一化的光顺脊线/谷线证据。
+ * @algorithm 将确定性的 k-ring 邻域投影到局部 Monge 坐标系，并按邻域半径归一化；
+ *            使用空间权重和稳健残差权重求解五系数二次曲面，
+ *            从其 Hessian 得到主曲率和方向；双侧符号极值及跨尺度符号/切线持久性
+ *            共同决定是否接受特征。
+ * @failuremodes 秩亏拟合、缺少双侧样本、不稳定特征方向或符号不一致时不产生证据。
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -34,40 +32,36 @@ namespace manumesh::feature {
 namespace {
 
 /**
- * @brief Minimum ratio of the interpolated cyclideness (mean |extremality| at the
- * two ends of a zero-crossing edge) to the squared dominant curvature for a
- * crossing to count as a curvature extremum. Both quantities are estimated
- * in the same radius-normalized units, so the ratio is dimensionless and
- * invariant under uniform mesh scaling. Measured landmarks (2026-07): true
- * crests (Gaussian ridge/bump fixtures) sit at >= 0.38 with medians well
- * above 1; the spurious valley band on a torus (a Dupin cyclide, where the
- * extremality vanishes identically) peaks at 0.06 across 24-48 minor
- * segments. 0.15 keeps a 2.5x margin to both populations.
+ * @brief 交叉边的插值 cyclideness（零交叉边两端平均 |extremality|）
+ *        与主曲率平方之比的最小阈值。两者均使用相同的半径归一化单位，
+ *        因而该比值无量纲且对统一网格缩放不变。实测真实脊线（高斯脊/凸起）
+ *        通常不低于 0.38，而环面这一 Dupin cyclide 上的伪谷带在 24-48 个小段时
+ *        峰值约为 0.06；取 0.15 可为两类样本保留约 2.5 倍余量。
  */
 constexpr double kMinCrossingCyclidenessRatio = 0.15;
 
-/** @brief Vertex id and ring depth collected around one fitting seed. */
+/** @brief 围绕一个拟合种子收集的顶点 ID 及环层深度。 */
 struct NeighborhoodVertex {
     int id = -1;
     int depth = 0;
 };
 
-/** @brief Curvature fit and confidence diagnostics at one neighborhood scale. */
+/** @brief 单个邻域尺度的曲率拟合和置信度诊断。 */
 struct ScaleEstimate {
     bool valid = false;
     Vec3 normal = Vec3(0.0, 0.0, 1.0);
     std::array<Vec3, 2> directions = {Vec3(1.0, 0.0, 0.0), Vec3(0.0, 1.0, 0.0)};
     std::array<double, 2> curvatures = {0.0, 0.0};
     /**
-     * @brief Extremality e_i = grad(kappa_i) . t_i from the cubic Monge terms, in
-     * the same radius-normalized units as the curvatures (M021 Yoshizawa).
+     * @brief 根据三次 Monge 项计算极值量 e_i = grad(kappa_i) · t_i，
+     *        单位与曲率相同，均按邻域半径归一化（M021 Yoshizawa）。
      */
     std::array<double, 2> extremalities = {0.0, 0.0};
     double fitResidual = 0.0;
     double localScale = 0.0;
 };
 
-/** @brief Valid scale estimate together with persistence-selection metadata. */
+/** @brief 有效尺度估计及其持久性选择元数据。 */
 struct ScaleCandidate {
     bool valid = false;
     Vec3 normal = Vec3(0.0, 0.0, 1.0);
@@ -83,17 +77,16 @@ struct ScaleCandidate {
     int signedKind = 0;
 };
 
-/** @brief Stable multiscale estimate selected for one mesh vertex. */
+/** @brief 为一个网格顶点选择的稳定多尺度估计。 */
 struct ScaleSelection {
     int scale = -1;
     double stability = 0.0;
 };
 
 /**
- * @brief Reusable per-call scratch buffers for the multiscale fitting hot path.
- * Earlier revisions allocated fresh vectors, queues, and Eigen matrices for
- * every vertex and robust iteration; one workspace per analysis removes that
- * churn without changing any numerical result.
+ * @brief 为多尺度拟合热路径复用的临时缓冲区。
+ * 旧实现为每个顶点和稳健迭代分配向量、队列及 Eigen 矩阵；
+ * 每次分析复用一个工作区可消除这些分配，同时不改变数值结果。
  */
 struct FitWorkspace {
     std::vector<NeighborhoodVertex> neighborhood;
@@ -131,8 +124,8 @@ std::vector<Vec3> computeAreaWeightedVertexNormals(const Mesh& mesh, const std::
 }
 
 /**
- * @brief Breadth-first ring gathering into a reused buffer. The seed is stored at
- * index 0 with depth 0; consumers iterate from index 1.
+ * @brief 将邻域按层宽度优先收集到复用缓冲区。种子位于索引 0、深度为 0，
+ *        调用方从索引 1 开始遍历。
  */
 void gatherNeighborhood(
     const std::vector<std::vector<int>>& neighbors,
@@ -308,9 +301,8 @@ ScaleEstimate fitScale(
         if (!std::isfinite(r2) || r2 <= 1e-20) {
             continue;
         }
-        // Cubic Monge basis (Yoshizawa M021): the quadratic block carries the
-        // curvatures, the cubic block carries the curvature derivatives that
-        // yield the extremality below.
+        // 三次 Monge 基（Yoshizawa M021）：二次项携带曲率，三次项携带曲率导数，
+        // 后者用于计算下方的极值量。
         Eigen::Matrix<double, 1, 9> row;
         double* rowData = row.data();
         rowData[0] = u * u;
@@ -326,7 +318,7 @@ ScaleEstimate fitScale(
         targets.push_back(w);
         spatialWeights.push_back(std::exp(-0.5 * r2));
     }
-    // Underdetermination guard: the cubic fit has nine unknowns.
+    // 欠定性保护：三次拟合包含九个未知系数。
     if (rows.size() < 9) {
         return result;
     }
@@ -341,10 +333,8 @@ ScaleEstimate fitScale(
     residuals.assign(rows.size(), 0.0);
     const int iterations = std::clamp(robustIterations, 0, kMaxSmoothCurvatureRobustFitIterations);
     for (int iteration = 0; iteration <= iterations; ++iteration) {
-        // Weighted normal equations accumulated with raw scalar loops (only
-        // the upper triangle): the coordinates are pre-normalized by the
-        // neighborhood radius so the 9x9 system stays well conditioned, and
-        // this replaces one dense QR per robust iteration.
+        // 使用标量循环累加加权正规方程的上三角部分。坐标已按邻域半径预归一化，
+        // 使 9x9 系统保持良好条件，并避免每次稳健迭代执行一次稠密 QR。
         double ataUpper[45] = {0.0};
         double atbRaw[9] = {0.0};
         for (int i = 0; i < rowCount; ++i) {
@@ -375,8 +365,7 @@ ScaleEstimate fitScale(
         if (solver.info() != Eigen::Success) {
             return result;
         }
-        // Degeneracy guard on the pivot spread (rcond-style): reject fits
-        // whose normal matrix is numerically rank deficient.
+        // 根据主元跨度检查退化（类似 rcond）；拒绝数值秩亏的正规矩阵。
         const Vector9d pivots = solver.vectorD().cwiseAbs();
         if (!(pivots.minCoeff() > 1e-13 * std::max(1.0, pivots.maxCoeff()))) {
             return result;
@@ -434,10 +423,8 @@ ScaleEstimate fitScale(
         }
         result.directions[i] = direction.normalized();
         result.curvatures[i] = eig.eigenvalues()(i);
-        // Extremality as the third-order directional form C(t, t, t)
-        // (Yoshizawa Eq. e ~ c0 t1^3 + 3 c1 t1^2 t2 + 3 c2 t1 t2^2 + c3 t2^3,
-        // here with h_uuu = 6 cubic0 etc. so the common factor 6 is kept for a
-        // consistent normalized magnitude).
+        // 极值量是三阶方向形式 C(t,t,t)（Yoshizawa 公式）；这里保留统一因子 6，
+        // 以获得一致的归一化幅值。
         const Eigen::Vector2d tangent2 = direction2.normalized();
         const double t1 = tangent2.x();
         const double t2 = tangent2.y();
@@ -458,8 +445,8 @@ ScaleEstimate fitScale(
 }
 
 /**
- * @brief Ridge/valley dominance test (Ohtake M011): the ridge branch requires
- * kappa_max > |kappa_min|, the valley branch kappa_min < -|kappa_max|.
+ * @brief 脊线/谷线主曲率占优判定（Ohtake M011）：脊线要求
+ *        kappa_max > |kappa_min|，谷线要求 kappa_min < -|kappa_max|。
  */
 bool principalDominant(const ScaleEstimate& estimate, int principal) {
     const double curvature = estimate.curvatures[principal];
@@ -479,13 +466,10 @@ ScaleCandidate classifyScaleCandidate(
         return best;
     }
 
-    // Edge zero-crossing extremality criterion (Ohtake M011 Eq.3-4, Yoshizawa
-    // M021): a vertex supports a ridge (valley) when the extremality e changes
-    // sign along an incident edge roughly following the principal direction,
-    // with the first-order maximum test replacing the impractical second-order
-    // derivative test. Principal directions form a line field, so the
-    // neighbor's tangent and extremality are sign-synchronized before the
-    // tests; both endpoints must satisfy the curvature dominance condition.
+    // 零交叉极值判据（Ohtake M011 式 3-4、Yoshizawa M021）：
+    // 当沿着近似主方向的入射边上极值量发生符号变化时，顶点支持脊线或谷线。
+    // 这里以一阶极大值检验替代难以稳定计算的二阶导数检验。主方向是线场，
+    // 因而先同步邻点切线与极值量的符号，再要求两端都满足曲率占优条件。
     for (int principal = 0; principal < 2; ++principal) {
         const double curvature = center.curvatures[principal];
         const double otherCurvature = center.curvatures[1 - principal];
@@ -508,35 +492,24 @@ ScaleCandidate classifyScaleCandidate(
                 neighborTangent = -neighborTangent;
                 neighborExtremality = -neighborExtremality;
             }
-            // Unit conversion (P1-3): each vertex fits in coordinates divided
-            // by its own radius r = localScale, so with w' = w/r, u' = u/r the
-            // fitted quantities relate to the physical ones as
-            //   kappa_hat = d^2 w'/du'^2 = r * kappa_phys   (kappa ~ 1/L)
-            //   e_hat     = d^3 w'/du'^3 = r^2 * e_phys     (e ~ 1/L^2).
-            // Neighbors generally have a different r, so before any magnitude
-            // comparison the neighbor's extremality is rescaled into the
-            // center vertex's units: e_n->c = e_hat_n * (r_c / r_n)^2. The
-            // ratio r_c / r_n is invariant under uniform mesh scaling, so all
-            // downstream criteria stay exactly scale-invariant. Sign-only
-            // tests (zero crossing, first-order maximum) are unaffected by
-            // the positive factor.
+            // 单位换算（P1-3）：每个顶点都在除以自身半径 r 的坐标中拟合，
+            // 因此 kappa_hat = r * kappa_phys，e_hat = r^2 * e_phys。
+            // 邻点半径通常不同，比较幅值前需将邻点极值量换算到中心顶点单位：
+            // e_n->c = e_hat_n * (r_c / r_n)^2。该比例对统一网格缩放不变，
+            // 因而后续判据保持尺度不变；只看符号的检验不受正比例因子影响。
             const double unitRatio = center.localScale / neighbor.localScale;
             neighborExtremality *= unitRatio * unitRatio;
             if (!(centerExtremality * neighborExtremality < 0.0)) {
                 continue;
             }
-            // Sub-vertex ownership (Ohtake inverse interpolation): the
-            // crossing point lies nearer to the endpoint with the smaller |e|,
-            // so only that vertex claims the candidate. This keeps the
-            // detected band one vertex wide instead of two. Both magnitudes
-            // are in the center vertex's units after the conversion above.
+            // 子顶点归属（Ohtake 逆插值）：零交叉点更接近 |e| 较小的端点，
+            // 因此只允许该顶点认领候选，将检测带限制为单顶点宽度而非两个顶点。
             if (std::abs(centerExtremality) > std::abs(neighborExtremality)) {
                 continue;
             }
             const Vec3 delta = mesh.vertices[nb] - mesh.vertices[vertex];
-            // First-order maximum test at both endpoints: for a ridge the
-            // extremum must lie ahead of each vertex along its own tangent
-            // (sign-flip invariant because e and t flip together).
+            // 两个端点的一阶极大值检验：对脊线而言，极值必须沿各自切线位于
+            // 每个顶点的前方；e 与 t 同时翻转，因此该条件与方向符号无关。
             const double centerSide =
                 static_cast<double>(signedKind) * centerExtremality * delta.dot(extremumDirection);
             const double neighborSide =
@@ -544,30 +517,19 @@ ScaleCandidate classifyScaleCandidate(
             if (!(centerSide > 0.0) || !(neighborSide > 0.0)) {
                 continue;
             }
-            // Cyclideness gate (Yoshizawa M021 Eq.5-6): on a Dupin cyclide
-            // (sphere/cylinder/cone/torus) the extremality field vanishes
-            // identically, so a detected sign change there is discretization
-            // noise, not a curvature extremum -- the whole extremal circle is
-            // a stationary set of kappa and carries no crest. Near a genuine
-            // crest |e| grows like |de/dt| * distance off the line, so the
-            // mean endpoint magnitude of e measures the extremal significance
-            // (it linearly interpolates Yoshizawa's cyclideness C at the
-            // crossing). Dividing by kappa^2 makes the gate dimensionless:
-            // in the center vertex's units e_hat = r_c^2 e_phys and
-            // kappa_hat^2 = r_c^2 kappa_phys^2, so the ratio equals the
-            // physical e / kappa^2 with no residual dependence on r_c (the
-            // neighbor extremality was converted into center units above),
-            // and it is exactly invariant under uniform scaling: it asks
-            // whether kappa varies by at least a fixed fraction of itself
-            // over one curvature radius along its own line of curvature --
-            // zero on cyclides, O(1) on true crests.
+            // Cyclideness 门限（Yoshizawa M021 式 5-6）：在 Dupin cyclide
+            // （球面/柱面/锥面/环面）上极值场恒为零，因此离散化造成的符号变化
+            // 只是噪声而非曲率极值；整个极值圆是 kappa 的驻集，不携带脊线。
+            // 真正脊线附近 |e| 随离开脊线的距离增长，端点 |e| 平均值可衡量极值显著性，
+            // 并在交叉点处线性插值 Yoshizawa 的 cyclideness C。除以 kappa^2 后无量纲：
+            // 中心单位下 e_hat = r_c^2 e_phys、kappa_hat^2 = r_c^2 kappa_phys^2，
+            // 因而比值等于物理 e/kappa^2，不依赖 r_c，也对统一缩放严格不变。
             const double crossingCyclideness = 0.5 * (std::abs(centerExtremality) + std::abs(neighborExtremality));
             if (crossingCyclideness < kMinCrossingCyclidenessRatio * curvature * curvature) {
                 continue;
             }
-            // Curvature-difference proxy in radius-normalized units: mean |e|
-            // times the tangential edge extent, comparable to the previous
-            // center-minus-neighbors magnitude so score scales are preserved.
+            // 以半径归一化单位计算曲率差代理：平均 |e| 乘以切向边长，
+            // 与此前中心减邻点幅值的量级相当，使评分尺度保持一致。
             const double tangentialExtent = std::abs(delta.dot(extremumDirection)) / center.localScale;
             const double crossingStrength =
                 0.5 * (std::abs(centerExtremality) + std::abs(neighborExtremality)) * tangentialExtent;
@@ -603,7 +565,7 @@ ScaleCandidate classifyScaleCandidate(
     return best;
 }
 
-} // namespace
+} // 匿名命名空间
 
 namespace detector_detail {
 
@@ -707,14 +669,10 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
         output.selectedScale = bestScale;
         output.scaleStability = selection.stability;
         output.signedKind = best.signedKind;
-        // Pure vote counting (Luo-Zha M009): persistence is the number of
-        // supporting scales, thresholded downstream against
-        // smoothCurvatureMinPersistentScales. An earlier revision additionally
-        // vetoed any candidate the *coarsest* scale did not support, which
-        // silenced real features whose spatial extent is smaller than the
-        // coarsest neighborhood radius (baseRings + scaleCount - 1 rings) on
-        // dense meshes -- exactly the small fillets and short ridges the
-        // multiscale channel exists to find.
+        // 纯投票计数（Luo-Zha M009）：持久性等于支持该候选的尺度数量，
+        // 下游再与 smoothCurvatureMinPersistentScales 比较。旧实现还要求最粗尺度
+        // 必须支持候选，导致密集网格中空间尺度小于最粗邻域半径（baseRings +
+        // scaleCount - 1 环）的真实小圆角和短脊线被静默抑制；多尺度通道正是为了发现它们。
         if (output.persistentScales > 0 && output.scaleStability >= options.minScaleStability) {
             const double persistenceRatio =
                 static_cast<double>(output.persistentScales) / static_cast<double>(scaleCount);
@@ -727,7 +685,7 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
     return result;
 }
 
-} // namespace detector_detail
+} // 命名空间 manumesh::feature::detector_detail
 
 std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
     const Mesh& mesh, const SmoothCurvatureOptions& options, double requestedPersistenceThreshold
@@ -741,4 +699,4 @@ computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& o
     return computeSmoothCurvatureFeatures(mesh, options, 0.0);
 }
 
-} // namespace manumesh::feature
+} // 命名空间 manumesh::feature

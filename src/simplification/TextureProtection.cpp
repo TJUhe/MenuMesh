@@ -1,15 +1,11 @@
 /**
  * @file src/simplification/TextureProtection.cpp
- * @brief Implements texture protection facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的纹理保护功能。
  * @ingroup manumesh_simplification
  *
- * @details Adds local per-corner UV policy without increasing the 4x4 geometry quadric dimension.
- * @algorithm Incident corners are clustered into deterministic local charts.
- * A proposed placement interpolates surviving UV corners, rejects chart
- * incompatibility, fold-over, and excessive signed-area loss, then adds a
- * scalar distortion cost and returns concrete UV rewrites.
- * @invariants Geometry placement remains three-dimensional and an accepted
- * texture plan is applied verbatim with the collapse.
+ * @details 在不增加 4x4 几何二次误差维度的前提下，增加局部的每角 UV 策略。
+ * @algorithm 将相邻角点聚类为确定性的局部图表。候选放置会插值保留顶点的 UV 角点，拒绝图表不兼容、翻折和过大的有符号面积损失，然后加入标量畸变代价并返回具体的 UV 重写。
+ * @invariants 几何放置始终保持三维；接受的纹理计划会与折叠一起原样应用。
  */
 
 #include "detail/TextureProtection.h"
@@ -24,14 +20,14 @@
 namespace manumesh::simplification {
 namespace {
 
-/** @brief One endpoint UV sample and its matched chart cluster. */
+/** @brief 一个端点 UV 样本及其匹配的图表簇。*/
 struct CornerSample {
     int face = -1;
     int corner = -1;
     int cluster = -1;
 };
 
-/** @brief Texture-chart samples collected around one collapse endpoint. */
+/** @brief 围绕一个折叠端点收集的纹理图表样本。*/
 struct EndpointCharts {
     std::vector<Vec2> representatives;
     std::vector<CornerSample> samples;
@@ -66,8 +62,7 @@ EndpointCharts collectEndpointCharts(
         return charts;
     }
     const double tolerance2 = tolerance * tolerance;
-    // Visit corner samples in (faceId, corner) order so cluster ids do not
-    // depend on the unordered_set iteration order of the incident-face lists.
+    // 按 (faceId, corner) 顺序访问角点样本，使簇编号不依赖相邻面列表中 unordered_set 的遍历顺序。
     std::vector<int> incidentFaces(topology.vertexFaces[vertex].begin(), topology.vertexFaces[vertex].end());
     std::sort(incidentFaces.begin(), incidentFaces.end());
     for (int faceId : incidentFaces) {
@@ -81,9 +76,7 @@ EndpointCharts collectEndpointCharts(
         }
         charts.sawTextured = true;
         const Vec2& uv = faceTexCoords[faceId].uv[corner];
-        // One-ring chart counts are tiny, so a direct scan over the chart
-        // representatives is cheaper than the previous hash-grid and does not
-        // allocate. Ties deterministically join the lowest-index cluster.
+        // 一环图表数量很少，直接扫描图表代表点比之前的哈希网格更便宜且无需分配；出现平局时确定性地加入索引最小的簇。
         int cluster = -1;
         for (int rep = 0; rep < static_cast<int>(charts.representatives.size()); ++rep) {
             if ((charts.representatives[static_cast<std::size_t>(rep)] - uv).squaredNorm() <= tolerance2) {
@@ -201,8 +194,7 @@ TextureUpdatePlan buildUpdatePlan(
             (1.0 - t) * keepCharts.representatives[cluster] + t * removeCharts.representatives[keepToRemove[cluster]];
     }
 
-    // Deterministic face order keeps the floating-point cost accumulation and
-    // the update-plan order independent of unordered_set iteration order.
+    // 按确定性的面顺序处理，使浮点代价累加和更新计划顺序不受 unordered_set 遍历顺序影响。
     std::vector<int> touchedFaces;
     touchedFaces.insert(
         touchedFaces.end(), topology.vertexFaces[edge.keep].begin(), topology.vertexFaces[edge.keep].end()
@@ -245,9 +237,7 @@ TextureUpdatePlan buildUpdatePlan(
         const bool oldUvDegenerate = std::abs(oldUvArea) <= uvAreaEpsilon;
         const bool orientationFlip = !oldUvDegenerate && (oldUvArea * newUvArea <= 0.0 ||
                                                           std::abs(newUvArea) < minAreaRatio * std::abs(oldUvArea));
-        // A UV-degenerate source triangle carries no reliable orientation, but
-        // a clearly negative new signed area still indicates a UV fold-over;
-        // use a larger tolerance so numeric noise around zero is not rejected.
+        // UV 退化的源三角形不携带可靠方向，但明显为负的新有符号面积仍表示 UV 翻折；因此使用更大的容差，避免把零附近的数值噪声判为拒绝。
         const bool degenerateFoldover = oldUvDegenerate && newUvArea < -64.0 * uvAreaEpsilon;
         if (orientationFlip || degenerateFoldover) {
             plan.evaluation.rejectReason = TextureCollapseRejectReason::TriangleFlip;
@@ -282,7 +272,7 @@ TextureUpdatePlan buildUpdatePlan(
     return plan;
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 TextureProtection::TextureProtection(const Mesh& input, const SimplifyOptions& options) {
     enabled_ = options.preserveTexture && input.hasTextureCoordinates();
@@ -377,4 +367,4 @@ bool TextureProtection::apply(const TextureUpdatePlan& plan, std::vector<FaceTex
     return true;
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

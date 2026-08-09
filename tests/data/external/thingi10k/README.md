@@ -1,18 +1,17 @@
-﻿# Thingi10K Binary STL Fixtures
+# Thingi10K 二进制 STL Fixture
 
-97 real-world binary STL fixtures selected from the public Thingi10K dataset
-mirror on Hugging Face:
+97 个真实世界二进制 STL fixture，选自 Hugging Face 上的公共 Thingi10K 数据集镜像：
 
-- Dataset: `Thingi10K/Thingi10K`
-- Raw source path: `raw_meshes/<file_id>.stl`
-- Metadata sources: `metadata/input_summary.csv` and binary STL triangle headers
-- Selection filters: binary STL files, no duplicated faces, no degenerate faces, no NonCommercial/NoDerivatives/GPL licenses, and one file per Thingiverse thing id where practical.
+- 数据集：`Thingi10K/Thingi10K`
+- 原始源路径：`raw_meshes/<file_id>.stl`
+- 元数据来源：`metadata/input_summary.csv` 和二进制 STL 三角面头
+- 筛选条件：仅二进制 STL 文件；不含重复面或退化面；排除 NonCommercial/NoDerivatives/GPL 许可证；在可行时每个 Thingiverse thing ID 仅保留一个文件。
 
-Together with the public root fixtures and `tests/data/external/large/`, these files bring the performance fixture set to at least 100 binary STL files.
+这些文件与公共根目录 fixture 及 `tests/data/external/large/` 中的文件合计，使性能 fixture 集至少包含 100 个二进制 STL 文件。
 
-## Manifest
+## 清单
 
-| File | File ID | Thing | Triangles | License |
+| 文件 | 文件 ID | Thing | 三角面数 | 许可证 |
 | --- | ---: | ---: | ---: | --- |
 | `thingi10k_100478_airprop_toycar.stl` | 100478 | [35012](https://www.thingiverse.com/thing:35012) | 9170 | CC BY |
 | `thingi10k_1007406_big_ben.stl` | 1007406 | [33913](https://www.thingiverse.com/thing:33913) | 34474 | CC BY-SA |

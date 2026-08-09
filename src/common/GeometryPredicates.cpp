@@ -1,14 +1,13 @@
 /**
  * @file src/common/GeometryPredicates.cpp
- * @brief Implements geometry predicates facilities for ManuMesh's common-geometry module.
+ * @brief 实现 ManuMesh 公共几何模块的几何谓词设施。
  * @ingroup manumesh_common
  *
- * @details Implements scale-normalized distance, AABB, and exact-narrow-phase triangle predicates.
- * @algorithm Triangle intersection separates coplanar and non-coplanar cases,
- * normalizes tolerances by local factor norms, and explicitly permits contact
- * confined to declared shared topology while rejecting overlap beyond it.
- * @invariants Uniformly scaling both triangles does not change the boolean result.
- * @failuremodes Degenerate and numerically ambiguous cases are handled conservatively.
+ * @details 实现尺度归一化距离、AABB 和三角形精确窄相位谓词。
+ * @algorithm 三角形相交将共面与非共面情况分开，按局部因子范数归一化容差，
+ * 明确允许限定在声明共享拓扑内的接触，同时拒绝超出该拓扑的重叠。
+ * @invariants 对两个三角形进行一致缩放不会改变布尔结果。
+ * @failuremodes 对退化和数值上有歧义的情况采取保守处理。
  */
 
 #include "common/detail/GeometryPredicates.h"
@@ -34,10 +33,9 @@ bool aabbOverlap(const Vec3& aLo, const Vec3& aHi, const Vec3& bLo, const Vec3& 
 bool segmentIntersectsTriangle(
     const Vec3& p0, const Vec3& p1, const Vec3& a, const Vec3& b, const Vec3& c, double eps
 ) {
-    // eps is dimensionless. The Moller-Trumbore determinant dir.(e1 x e2) is
-    // normalized by the norms of its own factors, and u, v, t are barycentric
-    // / parametric (dimensionless) quantities compared against eps directly,
-    // so the decision does not change under uniform scaling.
+    // eps 无量纲。Moller-Trumbore 行列式 dir.(e1 x e2) 按自身因子范数归一化，
+    // u、v、t 是直接与 eps 比较的重心/参数（无量纲）量，
+    // 因此一致缩放不会改变判定。
     const Vec3 dir = p1 - p0;
     const Vec3 e1 = b - a;
     const Vec3 e2 = c - a;
@@ -77,11 +75,10 @@ double orient2d(const Eigen::Vector2d& a, const Eigen::Vector2d& b, const Eigen:
     return (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());
 }
 
-// The 2D helpers take two tolerances with explicit dimensions derived from
-// one relative eps: epsLen (eps * scale) for coordinate/interval comparisons
-// and epsArea (eps * scale^2) for orient2d signed-area comparisons. Mixing a
-// single absolute eps across both dimensions made the predicates change their
-// decisions under uniform mesh scaling.
+    // 二维辅助函数使用由同一个相对 eps 推导出的两个具有明确量纲的容差：
+    // epsLen（eps * scale）用于坐标/区间比较，epsArea（eps * scale^2）用于
+    // orient2d 有向面积比较。在两个量纲中混用单一绝对 eps 会导致谓词判定
+    // 随网格一致缩放而变化。
 bool intervalsOverlapWithLength(double a0, double a1, double b0, double b1, double epsLen) {
     if (a0 > a1)
         std::swap(a0, a1);
@@ -185,7 +182,7 @@ bool coplanarTrianglesOverlap(
     return false;
 }
 
-} // namespace
+} // 命名空间
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
     const double l0 = (b - a).squaredNorm();
@@ -239,8 +236,8 @@ double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b,
 
     const Vec3 n = ab.cross(ac);
     const double nn = n.squaredNorm();
-    // Relative degeneracy check: |ab x ac|^2 <= tol * (|ab| |ac|)^2 means the
-    // spanned angle is numerically zero regardless of the absolute scale.
+    // 相对退化检查：|ab x ac|^2 <= tol * (|ab| |ac|)^2 表示夹角在数值上为零，
+    // 与绝对尺度无关。
     if (nn <= 1e-24 * ab.squaredNorm() * ac.squaredNorm()) {
         return std::min({(p - a).squaredNorm(), (p - b).squaredNorm(), (p - c).squaredNorm()});
     }
@@ -275,9 +272,8 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     Vec3 lhsHi = lhs[0].cwiseMax(lhs[1]).cwiseMax(lhs[2]);
     Vec3 rhsLo = rhs[0].cwiseMin(rhs[1]).cwiseMin(rhs[2]);
     Vec3 rhsHi = rhs[0].cwiseMax(rhs[1]).cwiseMax(rhs[2]);
-    // eps is relative; derive the absolute tolerances from the local pair
-    // scale so lengths use eps*scale and areas use eps*scale^2. This keeps
-    // the predicate's decisions invariant under uniform scaling of the mesh.
+    // eps 是相对量；根据局部二元尺度推导绝对容差，使长度使用 eps*scale，
+    // 面积使用 eps*scale^2。这使谓词判定在网格一致缩放时保持不变。
     const double scale = std::max((lhsHi - lhsLo).maxCoeff(), (rhsHi - rhsLo).maxCoeff());
     const double epsLen = eps * scale;
     const double epsArea = eps * scale * scale;
@@ -289,8 +285,7 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     const Vec3 rhsNormal = (rhs[1] - rhs[0]).cross(rhs[2] - rhs[0]);
     const double lhsNorm = lhsNormal.norm();
     const double rhsNorm = rhsNormal.norm();
-    // Normal magnitudes are twice the triangle area, so they compare against
-    // the area-dimensioned tolerance.
+    // 法向量模是三角形面积的两倍，因此应与面积量纲的容差比较。
     if (lhsNorm <= epsArea || rhsNorm <= epsArea) {
         return false;
     }
@@ -385,8 +380,7 @@ bool trianglesIntersectBeyondSharedTopology(
     const Vec3 rhsUnit = rhsNormal / rhsNorm;
     const bool coplanar = lhsUnit.cross(rhsUnit).norm() <= 1e-8 && std::abs((rhsTip - s0).dot(lhsUnit)) <= epsLen;
     if (!coplanar) {
-        // Two non-coplanar triangles sharing an entire edge can intersect only
-        // on the line containing that declared edge.
+        // 共享整条边的两个非共面三角形只能在线上相交，而该直线包含声明的边。
         return false;
     }
 
@@ -396,4 +390,4 @@ bool trianglesIntersectBeyondSharedTopology(
     return (lhsSide > epsArea && rhsSide > epsArea) || (lhsSide < -epsArea && rhsSide < -epsArea);
 }
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common

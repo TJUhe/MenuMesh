@@ -9,9 +9,9 @@ INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]')
 SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp"}
 SCAN_ROOTS = ("include", "src", "apps", "examples")
 
-# Dependencies are listed from a module to the lower-level modules it may use.
-# Keeping the graph here makes a new source module an explicit architecture
-# decision instead of another special case in the scanner.
+# 依赖关系按模块列出，表示该模块可以使用的下层模块。
+# 将依赖图集中维护，可让新增源模块成为明确的架构决策，
+# 而不是在扫描器中再增加一个特殊分支。
 MODULE_DEPENDENCIES = {
     "core": frozenset(),
     "common": frozenset({"core"}),

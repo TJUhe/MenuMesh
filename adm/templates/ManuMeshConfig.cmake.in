@@ -39,13 +39,13 @@ function(manumesh_copy_runtime_dependencies target)
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
           ${MANUMESH_RUNTIME_DLLS}
           "$<TARGET_FILE_DIR:${target}>"
-        COMMENT "Copying ManuMesh and compiler runtime libraries next to ${target}"
+        COMMENT "正在将 ManuMesh 和编译器运行时库复制到 ${target} 旁边"
         COMMAND_EXPAND_LISTS
         VERBATIM
       )
     else()
       message(FATAL_ERROR
-        "No ManuMesh runtime DLLs were found in '${MANUMESH_RUNTIME_DIR}'."
+        "在 '${MANUMESH_RUNTIME_DIR}' 未找到 ManuMesh 运行时 DLL。"
       )
     endif()
   endif()

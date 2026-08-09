@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/CollapseTopology.h
- * @brief Declares collapse topology facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的折叠拓扑功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -27,7 +27,7 @@ using mesh_edit::containsVertex;
 using mesh_edit::DynamicTopology;
 
 /**
- * @brief Local incidence and positions needed to decide an open-boundary contraction.
+ * @brief 判定开放边界折叠所需的局部关联和位置数据。
  */
 struct BoundaryCollapseInput {
     CollapseEdge edge;
@@ -38,11 +38,11 @@ struct BoundaryCollapseInput {
 };
 
 /**
- * @brief Classifies and, when possible, constrains a boundary collapse.
+ * @brief 对边界折叠进行分类，并在可能时施加约束。
  */
 BoundaryCollapseDecision boundaryCollapseDecision(const BoundaryCollapseInput& input);
 
-/** @brief Returns sorted active one-ring neighbors of a vertex. */
+/** @brief 返回顶点活动一环邻居的升序列表。*/
 std::vector<int> activeNeighborsOf(
     int vertex,
     const std::vector<FaceState>& faces,
@@ -51,10 +51,7 @@ std::vector<int> activeNeighborsOf(
 );
 
 /**
- * @brief Checks the simplicial link condition link(keep) intersect link(remove) =
- * link(edge), including both vertices and edges in the endpoint links. The
- * boundary extension rejects interior chords whose endpoints are both on an
- * open boundary and collapses that would erase an isolated open triangle.
+ * @brief 检查单纯形链接条件 link(keep) ∩ link(remove) = link(edge)，同时包含端点链接中的顶点和边。边界扩展会拒绝两个端点都位于开放边界上的内部弦，并拒绝会删除孤立开放三角形的折叠。
  */
 bool collapseWouldPreserveLinkCondition(
     int keep,
@@ -64,4 +61,4 @@ bool collapseWouldPreserveLinkCondition(
     const DynamicTopology& topology
 );
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

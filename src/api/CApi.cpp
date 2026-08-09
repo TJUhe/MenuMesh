@@ -1,9 +1,9 @@
 /**
  * @file src/api/CApi.cpp
- * @brief Implements capi facilities for ManuMesh's C-ABI module.
+ * @brief 实现 ManuMesh 的C ABI 模块的C API功能。
  * @ingroup manumesh_c_api
  *
- * @details The C boundary validates pointers and capacities, translates failures to status codes, and never permits a C++ exception to cross the ABI.
+ * @details C 边界负责校验指针和容量，将失败转换为状态码，并且不允许 C++ 异常穿过 ABI。
  */
 
 #include "api/CApi.h"
@@ -28,19 +28,19 @@
 #define MANUMESH_VERSION "0.0.0"
 #endif
 
-/** @brief Opaque C API context that owns the latest diagnostic message. */
+/** @brief 保存最新诊断消息的不透明 C API 上下文。*/
 struct ManuMeshContext {
     std::string lastError;
 };
 
-/** @brief Opaque C API handle owning one mutable C++ Mesh value. */
+/** @brief 持有一个可变 C++ Mesh 值的不透明 C API 句柄。*/
 struct ManuMeshMeshHandle {
     manumesh::Mesh mesh;
 };
 
 namespace {
 
-/** @brief Exact first-release prefix used to accept older options structs. */
+/** @brief 用于兼容旧版选项结构的首发版本前缀布局。*/
 struct LegacyV1SimplifyOptionsLayout {
     std::size_t struct_size;
     unsigned int abi_version;
@@ -77,7 +77,7 @@ struct LegacyV1SimplifyOptionsLayout {
     ManuMeshFeatureProtectionMode feature_protection_mode;
 };
 
-/** @brief Exact first-release prefix used for bounded report writes. */
+/** @brief 用于有界写入简化报告的首发版本前缀布局。*/
 struct LegacyV1SimplifyReportLayout {
     std::size_t struct_size;
     unsigned int abi_version;
@@ -109,7 +109,7 @@ struct LegacyV1SimplifyReportLayout {
     double max_applied_line_weight;
 };
 
-/** @brief Exact first-release prefix used for bounded mesh-statistics writes. */
+/** @brief 用于有界写入网格统计的首发版本前缀布局。*/
 struct LegacyV1MeshStatsLayout {
     std::size_t struct_size;
     unsigned int abi_version;
@@ -160,9 +160,8 @@ void clearError(ManuMeshContext* context) {
 
 ManuMeshStatus fail(ManuMeshContext* context, ManuMeshStatus status, const std::string& message) {
     if (context) {
-        // The string assignment may allocate; never let an OOM (or any other)
-        // exception escape across the C ABI boundary. On failure, fall back to
-        // an empty message: clear() releases nothing and cannot throw.
+        // 字符串赋值可能分配内存；不得让内存不足或其他异常穿过 C ABI。
+        // 失败时回退为空消息；clear() 不释放资源且不会抛出异常。
         try {
             context->lastError = message;
         } catch (...) {
@@ -186,7 +185,7 @@ ManuMeshStatus translateUnknownException(ManuMeshContext* context) {
     return fail(context, MANUMESH_STATUS_ALGORITHM_ERROR, "Unknown C++ exception.");
 }
 
-} // namespace
+} // 命名空间
 
 extern "C" {
 
@@ -289,9 +288,8 @@ ManuMeshStatus manumesh_mesh_set_data(
             next.faces.push_back(face);
         }
         std::string error;
-        // Lenient validation at the ABI boundary: zero-area faces are
-        // tolerated (analysis and simplification handle them and report the
-        // count); only inputs no algorithm can process are rejected.
+        // C ABI 边界采用宽松校验：允许零面积面，由分析和简化阶段处理并报告数量；
+        // 仅拒绝任何算法都无法处理的输入。
         if (!manumesh::validateMeshGeometryLenient(next, &error)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, error.empty() ? "Mesh geometry is invalid." : error);
         }
@@ -311,7 +309,7 @@ ManuMeshStatus manumesh_mesh_get_counts(
     if (!mesh) {
         return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle must be valid.");
     }
-    // Either output may be null so callers can request just one count.
+    // 两个输出参数都允许为空，调用方可以只请求其中一个计数。
     if (!vertex_count && !face_count) {
         return fail(
             context, MANUMESH_STATUS_INVALID_ARGUMENT, "At least one of vertex_count or face_count must be valid."
@@ -570,4 +568,4 @@ manumesh_compute_mesh_stats(ManuMeshContext* context, const ManuMeshMeshHandle* 
     return manumesh_compute_mesh_stats_with_size(context, mesh, stats, kLegacyV1MeshStatsSize);
 }
 
-} // extern "C"
+} // C 链接块

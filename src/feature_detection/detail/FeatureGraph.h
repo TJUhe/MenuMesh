@@ -1,9 +1,10 @@
 /**
  * @file src/feature_detection/detail/FeatureGraph.h
- * @brief Declares feature graph facilities for ManuMesh's feature-detection module.
+ * @brief 声明 ManuMesh 特征检测模块的轨迹图操作功能。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
+ *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once
@@ -16,12 +17,12 @@
 namespace manumesh::feature::detector_detail {
 
 /**
- * @brief Copies candidate edges into the public graph and initializes vertex storage.
+ * @brief 将候选边复制到公共图，并初始化顶点存储。
  */
 void initializeFeatureGraph(const std::vector<CandidateEdge>& featureEdges, FeatureAnalysis& analysis);
 
 /**
- * @brief Builds deterministic adjacency and packed edge attributes for tracing.
+ * @brief 构建确定性的邻接表和紧凑边属性，供轨迹追踪使用。
  */
 TraceGraph buildTraceGraph(
     const Mesh& mesh,
@@ -31,15 +32,14 @@ TraceGraph buildTraceGraph(
 );
 
 /**
- * @brief Returns the attribute record for edge (a, b), or nullptr when the trace
- * graph does not contain that edge. Hot loops should fetch this once instead
- * of calling several single-attribute helpers.
+ * @brief 返回边 (a, b) 的属性记录；若轨迹图中不存在该边则返回 nullptr。
+ * 热点循环应一次取得该记录，避免多次调用单属性查询函数。
  */
 const TraceEdgeAttrs* traceEdgeAttrs(const TraceGraph& trace, int a, int b);
 
 /**
- * @name Typed trace-edge attribute queries
- * Return false/zero when the requested edge is absent.
+ * @name 轨迹边证据属性查询
+ * 边不存在时返回 false 或 0。
  * @{
  */
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b);
@@ -58,25 +58,25 @@ int traceEdgeCurvaturePersistentScales(const TraceGraph& trace, int a, int b);
  */
 
 /**
- * @return true when the undirected edge is active in the trace graph.
+ * @return 若无向边处于活动状态则返回 true。
  */
 bool traceGraphHasEdge(const TraceGraph& trace, int a, int b);
 /**
- * @brief Adds an edge and keeps adjacency/attributes/public diagnostics consistent.
+ * @brief 添加一条边，并保持邻接、属性和公共诊断信息一致。
  */
 void addTraceGraphEdge(TraceGraph& trace, FeatureAnalysis& analysis, const CandidateEdge& edge);
 /**
- * @brief Removes one active edge from adjacency and attributes.
+ * @brief 从邻接表和属性中移除一条活动边。
  */
 void removeTraceGraphEdge(TraceGraph& trace, int a, int b);
 /**
- * @brief Rebuilds the deterministic flat edge list from active attributes.
+ * @brief 根据当前活动属性重建确定性的扁平边列表。
  */
 void rebuildTraceGraphEdges(TraceGraph& trace);
 
 /**
- * @brief Recomputes public feature/junction markers after all graph mutations.
+ * @brief 在全部图变更后重新计算公共特征和分叉标记。
  */
 void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis);
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

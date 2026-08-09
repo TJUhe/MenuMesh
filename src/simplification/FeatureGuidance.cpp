@@ -1,13 +1,11 @@
 /**
  * @file src/simplification/FeatureGuidance.cpp
- * @brief Implements feature guidance facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的特征引导功能。
  * @ingroup manumesh_simplification
  *
- * @details Converts feature evidence into soft quadrics and queue-priority guidance.
- * @algorithm Component confidence scales point-to-tangent line quadrics. In
- * adaptive mode, Wang-style sensitivity is decoupled from placement quadrics
- * and applied only as a candidate-priority multiplier.
- * @invariants Soft guidance cannot bypass a hard feature policy.
+ * @details 将特征证据转换为软二次误差项和队列优先级引导。
+ * @algorithm 分量置信度用于缩放点到切线的直线二次误差项。在自适应模式下，Wang 风格的敏感度与放置二次误差解耦，仅作为候选优先级乘数使用。
+ * @invariants 软引导不能绕过硬性特征策略。
  */
 
 #include "detail/FeatureGuidance.h"
@@ -163,8 +161,7 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
             }
         }
         constraint.valid = constraint.valid && constraint.samples.size() >= 2;
-        // Long polylines get a one-time segment index so per-collapse
-        // closest-point queries drop from O(L) to O(log L).
+        // 对长折线只构建一次线段索引，使每次折叠的最近点查询从 O(L) 降为 O(log L)。
         if (constraint.valid && constraint.primitive == FeatureCurveKind::PolygonalLoop) {
             buildPolylineSegmentIndex(constraint);
         }
@@ -174,7 +171,7 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
     return guidance;
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 FeatureGuidance buildFeatureGuidance(const Mesh& mesh, const FeatureDetectionPolicy& policy) {
     return buildFeatureGuidance(mesh, policy, nullptr);
@@ -257,8 +254,7 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
         } else if (info.faces.size() == 2) {
             const Vec3& n0 = faceNormals[info.faces[0]];
             const Vec3& n1 = faceNormals[info.faces[1]];
-            // Degenerate (zero-area) faces have zero normals; their dot reads
-            // as a fake 90-degree crease. Skip the edge instead of scoring it.
+            // 退化（三角形面积为零）的面法向量为零，其点积会伪装成 90 度折痕。跳过该边，不对其评分。
             if (n0.squaredNorm() > 0.0 && n1.squaredNorm() > 0.0) {
                 const auto [a, b] = common::unpackMeshEdgeKey(key);
                 const double angle =
@@ -315,4 +311,4 @@ void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, Simplify
     report.ambiguousFeatureJunctions = summary.ambiguousFeatureJunctions;
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_external_tests.cpp
- * @brief Verifies feature detection external tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 外部测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -24,7 +24,7 @@ using manumesh::test::loadExternalStl;
 using manumesh::test::feature_detection::countClosedLoops;
 using manumesh::test::feature_detection::discreteOnlyOptions;
 
-} // namespace
+} // 命名空间
 
 TEST(FeatureDetection, LargeExternalThingi10kMeshProducesNontrivialFeatureGraph) {
     const Mesh mesh = loadExternalStl("thingi10k/thingi10k_105382_measuring_cup_with_handle_and_spout.stl");

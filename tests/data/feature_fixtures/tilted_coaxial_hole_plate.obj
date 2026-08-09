@@ -1,5 +1,5 @@
 # tilted_coaxial_hole_plate.obj
-# units: arbitrary; local circular faces are perpendicular to the tilted bore axis
+# 单位：任意；局部圆形面垂直于倾斜孔轴
 # axis=(0.324617227032,0.185495558304,0.92747779152)
 # outer_radius=1.8 hole_radius=0.5 half_thickness=0.65 segments=32
 v 0.211001197571 -1.64447310335 0.955869607737

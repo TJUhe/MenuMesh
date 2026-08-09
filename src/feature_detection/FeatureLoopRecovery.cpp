@@ -1,9 +1,10 @@
 /**
  * @file src/feature_detection/FeatureLoopRecovery.cpp
- * @brief Implements feature loop recovery facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征环恢复功能。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 本文件执行确定性的三角曲面特征环恢复流水线，将局部证据与图清理、
+ *          轨迹追踪及图元拟合阶段串联起来。
  */
 
 #include "detail/FeatureLoopRecovery.h"
@@ -25,4 +26,4 @@ void recoverFeatureLoops(
     recoverCircularVertexClusters(mesh, options, trace, analysis, loopId);
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

@@ -1,9 +1,9 @@
 /**
  * @file apps/CliOptionBinding.cpp
- * @brief Implements cli option binding facilities for the ManuMesh command-line application.
+ * @brief 实现 CLI 选项到特征检测和网格简化参数的绑定。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 所有数值选项通过统一解析器读取，开关选项映射为明确的布尔策略。
  */
 
 #include "CliOptionBinding.h"

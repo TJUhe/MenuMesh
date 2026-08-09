@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/feature_detection/FeatureTypes.h
- * @brief Declares feature types facilities for ManuMesh's feature-detection module.
+ * @brief 声明 ManuMesh 特征检测模块的特征类型设施。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 此文件属于确定性的三角表面特征管线。局部证据与图清理、追踪、基本体恢复和分区相互分离，使每个阶段都有明确契约。
  */
 
 #pragma once
@@ -15,10 +15,8 @@
 
 namespace manumesh::feature {
 
-/// Upper bounds accepted by validateFeatureOptions for iteration/scale
-/// parameters. The implementations never evaluate more rings, scales, or
-/// iterations than these limits, so out-of-range requests are rejected up
-/// front instead of being silently clamped.
+/// validateFeatureOptions 接受的迭代/尺度参数上限。实现不会计算超过这些上限的环数、尺度或迭代次数，
+/// 因此越界请求会立即拒绝，而不是静默截断。
 inline constexpr int kMaxNormalTensorSmoothingIterations = 8;
 inline constexpr int kMaxNormalTensorScaleCount = 8;
 inline constexpr int kMaxSmoothCurvatureBaseNeighborhoodRings = 4;
@@ -26,34 +24,32 @@ inline constexpr int kMaxSmoothCurvatureScaleCount = 6;
 inline constexpr int kMaxSmoothCurvatureRobustFitIterations = 4;
 inline constexpr int kMaxFeatureNormalFilterIterations = 16;
 
-/// Optional normal-domain preprocessing for noisy triangle meshes.
+/// 面向含噪三角网格的可选法向域预处理。
 ///
-/// The filter keeps the input topology and vertex positions unchanged. It
-/// alternates an edge indicator with area-weighted face-normal relaxation, so
-/// feature evidence can consume stabilized normals without silently replacing
-/// the caller's mesh.
+/// 过滤器保持输入拓扑和顶点位置不变。它交替计算边指标并按面积加权松弛面法向，
+/// 使特征证据可以使用稳定后的法向，而不会静默替换调用方的网格。
 struct FeatureNormalFilterOptions {
-    bool enabled = false;           ///< Enables preprocessing in the full detector.
-    int iterations = 4;             ///< Relaxation passes in [0, kMaxFeatureNormalFilterIterations].
-    double angleSigmaDeg = 20.0;    ///< Bilateral angular bandwidth in degrees.
-    double preserveAngleDeg = 50.0; ///< Discontinuities at or above this angle are frozen.
-    double relaxation = 0.8;        ///< Blend toward the compatible-neighbor mean in [0,1].
+    bool enabled = false;           ///< 在完整检测器中启用预处理。
+    int iterations = 4;             ///< 松弛次数，范围为 [0, kMaxFeatureNormalFilterIterations]。
+    double angleSigmaDeg = 20.0;    ///< 双边角度带宽，单位为度。
+    double preserveAngleDeg = 50.0; ///< 大于等于此角度的不连续处会被冻结。
+    double relaxation = 0.8;        ///< 向兼容邻域均值混合的比例，范围为 [0,1]。
 };
 
-/// Component-level recovery after local feature-graph cleanup.
+/// 局部特征图清理后的组件级恢复。
 struct FeatureGraphConsolidationOptions {
-    bool enabled = false;           ///< Enables component-level recovery after cleanup.
-    double maxGapLengthRatio = 3.0; ///< Maximum endpoint gap in local edge-length units.
-    double minAlignment = 0.75;     ///< Minimum absolute continuation-tangent dot product.
+    bool enabled = false;           ///< 启用清理后的组件级恢复。
+    double maxGapLengthRatio = 3.0; ///< 局部边长单位下允许的最大端点间隙。
+    double minAlignment = 0.75;     ///< 延续切线点积绝对值的最小值。
 };
 
-/// Optional face partition induced by active feature-graph edges.
+/// 由活动特征图边诱导的可选面分区。
 struct SurfacePatchOptions {
-    bool enabled = false;            ///< Enables face segmentation after graph recovery.
-    bool includeWeakEvidence = true; ///< Treat tensor/curvature-only edges as patch boundaries.
+    bool enabled = false;            ///< 在图恢复后启用面分割。
+    bool includeWeakEvidence = true; ///< 将仅由张量/曲率产生的边视为分区边界。
 };
 
-/// Fitted primitive type for one detected feature loop.
+/// 一个检测特征环的拟合基本体类型。
 enum class FeaturePrimitiveType {
     Unknown,
     Circle,
@@ -62,182 +58,164 @@ enum class FeaturePrimitiveType {
     PolygonalLoop,
 };
 
-/// Parameters for crease, boundary, and feature-loop detection.
+/// 折痕、边界和特征环检测参数。
 ///
-/// The detector is tuned for CAD/STL-style meshes first: explicit boundary and
-/// dihedral evidence form the feature graph, while tensor evidence is a
-/// secondary signal for weak creases. Thresholds should therefore be chosen
-/// against the mesh scale and provenance instead of reused blindly across
-/// scanned/noisy and clean CAD inputs.
+/// 检测器首先针对 CAD/STL 风格网格调校：显式边界和二面角证据构成特征图，张量证据作为弱折痕的次要信号。
+/// 因此应结合网格尺度和数据来源选择阈值，不应在扫描/含噪输入与干净 CAD 输入之间盲目复用。
 struct FeatureOptions {
-    /// Dihedral angle threshold for hard feature edges, in degrees.
+    /// 硬特征边的二面角阈值，单位为度。
     double featureAngleDeg = 40.0;
-    /// Dihedral angle used when tracing feature edges into loop ownership.
-    /// Negative means "reuse featureAngleDeg".
+    /// 将特征边追踪为环归属时使用的二面角。
+    /// 负值表示“复用 featureAngleDeg”。
     double loopTraceAngleDeg = -1.0;
-    /// Relative radial tolerance used when validating circular loops.
+    /// 校验圆环时使用的相对径向容差。
     double circleFitRelativeThreshold = 0.05;
-    /// Relative residual tolerance used when validating elliptical loops.
+    /// 校验椭圆环时使用的相对残差容差。
     double ellipseFitRelativeThreshold = 0.05;
-    /// Axis-ratio tolerance below which an ellipse is treated as near-circular.
+    /// 低于此轴比容差的椭圆视为近圆。
     double nearCircleAxisRatioTolerance = 0.08;
-    /// Minimum vertices required by recovered-cycle acceptance and primitive fitting.
-    /// Directly traced open chains and closed traces are still reported below this
-    /// threshold; they simply do not receive a primitive fit through that path.
+    /// 恢复环接受和基本体拟合所需的最少顶点数。
+    /// 直接追踪的开放链和闭合追踪结果即使低于此阈值仍会报告，只是不会通过该路径获得基本体拟合。
     int minFeatureLoopVertices = 8;
-    /// Enables tensor-derived weak feature candidates in addition to graph edges.
+    /// 除图边外，启用由张量推导的弱特征候选。
     bool useNormalTensorFeatures = true;
-    /// Minimum tensor saliency score for weak feature classification.
+    /// 弱特征分类所需的最小张量显著性分数。
     double normalTensorFeatureThreshold = 0.16;
-    /// Minimum edge/tangent alignment for accepting tensor-derived edge evidence.
+    /// 接受张量推导边证据所需的最小边/切线对齐度。
     double normalTensorMinEdgeAlignment = 0.45;
-    /// One-ring normal smoothing passes before tensor scoring.
-    /// Valid range: [0, kMaxNormalTensorSmoothingIterations].
+    /// 张量评分前的一环法向平滑次数。
+    /// 有效范围：[0, kMaxNormalTensorSmoothingIterations]。
     int normalTensorSmoothingIterations = 0;
-    /// Number of tensor scales sampled for weak feature scoring.
-    /// Valid range: [1, kMaxNormalTensorScaleCount].
+    /// 弱特征评分采样的张量尺度数量。
+    /// 有效范围：[1, kMaxNormalTensorScaleCount]。
     int normalTensorScaleCount = 1;
-    /// Minimum scales that must support a tensor edge candidate.
-    /// Valid range: [1, normalTensorScaleCount].
+    /// 支持张量边候选的最小尺度数量。
+    /// 有效范围：[1, normalTensorScaleCount]。
     int normalTensorMinPersistentScales = 1;
-    /// Enables deterministic smooth ridge/valley evidence from local quadric fits.
-    /// Kept opt-in because CAD/STL hard-feature and scanned/free-form regimes need
-    /// different thresholds and validation data.
+    /// 启用由局部 quadric 拟合得到的确定性平滑脊/谷证据。
+    /// 保持为可选功能，因为 CAD/STL 硬特征与扫描/自由曲面场景需要不同的阈值和校验数据。
     bool useSmoothCurvatureFeatures = false;
-    /// Minimum scale-normalized smooth-feature score.
+    /// 最小尺度归一化平滑特征分数。
     double smoothCurvatureFeatureThreshold = 0.015;
-    /// Minimum alignment between a mesh edge and the recovered curve tangent.
+    /// 网格边与恢复曲线切线之间的最小对齐度。
     double smoothCurvatureMinEdgeAlignment = 0.55;
-    /// Minimum cross-scale and endpoint tangent agreement.
+    /// 最小跨尺度及端点切线一致性。
     double smoothCurvatureMinTangentConsistency = 0.65;
-    /// Base topological radius used by local quadric fitting.
-    /// Valid range: [1, kMaxSmoothCurvatureBaseNeighborhoodRings].
+    /// 局部 quadric 拟合使用的基础拓扑半径。
+    /// 有效范围：[1, kMaxSmoothCurvatureBaseNeighborhoodRings]。
     int smoothCurvatureBaseNeighborhoodRings = 2;
-    /// Number of successively larger quadric-fit neighborhoods.
-    /// Valid range: [1, kMaxSmoothCurvatureScaleCount].
+    /// 逐步增大的 quadric 拟合邻域数量。
+    /// 有效范围：[1, kMaxSmoothCurvatureScaleCount]。
     int smoothCurvatureScaleCount = 3;
-    /// Minimum scales that must support a smooth feature candidate.
-    /// Valid range: [1, smoothCurvatureScaleCount].
+    /// 支持平滑特征候选的最小尺度数量。
+    /// 有效范围：[1, smoothCurvatureScaleCount]。
     int smoothCurvatureMinPersistentScales = 2;
-    /// Deterministic robust reweighting passes for local quadric fitting.
-    /// Valid range: [0, kMaxSmoothCurvatureRobustFitIterations].
+    /// 局部 quadric 拟合的确定性稳健重加权次数。
+    /// 有效范围：[0, kMaxSmoothCurvatureRobustFitIterations]。
     int smoothCurvatureRobustFitIterations = 2;
-    /// Selects the reference fit scale by cross-scale stability instead of raw
-    /// peak score alone.
+    /// 根据跨尺度稳定性而不是单独的原始峰值分数选择参考拟合尺度。
     bool smoothCurvatureUseStableScaleSelection = false;
-    /// Minimum accepted stability of the selected smooth-curvature scale.
+    /// 选定平滑曲率尺度可接受的最小稳定性。
     double smoothCurvatureMinScaleStability = 0.0;
-    /// Enables local feature-graph cleanup before loop recovery.
+    /// 在环恢复前启用局部特征图清理。
     bool cleanupFeatureGraph = true;
-    /// Maximum endpoint gap, in local average-edge-length units, bridged by cleanup.
+    /// 清理阶段可桥接的最大端点间隙，单位为局部平均边长。
     double featureGraphGapLengthRatio = 1.25;
-    /// Maximum weak-evidence (normal-tensor or smooth-curvature) spur length
-    /// removed by the legacy edge-count cleanup rule.
+    /// 旧版按边数清理规则会移除的最大弱证据（法向张量或平滑曲率）spur 长度。
     int featureGraphMaxWeakSpurEdges = 2;
-    /// Confidence threshold used when reporting high-confidence components.
+    /// 报告高置信度组件时使用的置信度阈值。
     double featureComponentMinConfidence = 0.35;
-    /// Dimensionless Yoshizawa-style strength threshold for weak spur removal.
+    /// 用于移除弱 spur 的无量纲 Yoshizawa 风格强度阈值。
     ///
-    /// When positive, a dangling weak-evidence chain is removed only when its
-    /// curve strength T = (integral ds) * (integral strength ds) stays below
-    /// this value, where ds is measured in local average-edge-length units and
-    /// the per-edge strength is the persistence score divided by the matching
-    /// channel threshold. Long-but-faint chains then survive while
-    /// short-but-strong noise spikes are pruned, and chains longer than
-    /// featureGraphMaxWeakSpurEdges also become prunable. The default 0 keeps
-    /// the legacy behavior of removing every weak spur with at most
-    /// featureGraphMaxWeakSpurEdges edges.
+    /// 当该值为正时，仅当悬挂弱证据链的曲线强度 T = (积分 ds) * (积分 strength ds) 低于该值时才移除。
+    /// 其中 ds 以局部平均边长为单位，每条边的强度为持久分数除以对应通道阈值。这样长但微弱的链会保留，
+    /// 短但强烈的噪声尖峰会被裁剪，且长度超过 featureGraphMaxWeakSpurEdges 的链也可被裁剪。
+    /// 默认值 0 保留旧行为：移除边数不超过 featureGraphMaxWeakSpurEdges 的所有弱 spur。
     double featureGraphMinWeakSpurStrength = 0.0;
 
-    /// Optional noisy-input preprocessing, component recovery, and face
-    /// segmentation stages. They are grouped to keep the main option surface
-    /// readable while preserving value semantics.
+    /// 可选的含噪输入预处理、组件恢复和面分割阶段。
+    /// 将它们分组可以保持主要选项界面可读，同时保留值语义。
     FeatureNormalFilterOptions normalFilter;
     FeatureGraphConsolidationOptions graphConsolidation;
     SurfacePatchOptions surfacePatches;
 };
 
-/// Diagnostics from one normal-domain preprocessing run.
+/// 一次法向域预处理运行的诊断信息。
 struct FeatureNormalFilterReport {
-    int iterationsCompleted = 0;       ///< Relaxation passes actually executed.
-    int changedFaces = 0;              ///< Faces whose output normal differs from the raw normal.
-    int preservedEdges = 0;            ///< Strong edges frozen by the preservation gate.
-    double meanAngularChangeDeg = 0.0; ///< Mean raw-to-filtered normal angle.
-    double maxAngularChangeDeg = 0.0;  ///< Maximum raw-to-filtered normal angle.
-    double meanEdgeIndicator = 0.0;    ///< Mean final bilateral edge indicator in [0,1].
+    int iterationsCompleted = 0;       ///< 实际执行的松弛次数。
+    int changedFaces = 0;              ///< 输出法向不同于原始法向的面数。
+    int preservedEdges = 0;            ///< 由保留门限冻结的强边数。
+    double meanAngularChangeDeg = 0.0; ///< 原始到过滤后法向夹角的平均值。
+    double maxAngularChangeDeg = 0.0;  ///< 原始到过滤后法向夹角的最大值。
+    double meanEdgeIndicator = 0.0;    ///< 最终双边边指标的平均值，范围为 [0,1]。
 };
 
-/// Filtered face normals plus quantitative preprocessing diagnostics.
+/// 过滤后的面法向及定量预处理诊断信息。
 struct FeatureNormalFilterResult {
     std::vector<Vec3> faceNormals;
     FeatureNormalFilterReport report;
 };
 
-/// Parameters for Tsuchie-Higashi style normal-tensor feature scoring.
+/// Tsuchie-Higashi 风格法向张量特征评分参数。
 struct NormalTensorOptions {
-    int smoothingIterations = 0; ///< Face-normal smoothing passes before tensor voting.
-    int scaleCount = 1;          ///< Number of increasing topological scales.
+    int smoothingIterations = 0; ///< 张量投票前的面法向平滑次数。
+    int scaleCount = 1;          ///< 逐步增大的拓扑尺度数量。
 };
 
-/// Per-vertex normal-tensor decomposition and feature saliency.
+/// 每个顶点的法向张量分解和特征显著性。
 struct NormalTensorVertex {
-    Vec3 normal = Vec3(0.0, 0.0, 1.0);        ///< Dominant tensor eigenvector.
-    Vec3 creaseTangent = Vec3(1.0, 0.0, 0.0); ///< Tangent inferred from the middle eigendirection.
-    double surfaceSaliency = 0.0;             ///< Locally planar support.
-    double creaseSaliency = 0.0;              ///< Curve-like normal variation.
-    double cornerSaliency = 0.0;              ///< Isotropic multi-directional variation.
-    double featureScore = 0.0;                ///< Strongest single-scale accepted feature score.
-    /// Mean of the per-scale feature scores over all sampled scales, whether
-    /// or not a scale supported the winning candidate (sum of every scale's
-    /// score divided by the scale count).
+    Vec3 normal = Vec3(0.0, 0.0, 1.0);        ///< 主导张量特征向量。
+    Vec3 creaseTangent = Vec3(1.0, 0.0, 0.0); ///< 从中间特征方向推断的切线。
+    double surfaceSaliency = 0.0;             ///< 局部平面支持度。
+    double creaseSaliency = 0.0;              ///< 类曲线法向变化。
+    double cornerSaliency = 0.0;              ///< 各向同性多方向变化。
+    double featureScore = 0.0;                ///< 接受的单尺度最大特征分数。
+    /// 所有采样尺度上的每尺度特征分数平均值，不论该尺度是否支持获胜候选
+    /// （所有尺度分数之和除以尺度数量）。
     double averageFeatureScore = 0.0;
-    double persistentFeatureScore = 0.0; ///< Score after cross-scale persistence gating.
-    double localScale = 0.0;             ///< Selected neighborhood radius in model units.
-    int persistentScales = 0;            ///< Number of supporting scales.
+    double persistentFeatureScore = 0.0; ///< 跨尺度持久性门限后的分数。
+    double localScale = 0.0;             ///< 选定邻域半径，单位为模型单位。
+    int persistentScales = 0;            ///< 提供支持的尺度数量。
 };
 
-/// Parameters for robust scale-normalized local quadric fitting.
+/// 稳健尺度归一化局部 quadric 拟合参数。
 struct SmoothCurvatureOptions {
-    int baseNeighborhoodRings = 2;        ///< Topological radius of the finest fit.
-    int scaleCount = 3;                   ///< Number of successively larger fits.
-    int robustFitIterations = 2;          ///< Deterministic residual-reweighting passes.
-    double minTangentConsistency = 0.65;  ///< Cross-scale absolute tangent-dot gate.
-    bool useStableScaleSelection = false; ///< Prefer stable scale support over peak raw score.
-    double minScaleStability = 0.0;       ///< Minimum accepted scale-stability score.
+    int baseNeighborhoodRings = 2;        ///< 最细拟合的拓扑半径。
+    int scaleCount = 3;                   ///< 逐步增大的拟合数量。
+    int robustFitIterations = 2;          ///< 确定性的残差重加权次数。
+    double minTangentConsistency = 0.65;  ///< 跨尺度切线点积绝对值门限。
+    bool useStableScaleSelection = false; ///< 相比原始峰值分数优先选择稳定尺度支持。
+    double minScaleStability = 0.0;       ///< 可接受的最小尺度稳定性分数。
 };
 
-/// Per-vertex smooth ridge/valley evidence from multiscale quadric fitting.
+/// 通过多尺度 quadric 拟合得到的每个顶点平滑脊/谷证据。
 ///
-/// Curvatures and scores are normalized by the fitted neighborhood radius, so
-/// thresholds remain stable under uniform mesh scaling.
+/// 曲率和分数按拟合邻域半径归一化，因此在网格统一缩放时阈值保持稳定。
 struct SmoothCurvatureVertex {
-    Vec3 normal = Vec3(0.0, 0.0, 1.0);            ///< Fitted Monge-frame surface normal.
-    Vec3 curveTangent = Vec3(1.0, 0.0, 0.0);      ///< Direction along the ridge/valley curve.
-    Vec3 extremumDirection = Vec3(0.0, 1.0, 0.0); ///< Principal direction across the curve.
-    double principalCurvature = 0.0;              ///< Signed curvature tested for an extremum.
-    double secondaryCurvature = 0.0;              ///< Signed orthogonal principal curvature.
-    double anisotropy = 0.0;                      ///< Dimensionless principal-curvature separation.
-    double extremumStrength = 0.0;                ///< Two-sided directional-extremum strength.
-    double featureScore = 0.0;                    ///< Strongest accepted scale-normalized score.
-    /// Mean over all sampled scales of the scores from scales that support
-    /// the winning candidate only (persistent sign and consistent tangent);
-    /// unsupported scales contribute zero. This intentionally differs from
-    /// NormalTensorVertex::averageFeatureScore, which averages every scale
-    /// unconditionally.
+    Vec3 normal = Vec3(0.0, 0.0, 1.0);            ///< 拟合 Monge 框架的曲面法向。
+    Vec3 curveTangent = Vec3(1.0, 0.0, 0.0);      ///< 沿脊/谷曲线的方向。
+    Vec3 extremumDirection = Vec3(0.0, 1.0, 0.0); ///< 跨曲线的主方向。
+    double principalCurvature = 0.0;              ///< 用于极值测试的带符号曲率。
+    double secondaryCurvature = 0.0;              ///< 带符号的正交主曲率。
+    double anisotropy = 0.0;                      ///< 无量纲主曲率分离度。
+    double extremumStrength = 0.0;                ///< 双侧方向极值强度。
+    double featureScore = 0.0;                    ///< 接受的最大尺度归一化分数。
+    /// 仅对支持获胜候选的尺度（符号持久且切线一致）取分数平均值；不支持尺度贡献为零。
+    /// 这有意区别于对每个尺度无条件取平均的 NormalTensorVertex::averageFeatureScore。
     double averageFeatureScore = 0.0;
-    double persistentFeatureScore = 0.0; ///< Score after sign/tangent persistence gating.
-    double fitResidual = 0.0;            ///< Normalized robust quadric residual.
-    double localScale = 0.0;             ///< Selected fit radius in model units.
-    int persistentScales = 0;            ///< Number of supporting scales.
-    int selectedScale = -1;              ///< Zero-based reference scale, or -1 when invalid.
-    double scaleStability = 0.0;         ///< Agreement of neighboring scale fits in [0,1].
-    /// Positive for a ridge, negative for a valley, zero when unclassified.
+    double persistentFeatureScore = 0.0; ///< 符号/切线持久性门限后的分数。
+    double fitResidual = 0.0;            ///< 归一化稳健 quadric 残差。
+    double localScale = 0.0;             ///< 选定拟合半径，单位为模型单位。
+    int persistentScales = 0;            ///< 提供支持的尺度数量。
+    int selectedScale = -1;              ///< 从零开始的参考尺度；无效时为 -1。
+    double scaleStability = 0.0;         ///< 相邻尺度拟合的一致性，范围为 [0,1]。
+    /// 正值表示脊，负值表示谷，零表示未分类。
     int signedKind = 0;
 };
 
-/// One connected feature curve or loop detected in the mesh.
+/// 网格中检测到的一条连通特征曲线或环。
 struct FeatureLoop {
-    /// @name Recovered topology and ownership
+    /// @name 恢复的拓扑和归属
     /// @{
     int id = -1;
     int componentId = -1;
@@ -251,8 +229,8 @@ struct FeatureLoop {
     double primitiveResidual = 0.0;
     /// @}
 
-    /// @name Primitive fit
-    /// Circle and near-circle use `radius`; ellipses use the major/minor pair.
+    /// @name 基本体拟合
+    /// 圆和近圆使用 `radius`；椭圆使用长轴/短轴参数对。
     /// @{
     FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
     Vec3 center = Vec3::Zero();
@@ -271,7 +249,7 @@ struct FeatureLoop {
     double maxPlaneError = 0.0;
     /// @}
 
-    /// @name Signed dihedral summary
+    /// @name 带符号二面角摘要
     /// @{
     int convexEdges = 0;
     int concaveEdges = 0;
@@ -279,9 +257,9 @@ struct FeatureLoop {
     /// @}
 };
 
-/// Per-vertex feature classification used by feature-preserving simplification.
+/// 面向特征保护简化使用的逐顶点特征分类。
 struct VertexFeature {
-    /// @name Ownership and graph role
+    /// @name 归属和图角色
     /// @{
     bool isFeature = false;
     bool circular = false;
@@ -294,14 +272,14 @@ struct VertexFeature {
     Vec3 tangent = Vec3::Zero();
     /// @}
 
-    /// @name Circle projection data
+    /// @name 圆投影数据
     /// @{
     Vec3 circleCenter = Vec3::Zero();
     Vec3 circleNormal = Vec3(0.0, 0.0, 1.0);
     double circleRadius = 0.0;
     /// @}
 
-    /// @name Ellipse projection data
+    /// @name 椭圆投影数据
     /// @{
     Vec3 ellipseCenter = Vec3::Zero();
     Vec3 ellipseNormal = Vec3(0.0, 0.0, 1.0);
@@ -312,7 +290,7 @@ struct VertexFeature {
     /// @}
 };
 
-/// One edge in the explicit feature graph.
+/// 显式特征图中的一条边。
 struct FeatureGraphEdge {
     int a = -1;
     int b = -1;
@@ -327,7 +305,7 @@ struct FeatureGraphEdge {
     int signedKind = 0;
 };
 
-/// One directed branch leaving a feature-graph vertex.
+/// 从特征图顶点离开的一条有向分支。
 struct FeatureGraphBranch {
     int edgeId = -1;
     int neighborVertex = -1;
@@ -335,18 +313,17 @@ struct FeatureGraphBranch {
     int signedKind = 0;
 };
 
-/// Best continuation pairing between two incident branches at a junction.
+/// 连接点处两条入射分支之间的最佳延续配对。
 struct FeatureGraphBranchPair {
     int firstBranch = -1;
     int secondBranch = -1;
     double alignment = 0.0;
 };
 
-/// Per-vertex ownership in the explicit feature graph.
+/// 显式特征图中的逐顶点归属。
 ///
-/// A vertex is a junction only when more than two active edges meet there (or
-/// when it is shared between loops); a vertex with exactly one active edge is
-/// a chain endpoint, not a junction.
+/// 只有当两个以上活动边在顶点处汇合（或顶点被多个环共享）时，顶点才是连接点；
+/// 恰好只有一条活动边的顶点是链端点，而不是连接点。
 struct FeatureGraphVertex {
     std::vector<int> incidentEdges;
     std::vector<int> loopIds;
@@ -358,7 +335,7 @@ struct FeatureGraphVertex {
     bool ambiguousJunction = false;
 };
 
-/// Explicit graph view of detected feature edges and recovered loops.
+/// 检测特征边和恢复环的显式图视图。
 struct FeatureGraph {
     std::vector<FeatureGraphEdge> edges;
     std::vector<FeatureGraphVertex> vertices;
@@ -367,11 +344,10 @@ struct FeatureGraph {
     std::vector<int> endpointVertices;
 };
 
-/// One connected feature-graph component after trace cleanup.
+/// 追踪清理后的一个连通特征图组件。
 ///
-/// These diagnostics make weak-feature decisions explicit: downstream
-/// simplification can distinguish a closed, strongly supported CAD loop from a
-/// sparse, weak-evidence ridge fragment even when both produce feature vertices.
+/// 这些诊断信息显式表达弱特征决策：即使两者都产生特征顶点，下游简化仍可区分闭合且有强支持的 CAD 环
+/// 与稀疏的弱证据脊片段。
 struct FeatureComponent {
     int id = -1;
     std::vector<int> vertices;
@@ -397,7 +373,7 @@ struct FeatureComponent {
     double confidence = 0.0;
 };
 
-/// One connected face region separated by active feature edges.
+/// 由活动特征边分隔的一个连通面区域。
 struct FeaturePatch {
     int id = -1;
     int faceCount = 0;
@@ -410,22 +386,20 @@ struct FeaturePatch {
     std::vector<int> neighboringPatches;
 };
 
-/// Feature-edge adjacency between two surface patches.
+/// 两个曲面分区之间的特征边邻接关系。
 struct FeaturePatchAdjacency {
     int firstPatch = -1;
     int secondPatch = -1;
     int featureEdges = 0;
 };
 
-/// Full feature-detection result for a mesh.
+/// 网格的完整特征检测结果。
 ///
-/// Counts distinguish the evidence source used to build the explicit graph.
-/// Downstream algorithms should prefer `loops` and `vertices` for feature
-/// ownership, and use the counters for diagnostics and policy validation.
+/// 计数区分构建显式图时使用的证据来源。下游算法应优先使用 `loops` 和 `vertices` 获取特征归属，
+/// 并使用计数进行诊断和策略校验。
 ///
-/// `featureEdges` counts evidence edges only. Bridge edges synthesized by
-/// graph cleanup are appended to `graph.edges` (flagged `cleanupBridge`) but
-/// are not evidence, so `graph.edges.size()` can exceed `featureEdges`.
+/// `featureEdges` 只统计证据边。图清理合成的桥接边会追加到 `graph.edges`（标记为 `cleanupBridge`），
+/// 但不属于证据，因此 `graph.edges.size()` 可能大于 `featureEdges`。
 struct FeatureAnalysis {
     std::vector<VertexFeature> vertices;
     std::vector<FeatureLoop> loops;
@@ -460,17 +434,14 @@ struct FeatureAnalysis {
     double meanSmoothCurvatureScaleStability = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
-    /// Interior edges whose two faces disagree on winding order; dihedral
-    /// scoring falls back to the unsigned normal angle for these edges.
+    /// 两个面绕序不一致的内部边；对这些边，二面角评分回退到无符号法向夹角。
     int inconsistentWindingEdges = 0;
-    /// Cleanup passes skipped because an endpoint/junction hard cap was hit.
+    /// 因达到端点/连接点硬上限而跳过的清理轮数。
     int graphCleanupSkippedByCap = 0;
-    /// Circular-cluster recovery components whose triplet scan was truncated.
+    /// 三元组扫描被截断的圆簇恢复组件数。
     int circularRecoveryTruncated = 0;
-    /// Input faces tolerated as degenerate (repeated vertex position or
-    /// numerically zero area). Their normals are unusable, so per-face
-    /// evidence skips their contribution; the count makes that degradation
-    /// visible instead of silently absorbing dirty input.
+    /// 被容忍为退化的输入面（顶点位置重复或数值上面积为零）。其法向不可用，因此逐面证据会跳过贡献；
+    /// 该计数使降级情况可见，而不是静默吸收脏输入。
     int degenerateFaces = 0;
     FeatureNormalFilterReport normalFilter;
     int graphConsolidationBridges = 0;
@@ -484,23 +455,23 @@ struct FeatureAnalysis {
     int segmentationIgnoredRecoveryEdges = 0;
 };
 
-/// Ground-truth continuation at one labeled feature junction.
+/// 一个带标签特征连接点处的真实延续关系。
 struct FeatureBranchPairLabel {
     int junctionVertex = -1;
     int firstNeighbor = -1;
     int secondNeighbor = -1;
 };
 
-/// Extensible labels for edge, junction, branch, and face-patch benchmarks.
+/// 面向边、连接点、分支和面分区基准测试的可扩展标签。
 struct FeatureBenchmarkLabels {
     std::vector<std::pair<int, int>> edges;
     std::vector<int> junctionVertices;
     std::vector<FeatureBranchPairLabel> branchPairs;
-    /// Per-face ground-truth patch id; negative values are unlabeled.
+    /// 每个面的真实分区 ID；负值表示未标注。
     std::vector<int> facePatchIds;
 };
 
-/// Edge-label benchmark summary for one detected feature graph.
+/// 一个检测特征图的边标签基准摘要。
 struct FeatureEdgeBenchmark {
     int groundTruthEdges = 0;
     int detectedEdges = 0;
@@ -533,7 +504,7 @@ struct FeatureEdgeBenchmark {
     double patchAdjacencyAccuracy = 0.0;
 };
 
-/// Error of a detected loop against a circular reference curve.
+/// 检测环相对于圆形参考曲线的误差。
 struct DirectionalCurveError {
     int samples = 0;
     double radialRms = 0.0;

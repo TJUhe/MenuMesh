@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/common/spatial_index_tests.cpp
- * @brief Verifies spatial index tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的空间索引测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "../../../src/common/detail/SpatialIndex.h"
@@ -18,7 +18,7 @@ bool containsItem(const std::vector<int>& items, int itemId) {
     return std::find(items.begin(), items.end(), itemId) != items.end();
 }
 
-} // namespace
+} // 命名空间
 
 TEST(ManuMesh, UniformAabbCandidateGridQueriesOverlappingItems) {
     manumesh::common::UniformAabbCandidateGrid grid;

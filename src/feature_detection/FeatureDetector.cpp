@@ -1,16 +1,12 @@
 /**
  * @file src/feature_detection/FeatureDetector.cpp
- * @brief Implements feature detector facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征检测器功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Orchestrates one complete feature-analysis run and owns the public
- * option-validation boundary.
- * @algorithm The pipeline validates input, builds one shared geometry cache,
- * collects evidence, initializes and cleans the trace graph, performs optional
- * consolidation, traces/reconstructs loops, fits primitives, summarizes
- * components and junction branches, then optionally segments surface patches.
- * @invariants Every stage consumes the same immutable mesh and cached normal,
- * adjacency, and local-scale arrays; loop ids are allocated monotonically.
+ * @details 负责编排一次完整的特征分析，并在公共入口处统一校验选项和网格。
+ * @algorithm 依次校验输入、构建共享几何缓存、收集边证据、初始化并清理轨迹图，
+ *            可选合并相邻分量，然后恢复特征环、汇总分量与分支，最后按需分割曲面面片。
+ * @invariants 所有阶段使用同一份只读网格及法向、邻接和局部尺度缓存；特征环 ID 单调递增。
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -44,16 +40,16 @@ using detector_detail::FeatureAnalysisBuilder;
 using detector_detail::FeatureDetectionCache;
 using detector_detail::TraceGraph;
 
-/** @brief Shared immutable inputs and mutable products for one pipeline run. */
+/** @brief 一次流水线运行所需的共享输入、缓存和中间结果。 */
 struct FeatureDetectionContext {
-    /** @brief Initializes caches and result storage for one mesh analysis. */
+    /** @brief 绑定网格和选项，并初始化检测缓存与分析构建器。 */
     FeatureDetectionContext(const Mesh& inputMesh, const FeatureOptions& inputOptions)
         : mesh(inputMesh),
           options(inputOptions),
           cache(inputMesh, inputOptions.normalFilter),
           builder(static_cast<int>(inputMesh.vertices.size())) {}
 
-    /** @brief Returns the analysis accumulator shared by all stages. */
+    /** @brief 返回所有阶段共享的分析累加器。 */
     FeatureAnalysis& analysis() { return builder.analysis(); }
 
     const Mesh& mesh;
@@ -176,10 +172,10 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
 
 void validateFeatureInput(const Mesh& mesh) { detector_detail::validateFeatureMeshInput(mesh); }
 
-/** @brief Collects boundary, dihedral, tensor, and curvature edge evidence. */
+/** @brief 收集边界、二面角、法向张量和曲率等边证据。 */
 class EdgeEvidenceStage {
 public:
-    /** @brief Populates candidate edges and evidence diagnostics. */
+    /** @brief 生成候选边，并更新证据统计信息。 */
     void run(FeatureDetectionContext& context) const {
         context.featureEdges =
             detector_detail::collectFeatureEdges(context.mesh, context.options, context.cache, context.builder);
@@ -187,22 +183,18 @@ public:
 };
 
 /**
- * @brief Downgrades evidence that depends on unusable face normals.
+ * @brief 降级依赖无效面法向的证据通道。
  *
- * Zero-area faces are tolerated by the lenient input validation, but their
- * normals are zero vectors, so any dihedral angle computed against them is
- * meaningless (the zero dot product reads as a 90-degree pseudo-crease).
- * This stage strips dihedral evidence from every interior edge incident to
- * a degenerate face and drops candidates left without any evidence, keeping
- * the analysis counters consistent. Normal-tensor and smooth-curvature
- * scoring already skip degenerate faces during accumulation, and boundary /
- * non-manifold evidence is purely topological, so only the dihedral channel
- * needs the downgrade. The tolerated faces stay visible through
- * FeatureAnalysis::degenerateFaces.
+ * 宽松输入校验允许零面积三角形存在，但其法向量为零，无法用于二面角计算；
+ * 若直接参与点积，会被误判为 90 度的伪折痕。本阶段移除所有与退化面相邻
+ * 内部边的二面角证据，并删除失去其他证据的候选边，同时保持分析计数一致。
+ * 法向张量和光顺曲率在累加时已跳过退化面；边界与非流形证据只依赖拓扑，
+ * 因此仅需降级二面角通道。被容忍的退化面数量仍记录在
+ * FeatureAnalysis::degenerateFaces 中。
  */
 class DegenerateEvidenceFilterStage {
 public:
-    /** @brief Removes normal-dependent evidence incident to degenerate faces. */
+    /** @brief 移除与退化面相邻、依赖法向的边证据。 */
     void run(FeatureDetectionContext& context) const {
         if (context.analysis().degenerateFaces == 0) {
             return;
@@ -210,7 +202,7 @@ public:
         std::vector<char> degenerateFace(context.mesh.faces.size(), 0);
         const std::vector<Vec3>& faceNormals = context.cache.faceNormals();
         for (std::size_t faceIndex = 0; faceIndex < faceNormals.size(); ++faceIndex) {
-            // triangleNormal returns the exact zero vector for degenerate faces.
+            // triangleNormal 对退化面返回精确的零向量。
             if (faceNormals[faceIndex].squaredNorm() <= 0.0) {
                 degenerateFace[faceIndex] = 1;
             }
@@ -256,10 +248,10 @@ public:
     }
 };
 
-/** @brief Initializes vertex markers and builds the first trace graph. */
+/** @brief 初始化顶点标记，并构建第一版特征轨迹图。 */
 class FeatureGraphStage {
 public:
-    /** @brief Converts accepted evidence edges into graph storage. */
+    /** @brief 将已接受的证据边写入图存储。 */
     void run(FeatureDetectionContext& context) const {
         detector_detail::initializeFeatureGraph(context.featureEdges, context.analysis());
         context.trace =
@@ -267,10 +259,10 @@ public:
     }
 };
 
-/** @brief Applies spur pruning and compatible short-gap cleanup. */
+/** @brief 按选项清理弱毛刺，并桥接兼容的短间隙。 */
 class FeatureGraphCleanupStage {
 public:
-    /** @brief Cleans the trace graph according to graph-cleanup options. */
+    /** @brief 根据图清理策略修改轨迹图。 */
     void run(FeatureDetectionContext& context) const {
         detector_detail::cleanupTraceGraph(
             context.mesh, context.options, context.cache, context.trace, context.analysis()
@@ -278,10 +270,10 @@ public:
     }
 };
 
-/** @brief Consolidates compatible components separated by supported gaps. */
+/** @brief 合并由可支持短间隙分隔、且证据兼容的图分量。 */
 class FeatureGraphConsolidationStage {
 public:
-    /** @brief Adds accepted consolidation bridges and updates diagnostics. */
+    /** @brief 添加被接受的合并桥，并更新诊断计数。 */
     void run(FeatureDetectionContext& context) const {
         detector_detail::consolidateFeatureGraph(
             context.mesh, context.options, context.cache, context.trace, context.analysis()
@@ -289,10 +281,10 @@ public:
     }
 };
 
-/** @brief Traces graph chains and recovers supported closed feature loops. */
+/** @brief 追踪图链并恢复符合条件的闭合特征环。 */
 class LoopRecoveryStage {
 public:
-    /** @brief Appends recovered loops using monotonically allocated ids. */
+    /** @brief 使用单调递增 ID 追加恢复出的特征环。 */
     void run(FeatureDetectionContext& context) const {
         detector_detail::recoverFeatureLoops(
             context.mesh, context.options, context.trace, context.analysis(), context.builder.nextLoopId()
@@ -300,28 +292,28 @@ public:
     }
 };
 
-/** @brief Computes connected-component and junction continuation summaries. */
+/** @brief 计算连通分量及分叉延续统计信息。 */
 class FeatureComponentSummaryStage {
 public:
-    /** @brief Writes component confidence and branch-pair diagnostics. */
+    /** @brief 写入分量置信度和分支配对诊断信息。 */
     void run(FeatureDetectionContext& context) const {
         detector_detail::summarizeFeatureComponents(context.mesh, context.options, context.trace, context.analysis());
     }
 };
 
-/** @brief Finalizes per-vertex graph markers after loop and component recovery. */
+/** @brief 在环和分量恢复后完成每个顶点的图标记。 */
 class FeatureGraphFinalizeStage {
 public:
-    /** @brief Synchronizes public vertex records with finalized graph state. */
+    /** @brief 使公共顶点记录与最终图状态保持同步。 */
     void run(FeatureDetectionContext& context) const {
         detector_detail::finalizeFeatureGraphMarkers(context.mesh, context.analysis());
     }
 };
 
-/** @brief Optionally partitions the surface into feature-bounded patches. */
+/** @brief 可选地将曲面划分为由特征边界限定的面片。 */
 class FeatureSegmentationStage {
 public:
-    /** @brief Builds patches when surface-patch analysis is enabled. */
+    /** @brief 启用面片分析时构建曲面面片。 */
     void run(FeatureDetectionContext& context) const {
         if (context.options.surfacePatches.enabled) {
             detector_detail::buildFeaturePatches(context.mesh, context.analysis(), context.options.surfacePatches);
@@ -329,23 +321,22 @@ public:
     }
 };
 
-/** @brief Ordered coordinator for all feature-detection stages. */
+/** @brief 按固定顺序协调全部特征检测阶段。 */
 class FeatureDetectionPipeline {
 public:
     /**
-     * @brief Validates input and executes one complete deterministic analysis.
-     * @param[in] mesh Triangle surface to analyze.
-     * @param[in] options Detection and recovery policy.
-     * @return Completed feature analysis.
+     * @brief 校验输入并执行一次完整、确定性的特征分析。
+     * @param[in] mesh 待分析的三角形曲面。
+     * @param[in] options 特征检测与恢复策略。
+     * @return 已完成的特征分析结果。
      */
     FeatureAnalysis run(const Mesh& mesh, const FeatureOptions& options) const {
         validateFeatureOptionsImpl(options);
         validateFeatureInput(mesh);
 
         FeatureDetectionContext context(mesh, options);
-        // Degenerate (zero-area) faces are tolerated by the lenient input
-        // validation; their normals are unusable, so evidence stages skip
-        // them. Surface the count so callers see the degraded coverage.
+        // 宽松校验允许零面积面存在；其法向不可用，证据阶段会跳过这些面。
+        // 将退化面数量公开给调用方，以便识别覆盖范围受限的分析结果。
         context.analysis().degenerateFaces = countDegenerateFaces(mesh);
         if (mesh.empty()) {
             return context.builder.build();
@@ -358,6 +349,7 @@ public:
         consolidation_.run(context);
         MANUMESH_DEBUG_UTIL_FEATURES("05_consolidation" , mesh , context.analysis());
         loopRecovery_.run(context);
+        MANUMESH_DEBUG_UTIL_FEATURES("06_consolidation" , mesh , context.analysis());
         componentSummary_.run(context);
         finalize_.run(context);
         segmentation_.run(context);
@@ -376,11 +368,11 @@ private:
     FeatureSegmentationStage segmentation_;
 };
 
-} // namespace
+} // 匿名命名空间
 
 void validateFeatureOptions(const FeatureOptions& options) { validateFeatureOptionsImpl(options); }
 
-/** @brief Private option storage for the public FeatureDetector value type. */
+/** @brief 公共 FeatureDetector 值类型使用的私有选项存储。 */
 struct FeatureDetector::Impl {
     FeatureOptions options;
 };
@@ -429,7 +421,6 @@ void FeatureDetector::setOptions(FeatureOptions options) {
 FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const { return detectFeatureCurves(mesh, options()); }
 
 FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options) {
-    MANUMESH_DEBUG_UTIL_WIREFRAME("03_graph" , mesh);
     return FeatureDetectionPipeline{}.run(mesh, options);
 }
 
@@ -480,4 +471,4 @@ std::string toString(FeaturePrimitiveType primitive) {
     return "unknown";
 }
 
-} // namespace manumesh::feature
+} // 命名空间 manumesh::feature

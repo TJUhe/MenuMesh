@@ -1,9 +1,9 @@
 /**
  * @file apps/ManuMeshFeatureCommands.cpp
- * @brief Implements manu mesh feature commands facilities for the ManuMesh command-line application.
+ * @brief 实现特征报告、基准测试和结果比较 CLI 命令。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 命令负责读取网格和标签、调用特征检测接口并输出文本或 CSV 报告。
  */
 
 #include "ManuMeshFeatureCommands.h"

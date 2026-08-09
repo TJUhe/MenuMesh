@@ -1,9 +1,9 @@
 /**
  * @file apps/ManuMeshCommands.cpp
- * @brief Implements manu mesh commands facilities for the ManuMesh command-line application.
+ * @brief 实现生成、简化、比较和批量扫描等 CLI 命令。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 命令层负责文件路径、参数组合、统计输出和 CSV 结果编排。
  */
 
 #include "CliArguments.h"
@@ -558,7 +558,7 @@ const std::map<std::string, manumesh::cli::CommandHandler>& registeredCommands()
     return commands;
 }
 
-} // namespace
+} // 命名空间
 
 namespace manumesh::cli {
 

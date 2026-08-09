@@ -1,14 +1,11 @@
 /**
  * @file src/simplification/QualityRefinement.cpp
- * @brief Implements quality refinement facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的质量细化功能。
  * @ingroup manumesh_simplification
  *
- * @details Performs optional fixed-topology tangential quality improvement after collapse.
- * @algorithm Proposes area-weighted tangential vertex relocation and uses
- * backtracking line search. A move is accepted only if local worst quality
- * improves, mean quality does not regress, and boundary, feature, normal,
- * error-envelope, and self-intersection constraints remain satisfied.
- * @invariants Connectivity and protected feature ownership never change.
+ * @details 在折叠完成后，可选地执行固定拓扑的切向质量改进。
+ * @algorithm 提出按面积加权的切向顶点移动，并使用回溯线搜索。只有当局部最差质量得到改善、平均质量不下降，且边界、特征、法向、误差包络和自交约束仍满足时才接受移动。
+ * @invariants 连通性和受保护的特征归属始终不变。
  */
 
 #include "detail/QualityRefinement.h"
@@ -25,7 +22,7 @@
 namespace manumesh::simplification {
 namespace {
 
-/** @brief Incident triangle snapshot used to evaluate one vertex relocation. */
+/** @brief 用于评估一次顶点移动的相邻三角形快照。*/
 struct LocalTriangle {
     int faceId = -1;
     std::array<int, 3> ids{};
@@ -123,10 +120,7 @@ bool createsLocalIntersection(
     if (!input.options.preventLocalIntersections) {
         return false;
     }
-    // Same dimension chain as CollapseLegality::checkLocalIntersections:
-    // trianglesIntersect takes a RELATIVE tolerance normalized by the local
-    // triangle scale, and the spatial query window is padded by the matching
-    // length-dimension slack.
+    // 与 CollapseLegality::checkLocalIntersections 使用相同的维度链：trianglesIntersect 接受按局部三角形尺度归一化的相对容差，空间查询窗口则扩展相应的长度维松弛量。
     constexpr double kRelativeIntersectionEps = 1e-9;
 
     for (std::size_t i = 0; i < newTriangles.size(); ++i) {
@@ -242,11 +236,7 @@ Vec3 tangentialCentroidCandidate(int vertex, const QualityRefinementInput& input
 }
 
 /**
- * @brief Local curve tangent for a soft-protected feature vertex: the finite
- * difference of its two same-loop neighbors in the current mesh. Returns
- * false for endpoints, junction-like configurations (neighbor count != 2),
- * and degenerate spans. Neighbors come from activeNeighborsOf, which sorts
- * ascending, so the difference order is deterministic.
+ * @brief 软保护特征顶点的局部曲线切线：取当前网格中同一环的两个邻居之差。对于端点、类似连接点的配置（邻居数不等于 2）和退化跨度返回 false。邻居由 activeNeighborsOf 提供并按升序排列，因此差分方向具有确定性。
  */
 bool localFeatureCurveTangent(int vertex, const QualityRefinementInput& input, Vec3& outTangent) {
     const VertexState& state = input.vertices[vertex];
@@ -282,12 +272,7 @@ bool localFeatureCurveTangent(int vertex, const QualityRefinementInput& input, V
 }
 
 /**
- * @brief Relaxation displacement for one vertex with the feature constraint tier
- * applied (see skill note on remeshing constraints): free vertices move in
- * the tangent plane, soft-protected feature-curve vertices are restricted
- * to the one-dimensional local curve tangent so repeated refinement passes
- * can only slide along the crease instead of rounding it, and junction or
- * endpoint feature vertices stay frozen (zero displacement).
+ * @brief 应用特征约束层级后的单顶点松弛位移（参见重网格约束说明）：自由顶点在切平面内移动；软保护的特征曲线顶点被限制在局部一维曲线切线上，使重复细化只能沿折痕滑动而不会将其磨圆；连接点或特征端点保持冻结（位移为零）。
  */
 Vec3 refinementDisplacement(int vertex, const QualityRefinementInput& input) {
     const VertexState& state = input.vertices[vertex];
@@ -322,8 +307,7 @@ bool tryRefineVertex(int vertex, const Vec3& displacement, const QualityRefineme
     constexpr std::array<double, 5> kLineSearch = {1.0, 0.5, 0.25, 0.125, 0.0625};
     for (double alpha : kLineSearch) {
         const Vec3 candidate = oldPosition + alpha * displacement;
-        // Soft feature vertices stay movable, but each relocation must respect
-        // the same curve-deviation budget as collapse placements.
+        // 软特征顶点仍可移动，但每次移动都必须遵守与折叠放置相同的曲线偏差预算。
         if (featureVertex && !featureCurveBudgetAllows(
                                  input.vertices[vertex],
                                  input.vertices[vertex],
@@ -358,7 +342,7 @@ bool tryRefineVertex(int vertex, const Vec3& displacement, const QualityRefineme
     return false;
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& report) {
     for (int iteration = 0; iteration < input.options.qualityRefinementIterations; ++iteration) {
@@ -386,4 +370,4 @@ void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& r
     }
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

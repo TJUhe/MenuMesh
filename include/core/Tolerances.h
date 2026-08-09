@@ -1,38 +1,34 @@
 /**
  * @file include/core/Tolerances.h
- * @brief Declares tolerances facilities for ManuMesh's core-mesh module.
+ * @brief 声明 ManuMesh 核心网格模块的容差设施。
  * @ingroup manumesh_core
  *
- * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
  */
 
 #pragma once
 
 namespace manumesh {
 
-/// Shared degeneracy tolerances in model units.
+/// 模型单位下共享的退化容差。
 ///
-/// All triangle-degeneracy tests derive from one canonical minimum area so
-/// validation, normal computation, distance indexing, and quality metrics
-/// classify the same triangles as degenerate. The unified value keeps the
-/// most conservative of the previously scattered thresholds: any triangle
-/// rejected by one of the old checks is still rejected here.
+/// 所有三角形退化测试都从同一个规范最小面积派生，因此校验、法向计算、
+/// 距离索引和质量指标会将相同的三角形判定为退化。统一值采用此前分散阈值
+/// 中最保守的一个：旧检查拒绝的任何三角形在此处仍会被拒绝。
 
-/// Minimum triangle area (units: length^2). Triangles at or below this area
-/// are treated as degenerate.
+/// 最小三角形面积（单位：length^2）。面积小于等于此值的三角形视为退化。
 inline constexpr double kMinTriangleArea = 1e-24;
 
-/// Minimum length of an unnormalized triangle normal, i.e. the cross-product
-/// magnitude, which equals twice the triangle area (units: length^2).
+/// 未归一化三角形法向量的最小长度，即叉积的模；它等于三角形面积的两倍
+/// （单位：length^2）。
 inline constexpr double kMinNormalLength = 2.0 * kMinTriangleArea;
 
-/// Minimum squared length of an unnormalized triangle normal
-/// (units: length^4). Equals kMinNormalLength squared.
+/// 未归一化三角形法向量的最小长度平方（单位：length^4）。
+/// 等于 kMinNormalLength 的平方。
 inline constexpr double kMinSquaredNormalLength = kMinNormalLength * kMinNormalLength;
 
-/// Minimum sum of squared triangle edge lengths (units: length^2) below which
-/// shape-quality ratios are reported as zero. Kept equal to kMinNormalLength
-/// so all degeneracy tests share one scale.
+/// 三角形边长平方和的最小值（单位：length^2）；低于该值时形状质量比报告为零。
+/// 保持其等于 kMinNormalLength，使所有退化测试共享同一尺度。
 inline constexpr double kMinSquaredEdgeLengthSum = kMinNormalLength;
 
-} // namespace manumesh
+} // 命名空间 manumesh

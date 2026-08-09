@@ -1,13 +1,11 @@
 /**
  * @file src/mesh_edit/MeshCompaction.cpp
- * @brief Implements mesh compaction facilities for ManuMesh's mesh-editing module.
+ * @brief 实现 ManuMesh 的网格编辑模块的网格压缩功能。
  * @ingroup manumesh_mesh_edit
  *
- * @details Converts stable-index edit state back to a dense public Mesh.
- * @algorithm Active, index-valid faces are accepted in face order; vertices
- * receive dense indices on first use and aligned texture coordinates follow
- * surviving faces.
- * @invariants Every output vertex is referenced and every output face index is valid.
+ * @details 将保持稳定索引的编辑状态转换回稠密的公共 Mesh。
+ * @algorithm 按面顺序接受仍处于活动状态且索引有效的面；顶点按首次被接受面引用的顺序分配稠密索引，并同步保留对应的纹理坐标。
+ * @invariants 每个输出顶点都被引用，且每个输出面索引都有效。
  */
 
 #include "mesh_edit/detail/MeshCompaction.h"
@@ -56,4 +54,4 @@ MeshCompactionResult compactActiveMesh(
     return result;
 }
 
-} // namespace manumesh::mesh_edit
+} // 结束 manumesh::mesh_edit 命名空间

@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/QemParameterTestSupport.h
- * @brief Verifies qem parameter test support behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的QEM 参数 测试支持行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once
@@ -25,4 +25,4 @@ inline std::vector<feature::FeatureLoop> innerEllipseLoops(const feature::Featur
     return loops;
 }
 
-} // namespace manumesh::test::qem_parameters
+} // 命名空间

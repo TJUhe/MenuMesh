@@ -1,9 +1,9 @@
 /**
  * @file apps/CliCommands.h
- * @brief Declares cli commands facilities for the ManuMesh command-line application.
+ * @brief 声明命令注册表及其处理函数类型。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 注册表由帮助文本和命令分发逻辑共享，确保两者使用同一命令集合。
  */
 
 #pragma once
@@ -15,9 +15,9 @@
 
 namespace manumesh::cli {
 
-using CommandHandler = int (*)(const Args&); ///< Process-style command callback.
+using CommandHandler = int (*)(const Args&); ///< 处理一组已解析参数并返回进程退出码。
 
-/// @return Stable command-name to handler registry used by help and dispatch.
+/// @return 用于帮助文本和分发的稳定命令名到处理函数映射。
 const std::map<std::string, CommandHandler>& commandRegistry();
 
-} // namespace manumesh::cli
+} // 命令行命名空间

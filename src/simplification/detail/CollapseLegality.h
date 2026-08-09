@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/CollapseLegality.h
- * @brief Declares collapse legality facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的折叠合法性功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -18,7 +18,7 @@
 namespace manumesh::simplification {
 
 /**
- * @brief Read-only active vertex/face/topology view used by legality predicates.
+ * @brief 供合法性谓词使用的只读活动顶点、面和拓扑视图。
  */
 struct MeshStateView {
     const std::vector<FaceState>& faces;
@@ -27,7 +27,7 @@ struct MeshStateView {
 };
 
 /**
- * @brief Proposed edge placement plus every enabled geometric acceptance threshold.
+ * @brief 候选边放置及所有启用的几何接受阈值。
  */
 struct CollapseLegalityInput {
     CollapseEdge edge;
@@ -43,11 +43,10 @@ struct CollapseLegalityInput {
 };
 
 /**
- * @brief Evaluates placement-dependent legality after the edge topology has already
- * passed collapseWouldPreserveLinkCondition().
- * Evaluates topology, degeneracy, normal, quality, error, and intersection gates.
- * @return None when every enabled hard check passes, otherwise the first rejection.
+ * @brief 在边拓扑已通过 collapseWouldPreserveLinkCondition() 后，评估依赖放置位置的合法性。
+ * 依次检查拓扑、退化、法向、质量、误差和相交门控条件。
+ * @return 所有启用的硬检查均通过时返回 None，否则返回首个拒绝原因。
  */
 CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input);
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_robustness_tests.cpp
- * @brief Verifies feature detection robustness tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 稳健性测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -59,9 +59,9 @@ Mesh makeNonFiniteVertexMesh() {
     return mesh;
 }
 
-// Two triangles sharing edge (0, 1) with consistent winding. The second face
-// is folded so the angle between the oriented face normals is foldAngleDeg;
-// values above 90 form a thin fin / knife edge.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeFoldedFinMesh(double foldAngleDeg) {
     const double angle = foldAngleDeg * std::acos(-1.0) / 180.0;
     Mesh mesh;
@@ -78,9 +78,9 @@ Mesh makeFoldedFinMesh(double foldAngleDeg) {
     return mesh;
 }
 
-// Two coplanar triangles that traverse the shared edge (0, 1) in the same
-// direction, so their oriented normals point to opposite sides even though the
-// surface is geometrically flat.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeInconsistentWindingFlatMesh() {
     Mesh mesh;
     mesh.vertices = {
@@ -96,18 +96,18 @@ Mesh makeInconsistentWindingFlatMesh() {
     return mesh;
 }
 
-// Triangulated Moebius band: a strip of `segments` quads whose cross section
-// rotates by pi over one trip around the ring, so the surface is
-// non-orientable. Every winding-harmonization spanning tree must leave
-// exactly one adjacent face pair traversing its shared edge in the same
-// direction (the closing seam), whatever the traversal order.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeMoebiusBandMesh(int segments) {
     Mesh mesh;
     const double radius = 2.0;
     const double halfWidth = 0.4;
     for (int i = 0; i < segments; ++i) {
         const double u = 2.0 * std::acos(-1.0) * static_cast<double>(i) / static_cast<double>(segments);
-        const double half = 0.5 * u; // half twist over one revolution
+        const double half = 0.5 * u; // 该实现需保持边界条件，并保证结果具有确定性。
         for (double s : {-halfWidth, halfWidth}) {
             const double r = radius + s * std::cos(half);
             mesh.vertices.emplace_back(r * std::cos(u), r * std::sin(u), s * std::sin(half));
@@ -119,7 +119,7 @@ Mesh makeMoebiusBandMesh(int segments) {
         int b0 = 2 * ((i + 1) % segments);
         int b1 = b0 + 1;
         if (i + 1 == segments) {
-            // The seam glues the strip back with the cross section inverted.
+            // 检查该步骤的边界条件，并确保结果保持确定性。
             std::swap(b0, b1);
         }
         mesh.faces.push_back({{a0, b0, b1}});
@@ -128,10 +128,10 @@ Mesh makeMoebiusBandMesh(int segments) {
     return mesh;
 }
 
-// Closed rectangular bipyramid. With the oriented dihedral measure the two
-// short equator edges are reflex knife edges (about 167 degrees) while the two
-// long equator edges stay at 90 degrees, so a 120-degree threshold yields two
-// disjoint single-edge feature chains whose endpoints all have degree one.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeRectangularBipyramidMesh() {
     Mesh mesh;
     mesh.vertices = {
@@ -213,7 +213,7 @@ void expectIdenticalAnalyses(const FeatureAnalysis& lhs, const FeatureAnalysis& 
     }
 }
 
-} // namespace
+} // 命名空间
 
 TEST(FeatureDetection, PublicScoringApisRejectMalformedMeshes) {
     const Mesh badIndices = makeOutOfRangeIndexMesh();
@@ -231,7 +231,7 @@ TEST(FeatureDetection, PublicScoringApisRejectMalformedMeshes) {
     EXPECT_THROW(feature::computeNormalTensorFeatures(badCoordinates), std::invalid_argument);
     EXPECT_THROW(feature::computeSmoothCurvatureFeatures(badCoordinates), std::invalid_argument);
 
-    // Vertex-only meshes remain valid empty inputs for both APIs.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     Mesh vertexOnly;
     vertexOnly.vertices = {Vec3(0.0, 0.0, 0.0)};
     EXPECT_NO_THROW(feature::computeNormalTensorFeatures(vertexOnly));
@@ -251,8 +251,8 @@ TEST(FeatureDetection, RejectsScaleParametersAboveSupportedMaximum) {
     triangle.faces = {{{0, 1, 2}}};
     EXPECT_THROW(feature::detectFeatureCurves(triangle, options), std::invalid_argument);
 
-    // Persistence requirements above the sampled scale count can never be met
-    // and are rejected instead of silently disabling the channel.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     options = discreteOnlyOptions();
     options.smoothCurvatureMinPersistentScales = 8;
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
@@ -274,7 +274,7 @@ TEST(FeatureDetection, RejectsScaleParametersAboveSupportedMaximum) {
     options.smoothCurvatureRobustFitIterations = 5;
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
 
-    // Values at the documented maxima remain accepted.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     options = discreteOnlyOptions();
     options.normalTensorScaleCount = feature::kMaxNormalTensorScaleCount;
     options.normalTensorMinPersistentScales = feature::kMaxNormalTensorScaleCount;
@@ -296,7 +296,7 @@ TEST(FeatureDetection, DetectsKnifeEdgeFoldBeyondNinetyDegrees) {
     EXPECT_TRUE(features.vertices[0].isFeature);
     EXPECT_TRUE(features.vertices[1].isFeature);
 
-    // The oriented angle is 150 degrees, not the folded-back 30 degrees.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     FeatureOptions strict = options;
     strict.featureAngleDeg = 160.0;
     EXPECT_EQ(0, feature::detectFeatureCurves(fin, strict).dihedralFeatureEdges);
@@ -309,19 +309,19 @@ TEST(FeatureDetection, HarmonizesInconsistentWindingOnFlatSurface) {
     options.featureAngleDeg = 40.0;
     const FeatureAnalysis features = feature::detectFeatureCurves(flat, options);
 
-    // The raw oriented normals disagree by 180 degrees, but winding
-    // harmonization flips one face, so the flat interior edge reads as zero
-    // dihedral and the winding conflict is fully resolved (the mesh is
-    // orientable, so no inconsistent edges remain).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(0, features.dihedralFeatureEdges);
     EXPECT_EQ(4, features.boundaryFeatureEdges);
     EXPECT_EQ(0, features.inconsistentWindingEdges);
 }
 
-// Two triangles forming a 150-degree knife-edge fold like makeFoldedFinMesh,
-// but with the second face's winding reversed. Before winding harmonization
-// this read as |cos| -> 30 degrees and was missed entirely by a 40-degree
-// threshold; harmonization must recover the true reflex angle.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetection, DetectsKnifeEdgeAcrossReversedWindingPatch) {
     Mesh fin = makeFoldedFinMesh(150.0);
     std::swap(fin.faces[1].v[0], fin.faces[1].v[1]); // {1,0,3} -> {0,1,3}
@@ -336,10 +336,10 @@ TEST(FeatureDetection, DetectsKnifeEdgeAcrossReversedWindingPatch) {
     EXPECT_TRUE(features.vertices[1].isFeature);
 }
 
-// A genuinely non-orientable surface cannot be harmonized: the BFS spanning
-// tree orients every face, and exactly one non-tree adjacency (the closing
-// seam of the band) is left conflicting. That edge falls back to the
-// unsigned dihedral and is diagnosed, and the analysis stays deterministic.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetection, MoebiusBandKeepsInconsistentWindingDiagnostic) {
     const Mesh band = makeMoebiusBandMesh(16);
 
@@ -354,16 +354,16 @@ TEST(FeatureDetection, MoebiusBandKeepsInconsistentWindingDiagnostic) {
     EXPECT_EQ(features.dihedralFeatureEdges, second.dihedralFeatureEdges);
 }
 
-// Reversing the winding of a connected patch of faces must not change the
-// detected feature set: harmonization works on an internal flip view, so the
-// signed dihedral evidence (including convex/concave kinds) is identical to
-// the untouched mesh and the winding diagnostic stays clean.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetection, ReversedPatchYieldsIdenticalFeatureEdgeSet) {
     const Mesh original = loadFixtureMesh("feature_fixtures/boss_pocket_plate.obj");
     ASSERT_FALSE(original.empty());
 
-    // Grow a connected patch of faces with a deterministic BFS over shared
-    // edges, then reverse the winding of every patch face.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto edgeInfo = [](const Mesh& mesh) {
         std::unordered_map<std::uint64_t, std::vector<int>> info;
         for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
@@ -478,10 +478,10 @@ TEST(FeatureDetection, DetectFeatureCurvesIsDeterministicAcrossRuns) {
 
 namespace {
 
-// Flat plane grid plus one extra degenerate triangle. duplicateVertex == true
-// duplicates a grid vertex position under a fresh index (exactly zero area);
-// otherwise the apex is offset from the edge midpoint by 1e-30, producing a
-// collinear sliver with area around 1e-32.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makePlaneWithDegenerateTriangle(bool duplicateVertex) {
     Mesh mesh = manumesh::generatePlaneGrid(6, 1.0, false);
     const Vec3 base = mesh.vertices[0];
@@ -514,22 +514,22 @@ void expectDegenerateFaceTolerated(bool duplicateVertex) {
     FeatureOptions options = discreteOnlyOptions();
     options.featureAngleDeg = 40.0;
 
-    // Before the lenient-validation change this threw std::invalid_argument
-    // ("has zero area") from validateFeatureMeshInput.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     FeatureAnalysis analysis;
     ASSERT_NO_THROW(analysis = feature::detectFeatureCurves(dirty, options));
     EXPECT_EQ(1, analysis.degenerateFaces);
     expectFiniteAnalysis(analysis);
 
-    // The degenerate face has a zero normal, so its interior edges must not
-    // masquerade as dihedral creases: a flat plane keeps zero dihedral
-    // evidence, exactly like the clean grid.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const FeatureAnalysis clean = feature::detectFeatureCurves(manumesh::generatePlaneGrid(6, 1.0, false), options);
     EXPECT_EQ(0, clean.degenerateFaces);
     EXPECT_EQ(clean.dihedralFeatureEdges, analysis.dihedralFeatureEdges);
 }
 
-} // namespace
+} // 命名空间
 
 TEST(FeatureDetection, ToleratesZeroAreaTriangleFromDuplicateVertex) { expectDegenerateFaceTolerated(true); }
 

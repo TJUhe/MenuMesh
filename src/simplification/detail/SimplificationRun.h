@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SimplificationRun.h
- * @brief Declares simplification run facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的简化 运行功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -32,74 +32,71 @@ struct FeatureAnalysis;
 namespace manumesh::simplification {
 
 /**
- * @brief Mutable, single-use execution object for one edge-collapse simplification.
+ * @brief 一次边折叠简化运行的可变、单次执行对象。
  */
 class SimplificationRun {
 public:
     /**
-     * @brief Creates a run that computes feature analysis from `options`.
-     * @param[in] input Immutable source mesh that must outlive the run.
-     * @param[in] options Immutable policy that must outlive the run.
+     * @brief 创建一个根据 options 计算特征分析的运行。
+     * @param[in] input 不可变源网格，其生命周期必须覆盖整个运行。
+     * @param[in] options 不可变策略，其生命周期必须覆盖整个运行。
      */
     SimplificationRun(const Mesh& input, const SimplifyOptions& options);
     /**
-     * @brief Creates a run that may reuse caller-provided feature analysis.
-     * @param[in] input Immutable source mesh that must outlive the run.
-     * @param[in] options Immutable policy that must outlive the run.
-     * @param[in] features Optional analysis whose mesh must match `input`.
+     * @brief 创建一个可以复用调用方特征分析的运行。
+     * @param[in] input 不可变源网格，其生命周期必须覆盖整个运行。
+     * @param[in] options 不可变策略，其生命周期必须覆盖整个运行。
+     * @param[in] features 可选分析结果，其网格必须与 input 匹配。
      */
     SimplificationRun(const Mesh& input, const SimplifyOptions& options, const feature::FeatureAnalysis* features);
 
     /**
-     * @brief Executes initialization, collapse, optional refinement, and compaction.
+     * @brief 执行初始化、折叠、可选细化和压缩。
      */
     Mesh execute(SimplifyReport* outReport);
 
 private:
-    /** @brief Resets all report fields and records input dimensions. */
+    /** @brief 重置所有报告字段并记录输入网格尺寸。*/
     void initializeReport();
-    /** @brief Reuses or computes feature analysis and builds guidance tables. */
+    /** @brief 复用或计算特征分析并构建引导表。*/
     void analyzeFeatures();
-    /** @brief Creates mutable vertex records and initial quadrics. */
+    /** @brief 创建可变顶点记录和初始二次误差。*/
     void initializeVertices();
-    /** @brief Copies feature ownership and constraints onto one vertex. */
+    /** @brief 将特征归属和约束复制到一个顶点。*/
     void initializeVertexFeature(int vertexId);
-    /** @brief Creates mutable face, UV, topology, and spatial-index state. */
+    /** @brief 创建可变面、UV、拓扑和空间索引状态。*/
     void initializeFaces();
-    /** @brief Resolves target counts and scale-dependent legality budgets. */
+    /** @brief 解析目标数量和依赖尺度的合法性预算。*/
     void initializeBudget();
-    /** @brief Rebuilds the candidate heap from all current active edges. */
+    /** @brief 根据当前全部活动边重建候选堆。*/
     void rebuildQueue();
     /**
-     * @brief Solves the edge's placements once, prices the texture protection from
-     * the same solve, and pushes the candidate with the cached placements.
-     * Returns true when the (near-)midpoint placement is texture-rejected,
-     * which feeds the textureProtectedEdges diagnostic on the initial build.
+     * @brief 只求解一次边的放置，使用同一求解结果计算纹理保护代价，并将带缓存放置的候选压入队列。当（近似）中点放置被纹理拒绝时返回 true，用于初始构建阶段的 textureProtectedEdges 诊断。
      */
     bool pushEdgeCandidate(int a, int b);
-    /** @brief Pops and evaluates candidates until a configured stop condition. */
+    /** @brief 弹出并评估候选，直到达到配置的停止条件。*/
     void collapseUntilTarget();
-    /** @brief Runs optional fixed-topology quality refinement. */
+    /** @brief 执行可选的固定拓扑质量细化。*/
     void refineQuality();
-    /** @brief Rebuilds an exhausted heap when active topology can still progress. */
+    /** @brief 当活动拓扑仍可推进时重建耗尽的候选堆。*/
     bool ensureQueueHasCandidates();
-    /** @brief Checks endpoint activity and version stamps for a queued candidate. */
+    /** @brief 检查队列候选的端点活动状态和版本戳。*/
     bool isCurrentCandidate(const Candidate& candidate) const;
-    /** @brief Accounts for a stale queue entry and triggers periodic rebuilding. */
+    /** @brief 记录过期队列条目，并按周期触发重建。*/
     void handleStaleCandidate();
-    /** @brief Evaluates and applies one current candidate when a placement passes. */
+    /** @brief 当放置通过时评估并应用一个当前候选。*/
     bool tryCollapse(const Candidate& candidate);
-    /** @brief Maps a categorized failed attempt into report counters. */
+    /** @brief 将分类后的失败尝试映射到报告计数器。*/
     void recordRejectedCollapse(const CollapseAttemptResult& result);
-    /** @brief Invalidates queued candidates incident to either endpoint. */
+    /** @brief 使任一端点相邻的队列候选失效。*/
     void bumpVersions(int keep, int remove);
-    /** @brief Commits topology, geometry, quadric, UV, and index updates. */
+    /** @brief 提交拓扑、几何、二次误差、UV 和索引更新。*/
     void applyCollapse(
         int keep, int remove, const Vec3& position, const Mat4& mergedQ, const TextureUpdatePlan& texturePlan
     );
-    /** @brief Collects faces whose broad-phase registrations may change. */
+    /** @brief 收集宽相位登记可能发生变化的面。*/
     std::unordered_set<int> collectAffectedFacesForCollapse(int keep, int remove) const;
-    /** @brief Rewrites incident faces and removes duplicates after a collapse. */
+    /** @brief 折叠后重写相邻面并移除重复面。*/
     void rewriteIncidentFaces(int keep, int remove);
 
     const Mesh& input_;
@@ -117,8 +114,7 @@ private:
     std::unique_ptr<manumesh::common::MeshDistanceIndex> referenceSurface_;
     std::vector<int> activeLoopCounts_;
     /**
-     * @brief Compact side table of circle/ellipse fit data; only feature vertices on
-     * fitted primitive loops own an entry (VertexState::primitiveFitId).
+     * @brief 圆/椭圆拟合数据的紧凑旁表；只有拟合图元环上的特征顶点才在其中拥有条目（VertexState::primitiveFitId）。
      */
     std::vector<FeaturePrimitiveFit> primitiveFits_;
     CandidateQueue queue_;
@@ -129,9 +125,7 @@ private:
     int targetFaces_ = 0;
     double areaEps_ = 0.0;
     /**
-     * @brief Input bounding-box diagonal, computed once in initializeBudget.
-     * tryCollapse runs per collapse attempt, so it must not recompute this
-     * O(V) scan (doing so made the whole run quadratic in the mesh size).
+     * @brief 输入包围盒对角线，在 initializeBudget 中计算一次。tryCollapse 会在每次折叠尝试中运行，因此不能重新执行这个 O(V) 扫描（否则整个运行会随网格规模呈二次增长）。
      */
     double meshDiagonal_ = 0.0;
     double minNormalDot_ = 0.0;
@@ -142,4 +136,4 @@ private:
     bool queueBuiltOnce_ = false;
 };
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

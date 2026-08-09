@@ -1,14 +1,12 @@
 /**
  * @file src/simplification/Quadrics.cpp
- * @brief Implements quadrics facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的二次误差功能。
  * @ingroup manumesh_simplification
  *
- * @details Builds plane, line, boundary, and feature-curve quadratic error terms.
- * @algorithm Each valid face contributes an area-weighted homogeneous plane
- * outer product. Boundary and feature constraints add perpendicular-plane or
- * point-to-line quadrics; per-vertex sums make edge contraction cost additive.
- * @invariants Every quadric is symmetric positive semidefinite up to floating-point roundoff.
- * @failuremodes Degenerate faces use a bounded point fallback and never supply an unstable plane.
+ * @details 构建平面、直线、边界和特征曲线的二次误差项。
+ * @algorithm 每个有效面贡献一个按面积加权的齐次平面外积。边界和特征约束增加垂直平面或点到直线的二次误差项；按顶点求和后，边收缩代价具有可加性。
+ * @invariants 除浮点舍入误差外，每个二次误差矩阵都保持对称半正定。
+ * @failuremodes 退化面使用有界的点回退项，不提供不稳定的平面项。
  */
 
 #include "detail/Quadrics.h"
@@ -85,9 +83,7 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight, std::vector<Ma
             continue;
         }
         n.normalize();
-        // edge.squaredNorm() keeps the boundary quadric at the same order in
-        // length as the area-weighted face quadrics, so the boundary soft
-        // constraint does not drift when the mesh is uniformly scaled.
+        // edge.squaredNorm() 使边界二次误差项在长度维度上与按面积加权的面二次误差项同阶，因此网格统一缩放时软边界约束不会漂移。
         const Mat4 q = boundaryWeight * edge.squaredNorm() * planeQuadric(n, mesh.vertices[a]);
         quadrics[a] += q;
         quadrics[b] += q;
@@ -187,10 +183,7 @@ void computeInitialQuadrics(
             }
 
             if (options.adaptiveScale) {
-                // Wang 2008 decoupling: the feature boost no longer multiplies
-                // the whole quadric (which distorted placements and inflated
-                // the boundary term). It becomes a per-vertex queue-priority
-                // factor; the quadric keeps only the clean base line term.
+                // Wang 2008 解耦：特征增益不再乘到整个二次误差矩阵上（否则会扭曲放置并放大边界项），而是变为每个顶点的队列优先级因子；二次误差矩阵只保留干净的基础直线项。
                 quadrics[i] += options.adaptiveBaseLineWeight * vertexArea[i] * ql;
                 initial.priorityScales[i] = 1.0 + std::max(0.0, options.featureBoost) * featureScores.values[i];
                 appliedWeight = options.adaptiveBaseLineWeight;
@@ -245,13 +238,7 @@ std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a, 
             }
         }
         if (!solved && maxEval > 1e-20) {
-            // GH97 fallback level 2: 1D optimum along the segment ab. For
-            // h(t) = a + t (b - a), f(t) = h^T Q h is a scalar quadratic with
-            // minimizer t* = (rhs.d - d^T A a) / (d^T A d). A is PSD, so the
-            // denominator is >= 0; the relative threshold (same dimensions as
-            // maxEval * |d|^2) keeps the division scale-invariant. This is the
-            // well-posed case for rank-2 quadrics (straight creases, boundary
-            // folds) where the full-rank solve was rejected above.
+            // GH97 回退级别 2：沿线段 ab 求一维最优解。令 h(t) = a + t (b - a)，则 f(t) = h^T Q h 是标量二次函数，其极小点 t* = (rhs.d - d^T A a) / (d^T A d)。A 半正定，所以分母 >= 0；与 maxEval * |d|^2 同维度的相对阈值使除法具有尺度不变性。对于秩为 2 的二次误差矩阵（直折痕、边界折叠），这是在上面的满秩求解被拒绝后仍然良态的情形。
             const Vec3 d = b - a;
             const double denom = d.dot(A * d);
             if (denom > 1e-12 * maxEval * d.squaredNorm()) {
@@ -283,9 +270,7 @@ std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a, 
         }
     }
     if (results.empty()) {
-        // All candidate costs were non-finite, so the merged quadric is
-        // corrupt. Rank this edge last instead of letting cost 0.0 push a bad
-        // collapse to the queue front.
+        // 所有候选代价都不是有限值，说明合并后的二次误差矩阵已损坏。将该边排在最后，而不是让 0.0 代价把错误折叠推到队列前端。
         results.push_back(SolveResult{0.5 * (a + b), std::numeric_limits<double>::max(), true});
     }
     std::stable_sort(results.begin(), results.end(), [](const SolveResult& lhs, const SolveResult& rhs) {
@@ -308,4 +293,4 @@ InitialQuadricBuilder::build(const Mesh& mesh, const FeatureGuidance& featureGui
     return initial;
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

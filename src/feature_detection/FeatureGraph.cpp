@@ -1,14 +1,12 @@
 /**
  * @file src/feature_detection/FeatureGraph.cpp
- * @brief Implements feature graph facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征图功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Materializes candidate evidence as a deterministic undirected trace graph.
- * @algorithm Evidence attributes are packed once per edge key, adjacency lists
- * are deduplicated and sorted, and per-vertex graph markers are derived only
- * after graph mutation is complete.
- * @invariants `graphEdges`, adjacency, and the edge-attribute map describe the
- * same active edge set after every rebuild.
+ * @details 将候选证据物化为确定性的无向特征轨迹图。
+ * @algorithm 每条边键只打包一次证据属性；邻接表去重并排序；所有图变更完成后，
+ *            才重新计算每个顶点的图标记。
+ * @invariants `graphEdges`、邻接表和边属性表在每次重建后描述同一组活动边。
  */
 
 #include "detail/FeatureGraph.h"
@@ -72,7 +70,7 @@ void addTraceGraphStorage(TraceGraph& trace, const CandidateEdge& edge) {
     trace.graphEdges.emplace_back(edge.a, edge.b);
 }
 
-} // namespace
+} // 匿名命名空间
 
 void initializeFeatureGraph(const std::vector<CandidateEdge>& featureEdges, FeatureAnalysis& analysis) {
     analysis.graph.vertices.assign(analysis.vertices.size(), FeatureGraphVertex{});
@@ -230,15 +228,10 @@ void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis) {
                 return edgeId >= 0 && edgeId < static_cast<int>(analysis.graph.edges.size()) &&
                        !analysis.graph.edges[edgeId].removedByCleanup;
             }));
-        // Topological junction = graph branch point (active valence > 2),
-        // following M007: a junction is identified by ridge valence >= 3,
-        // and its local differential quantities may be entirely trivial.
-        // Neither loop membership nor the per-vertex protection flag
-        // (VertexFeature::junction, which deliberately also pins vertices
-        // shared between overlapping recovered loops) is evidence of a
-        // branch: recovered loops routinely overlap along whole valence-2
-        // chains, while loops that genuinely cross always meet at a vertex
-        // with more than two incident feature edges.
+        // 拓扑分叉定义为活动边度数大于 2。依据 M007，脊线分叉由至少三条
+        // 入射特征边确定，局部微分量可以完全不起作用。环归属或顶点保护标记
+        // 不能单独作为分叉证据：恢复出的环可能沿整段二度链重叠，真正交叉时
+        // 才会在具有三条以上活动特征边的顶点相遇。
         vertex.junction = activeIncidentEdges > 2;
         vertex.shared = vertex.loopIds.size() > 1;
         vertex.endpoint = activeIncidentEdges == 1;
@@ -278,10 +271,8 @@ void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis) {
                     if (lhs.signedKind != 0 && rhs.signedKind != 0 && lhs.signedKind != rhs.signedKind) {
                         continue;
                     }
-                    // Branch tangents point away from the junction, so a true
-                    // continuation is anti-parallel. Using |dot| would also
-                    // pair two nearly coincident branches leaving on the same
-                    // side of the junction.
+                    // 分支切线从分叉点向外，因此真实延续应近似反平行。
+                    // 若使用 |dot|，会把从分叉点同侧离开的近重合分支错误配对。
                     const double alignment = -lhs.tangent.dot(rhs.tangent);
                     if (alignment >= 0.65) {
                         candidates.push_back({first, second, alignment});
@@ -325,4 +316,4 @@ void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis) {
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

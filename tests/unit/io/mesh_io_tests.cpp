@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/io/mesh_io_tests.cpp
- * @brief Verifies mesh io tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的网格输入输出测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "core/Mesh.h"
@@ -62,9 +62,8 @@ void appendUint16LE(std::string& out, std::uint16_t value) { appendBytes(out, &v
 
 void appendFloatLE(std::string& out, float value) { appendBytes(out, &value, sizeof(value)); }
 
-/// Builds a binary STL blob with an all-zero header (so it does not start
-/// with "solid"), the given declared triangle count, the actual triangle
-/// records, and optional trailing padding bytes.
+/// 构造二进制 STL 数据：包含全零头部（因此不会以 "solid" 开头）、声明的三角形数量、
+/// 实际三角形记录，以及可选的尾部填充字节。
 std::string makeBinaryStl(
     std::uint32_t declaredTriangles, const std::vector<std::array<float, 9>>& triangles, std::size_t trailingPadding
 ) {
@@ -72,12 +71,12 @@ std::string makeBinaryStl(
     appendUint32LE(data, declaredTriangles);
     for (const std::array<float, 9>& tri : triangles) {
         for (int k = 0; k < 3; ++k) {
-            appendFloatLE(data, 0.0f); // normal
+            appendFloatLE(data, 0.0f); // 法向量
         }
         for (float coordinate : tri) {
             appendFloatLE(data, coordinate);
         }
-        appendUint16LE(data, 0); // attribute byte count
+        appendUint16LE(data, 0); // 属性字节数
     }
     data.append(trailingPadding, '\0');
     return data;
@@ -95,7 +94,7 @@ std::string singleAsciiStlTriangle() {
            "endsolid tri\n";
 }
 
-} // namespace
+} // 命名空间
 
 TEST(MeshIo, SuccessfulLoadsClearStaleError) {
     const std::filesystem::path objPath = writeTempFile(
@@ -364,7 +363,7 @@ TEST(MeshIo, ObjPreservesTextureCoordinatesThroughFanTriangulation) {
     ASSERT_TRUE(mesh.faceTexCoords[0].valid);
     ASSERT_TRUE(mesh.faceTexCoords[1].valid);
     EXPECT_TRUE(mesh.hasTextureCoordinates());
-    // First fan triangle carries vt 1, 2, 3; second carries vt 1, 3, 4.
+    // 第一个扇形三角形携带 vt 1、2、3；第二个携带 vt 1、3、4。
     EXPECT_DOUBLE_EQ(0.0, mesh.faceTexCoords[0].uv[0].x());
     EXPECT_DOUBLE_EQ(1.0, mesh.faceTexCoords[0].uv[1].x());
     EXPECT_DOUBLE_EQ(1.0, mesh.faceTexCoords[0].uv[2].x());
@@ -512,8 +511,8 @@ TEST(MeshIo, LargeCoordinatesDoNotOverflowVertexMerging) {
 
     manumesh::Mesh mesh;
     std::string error;
-    // A zero relative epsilon forces the absolute 1e-12 quantization floor,
-    // which used to push coordinate / epsilon far beyond the long long range.
+    // 相对 epsilon 为零时会触发绝对 1e-12 量化下限；过去这会使坐标/epsilon
+    // 的比值远超 long long 可表示范围。
     ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error, 0.0)) << error;
     std::filesystem::remove(path);
 

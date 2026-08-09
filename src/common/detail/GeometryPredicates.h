@@ -1,9 +1,9 @@
 /**
  * @file src/common/detail/GeometryPredicates.h
- * @brief Declares geometry predicates facilities for ManuMesh's common-geometry module.
+ * @brief 声明 ManuMesh 公共几何模块的几何谓词设施。
  * @ingroup manumesh_common
  *
- * @details The routines here are policy-free geometry foundations shared by feature detection, simplification, analysis, and mesh editing.
+ * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。
  */
 
 #pragma once
@@ -20,20 +20,17 @@ double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b,
 double pointAabbDistanceSquared(const Vec3& p, const Vec3& lo, const Vec3& hi);
 std::pair<Vec3, Vec3> triangleAabb(const std::array<Vec3, 3>& tri, double padding = 0.0);
 /**
- * @brief Triangle-triangle intersection test with a RELATIVE tolerance.
+ * @brief 使用相对容差的三角形相交测试。
  *
- * eps is dimensionless: every internal comparison is normalized by the local
- * geometric scale of the two triangles (lengths by scale, areas/orientations
- * by scale^2, the Moller-Trumbore determinant by its own factor norms), so
- * the decision is invariant under uniform scaling of the input.
- * Typical eps: 1e-9 .. 1e-12.
+ * eps 无量纲：每个内部比较都按两个三角形的局部几何尺度归一化（长度按尺度、
+ * 面积/方向按 scale^2、Moller-Trumbore 行列式按自身因子范数），因此输入一致
+ * 缩放时判定不变。典型 eps：1e-9 .. 1e-12。
  */
 bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3>& rhs, double eps);
 
 /**
- * @brief Intersection test for mesh triangles that may share vertex ids. Contact
- * confined to the declared shared vertex or shared edge is allowed; overlap
- * or crossing beyond that shared topology is reported as an intersection.
+ * @brief 可能共享顶点 id 的网格三角形相交测试。允许限定在声明共享顶点或共享边
+ * 内的接触；超出该共享拓扑的重叠或交叉会报告为相交。
  */
 bool trianglesIntersectBeyondSharedTopology(
     const std::array<int, 3>& lhsIds,
@@ -43,11 +40,10 @@ bool trianglesIntersectBeyondSharedTopology(
     double eps
 );
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common
 
 namespace manumesh {
-// Transitional alias: manumesh::detail was renamed to manumesh::common
-// (architecture v2, R6). New code must use manumesh::common; this alias is
-// removed after one minor version.
+// 过渡别名：manumesh::detail 已重命名为 manumesh::common
+// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
 namespace detail = common;
-} // namespace manumesh
+} // 命名空间 manumesh

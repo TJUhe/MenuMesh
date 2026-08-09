@@ -1,11 +1,10 @@
 /**
  * @file src/simplification/SimplificationPolicies.cpp
- * @brief Implements simplification policies facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的简化 策略功能。
  * @ingroup manumesh_simplification
  *
- * @details Normalizes user options into immutable hot-loop policy switches and thresholds.
- * @invariants Policy derivation performs no mesh-dependent work and every
- * disabled optional channel has an explicit zero/false representation.
+ * @details 将用户选项归一化为不可变的热循环策略开关和阈值。
+ * @invariants 策略派生不执行依赖网格的工作；每个被禁用的可选通道都有明确的零值或 false 表示。
  */
 
 #include "detail/SimplificationPolicies.h"
@@ -92,4 +91,4 @@ SimplificationPolicies SimplificationPolicies::fromOptions(const SimplifyOptions
     return policies;
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

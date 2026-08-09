@@ -1,9 +1,9 @@
 /**
  * @file src/api/detail/CApiConverters.h
- * @brief Declares capi converters facilities for ManuMesh's C-ABI module.
+ * @brief 声明 ManuMesh 的C ABI 模块的C API 转换器功能。
  * @ingroup manumesh_c_api
  *
- * @details The C boundary validates pointers and capacities, translates failures to status codes, and never permits a C++ exception to cross the ABI.
+ * @details 声明 C ABI 结构体与内部 C++ 结果之间的有界转换辅助函数。
  */
 
 #pragma once
@@ -32,4 +32,4 @@ ManuMeshStatus fillSimplifyReport(
 );
 ManuMeshStatus fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStats* target, std::size_t structCapacity);
 
-} // namespace manumesh::api
+} // manumesh::api 命名空间

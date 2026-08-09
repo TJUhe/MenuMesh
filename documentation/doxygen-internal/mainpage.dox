@@ -1,39 +1,33 @@
 /**
- * @mainpage ManuMesh Internal Source Reference
+ * @mainpage ManuMesh 内部源码参考
  *
- * @section internal_scope Scope
+ * @section internal_scope 范围
  *
- * This site is the private engineering reference for ManuMesh implementation
- * code. It includes the public declarations under `include/` for context and
- * all implementation files under `src/`, including private, static, local,
- * anonymous-namespace, and otherwise undocumented symbols.
+ * 本站点是 ManuMesh 实现代码的内部工程参考。它包含 `include/` 下的公共声明以提供上下文，
+ * 以及 `src/` 下的全部实现文件，包括私有、静态、局部、匿名命名空间和其他未文档化的符号。
  *
- * @section internal_navigation Navigation
+ * @section internal_navigation 导航
  *
- * - Use **Files** to browse the implementation by source directory.
- * - Use **Namespaces**, **Classes**, and **Class Members** for symbol lookup.
- * - Open a file's **Source** view for inline code with cross-references.
- * - Function pages include caller and callee graphs when Graphviz is present.
+ * - 使用 **Files** 按源码目录浏览实现。
+ * - 使用 **Namespaces**、**Classes** 和 **Class Members** 查找符号。
+ * - 打开文件的 **Source** 视图查看带交叉引用的内联代码。
+ * - Graphviz 可用时，函数页面会包含调用者和被调用者图。
  *
- * @section internal_build Build
+ * @section internal_build 构建
  *
  * @code{.powershell}
  * cmake --build build/mingw-ninja-release --target check-src-doxygen
  * cmake --build build/mingw-ninja-release --target docs-internal --parallel
  * @endcode
  *
- * The generated entry point is `docs/internal/html/index.html`.
+ * 生成的入口是 `docs/internal/html/index.html`。
  *
- * @section internal_policy Documentation policy
+ * @section internal_policy 文档策略
  *
- * Internal documentation is generated with `EXTRACT_ALL=YES`, so local helper
- * implementations remain browsable. Every `src/` file has a block-style
- * `@file`/`@brief`/`@ingroup` header; internal types and header-declared
- * interfaces use explicit `/** ... */` documentation blocks. The
- * `check-src-doxygen` target enforces that format and rejects line-style
- * Doxygen comments. Plain `//` is reserved for local proof obligations,
- * numeric derivations, and non-obvious implementation choices.
+ * 内部文档使用 `EXTRACT_ALL=YES` 生成，因此仍可浏览局部 helper 实现。每个 `src/` 文件都有块式
+ * `@file`/`@brief`/`@ingroup` 头；内部类型和头文件声明的接口使用显式 `/** ... */` 文档块。
+ * `check-src-doxygen` 目标强制执行该格式，并拒绝行式 Doxygen 注释。普通 `//` 仅用于局部证明义务、
+ * 数值推导和不明显的实现选择。
  *
- * @warning This is an internal implementation view. It is not an installed
- * SDK contract and can change without API or ABI compatibility guarantees.
+ * @warning 这是内部实现视图，不是已安装 SDK 的契约；它可能在没有 API 或 ABI 兼容性保证的情况下变化。
  */

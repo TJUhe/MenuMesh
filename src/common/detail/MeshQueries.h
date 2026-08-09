@@ -1,9 +1,9 @@
 /**
  * @file src/common/detail/MeshQueries.h
- * @brief Declares mesh queries facilities for ManuMesh's common-geometry module.
+ * @brief 声明 ManuMesh 公共几何模块的网格查询设施。
  * @ingroup manumesh_common
  *
- * @details The routines here are policy-free geometry foundations shared by feature detection, simplification, analysis, and mesh editing.
+ * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。
  */
 
 #pragma once
@@ -21,7 +21,7 @@
 namespace manumesh::common {
 
 /**
- * @brief Adjacent face list for one undirected mesh edge.
+ * @brief 一条无向网格边的相邻面列表。
  */
 struct MeshEdgeInfo {
     std::vector<int> faces;
@@ -30,64 +30,62 @@ struct MeshEdgeInfo {
 using MeshEdgeInfoMap = std::unordered_map<std::uint64_t, MeshEdgeInfo>;
 
 /**
- * @brief Winding-aware dihedral classification for one manifold interior edge.
+ * @brief 一个流形内部边的绕序感知二面角分类。
  */
 struct OrientedDihedralAngle {
     double angleRad = 0.0;
     bool inconsistentWinding = false;
     /**
-     * @brief +1 convex ridge, -1 concave valley, 0 flat/unknown.
+     * @brief +1 表示凸脊，-1 表示凹谷，0 表示平坦/未知。
      */
     int signedKind = 0;
 };
 
 /**
- * @brief Packs an undirected vertex pair into a stable integer key.
+ * @brief 将无向顶点对打包为稳定整数键。
  *
- * Kept as an inline forwarder to the core topologyEdgeKey so every module
- * shares one packing scheme; existing common::meshEdgeKey callers keep
- * working unchanged.
+ * 保留为指向核心 topologyEdgeKey 的内联转发，使所有模块共享同一打包方案；
+ * 现有 common::meshEdgeKey 调用方可保持不变。
  */
 inline std::uint64_t meshEdgeKey(int a, int b) { return topologyEdgeKey(a, b); }
 
 /**
- * @brief Unpacks a key created by meshEdgeKey.
+ * @brief 解包由 meshEdgeKey 创建的键。
  */
 std::pair<int, int> unpackMeshEdgeKey(std::uint64_t key);
 
 /**
- * @brief Returns a sorted key for duplicate-face lookup.
+ * @brief 返回用于重复面查找的排序键。
  */
 std::array<int, 3> sortedFaceKey(std::array<int, 3> ids);
 
 /**
- * @brief Stable hash for canonical sorted triangle vertex ids.
+ * @brief 规范排序三角形顶点 id 的稳定哈希。
  */
 struct FaceKeyHash {
-    /** @brief Hashes all three canonical vertex ids. */
+    /** @brief 对三个规范顶点 id 进行哈希。 */
     std::size_t operator()(const std::array<int, 3>& ids) const;
 };
 
 /**
- * @brief Builds edge-to-face incidence once for algorithms that need local topology.
+ * @brief 为需要局部拓扑的算法一次性构建边到面的入射关系。
  */
 MeshEdgeInfoMap buildMeshEdgeInfo(const Mesh& mesh);
 
 /**
- * @brief Computes one unit normal per face, returning zero for degenerate triangles.
+ * @brief 为每个面计算一个单位法向；退化三角形返回零向量。
  */
 std::vector<Vec3> computeFaceNormals(const Mesh& mesh);
 
 /**
- * @brief Builds deterministic per-face flip marks that harmonize winding within
- * each orientable manifold component without modifying the input mesh.
+ * @brief 构建确定性的逐面翻转标记，在不修改输入网格的情况下协调每个可定向
+ * 流形连通分量内的绕序。
  */
 std::vector<char> harmonizeFaceWindings(const Mesh& mesh, const MeshEdgeInfoMap& edges);
 
 /**
- * @brief Computes a winding-aware dihedral angle for a two-face edge. Unresolvable
- * orientation conflicts fall back to the unsigned normal angle and set the
- * diagnostic flag.
+ * @brief 计算两面边的绕序感知二面角。无法解析的方向冲突会回退到无符号法向角，
+ * 并设置诊断标记。
  */
 OrientedDihedralAngle computeOrientedDihedralAngle(
     const Mesh& mesh,
@@ -99,37 +97,34 @@ OrientedDihedralAngle computeOrientedDihedralAngle(
 );
 
 /**
- * @brief Computes the centroid of one triangle face.
+ * @brief 计算一个三角形面的质心。
  */
 Vec3 faceCentroid(const Mesh& mesh, const Face& face);
 
 /**
- * @brief Builds deduplicated one-ring vertex adjacency.
+ * @brief 构建去重的一环顶点邻接。
  *
- * Each per-vertex neighbor list is sorted ascending, which keeps iteration
- * order (and therefore floating-point reduction order) deterministic across
- * platforms and standard-library implementations.
+ * 每个顶点的邻居列表按升序排序，使遍历顺序（以及浮点归约顺序）在不同平台和
+ * 标准库实现之间保持确定性。
  */
 std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh);
 
 /**
- * @brief Computes the average incident edge length per vertex.
+ * @brief 计算每个顶点的平均入射边长。
  *
- * Isolated vertices receive the global mean edge length when available, or 0
- * for an edgeless mesh. Algorithms use this as a local sampling-density scale.
+ * 孤立顶点在全局平均边长可用时取该值；无边网格取 0。算法将其用作局部采样密度尺度。
  */
 std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh);
 
 /**
- * @brief Marks vertices incident to boundary edges.
+ * @brief 标记与边界边相接的顶点。
  */
 std::vector<char> computeBoundaryVertices(const Mesh& mesh);
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common
 
 namespace manumesh {
-// Transitional alias: manumesh::detail was renamed to manumesh::common
-// (architecture v2, R6). New code must use manumesh::common; this alias is
-// removed after one minor version.
+// 过渡别名：manumesh::detail 已重命名为 manumesh::common
+// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
 namespace detail = common;
-} // namespace manumesh
+} // 命名空间 manumesh

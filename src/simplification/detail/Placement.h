@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/Placement.h
- * @brief Declares placement facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的放置功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -15,12 +15,10 @@
 
 namespace manumesh::simplification {
 
-// Placement strategies for edge collapses. This unit owns "where does the
-// merged vertex go" policies; legality lives in CollapseTopology/
-// CollapseLegality and feature-curve constraints live in FeatureConstraints.
+// 边折叠的放置策略。本单元负责“合并后的顶点应放在哪里”，合法性检查由 CollapseTopology/CollapseLegality 负责，特征曲线约束由 FeatureConstraints 负责。
 
 /**
- * @brief Directed boundary-chain geometry used by Lindstrom-Turk placement projection.
+ * @brief Lindstrom-Turk 放置投影所需的有向边界链几何量。
  */
 struct BoundaryProjectionInput {
     CollapseEdge edge;
@@ -31,15 +29,9 @@ struct BoundaryProjectionInput {
 };
 
 /**
- * @brief Places a boundary-edge collapse using the Lindstrom-Turk boundary
- * preservation constraint (M032 4.2.2): the placement is projected onto the
- * line that minimizes the change of the boundary's directed area over the
- * incident boundary chain, then clamped to the collapsing edge's shadow on
- * that line. Falls back to clamping onto the segment [keep, remove] when the
- * local boundary chain is degenerate.
- * Projects `position` to the local boundary objective and safety segment.
- * @return true when a finite constrained position was produced.
+ * @brief 使用 Lindstrom-Turk 边界保持约束（M032 4.2.2）处理边界边折叠：将放置点投影到使相邻边界链有向面积变化最小的直线，再夹到收缩边在该直线上的投影。局部边界链退化时回退到线段 [keep, remove] 上的夹紧。该函数将 position 投影到局部边界目标和安全线段上。
+ * @return 成功生成有限约束位置时返回 true。
  */
 bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& position);
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

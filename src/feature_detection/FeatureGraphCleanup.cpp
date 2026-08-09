@@ -1,14 +1,13 @@
 /**
  * @file src/feature_detection/FeatureGraphCleanup.cpp
- * @brief Implements feature graph cleanup facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征图清理功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Removes weak graph noise and bridges short compatible local gaps.
- * @algorithm Cleanup prunes dangling weak-only chains by edge count or
- * integrated scale-normalized strength, then joins nearby endpoints only when
- * distance, continuation alignment, evidence kind, and signed kind agree.
- * @failuremodes A work cap bounds dense-graph recovery; skipped work is
- * surfaced in analysis diagnostics instead of causing unbounded runtime.
+ * @details 清除弱图噪声，并桥接相邻且证据兼容的局部间隙。
+ * @algorithm 先按边数或积分后的尺度归一化强度裁剪悬挂弱链，
+ *            再仅在距离、延续方向、证据类型和凸凹符号均兼容时连接端点。
+ * @failuremodes 对稠密图设置固定工作上限；超过上限的候选会记录为跳过，
+ *               而不会导致运行时间无界增长。
  */
 
 #include "detail/FeatureGraphCleanup.h"
@@ -28,7 +27,7 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
-/** @brief Open graph endpoint eligible for cleanup or gap bridging. */
+/** @brief 可参与清理或间隙桥接的开放图端点。 */
 struct EndpointCandidate {
     int vertex = -1;
     int neighbor = -1;
@@ -36,14 +35,14 @@ struct EndpointCandidate {
     double scale = 0.0;
 };
 
-/** @brief Ranked pair of endpoints proposed for a cleanup bridge. */
+/** @brief 为清理桥接候选保存排序信息的端点对。 */
 struct GapCandidate {
     int a = -1;
     int b = -1;
     double distance = 0.0;
     /**
-     * @brief Direction-aware ranking key: distance divided by the mean tangential
-     * alignment of the two endpoint tangents with the connecting segment.
+     * @brief 方向感知的排序键：端点间距离除以两条端点切线
+     *        与连接线段切向对齐度的平均值。
      */
     double score = 0.0;
     int signedKind = 0;
@@ -116,12 +115,11 @@ std::vector<std::pair<int, int>> traceShortWeakSpur(const TraceGraph& trace, int
 }
 
 /**
- * @brief Dimensionless Yoshizawa-style curve strength T = (integral ds) * (integral
- * strength ds), with ds measured in local average-edge-length units and the
- * per-edge strength taken as the persistence score relative to its channel
- * threshold. Long-but-faint chains score high through the length factor while
- * short-but-strong noise spikes stay low, matching the "long weak lines beat
- * strong short spurs" design target (M021 Eq.5-6).
+ * @brief 计算无量纲的 Yoshizawa 风格曲线强度：
+ *        T = (积分 ds) * (积分 strength ds)。其中 ds 使用局部平均边长归一化，
+ *        每条边的 strength 为相对于所属通道阈值的持久性分数。
+ *        长而微弱的链会因长度项获得较高分数，而短而尖锐的噪声毛刺得分较低，
+ *        与“长弱线优先于短强毛刺”的设计目标一致（M021 式 5-6）。
  */
 double weakSpurStrength(
     const std::vector<std::pair<int, int>>& path,
@@ -169,10 +167,8 @@ void removeWeakSpurs(
     }
     const bool useStrength =
         std::isfinite(options.featureGraphMinWeakSpurStrength) && options.featureGraphMinWeakSpurStrength > 0.0;
-    // With strength filtering enabled, spurs longer than the legacy edge cap
-    // are still examined (up to a fixed horizon) so that medium-length noise
-    // chains can be pruned, while any spur whose integrated strength clears
-    // the threshold is kept even when it is short.
+    // 启用强度筛选时，仍检查超过旧版边数上限的毛刺（但不超过固定窗口），
+    // 以便裁剪中等长度的噪声链；积分强度达到阈值的毛刺即使很短也会保留。
     constexpr int kStrengthTraceEdgeCap = 64;
     const int traceCap = useStrength ? std::max(maxEdges, kStrengthTraceEdgeCap) : maxEdges;
 
@@ -265,17 +261,17 @@ std::vector<EndpointCandidate> collectEndpoints(
     return endpoints;
 }
 
-/** @brief Tangent-alignment measurements for a proposed endpoint gap. */
+/** @brief 记录候选端点间隙的切线对齐度。 */
 struct GapAlignment {
     bool compatible = false;
     double meanAlignment = 0.0;
 };
 
 /**
- * @brief Yoshizawa gap-jumping angle rule (M021 p.3, Fig.4): the connecting segment
- * must continue both chain tangents (each within 60 degrees) and the two
- * outward tangents must point away from each other, so only breaks along one
- * underlying curve are bridged and parallel chains are never merged into each other.
+ * @brief Yoshizawa 间隙跳跃角度规则（M021 第 3 页、图 4）：
+ *        连接线段必须沿两端链条的切线延续（各端夹角不超过 60 度），
+ *        且两条外向切线应彼此背离。这样只桥接同一条底层曲线的断点，
+ *        不会把平行的两条链误合并。
  */
 GapAlignment endpointGapAlignment(const EndpointCandidate& a, const EndpointCandidate& b, const Mesh& mesh) {
     GapAlignment result;
@@ -539,7 +535,7 @@ int dominantComponentForLoop(const FeatureLoop& loop, const std::vector<int>& ve
     return bestComponent;
 }
 
-} // namespace
+} // 匿名命名空间
 
 void cleanupTraceGraph(
     const Mesh& mesh,
@@ -551,9 +547,11 @@ void cleanupTraceGraph(
     if (!options.cleanupFeatureGraph || trace.graphEdges.empty()) {
         return;
     }
+    MANUMESH_DEBUG_UTIL_FEATURES("before" , mesh , analysis);
     removeWeakSpurs(mesh, options, cache, trace, analysis);
     bridgeCloseJunctions(mesh, options, cache, trace, analysis);
     bridgeEndpointGaps(mesh, options, cache, trace, analysis);
+    MANUMESH_DEBUG_UTIL_FEATURES("after" , mesh , analysis);
 }
 
 void summarizeFeatureComponents(
@@ -702,4 +700,4 @@ void summarizeFeatureComponents(
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

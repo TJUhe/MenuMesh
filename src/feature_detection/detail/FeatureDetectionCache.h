@@ -1,9 +1,10 @@
 /**
  * @file src/feature_detection/detail/FeatureDetectionCache.h
- * @brief Declares feature detection cache facilities for ManuMesh's feature-detection module.
+ * @brief 声明 ManuMesh 特征检测模块的几何数据缓存功能。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
+ *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once
@@ -17,21 +18,18 @@
 namespace manumesh::feature::detector_detail {
 
 /**
- * @brief Lazily built, per-analysis cache of mesh-wide auxiliary structures.
+ * @brief 按需构建的单次分析缓存，保存网格范围的辅助结构。
  *
- * One analyze() call previously rebuilt vertex adjacency, per-vertex average
- * edge lengths, and face normals five to six times across the evidence,
- * smoothing, and cleanup stages. Each accessor below builds its structure on
- * first use and returns the cached copy afterwards, so every stage of one
- * pipeline run shares a single instance. The cache must only be used with the
- * mesh it was created for.
+ * 一次 analyze() 过去会在证据、平滑和清理阶段重复构建五至六次顶点邻接、
+ * 每顶点平均边长及面法向。下面的访问器只在首次访问时构建数据，之后返回缓存副本，
+ * 因而一次流水线运行的所有阶段共享同一份结构。缓存只能与创建它时绑定的网格配合使用。
  */
 class FeatureDetectionCache {
 public:
     /**
-     * @brief Binds a lazy cache to one immutable mesh and filter policy.
-     * @param[in] mesh Mesh that must outlive the cache.
-     * @param[in] normalFilterOptions Optional face-normal smoothing policy.
+     * @brief 将惰性缓存绑定到一份不可变网格和法向滤波策略。
+     * @param[in] mesh 缓存所引用的网格；其生命周期必须长于缓存。
+     * @param[in] normalFilterOptions 可选的面法向平滑策略。
      */
     explicit FeatureDetectionCache(const Mesh& mesh, FeatureNormalFilterOptions normalFilterOptions = {})
         : mesh_(&mesh),
@@ -40,13 +38,13 @@ public:
     FeatureDetectionCache(const FeatureDetectionCache&) = delete;
     FeatureDetectionCache& operator=(const FeatureDetectionCache&) = delete;
 
-    /** @brief Returns filtered face normals, computing them on first access. */
+    /** @brief 返回经过滤波的面法向，首次访问时计算。 */
     const std::vector<Vec3>& faceNormals();
 
-    /** @brief Returns diagnostics from the lazily executed normal filter. */
+    /** @brief 返回惰性执行的法向滤波诊断信息。 */
     const FeatureNormalFilterReport& normalFilterReport();
 
-    /** @brief Returns cached undirected edge-to-face incidence. */
+    /** @brief 返回缓存的无向边到相邻面的关联关系。 */
     const manumesh::common::MeshEdgeInfoMap& edgeInfo() {
         if (!hasEdgeInfo_) {
             edgeInfo_ = manumesh::common::buildMeshEdgeInfo(*mesh_);
@@ -55,7 +53,7 @@ public:
         return edgeInfo_;
     }
 
-    /** @brief Returns cached deterministic one-ring vertex adjacency. */
+    /** @brief 返回缓存的确定性顶点一环邻接表。 */
     const std::vector<std::vector<int>>& vertexNeighbors() {
         if (!hasVertexNeighbors_) {
             vertexNeighbors_ = manumesh::common::buildVertexNeighbors(*mesh_);
@@ -64,7 +62,7 @@ public:
         return vertexNeighbors_;
     }
 
-    /** @brief Returns cached per-vertex sampling-density estimates. */
+    /** @brief 返回缓存的每顶点采样密度估计（平均边长）。 */
     const std::vector<double>& vertexAverageEdgeLength() {
         if (!hasVertexAverageEdgeLength_) {
             vertexAverageEdgeLength_ = manumesh::common::computeVertexAverageEdgeLength(*mesh_);
@@ -74,7 +72,7 @@ public:
     }
 
     /**
-     * @brief Area-weighted vertex normals shared by the smooth-curvature stage.
+     * @brief 返回供光顺曲率阶段共享的面积加权顶点法向。
      */
     const std::vector<Vec3>& areaWeightedVertexNormals();
 
@@ -95,8 +93,8 @@ private:
 };
 
 /**
- * @brief Cache-aware siblings of the public scoring entry points. The public
- * overloads build a private cache; the pipeline passes one shared instance.
+ * @brief 使用已有缓存计算法向张量特征；公共重载会自行创建缓存，
+ *        流水线则传入同一个共享实例。
  */
 std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
     const Mesh& mesh, FeatureDetectionCache& cache, const NormalTensorOptions& options, double persistenceThreshold
@@ -106,4 +104,4 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
     const Mesh& mesh, FeatureDetectionCache& cache, const SmoothCurvatureOptions& options, double persistenceThreshold
 );
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

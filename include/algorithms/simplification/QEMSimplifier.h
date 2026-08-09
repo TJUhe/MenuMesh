@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/simplification/QEMSimplifier.h
- * @brief Declares qemsimplifier facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 简化模块的 QEMSimplifier 设施。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 此文件属于面向特征的边坍缩管线。二次误差代价负责候选排序；拓扑、几何、特征、边界、误差和可选纹理策略共同决定位置是否可以修改网格。
  */
 
 #pragma once
@@ -25,13 +25,13 @@ namespace manumesh::simplification {
 #pragma warning(disable : 4251)
 #endif
 
-/// Stateful object API for configuring and running mesh simplification.
+/// 用于配置和运行网格简化的有状态对象 API。
 class MANUMESH_API QEMSimplifier {
 public:
-    /// Constructs a simplifier with default options.
+    /// 使用默认选项构造简化器。
     QEMSimplifier();
-    /// @param[in] options Validated options copied into this object.
-    /// @throws std::invalid_argument when options are inconsistent.
+    /// @param[in] options 复制到此对象中的已校验选项。
+    /// @throws std::invalid_argument 当选项不一致时抛出。
     explicit QEMSimplifier(SimplifyOptions options);
     ~QEMSimplifier();
 
@@ -40,36 +40,34 @@ public:
     QEMSimplifier(QEMSimplifier&& other) noexcept;
     QEMSimplifier& operator=(QEMSimplifier&& other) noexcept;
 
-    /// Returns the options used by subsequent simplification runs.
+    /// 返回后续简化运行使用的选项。
     const SimplifyOptions& options() const;
-    /// Replaces the options used by subsequent simplification runs.
-    /// @param[in] options New validated policy.
-    /// @throws std::invalid_argument when options are inconsistent.
+    /// 替换后续简化运行使用的选项。
+    /// @param[in] options 新的已校验策略。
+    /// @throws std::invalid_argument 当选项不一致时抛出。
     void setOptions(SimplifyOptions options);
-    /// Returns diagnostics from the most recent simplification run.
+    /// 返回最近一次简化运行的诊断信息。
     const SimplifyReport& report() const;
 
-    /// Simplifies a mesh and stores diagnostics on this object.
-    /// @param[in] input Triangle surface mesh; it is not modified.
-    /// @return Simplified dense mesh.
+    /// 简化网格并将诊断信息存储在此对象中。
+    /// @param[in] input 三角表面网格；不会被修改。
+    /// @return 简化后的稠密网格。
     Mesh simplify(const Mesh& input);
-    /// Simplifies a mesh, stores diagnostics, and optionally copies them out.
-    /// @param[in] input Triangle surface mesh.
-    /// @param[out] report Optional copy of report().
-    /// @return Simplified dense mesh.
+    /// 简化网格、存储诊断信息，并可选择将其复制到输出参数。
+    /// @param[in] input 三角表面网格。
+    /// @param[out] report 可选的 report() 副本。
+    /// @return 简化后的稠密网格。
     Mesh simplify(const Mesh& input, SimplifyReport* report);
-    /// Simplifies a mesh using precomputed feature analysis when feature
-    /// preservation is enabled.
-    /// @param[in] input Mesh from which `features` was computed.
-    /// @param[in] features Precomputed graph and loop ownership.
-    /// @return Simplified dense mesh without rerunning feature detection.
+    /// 启用特征保护时，使用预先计算的特征分析简化网格。
+    /// @param[in] input 用于计算 `features` 的网格。
+    /// @param[in] features 预先计算的图和环归属信息。
+    /// @return 简化后的稠密网格，不会重新运行特征检测。
     Mesh simplify(const Mesh& input, const feature::FeatureAnalysis& features);
-    /// Simplifies a mesh using precomputed feature analysis and optionally copies
-    /// diagnostics out.
-    /// @param[in] input Mesh from which `features` was computed.
-    /// @param[in] features Precomputed feature analysis.
-    /// @param[out] report Optional diagnostics copy.
-    /// @return Simplified dense mesh.
+    /// 使用预先计算的特征分析简化网格，并可选择复制诊断信息。
+    /// @param[in] input 用于计算 `features` 的网格。
+    /// @param[in] features 预先计算的特征分析。
+    /// @param[out] report 可选的诊断信息副本。
+    /// @return 简化后的稠密网格。
     Mesh simplify(const Mesh& input, const feature::FeatureAnalysis& features, SimplifyReport* report);
 
 private:
@@ -81,28 +79,25 @@ private:
 #pragma warning(pop)
 #endif
 
-/// Simplifies a mesh with standard QEM or line-quadrics-augmented QEM.
-/// Prefer QEMSimplifier for new code that needs an object-oriented API.
-/// @param[in] input Source triangle mesh.
-/// @param[in] options Target, ranking costs, and acceptance policies.
-/// @param[out] report Optional diagnostics.
-/// @return Simplified mesh with compacted vertices and faces.
-/// @algorithm Accumulates plane and optional line/constraint quadrics, solves
-/// ranked placements for each active edge, repeatedly pops the cheapest
-/// current candidate, applies hard acceptance filters, updates local topology
-/// and candidate versions, then optionally performs fixed-topology refinement.
-/// @invariants QEM ranks but never overrides a hard topology, boundary,
-/// feature, self-intersection, texture, or error rejection.
-/// @failuremodes The run can terminate above target when no legal candidates
-/// remain or when the bounded rejection limit is reached; inspect
-/// SimplifyReport::terminationReason and rejection counters.
+/// 使用标准 QEM 或加入 line quadrics 的 QEM 简化网格。
+/// 需要面向对象 API 的新代码应优先使用 QEMSimplifier。
+/// @param[in] input 源三角网格。
+/// @param[in] options 目标、排序代价和接受策略。
+/// @param[out] report 可选的诊断信息。
+/// @return 顶点和面已压缩的简化网格。
+/// @algorithm 累积面平面以及可选的线/约束 quadrics，为每条活动边求解排序后的位置，
+/// 反复取出当前代价最低的候选，应用硬性接受过滤器，更新局部拓扑和候选版本，
+/// 最后可选地执行固定拓扑精修。
+/// @invariants QEM 只负责排序，绝不会覆盖硬性拓扑、边界、特征、自交、纹理或误差拒绝条件。
+/// @failuremodes 当没有合法候选或达到有界拒绝上限时，运行可能在高于目标面数时终止；
+/// 请检查 SimplifyReport::terminationReason 和拒绝计数。
 MANUMESH_API Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options, SimplifyReport* report = nullptr);
-/// Simplifies with feature analysis already computed for `input`.
-/// @param[in] input Source mesh.
-/// @param[in] options Simplification policy.
-/// @param[in] features Feature graph and primitive constraints for `input`.
-/// @param[out] report Optional diagnostics.
-/// @return Simplified mesh without a duplicate feature-analysis pass.
+/// 使用已为 `input` 计算的特征分析进行简化。
+/// @param[in] input 源网格。
+/// @param[in] options 简化策略。
+/// @param[in] features `input` 的特征图和基本体约束。
+/// @param[out] report 可选的诊断信息。
+/// @return 简化后的网格，不会重复执行特征分析。
 MANUMESH_API Mesh simplifyMesh(
     const Mesh& input,
     const SimplifyOptions& options,

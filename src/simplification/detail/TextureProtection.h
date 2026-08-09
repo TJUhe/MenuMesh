@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/TextureProtection.h
- * @brief Declares texture protection facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的纹理保护功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -17,18 +17,18 @@
 namespace manumesh::simplification {
 
 /**
- * @brief Texture constraint result and scalar penalty for one placement.
+ * @brief 一次放置的纹理约束结果和标量惩罚。
  */
 struct TextureCollapseEvaluation {
     TextureCollapseRejectReason rejectReason = TextureCollapseRejectReason::None;
     double cost = 0.0;
 
-    /** @brief Reports whether every enabled texture constraint passed. */
+    /** @brief 报告所有启用的纹理约束是否均已通过。*/
     bool allowed() const { return rejectReason == TextureCollapseRejectReason::None; }
 };
 
 /**
- * @brief One surviving face whose per-corner UVs change when a collapse is applied.
+ * @brief 折叠应用后仍保留、但每角 UV 会发生变化的面。
  */
 struct TextureFaceUpdate {
     int face = -1;
@@ -36,10 +36,7 @@ struct TextureFaceUpdate {
 };
 
 /**
- * @brief Full texture outcome of one collapse placement: the evaluation used for
- * ranking/rejection plus the concrete UV rewrites needed to apply it. A plan
- * built for the accepted placement can be applied directly, which avoids
- * rebuilding the same plan a second time inside applyCollapse.
+ * @brief 一次折叠放置的完整纹理结果：用于排序/拒绝的评估，以及应用所需的具体 UV 重写。为接受放置构建的计划可以直接应用，避免在 applyCollapse 内再次构建相同计划。
  */
 struct TextureUpdatePlan {
     TextureCollapseEvaluation evaluation;
@@ -47,17 +44,17 @@ struct TextureUpdatePlan {
 };
 
 /**
- * @brief Local texture policy layered on top of the unchanged 4x4 geometry QEM.
+ * @brief 叠加在不变的 4x4 几何 QEM 之上的局部纹理策略。
  */
 class TextureProtection {
 public:
-    /** @brief Captures texture policy and scale tolerances for one input mesh. */
+    /** @brief 为一个输入网格捕获纹理策略和尺度容差。*/
     TextureProtection(const Mesh& input, const SimplifyOptions& options);
 
-    /** @brief Reports whether texture constraints or penalties are enabled. */
+    /** @brief 判断纹理约束或惩罚是否已启用。*/
     bool active() const;
     /**
-     * @brief Evaluates one collapse placement without materializing UV rewrites.
+     * @brief 评估一次折叠放置，但不生成 UV 重写。
      */
     TextureCollapseEvaluation evaluate(
         CollapseEdge edge,
@@ -68,8 +65,7 @@ public:
         const std::vector<FaceTexCoords>& faceTexCoords
     ) const;
     /**
-     * @brief Evaluates one collapse placement and, when allowed, returns the UV
-     * rewrites needed to apply it.
+     * @brief 评估一次折叠放置；允许时返回应用所需的 UV 重写。
      */
     TextureUpdatePlan buildPlan(
         CollapseEdge edge,
@@ -80,7 +76,7 @@ public:
         const std::vector<FaceTexCoords>& faceTexCoords
     ) const;
     /**
-     * @brief Applies a plan previously built for the accepted placement.
+     * @brief 应用此前为接受放置构建的计划。
      */
     bool apply(const TextureUpdatePlan& plan, std::vector<FaceTexCoords>& faceTexCoords) const;
 
@@ -92,4 +88,4 @@ private:
     double minAreaRatio_ = 0.0;
 };
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

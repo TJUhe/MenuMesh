@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/api/c_api_legacy_init_tests.cpp
- * @brief Verifies c api legacy init tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的 C API 旧版初始化测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #define MANUMESH_DISABLE_SIZE_AWARE_ALIASES
@@ -155,7 +155,7 @@ void expectLegacyInitializerMatchesSizeAwarePrefix(
     EXPECT_EQ(0, std::memcmp(&legacyStorage.object, &sizeAwareStorage.object, legacySize));
 }
 
-} // namespace
+} // 命名空间
 
 TEST(CApiLegacyInit, SymbolsStayWithinFirstPublishedV1Layouts) {
     expectLegacyInitializerIsBounded(&manumesh_simplify_options_init, kLegacyV1SimplifyOptionsSize);

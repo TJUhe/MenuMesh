@@ -1,13 +1,12 @@
 /**
  * @file src/feature_detection/FeatureCycleRecovery.cpp
- * @brief Implements feature cycle recovery facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征环恢复功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Recovers bounded cycles that pass through junctions or belong to a small cycle basis.
- * @algorithm Uses deterministic shortest-path/cycle candidates, canonical
- * undirected edge signatures for deduplication, and primitive/evidence gates
- * before accepting a recovered cycle.
- * @failuremodes Search depth and candidate counts are capped on dense graphs.
+ * @details 恢复经过分叉点或属于小型环基的有界特征环。
+ * @algorithm 使用确定性的最短路/环候选，以规范化无向边签名去重，
+ *            并在接受环之前通过图元拟合和证据门限校验。
+ * @failuremodes 在稠密图上限制搜索深度和候选数量。
  */
 
 #include "detail/FeatureCycleRecovery.h"
@@ -23,7 +22,7 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
-/** @brief Ordered graph chain and closure state used during cycle recovery. */
+/** @brief 图环恢复期间使用的有序链及闭合状态。 */
 struct FeatureChain {
     std::vector<int> vertices;
     int loEndpoint = -1;
@@ -130,7 +129,7 @@ bool componentHasWeakEvidenceEdge(const std::vector<int>& component, const Trace
     return false;
 }
 
-} // namespace
+} // 匿名命名空间
 
 void recoverCircularCyclesThroughJunctions(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
@@ -189,9 +188,8 @@ void recoverSmallCycleBasis(
             queue.pop();
             component.push_back(v);
             edgeCount2x += static_cast<int>(adjacency[v].size());
-            // Visit neighbors in sorted order so the BFS tree (and therefore
-            // every recovered fundamental cycle) does not depend on adjacency
-            // insertion order.
+            // 按排序后的顺序访问邻点，使 BFS 树及由此得到的每个基本环
+            // 不依赖邻接表的插入顺序。
             std::vector<int> neighbors = adjacency[v];
             std::sort(neighbors.begin(), neighbors.end());
             for (int nb : neighbors) {
@@ -242,4 +240,4 @@ void recoverSmallCycleBasis(
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

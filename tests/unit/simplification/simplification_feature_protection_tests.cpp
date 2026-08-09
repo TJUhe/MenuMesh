@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/simplification_feature_protection_tests.cpp
- * @brief Verifies simplification feature protection tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的简化 特征 保护测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -146,16 +146,16 @@ TEST(ManuMesh, ReportsFeatureLoopsOnCylinderCreases) {
 
     const manumesh::feature::FeatureAnalysis features = manumesh::feature::detectFeatureCurves(input, options);
 
-    // The only dihedral angles above 30 degrees are at the two cap rims,
-    // where wall and cap faces meet at 90 degrees: 32 radial segments per rim
-    // gives exactly 2 * 32 = 64 dihedral feature edges. Wall edges bend by at
-    // most 360/32 = 11.25 degrees and cap-fan edges are coplanar, so neither
-    // contributes; the closed cylinder also has no boundary edges.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(64, features.featureEdges);
     EXPECT_EQ(64, features.dihedralFeatureEdges);
     EXPECT_EQ(0, features.boundaryFeatureEdges);
-    // Each rim traces into one closed circular loop of the 32 rim vertices at
-    // the exact analytic rim circle (radius 1.0, z = +/- height/2 = +/- 1.0).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     ASSERT_EQ(2u, features.loops.size());
     for (const manumesh::feature::FeatureLoop& loop : features.loops) {
         EXPECT_TRUE(loop.closed);

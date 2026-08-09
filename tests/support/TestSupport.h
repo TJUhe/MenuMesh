@@ -1,9 +1,9 @@
 /**
  * @file tests/support/TestSupport.h
- * @brief Verifies test support behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的测试支持行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once
@@ -58,4 +58,4 @@ void expectReportCountersConsistent(const simplification::SimplifyReport& report
 void expectBudget(const SimplifiedMesh& result, const Mesh& input, double ratio);
 int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue);
 
-} // namespace manumesh::test
+} // 命名空间

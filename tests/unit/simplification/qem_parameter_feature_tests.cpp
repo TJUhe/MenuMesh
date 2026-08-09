@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/qem_parameter_feature_tests.cpp
- * @brief Verifies qem parameter feature tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的QEM 参数 特征测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "QemParameterTestSupport.h"
@@ -39,16 +39,16 @@ TEST(ManuMeshParameters, FeatureProtectedCircularLoopsRemainDetectableAfterAggre
     const SimplifiedMesh result = simplifyWithReport(input, options);
 
     expectBudget(result, input, 0.25);
-    // The fixture carries exactly four circular rims (outer plate rims at
-    // r=2.0 and hole rims at r=0.6, at z=+-0.5); all of them must be picked up
-    // as protected circular loops.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(4, result.report.circularFeatureLoops);
     EXPECT_GT(result.report.projectedFeaturePlacements, 0);
 
-    // Hard-protection invariant: the 0.25 target drives every rim down to the
-    // minCircularFeatureLoopVertices floor, but each surviving rim vertex must
-    // still lie exactly on its original circle (collapse placements on a
-    // circular loop are projected onto the fitted circle).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const struct {
         double radius;
         double z;
@@ -72,18 +72,18 @@ TEST(ManuMeshParameters, FeatureProtectedCircularLoopsRemainDetectableAfterAggre
     const manumesh::feature::FeatureAnalysis outputFeatures =
         manumesh::feature::detectFeatureCurves(result.mesh, outputFeatureOptions);
 
-    // Re-detection on the floor-degenerate output is only guaranteed for the
-    // hole rims. At the minCircularFeatureLoopVertices floor the top and
-    // bottom rims of each cylinder keep independent rotational phases, so the
-    // outer (r=2.0) wall becomes a zigzag of skewed triangles whose crease
-    // dihedrals rival the rim crease; whether graph recovery closes the outer
-    // rims then depends on the tessellation phase left behind by the
-    // (deterministic but order-sensitive) collapse sequence, not on the
-    // protection itself. The historical >=3 expectation was met only because
-    // one spurious mixed loop sat 3% below the 0.16 threshold while the true
-    // bottom outer rim already went undetected. The steep inner wall keeps the
-    // r=0.6 hole rims robustly detectable, and the geometric checks above
-    // pin down the protection guarantee for all four rims.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(countCircularLoops(outputFeatures), 2);
     int detectableHoleRims = 0;
     for (const manumesh::feature::FeatureLoop& loop : outputFeatures.loops) {

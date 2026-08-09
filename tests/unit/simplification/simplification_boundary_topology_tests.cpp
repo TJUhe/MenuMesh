@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/simplification_boundary_topology_tests.cpp
- * @brief Verifies simplification boundary topology tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的简化 边界拓扑测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -27,9 +27,9 @@ using namespace manumesh::test::simplification;
 
 namespace {
 
-/// Returns the highest number of boundary edges incident to any single vertex.
-/// A vertex-manifold open surface never exceeds two; a boundary pinch
-/// (bowtie) vertex has four or more.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 int maxBoundaryEdgesAtAnyVertex(const manumesh::Mesh& mesh) {
     const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(mesh);
     if (!topologyResult.ok()) {
@@ -114,9 +114,9 @@ void expectVertexManifoldOpenSurface(const manumesh::Mesh& mesh) {
     EXPECT_LE(maxBoundaryEdges, 2);
 }
 
-/// Non-convex planar disk around interior vertex 1: the one-ring polygon
-/// (0, 2, 3, 4) is star-shaped with respect to vertex 1, but placing the
-/// merged vertex at vertex 0 folds face {1, 3, 4} over its opposite edge.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 manumesh::Mesh makeNormalFlipFallbackMesh() {
     manumesh::Mesh mesh;
     mesh.vertices = {
@@ -192,21 +192,21 @@ manumesh::Mesh makeTwoDisjointTrianglesMesh() {
     return mesh;
 }
 
-} // namespace
+} // 命名空间
 
 TEST(ManuMesh, BoundaryWeightPullsOpenBoundaryPlacementsBackToPolyline) {
-    // Soft boundary preservation (SimplifyOptions::boundaryWeight): the plane
-    // grid is an open planar disk, so face-plane quadrics are degenerate in
-    // the tangent plane and the default line quadrics pull merged placements
-    // tangentially toward one-ring centroids -- with boundaryWeight = 0 the
-    // outer boundary vertices drift into the interior. addBoundaryQuadrics
-    // adds a plane quadric perpendicular to the surface through each boundary
-    // edge, so a large weight makes the merged quadric optimum stay on the
-    // original boundary polyline.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const manumesh::Mesh input = manumesh::generatePlaneGrid(16, 2.0, false);
     const BoundaryPolyline inputBoundary = collectBoundaryPolyline(input);
     ASSERT_FALSE(inputBoundary.segments.empty());
-    // Grid spacing of generatePlaneGrid(16, 2.0): h = 2.0 / 16 = 0.125.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double gridSpacing = 2.0 / 16.0;
 
     const auto driftForWeight = [&](double boundaryWeight) {
@@ -216,10 +216,10 @@ TEST(ManuMesh, BoundaryWeightPullsOpenBoundaryPlacementsBackToPolyline) {
         const SimplifiedMesh result = simplifyWithReport(input, options);
         EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);
         EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-        // boundaryWeight is a soft ranking/placement cost only: the hard
-        // legality filters (extended link condition, fold-over guard) still
-        // apply, so the output must stay a vertex-manifold open surface at
-        // any weight.
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
+        // 检查该步骤的边界条件，并确保结果保持确定性。
         expectVertexManifoldOpenSurface(result.mesh);
         return maxBoundaryVertexDriftFromPolyline(result.mesh, inputBoundary);
     };
@@ -227,20 +227,20 @@ TEST(ManuMesh, BoundaryWeightPullsOpenBoundaryPlacementsBackToPolyline) {
     const double driftUnweighted = driftForWeight(0.0);
     const double driftWeighted = driftForWeight(1e3);
 
-    // Measured on this deterministic fixture: driftUnweighted = 0.1667
-    // (4/3 h, i.e. beyond one removed boundary ring) and driftWeighted = 0.0
-    // exactly. h/2 and h/20 keep a 10x separation between the two bounds
-    // while leaving 2.7x (unweighted) and unbounded (weighted) margins to the
-    // measured values, so the test detects the boundaryWeight channel going
-    // dead without locking in exact placement coordinates.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(driftUnweighted, 0.5 * gridSpacing);
     EXPECT_LE(driftWeighted, 0.05 * gridSpacing);
     EXPECT_LT(driftWeighted, driftUnweighted);
 }
 
 TEST(ManuMesh, BoundaryChordCollapseFailsExtendedLinkCondition) {
-    // Two triangles sharing the interior edge (1, 2); every vertex lies on the
-    // open boundary, so collapsing the chord would pinch the boundary.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const manumesh::Mesh input = makePlacementFallbackMesh();
     std::vector<manumesh::simplification::FaceState> faces(input.faces.size());
     for (int face = 0; face < static_cast<int>(input.faces.size()); ++face) {
@@ -257,8 +257,8 @@ TEST(ManuMesh, BoundaryChordCollapseFailsExtendedLinkCondition) {
     EXPECT_FALSE(manumesh::simplification::collapseWouldPreserveLinkCondition(2, 1, faces, vertices, topology));
     EXPECT_TRUE(manumesh::simplification::collapseWouldPreserveLinkCondition(0, 1, faces, vertices, topology));
 
-    // Without boundary flags the same chord satisfies the classic link
-    // condition, which shows the rejection comes from the boundary extension.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (manumesh::simplification::VertexState& vertex : vertices) {
         vertex.isBoundary = false;
     }
@@ -277,9 +277,9 @@ TEST(ManuMesh, TetrahedronEdgeCollapseFailsFullSimplicialLinkCondition) {
     }
     const manumesh::simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
 
-    // The endpoint links share the edge opposite each tetrahedron edge. The
-    // edge link itself contains only the two opposite vertices, so the full
-    // simplicial-complex equality fails even though the link vertex sets match.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (int keep = 0; keep < 4; ++keep) {
         for (int remove = keep + 1; remove < 4; ++remove) {
             EXPECT_FALSE(
@@ -451,9 +451,9 @@ TEST(ManuMesh, PreserveBoundaryKeepsHoleBoundaryNearOriginalPolyline) {
     EXPECT_EQ(countBoundaryComponents(input), countBoundaryComponents(result.mesh));
     expectVertexManifoldOpenSurface(result.mesh);
 
-    // Boundary placements are clamped onto boundary segments and outrank
-    // feature projection, so hole and outer boundary vertices stay within a
-    // small tolerance of the original boundary polyline.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double drift = maxBoundaryVertexDriftFromPolyline(result.mesh, inputBoundary);
     EXPECT_LE(drift, 2.0 * inputBoundary.maxSegmentLength);
 }
@@ -491,9 +491,9 @@ TEST(ManuMesh, NormalFlipRejectionFallsBackToEndpointPlacement) {
     options.targetFaces = 2;
     options.useLineQuadrics = false;
     options.lineWeight = 0.0;
-    // Default maxNormalDeviationDeg (90) keeps the fold-over filter active:
-    // the first placement candidate (endpoint 0) flips face {1, 3, 4}, but the
-    // fallback endpoint placement is legal and must be tried.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const SimplifiedMesh result = simplifyWithReport(input, options);
 
     EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);

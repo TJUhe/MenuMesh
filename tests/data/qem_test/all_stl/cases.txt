@@ -1,2 +1,2 @@
-# Paths are relative to tests/data. Globstar patterns are expanded recursively.
+# 路径相对于 tests/data；globstar 模式会递归展开。
 external/**/*.stl

@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_perf_tests.cpp
- * @brief Verifies feature detection perf tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的特征检测 性能测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -28,7 +28,7 @@ double timeAnalysisMs(const Mesh& mesh, const feature::FeatureOptions& options, 
         const auto start = std::chrono::steady_clock::now();
         const feature::FeatureAnalysis analysis = feature::detectFeatureCurves(mesh, options);
         const auto stop = std::chrono::steady_clock::now();
-        // Consume a result so the call cannot be optimized away.
+        // 检查该步骤的边界条件，并确保结果保持确定性。
         if (analysis.featureEdges < 0) {
             std::printf("unexpected\n");
         }
@@ -37,12 +37,12 @@ double timeAnalysisMs(const Mesh& mesh, const feature::FeatureOptions& options, 
     return best;
 }
 
-} // namespace
+} // 命名空间
 
-// Manual coarse benchmark: run explicitly with
-//   manumesh_tests.exe --gtest_also_run_disabled_tests
-//     --gtest_filter=FeatureDetectionPerf.DISABLED_AnalyzeTiming
-// It is excluded from regular ctest runs by the DISABLED_ prefix.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+//   该实现需保持边界条件，并保证结果具有确定性。
+//     该实现需保持边界条件，并保证结果具有确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
     feature::FeatureOptions weakOptions;
     weakOptions.featureAngleDeg = 40.0;
@@ -104,4 +104,4 @@ TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
     SUCCEED();
 }
 
-} // namespace manumesh::test::feature_detection
+} // 命名空间

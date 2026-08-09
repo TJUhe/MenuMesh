@@ -1,12 +1,10 @@
 /**
  * @file src/simplification/SimplificationValidation.cpp
- * @brief Implements simplification validation facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的简化 校验功能。
  * @ingroup manumesh_simplification
  *
- * @details Validates mesh and option contracts before mutable run state is allocated.
- * @failuremodes Invalid indices, non-finite geometry/options, repeated face
- * vertices, impossible persistence counts, and inconsistent target ranges
- * raise invalid_argument at the C++ boundary.
+ * @details 在分配可变运行状态前校验网格和选项契约。
+ * @failuremodes 在 C++ 边界处，遇到无效索引、非有限几何体或选项、重复面顶点、不可能的持久化计数以及不一致的目标范围时抛出 invalid_argument。
  */
 
 #include "detail/SimplificationValidation.h"
@@ -28,7 +26,7 @@ void requireFiniteNonNegative(double value, const char* name) {
     }
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 void validateSimplifyOptions(const SimplifyOptions& options) {
     if (options.targetFaces == 0 || options.targetFaces < -1) {
@@ -70,10 +68,7 @@ void validateSimplifyOptions(const SimplifyOptions& options) {
 }
 
 void validateSimplifierInput(const Mesh& input) {
-    // Lenient geometry validation: zero-area faces are tolerated (the QEM
-    // pipeline routes them through the degenerate-face quadric fallback and
-    // reports them via SimplifyReport::degenerateInputFaces); only inputs no
-    // algorithm can process are rejected here.
+    // 宽松的几何校验允许零面积面存在（QEM 流水线会通过退化面二次误差回退项处理，并在 SimplifyReport::degenerateInputFaces 中报告）；这里只拒绝任何算法都无法安全处理的输入。
     std::string error;
     if (!validateMeshGeometryLenient(input, &error)) {
         throw std::invalid_argument(error);
@@ -87,4 +82,4 @@ void validateSimplifierInput(const Mesh& input) {
     }
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

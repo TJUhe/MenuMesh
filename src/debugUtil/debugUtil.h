@@ -1,9 +1,9 @@
 /**
  * @file src/debugUtil/debugUtil.h
- * @brief Declares debug util facilities for ManuMesh's debug-visualization module.
+ * @brief 声明 ManuMesh 调试可视化模块的辅助功能。
  * @ingroup manumesh_debug
  *
- * @details Debug visualization is compiled out of release builds and must not affect algorithm results.
+ * @details 发布构建会去除调试可视化，调试工具不得影响算法结果。
  */
 
 #pragma once
@@ -22,77 +22,75 @@ struct FeatureAnalysis;
 namespace manumesh::debugUtil {
 
 /**
- * @brief Debug drawing intent for color and line-width selection.
+ * @brief 用于选择颜色和线宽的调试绘制语义。
  *
- * The values are semantic rather than algorithm-specific, so callers can use
- * the same palette when inspecting feature detection, collapse rejection,
- * topology warnings, or before/after simplification snapshots.
+ * 这些值描述语义而非具体算法，因此检查特征检测、折叠拒绝、拓扑警告或
+ * 简化前后快照时可以复用同一套调色板。
  */
 enum class UseCase {
     /**
-     * @brief Ordinary mesh wireframe.
+     * @brief 普通网格线框。
      */
     Mesh,
     /**
-     * @brief Boundary edge or open-border evidence.
+     * @brief 边界边或开放边界证据。
      */
     Boundary,
     /**
-     * @brief Strong feature edge such as dihedral evidence.
+     * @brief 强特征边，例如二面角证据。
      */
     Feature,
     /**
-     * @brief Weak feature evidence, for example normal-tensor-only support.
+     * @brief 弱特征证据，例如仅由法线张量提供的支持。
      */
     WeakFeature,
     /**
-     * @brief Recovered or user-visible feature loop.
+     * @brief 恢复得到或面向用户显示的特征环。
      */
     FeatureLoop,
     /**
-     * @brief Candidate edge being inspected before acceptance/rejection.
+     * @brief 正在检查、尚未决定接受或拒绝的候选边。
      */
     Candidate,
     /**
-     * @brief Accepted result edge, commonly used for simplified output.
+     * @brief 已接受的结果边，通常用于显示简化输出。
      */
     Accepted,
     /**
-     * @brief Rejected edge or failed collapse candidate.
+     * @brief 被拒绝的边或折叠失败的候选边。
      */
     Rejected,
     /**
-     * @brief Suspicious edge that may need closer inspection.
+     * @brief 可能需要进一步检查的可疑边。
      */
     Warning,
     /**
-     * @brief Definite error evidence such as non-manifold topology.
+     * @brief 明确的错误证据，例如非流形拓扑。
      */
     Error,
 };
 
 /**
- * @brief Optional colored edge overlay drawn on top of the base wireframe.
+ * @brief 叠加在基础线框上的可选彩色边覆盖层。
  *
- * Vertex indices are mesh-local. Invalid indices are ignored instead of
- * failing the caller's debug run, because this utility is often placed inside
- * error-handling paths.
+ * 顶点索引属于当前网格。无效索引会被忽略，不会使调试运行失败，
+ * 因为该工具经常在错误处理路径中调用。
  */
 struct EdgeOverlay {
     /**
-     * @brief First vertex index.
+     * @brief 第一个顶点索引。
      */
     int a = -1;
     /**
-     * @brief Second vertex index.
+     * @brief 第二个顶点索引。
      */
     int b = -1;
     /**
-     * @brief Semantic color/width for this overlay.
+     * @brief 此覆盖层使用的语义颜色和线宽。
      */
     UseCase useCase = UseCase::Feature;
     /**
-     * @brief Optional label drawn near the edge midpoint.
+     * @brief 可选的边中点附近标签。
      */
     std::string label;
 };
@@ -100,35 +98,34 @@ struct EdgeOverlay {
 #if defined(MANUMESH_ENABLE_DEBUG_UTIL) && !defined(NDEBUG)
 
 /**
- * @brief Write a local interactive HTML wireframe for a mesh.
+ * @brief 为网格写入本地交互式 HTML 线框页面。
  */
 void showWireframe(const char* tag, const Mesh& mesh, UseCase useCase = UseCase::Mesh);
 /**
- * @brief Write a local HTML snapshot with one highlighted edge.
+ * @brief 写入突出显示一条边的本地 HTML 快照。
  */
 void showEdge(const char* tag, const Mesh& mesh, int a, int b, UseCase useCase, const char* label = nullptr);
 /**
- * @brief Write a local HTML snapshot with multiple highlighted edges.
+ * @brief 写入突出显示多条边的本地 HTML 快照。
  */
 void showEdges(
     const char* tag, const Mesh& mesh, const std::vector<EdgeOverlay>& overlays, UseCase baseUseCase = UseCase::Mesh
 );
 /**
- * @brief Write a local HTML snapshot of feature graph and recovered loop overlays.
+ * @brief 写入特征图和恢复特征环覆盖层的本地 HTML 快照。
  */
 void showFeatures(const char* tag, const Mesh& mesh, const feature::FeatureAnalysis& analysis);
 /**
- * @brief Write a local HTML snapshot with before and after meshes side by side.
+ * @brief 写入并排显示简化前后网格的本地 HTML 快照。
  */
 void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after);
 
 #endif
 
-} // namespace manumesh::debugUtil
+} // 命名空间 manumesh::debugUtil
 
-// These macros are intentionally available to all internal C++ sources through
-// the CMake force-include hook. They compile to no-ops unless both the CMake
-// debug utility option and a non-NDEBUG build are active.
+// 这些宏通过 CMake 强制包含钩子提供给所有内部 C++ 源文件。
+// 只有启用 CMake 调试工具选项且不是 NDEBUG 构建时才会执行，否则为空操作。
 #if defined(MANUMESH_ENABLE_DEBUG_UTIL) && !defined(NDEBUG)
 
 #define MANUMESH_DEBUG_UTIL_WIREFRAME(tag, mesh) ::manumesh::debugUtil::showWireframe((tag), (mesh))

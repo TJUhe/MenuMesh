@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/mesh_edit/mesh_edit_tests.cpp
- * @brief Verifies mesh edit tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的网格编辑测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "mesh_edit/detail/DynamicTopology.h"
@@ -64,4 +64,4 @@ TEST(MeshEdit, DynamicTopologyTracksAdjacencyAndDuplicateFaces) {
     EXPECT_FALSE(topology.hasDuplicateFace(2, faces[2]));
 }
 
-} // namespace
+} // 命名空间

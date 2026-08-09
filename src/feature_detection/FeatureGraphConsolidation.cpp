@@ -1,13 +1,12 @@
 /**
  * @file src/feature_detection/FeatureGraphConsolidation.cpp
- * @brief Implements feature graph consolidation facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征图合并功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Performs component-level weak-feature recovery after local cleanup.
- * @algorithm Endpoints from distinct compatible components are indexed by
- * position and paired under local-scale distance, tangent alignment, and
- * evidence/sign compatibility gates; accepted bridges merge graph support.
- * @failuremodes Ambiguous dense endpoint sets are bounded by a recovery cap.
+ * @details 在局部清理后执行分量级弱特征恢复。
+ * @algorithm 从不同且兼容的分量中索引端点位置，并依据局部尺度距离、切线对齐度、
+ *            证据类别及凸凹符号配对；接受的桥会补充图支持。
+ * @failuremodes 对含大量端点的歧义密集图设置恢复上限。
  */
 
 #include "detail/FeatureGraphConsolidation.h"
@@ -23,14 +22,14 @@
 namespace manumesh::feature::detector_detail {
 namespace {
 
-/** @brief Consolidation endpoint with position-derived local scale. */
+/** @brief 带有位置局部尺度的合并端点。 */
 struct Endpoint {
     int vertex = -1;
     int component = -1;
     double scale = 0.0;
 };
 
-/** @brief Ranked compatible component bridge considered by consolidation. */
+/** @brief 待合并的兼容分量桥接候选及其排序分数。 */
 struct ConsolidationCandidate {
     int first = -1;
     int second = -1;
@@ -76,7 +75,7 @@ double fallbackScale(const std::vector<double>& scales, double fallback) {
     return count > 0 ? sum / static_cast<double>(count) : fallback;
 }
 
-} // namespace
+} // 匿名命名空间
 
 void consolidateFeatureGraph(
     const Mesh& mesh,
@@ -175,4 +174,4 @@ void consolidateFeatureGraph(
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

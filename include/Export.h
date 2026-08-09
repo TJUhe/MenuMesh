@@ -1,13 +1,12 @@
 /**
  * @file include/Export.h
- * @brief Declares export facilities for ManuMesh's core-mesh module.
+ * @brief 声明 ManuMesh 核心网格模块的导出设施。
  * @ingroup manumesh_core
  *
- * @details `MANUMESH_API` selects the linkage for public symbols.
- * `MANUMESH_BUILDING_DLL` exports symbols while compiling the shared library;
- * `MANUMESH_USING_DLL` imports them for Windows consumers. With neither macro,
- * the annotation is empty for static/internal builds. Non-Windows shared builds
- * use default ELF visibility when supported.
+ * @details `MANUMESH_API` 选择公共符号的链接方式。
+ * 编译共享库时，`MANUMESH_BUILDING_DLL` 导出符号；Windows 使用者通过
+ * `MANUMESH_USING_DLL` 导入符号。两个宏都未定义时，静态/内部构建不添加注解。
+ * 非 Windows 的共享构建在支持时使用默认 ELF 可见性。
  */
 
 #pragma once

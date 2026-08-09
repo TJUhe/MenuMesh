@@ -1,17 +1,11 @@
 /**
  * @file src/simplification/SimplificationRun.cpp
- * @brief Implements simplification run facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的简化 运行功能。
  * @ingroup manumesh_simplification
  *
- * @details Owns mutable state and schedules one complete simplification run.
- * @algorithm Initializes vertex/face quadrics and dynamic topology, builds the
- * candidate heap, repeatedly discards stale entries or evaluates current
- * placements, applies accepted local edits, refreshes affected candidates,
- * stops on target/no-candidate/rejection limits, then compacts and optionally
- * refines the result.
- * @invariants Candidate versions change whenever an endpoint neighborhood
- * changes; active faces reference active vertices; report rejection counters
- * record the first hard filter for each current candidate.
+ * @details 拥有可变状态，并调度一次完整的简化运行。
+ * @algorithm 初始化顶点/面二次误差矩阵和动态拓扑，构建候选堆；反复丢弃过期条目或评估当前放置，应用接受的局部编辑并刷新受影响候选；达到目标、无候选或拒绝次数上限后停止，最后压缩并可选地细化结果。
+ * @invariants 每当端点邻域发生变化时，候选版本都会更新；活动面只引用活动顶点；报告中的拒绝计数记录每个当前候选触发的首个硬过滤器。
  */
 
 #include "detail/SimplificationRun.h"
@@ -111,10 +105,7 @@ void SimplificationRun::initializeReport() {
     report_ = SimplifyReport{};
     report_.initialVertices = static_cast<int>(input_.vertices.size());
     report_.initialFaces = static_cast<int>(input_.faces.size());
-    // Zero-area input faces are tolerated (lenient input validation); they
-    // fall back to the small point quadric in computeInitialQuadrics and the
-    // legality area checks keep them from spreading. Surface the count so
-    // tolerated dirty input never goes unnoticed.
+    // 输入中的零面积面会被宽松校验允许存在；它们在 computeInitialQuadrics 中回退到小的点二次误差项，合法性检查中的面积条件则阻止退化继续扩散。记录数量，避免被容忍的脏输入悄然通过。
     report_.degenerateInputFaces = countDegenerateFaces(input_);
 }
 
@@ -130,10 +121,7 @@ void SimplificationRun::analyzeFeatures() {
 
 void SimplificationRun::initializeVertices() {
     const InitialQuadrics initialQuadrics = quadrics_.build(input_, featureGuidance_, report_);
-    // Boundary flags are always computed (one O(E) pass) because the extended
-    // link condition needs them to block boundary-chord pinches even when
-    // preserveBoundary is off. preserveBoundary keeps its original meaning:
-    // it only restricts how boundary vertices may move or merge.
+    // 始终计算边界标志（一次 O(E) 遍历），因为扩展链接条件需要在 preserveBoundary 关闭时也阻止边界弦收缩。preserveBoundary 保持原有含义：只限制边界顶点的移动或合并方式。
     boundaryVertices_ = common::computeBoundaryVertices(input_);
     primitiveFits_.clear();
     vertices_.assign(input_.vertices.size(), VertexState{});
@@ -175,9 +163,7 @@ void SimplificationRun::initializeVertexFeature(int vertexId) {
     vertex.featureComponentId = vf.componentId;
     vertex.featureConfidence = vf.confidence;
     vertex.curveTangent = vf.tangent;
-    // Circle/ellipse fit payloads go to the compact side table; vertices
-    // without a fitted primitive stay at primitiveFitId == -1 and cost zero
-    // extra memory.
+    // 圆/椭圆拟合数据存放在紧凑的旁表中；没有拟合图元的顶点保持 primitiveFitId == -1，并且不会额外占用内存。
     const bool hasCircleFit = vf.circular || vf.circleRadius > 0.0;
     const bool hasEllipseFit = vf.primitive == FeatureCurveKind::Ellipse || vf.ellipseMajorRadius > 0.0;
     if (vf.isFeature && (hasCircleFit || hasEllipseFit)) {
@@ -234,10 +220,7 @@ void SimplificationRun::rebuildQueue() {
             ++textureProtectedEdges;
         }
     }
-    // The initial queue construction is not a rebuild; only count rebuilds
-    // triggered later by refills or stale-candidate recovery. The initial
-    // build also doubles as the textureProtectedEdges census: it reuses the
-    // per-placement texture evaluations instead of a separate O(E) pass.
+    // 初始构建不计作重建；这里只统计后续补充或过期候选恢复触发的重建。初始构建还兼作 textureProtectedEdges 统计：复用每个放置的纹理评估，避免单独执行 O(E) 遍历。
     if (queueBuiltOnce_) {
         ++report_.queueRebuilds;
     } else {
@@ -250,8 +233,7 @@ bool SimplificationRun::pushEdgeCandidate(int a, int b) {
     if (a == b) {
         return false;
     }
-    // Canonical endpoint order keeps the cached placement list identical to
-    // what the collapse attempt would have solved at pop time.
+    // 端点按规范顺序排列，使缓存的放置列表与弹出时折叠尝试重新求解的列表完全一致。
     const int first = std::min(a, b);
     const int second = std::max(a, b);
     if (!vertices_[first].active || !vertices_[second].active) {
@@ -270,9 +252,7 @@ bool SimplificationRun::pushEdgeCandidate(int a, int b) {
             const TextureCollapseEvaluation textureEvaluation = textureProtection_.evaluate(
                 {first, second}, placement.position, faces_, vertices_, *topology_, faceTexCoords_
             );
-            // The candidate list always contains the midpoint (or an endpoint
-            // coincident with it), so the placement nearest to the midpoint
-            // reproduces the previous midpoint-protection census exactly.
+            // 候选列表始终包含中点（或与中点重合的端点），因此选取距离中点最近的放置，可以精确复现之前的中点保护统计。
             const double midpointDistance = (placement.position - midpoint).squaredNorm();
             if (midpointDistance < bestMidpointDistance) {
                 bestMidpointDistance = midpointDistance;
@@ -362,8 +342,7 @@ bool SimplificationRun::tryCollapse(const Candidate& candidate) {
     const int remove = candidate.b;
     const CollapseEdge edge{keep, remove};
     const Mat4 mergedQ = vertices_[keep].q + vertices_[remove].q;
-    // The version stamps validated by isCurrentCandidate guarantee the cached
-    // placement solve is still exact, so no re-solve happens here.
+    // isCurrentCandidate 校验的版本戳保证缓存的放置求解仍然精确，因此这里无需重新求解。
     const SolveResult* placements = candidate.placements.data();
     const int placementCount = candidate.placementCount;
     if (placementCount > 0 && placements[0].usedFallback) {
@@ -476,28 +455,25 @@ void SimplificationRun::applyCollapse(
             spatialIndex_.removeFace(faceId);
         }
     }
-    // The plan was built for the accepted placement during the attempt, so
-    // applying it is a straight replay without rebuilding chart pairings.
+    // 尝试阶段已经为接受的放置构建好计划，因此应用时直接重放，无需重新构建图表配对。
     const bool textureApplied = textureProtection_.apply(texturePlan, faceTexCoords_);
     assert(textureApplied && "accepted collapse must carry an applicable texture update plan");
     if (!textureApplied) {
         ++report_.textureApplyFailures;
     }
 
-    // Any removed feature vertex leaves its loop, including cross-loop merges,
-    // so the per-loop active counts track the surviving vertices exactly.
+    // 任何被移除的特征顶点都会离开其所在环，包括跨环合并，因此各环的活动顶点计数始终准确反映剩余顶点。
     const VertexState& removedVertex = vertices_[remove];
     if (removedVertex.isFeature && removedVertex.featureLoopId >= 0 &&
         removedVertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
         --activeLoopCounts_[removedVertex.featureLoopId];
     }
 
-    // A vertex merged with a boundary vertex lies on the open boundary
-    // afterwards; keep the flag current for the extended link condition.
+    // 与边界顶点合并后的顶点会位于开放边界上；更新该标志以满足扩展链接条件。
     vertices_[keep].isBoundary = vertices_[keep].isBoundary || vertices_[remove].isBoundary;
     vertices_[keep].p = position;
     vertices_[keep].q = mergedQ;
-    // The queue-priority boost follows the surviving feature evidence.
+    // 队列优先级增益跟随保留下来的特征证据。
     vertices_[keep].priorityScale = std::max(vertices_[keep].priorityScale, vertices_[remove].priorityScale);
     refreshCircularTangent(vertices_[keep], primitiveFitOf(vertices_[keep], primitiveFits_));
     refreshEllipseTangent(vertices_[keep], primitiveFitOf(vertices_[keep], primitiveFits_));
@@ -555,4 +531,4 @@ void SimplificationRun::rewriteIncidentFaces(int keep, int remove) {
     }
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

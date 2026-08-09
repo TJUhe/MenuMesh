@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/feature_detection/FeatureDetector.h
- * @brief Declares feature detector facilities for ManuMesh's feature-detection module.
+ * @brief 声明 ManuMesh 特征检测模块的特征检测器设施。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 此文件属于确定性的三角表面特征管线。局部证据与图清理、追踪、基本体恢复和分区相互分离，使每个阶段都有明确契约。
  */
 
 #pragma once
@@ -23,16 +23,14 @@ namespace manumesh::feature {
 #pragma warning(disable : 4251)
 #endif
 
-/// Stateful feature-detection facade.
+/// 有状态的特征检测门面。
 ///
-/// This module is a first-class algorithm next to QEM simplification. It only
-/// depends on core mesh types, so simplification, validation, repair, remeshing,
-/// or future CAD-oriented algorithms can all consume the same FeatureAnalysis
-/// without creating a dependency back into QEM.
+/// 此模块与 QEM 简化并列为一级算法，只依赖核心网格类型。因此简化、校验、修复、重网格或未来
+/// 面向 CAD 的算法都可以消费同一个 FeatureAnalysis，而不会产生反向依赖。
 class MANUMESH_API FeatureDetector {
 public:
-    /// @param[in] options Validated options copied into the detector.
-    /// @throws std::invalid_argument when option ranges are inconsistent.
+    /// @param[in] options 复制到检测器中的已校验选项。
+    /// @throws std::invalid_argument 当选项范围不一致时抛出。
     explicit FeatureDetector(FeatureOptions options = {});
     ~FeatureDetector();
 
@@ -41,17 +39,17 @@ public:
     FeatureDetector(FeatureDetector&& other) noexcept;
     FeatureDetector& operator=(FeatureDetector&& other) noexcept;
 
-    /// Returns the options used by subsequent analyses.
+    /// 返回后续分析使用的选项。
     const FeatureOptions& options() const;
-    /// Replaces the options used by subsequent analyses.
-    /// @param[in] options New validated option set.
-    /// @throws std::invalid_argument when option ranges are inconsistent.
+    /// 替换后续分析使用的选项。
+    /// @param[in] options 新的已校验选项集。
+    /// @throws std::invalid_argument 当选项范围不一致时抛出。
     void setOptions(FeatureOptions options);
 
-    /// Detects hard evidence, optional tensor/curvature evidence, and fitted curves.
-    /// @param[in] mesh Triangle surface mesh; zero-area faces are tolerated and reported.
-    /// @return Complete feature graph, curves, components, diagnostics, and optional patches.
-    /// @throws std::invalid_argument for invalid indices, non-finite coordinates, or repeated face vertices.
+    /// 检测硬证据、可选的张量/曲率证据以及拟合曲线。
+    /// @param[in] mesh 三角表面网格；允许零面积面，并在结果中报告。
+    /// @return 完整的特征图、曲线、组件、诊断信息和可选分区。
+    /// @throws std::invalid_argument 当索引无效、坐标非有限或面顶点重复时抛出。
     FeatureAnalysis analyze(const Mesh& mesh) const;
 
 private:
@@ -63,127 +61,109 @@ private:
 #pragma warning(pop)
 #endif
 
-/// Stabilizes face normals for noisy-input feature detection while preserving
-/// mesh topology and vertex positions.
-/// @param[in] mesh Input triangle mesh.
-/// @param[in] options Filter iterations, angular bandwidth, preservation angle, and relaxation.
-/// @return One filtered normal per face plus quantitative diagnostics.
-/// @algorithm Iteratively computes an angular edge indicator, freezes strong
-/// discontinuities, and relaxes remaining face normals with area weighting.
+/// 在保留网格拓扑和顶点位置的同时，为含噪输入的特征检测稳定面法向。
+/// @param[in] mesh 输入三角网格。
+/// @param[in] options 过滤迭代次数、角度带宽、保留角度和松弛参数。
+/// @return 每个面的一个过滤后法向以及定量诊断信息。
+/// @algorithm 迭代计算角度边指标，冻结强不连续处，并按面积加权松弛其余面法向。
 MANUMESH_API FeatureNormalFilterResult
 filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options = {});
 
-/// Computes local normal-tensor scores from multiscale face-normal voting.
-/// @param[in] mesh Input triangle surface.
-/// @param[in] options Smoothing and scale schedule.
-/// @return One tensor decomposition and persistence record per vertex.
-/// @algorithm Accumulates area/spatially weighted normal outer products,
-/// eigendecomposes the symmetric tensor, and derives surface, crease, and
-/// corner saliency from ordered eigenvalue differences.
-/// @failuremodes Isolated vertices and neighborhoods containing only unusable
-/// faces return zero evidence rather than fabricating a direction.
+/// 根据多尺度面法向投票计算局部法向张量分数。
+/// @param[in] mesh 输入三角表面。
+/// @param[in] options 平滑和尺度计划。
+/// @return 每个顶点一个张量分解和持久性记录。
+/// @algorithm 累积按面积/空间加权的法向外积，对对称张量进行特征分解，
+/// 再根据有序特征值差异推导曲面、折痕和角点显著性。
+/// @failuremodes 孤立顶点以及只包含不可用面的邻域返回零证据，而不是伪造方向。
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options = {});
 
-/// Counts a scale as persistent only when its saliency reaches the supplied threshold.
-/// @param[in] mesh Input triangle surface.
-/// @param[in] options Smoothing and scale schedule.
-/// @param[in] persistenceThreshold Minimum scale-normalized support per scale.
-/// @return One tensor record per input vertex.
+/// 仅当尺度显著性达到给定阈值时，才将该尺度计为持久证据。
+/// @param[in] mesh 输入三角表面。
+/// @param[in] options 平滑和尺度计划。
+/// @param[in] persistenceThreshold 每个尺度的最小归一化支持度。
+/// @return 每个输入顶点一个张量记录。
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options, double persistenceThreshold);
 
-/// Computes deterministic smooth ridge/valley evidence from robust local
-/// quadric fits, principal curvatures, directional extrema, and scale
-/// persistence. No learned model or training data is used.
-/// @param[in] mesh Input triangle surface.
-/// @param[in] options Neighborhood radii, robust iterations, and stability policy.
-/// @return One signed curvature-evidence record per vertex.
-/// @algorithm Gathers deterministic k-ring neighborhoods, normalizes by local
-/// sampling scale, fits a robust Monge quadric, recovers principal curvatures
-/// and directions, tests two-sided directional extrema, then requires sign and
-/// tangent persistence across scales.
-/// @complexity O(V * S * N), where S is scale count and N is the bounded
-/// neighborhood size used by each local least-squares fit.
-/// @failuremodes Rank-deficient or one-sided neighborhoods, unstable principal
-/// frames, and inconsistent extrema are reported as zero evidence.
+/// 根据稳健局部 quadric 拟合、主曲率、方向极值和尺度持久性计算确定性的平滑脊/谷证据。
+/// 不使用学习模型或训练数据。
+/// @param[in] mesh 输入三角表面。
+/// @param[in] options 邻域半径、稳健迭代次数和稳定性策略。
+/// @return 每个顶点一个带符号曲率证据记录。
+/// @algorithm 收集确定性的 k-ring 邻域，按局部采样尺度归一化，拟合稳健 Monge quadric，
+/// 恢复主曲率和方向，测试双侧方向极值，然后要求跨尺度的符号和切向持久性。
+/// @complexity O(V * S * N)，其中 S 为尺度数量，N 为每次局部最小二乘拟合使用的有界邻域大小。
+/// @failuremodes 秩亏或单侧邻域、不稳定主方向框架以及不一致极值均报告为零证据。
 MANUMESH_API std::vector<SmoothCurvatureVertex>
 computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options = {});
 
-/// Counts a scale as persistent only when its normalized score reaches the
-/// supplied threshold.
-/// @param[in] mesh Input triangle surface.
-/// @param[in] options Neighborhood and robust-fit schedule.
-/// @param[in] persistenceThreshold Minimum normalized score at a supporting scale.
-/// @return One signed curvature-evidence record per vertex.
+/// 仅当尺度归一化分数达到给定阈值时，才将该尺度计为持久证据。
+/// @param[in] mesh 输入三角表面。
+/// @param[in] options 邻域和稳健拟合计划。
+/// @param[in] persistenceThreshold 支持尺度上的最小归一化分数。
+/// @return 每个顶点一个带符号曲率证据记录。
 MANUMESH_API std::vector<SmoothCurvatureVertex>
 computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options, double persistenceThreshold);
 
-/// Validates every feature-detection option and cross-field range.
-/// @param[in] options Options to validate.
-/// @throws std::invalid_argument on a non-finite value, invalid range, or a
-/// persistence count larger than its scale count.
+/// 校验每个特征检测选项及跨字段范围。
+/// @param[in] options 待校验的选项。
+/// @throws std::invalid_argument 当值非有限、范围无效或持久尺度数量大于尺度总数时抛出。
 MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 
-/// Detects boundary, non-manifold, dihedral, tensor, optional smooth-curvature,
-/// and fitted primitive curves.
+/// 检测边界、非流形、二面角、张量、可选平滑曲率以及拟合的基本体曲线。
 ///
-/// The implementation first traces graph-supported loops, then applies bounded
-/// CAD repair fallbacks for sparse circular loops. It is not a general
-/// curvature-ridge extractor for noisy scans; enable tensor features and tune
-/// scale/threshold parameters for that regime.
-/// @param[in] mesh Triangle surface mesh.
-/// @param[in] options Detection, recovery, cleanup, and segmentation policy.
-/// @return Complete deterministic feature analysis.
-/// @algorithm Collects hard and weak evidence, builds the explicit trace graph,
-/// cleans and consolidates compatible components, traces chains and cycles,
-/// recovers bounded fallback cycles, fits analytic primitives, computes
-/// component confidence, and optionally partitions faces into patches.
-/// @invariants Evidence counts exclude synthetic bridge edges; graph edge
-/// endpoints remain valid mesh vertices; each simplified loop owns a stable id.
+/// 实现首先追踪图支持的环，然后为稀疏圆环应用有界的 CAD 修复回退。它不是针对含噪扫描的一般曲率脊提取器；
+/// 对此类输入应启用张量特征并调节尺度/阈值参数。
+/// @param[in] mesh 三角表面网格。
+/// @param[in] options 检测、恢复、清理和分区策略。
+/// @return 完整的确定性特征分析。
+/// @algorithm 收集强弱证据，构建显式追踪图，清理并整合兼容组件，追踪链和环，
+/// 恢复有界回退环，拟合解析基本体，计算组件置信度，并可选地将面划分为分区。
+/// @invariants 证据计数不包含合成桥接边；图边端点始终是有效网格顶点；每个简化环拥有稳定 ID。
 MANUMESH_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options);
 
-/// Builds a face partition separated by active feature-graph edges and writes
-/// it into analysis.facePatchIds / patches / patchAdjacencies.
-/// @param[in] mesh Mesh that produced `analysis`.
-/// @param[in,out] analysis Existing graph plus destination patch arrays.
-/// @param[in] options Patch enablement and weak-edge boundary policy.
+/// 构建由活动特征图边分隔的面分区，并写入 analysis.facePatchIds / patches / patchAdjacencies。
+/// @param[in] mesh 生成 `analysis` 的网格。
+/// @param[in,out] analysis 现有特征图以及作为目标的分区数组。
+/// @param[in] options 分区启用状态和弱边界边策略。
 MANUMESH_API void
 segmentFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const SurfacePatchOptions& options = {});
 
-/// Measures one detected loop against a supplied circle.
-/// @param[in] mesh Mesh containing the loop vertices.
-/// @param[in] loop Loop to measure.
-/// @param[in] center Circle center in model coordinates.
-/// @param[in] normal Circle-plane normal; normalized internally.
-/// @param[in] radius Positive circle radius.
-/// @return Directional radial/plane deviations and sample counts.
+/// 将一个检测到的环与给定圆进行度量比较。
+/// @param[in] mesh 包含环顶点的网格。
+/// @param[in] loop 待测量的环。
+/// @param[in] center 模型坐标中的圆心。
+/// @param[in] normal 圆平面法向；函数内部会归一化。
+/// @param[in] radius 正的圆半径。
+/// @return 方向性径向/平面偏差和样本计数。
 MANUMESH_API DirectionalCurveError measureLoopAgainstCircle(
     const Mesh& mesh, const FeatureLoop& loop, const Vec3& center, const Vec3& normal, double radius
 );
 
-/// CSV header for feature-loop reports.
+/// 特征环报告的 CSV 表头。
 MANUMESH_API std::string featureReportHeaderCsv();
-/// CSV row for one feature loop.
+/// 一个特征环的 CSV 行。
 MANUMESH_API std::string featureLoopRowCsv(const FeatureLoop& loop);
-/// Stable string name for a fitted feature primitive.
+/// 拟合特征基本体的稳定字符串名称。
 MANUMESH_API std::string toString(FeaturePrimitiveType primitive);
-/// Compares detected graph edges against vertex-index ground-truth labels.
-/// @param[in] analysis Detection result to score.
-/// @param[in] groundTruthEdges Undirected labeled edges.
-/// @param[in] groundTruthJunctionVertices Optional labeled junction vertices.
-/// @return Precision/recall/F1 and junction diagnostics.
+/// 将检测到的图边与顶点索引形式的真实标签进行比较。
+/// @param[in] analysis 待评分的检测结果。
+/// @param[in] groundTruthEdges 带标签的无向边。
+/// @param[in] groundTruthJunctionVertices 可选的带标签连接点顶点。
+/// @return Precision/recall/F1 以及连接点诊断信息。
 MANUMESH_API FeatureEdgeBenchmark benchmarkFeatureEdges(
     const FeatureAnalysis& analysis,
     const std::vector<std::pair<int, int>>& groundTruthEdges,
     const std::vector<int>& groundTruthJunctionVertices = {}
 );
 
-/// Extended benchmark for branch continuation and face-patch partition labels.
-/// @param[in] mesh Mesh that produced `analysis`.
-/// @param[in] analysis Detection result to score.
-/// @param[in] labels Edge, junction, continuation, and patch ground truth.
-/// @return Aggregate benchmark metrics for every supplied label family.
+/// 针对分支延续和面分区标签的扩展基准测试。
+/// @param[in] mesh 生成 `analysis` 的网格。
+/// @param[in] analysis 待评分的检测结果。
+/// @param[in] labels 边、连接点、延续关系和分区的真实标签。
+/// @return 每个给定标签族的聚合基准指标。
 MANUMESH_API FeatureEdgeBenchmark
 benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, const FeatureBenchmarkLabels& labels);
 

@@ -1,12 +1,11 @@
 /**
  * @file src/feature_detection/FeaturePrimitiveRecovery.cpp
- * @brief Implements feature primitive recovery facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征图元恢复功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Applies primitive fitting to graph components that were not already represented by traced loops.
- * @algorithm Component vertices are ordered under graph continuity, fitted,
- * validated against graph edges, and assigned only when ownership does not
- * conflict with an existing stronger loop.
+ * @details 为尚未由追踪环表示的图分量应用图元拟合。
+ * @algorithm 按图连续性排序分量顶点，拟合并依据图边校验，
+ *            仅在不与已有更强环的归属冲突时写入结果。
  */
 
 #include "detail/FeaturePrimitiveRecovery.h"
@@ -102,4 +101,4 @@ void recoverPrimitiveComponents(
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

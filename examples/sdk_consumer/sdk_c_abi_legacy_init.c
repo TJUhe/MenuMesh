@@ -1,9 +1,9 @@
 /**
  * @file examples/sdk_consumer/sdk_c_abi_legacy_init.c
- * @brief Demonstrates sdk c abi legacy init through the ManuMesh SDK examples.
+ * @brief 通过 ManuMesh SDK 示例演示SDK C ABI 旧版初始化。
  * @ingroup manumesh_examples
  *
- * @details The example intentionally uses only supported public entry points and doubles as executable integration documentation.
+ * @details 示例只使用已安装 SDK 的旧版 C ABI 初始化入口，作为兼容性集成文档。
  */
 
 #define MANUMESH_DISABLE_SIZE_AWARE_ALIASES

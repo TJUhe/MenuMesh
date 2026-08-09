@@ -1,28 +1,22 @@
 /**
- * @page commenting_conventions Doxygen Commenting Conventions
+ * @page commenting_conventions Doxygen 注释约定
  *
- * ManuMesh documentation follows one contract-oriented style:
+ * ManuMesh 文档遵循面向契约的统一风格：
  *
- * - Every owned C/C++ file has `@file`, `@brief`, and `@ingroup` metadata.
- * - Public and cross-translation-unit declarations use `/** ... */` Doxygen
- *   blocks with an explicit `@brief`; `src/` does not mix line-style `///`
- *   or `//!` documentation comments.
- * - Parameters use `@param[in]`, `@param[out]`, or `@param[in,out]` whenever
- *   mutation or ownership is not obvious.
- * - Non-void functions state `@return`; status-valued functions also document
- *   important `@retval` cases.
- * - Exceptions, lifetime requirements, units, valid ranges, determinism, and
- *   thread-safety are part of the API contract and are documented explicitly.
- * - Algorithm entry points use `@algorithm`, `@complexity`, `@invariants`, and
- *   `@failuremodes` sections where those facts affect correct use or review.
- * - Short trailing data-member comments use `/**< ... */`; a preceding
- *   `/** ... */` block is used when units, range, ABI history, or interactions
- *   need more detail.
+ * - 每个自有 C/C++ 文件都包含 `@file`、`@brief` 和 `@ingroup` 元数据。
+ * - 公共声明和跨翻译单元声明使用带显式 `@brief` 的 `/** ... */` Doxygen 块；
+ *   `src/` 不混用行式 `///` 或 `//!` 文档注释。
+ * - 当参数的修改行为或所有权不明显时，使用 `@param[in]`、`@param[out]` 或
+ *   `@param[in,out]`。
+ * - 非 void 函数说明 `@return`；返回状态值的函数还要记录重要的 `@retval` 情况。
+ * - 异常、生命周期要求、单位、有效范围、确定性和线程安全性都是 API 契约的一部分，
+ *   必须显式记录。
+ * - 当这些事实会影响正确使用或评审时，算法入口使用 `@algorithm`、`@complexity`、
+ *   `@invariants` 和 `@failuremodes` 小节。
+ * - 简短的尾随数据成员注释使用 `/**< ... */`；当单位、范围、ABI 历史或交互关系
+ *   需要更多细节时，使用前置的 `/** ... */` 块。
  *
- * Plain `//` comments inside a function are reserved for local proof
- * obligations, numeric derivations, and non-obvious implementation choices.
- * They intentionally remain ordinary source comments: changing them to
- * a documentation block would make Doxygen bind text to a local statement or variable
- * and would produce misleading API pages. Algorithm-wide explanations belong
- * on the function declaration or file page instead.
+ * 函数内部的普通 `//` 注释仅用于局部证明义务、数值推导和不明显的实现选择。
+ * 它们有意保持为普通源码注释：如果改成文档块，Doxygen 会将文本绑定到局部语句或变量，
+ * 从而生成误导性的 API 页面。算法范围的说明应放在函数声明或文件页面上。
  */

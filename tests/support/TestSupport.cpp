@@ -1,9 +1,9 @@
 /**
  * @file tests/support/TestSupport.cpp
- * @brief Verifies test support behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的测试支持行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "TestSupport.h"
@@ -56,7 +56,7 @@ std::vector<std::filesystem::path> expandPattern(const std::string& pattern) {
     return paths;
 }
 
-} // namespace
+} // 命名空间
 
 std::filesystem::path dataRoot() {
 #ifdef MANUMESH_TEST_DATA_DIR
@@ -262,4 +262,4 @@ int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue) 
     return std::stoi(testCase.fields[field]);
 }
 
-} // namespace manumesh::test
+} // 命名空间

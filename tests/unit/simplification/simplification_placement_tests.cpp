@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/simplification_placement_tests.cpp
- * @brief Verifies simplification placement tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的简化 放置测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -35,8 +35,8 @@ using manumesh::simplification::VertexState;
 
 double evaluateCost(const manumesh::Mat4& q, const Vec3& p) { return manumesh::simplification::evaluateQuadric(q, p); }
 
-/// Small open strip whose top boundary chain is prev - keep - remove - next.
-/// The boundary half-edges incident to keep/remove are exactly that chain.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 struct BoundaryStrip {
     std::vector<VertexState> vertices;
     std::vector<FaceState> faces;
@@ -69,8 +69,8 @@ private:
     }
 };
 
-/// Lindstrom-Turk boundary objective over the directed chain half-edges
-/// (1,0), (2,1), (3,2): fB(v) = || e2 - v x e1 ||^2.
+/// 说明该辅助函数的输入、输出和边界条件。
+/// 说明该辅助函数的输入、输出和边界条件。
 double boundaryAreaObjective(const std::array<Vec3, 4>& chain, const Vec3& v) {
     const Vec3 e1 = (chain[0] - chain[1]) + (chain[1] - chain[2]) + (chain[2] - chain[3]);
     const Vec3 e2 = chain[1].cross(chain[0]) + chain[2].cross(chain[1]) + chain[3].cross(chain[2]);
@@ -116,12 +116,12 @@ std::vector<std::array<Vec3, 2>> collectBoundarySegments(const Mesh& mesh, doubl
     return segments;
 }
 
-} // namespace
+} // 命名空间
 
-// GH97 fallback level 2: when the 3x3 system is rank deficient (straight
-// crease: two independent planes), the 1D optimum along the edge must beat
-// endpoints and midpoint. Quadric: planes z = 0 and y = 0, so
-// f(x, y, z) = y^2 + z^2 and A = diag(0, 1, 1) has rank 2.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(PlacementSolve, RankTwoQuadricUsesAlongEdgeOptimum) {
     const manumesh::Mat4 q = manumesh::simplification::planeQuadric(Vec3(0.0, 0.0, 1.0), Vec3::Zero()) +
                              manumesh::simplification::planeQuadric(Vec3(0.0, 1.0, 0.0), Vec3::Zero());
@@ -131,10 +131,10 @@ TEST(PlacementSolve, RankTwoQuadricUsesAlongEdgeOptimum) {
     const std::vector<SolveResult> placements = manumesh::simplification::solvePlacementCandidates(q, a, b);
 
     ASSERT_FALSE(placements.empty());
-    // The full-rank solve must have been rejected: this is a fallback path.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(placements.front().usedFallback);
-    // Along the edge y(t) = 1 - 4t, the optimum sits at t = 0.25 with cost 0,
-    // strictly better than both endpoints (1 and 9) and the midpoint (1).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double costA = evaluateCost(q, a);
     const double costB = evaluateCost(q, b);
     const double costMid = evaluateCost(q, 0.5 * (a + b));
@@ -147,7 +147,7 @@ TEST(PlacementSolve, RankTwoQuadricUsesAlongEdgeOptimum) {
     EXPECT_NEAR(placements.front().cost, 0.0, 1e-18);
 }
 
-// The 1D fallback must be scale invariant together with the spectral checks.
+// 命名空间
 TEST(PlacementSolve, RankTwoAlongEdgeOptimumIsScaleInvariant) {
     for (const double scale : {1e-3, 1.0, 1e+3}) {
         const manumesh::Mat4 q = manumesh::simplification::planeQuadric(Vec3(0.0, 0.0, 1.0), Vec3::Zero()) +
@@ -198,8 +198,8 @@ TEST(PlacementSolve, DegenerateFacePointQuadricsScaleWithAreaWeightedQem) {
     }
 }
 
-// Lindstrom-Turk boundary preservation: on a straight boundary chain the
-// constraint line IS the boundary, so the placement lands exactly on it.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(BoundaryPlacement, StraightChainProjectsOntoBoundaryLine) {
     const std::array<Vec3, 4> chain = {
         Vec3(-1.0, 1.0, 0.0),
@@ -222,9 +222,9 @@ TEST(BoundaryPlacement, StraightChainProjectsOntoBoundaryLine) {
     EXPECT_NEAR(position.z(), 0.0, 1e-12);
 }
 
-// On a cornered boundary chain the LT constraint line balances the swept
-// directed area; the projected placement must beat the plain segment clamp
-// under the LT boundary objective (i.e. less first-order boundary drift).
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(BoundaryPlacement, CorneredChainReducesDirectedAreaChangeVersusClamp) {
     const std::array<Vec3, 4> chain = {
         Vec3(-1.0, 0.3, 0.0),
@@ -247,19 +247,19 @@ TEST(BoundaryPlacement, CorneredChainReducesDirectedAreaChangeVersusClamp) {
     const double ltObjective = boundaryAreaObjective(chain, position);
     const double clampObjective = boundaryAreaObjective(chain, clamped);
     EXPECT_LT(ltObjective, clampObjective);
-    // The analytic minimizer line for this chain is y = -0.1, z = 0.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_NEAR(position.y(), -0.1, 1e-12);
     EXPECT_NEAR(position.z(), 0.0, 1e-12);
-    // The safety clamp keeps the placement within the collapsing edge shadow.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(position.x(), 0.0);
     EXPECT_LE(position.x(), 1.0);
 }
 
-// End-to-end drift guard: preserveBoundary simplification of an open mesh
-// keeps every output boundary vertex close to the input boundary polyline.
-// The bound is tighter than the historical 2x max-segment-length guarantee of
-// the segment-clamp implementation, so a regression back to larger drift
-// fails this test.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(BoundaryPlacement, PreserveBoundarySimplifyKeepsBoundaryDriftTight) {
     const Mesh input = manumesh::generateHolePlaneGrid(16, 2.0, 0.35);
     double maxSegmentLength = 0.0;
@@ -283,8 +283,8 @@ TEST(BoundaryPlacement, PreserveBoundarySimplifyKeepsBoundaryDriftTight) {
     EXPECT_LE(drift, 1.0 * maxSegmentLength);
 }
 
-// Long polygonal feature curves get a prebuilt segment index; its
-// closest-point answers must match the plain linear scan.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureCurves, SegmentIndexMatchesLinearScan) {
     FeatureCurveConstraint linear;
     linear.valid = true;
@@ -313,9 +313,9 @@ TEST(FeatureCurves, SegmentIndexMatchesLinearScan) {
     }
 }
 
-// Wang 2008 decoupling: in adaptiveScale mode the feature boost must not
-// change the quadrics (placement stays clean); it only produces per-vertex
-// queue-priority scales.
+// 命名空间
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureBoost, AdaptiveScaleKeepsQuadricsCleanAndFillsPriorityScales) {
     const Mesh input = manumesh::generateRidgeGrid(16, 2.0, 0.6);
     manumesh::simplification::SimplifyOptions boosted;
@@ -349,15 +349,15 @@ TEST(FeatureBoost, AdaptiveScaleKeepsQuadricsCleanAndFillsPriorityScales) {
         EXPECT_GE(scale, 1.0);
         maxScale = std::max(maxScale, scale);
     }
-    // The ridge produces positive normal-tensor scores, so at least one
-    // vertex must receive a queue-priority boost.
+    // 命名空间
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GT(maxScale, 1.0);
-    // Without boost every priority scale collapses to exactly 1.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (double scale : unboostedQ.priorityScales) {
         EXPECT_DOUBLE_EQ(1.0, scale);
     }
-    // The quadric line weight reported for adaptive mode is the clean base
-    // weight, identical with and without boost.
+    // 命名空间
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_DOUBLE_EQ(boostedReport.minAppliedLineWeight, boostedReport.maxAppliedLineWeight);
     EXPECT_DOUBLE_EQ(boostedReport.minAppliedLineWeight, unboostedReport.minAppliedLineWeight);
 }

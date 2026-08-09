@@ -1,5 +1,5 @@
 # eccentric_hole_plate.obj
-# units: arbitrary
+# 单位：任意
 # outer_radius=2.0 hole_radius=0.55 half_thickness=0.5 segments=32
 # top_hole_center=(0.18, 0.0) bottom_hole_center=(-0.12, 0.0)
 v 2 0 0.5

@@ -1,14 +1,13 @@
 /**
  * @file src/common/SpatialIndex.cpp
- * @brief Implements spatial index facilities for ManuMesh's common-geometry module.
+ * @brief 实现 ManuMesh 公共几何模块的空间索引设施。
  * @ingroup manumesh_common
  *
- * @details Implements a mutable uniform grid for broad-phase AABB candidate queries.
- * @algorithm Cell size is derived from domain extent and expected item count;
- * large AABBs use an overflow set. Version stamps deduplicate query results
- * without per-query set allocation.
- * @failuremodes Invalid or impractically large grids disable acceleration and
- * fall back to the overflow path without changing exact downstream results.
+ * @details 实现用于宽相位 AABB 候选查询的可变均匀网格。
+ * @algorithm 根据域范围和预期项目数量推导单元尺寸；较大的 AABB 使用溢出集合。
+ * 版本戳无需为每次查询分配集合即可去重查询结果。
+ * @failuremodes 无效或不切实际的大网格会禁用加速，并回退到溢出路径，
+ * 不改变下游的精确结果。
  */
 
 #include "common/detail/SpatialIndex.h"
@@ -48,8 +47,7 @@ void UniformAabbCandidateGrid::insert(int itemId, const Vec3& lo, const Vec3& hi
     if (!enabled_ || itemId < 0) {
         return;
     }
-    // Idempotent re-insert: drop any stale registration first so no cell or
-    // overflow set keeps an outdated entry for this item.
+    // 幂等重新插入：先删除任何过期注册，确保没有单元或溢出集合保留此项目的旧条目。
     remove(itemId);
     if (itemId >= static_cast<int>(itemCells_.size())) {
         itemCells_.resize(static_cast<std::size_t>(itemId) + 1u);
@@ -116,7 +114,7 @@ void UniformAabbCandidateGrid::queryCandidates(const Vec3& lo, const Vec3& hi, s
     }
     ++queryStamp_;
     if (queryStamp_ == 0u) {
-        // Stamp counter wrapped; reset all stamps so stale marks cannot alias.
+    // 戳计数器发生回绕；重置所有戳，避免旧标记发生别名冲突。
         std::fill(candidateStamps_.begin(), candidateStamps_.end(), 0u);
         ++queryStamp_;
     }
@@ -193,4 +191,4 @@ void UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, const Vec3& hi, std:
     }
 }
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common

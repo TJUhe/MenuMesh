@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SimplificationTypes.h
- * @brief Declares simplification types facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的简化 类型功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -17,7 +17,7 @@
 namespace manumesh::simplification {
 
 /**
- * @brief Simplifier-facing classification of a recovered feature curve.
+ * @brief 面向简化器的已恢复特征曲线分类。
  */
 enum class FeatureCurveKind {
     Unknown,
@@ -28,27 +28,20 @@ enum class FeatureCurveKind {
 };
 
 /**
- * @brief Mutable vertex record used only during one simplification run.
- *
- * The fields are kept flat because the hot path reads them from several
- * modules. Conceptually they form three groups: geometry/QEM state, feature
- * ownership, and queue invalidation. Bulky circle/ellipse fit parameters
- * live in a compact side table (FeaturePrimitiveFit) referenced through
- * primitiveFitId, so non-feature vertices carry no fit payload.
+ * @brief 仅在一次简化运行期间使用的可变顶点记录。
+ * 字段保持扁平，因为热路径会从多个模块读取它们。概念上可分为三组：几何/QEM 状态、特征归属和队列失效信息。较大的圆/椭圆拟合参数存放在由 primitiveFitId 引用的紧凑旁表（FeaturePrimitiveFit）中，因此非特征顶点不携带拟合数据。
  */
 struct VertexState {
-    // Geometry and QEM state.
+    // 几何和 QEM 状态。
     Vec3 p = Vec3::Zero();
     Mat4 q = Mat4::Zero();
     bool active = true;
     /**
-     * @brief Queue-priority multiplier derived from feature evidence (adaptiveScale
-     * mode, Wang 2008 decoupling): it only scales the candidate ordering cost
-     * in the queue and never enters the quadric or the placement solve.
+     * @brief 从特征证据派生的队列优先级乘数（自适应缩放模式，Wang 2008 解耦）：只缩放队列中的候选排序代价，不进入二次误差矩阵或放置求解。
      */
     double priorityScale = 1.0;
 
-    // Feature ownership copied from FeatureGuidance.
+    // 从 FeatureGuidance 复制的特征归属。
     bool isFeature = false;
     bool isBoundary = false;
     bool circularFeature = false;
@@ -60,20 +53,16 @@ struct VertexState {
     double featureConfidence = 0.0;
     Vec3 curveTangent = Vec3::Zero();
     /**
-     * @brief Index into the run's FeaturePrimitiveFit side table; -1 when the vertex
-     * owns no fitted circle/ellipse. Entries are immutable during a run and
-     * the keep vertex of a collapse keeps its own entry.
+     * @brief 运行的 FeaturePrimitiveFit 旁表索引；顶点不拥有拟合圆/椭圆时为 -1。条目在运行期间不可变，折叠时保留顶点沿用自身条目。
      */
     int primitiveFitId = -1;
 
-    // Incremented after collapse so queued candidates can detect stale endpoints.
+    // 折叠后递增，使队列候选能够检测过期端点。
     int version = 0;
 };
 
 /**
- * @brief Circle/ellipse fit parameters for one feature vertex. Stored out of line
- * (see VertexState::primitiveFitId) so the hot per-vertex state stays small:
- * only vertices on fitted primitive loops own an entry.
+ * @brief 一个特征顶点的圆/椭圆拟合参数。数据按行外置（见 VertexState::primitiveFitId），使每顶点热状态保持紧凑；只有拟合图元环上的顶点才拥有条目。
  */
 struct FeaturePrimitiveFit {
     Vec3 circleCenter = Vec3::Zero();
@@ -88,9 +77,7 @@ struct FeaturePrimitiveFit {
 };
 
 /**
- * @brief Fetches the vertex's primitive fit, or a zero-radius default when it owns
- * none. Projections treat zero radii as "no primitive" and pass positions
- * through unchanged, so the default is a safe no-op.
+ * @brief 获取顶点的图元拟合数据；若顶点没有拟合数据，则返回半径为零的默认值。投影将零半径视为“无图元”并原样传递位置，因此该默认值是安全的空操作。
  */
 inline const FeaturePrimitiveFit&
 primitiveFitOf(const VertexState& vertex, const std::vector<FeaturePrimitiveFit>& fits) {
@@ -104,7 +91,7 @@ primitiveFitOf(const VertexState& vertex, const std::vector<FeaturePrimitiveFit>
 using FaceState = mesh_edit::EditableFace;
 
 /**
- * @brief Directed edge-collapse choice: keep one endpoint and remove the other.
+ * @brief 有向边折叠选择：保留一个端点并移除另一个端点。
  */
 struct CollapseEdge {
     int keep = -1;
@@ -112,7 +99,7 @@ struct CollapseEdge {
 };
 
 /**
- * @brief Candidate collapse placement and its evaluated quadric cost.
+ * @brief 候选折叠放置及其评估出的二次误差代价。
  */
 struct SolveResult {
     Vec3 position = Vec3::Zero();
@@ -121,15 +108,8 @@ struct SolveResult {
 };
 
 /**
- * @brief Priority-queue entry. The comparison is reversed for std::priority_queue so
- * the lowest-cost candidate is popped first. Cost ties fall back to the
- * canonical edge key (a, b) so pop order stays deterministic.
- *
- * The entry carries the placement candidates solved at push time. They stay
- * valid exactly as long as the version stamps match: the merged quadric and
- * both endpoint positions can only change through a collapse, which bumps the
- * endpoint versions. This lets pop/tryCollapse reuse the solve instead of
- * re-running the 3x3 spectral analysis.
+ * @brief 优先级队列条目。为适配 std::priority_queue，比较顺序被反转，从而优先弹出最低代价候选。代价相等时回退到规范边键 (a, b)，保持弹出顺序确定。
+ * 条目携带在压入时求解的放置候选。只要版本戳匹配，它们就保持有效：合并后的二次误差矩阵和两个端点位置只能通过折叠改变，而折叠会递增端点版本。这样 pop/tryCollapse 可以复用求解结果，无需重新运行 3x3 谱分析。
  */
 struct Candidate {
     double cost = 0.0;
@@ -138,12 +118,12 @@ struct Candidate {
     int versionA = 0;
     int versionB = 0;
     /**
-     * @brief Cached placement candidates, sorted by ascending quadric cost.
+     * @brief 已缓存的放置候选，按二次误差代价升序排列。
      */
     std::array<SolveResult, 4> placements{};
     int placementCount = 0;
 
-    /** @brief Implements deterministic min-cost ordering for priority_queue. */
+    /** @brief 为 priority_queue 实现确定性的最小代价排序。*/
     bool operator<(const Candidate& other) const {
         if (cost != other.cost) {
             return cost > other.cost;
@@ -155,14 +135,14 @@ struct Candidate {
     }
 };
 
-/** @brief Feature-policy class responsible for rejecting a collapse. */
+/** @brief 负责拒绝折叠的特征策略类。*/
 enum class FeatureCollapseRejectKind {
     None,
     Primitive,
     Generic,
 };
 
-/** @brief First hard geometric or topological check that rejected a placement. */
+/** @brief 首个拒绝放置的硬性几何或拓扑检查。*/
 enum class CollapseRejectReason {
     None,
     Topology,
@@ -172,7 +152,7 @@ enum class CollapseRejectReason {
     LocalError,
 };
 
-/** @brief Texture-chart constraint that rejected a placement. */
+/** @brief 拒绝放置的纹理图表约束。*/
 enum class TextureCollapseRejectReason {
     None,
     ChartMismatch,
@@ -180,7 +160,7 @@ enum class TextureCollapseRejectReason {
 };
 
 /**
- * @brief Boundary-topology decision and boundary-edge classification.
+ * @brief 边界拓扑决策和边界边分类。
  */
 struct BoundaryCollapseDecision {
     bool allowed = true;
@@ -188,14 +168,10 @@ struct BoundaryCollapseDecision {
 };
 
 /**
- * @brief Static AABB tree over the segments of one feature polyline. Built once per
- * loop (only when the loop is long enough to matter) so closest-point
- * queries drop from O(L) to O(log L). Construction and traversal order are
- * deterministic: splits use nth_element with an index tie-break and queries
- * visit the nearer child first with strict-improvement pruning.
+ * @brief 一条特征折线各线段上的静态 AABB 树。每个环只在足够长时构建一次，使最近点查询从 O(L) 降为 O(log L)。构建和遍历顺序具有确定性：划分使用带索引平局规则的 nth_element，查询优先访问较近子节点并采用严格改善剪枝。
  */
 struct PolylineSegmentIndex {
-    /** @brief One AABB-tree node over a range of feature-curve segments. */
+    /** @brief 覆盖一段特征曲线线段范围的 AABB 树节点。*/
     struct Node {
         Vec3 lo = Vec3::Zero();
         Vec3 hi = Vec3::Zero();
@@ -204,18 +180,18 @@ struct PolylineSegmentIndex {
         int begin = 0;
         int end = 0;
 
-        /** @brief Reports whether this node directly stores a segment range. */
+        /** @brief 判断该节点是否直接存储线段范围。*/
         bool leaf() const { return left < 0; }
     };
     std::vector<Node> nodes;
     std::vector<int> segmentOrder;
 
-    /** @brief Reports whether the segment acceleration structure was built. */
+    /** @brief 判断线段加速结构是否已构建。*/
     bool built() const { return !nodes.empty(); }
 };
 
 /**
- * @brief Samples and optional acceleration data for one protected curve.
+ * @brief 一条受保护曲线的样本和可选加速数据。
  */
 struct FeatureCurveConstraint {
     bool valid = false;
@@ -223,10 +199,9 @@ struct FeatureCurveConstraint {
     FeatureCurveKind primitive = FeatureCurveKind::Unknown;
     std::vector<Vec3> samples;
     /**
-     * @brief Optional acceleration structure over the polyline segments; empty for
-     * short loops, which keep the plain linear scan.
+     * @brief 折线线段上的可选加速结构；短环保持为空并继续使用普通线性扫描。
      */
     PolylineSegmentIndex segmentIndex;
 };
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

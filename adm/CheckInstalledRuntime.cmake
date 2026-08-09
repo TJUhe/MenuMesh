@@ -1,12 +1,12 @@
 if(NOT DEFINED MANUMESH_SDK_ROOT OR MANUMESH_SDK_ROOT STREQUAL "")
-  message(FATAL_ERROR "MANUMESH_SDK_ROOT is required.")
+  message(FATAL_ERROR "必须设置 MANUMESH_SDK_ROOT。")
 endif()
 
 set(MANUMESH_INSTALLED_CLI
   "${MANUMESH_SDK_ROOT}/bin/manumesh${MANUMESH_EXECUTABLE_SUFFIX}"
 )
 if(NOT EXISTS "${MANUMESH_INSTALLED_CLI}")
-  message(FATAL_ERROR "Installed CLI was not found at ${MANUMESH_INSTALLED_CLI}.")
+  message(FATAL_ERROR "在 ${MANUMESH_INSTALLED_CLI} 未找到已安装的 CLI。")
 endif()
 
 set(MANUMESH_ISOLATED_PATH "${MANUMESH_SDK_ROOT}/bin")
@@ -30,15 +30,15 @@ execute_process(
 )
 if(NOT MANUMESH_RUNTIME_RESULT EQUAL 0)
   message(FATAL_ERROR
-    "Installed CLI failed in an isolated runtime environment with exit code "
+    "已安装 CLI 在隔离运行时环境中失败，退出码为 "
     "${MANUMESH_RUNTIME_RESULT}. stdout='${MANUMESH_RUNTIME_OUTPUT}' "
     "stderr='${MANUMESH_RUNTIME_ERROR}'"
   )
 endif()
 if(NOT MANUMESH_RUNTIME_OUTPUT MATCHES "^ManuMesh [0-9]+\\.[0-9]+\\.[0-9]+$")
   message(FATAL_ERROR
-    "Installed CLI returned an unexpected version string: '${MANUMESH_RUNTIME_OUTPUT}'."
+    "已安装 CLI 返回了意外的版本字符串：'${MANUMESH_RUNTIME_OUTPUT}'。"
   )
 endif()
 
-message(STATUS "Validated isolated installed runtime: ${MANUMESH_RUNTIME_OUTPUT}")
+message(STATUS "已验证隔离的已安装运行时：${MANUMESH_RUNTIME_OUTPUT}")

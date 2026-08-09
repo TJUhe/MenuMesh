@@ -1,9 +1,10 @@
 /**
  * @file src/feature_detection/detail/FeatureEvidence.h
- * @brief Declares feature evidence facilities for ManuMesh's feature-detection module.
+ * @brief 声明 ManuMesh 特征检测模块的边证据收集功能。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
+ *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once
@@ -17,11 +18,11 @@
 namespace manumesh::feature::detector_detail {
 
 /**
- * @brief Collects typed hard/weak edge evidence and updates source counters.
- * @return Deterministically ordered candidate edges.
+ * @brief 收集强证据和弱证据，并更新来源统计计数。
+ * @return 按确定性顺序排列的候选特征边。
  */
 std::vector<CandidateEdge> collectFeatureEdges(
     const Mesh& mesh, const FeatureOptions& options, FeatureDetectionCache& cache, FeatureAnalysisBuilder& builder
 );
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

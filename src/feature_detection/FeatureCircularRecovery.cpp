@@ -1,14 +1,13 @@
 /**
  * @file src/feature_detection/FeatureCircularRecovery.cpp
- * @brief Implements feature circular recovery facilities for ManuMesh's feature-detection module.
+ * @brief 实现 ManuMesh 的特征检测模块的特征圆形恢复功能。
  * @ingroup manumesh_feature_detection
  *
- * @details Recovers sparse circular vertex clusters missed by strict graph tracing.
- * @algorithm Groups compatible feature vertices in a fitted plane, orders them
- * angularly around a circle candidate, and validates radial/planar residuals
- * plus graph support before materializing a fallback loop.
- * @failuremodes This bounded CAD-oriented fallback rejects partial arcs and
- * clusters whose angular coverage or residuals do not support a closed circle.
+ * @details 恢复严格图追踪遗漏的稀疏圆形顶点簇。
+ * @algorithm 在拟合平面内分组兼容的特征顶点，围绕候选圆按角度排序，
+ *            校验径向/平面残差及图支持后，才物化为备用特征环。
+ * @failuremodes 该面向 CAD 的有界回退会拒绝不完整圆弧，以及角覆盖或残差
+ *               不足以支持闭合圆的顶点簇。
  */
 
 #include "detail/FeatureCircularRecovery.h"
@@ -40,7 +39,7 @@ CycleSignature vertexSetSignature(const std::vector<int>& ids) {
     return signature;
 }
 
-/** @brief Circle reconstructed from a non-collinear three-point sample. */
+/** @brief 由三个不共线采样点恢复的圆。 */
 struct ThreePointCircle {
     bool valid = false;
     Vec3 center = Vec3::Zero();
@@ -117,25 +116,18 @@ double angularCoverage(const std::vector<int>& ids, const Mesh& mesh, const Vec3
 }
 
 /**
- * @brief Maximum fraction of the full turn that may be spanned by consecutive
- * cluster vertices without a supporting feature edge between them. The
- * recovery exists to close small evidence gaps (arc segments dropped by
- * thresholding), not to invent circles, so most of the circle must already
- * be linked by trace-graph edges. Angles make the bound dimensionless and
- * invariant under uniform scaling; 0.25 matches the pre-existing 1.5*pi
- * angular-coverage requirement (at most a quarter turn missing).
+ * @brief 连续簇顶点之间在没有特征边支持时，允许跨越的最大整圆比例。
+ *        该恢复用于闭合被阈值截断的小证据间隙，而不是凭空生成圆；因此大部分圆周
+ *        必须已由轨迹图边连接。角度限制无量纲且对统一缩放不变，0.25 对应既有的
+ *        1.5*pi 角覆盖要求（最多缺失四分之一圆周）。
  */
 constexpr double kMaxCircularRecoveryGapFraction = 0.25;
 
 /**
- * @brief Evidence-connectivity gate for a recovered circle: walking the cluster in
- * circular order (the caller passes it already sorted around the fitted
- * circle), every consecutive pair should be a feature edge of the trace
- * graph; the angular extents of the unsupported pairs are summed and bounded
- * by kMaxCircularRecoveryGapFraction of the full turn. Purely geometric
- * concyclicity is not evidence: vertex sets whose members are not linked by
- * feature edges (e.g. the coplanar corner rows of a chamfered prism) must
- * not be stitched into a circle.
+ * @brief 恢复圆的证据连通性门限：按拟合圆排序后，连续顶点对应尽量是轨迹图特征边；
+ *        不受支持的角跨度总和必须小于 kMaxCircularRecoveryGapFraction 所限定的整圆比例。
+ *        仅有几何共圆并不构成证据；没有特征边连接的顶点集合（例如倒角棱柱的共面角行）
+ *        不得被拼接为圆。
  */
 bool clusterSupportedByTraceEdges(
     const std::vector<int>& sortedCluster,
@@ -175,7 +167,7 @@ bool clusterSupportedByTraceEdges(
     return true;
 }
 
-/** @brief Connected trace-graph component considered for circular recovery. */
+/** @brief 参与圆形恢复的一个连通轨迹图分量。 */
 struct TraceComponent {
     std::vector<int> vertices;
     bool hasWeakEvidenceEdge = false;
@@ -216,7 +208,7 @@ std::vector<TraceComponent> collectTraceComponents(const TraceGraph& trace, cons
     return components;
 }
 
-} // namespace
+} // 匿名命名空间
 
 void recoverCircularVertexClusters(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
@@ -229,20 +221,16 @@ void recoverCircularVertexClusters(
             continue;
         }
 
-        // Seed circles only from length-2 paths of the trace graph (a - b - c
-        // with both edges present). The fallback repairs circles that already
-        // carry partial edge evidence, and any evidenced arc of >= 3 vertices
-        // contains such a path, so no legitimate circle is lost. This replaces
-        // the earlier blind O(n^3) triplet scan, which both fabricated circles
-        // through mutually unconnected (merely concyclic) vertices and burned
-        // seconds on meshes as small as 58 vertices.
+        // 仅从轨迹图长度为 2 的路径（a-b-c，且两条边均存在）生成圆种子。
+        // 回退阶段修补的是已有部分边证据的圆；任何至少含 3 个顶点的有证据圆弧
+        // 都包含这样的路径，因此不会遗漏合法圆。相比盲目的 O(n^3) 三元组扫描，
+        // 该策略不会把互不连通的共圆顶点拼成圆，也避免在小网格上消耗数秒。
         constexpr int kMaxCircularClusterSeedScans = 32768;
         int seedScans = 0;
         std::vector<int> candidates = component.vertices;
         std::sort(candidates.begin(), candidates.end());
         for (int middle : candidates) {
-            // Sorted neighbor enumeration keeps the recovery independent of
-            // adjacency insertion order.
+            // 对邻接顶点排序，确保恢复结果不依赖邻接表的插入顺序。
             std::vector<int> around = trace.adjacency[middle];
             std::sort(around.begin(), around.end());
             for (int i = 0; i < static_cast<int>(around.size()) && seedScans < kMaxCircularClusterSeedScans; ++i) {
@@ -292,12 +280,11 @@ void recoverCircularVertexClusters(
                 }
             }
         }
-        // Reaching the cap means the exhaustive path scan was cut short (the
-        // per-seed loops stop enumerating exactly at the cap).
+        // 达到上限表示穷举路径扫描被截断（每个种子循环恰好在该上限停止枚举）。
         if (seedScans >= kMaxCircularClusterSeedScans) {
             ++analysis.circularRecoveryTruncated;
         }
     }
 }
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

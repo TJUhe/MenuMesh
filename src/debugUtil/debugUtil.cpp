@@ -1,9 +1,9 @@
 /**
  * @file src/debugUtil/debugUtil.cpp
- * @brief Implements debug util facilities for ManuMesh's debug-visualization module.
+ * @brief 实现 ManuMesh 调试可视化模块的辅助功能。
  * @ingroup manumesh_debug
  *
- * @details Debug visualization is compiled out of release builds and must not affect algorithm results.
+ * @details 发布构建会去除调试可视化，调试工具不得影响算法结果。
  */
 
 #include "debugUtil/debugUtil.h"
@@ -43,7 +43,7 @@
 namespace manumesh::debugUtil {
 namespace {
 
-/** @brief Concrete HTML color and line width for one debug use case. */
+/** @brief 一个调试语义对应的具体 HTML 颜色和线宽。 */
 struct PaletteEntry {
     UseCase useCase;
     const char* name;
@@ -51,7 +51,7 @@ struct PaletteEntry {
     double width;
 };
 
-/** @brief Fully resolved edge overlay ready for HTML serialization. */
+/** @brief 已解析完成、可直接序列化为 HTML 的边覆盖层。 */
 struct RenderEdge {
     int a = -1;
     int b = -1;
@@ -91,7 +91,7 @@ std::string sanitizeTag(const char* rawTag) {
     const std::string tag = rawTag && rawTag[0] != '\0' ? rawTag : "debug";
     std::string sanitized;
     sanitized.reserve(std::min<std::size_t>(tag.size(), 80));
-    // Tags become filenames, so keep them stable across shells and filesystems.
+    // 标签会成为文件名，因此需要在不同 shell 和文件系统中保持稳定。
     for (char ch : tag) {
         const auto uch = static_cast<unsigned char>(ch);
         if (std::isalnum(uch) || ch == '-' || ch == '_' || ch == '.') {
@@ -151,9 +151,8 @@ void writeJsonString(std::ostream& out, const std::string& value) {
         case '\t':
             out << "\\t";
             break;
-        // The JSON is embedded in an inline <script> block, so escape HTML
-        // metacharacters too; a raw "</script>" inside a label would otherwise
-        // terminate the script element early.
+        // JSON 嵌入内联 <script> 块，因此也要转义 HTML 元字符；
+        // 否则标签中的原始 "</script>" 会提前结束脚本元素。
         case '<':
             out << "\\u003c";
             break;
@@ -473,9 +472,8 @@ bool envFlagEnabled(const char* name, bool defaultValue) {
 }
 
 #if !defined(_WIN32)
-// Conservative allow-list for paths interpolated into a quoted shell command.
-// Rejects anything that could expand or terminate the quoting ($, backticks,
-// ;, quotes, backslashes, ...).
+// 对插入带引号 shell 命令的路径使用保守的允许列表。
+// 拒绝可能展开变量或结束引号的字符（$、反引号、分号、引号、反斜杠等）。
 bool shellSafePath(const std::string& path) {
     for (char ch : path) {
         const auto uch = static_cast<unsigned char>(ch);
@@ -502,9 +500,8 @@ bool shellSafePath(const std::string& path) {
 }
 #endif
 
-// Maximum number of lines written into one HTML snapshot. Large meshes are
-// uniformly sampled down to this cap so debug output stays loadable. Override
-// with MANUMESH_DEBUG_UTIL_MAX_EDGES; values <= 0 disable the cap.
+// 单个 HTML 快照写入的最大边数。大型网格会均匀采样到该上限，确保输出可加载。
+// 可通过 MANUMESH_DEBUG_UTIL_MAX_EDGES 覆盖；小于等于 0 表示取消上限。
 std::size_t maxRenderEdges() {
     constexpr long kDefaultMaxEdges = 200000;
     long limit = kDefaultMaxEdges;
@@ -548,9 +545,8 @@ void openBrowser(const std::filesystem::path& path) {
     }
 
 #if defined(_WIN32)
-    // ShellExecuteW takes the document path verbatim, so no shell command line
-    // is built and the path cannot inject commands. shell32 is loaded lazily to
-    // avoid a hard link dependency for this debug-only utility.
+    // ShellExecuteW 直接接收文档路径，不会构造 shell 命令行，因此路径无法注入命令。
+    // shell32 延迟加载，避免该调试工具产生硬链接依赖。
     using ShellExecuteWFn = HINSTANCE(WINAPI*)(HWND, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, INT);
     const HMODULE shell32 = ::LoadLibraryW(L"shell32.dll");
     if (!shell32) {
@@ -568,8 +564,7 @@ void openBrowser(const std::filesystem::path& path) {
     ::FreeLibrary(shell32);
 #else
     const std::string pathString = path.string();
-    // The command below goes through std::system, so only allow paths made of
-    // characters that cannot break out of the double quotes or expand.
+    // 下方命令通过 std::system 执行，因此只允许不会跳出双引号或触发展开的字符。
     if (!shellSafePath(pathString)) {
         std::cerr << "manumesh debugUtil: output path contains shell metacharacters; open " << pathString
                   << " manually\n";
@@ -605,8 +600,8 @@ void renderBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) {
     const Vec3 beforeCenter = meshCenter(before);
     const Vec3 afterCenter = meshCenter(after);
     const double scale = std::max({before.bboxDiag(), after.bboxDiag(), 1.0});
-    // Translate copies into one temporary mesh so the same canvas controls can
-    // compare both states without adding a second renderer path.
+    // 将副本平移到同一个临时网格，使同一套画布控制器可以比较两个状态，
+    // 无需增加第二条渲染路径。
     const Vec3 beforeOffset(-0.75 * scale, 0.0, 0.0);
     const Vec3 afterOffset(0.75 * scale, 0.0, 0.0);
 
@@ -638,7 +633,7 @@ void renderBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) {
     openBrowser(path);
 }
 
-} // namespace
+} // 命名空间
 
 void showWireframe(const char* tag, const Mesh& mesh, UseCase useCase) { render(tag, mesh, {}, useCase); }
 
@@ -658,6 +653,6 @@ void showFeatures(const char* tag, const Mesh& mesh, const feature::FeatureAnaly
 
 void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) { renderBeforeAfter(tag, before, after); }
 
-} // namespace manumesh::debugUtil
+} // 命名空间 manumesh::debugUtil
 
 #endif

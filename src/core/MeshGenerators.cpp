@@ -1,9 +1,9 @@
 /**
  * @file src/core/MeshGenerators.cpp
- * @brief Implements mesh generators facilities for ManuMesh's core-mesh module.
+ * @brief 实现 ManuMesh 核心网格模块的网格生成器设施。
  * @ingroup manumesh_core
  *
- * @details Core types establish the storage, validation, tolerance, topology, and status contracts consumed by every algorithm module.
+ * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
  */
 
 #include "core/MeshGenerators.h"
@@ -21,7 +21,7 @@
 namespace manumesh {
 namespace {
 
-/** @brief One indexed quadrilateral cell emitted by a grid generator. */
+/** @brief 网格生成器输出的一个带索引四边形单元。 */
 struct GridCell {
     int n = 0;
     int base = 0;
@@ -30,7 +30,7 @@ struct GridCell {
     bool flip = false;
 };
 
-/** @brief Square grid patch with orientation and placement metadata. */
+/** @brief 带方向和放置元数据的方形网格块。 */
 struct GridPatch {
     int n = 0;
     double size = 0.0;
@@ -40,7 +40,7 @@ struct GridPatch {
     bool flip = false;
 };
 
-/** @brief Rectangular grid patch used for non-square generated surfaces. */
+/** @brief 用于非方形生成表面的矩形网格块。 */
 struct RectGridPatch {
     int nx = 0;
     int ny = 0;
@@ -158,7 +158,7 @@ Mesh generateLatheProfile(const std::vector<std::pair<double, double>>& rz, int 
     return mesh;
 }
 
-} // namespace
+} // 命名空间
 
 Mesh generatePlaneGrid(int n, double size, bool clustered) {
     n = std::max(2, n);
@@ -399,9 +399,8 @@ Mesh generateClosedCubeGrid(int n, double size) {
         }
     };
 
-    // Quantize at a quarter of the grid cell size: coincident patch-boundary
-    // vertices merge while distinct grid vertices stay at least four quanta
-    // apart.
+    // 按网格单元尺寸的四分之一进行量化：重合的块边界顶点会合并，
+    // 而不同网格顶点之间至少相隔四个量化单位。
     const double extent = std::abs(size) > 0.0 ? std::abs(size) : 1.0;
     const double invQuantum = 4.0 * static_cast<double>(n) / extent;
     auto quantize = [&](const Vec3& p) {
@@ -574,4 +573,4 @@ bool generateMeshByName(const std::string& type, int n, Mesh& mesh, std::string*
     return true;
 }
 
-} // namespace manumesh
+} // 命名空间 manumesh

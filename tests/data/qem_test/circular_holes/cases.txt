@@ -1,4 +1,4 @@
-# path min_circular_loops min_feature_edges
+# 路径 最小圆环数 最小特征边数
 external/nasa_antenna_azimuth_track.stl 4 1000
 external/nasa_cubesat_middle.stl 20 8000
 external/nasa_mars2020_wheel.stl 4 10000

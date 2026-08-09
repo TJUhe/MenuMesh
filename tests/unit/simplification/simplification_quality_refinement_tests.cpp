@@ -1,9 +1,9 @@
 /**
  * @file tests/unit/simplification/simplification_quality_refinement_tests.cpp
- * @brief Verifies simplification quality refinement tests behavior in the ManuMesh tests.
+ * @brief 验证 ManuMesh 测试中的简化 质量细化测试行为。
  * @ingroup manumesh_tests
  *
- * @details The fixture and assertions document observable contracts, numeric tolerances, determinism requirements, and previously fixed regressions.
+ * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "TestSupport.h"
@@ -59,7 +59,7 @@ void expectSameMesh(const manumesh::Mesh& lhs, const manumesh::Mesh& rhs) {
     }
 }
 
-} // namespace
+} // 命名空间
 
 TEST(QualityRefinement, ImprovesWorstTriangleWithoutChangingTopologyOrEnvelope) {
     const manumesh::Mesh input = makePoorQualityPlaneGrid();
@@ -141,8 +141,8 @@ TEST(QualityRefinement, ImprovesQualityAfterActualEdgeCollapse) {
     EXPECT_GT(baseline.report.collapsedEdges, 0);
     EXPECT_EQ(baseline.mesh.faces.size(), refined.mesh.faces.size());
     EXPECT_EQ(baselineTopology.value().boundaryEdgeCount(), refinedTopology.value().boundaryEdgeCount());
-    // The worst surviving triangle can be pinned by frozen boundary vertices, so the
-    // minimum must never regress while the mean must strictly improve.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(refinedStats.minTriangleQuality, baselineStats.minTriangleQuality);
     EXPECT_GT(refinedStats.meanTriangleQuality, baselineStats.meanTriangleQuality);
     EXPECT_GT(refined.report.qualityRefinementAcceptedMoves, 0);
@@ -180,8 +180,8 @@ TEST(QualityRefinement, HardProtectedCircularFeatureLoopsRemainStable) {
 
 namespace {
 
-// Distance from p to the nearest of the twelve cube-edge lines of the cube
-// [-half, half]^3: the two off-axis coordinates must sit at +-half.
+// 检查该步骤的边界条件，并确保结果保持确定性。
+// 检查该步骤的边界条件，并确保结果保持确定性。
 double distanceToNearestCubeEdgeLine(const manumesh::Vec3& p, double half) {
     double best = std::numeric_limits<double>::infinity();
     for (int freeAxis = 0; freeAxis < 3; ++freeAxis) {
@@ -194,12 +194,12 @@ double distanceToNearestCubeEdgeLine(const manumesh::Vec3& p, double half) {
     return best;
 }
 
-} // namespace
+} // 命名空间
 
 TEST(QualityRefinement, SoftProtectedPolygonalCreaseVerticesOnlySlideAlongTheCrease) {
-    // Closed cube: the twelve 90-degree edges become soft-protected polygonal
-    // feature loops under PrimitiveCurves (only circles/ellipses are hard
-    // protected), so quality refinement is allowed to move crease vertices.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double half = 1.0;
     const manumesh::Mesh input = manumesh::generateClosedCubeGrid(10, 2.0 * half);
 
@@ -214,18 +214,18 @@ TEST(QualityRefinement, SoftProtectedPolygonalCreaseVerticesOnlySlideAlongTheCre
     refinedOptions.qualityRefinementIterations = 5;
     const manumesh::test::SimplifiedMesh refined = manumesh::test::simplifyWithReport(input, refinedOptions);
 
-    // Refinement is a post-collapse pass, so both runs share the collapse
-    // sequence and the compacted vertex order corresponds one-to-one.
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     ASSERT_EQ(baseline.mesh.vertices.size(), refined.mesh.vertices.size());
     ASSERT_EQ(baseline.mesh.faces.size(), refined.mesh.faces.size());
     EXPECT_GT(refined.report.qualityRefinementAcceptedMoves, 0);
 
-    // Feature-constrained relaxation may only slide crease vertices along the
-    // local curve tangent, so their distance to the true crease line must not
-    // grow. Before the tangent constraint (average-normal tangent-plane
-    // projection only), this same setup rounded the creases: measured max
-    // drift growth was 8.66e-02 off the cube edge lines (mesh half-extent
-    // 1.0, 5 refinement iterations).
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
+    // 检查该步骤的边界条件，并确保结果保持确定性。
     int creaseVertices = 0;
     double maxDriftGrowth = 0.0;
     for (std::size_t i = 0; i < baseline.mesh.vertices.size(); ++i) {

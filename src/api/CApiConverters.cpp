@@ -1,9 +1,9 @@
 /**
  * @file src/api/CApiConverters.cpp
- * @brief Implements capi converters facilities for ManuMesh's C-ABI module.
+ * @brief 实现 ManuMesh 的C ABI 模块的C API 转换器功能。
  * @ingroup manumesh_c_api
  *
- * @details The C boundary validates pointers and capacities, translates failures to status codes, and never permits a C++ exception to cross the ABI.
+ * @details 转换器复用 C ABI 的容量检查和有限数值约定，将内部结果安全写入公开结构体。
  */
 
 #include "api/detail/CApiConverters.h"
@@ -19,7 +19,7 @@ namespace {
 bool boolFromInt(int value) { return value != 0; }
 
 /**
- * @brief Copies a finite double option, mirroring the CLI's strict numeric contract.
+ * @brief 复制有限 double 选项，遵循 CLI 的严格数值约定。
  */
 bool readFiniteDouble(double value, const char* fieldName, double& target, std::string& error) {
     if (!std::isfinite(value)) {
@@ -159,7 +159,7 @@ ManuMeshSimplifyTerminationReason convertTerminationReason(simplification::Simpl
     return MANUMESH_SIMPLIFY_TERMINATION_NOT_STARTED;
 }
 
-} // namespace
+} // 匿名命名空间
 
 ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::size_t structCapacity) {
     std::size_t writeSize = 0;
@@ -705,4 +705,4 @@ ManuMeshStatus fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStat
     return MANUMESH_STATUS_OK;
 }
 
-} // namespace manumesh::api
+} // manumesh::api 命名空间

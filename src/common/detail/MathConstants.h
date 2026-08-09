@@ -1,9 +1,9 @@
 /**
  * @file src/common/detail/MathConstants.h
- * @brief Declares math constants facilities for ManuMesh's common-geometry module.
+ * @brief 声明 ManuMesh 公共几何模块的数学常量设施。
  * @ingroup manumesh_common
  *
- * @details The routines here are policy-free geometry foundations shared by feature detection, simplification, analysis, and mesh editing.
+ * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。
  */
 
 #pragma once
@@ -12,15 +12,14 @@
 
 namespace manumesh::common {
 
-// Forwarding alias kept for existing manumesh::common::kPi users; the
-// canonical constant now lives in core (include/core/MathConstants.h).
+// 为现有 manumesh::common::kPi 使用者保留转发别名；规范常量现在位于核心模块
+// （include/core/MathConstants.h）。
 using manumesh::kPi;
 
-} // namespace manumesh::common
+} // 命名空间 manumesh::common
 
 namespace manumesh {
-// Transitional alias: manumesh::detail was renamed to manumesh::common
-// (architecture v2, R6). New code must use manumesh::common; this alias is
-// removed after one minor version.
+// 过渡别名：manumesh::detail 已重命名为 manumesh::common
+// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
 namespace detail = common;
-} // namespace manumesh
+} // 命名空间 manumesh

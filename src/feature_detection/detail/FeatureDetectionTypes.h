@@ -1,9 +1,10 @@
 /**
  * @file src/feature_detection/detail/FeatureDetectionTypes.h
- * @brief Declares feature detection types facilities for ManuMesh's feature-detection module.
+ * @brief 声明 ManuMesh 特征检测流水线使用的内部数据类型。
  * @ingroup manumesh_feature_detection
  *
- * @details This file is part of the deterministic triangle-surface feature pipeline. Local evidence is kept separate from graph cleanup, tracing, primitive recovery, and patch segmentation so each stage has an explicit contract.
+ * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
+ *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once
@@ -21,7 +22,7 @@ namespace manumesh::feature::detector_detail {
 using manumesh::common::kPi;
 
 /**
- * @brief One mesh edge carrying the evidence channels collected by detection.
+ * @brief 保存检测阶段收集的各类边证据。
  */
 struct CandidateEdge {
     int a = -1;
@@ -42,11 +43,12 @@ struct CandidateEdge {
 };
 
 /**
- * @brief Per-edge evidence attributes stored once per trace-graph edge.
+ * @brief 按特征图边唯一保存证据属性。
  *
- * Earlier revisions kept eleven parallel hash maps with identical keys; one
- * struct per key halves memory traffic and lets hot loops fetch every
- * attribute with a single lookup.
+ * 早期实现使用十一张具有相同键的并行哈希表；现在每个键对应一个结构体，
+ * 既减少内存访问，也让热点循环一次查找即可取得全部属性。
+ *
+ * 该属性记录必须与轨迹图中的无向边一一对应，并在图变更后同步更新。
  */
 struct TraceEdgeAttrs {
     bool boundary = false;
@@ -64,7 +66,7 @@ struct TraceEdgeAttrs {
 };
 
 /**
- * @brief Compact feature graph used by cleanup, tracing, and loop recovery.
+ * @brief 供清理、追踪和特征环恢复共用的紧凑特征图。
  */
 struct TraceGraph {
     std::vector<std::vector<int>> adjacency;
@@ -74,7 +76,7 @@ struct TraceGraph {
 };
 
 /**
- * @brief Evidence counters accumulated while traversing one graph chain.
+ * @brief 追踪一条图链时累积的证据计数。
  */
 struct TraceLoopStats {
     int edgeCount = 0;
@@ -91,7 +93,7 @@ struct TraceLoopStats {
 };
 
 /**
- * @brief Recovery source used to select acceptance policy for a cycle.
+ * @brief 用于选择环接受策略的恢复来源类型。
  */
 enum class RecoveredCycleKind {
     Circular,
@@ -99,25 +101,25 @@ enum class RecoveredCycleKind {
 };
 
 /**
- * @brief Mutable accumulator that centralizes FeatureAnalysis bookkeeping.
+ * @brief 集中特征分析结果记账的可变累加器。
  */
 class FeatureAnalysisBuilder {
 public:
-    /** @brief Allocates one public feature record per mesh vertex. */
+    /** @brief 为网格中的每个顶点分配一个公共特征记录。 */
     explicit FeatureAnalysisBuilder(int vertexCount) { analysis_.vertices.assign(vertexCount, VertexFeature{}); }
 
-    /** @brief Returns the analysis currently being accumulated. */
+    /** @brief 返回当前正在累积的分析结果。 */
     FeatureAnalysis& analysis() { return analysis_; }
-    /** @brief Returns a read-only view of the accumulated analysis. */
+    /** @brief 返回已累积分析结果的只读视图。 */
     const FeatureAnalysis& analysis() const { return analysis_; }
 
-    /** @brief Returns the monotonic loop-id counter used by recovery stages. */
+    /** @brief 返回恢复阶段使用的单调递增环 ID 计数器。 */
     int& nextLoopId() { return nextLoopId_; }
 
-    /** @brief Transfers the completed analysis to the caller. */
+    /** @brief 将已完成的分析结果移动给调用方。 */
     FeatureAnalysis build() { return std::move(analysis_); }
 
-    /** @brief Adds one accepted edge to all matching evidence counters. */
+    /** @brief 将一条已接受的边计入所有匹配的证据计数器。 */
     void recordFeatureEdge(const CandidateEdge& edge) {
         ++analysis_.featureEdges;
         if (edge.boundary)
@@ -144,4 +146,4 @@ private:
     int nextLoopId_ = 0;
 };
 
-} // namespace manumesh::feature::detector_detail
+} // 命名空间 manumesh::feature::detector_detail

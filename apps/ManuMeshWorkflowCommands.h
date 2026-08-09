@@ -1,9 +1,9 @@
 /**
  * @file apps/ManuMeshWorkflowCommands.h
- * @brief Declares manu mesh workflow commands facilities for the ManuMesh command-line application.
+ * @brief 声明演示和验证工作流的 CLI 命令处理函数。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 工作流命令负责组织输入模型、运行批处理并生成验证输出。
  */
 
 #pragma once
@@ -12,11 +12,11 @@
 
 namespace manumesh::cli::workflow_commands {
 
-/// Runs the built-in end-to-end demonstration workflow.
+/// 运行内置的端到端演示工作流。
 int demo(const Args& args);
-/// Executes analytic feature-preservation acceptance cases.
+/// 执行解析模型上的特征保护验收用例。
 int validateFeatures(const Args& args);
-/// Executes dataset-driven validation on caller-supplied external meshes.
+/// 对调用方提供的外部网格执行数据集验证。
 int validateExternal(const Args& args);
 
 } // namespace manumesh::cli::workflow_commands

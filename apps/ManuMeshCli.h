@@ -1,17 +1,17 @@
 /**
  * @file apps/ManuMeshCli.h
- * @brief Declares manu mesh cli facilities for the ManuMesh command-line application.
+ * @brief 声明 CLI 入口及异常到进程退出码的转换。
  * @ingroup manumesh_cli
  *
- * @details CLI parsing, validation, dispatch, and reporting are kept outside the geometry library so SDK behavior is independent of process-global command-line state.
+ * @details 入口负责参数校验、命令分发和统一的错误显示。
  */
 
 #pragma once
 
 namespace manumesh::cli {
 
-/// Validates global arguments, dispatches one command, and translates exceptions.
-/// @return Process exit code: zero on success, nonzero on usage/operation failure.
+/// 校验全局参数，分发一个命令并转换异常。
+/// @return 成功返回 0；用法或操作失败返回非零值。
 int run(int argc, char** argv);
 
-} // namespace manumesh::cli
+} // 命令行命名空间

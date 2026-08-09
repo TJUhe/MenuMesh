@@ -30,7 +30,7 @@ M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照�
 | M002 | Surface Simplification Using Quadric Error Metrics (OpenAlex citations: 3386) | `qem/garland_heckbert_1997_surface_simplification_qem.pdf` | `10.1145/258734.258849` | 原始 QEM 论文，解释 plane quadric、vertex quadric 和 edge contraction cost。ManuMesh 的正常面按面积/3 累加；退化面仅加 `1e-6 * representativeArea * pointQuadric`，保持与正常 QEM 相同的 L^4 缩放量纲。 |
 | M003 | Simplifying Surfaces with Color and Texture Using Quadric Error Metrics (OpenAlex citations: 246) | `qem/garland_heckbert_1998_color_texture_qem.pdf` | `10.1109/VISUAL.1998.745312` | QEM 属性扩展参考，说明如何把颜色、纹理等属性并入 quadric 风格误差项。 |
 
-## Line Quadrics
+## Line Quadrics（线二次型）
 
 | ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
 | --- | --- | --- | --- | --- |

@@ -1,15 +1,13 @@
 /**
  * @file src/io/MeshIo.cpp
- * @brief Implements mesh io facilities for ManuMesh's mesh-I/O module.
+ * @brief 实现 ManuMesh 的网格输入输出模块的网格输入输出功能。
  * @ingroup manumesh_io
  *
- * @details Implements deterministic STL/OBJ parsing and ASCII/binary STL serialization.
- * @algorithm Binary STL is recognized by record layout, while ASCII STL uses
- * token parsing. Coincident STL positions are merged with scale-aware quantization. OBJ
- * polygons are projected to their dominant plane; convex faces use stable fan
- * triangulation and concave faces use validated ear clipping.
- * @failuremodes Repeated, degenerate, self-intersecting, non-finite, or
- * truncated input is rejected with a diagnostic rather than partially emitted.
+ * @details 实现确定性的 STL/OBJ 解析以及 ASCII/二进制 STL 序列化。
+ * @algorithm 二进制 STL 根据记录布局识别，ASCII STL 使用令牌解析；重合 STL 顶点通过
+ * 尺度相关量化合并。OBJ 多边形投影到主导平面，凸面使用稳定的扇形三角化，凹面使用
+ * 经过校验的耳切法。
+ * @failuremodes 重复、退化、自交、非有限或截断输入会返回诊断并被拒绝，不会部分输出。
  */
 
 #include "io/MeshIo.h"
@@ -35,7 +33,7 @@ namespace {
 
 std::filesystem::path pathFromUtf8(const std::string& path) { return std::filesystem::u8path(path); }
 
-/** @brief Quantized three-dimensional position used for STL vertex welding. */
+/** @brief 用于 STL 顶点合并的量化三维位置。*/
 struct QuantizedKey {
     long long x = 0;
     long long y = 0;
@@ -44,7 +42,7 @@ struct QuantizedKey {
     bool operator==(const QuantizedKey& other) const { return x == other.x && y == other.y && z == other.z; }
 };
 
-/** @brief Stable hash for quantized STL vertex positions. */
+/** @brief 量化 STL 顶点位置的稳定哈希。*/
 struct QuantizedKeyHash {
     std::size_t operator()(const QuantizedKey& key) const {
         std::size_t h = 1469598103934665603ull;
@@ -61,9 +59,9 @@ struct QuantizedKeyHash {
 
 long long quantizeCoordinate(double value, double eps) {
     const double scaled = value / eps;
-    // std::llround is undefined once the argument leaves the long long range,
-    // so clamp huge quotients to the representable extremes first.
-    constexpr double kMaxQuantized = 9.0e18; // safely below LLONG_MAX (~9.22e18)
+    // std::llround 在参数超出 long long 范围时行为未定义，因此先将过大商值
+    // 截断到可表示范围；9.0e18 低于约 9.22e18 的 long long 上限。
+    constexpr double kMaxQuantized = 9.0e18;
     if (scaled >= kMaxQuantized) {
         return std::numeric_limits<long long>::max();
     }
@@ -132,8 +130,7 @@ const char* findTokenEnd(const char* p, const char* end) {
 }
 
 /**
- * @brief Parses a double at `p`, tolerating an explicit leading '+'. Returns the
- * first unconsumed character, or nullptr when no double could be parsed.
+ * @brief 从 `p` 解析 double，并允许显式的前导 `+`。返回首个未消费字符；无法解析时返回 nullptr。
  */
 const char* parseDoubleAt(const char* p, const char* end, double& value) {
     if (p != end && *p == '+') {
@@ -150,8 +147,7 @@ const char* parseDoubleAt(const char* p, const char* end, double& value) {
 }
 
 /**
- * @brief Reads the whole file into `text`. Returns false when the file cannot be
- * opened or read completely.
+ * @brief 将整个文件读入 `text`；无法打开或完整读取时返回 false。
  */
 bool readFileToString(const std::string& path, std::string& text) {
     std::ifstream in(pathFromUtf8(path), std::ios::binary);
@@ -177,13 +173,11 @@ bool readFileToString(const std::string& path, std::string& text) {
 enum class StlFormat { Binary, Ascii, Invalid };
 
 /**
- * @brief Decides whether an STL file is binary or ASCII.
+ * @brief 判断 STL 文件是二进制格式还是 ASCII 格式。
  *
- * A file whose size matches the exact binary layout (84 + 50 * n bytes) is
- * binary even when its header starts with "solid". A file that does not
- * start with "solid" is treated as binary as well; trailing padding bytes
- * after the last record are tolerated, while a shorter file is reported as a
- * truncated binary STL instead of falling through to the ASCII parser.
+ * 文件大小恰好匹配二进制布局（84 + 50 * n 字节）时，即使头部以 "solid" 开头也按二进制处理。
+ * 不以 "solid" 开头的文件同样按二进制处理；允许最后一条记录后存在尾部填充，但短文件会报告
+ * 为截断的二进制 STL，而不会回退到 ASCII 解析器。
  */
 StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::string* error) {
     const std::filesystem::path inputPath = pathFromUtf8(path);
@@ -200,7 +194,7 @@ StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::
 
     std::size_t offset = 0;
     if (headerBytes >= 3 && std::memcmp(header.data(), "\xEF\xBB\xBF", 3) == 0) {
-        offset = 3; // skip a UTF-8 byte-order mark
+        offset = 3; // 跳过 UTF-8 字节顺序标记。
     }
     while (offset < headerBytes && isAsciiSpace(header[offset])) {
         ++offset;
@@ -247,7 +241,7 @@ StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::
         return StlFormat::Ascii;
     }
     if (fileSize > expectedSize) {
-        // Some exporters append padding after the last record; ignore it.
+        // 某些导出器会在最后一条记录后追加填充字节；忽略这些字节。
         return StlFormat::Binary;
     }
     if (error) {
@@ -391,8 +385,7 @@ void mergeDuplicateTriangleVertices(
         if (std::isfinite(span)) {
             return std::abs(span * mergeRelativeEpsilon);
         }
-        // Scale before subtracting when the finite endpoints span more than
-        // DBL_MAX. This keeps the usual small relative epsilon representable.
+        // 当有限端点跨度超过 DBL_MAX 时，先缩放再相减，仍可表示通常的相对小容差。
         return std::abs(high * mergeRelativeEpsilon - low * mergeRelativeEpsilon);
     };
     double relativeEps = 0.0;
@@ -408,8 +401,7 @@ void mergeDuplicateTriangleVertices(
     indicesByKey.reserve(triangles.size() * 3);
 
     auto addVertex = [&](const Vec3& p) {
-        // Quantize relative to a stable local origin so translating a mesh far
-        // from zero cannot saturate every coordinate into the same key.
+        // 以稳定的局部原点进行量化，避免网格平移到远离零点的位置后所有坐标都饱和为同一键。
         const QuantizedKey key = makeKey(p - lo, eps);
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dy = -1; dy <= 1; ++dy) {
@@ -453,9 +445,8 @@ std::string objLineError(int lineNumber, const char* message) {
 }
 
 /**
- * @brief Parses one OBJ index segment (for example the "3" in "3/1/2"), resolving
- * negative indices relative to `valueCount`. The whole segment must be a
- * valid integer and the resolved zero-based index must be in range.
+ * @brief 解析一个 OBJ 索引片段（例如 `3/1/2` 中的 `3`），并根据 `valueCount` 解析负索引。
+ * 整个片段必须是有效整数，解析后的从零开始索引也必须在范围内。
  */
 bool parseObjIndexText(const char* begin, const char* end, int valueCount, int& indexOut) {
     if (begin != end && *begin == '+') {
@@ -477,7 +468,7 @@ bool parseObjIndexText(const char* begin, const char* end, int valueCount, int& 
     return true;
 }
 
-/** @brief Resolved vertex and optional texture-coordinate indices of one OBJ corner. */
+/** @brief 一个 OBJ 面角点解析后的顶点索引和可选纹理坐标索引。*/
 struct ObjCorner {
     int vertex = -1;
     int texcoord = -1;
@@ -732,8 +723,8 @@ bool triangulateObjPolygon(
 }
 
 /**
- * @brief Parses one face corner token: `v`, `v/vt`, `v//vn`, or `v/vt/vn`.
- * The normal index after the second slash is intentionally ignored.
+ * @brief 解析一个 OBJ 面角点令牌：`v`、`v/vt`、`v//vn` 或 `v/vt/vn`。
+ * 第二个斜杠后的法线索引会按设计忽略。
  */
 bool parseObjCorner(const char* begin, const char* end, int vertexCount, int texcoordCount, ObjCorner& corner) {
     const char* firstSlash = static_cast<const char*>(std::memchr(begin, '/', static_cast<std::size_t>(end - begin)));
@@ -754,7 +745,7 @@ bool parseObjCorner(const char* begin, const char* end, int vertexCount, int tex
     return parseObjIndexText(texcoordBegin, texcoordEnd, texcoordCount, corner.texcoord);
 }
 
-} // namespace
+} // 命名空间
 
 bool loadStl(const std::string& path, Mesh& mesh, std::string* error, double mergeRelativeEpsilon) {
     if (error) {
@@ -765,8 +756,7 @@ bool loadStl(const std::string& path, Mesh& mesh, std::string* error, double mer
             *error = "mergeRelativeEpsilon must be finite and non-negative.";
         return false;
     }
-    // STL carries no texture coordinates; drop any stale ones so they cannot
-    // silently align with the freshly loaded faces of a reused mesh.
+    // STL 不携带纹理坐标；清除复用网格中的旧坐标，避免其与新面静默错位。
     mesh.faceTexCoords.clear();
 
     uint32_t triangleCount = 0;
@@ -863,8 +853,7 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
                     *error = objLineError(lineNumber, "malformed or non-finite texture coordinate.");
                 return false;
             }
-            // The second component is optional per the OBJ spec ("vt u")
-            // and defaults to zero; a third component (w) is ignored.
+            // 根据 OBJ 规范，第二个分量（"vt u"）可以省略并默认为零；第三个分量 w 会忽略。
             q = skipSpaces(q, lineEnd);
             if (q != lineEnd) {
                 q = parseDoubleAt(q, lineEnd, v);
@@ -937,7 +926,7 @@ bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
                 mesh.faceTexCoords.push_back(faceUv);
             }
         }
-        // Everything else (vn, g, o, s, usemtl, comments, ...) is ignored.
+        // 其他指令（vn、g、o、s、usemtl、注释等）均忽略。
     }
 
     mesh.vertices = std::move(positions);
@@ -1094,4 +1083,4 @@ bool saveAsciiStl(const std::string& path, const Mesh& mesh, const std::string& 
     return true;
 }
 
-} // namespace manumesh
+} // manumesh 命名空间

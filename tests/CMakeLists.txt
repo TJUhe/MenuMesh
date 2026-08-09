@@ -1,9 +1,9 @@
 include(FetchContent)
 
-option(MANUMESH_BUILD_PERFORMANCE_TESTS "Build large mesh performance tests" OFF)
+option(MANUMESH_BUILD_PERFORMANCE_TESTS "构建大型网格性能测试" OFF)
 
 set(MANUMESH_GOOGLETEST_PROVIDER "auto" CACHE STRING
-  "GoogleTest provider for tests: auto, source, prebuilt, system, or fetch"
+  "测试的 GoogleTest 提供方式：auto、source、prebuilt、system 或 fetch"
 )
 set_property(CACHE MANUMESH_GOOGLETEST_PROVIDER PROPERTY STRINGS
   auto
@@ -13,12 +13,12 @@ set_property(CACHE MANUMESH_GOOGLETEST_PROVIDER PROPERTY STRINGS
   fetch
 )
 option(MANUMESH_MINGW_AUTO_GOOGLETEST_FROM_SOURCE
-  "When MANUMESH_GOOGLETEST_PROVIDER=auto under MinGW, do not use prebuilt GoogleTest DLLs; build GoogleTest for the active compiler instead."
+  "MinGW 下 MANUMESH_GOOGLETEST_PROVIDER=auto 时不使用预构建 GoogleTest DLL，而是为当前编译器构建 GoogleTest。"
   ON
 )
 set(MANUMESH_GOOGLETEST_SOURCE_DIR
   "${PROJECT_SOURCE_DIR}/thirdParty/googletest/source/googletest"
-  CACHE PATH "Path to a GoogleTest source tree with CMakeLists.txt"
+  CACHE PATH "包含 CMakeLists.txt 的 GoogleTest 源码树路径"
 )
 set(MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR
   "${PROJECT_SOURCE_DIR}/thirdParty/googletest/prebuilt/mingw-x64-shared"
@@ -30,15 +30,15 @@ if(MSVC)
 endif()
 set(MANUMESH_GOOGLETEST_PREBUILT_DIR
   "${MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR}"
-  CACHE PATH "Root of a prebuilt GoogleTest bundle with include, lib, and bin folders"
+  CACHE PATH "包含 include、lib 和 bin 目录的预构建 GoogleTest 包根目录"
 )
-set(MANUMESH_GTEST_INCLUDE_DIR "" CACHE PATH "Path to prebuilt GoogleTest headers")
-set(MANUMESH_GTEST_LIBRARY "" CACHE FILEPATH "Path to prebuilt gtest library")
+set(MANUMESH_GTEST_INCLUDE_DIR "" CACHE PATH "预构建 GoogleTest 头文件路径")
+set(MANUMESH_GTEST_LIBRARY "" CACHE FILEPATH "预构建 gtest 库路径")
 set(MANUMESH_GTEST_MAIN_LIBRARY "" CACHE FILEPATH
-  "Path to prebuilt gtest_main library"
+  "预构建 gtest_main 库路径"
 )
 set(MANUMESH_GTEST_RUNTIME_DIR "" CACHE PATH
-  "Optional path to prebuilt GoogleTest runtime DLL/shared library folder"
+  "预构建 GoogleTest 运行时 DLL/共享库目录（可选）"
 )
 
 function(manumesh_copy_gtest_runtime_dependencies target)
@@ -54,7 +54,7 @@ function(manumesh_copy_gtest_runtime_dependencies target)
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
           "${gtest_runtime_file}"
           "$<TARGET_FILE_DIR:${target}>"
-        COMMENT "Copying prebuilt GoogleTest runtime next to ${target}"
+    COMMENT "正在将预构建 GoogleTest 运行时复制到 ${target} 旁边"
         VERBATIM
       )
     endforeach()
@@ -202,7 +202,7 @@ endfunction()
 
 if(NOT MANUMESH_GOOGLETEST_PROVIDER MATCHES "^(auto|source|prebuilt|system|fetch)$")
   message(FATAL_ERROR
-    "MANUMESH_GOOGLETEST_PROVIDER must be one of: auto, source, prebuilt, system, fetch."
+    "MANUMESH_GOOGLETEST_PROVIDER 必须是 auto、source、prebuilt、system 或 fetch 之一。"
   )
 endif()
 
@@ -217,8 +217,8 @@ if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source" OR
   manumesh_add_source_gtest("${MANUMESH_GOOGLETEST_SOURCE_DIR}")
   if(NOT TARGET GTest::gtest_main AND MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source")
     message(FATAL_ERROR
-      "GoogleTest source was not found at "
-      "MANUMESH_GOOGLETEST_SOURCE_DIR='${MANUMESH_GOOGLETEST_SOURCE_DIR}'."
+      "在以下路径未找到 GoogleTest 源码："
+      "MANUMESH_GOOGLETEST_SOURCE_DIR='${MANUMESH_GOOGLETEST_SOURCE_DIR}'。"
     )
   endif()
 endif()
@@ -230,10 +230,9 @@ if((MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" AND
   if(NOT TARGET GTest::gtest_main AND
      MANUMESH_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
     message(FATAL_ERROR
-      "Prebuilt GoogleTest was not found. Expected a binary bundle with "
-      "include/gtest/gtest.h, lib/gtest, lib/gtest_main, and optional bin "
-      "runtime files at MANUMESH_GOOGLETEST_PREBUILT_DIR='${MANUMESH_GOOGLETEST_PREBUILT_DIR}', "
-      "or set MANUMESH_GTEST_INCLUDE_DIR, MANUMESH_GTEST_LIBRARY, and MANUMESH_GTEST_MAIN_LIBRARY."
+      "未找到预构建 GoogleTest。预期二进制包包含 include/gtest/gtest.h、lib/gtest、lib/gtest_main，"
+      "以及可选的 bin 运行时文件，位置为 MANUMESH_GOOGLETEST_PREBUILT_DIR='${MANUMESH_GOOGLETEST_PREBUILT_DIR}'；"
+      "也可以设置 MANUMESH_GTEST_INCLUDE_DIR、MANUMESH_GTEST_LIBRARY 和 MANUMESH_GTEST_MAIN_LIBRARY。"
     )
   endif()
 endif()
@@ -265,14 +264,11 @@ endif()
 
 if(NOT TARGET GTest::gtest_main)
   message(FATAL_ERROR
-    "GoogleTest was not found. Use the prebuilt binary bundle under "
-    "thirdParty/googletest/prebuilt, the vendored source tree under "
-    "thirdParty/googletest/source, install a system GTest discoverable by "
-    "find_package(GTest), or configure with -DMANUMESH_GOOGLETEST_PROVIDER=fetch. "
-    "For MinGW, the default auto provider skips prebuilt GoogleTest DLLs "
-    "and builds GoogleTest for the active compiler from vendored source; use "
-    "-DMANUMESH_GOOGLETEST_PROVIDER=prebuilt only when that binary bundle matches "
-    "the selected MinGW runtime."
+      "未找到 GoogleTest。请使用 thirdParty/googletest/prebuilt 下的预构建二进制包、"
+      "thirdParty/googletest/source 下的 vendored 源码树，安装可由 find_package(GTest) 发现的系统 GTest，"
+      "或配置 -DMANUMESH_GOOGLETEST_PROVIDER=fetch。MinGW 下默认 auto 提供方式会跳过预构建 GoogleTest DLL，"
+      "并从 vendored 源码为当前编译器构建 GoogleTest；只有二进制包与所选 MinGW 运行时匹配时，才应使用"
+      "-DMANUMESH_GOOGLETEST_PROVIDER=prebuilt。"
   )
 endif()
 
@@ -318,16 +314,14 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/simplification/simplification_texture_tests.cpp
 )
 
-# This source disables the public size-aware aliases before its
-# first CApi.h include so that it can exercise the legacy exported symbols.
+# 此源文件在首次包含 CApi.h 前禁用公开的 size-aware 别名，以便测试旧版导出符号。
 set_source_files_properties(
   unit/api/c_api_legacy_init_tests.cpp
   PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
 )
 
-# Test cases that need the large meshes under tests/data/external (or run for
-# tens of seconds) live in a separate executable labeled `external`, so
-# `ctest -LE "performance|external"` stays a fast suite.
+# 需要 tests/data/external 大网格（或运行数十秒）的用例放在标记为 `external` 的独立可执行文件中，
+# 因此 `ctest -LE "performance|external"` 仍可保持快速测试集。
 set(MANUMESH_EXTERNAL_TEST_SOURCES
   support/TestSupport.cpp
   unit/api/c_api_external_tests.cpp
@@ -337,12 +331,9 @@ set(MANUMESH_EXTERNAL_TEST_SOURCES
   unit/simplification/simplification_external_tests.cpp
 )
 
-# Both test executables link the internal STATIC aggregate (manumesh_internal)
-# instead of the DLL. The aggregate reuses the library object files, so no
-# internal source is compiled twice and white-box detail includes cannot
-# create a second symbol definition (no ODR risk). Black-box DLL-boundary
-# coverage stays with the CLI smoke tests and the SDK consumer examples,
-# which link the regular shared ManuMesh::manumesh.
+# 两个测试可执行文件都链接内部 STATIC 聚合库（manumesh_internal），而不是 DLL。
+# 该聚合库复用库对象文件，因此内部源文件不会重复编译，白盒 detail 头文件也不会产生第二份符号定义（无 ODR 风险）。
+# 黑盒 DLL 边界覆盖由 CLI 冒烟测试和 SDK consumer 示例承担；它们链接常规的共享 ManuMesh::manumesh。
 function(manumesh_configure_test_target target)
   target_include_directories(${target}
     PRIVATE
@@ -378,9 +369,8 @@ manumesh_configure_test_target(manumesh_tests)
 manumesh_configure_test_target(manumesh_external_tests)
 
 include(GoogleTest)
-# PRE_TEST discovery: new TEST() cases are picked up at ctest time without
-# reconfiguring CMake, and the executable is not run at build time (which is
-# fragile under Windows + MinGW).
+# PRE_TEST 发现：新的 TEST() 用例会在 CTest 运行时被发现，无需重新配置 CMake；
+# 可执行文件也不会在构建时运行，从而避免 Windows + MinGW 下的不稳定行为。
 gtest_discover_tests(manumesh_tests
   DISCOVERY_MODE PRE_TEST
   DISCOVERY_TIMEOUT 120
@@ -407,7 +397,7 @@ if(Python3_Interpreter_FOUND)
     PROPERTIES LABELS architecture
   )
 else()
-  message(STATUS "Python3 not found; include boundary CTest disabled.")
+message(STATUS "未找到 Python3；已禁用 include 边界 CTest。")
 endif()
 
 set(MANUMESH_UNIT_TEST_DEPENDS manumesh_tests manumesh_external_tests)
@@ -426,7 +416,7 @@ add_custom_target(unit-tests
     "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -LE "performance|external"
     --output-on-failure
   DEPENDS ${MANUMESH_UNIT_TEST_DEPENDS}
-  COMMENT "Running the fast regression suite (no performance/external tests)"
+  COMMENT "正在运行快速回归测试集（不含性能/外部测试）"
   VERBATIM
 )
 
@@ -434,7 +424,7 @@ add_custom_target(external-tests
   COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"
     "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -L external --output-on-failure
   DEPENDS manumesh_external_tests
-  COMMENT "Running external large-mesh regression tests"
+  COMMENT "正在运行外部大型网格回归测试"
   VERBATIM
 )
 
@@ -473,7 +463,7 @@ if(MANUMESH_BUILD_PERFORMANCE_TESTS)
     COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"
       "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -L performance --output-on-failure
     DEPENDS manumesh_performance_tests
-    COMMENT "Running large mesh performance tests"
+  COMMENT "正在运行大型网格性能测试"
     VERBATIM
   )
 endif()

@@ -1,14 +1,11 @@
 /**
  * @file src/simplification/CollapseAttempt.cpp
- * @brief Implements collapse attempt facilities for ManuMesh's simplification module.
+ * @brief 实现 ManuMesh 的简化模块的折叠尝试功能。
  * @ingroup manumesh_simplification
  *
- * @details Evaluates all pre-mutation policies for one current edge candidate.
- * @algorithm Placement candidates are tried in ascending QEM cost. Each passes
- * feature projection/budgets, boundary policy, optional UV planning, topology,
- * normal/quality/error, and self-intersection checks. The first fully legal
- * placement returns its prepared mutation plans.
- * @invariants No mesh, topology, UV, or spatial-index state changes during evaluation.
+ * @details 评估当前边候选在修改网格前必须通过的全部策略。
+ * @algorithm 按 QEM 代价升序尝试放置候选。每个候选依次通过特征投影/预算、边界策略、可选 UV 规划、拓扑、法向/质量/误差以及自交检查；第一个完全合法的放置会返回其已准备好的修改计划。
+ * @invariants 评估期间不会修改网格、拓扑、UV 或空间索引状态。
  */
 
 #include "detail/CollapseAttempt.h"
@@ -35,7 +32,7 @@ bool curveBudgetAllows(const CollapseAttemptInput& input, const Vec3& position) 
     );
 }
 
-} // namespace
+} // 结束匿名命名空间
 
 CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input) {
     CollapseAttemptResult result;
@@ -71,8 +68,7 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         input.edge.keep, input.edge.remove, input.faces, input.vertices, input.topology
     );
 
-    // Rejection reporting attributes the whole attempt to the first hard
-    // filter that rejected the first rejected placement candidate.
+    // 拒绝报告将整个尝试归因于第一个被硬过滤器拒绝的放置候选对应的首个过滤器。
     CollapseAttemptStatus firstRejectStatus = CollapseAttemptStatus::Accepted;
     for (int placementIndex = 0; placementIndex < placementCount; ++placementIndex) {
         Vec3 collapsePosition = input.placements[placementIndex].position;
@@ -89,9 +85,7 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         const bool projected = input.featurePolicy.projectPlacement(
             {input.edge, input.vertices, input.featureCurves, input.primitiveFits}, collapsePosition
         );
-        // Constraint priority: boundary > feature. When preserveBoundary
-        // limited this collapse to a boundary edge, re-clamp the placement to
-        // the boundary segment in case the feature projection pulled it off.
+        // 约束优先级为：边界 > 特征。当 preserveBoundary 将此次折叠限制为边界边时，若特征投影把放置点拉离边界线段，则重新将其夹回边界线段。
         if (projected && boundaryDecision.boundaryEdge) {
             projectBoundaryPlacement(
                 {input.edge, boundaryDecision, input.vertices, input.faces, input.topology}, collapsePosition
@@ -143,4 +137,4 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
     return result;
 }
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

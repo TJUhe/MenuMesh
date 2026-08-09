@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/CollapseAttempt.h
- * @brief Declares collapse attempt facilities for ManuMesh's simplification module.
+ * @brief 声明 ManuMesh 的简化模块的折叠尝试功能。
  * @ingroup manumesh_simplification
  *
- * @details This file is part of the feature-aware edge-collapse pipeline. Quadric costs rank candidates; topology, geometry, feature, boundary, error, and optional texture policies decide whether a placement may mutate the mesh.
+ * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
  */
 
 #pragma once
@@ -17,7 +17,7 @@
 namespace manumesh::simplification {
 
 /**
- * @brief Coarse outcome of evaluating all placements for one current candidate.
+ * @brief 评估当前候选所有放置后的粗粒度结果。
  */
 enum class CollapseAttemptStatus {
     Accepted,
@@ -29,14 +29,13 @@ enum class CollapseAttemptStatus {
 };
 
 /**
- * @brief Immutable mesh state, policies, and cached placements needed for evaluation.
+ * @brief 评估所需的不可变网格状态、策略和缓存放置。
  */
 struct CollapseAttemptInput {
     CollapseEdge edge;
     const Mat4& mergedQ;
     /**
-     * @brief Placement candidates sorted by ascending quadric cost. Usually these
-     * come straight from the popped Candidate's cached solve.
+     * @brief 按二次误差代价升序排列的放置候选，通常直接来自弹出 Candidate 时缓存的求解结果。
      */
     const SolveResult* placements = nullptr;
     int placementCount = 0;
@@ -60,7 +59,7 @@ struct CollapseAttemptInput {
 };
 
 /**
- * @brief Accepted placement and prepared plans, or the first observable rejection class.
+ * @brief 接受的放置及已准备好的计划，或第一个可观察到的拒绝类别。
  */
 struct CollapseAttemptResult {
     CollapseAttemptStatus status = CollapseAttemptStatus::LegalityRejected;
@@ -70,20 +69,19 @@ struct CollapseAttemptResult {
     TextureCollapseRejectReason textureRejectReason = TextureCollapseRejectReason::None;
     CollapseRejectReason legalityReason = CollapseRejectReason::None;
     /**
-     * @brief Texture update plan built for the accepted placement, so applyCollapse
-     * can reuse it instead of rebuilding the same plan.
+     * @brief 为接受的放置构建的纹理更新计划，applyCollapse 可以直接复用，避免再次构建相同计划。
      */
     TextureUpdatePlan texturePlan;
 
-    /** @brief Reports whether evaluation produced an applicable placement. */
+    /** @brief 报告评估是否产生了可应用的放置。*/
     bool accepted() const { return status == CollapseAttemptStatus::Accepted; }
 };
 
 /**
- * @brief Tries cached placements in ascending cost order without mutating state.
- * @param[in] input Complete evaluation view.
- * @return First accepted placement, or a categorized rejection after all fail.
+ * @brief 按代价升序尝试缓存的放置而不修改状态。
+ * @param[in] input 完整的评估视图。
+ * @return 第一个被接受的放置；若全部失败，则返回分类后的拒绝结果。
  */
 CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input);
 
-} // namespace manumesh::simplification
+} // 结束 manumesh::simplification 命名空间

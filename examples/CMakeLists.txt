@@ -10,7 +10,7 @@ set_target_properties(manumesh_c_api_basic PROPERTIES
   LINKER_LANGUAGE CXX
 )
 target_link_libraries(manumesh_c_api_basic
-  PRIVATE ManuMesh::manumesh
+  PRIVATE ManuMesh::c_api
 )
 manumesh_apply_warnings(manumesh_c_api_basic)
 manumesh_copy_runtime_dependencies(manumesh_c_api_basic)

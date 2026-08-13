@@ -9,6 +9,7 @@
 #include "api/CApi.h"
 
 #include "algorithms/analysis/MeshAnalysis.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "api/detail/CApiConverters.h"
 #include "core/MeshGenerators.h"
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstring>
 #include <exception>
 #include <limits>
 #include <new>
@@ -151,6 +153,146 @@ static_assert(
 constexpr std::size_t kLegacyV1SimplifyOptionsSize = sizeof(LegacyV1SimplifyOptionsLayout);
 constexpr std::size_t kLegacyV1SimplifyReportSize = sizeof(LegacyV1SimplifyReportLayout);
 constexpr std::size_t kLegacyV1MeshStatsSize = sizeof(LegacyV1MeshStatsLayout);
+
+constexpr std::size_t kFeatureOptionsMinimumSize =
+    offsetof(ManuMeshFeatureOptions, abi_version) + sizeof(unsigned int);
+
+bool featureFieldPresent(const ManuMeshFeatureOptions& options, std::size_t offset, std::size_t size) {
+    return options.struct_size >= offset &&
+           size <= options.struct_size - offset;
+}
+
+template <typename T>
+bool readFeatureField(
+    const ManuMeshFeatureOptions& source,
+    std::size_t offset,
+    T& target
+) {
+    if (!featureFieldPresent(source, offset, sizeof(T))) {
+        return false;
+    }
+    std::memcpy(&target, reinterpret_cast<const unsigned char*>(&source) + offset, sizeof(T));
+    return true;
+}
+
+bool featureOptionsInitialized(const ManuMeshFeatureOptions& options) {
+    return options.struct_size >= kFeatureOptionsMinimumSize &&
+           options.abi_version == MANUMESH_ABI_VERSION;
+}
+
+manumesh::feature::FeatureOptions readFeatureOptions(const ManuMeshFeatureOptions* source) {
+    manumesh::feature::FeatureOptions target;
+    if (!source) {
+        return target;
+    }
+    if (!featureOptionsInitialized(*source)) {
+        throw std::invalid_argument(
+            "ManuMeshFeatureOptions must be initialized with manumesh_feature_options_init."
+        );
+    }
+#define READ_FEATURE(field, member)                                                                                  \
+    do {                                                                                                             \
+        using FieldType = decltype(target.member);                                                                   \
+        FieldType value{};                                                                                            \
+        if (readFeatureField(*source, offsetof(ManuMeshFeatureOptions, field), value)) {                           \
+            target.member = value;                                                                                   \
+        }                                                                                                            \
+    } while (false)
+#define READ_FEATURE_BOOL(field, member)                                                                              \
+    do {                                                                                                             \
+        int value = 0;                                                                                                \
+        if (readFeatureField(*source, offsetof(ManuMeshFeatureOptions, field), value)) {                           \
+            target.member = value != 0;                                                                              \
+        }                                                                                                            \
+    } while (false)
+    READ_FEATURE(feature_angle_deg, featureAngleDeg);
+    READ_FEATURE(loop_trace_angle_deg, loopTraceAngleDeg);
+    READ_FEATURE(circle_fit_relative_threshold, circleFitRelativeThreshold);
+    READ_FEATURE(ellipse_fit_relative_threshold, ellipseFitRelativeThreshold);
+    READ_FEATURE(near_circle_axis_ratio_tolerance, nearCircleAxisRatioTolerance);
+    READ_FEATURE(min_feature_loop_vertices, minFeatureLoopVertices);
+    READ_FEATURE_BOOL(use_normal_tensor_features, useNormalTensorFeatures);
+    READ_FEATURE(normal_tensor_feature_threshold, normalTensorFeatureThreshold);
+    READ_FEATURE(normal_tensor_min_edge_alignment, normalTensorMinEdgeAlignment);
+    READ_FEATURE(normal_tensor_smoothing_iterations, normalTensorSmoothingIterations);
+    READ_FEATURE(normal_tensor_scale_count, normalTensorScaleCount);
+    READ_FEATURE(normal_tensor_min_persistent_scales, normalTensorMinPersistentScales);
+    READ_FEATURE_BOOL(use_smooth_curvature_features, useSmoothCurvatureFeatures);
+    READ_FEATURE(smooth_curvature_feature_threshold, smoothCurvatureFeatureThreshold);
+    READ_FEATURE(smooth_curvature_min_edge_alignment, smoothCurvatureMinEdgeAlignment);
+    READ_FEATURE(smooth_curvature_min_tangent_consistency, smoothCurvatureMinTangentConsistency);
+    READ_FEATURE(smooth_curvature_base_neighborhood_rings, smoothCurvatureBaseNeighborhoodRings);
+    READ_FEATURE(smooth_curvature_scale_count, smoothCurvatureScaleCount);
+    READ_FEATURE(smooth_curvature_min_persistent_scales, smoothCurvatureMinPersistentScales);
+    READ_FEATURE(smooth_curvature_robust_fit_iterations, smoothCurvatureRobustFitIterations);
+    READ_FEATURE_BOOL(smooth_curvature_use_stable_scale_selection, smoothCurvatureUseStableScaleSelection);
+    READ_FEATURE(smooth_curvature_min_scale_stability, smoothCurvatureMinScaleStability);
+    READ_FEATURE_BOOL(cleanup_feature_graph, cleanupFeatureGraph);
+    READ_FEATURE(feature_graph_gap_length_ratio, featureGraphGapLengthRatio);
+    READ_FEATURE(feature_graph_max_weak_spur_edges, featureGraphMaxWeakSpurEdges);
+    READ_FEATURE(feature_graph_min_weak_spur_strength, featureGraphMinWeakSpurStrength);
+    READ_FEATURE(feature_component_min_confidence, featureComponentMinConfidence);
+    READ_FEATURE_BOOL(normal_filter_enabled, normalFilter.enabled);
+    READ_FEATURE(normal_filter_iterations, normalFilter.iterations);
+    READ_FEATURE(normal_filter_angle_sigma_deg, normalFilter.angleSigmaDeg);
+    READ_FEATURE(normal_filter_preserve_angle_deg, normalFilter.preserveAngleDeg);
+    READ_FEATURE(normal_filter_relaxation, normalFilter.relaxation);
+    READ_FEATURE_BOOL(graph_consolidation_enabled, graphConsolidation.enabled);
+    READ_FEATURE(graph_consolidation_gap_length_ratio, graphConsolidation.maxGapLengthRatio);
+    READ_FEATURE(graph_consolidation_min_alignment, graphConsolidation.minAlignment);
+#undef READ_FEATURE
+#undef READ_FEATURE_BOOL
+    return target;
+}
+
+void writeFeatureOptions(ManuMeshFeatureOptions* options, std::size_t writeSize) {
+    std::memset(options, 0, writeSize);
+    auto write = [options, writeSize](std::size_t offset, const auto& value) {
+        if (offset <= writeSize && sizeof(value) <= writeSize - offset) {
+            std::memcpy(reinterpret_cast<unsigned char*>(options) + offset, &value, sizeof(value));
+        }
+    };
+    write(offsetof(ManuMeshFeatureOptions, struct_size), writeSize);
+    const unsigned int version = MANUMESH_ABI_VERSION;
+    write(offsetof(ManuMeshFeatureOptions, abi_version), version);
+#define WRITE_FEATURE(field, value) write(offsetof(ManuMeshFeatureOptions, field), value)
+    WRITE_FEATURE(feature_angle_deg, 40.0);
+    WRITE_FEATURE(loop_trace_angle_deg, -1.0);
+    WRITE_FEATURE(circle_fit_relative_threshold, 0.05);
+    WRITE_FEATURE(ellipse_fit_relative_threshold, 0.05);
+    WRITE_FEATURE(near_circle_axis_ratio_tolerance, 0.08);
+    WRITE_FEATURE(min_feature_loop_vertices, 8);
+    WRITE_FEATURE(use_normal_tensor_features, 1);
+    WRITE_FEATURE(normal_tensor_feature_threshold, 0.16);
+    WRITE_FEATURE(normal_tensor_min_edge_alignment, 0.45);
+    WRITE_FEATURE(normal_tensor_smoothing_iterations, 0);
+    WRITE_FEATURE(normal_tensor_scale_count, 1);
+    WRITE_FEATURE(normal_tensor_min_persistent_scales, 1);
+    WRITE_FEATURE(use_smooth_curvature_features, 0);
+    WRITE_FEATURE(smooth_curvature_feature_threshold, 0.015);
+    WRITE_FEATURE(smooth_curvature_min_edge_alignment, 0.55);
+    WRITE_FEATURE(smooth_curvature_min_tangent_consistency, 0.65);
+    WRITE_FEATURE(smooth_curvature_base_neighborhood_rings, 2);
+    WRITE_FEATURE(smooth_curvature_scale_count, 3);
+    WRITE_FEATURE(smooth_curvature_min_persistent_scales, 2);
+    WRITE_FEATURE(smooth_curvature_robust_fit_iterations, 2);
+    WRITE_FEATURE(smooth_curvature_use_stable_scale_selection, 0);
+    WRITE_FEATURE(smooth_curvature_min_scale_stability, 0.0);
+    WRITE_FEATURE(cleanup_feature_graph, 1);
+    WRITE_FEATURE(feature_graph_gap_length_ratio, 1.25);
+    WRITE_FEATURE(feature_graph_max_weak_spur_edges, 2);
+    WRITE_FEATURE(feature_graph_min_weak_spur_strength, 0.0);
+    WRITE_FEATURE(feature_component_min_confidence, 0.35);
+    WRITE_FEATURE(normal_filter_enabled, 0);
+    WRITE_FEATURE(normal_filter_iterations, 4);
+    WRITE_FEATURE(normal_filter_angle_sigma_deg, 20.0);
+    WRITE_FEATURE(normal_filter_preserve_angle_deg, 50.0);
+    WRITE_FEATURE(normal_filter_relaxation, 0.8);
+    WRITE_FEATURE(graph_consolidation_enabled, 0);
+    WRITE_FEATURE(graph_consolidation_gap_length_ratio, 3.0);
+    WRITE_FEATURE(graph_consolidation_min_alignment, 0.75);
+#undef WRITE_FEATURE
+}
 
 void clearError(ManuMeshContext* context) {
     if (context) {
@@ -456,6 +598,95 @@ ManuMeshStatus manumesh_generate_mesh(ManuMeshContext* context, const char* name
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, error);
         }
         mesh->mesh = std::move(generated);
+        return MANUMESH_STATUS_OK;
+    } catch (const std::exception& ex) {
+        return translateException(context, ex);
+    } catch (...) {
+        return translateUnknownException(context);
+    }
+}
+
+ManuMeshStatus manumesh_feature_options_init_with_size(
+    ManuMeshFeatureOptions* options, size_t struct_capacity
+) {
+    if (!options || struct_capacity < kFeatureOptionsMinimumSize) {
+        return MANUMESH_STATUS_INVALID_ARGUMENT;
+    }
+    try {
+        const size_t writeSize = std::min(struct_capacity, sizeof(ManuMeshFeatureOptions));
+        writeFeatureOptions(options, writeSize);
+        return MANUMESH_STATUS_OK;
+    } catch (const std::exception&) {
+        return MANUMESH_STATUS_OUT_OF_MEMORY;
+    } catch (...) {
+        return MANUMESH_STATUS_ALGORITHM_ERROR;
+    }
+}
+
+void manumesh_feature_options_init(ManuMeshFeatureOptions* options) {
+    (void)manumesh_feature_options_init_with_size(options, sizeof(ManuMeshFeatureOptions));
+}
+
+ManuMeshStatus manumesh_detect_feature_edges(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    const ManuMeshFeatureOptions* options,
+    ManuMeshFeatureEdge* edges,
+    size_t edge_capacity,
+    size_t* edges_written
+) {
+    clearError(context);
+    if (!mesh || !edges_written) {
+        if (edges_written) {
+            *edges_written = 0;
+        }
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and edges_written pointers must be valid.");
+    }
+    *edges_written = 0;
+    if (edge_capacity > 0 && !edges) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Edge buffer is null for a non-zero capacity.");
+    }
+    try {
+        const manumesh::feature::FeatureOptions cppOptions = readFeatureOptions(options);
+        const manumesh::feature::FeatureAnalysis analysis =
+            manumesh::feature::detectFeatureCurves(mesh->mesh, cppOptions);
+
+        // Filter first, then copy directly into the caller's buffer. This keeps the
+        // two-call API allocation-free on the successful copy path.
+        size_t required = 0;
+        for (const manumesh::feature::FeatureGraphEdge& source : analysis.graph.edges) {
+            if (source.removedByCleanup || source.a == source.b || source.a < 0 || source.b < 0 ||
+                source.a >= static_cast<int>(mesh->mesh.vertices.size()) ||
+                source.b >= static_cast<int>(mesh->mesh.vertices.size())) {
+                continue;
+            }
+            ++required;
+        }
+
+        *edges_written = required;
+        if (edge_capacity < required) {
+            return fail(context, MANUMESH_STATUS_BUFFER_TOO_SMALL, "Feature edge buffer is too small.");
+        }
+        size_t outputIndex = 0;
+        for (const manumesh::feature::FeatureGraphEdge& source : analysis.graph.edges) {
+            if (source.removedByCleanup || source.a == source.b || source.a < 0 || source.b < 0 ||
+                source.a >= static_cast<int>(mesh->mesh.vertices.size()) ||
+                source.b >= static_cast<int>(mesh->mesh.vertices.size())) {
+                continue;
+            }
+            ManuMeshFeatureEdge& target = edges[outputIndex++];
+            target.a = source.a;
+            target.b = source.b;
+            target.boundary = source.boundary ? 1 : 0;
+            target.dihedral = source.dihedral ? 1 : 0;
+            target.normal_tensor = source.normalTensor ? 1 : 0;
+            target.smooth_curvature = source.smoothCurvature ? 1 : 0;
+            target.non_manifold = source.nonManifold ? 1 : 0;
+            target.cleanup_bridge = source.cleanupBridge ? 1 : 0;
+            target.consolidation_bridge = source.consolidationBridge ? 1 : 0;
+            target.removed_by_cleanup = source.removedByCleanup ? 1 : 0;
+            target.signed_kind = source.signedKind;
+        }
         return MANUMESH_STATUS_OK;
     } catch (const std::exception& ex) {
         return translateException(context, ex);

@@ -230,6 +230,124 @@ normal-tensor、cleanup、smooth-curvature stable-scale、feature normal filter�
 
 错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM 与参数错误作为可区分的状态处理。
 
+## C ABI 特征边识别
+
+如果你的程序已有两个扁平数组：
+
+```cpp
+std::vector<double> vertexData = {
+    x0, y0, z0,
+    x1, y1, z1,
+    // ...
+};
+std::vector<int> faceData = {
+    i0, j0, k0,
+    i1, j1, k1,
+    // ...
+};
+```
+
+C ABI 不接收 `std::vector` 本身。先把每三个 `double` 转成一个
+`ManuMeshVec3`，每三个索引转成一个 `ManuMeshFace`：
+
+```cpp
+if (vertexData.size() % 3 != 0 || faceData.size() % 3 != 0) {
+    throw std::runtime_error("vertexData/faceData must contain triples");
+}
+
+std::vector<ManuMeshVec3> vertices(vertexData.size() / 3);
+for (std::size_t i = 0; i < vertices.size(); ++i) {
+    vertices[i].x = vertexData[3 * i + 0];
+    vertices[i].y = vertexData[3 * i + 1];
+    vertices[i].z = vertexData[3 * i + 2];
+}
+
+std::vector<ManuMeshFace> faces(faceData.size() / 3);
+for (std::size_t i = 0; i < faces.size(); ++i) {
+    faces[i].v[0] = faceData[3 * i + 0];
+    faces[i].v[1] = faceData[3 * i + 1];
+    faces[i].v[2] = faceData[3 * i + 2];
+}
+
+ManuMeshStatus status = manumesh_mesh_set_data(
+    context, mesh,
+    vertices.empty() ? nullptr : vertices.data(), vertices.size(),
+    faces.empty() ? nullptr : faces.data(), faces.size());
+```
+
+面索引从零开始，且每个面必须是三角形；所有索引必须小于顶点数量。
+`manumesh_mesh_set_data` 会复制数组，函数返回后可以修改或释放原始 `vector`。
+
+然后初始化特征选项并采用“两次调用”取得边：
+
+```cpp
+ManuMeshFeatureOptions featureOptions;
+manumesh_feature_options_init(&featureOptions);
+featureOptions.feature_angle_deg = 25.0;
+featureOptions.use_normal_tensor_features = 0;
+
+std::size_t edgeCount = 0;
+status = manumesh_detect_feature_edges(
+    context, mesh, &featureOptions, nullptr, 0, &edgeCount);
+// 第一次调用通常返回 MANUMESH_STATUS_BUFFER_TOO_SMALL，edgeCount 仍然有效。
+if (status != MANUMESH_STATUS_OK &&
+    status != MANUMESH_STATUS_BUFFER_TOO_SMALL) {
+    throw std::runtime_error(manumesh_context_last_error(context));
+}
+
+std::vector<ManuMeshFeatureEdge> featureEdges(edgeCount);
+std::size_t written = 0;
+status = manumesh_detect_feature_edges(
+    context, mesh, &featureOptions,
+    featureEdges.empty() ? nullptr : featureEdges.data(), featureEdges.size(), &written);
+if (status != MANUMESH_STATUS_OK) {
+    throw std::runtime_error(manumesh_context_last_error(context));
+}
+featureEdges.resize(written);
+```
+
+每个 `ManuMeshFeatureEdge` 的 `a`、`b` 是输入顶点索引。这是无向边，端点
+顺序不保证升序；若需要去重或作为 map/set 的键，应先转换为
+`(std::min(a,b), std::max(a,b))`。`boundary`、
+`dihedral`、`normal_tensor`、`smooth_curvature`、`non_manifold` 表示证据来源，
+可能同时为 1；`signed_kind` 大于 0 表示凸，小于 0 表示凹，0 表示无可靠符号。
+`cleanup_bridge` 和 `consolidation_bridge` 是图恢复阶段补出的桥接边，不是原始
+几何证据，但会保留在输出中。接口只返回当前“活动特征图边”；
+`removed_by_cleanup` 为 1 的候选边已被过滤，因此当前返回元素的该字段总为 0。
+
+如果调用方只需要与输入面数组相同风格的扁平索引，可以转换为
+`[a0,b0,a1,b1,...]`：
+
+```cpp
+std::vector<int> featureEdgeIndices;
+featureEdgeIndices.reserve(featureEdges.size() * 2);
+for (const ManuMeshFeatureEdge& edge : featureEdges) {
+    featureEdgeIndices.push_back(std::min(edge.a, edge.b));
+    featureEdgeIndices.push_back(std::max(edge.a, edge.b));
+}
+```
+
+输出数组由调用方管理。若容量不足，函数返回
+`MANUMESH_STATUS_BUFFER_TOO_SMALL`，并通过 `edges_written` 返回完整所需数量；
+其他参数或算法错误会把有效的 `edges_written` 置为 0。
+这套入口使用纯 C 数据结构和 C 链接名，调用方可以是 C、C++14 或其他 FFI；
+不要求消费工程启用 C++17。库内部仍以 C++17 编译，这是库的实现要求，与消费者
+语言标准相互独立。完整示例见 `examples/sdk_consumer/sdk_cpp_c_api_feature_edges.cpp`。
+查询数量和复制数据会各执行一次完整特征检测；若同一个大网格频繁调用，应在应用层
+缓存最终边数组，而不是反复查询。
+
+CMake 工程应链接 C ABI 专用目标，它不会传播 C++17 或 Eigen 使用要求：
+
+```cmake
+find_package(ManuMesh CONFIG REQUIRED)
+target_compile_features(my_cpp14_app PRIVATE cxx_std_14)
+target_link_libraries(my_cpp14_app PRIVATE ManuMesh::c_api)
+manumesh_copy_runtime_dependencies(my_cpp14_app)
+```
+
+只有直接包含 `Mesh.h`、`FeatureDetector.h` 等 C++ API 头文件时，才应链接
+`ManuMesh::manumesh` 并以 C++17 编译。
+
 ## CMake config 与 Eigen
 
 安装 SDK 时如果打开 `-DMANUMESH_INSTALL_CMAKE_CONFIG=ON`，下游可以使用：
@@ -266,6 +384,7 @@ Windows CLI、C++ `std::string` 路径参数和 C ABI `const char*` 路径参数
 | --- | --- |
 | `examples/sdk_consumer/sdk_cpp_simplify.cpp` | 使用 C++ SDK 简化网格，包含一个带逐角 UV 平面网格 + `preserveTexture = true` 的纹理保护用例，并检查输出 `faceTexCoords` 与面对齐。 |
 | `examples/sdk_consumer/sdk_c_abi_basic.c` | 使用 C ABI 创建、简化和读取网格。 |
+| `examples/sdk_consumer/sdk_cpp_c_api_feature_edges.cpp` | C++14 调用 C ABI，将扁平点/面数组转换为网格并输出每条特征边及证据标志。 |
 
 启用安装目标后可运行：
 

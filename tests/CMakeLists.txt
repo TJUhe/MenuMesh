@@ -212,8 +212,18 @@ if(MINGW AND MANUMESH_MINGW_AUTO_GOOGLETEST_FROM_SOURCE AND
   set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO ON)
 endif()
 
+# The bundled MSVC Debug archives were built with /MDd.  When this project
+# intentionally uses /MD for every configuration, build the vendored source
+# instead of linking those incompatible Debug archives.
+set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO OFF)
+if(MSVC AND MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" AND
+   CMAKE_MSVC_RUNTIME_LIBRARY STREQUAL "MultiThreadedDLL")
+  set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO ON)
+endif()
+
 if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source" OR
-   MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO)
+   MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO OR
+   MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO)
   manumesh_add_source_gtest("${MANUMESH_GOOGLETEST_SOURCE_DIR}")
   if(NOT TARGET GTest::gtest_main AND MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source")
     message(FATAL_ERROR
@@ -224,7 +234,8 @@ if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source" OR
 endif()
 
 if((MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" AND
-    NOT MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO) OR
+    NOT MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO AND
+    NOT MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO) OR
    MANUMESH_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
   manumesh_import_prebuilt_gtest("${MANUMESH_GOOGLETEST_PREBUILT_DIR}")
   if(NOT TARGET GTest::gtest_main AND
@@ -281,6 +292,7 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/core/core_tests.cpp
   unit/mesh_edit/mesh_edit_tests.cpp
   unit/api/c_api_diagnostics_tests.cpp
+  unit/api/c_api_feature_edges_tests.cpp
   unit/api/c_api_legacy_init_tests.cpp
   unit/api/c_api_mesh_tests.cpp
   unit/api/c_api_simplify_abi_tests.cpp

@@ -310,6 +310,31 @@ else()
 endif()
 add_library(ManuMesh::manumesh ALIAS manumesh_core)
 
+# C ABI-only consumers do not include the Eigen-backed C++ headers. Keep this
+# target's usage requirements independent from the C++17 requirement of the
+# full C++ SDK target while linking the same built library.
+add_library(manumesh_c_api INTERFACE)
+add_library(ManuMesh::c_api ALIAS manumesh_c_api)
+set_target_properties(manumesh_c_api PROPERTIES EXPORT_NAME c_api)
+target_include_directories(manumesh_c_api
+  INTERFACE
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
+if(MSVC)
+  # Public headers are stored as UTF-8. Propagate the source encoding to
+  # installed consumers as well as to in-tree targets; otherwise MSVC's
+  # default system code page can turn harmless comments into parse errors.
+  target_compile_options(manumesh_c_api
+    INTERFACE
+      $<$<COMPILE_LANGUAGE:C>:/utf-8>
+      $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+  )
+endif()
+target_link_libraries(manumesh_c_api
+  INTERFACE "$<LINK_ONLY:manumesh_core>"
+)
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 source_group(TREE "${PROJECT_SOURCE_DIR}/include"
   PREFIX "公共头文件"
@@ -390,7 +415,14 @@ target_include_directories(manumesh_core
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
-
+if(MSVC)
+  # Keep the installed C++ target consistent with the in-tree warning helper.
+  target_compile_options(manumesh_core
+    INTERFACE
+      $<$<COMPILE_LANGUAGE:C>:/utf-8>
+      $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+  )
+endif()
 if(TARGET Eigen3::Eigen)
   target_link_libraries(manumesh_core PUBLIC Eigen3::Eigen)
   foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
@@ -449,6 +481,7 @@ if(MANUMESH_BUILD_SHARED_LIBRARY)
   target_compile_definitions(manumesh_core PRIVATE MANUMESH_BUILDING_DLL)
   if(WIN32)
     target_compile_definitions(manumesh_core INTERFACE MANUMESH_USING_DLL)
+    target_compile_definitions(manumesh_c_api INTERFACE MANUMESH_USING_DLL)
   endif()
 endif()
 
@@ -467,6 +500,9 @@ if(MANUMESH_ENABLE_INSTALL)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  )
+  install(TARGETS manumesh_c_api
+    EXPORT ManuMeshTargets
   )
 
   install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"

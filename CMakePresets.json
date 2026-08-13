@@ -21,6 +21,7 @@
       "cacheVariables": {
         "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /W3 /FS",
         "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /FS",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
         "BUILD_TESTING": "ON",
         "MANUMESH_BUILD_SHARED_LIBRARY": "ON",
         "MANUMESH_BUILD_CLI": "ON",

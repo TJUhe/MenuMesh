@@ -15,6 +15,7 @@
 
   <ItemDefinitionGroup>
     <ClCompile>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <AdditionalIncludeDirectories>$(ManuMeshSdkIncludeDir);$(ManuMeshEigenIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>

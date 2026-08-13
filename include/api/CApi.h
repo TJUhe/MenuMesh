@@ -89,6 +89,74 @@ typedef struct ManuMeshFace {
     int v[3]; ///< 指向所提供顶点数组的逆时针索引。
 } ManuMeshFace;
 
+/**
+ * @brief 独立特征检测的带大小版本 C ABI 选项。
+ *
+ * 调用 `manumesh_detect_feature_edges` 前必须使用
+ * `manumesh_feature_options_init` 初始化。对同一 ABI 版本，库接受尾部字段
+ * 更少的旧结构体大小；未出现的尾部字段使用库默认值。
+ */
+typedef struct ManuMeshFeatureOptions {
+    size_t struct_size;
+    unsigned int abi_version;
+    double feature_angle_deg;
+    double loop_trace_angle_deg;
+    double circle_fit_relative_threshold;
+    double ellipse_fit_relative_threshold;
+    double near_circle_axis_ratio_tolerance;
+    int min_feature_loop_vertices;
+    int use_normal_tensor_features;
+    double normal_tensor_feature_threshold;
+    double normal_tensor_min_edge_alignment;
+    int normal_tensor_smoothing_iterations;
+    int normal_tensor_scale_count;
+    int normal_tensor_min_persistent_scales;
+    int use_smooth_curvature_features;
+    double smooth_curvature_feature_threshold;
+    double smooth_curvature_min_edge_alignment;
+    double smooth_curvature_min_tangent_consistency;
+    int smooth_curvature_base_neighborhood_rings;
+    int smooth_curvature_scale_count;
+    int smooth_curvature_min_persistent_scales;
+    int smooth_curvature_robust_fit_iterations;
+    int smooth_curvature_use_stable_scale_selection;
+    double smooth_curvature_min_scale_stability;
+    int cleanup_feature_graph;
+    double feature_graph_gap_length_ratio;
+    int feature_graph_max_weak_spur_edges;
+    double feature_graph_min_weak_spur_strength;
+    double feature_component_min_confidence;
+    int normal_filter_enabled;
+    int normal_filter_iterations;
+    double normal_filter_angle_sigma_deg;
+    double normal_filter_preserve_angle_deg;
+    double normal_filter_relaxation;
+    int graph_consolidation_enabled;
+    double graph_consolidation_gap_length_ratio;
+    double graph_consolidation_min_alignment;
+} ManuMeshFeatureOptions;
+
+/**
+ * @brief 一条活动特征图无向边及其证据来源。
+ *
+ * `a` 和 `b` 是输入网格的零基顶点索引；来源标志可以同时为真。
+ * 端点顺序不保证升序；需要稳定键时由调用方规范化为 `(min(a,b), max(a,b))`。
+ * `signed_kind` 大于零表示凸，小于零表示凹，零表示未知或无符号。
+ */
+typedef struct ManuMeshFeatureEdge {
+    int a;
+    int b;
+    int boundary;
+    int dihedral;
+    int normal_tensor;
+    int smooth_curvature;
+    int non_manifold;
+    int cleanup_bridge;
+    int consolidation_bridge;
+    int removed_by_cleanup;
+    int signed_kind;
+} ManuMeshFeatureEdge;
+
 /** @brief 用于 ABI 兼容扩展的带大小版本简化选项。 */
 typedef struct ManuMeshSimplifyOptions {
     /**
@@ -404,6 +472,35 @@ manumesh_save_binary_stl(ManuMeshContext* context, const char* path, const ManuM
  */
 MANUMESH_API ManuMeshStatus
 manumesh_generate_mesh(ManuMeshContext* context, const char* name, int n, ManuMeshMeshHandle* mesh);
+
+/** 按给定缓冲区字节数初始化独立特征检测选项。 */
+MANUMESH_API ManuMeshStatus manumesh_feature_options_init_with_size(
+    ManuMeshFeatureOptions* options, size_t struct_capacity
+);
+/** 使用当前 `ManuMeshFeatureOptions` 大小的便捷初始化器。 */
+MANUMESH_API void manumesh_feature_options_init(ManuMeshFeatureOptions* options);
+
+/**
+ * @brief 检测活动特征图边并复制到调用方拥有的缓冲区。
+ * @param[in,out] context 错误上下文。
+ * @param[in] mesh 输入三角网格。
+ * @param[in] options 已初始化的检测选项；NULL 使用库默认值。
+ * @param[out] edges 输出边数组；查询数量时可以为 NULL。
+ * @param[in] edge_capacity `edges` 可容纳的元素数量；查询时传 0。
+ * @param[out] edges_written 所需或已写入的元素数量。
+ * @retval MANUMESH_STATUS_BUFFER_TOO_SMALL 容量小于所需数量。
+ * @note 除成功和缓冲区不足外，若 `edges_written` 有效，函数将其置零。
+ * @note 被清理移除的边不输出；清理和整合产生的桥接边保留，并通过对应
+ * 标志区分。函数不缓存结果，因此查询和复制两次调用会各执行一次检测。
+ */
+MANUMESH_API ManuMeshStatus manumesh_detect_feature_edges(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    const ManuMeshFeatureOptions* options,
+    ManuMeshFeatureEdge* edges,
+    size_t edge_capacity,
+    size_t* edges_written
+);
 
 /**
  * 带大小信息的初始化器。库最多写入 struct_capacity 字节，在 struct_size 中记录初始化大小；

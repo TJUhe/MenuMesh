@@ -19,7 +19,8 @@
 #include <unordered_set>
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 /** @brief 用于评估一次顶点移动的相邻三角形快照。*/
@@ -139,7 +140,9 @@ bool createsLocalIntersection(
 
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const LocalTriangle& triangle : newTriangles) {
-        auto [lo, hi] = manumesh::common::triangleAabb(triangle.p, 0.0);
+        const std::pair<Vec3, Vec3> bounds = manumesh::common::triangleAabb(triangle.p, 0.0);
+        Vec3 lo = bounds.first;
+        Vec3 hi = bounds.second;
         const double pad = kRelativeIntersectionEps * (hi - lo).maxCoeff();
         lo -= Vec3::Constant(pad);
         hi += Vec3::Constant(pad);
@@ -239,27 +242,22 @@ Vec3 tangentialCentroidCandidate(int vertex, const QualityRefinementInput& input
  * @brief 软保护特征顶点的局部曲线切线：取当前网格中同一环的两个邻居之差。对于端点、类似连接点的配置（邻居数不等于 2）和退化跨度返回 false。邻居由 activeNeighborsOf 提供并按升序排列，因此差分方向具有确定性。
  */
 bool localFeatureCurveTangent(int vertex, const QualityRefinementInput& input, Vec3& outTangent) {
-    const VertexState& state = input.vertices[vertex];
-    if (state.featureLoopId < 0) {
-        return false;
-    }
-    const std::vector<int> neighbors = activeNeighborsOf(vertex, input.faces, input.vertices, input.topology);
+    const std::vector<int> neighbors = input.featureConstraints.protectedNeighbors(vertex);
     int first = -1;
     int second = -1;
-    int sameLoopCount = 0;
+    int activeFeatureNeighborCount = 0;
     for (int neighbor : neighbors) {
-        const VertexState& other = input.vertices[neighbor];
-        if (!other.isFeature || other.featureLoopId != state.featureLoopId) {
+        if (neighbor < 0 || neighbor >= static_cast<int>(input.vertices.size()) || !input.vertices[neighbor].active) {
             continue;
         }
-        if (sameLoopCount == 0) {
+        if (activeFeatureNeighborCount == 0) {
             first = neighbor;
-        } else if (sameLoopCount == 1) {
+        } else if (activeFeatureNeighborCount == 1) {
             second = neighbor;
         }
-        ++sameLoopCount;
+        ++activeFeatureNeighborCount;
     }
-    if (sameLoopCount != 2) {
+    if (activeFeatureNeighborCount != 2) {
         return false;
     }
     const Vec3 span = input.vertices[second].p - input.vertices[first].p;
@@ -351,7 +349,7 @@ void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& r
         for (int vertex = 0; vertex < static_cast<int>(input.vertices.size()); ++vertex) {
             const VertexState& state = input.vertices[vertex];
             if (!state.active || (input.options.preserveBoundary && state.isBoundary) ||
-                input.featurePolicy.isHardProtectedVertex(vertex, input.vertices)) {
+                input.featurePolicy.isHardProtectedVertex(vertex, input.vertices, input.featureConstraints)) {
                 continue;
             }
             const Vec3 displacement = refinementDisplacement(vertex, input);
@@ -370,4 +368,5 @@ void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& r
     }
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

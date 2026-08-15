@@ -13,7 +13,6 @@
 #include <gtest/gtest.h>
 #include <set>
 #include <utility>
-
 namespace {
 
 namespace feature = manumesh::feature;
@@ -69,10 +68,14 @@ Mesh makeLShapedPrismMesh() {
         std::make_pair(0.0, 2.0),
     };
     Mesh mesh;
-    for (const auto& [x, y] : polygon) {
+    for (const auto& pairEntry : polygon) {
+        const double x = pairEntry.first;
+        const double y = pairEntry.second;
         mesh.vertices.emplace_back(x, y, 0.0);
     }
-    for (const auto& [x, y] : polygon) {
+    for (const auto& pairEntry : polygon) {
+        const double x = pairEntry.first;
+        const double y = pairEntry.second;
         mesh.vertices.emplace_back(x, y, 1.0);
     }
     // 命名空间
@@ -111,10 +114,14 @@ Mesh makeStaircaseSheetMesh() {
         std::make_pair(3.0, 2.0),
     };
     Mesh mesh;
-    for (const auto& [x, z] : profile) {
+    for (const auto& pairEntry : profile) {
+        const double x = pairEntry.first;
+        const double z = pairEntry.second;
         mesh.vertices.emplace_back(x, 0.0, z);
     }
-    for (const auto& [x, z] : profile) {
+    for (const auto& pairEntry : profile) {
+        const double x = pairEntry.first;
+        const double z = pairEntry.second;
         mesh.vertices.emplace_back(x, 1.0, z);
     }
     for (int i = 0; i < 5; ++i) {

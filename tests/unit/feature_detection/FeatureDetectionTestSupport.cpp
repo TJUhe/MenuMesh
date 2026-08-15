@@ -14,7 +14,9 @@
 #include <cmath>
 #include <limits>
 
-namespace manumesh::test::feature_detection {
+namespace manumesh {
+namespace test {
+namespace feature_detection {
 
 int countClosedLoops(const FeatureAnalysis& analysis) {
     return static_cast<int>(std::count_if(analysis.loops.begin(), analysis.loops.end(), [](const FeatureLoop& loop) {
@@ -237,4 +239,6 @@ bool hasClosedLoopWithVertices(const FeatureAnalysis& features, const std::vecto
     });
 }
 
-} // 命名空间
+} // namespace feature_detection
+} // namespace test
+} // namespace manumesh

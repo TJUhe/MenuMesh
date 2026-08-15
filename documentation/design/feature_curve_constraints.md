@@ -20,7 +20,30 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 
 `featureAngleDeg` 决定“这条边是否进入 feature evidence”，`loopTraceAngleDeg` 决定“这条二面角边是否参与 loop ownership”。因此浅特征可以被用户显式保留下来；如果用户把 trace 阈值设得更严格，报告中的 `untracedFeatureEdges` 会提示这些 edge 没有被下游曲线保护消费。
 
-normal tensor 弱特征现在还会记录每个顶点的局部边长尺度、多尺度 persistence 和 `persistentFeatureScore`。`--normal-tensor-min-persistent-scales` 同时影响 feature edge 接受和 QEM `weight-mode=normal-tensor` 的空间权重，避免检测和简化使用两套弱特征语义。
+normal tensor 弱特征现在还会记录每个顶点的局部边长尺度、多尺度 persistence 和 `persistentFeatureScore`。`--normal-tensor-min-persistent-scales` 同时影响 feature edge 接受和 QEM `weight-mode=normal-tensor` 的空间权重，避免检测和简化使用两套弱特征语义。`NormalTensorVertex::localScale` 表示获胜尺度采用的名义高斯核半径（局部平均边长乘尺度倍率），不是多轮顺序扩散叠加后的精确支持域半径。
+
+## 数据契约与配置归一
+
+特征保护的数据流是 `Mesh -> FeatureAnalysis -> simplification`。`FeatureAnalysis::source` 将结果绑定到生成它的精确 indexed geometry：顶点与面数量、面和角点索引顺序以及按顶点顺序排列的坐标都参与指纹，逐角 UV 不参与。因此同一几何只修改 UV 时可以复用分析；任何坐标、顶点顺序、面顺序或索引变化都必须重新检测。
+
+`QEMSimplifier::simplify(input, features, ...)`、面分区、benchmark 和需要网格坐标的比较入口会验证来源指纹及公开 graph/loop/component/patch 索引。错误分析会抛出 `std::invalid_argument`，不会静默跳过非法索引或在简化器内重新猜测归属。
+
+C++ 简化侧的规范检测配置是 `SimplifyOptions::featureOptionsOverride`：
+
+```cpp
+manumesh::simplification::SimplifyOptions simplifyOptions;
+simplifyOptions.preserveFeatureCurves = true;
+
+manumesh::feature::FeatureOptions featureOptions;
+featureOptions.featureAngleDeg = 30.0;
+featureOptions.normalTensorScaleCount = 3;
+featureOptions.normalTensorMinPersistentScales = 2;
+simplifyOptions.featureOptionsOverride = featureOptions;
+```
+
+旧的 `SimplifyOptions` 扁平特征检测字段仍可编译，但只作为兼容适配器：仅当 override 未设置时，它们才被映射成 `FeatureOptions`；override 存在时始终优先。`preserveFeatureCurves`、`featureCurveWeight`、`featureProtectionMode`、`minCircularFeatureLoopVertices` 等简化专属策略不属于 `FeatureOptions`，仍由 `SimplifyOptions` 直接控制。
+
+启用 Normal Tensor 证据时，检测器会把经过当次阈值、尺度数量和 persistence 门限解析后的权重写入 `FeatureAnalysis::normalTensorVertexWeights`；禁用时该数组为空。预计算分析进入 `weightMode=NormalTensor` 的简化时，这组逐顶点权重是必需的规范证据，简化器直接复用，不再依据另一组 `SimplifyOptions` 重算或重新阈值化；数组为空或尺寸不匹配会抛出 `std::invalid_argument`。只有不传入预计算分析的普通简化入口才会使用有效的 `FeatureOptions` 现场计算权重。
 
 ## 简化中的约束层
 

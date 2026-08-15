@@ -64,7 +64,7 @@ ManuMesh 的简化器应按四层阅读：
 
 ## 短期路线
 
-- 保持 `build: mingw+ninja release all`、`test: mingw+ninja release` 和 `test: mingw+ninja release full` 稳定可跑。
+- 保持 `build: vs2019 release`、`test: vs2019 release full` 和 `verify: vs2019 release matrix` 稳定可跑。
 - 扩展特征报告 CSV，继续区分 circular、near-circle、ellipse、polygonal loop，并持续跟踪 traced/untraced feature edges。
 - 用更多工业件验证 `primitive-curves` 默认策略，避免 generic crease 过度硬锁。
 - 在已支持 edge/junction/branch/face-patch 的 label schema 上继续加入 weak feature group、loop id、简化前后 feature drift / Hausdorff envelope。

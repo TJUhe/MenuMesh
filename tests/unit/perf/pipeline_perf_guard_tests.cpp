@@ -13,7 +13,7 @@
 // 都重新计算输入包围盒对角线（O(V) 扫描），该保护应能捕获它（约 1.6 万面简化
 // 从 2 秒增至 15 秒）。
 //
-// 机器基线（2026-07，Windows x64，MinGW -O2 release，桌面 CPU）：
+// 机器基线（Windows x64 Release，桌面 CPU；阈值按跨机器保守上限设置）：
 //   detectFeatureCurves（二面角 + 法向张量）约 0.18 秒 -> 限制 2 秒
 //   简化至 0.2 比例（默认选项）约 2.0 秒          -> 限制 8 秒
 // 两个限制均至少是实测时间的 3 倍，因此较慢的 CI 机器也能通过；但该规模下
@@ -30,7 +30,6 @@
 #include <chrono>
 
 namespace {
-
 namespace analytic = manumesh::test::analytic;
 namespace feature = manumesh::feature;
 namespace simplification = manumesh::simplification;
@@ -39,8 +38,7 @@ double elapsedSeconds(const std::chrono::steady_clock::time_point& start) {
     return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 }
 
-} // 命名空间
-
+} // namespace
 TEST(PipelinePerfGuard, FeatureDetectionOnSixteenThousandFaceSphereStaysBounded) {
     const analytic::SphereFixture sphere = analytic::makeUvSphere(64, 128, 1.0);
     ASSERT_GT(static_cast<int>(sphere.mesh.faces.size()), 15000);

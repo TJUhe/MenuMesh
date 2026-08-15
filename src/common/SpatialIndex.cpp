@@ -16,7 +16,8 @@
 #include <cmath>
 #include <limits>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 
 void UniformAabbCandidateGrid::clear() {
     enabled_ = false;
@@ -114,7 +115,7 @@ void UniformAabbCandidateGrid::queryCandidates(const Vec3& lo, const Vec3& hi, s
     }
     ++queryStamp_;
     if (queryStamp_ == 0u) {
-    // 戳计数器发生回绕；重置所有戳，避免旧标记发生别名冲突。
+        // 戳计数器发生回绕；重置所有戳，避免旧标记发生别名冲突。
         std::fill(candidateStamps_.begin(), candidateStamps_.end(), 0u);
         ++queryStamp_;
     }
@@ -191,4 +192,5 @@ void UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, const Vec3& hi, std:
     }
 }
 
-} // 命名空间 manumesh::common
+} // namespace common
+} // namespace manumesh

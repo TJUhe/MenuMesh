@@ -23,7 +23,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
 namespace {
 
 namespace feature = manumesh::feature;
@@ -175,6 +174,10 @@ void expectIdenticalAnalyses(const FeatureAnalysis& lhs, const FeatureAnalysis& 
         EXPECT_EQ(le.dihedral, re.dihedral);
         EXPECT_EQ(le.normalTensor, re.normalTensor);
         EXPECT_EQ(le.smoothCurvature, re.smoothCurvature);
+        EXPECT_DOUBLE_EQ(le.tensorPersistence, re.tensorPersistence);
+        EXPECT_EQ(le.tensorPersistentScales, re.tensorPersistentScales);
+        EXPECT_DOUBLE_EQ(le.curvaturePersistence, re.curvaturePersistence);
+        EXPECT_EQ(le.curvaturePersistentScales, re.curvaturePersistentScales);
         EXPECT_EQ(le.nonManifold, re.nonManifold);
         EXPECT_EQ(le.cleanupBridge, re.cleanupBridge);
         EXPECT_EQ(le.removedByCleanup, re.removedByCleanup);
@@ -477,7 +480,6 @@ TEST(FeatureDetection, DetectFeatureCurvesIsDeterministicAcrossRuns) {
 }
 
 namespace {
-
 // 检查该步骤的边界条件，并确保结果保持确定性。
 // 检查该步骤的边界条件，并确保结果保持确定性。
 // 检查该步骤的边界条件，并确保结果保持确定性。

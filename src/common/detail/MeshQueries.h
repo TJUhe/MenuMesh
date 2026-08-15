@@ -18,7 +18,8 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 
 /**
  * @brief 一条无向网格边的相邻面列表。
@@ -121,10 +122,5 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh);
  */
 std::vector<char> computeBoundaryVertices(const Mesh& mesh);
 
-} // 命名空间 manumesh::common
-
-namespace manumesh {
-// 过渡别名：manumesh::detail 已重命名为 manumesh::common
-// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
-namespace detail = common;
-} // 命名空间 manumesh
+} // namespace common
+} // namespace manumesh

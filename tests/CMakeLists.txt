@@ -3,174 +3,29 @@ include(FetchContent)
 option(MANUMESH_BUILD_PERFORMANCE_TESTS "构建大型网格性能测试" OFF)
 
 set(MANUMESH_GOOGLETEST_PROVIDER "auto" CACHE STRING
-  "测试的 GoogleTest 提供方式：auto、source、prebuilt、system 或 fetch"
+  "测试的 GoogleTest 提供方式：auto、source、system 或 fetch"
 )
 set_property(CACHE MANUMESH_GOOGLETEST_PROVIDER PROPERTY STRINGS
   auto
   source
-  prebuilt
   system
   fetch
-)
-option(MANUMESH_MINGW_AUTO_GOOGLETEST_FROM_SOURCE
-  "MinGW 下 MANUMESH_GOOGLETEST_PROVIDER=auto 时不使用预构建 GoogleTest DLL，而是为当前编译器构建 GoogleTest。"
-  ON
 )
 set(MANUMESH_GOOGLETEST_SOURCE_DIR
   "${PROJECT_SOURCE_DIR}/thirdParty/googletest/source/googletest"
   CACHE PATH "包含 CMakeLists.txt 的 GoogleTest 源码树路径"
 )
-set(MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR
-  "${PROJECT_SOURCE_DIR}/thirdParty/googletest/prebuilt/mingw-x64-shared"
-)
-if(MSVC)
-  set(MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR
-    "${PROJECT_SOURCE_DIR}/thirdParty/googletest/prebuilt/msvc-x64-static"
-  )
-endif()
-set(MANUMESH_GOOGLETEST_PREBUILT_DIR
-  "${MANUMESH_DEFAULT_GOOGLETEST_PREBUILT_DIR}"
-  CACHE PATH "包含 include、lib 和 bin 目录的预构建 GoogleTest 包根目录"
-)
-set(MANUMESH_GTEST_INCLUDE_DIR "" CACHE PATH "预构建 GoogleTest 头文件路径")
-set(MANUMESH_GTEST_LIBRARY "" CACHE FILEPATH "预构建 gtest 库路径")
-set(MANUMESH_GTEST_MAIN_LIBRARY "" CACHE FILEPATH
-  "预构建 gtest_main 库路径"
-)
-set(MANUMESH_GTEST_RUNTIME_DIR "" CACHE PATH
-  "预构建 GoogleTest 运行时 DLL/共享库目录（可选）"
-)
 
-function(manumesh_copy_gtest_runtime_dependencies target)
-  if(MANUMESH_RESOLVED_GTEST_RUNTIME_DIR AND
-     EXISTS "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}")
-    file(GLOB MANUMESH_GTEST_RUNTIME_FILES CONFIGURE_DEPENDS
-      "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}/*.dll"
-      "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}/*.so"
-      "${MANUMESH_RESOLVED_GTEST_RUNTIME_DIR}/*.dylib"
-    )
-    foreach(gtest_runtime_file IN LISTS MANUMESH_GTEST_RUNTIME_FILES)
-      add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-          "${gtest_runtime_file}"
-          "$<TARGET_FILE_DIR:${target}>"
-    COMMENT "正在将预构建 GoogleTest 运行时复制到 ${target} 旁边"
-        VERBATIM
-      )
-    endforeach()
-  endif()
-endfunction()
-
-function(manumesh_import_prebuilt_gtest bundle_root)
-  if(TARGET GTest::gtest_main)
-    return()
-  endif()
-
-  set(gtest_include "${MANUMESH_GTEST_INCLUDE_DIR}")
-  set(gtest_library "${MANUMESH_GTEST_LIBRARY}")
-  set(gtest_main_library "${MANUMESH_GTEST_MAIN_LIBRARY}")
-  set(gtest_runtime_dir "${MANUMESH_GTEST_RUNTIME_DIR}")
-  set(gtest_library_debug "")
-  set(gtest_library_release "")
-  set(gtest_main_library_debug "")
-  set(gtest_main_library_release "")
-
-  if(NOT gtest_include)
-    set(gtest_include "${bundle_root}/include")
-  endif()
-
-  if(NOT gtest_library)
-    if(EXISTS "${bundle_root}/lib/Debug/gtest.lib")
-      set(gtest_library_debug "${bundle_root}/lib/Debug/gtest.lib")
-    endif()
-    if(EXISTS "${bundle_root}/lib/Release/gtest.lib")
-      set(gtest_library_release "${bundle_root}/lib/Release/gtest.lib")
-    endif()
-    foreach(candidate IN ITEMS
-        "${bundle_root}/lib/gtest.lib"
-        "${bundle_root}/lib/libgtest.lib"
-        "${bundle_root}/lib/libgtest.dll.a"
-        "${bundle_root}/lib/libgtest.a")
-      if(EXISTS "${candidate}")
-        set(gtest_library "${candidate}")
-        break()
-      endif()
-    endforeach()
-  endif()
-
-  if(NOT gtest_main_library)
-    if(EXISTS "${bundle_root}/lib/Debug/gtest_main.lib")
-      set(gtest_main_library_debug "${bundle_root}/lib/Debug/gtest_main.lib")
-    endif()
-    if(EXISTS "${bundle_root}/lib/Release/gtest_main.lib")
-      set(gtest_main_library_release "${bundle_root}/lib/Release/gtest_main.lib")
-    endif()
-    foreach(candidate IN ITEMS
-        "${bundle_root}/lib/gtest_main.lib"
-        "${bundle_root}/lib/libgtest_main.lib"
-        "${bundle_root}/lib/libgtest_main.dll.a"
-        "${bundle_root}/lib/libgtest_main.a")
-      if(EXISTS "${candidate}")
-        set(gtest_main_library "${candidate}")
-        break()
-      endif()
-    endforeach()
-  endif()
-
-  if(NOT gtest_runtime_dir)
-    set(gtest_runtime_dir "${bundle_root}/bin")
-  endif()
-
-  if(NOT EXISTS "${gtest_include}/gtest/gtest.h" OR
-     ((NOT gtest_library OR NOT gtest_main_library) AND
-      (NOT gtest_library_debug OR NOT gtest_main_library_debug)))
-    return()
-  endif()
-
-  add_library(GTest::gtest UNKNOWN IMPORTED)
-  set_target_properties(GTest::gtest PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${gtest_include}"
-  )
-  if(gtest_library_debug OR gtest_library_release)
-    if(NOT gtest_library_release)
-      set(gtest_library_release "${gtest_library_debug}")
-    endif()
-    set_target_properties(GTest::gtest PROPERTIES
-      IMPORTED_CONFIGURATIONS "DEBUG;RELEASE;RELWITHDEBINFO;MINSIZEREL"
-      IMPORTED_LOCATION_DEBUG "${gtest_library_debug}"
-      IMPORTED_LOCATION_RELEASE "${gtest_library_release}"
-      IMPORTED_LOCATION_RELWITHDEBINFO "${gtest_library_release}"
-      IMPORTED_LOCATION_MINSIZEREL "${gtest_library_release}"
-    )
-  else()
-    set_target_properties(GTest::gtest PROPERTIES
-      IMPORTED_LOCATION "${gtest_library}"
-    )
-  endif()
-
-  add_library(GTest::gtest_main UNKNOWN IMPORTED)
-  set_target_properties(GTest::gtest_main PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${gtest_include}"
-    INTERFACE_LINK_LIBRARIES GTest::gtest
-  )
-  if(gtest_main_library_debug OR gtest_main_library_release)
-    if(NOT gtest_main_library_release)
-      set(gtest_main_library_release "${gtest_main_library_debug}")
-    endif()
-    set_target_properties(GTest::gtest_main PROPERTIES
-      IMPORTED_CONFIGURATIONS "DEBUG;RELEASE;RELWITHDEBINFO;MINSIZEREL"
-      IMPORTED_LOCATION_DEBUG "${gtest_main_library_debug}"
-      IMPORTED_LOCATION_RELEASE "${gtest_main_library_release}"
-      IMPORTED_LOCATION_RELWITHDEBINFO "${gtest_main_library_release}"
-      IMPORTED_LOCATION_MINSIZEREL "${gtest_main_library_release}"
-    )
-  else()
-    set_target_properties(GTest::gtest_main PROPERTIES
-      IMPORTED_LOCATION "${gtest_main_library}"
-    )
-  endif()
-  set(MANUMESH_RESOLVED_GTEST_RUNTIME_DIR "${gtest_runtime_dir}" PARENT_SCOPE)
-endfunction()
+# 清除旧构建目录中已删除的预编译 provider 缓存项。
+foreach(manumesh_removed_gtest_cache_entry IN ITEMS
+    MANUMESH_GOOGLETEST_PREBUILT_DIR
+    MANUMESH_GTEST_INCLUDE_DIR
+    MANUMESH_GTEST_LIBRARY
+    MANUMESH_GTEST_MAIN_LIBRARY
+    MANUMESH_GTEST_RUNTIME_DIR)
+  unset(${manumesh_removed_gtest_cache_entry} CACHE)
+endforeach()
+unset(manumesh_removed_gtest_cache_entry)
 
 function(manumesh_add_source_gtest source_dir)
   if(TARGET GTest::gtest_main)
@@ -200,50 +55,19 @@ function(manumesh_add_source_gtest source_dir)
   endif()
 endfunction()
 
-if(NOT MANUMESH_GOOGLETEST_PROVIDER MATCHES "^(auto|source|prebuilt|system|fetch)$")
+if(NOT MANUMESH_GOOGLETEST_PROVIDER MATCHES "^(auto|source|system|fetch)$")
   message(FATAL_ERROR
-    "MANUMESH_GOOGLETEST_PROVIDER 必须是 auto、source、prebuilt、system 或 fetch 之一。"
+    "MANUMESH_GOOGLETEST_PROVIDER 必须是 auto、source、system 或 fetch 之一。"
   )
 endif()
 
-set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO OFF)
-if(MINGW AND MANUMESH_MINGW_AUTO_GOOGLETEST_FROM_SOURCE AND
-   MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto")
-  set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO ON)
-endif()
-
-# The bundled MSVC Debug archives were built with /MDd.  When this project
-# intentionally uses /MD for every configuration, build the vendored source
-# instead of linking those incompatible Debug archives.
-set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO OFF)
-if(MSVC AND MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" AND
-   CMAKE_MSVC_RUNTIME_LIBRARY STREQUAL "MultiThreadedDLL")
-  set(MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO ON)
-endif()
-
-if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source" OR
-   MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO OR
-   MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO)
+if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" OR
+   MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source")
   manumesh_add_source_gtest("${MANUMESH_GOOGLETEST_SOURCE_DIR}")
   if(NOT TARGET GTest::gtest_main AND MANUMESH_GOOGLETEST_PROVIDER STREQUAL "source")
     message(FATAL_ERROR
       "在以下路径未找到 GoogleTest 源码："
       "MANUMESH_GOOGLETEST_SOURCE_DIR='${MANUMESH_GOOGLETEST_SOURCE_DIR}'。"
-    )
-  endif()
-endif()
-
-if((MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" AND
-    NOT MANUMESH_SKIP_PREBUILT_GTEST_FOR_MINGW_AUTO AND
-    NOT MANUMESH_SKIP_PREBUILT_GTEST_FOR_MSVC_MD_AUTO) OR
-   MANUMESH_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
-  manumesh_import_prebuilt_gtest("${MANUMESH_GOOGLETEST_PREBUILT_DIR}")
-  if(NOT TARGET GTest::gtest_main AND
-     MANUMESH_GOOGLETEST_PROVIDER STREQUAL "prebuilt")
-    message(FATAL_ERROR
-      "未找到预构建 GoogleTest。预期二进制包包含 include/gtest/gtest.h、lib/gtest、lib/gtest_main，"
-      "以及可选的 bin 运行时文件，位置为 MANUMESH_GOOGLETEST_PREBUILT_DIR='${MANUMESH_GOOGLETEST_PREBUILT_DIR}'；"
-      "也可以设置 MANUMESH_GTEST_INCLUDE_DIR、MANUMESH_GTEST_LIBRARY 和 MANUMESH_GTEST_MAIN_LIBRARY。"
     )
   endif()
 endif()
@@ -275,11 +99,9 @@ endif()
 
 if(NOT TARGET GTest::gtest_main)
   message(FATAL_ERROR
-      "未找到 GoogleTest。请使用 thirdParty/googletest/prebuilt 下的预构建二进制包、"
-      "thirdParty/googletest/source 下的 vendored 源码树，安装可由 find_package(GTest) 发现的系统 GTest，"
-      "或配置 -DMANUMESH_GOOGLETEST_PROVIDER=fetch。MinGW 下默认 auto 提供方式会跳过预构建 GoogleTest DLL，"
-      "并从 vendored 源码为当前编译器构建 GoogleTest；只有二进制包与所选 MinGW 运行时匹配时，才应使用"
-      "-DMANUMESH_GOOGLETEST_PROVIDER=prebuilt。"
+      "未找到 GoogleTest。请确认 thirdParty/googletest/source 下的 vendored 源码树可用，"
+      "安装可由 find_package(GTest) 发现的系统 GTest，"
+      "或配置 -DMANUMESH_GOOGLETEST_PROVIDER=fetch。"
   )
 endif()
 
@@ -297,6 +119,7 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/api/c_api_mesh_tests.cpp
   unit/api/c_api_simplify_abi_tests.cpp
   unit/feature_detection/FeatureDetectionTestSupport.cpp
+  unit/feature_detection/feature_analysis_views_tests.cpp
   unit/feature_detection/feature_detection_analytic_tests.cpp
   unit/feature_detection/feature_detection_api_tests.cpp
   unit/feature_detection/feature_comparison_tests.cpp
@@ -365,24 +188,81 @@ function(manumesh_configure_test_target target)
       MANUMESH_TEST_EXTERNAL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/external"
   )
   manumesh_apply_warnings(${target})
-  manumesh_copy_mingw_runtime_dependencies(${target})
-  manumesh_copy_gtest_runtime_dependencies(${target})
 endfunction()
 
 add_executable(manumesh_tests ${MANUMESH_UNIT_TEST_SOURCES})
 add_executable(manumesh_external_tests ${MANUMESH_EXTERNAL_TEST_SOURCES})
-if(MINGW)
-  set_source_files_properties(
-    unit/feature_detection/feature_detection_primitive_fit_tests.cpp
-    PROPERTIES COMPILE_OPTIONS "-Wa,-mbig-obj"
-  )
-endif()
+set_source_files_properties(
+  unit/feature_detection/feature_detection_primitive_fit_tests.cpp
+  PROPERTIES COMPILE_OPTIONS "/bigobj"
+)
 manumesh_configure_test_target(manumesh_tests)
 manumesh_configure_test_target(manumesh_external_tests)
 
+add_executable(manumesh_ownership_lifetime_stress
+  memory/ownership_lifetime_stress.cpp
+)
+target_compile_features(manumesh_ownership_lifetime_stress PRIVATE cxx_std_14)
+target_include_directories(manumesh_ownership_lifetime_stress
+  PRIVATE "${PROJECT_SOURCE_DIR}/include"
+)
+target_link_libraries(manumesh_ownership_lifetime_stress
+  PRIVATE manumesh_internal
+)
+set_target_properties(manumesh_ownership_lifetime_stress PROPERTIES
+  FOLDER "testing/memory"
+)
+manumesh_apply_warnings(manumesh_ownership_lifetime_stress)
+add_dependencies(manumesh_tests manumesh_ownership_lifetime_stress)
+add_test(NAME ownership_lifetime_stress COMMAND manumesh_ownership_lifetime_stress)
+set_tests_properties(ownership_lifetime_stress PROPERTIES
+  LABELS "memory;unit"
+  TIMEOUT 300
+)
+
+add_library(manumesh_options_header_compile_check OBJECT
+  support/feature_options_header_compile.cpp
+  support/simplification_options_header_compile.cpp
+)
+target_compile_features(manumesh_options_header_compile_check PRIVATE cxx_std_14)
+target_include_directories(manumesh_options_header_compile_check
+  PRIVATE "${PROJECT_SOURCE_DIR}/include"
+)
+set_target_properties(manumesh_options_header_compile_check PROPERTIES
+  FOLDER "architecture/include-boundaries"
+)
+manumesh_apply_warnings(manumesh_options_header_compile_check)
+
+function(manumesh_add_module_link_check target module)
+  # The root module objects are linked directly so the linker cannot skip an
+  # object file and hide one of that module's undeclared dependencies.
+  add_executable(${target}
+    support/module_link_boundary_main.cpp
+    $<TARGET_OBJECTS:manumesh_${module}_objects>
+  )
+  target_link_libraries(${target}
+    PRIVATE manumesh_${module}_boundary_module
+  )
+  set_target_properties(${target} PROPERTIES
+    FOLDER "architecture/module-boundaries"
+  )
+  manumesh_apply_warnings(${target})
+  add_test(NAME ${module}_link_boundary COMMAND ${target})
+  set_tests_properties(${module}_link_boundary PROPERTIES LABELS architecture)
+endfunction()
+
+manumesh_add_module_link_check(
+  manumesh_feature_detection_link_check
+  feature_detection
+)
+manumesh_add_module_link_check(
+  manumesh_simplification_link_check
+  simplification
+)
+
 include(GoogleTest)
 # PRE_TEST 发现：新的 TEST() 用例会在 CTest 运行时被发现，无需重新配置 CMake；
-# 可执行文件也不会在构建时运行，从而避免 Windows + MinGW 下的不稳定行为。
+# 可执行文件也不会在 configure/build 阶段运行，适合 Visual Studio 多配置构建。
 gtest_discover_tests(manumesh_tests
   DISCOVERY_MODE PRE_TEST
   DISCOVERY_TIMEOUT 120
@@ -412,7 +292,14 @@ else()
 message(STATUS "未找到 Python3；已禁用 include 边界 CTest。")
 endif()
 
-set(MANUMESH_UNIT_TEST_DEPENDS manumesh_tests manumesh_external_tests)
+set(MANUMESH_UNIT_TEST_DEPENDS
+  manumesh_tests
+  manumesh_external_tests
+  manumesh_ownership_lifetime_stress
+  manumesh_options_header_compile_check
+  manumesh_feature_detection_link_check
+  manumesh_simplification_link_check
+)
 foreach(optional_target IN ITEMS
     manumesh
     manumesh_basic_simplify
@@ -463,7 +350,6 @@ if(MANUMESH_BUILD_PERFORMANCE_TESTS)
   )
   manumesh_apply_warnings(manumesh_performance_tests)
   manumesh_copy_runtime_dependencies(manumesh_performance_tests)
-  manumesh_copy_gtest_runtime_dependencies(manumesh_performance_tests)
 
   gtest_discover_tests(manumesh_performance_tests
     DISCOVERY_MODE PRE_TEST

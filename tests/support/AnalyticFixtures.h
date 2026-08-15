@@ -14,7 +14,9 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::test::analytic {
+namespace manumesh {
+namespace test {
+namespace analytic {
 
 /// 确定性的三角网格夹具，并提供闭式真值。
 ///
@@ -171,4 +173,6 @@ Mesh uniformlyScaled(const Mesh& mesh, double factor);
 /// 返回网格无向唯一边的平均长度。
 double meanEdgeLength(const Mesh& mesh);
 
-} // manumesh::test::analytic 命名空间
+} // namespace analytic
+} // namespace test
+} // namespace manumesh

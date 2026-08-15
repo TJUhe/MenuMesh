@@ -1,39 +1,34 @@
 # GoogleTest 依赖说明
 
-GoogleTest 只用于本仓库的回归测试，不属于安装 SDK 的公共运行时。
-
-仓库保留了两套历史预编译包：
+GoogleTest 只用于本仓库的回归测试，不属于安装 SDK 的公共运行时。仓库只保留一套
+可离线构建的 vendored 源码：
 
 ```text
-prebuilt/msvc-x64-static/
+source/googletest/
+  CMakeLists.txt
   include/gtest/...
-  lib/Debug/gtest.lib
-  lib/Debug/gtest_main.lib
-  lib/Release/gtest.lib
-  lib/Release/gtest_main.lib
-
-prebuilt/mingw-x64-shared/
-  include/gtest/...
-  lib/libgtest.dll.a
-  lib/libgtest_main.dll.a
-  bin/libgtest.dll
-  bin/libgtest_main.dll
+  src/...
 ```
 
-仓库同时保留 `source/googletest/` 源码树，供 MinGW 默认测试构建使用。
+测试依赖与主工程使用同一基线：Visual Studio 16 2019、MSVC v142、x64、C++14 和
+DLL 版 MSVC 运行时。仓库不再提供 GoogleTest 预编译二进制包，Debug 和 Release
+均由当前构建使用的 v142 工具链生成，并统一使用 `/MD`。
 
-当前默认策略：
+提供方式：
 
-- MSVC 可以继续通过 `LQ_GOOGLETEST_PROVIDER=auto` 使用匹配的静态预编译包。
-- MinGW 下 `LQ_GOOGLETEST_PROVIDER=auto` 会跳过预编译 `libgtest*.dll`，改为从 `source/googletest/` 为当前 `gcc/g++` 工具链构建 GoogleTest，避免不同 MinGW 运行时之间的 DLL 符号不匹配，也避免配置阶段依赖在线下载。
-- 只有确认预编译包和当前编译器 ABI 匹配时，才显式使用 `-DLQ_GOOGLETEST_PROVIDER=prebuilt`。
+- 根目录的 `vs2019-*` presets 显式使用
+  `MANUMESH_GOOGLETEST_PROVIDER=source`，从 vendored 源码构建测试依赖。
+- `auto` 依次尝试 vendored 源码、`find_package(GTest)` 可发现的 system 包和
+  `FetchContent` 下载。
+- `source` 只使用仓库内源码，缺失时立即配置失败，适合离线和可复现构建。
+- `system` 只接受 `find_package(GTest)` 可发现且与 v142、x64、C++14、`/MD`
+  兼容的安装包。
+- `fetch` 通过 `FetchContent` 下载 GoogleTest 1.15.2，需要网络访问。
 
-MinGW 推荐配置：
+推荐配置：
 
 ```powershell
-cmake -S . -B build/mingw-ninja-release -G Ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DLQ_GOOGLETEST_PROVIDER=auto
+cmake --preset vs2019-debug
+cmake --build --preset vs2019-debug-tests --parallel
+ctest --preset vs2019-debug-unit
 ```

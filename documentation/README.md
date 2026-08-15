@@ -44,7 +44,7 @@
 
 ## 交付定位
 
-ManuMesh 当前定位为面向增材制造和三角网格处理的 C++17 mesh geometry kernel。现阶段核心交付能力包括：
+ManuMesh 当前定位为面向增材制造和三角网格处理的 C++14 mesh geometry kernel。现阶段核心交付能力包括：
 
 - triangle mesh 数据结构、基础拓扑查询和 SDK/C ABI 边界；
 - 跨算法网格分析模块 `manumesh::analysis`（`computeMeshStats` / `compareMeshesBySampledDistance`）与特征 loop 匹配公共入口 `manumesh::feature::matchCircularLoops`；

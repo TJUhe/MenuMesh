@@ -6,36 +6,26 @@ ManuMesh 当前提供 C++ API 和 C ABI 两条集成路径。C++ API 适合同�
 
 ## 构建 SDK
 
-MinGW + Ninja 的 Release 构建：
+Visual Studio 16 2019 / MSVC v142 的 Release SDK 构建：
 
 ```powershell
-$buildDir = "build/mingw-ninja-release"
-cmake -S . -B $buildDir -G Ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
-  -DMANUMESH_GOOGLETEST_PROVIDER=auto `
-  -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF
-cmake --build $buildDir --parallel
+cmake --preset vs2019-release-sdk
+cmake --build --preset vs2019-release-sdk --parallel
 ```
 
 如果要生成本地安装布局：
 
 ```powershell
-$buildDir = "build/mingw-ninja-release"
-cmake -S . -B $buildDir -G Ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_GOOGLETEST_PROVIDER=auto `
-  -DMANUMESH_ENABLE_INSTALL=ON
-cmake --build $buildDir --target sdk-install-local --parallel
+cmake --preset vs2019-release-sdk
+cmake --build --preset vs2019-release-sdk --target sdk-install-local --parallel
 ```
 
 默认本地 SDK 前缀在构建目录的 `sdk/` 下，可通过 `MANUMESH_LOCAL_SDK_PREFIX` 修改。
 `sdk-consumer-test` 会先用只包含 SDK `bin/` 和 Windows 系统目录的隔离 `PATH` 启动
 `manumesh --version`，再编译并运行安装后 consumer，避免开发机工具链目录掩盖缺失 DLL。
+ManuMesh 固定使用 DLL CRT：Debug 和 Release 均为 `/MD`，Debug 不使用 `/MDd`。
+仓库内示例、测试、安装后 CMake consumer 和 `ManuMesh.props` 都使用同一设置；
+`ManuMesh.props` 还会显式校验 Visual Studio 16.0、v142、x64 和 C++14。
 
 ## C++ API 最小用法
 
@@ -51,16 +41,22 @@ options.useLineQuadrics = true;
 options.lineWeight = 1e-3;
 options.preserveFeatureCurves = true;
 
+manumesh::feature::FeatureOptions featureOptions;
+featureOptions.featureAngleDeg = 30.0;
+featureOptions.normalTensorScaleCount = 3;
+featureOptions.normalTensorMinPersistentScales = 2;
+options.featureOptionsOverride = featureOptions;
+
 manumesh::simplification::SimplifyReport report;
 manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &report);
 ```
 
-需要复用配置时使用 `manumesh::simplification::QEMSimplifier` 对象。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
+需要复用配置时使用 `manumesh::simplification::QEMSimplifier` 对象。特征检测参数的规范入口是 `SimplifyOptions::featureOptionsOverride`；旧扁平特征检测字段只在 override 未设置时作为兼容适配器生效，override 存在时优先。`preserveFeatureCurves`、`featureCurveWeight`、`featureProtectionMode` 等简化专属策略仍直接配置在 `SimplifyOptions`。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
 
-如果使用 normal-tensor 弱特征，`SimplifyOptions::normalTensorMinPersistentScales`
+如果使用 normal-tensor 弱特征，规范 `FeatureOptions::normalTensorMinPersistentScales`
 控制最小多尺度支持数；`SimplifyReport` 会返回
 `normalTensorScoredVertices`、`maxNormalTensorPersistentScore`、
-`meanNormalTensorLocalScale` 和 `meanNormalTensorPersistence`，用于判断弱特征是否形成稳定支持。
+`meanNormalTensorLocalScale` 和 `meanNormalTensorPersistence`，用于判断弱特征是否形成稳定支持。这里的 `localScale` 是所选尺度的名义高斯核半径，即局部平均边长乘尺度倍率；它不是顺序平滑多轮扩散后的精确支持域半径。
 
 特征识别还会输出 cleanup 和 component-level confidence 诊断。`FeatureAnalysis::components`
 记录强/弱证据比例、闭合率、junction/endpoint、tensor persistence、primitive residual 和 confidence；`SimplifyReport` 对应返回
@@ -146,6 +142,28 @@ manumesh::feature::FeatureDetector detector(featureOptions);
 manumesh::feature::FeatureAnalysis features = detector.analyze(input);
 ```
 
+依赖和数据流保持为 `Mesh -> FeatureAnalysis -> simplification`。每个 `FeatureAnalysis` 都通过 `source` 绑定生成它的精确 indexed geometry：顶点坐标及顺序、面及其角点索引顺序必须相同；UV 被明确排除在指纹之外。`QEMSimplifier::simplify(input, features, ...)` 以及其他预计算分析消费入口会先验证来源、公开索引和图连接关系，来源不匹配或结构损坏会抛出 `std::invalid_argument`。
+
+`FeatureAnalysis` 保留公开字段以兼容既有调用方。新的只读消费代码可以用窄视图明确依赖边界，避免把局部证据、曲线恢复、面分区和运行诊断绑定成一个隐式契约：
+
+```cpp
+#include "algorithms/feature_detection/FeatureAnalysisViews.h"
+
+const auto evidence = manumesh::feature::viewFeatureEvidence(features);
+const auto curves = manumesh::feature::viewFeatureCurves(features);
+const auto segmentation = manumesh::feature::viewFeatureSegmentation(features);
+const auto diagnostics = manumesh::feature::viewFeatureDiagnostics(features);
+
+for (const auto& edge : evidence.graphEdges()) {
+    // graphEdges() 包含恢复阶段合成的边；只接受原始证据时检查 edge.synthetic()。
+}
+for (const auto& loop : curves.loops()) {
+    // 消费已恢复曲线，不依赖检测器的诊断计数。
+}
+```
+
+这些视图不复制数据、不能修改分析结果，也不拥有生命周期；因此必须在对应 `FeatureAnalysis` 存活且不被并发修改期间使用。
+
 需要检测光滑表面上的 ridge/valley（例如 fillet 中心线、扫描件平缓折痕）时，可以启用确定性 smooth-curvature 弱证据路径（默认关闭）：
 
 ```cpp
@@ -174,25 +192,20 @@ featureOptions.smoothCurvatureMinScaleStability = 0.4;
 ```cpp
 manumesh::simplification::SimplifyOptions simplifyOptions;
 simplifyOptions.preserveFeatureCurves = true;
-simplifyOptions.useSmoothCurvatureFeatures = true;
-simplifyOptions.smoothCurvatureFeatureThreshold = 0.015;
-simplifyOptions.smoothCurvatureMinEdgeAlignment = 0.55;
-simplifyOptions.smoothCurvatureMinTangentConsistency = 0.65;
-simplifyOptions.smoothCurvatureBaseNeighborhoodRings = 2;
-simplifyOptions.smoothCurvatureScaleCount = 3;
-simplifyOptions.smoothCurvatureMinPersistentScales = 2;
-simplifyOptions.smoothCurvatureRobustFitIterations = 2;
-simplifyOptions.smoothCurvatureUseStableScaleSelection = true;
-simplifyOptions.smoothCurvatureMinScaleStability = 0.4;
-simplifyOptions.useFeatureNormalFilter = true;
-simplifyOptions.featureNormalFilterIterations = 4;
-simplifyOptions.consolidateFeatureGraph = true;
-simplifyOptions.featureGraphConsolidationGapLengthRatio = 3.0;
-simplifyOptions.featureGraphConsolidationMinAlignment = 0.75;
-simplifyOptions.featureGraphMinWeakSpurStrength = 0.0;
+simplifyOptions.featureOptionsOverride = featureOptions;
 ```
 
-`SimplifyReport` 会返回 smooth score/local scale/persistence/stability、normal-filter iterations/changed faces/preserved edges/angular change、consolidation bridge/cap，以及既有 winding/cleanup/recovery 诊断。需要让多个流程共享同一分析时，仍可先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。
+`SimplifyReport` 会返回 smooth score/local scale/persistence/stability、normal-filter iterations/changed faces/preserved edges/angular change、consolidation bridge/cap，以及既有 winding/cleanup/recovery 诊断。需要让多个流程共享同一分析时，先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。当 `weightMode=NormalTensor` 时，预计算分析中的 `normalTensorVertexWeights` 是按检测时阈值和尺度解析好的规范证据；验证通过后直接复用，即使当前 options 带有不同的 Normal Tensor 参数也不会重新阈值化。显式传入的分析若未启用 Normal Tensor、因而权重数组为空，该调用会抛出 `std::invalid_argument`；应改用包含该证据的分析，或改走不传预计算分析的普通入口以按当前有效配置计算。
+
+独立计算 Normal Tensor 时，`smoothingIterations` 控制逐顶点张量场的邻域平滑，`normalFilter` 则在构建张量前预处理面法向，二者互相独立。该入口与完整特征检测、`filterFeatureNormals()` 共享 normal-filter 参数校验：
+
+```cpp
+manumesh::feature::NormalTensorOptions tensorOptions;
+tensorOptions.smoothingIterations = 1;
+tensorOptions.scaleCount = 3;
+tensorOptions.normalFilter = featureOptions.normalFilter;
+auto tensor = manumesh::feature::computeNormalTensorFeatures(input, tensorOptions, 0.04);
+```
 
 独立 feature analysis 还可以启用 face partition：
 
@@ -221,6 +234,27 @@ surface patches 不进入 QEM collapse；它们是验证、后续 region process
 7. 销毁 mesh handle 和 context。
 
 `ManuMeshSimplifyOptions` 是输入结构体，调用前必须初始化；同一 `MANUMESH_ABI_VERSION` 内，库接受尾部较短的旧 `struct_size`，只读取实际存在的字段，缺失尾字段使用库默认值，未初始化或 ABI 版本不匹配会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats` 是纯输出结构体：当前头文件会把普通调用转到显式容量入口，输出内存无需预初始化，库按调用方容量有界清零、写入 ABI 头和完整存在的字段。
+
+规范的 C ABI 特征配置通过调用期借用指针传入：
+
+```c
+ManuMeshFeatureOptions feature_options;
+manumesh_feature_options_init(&feature_options);
+feature_options.feature_angle_deg = 30.0;
+feature_options.normal_tensor_scale_count = 3;
+feature_options.normal_tensor_min_persistent_scales = 2;
+
+ManuMeshSimplifyOptions options;
+manumesh_simplify_options_init(&options);
+options.preserve_feature_curves = 1;
+options.feature_options = &feature_options;
+
+ManuMeshSimplifyReport report;
+ManuMeshStatus status = manumesh_simplify_mesh(
+    context, input, &options, output, &report);
+```
+
+`feature_options` 只需在这次简化调用返回前保持有效，库不会保存或释放该指针。非 NULL 时，它覆盖 `ManuMeshSimplifyOptions` 中全部旧的扁平特征检测字段；`preserve_feature_curves`、`feature_curve_weight`、`feature_protection_mode`、`min_circular_feature_loop_vertices` 等简化专属字段仍独立生效。外层 `ManuMeshSimplifyOptions` 与嵌套 `ManuMeshFeatureOptions` 都按各自 `struct_size` 独立做 size-aware 读取，因此嵌套旧结构缺失的尾字段同样使用库默认值。
 
 新代码可以继续写 `manumesh_simplify_options_init(&options)`、`manumesh_simplify_mesh(..., &report)` 和 `manumesh_compute_mesh_stats(..., &stats)`。公开头通过名称 alias 把直接调用、全局限定调用和函数地址都转到 current size-aware inline wrapper。绑定层或 FFI 可以直接调用 `*_init_with_size(pointer, capacity)`、`manumesh_simplify_mesh_with_report_size(..., report, report_capacity)` 和 `manumesh_compute_mesh_stats_with_size(..., stats, stats_capacity)`：非空输出容量小于 `abi_version` 字段末尾时返回 `MANUMESH_STATUS_INVALID_ARGUMENT` 且不写 output；容量大于当前结构体时只写库已知尺寸，未知尾部保持不变。simplify 的 report 可为 null，mesh stats 的 stats 不可为 null。report/stats 初始化函数仍可用于在调用前取得独立的零值结构体，但不再是 current output 调用的前置条件。
 
@@ -287,7 +321,7 @@ featureOptions.feature_angle_deg = 25.0;
 featureOptions.use_normal_tensor_features = 0;
 
 std::size_t edgeCount = 0;
-status = manumesh_detect_feature_edges(
+status = manumesh_detect_feature_edges_v2(
     context, mesh, &featureOptions, nullptr, 0, &edgeCount);
 // 第一次调用通常返回 MANUMESH_STATUS_BUFFER_TOO_SMALL，edgeCount 仍然有效。
 if (status != MANUMESH_STATUS_OK &&
@@ -295,9 +329,9 @@ if (status != MANUMESH_STATUS_OK &&
     throw std::runtime_error(manumesh_context_last_error(context));
 }
 
-std::vector<ManuMeshFeatureEdge> featureEdges(edgeCount);
+std::vector<ManuMeshFeatureEdgeV2> featureEdges(edgeCount);
 std::size_t written = 0;
-status = manumesh_detect_feature_edges(
+status = manumesh_detect_feature_edges_v2(
     context, mesh, &featureOptions,
     featureEdges.empty() ? nullptr : featureEdges.data(), featureEdges.size(), &written);
 if (status != MANUMESH_STATUS_OK) {
@@ -306,14 +340,19 @@ if (status != MANUMESH_STATUS_OK) {
 featureEdges.resize(written);
 ```
 
-每个 `ManuMeshFeatureEdge` 的 `a`、`b` 是输入顶点索引。这是无向边，端点
-顺序不保证升序；若需要去重或作为 map/set 的键，应先转换为
-`(std::min(a,b), std::max(a,b))`。`boundary`、
+每个 `ManuMeshFeatureEdgeV2` 的 `a`、`b` 是升序输入顶点索引。
+`feature_edge_index` 是当前 v2 结果按端点和来源确定性排序后的特征边序号；
+`input_edge_index` 是输入网格唯一边按 `(a,b)` 字典序排列后的稳定序号。
+`boundary`、
 `dihedral`、`normal_tensor`、`smooth_curvature`、`non_manifold` 表示证据来源，
 可能同时为 1；`signed_kind` 大于 0 表示凸，小于 0 表示凹，0 表示无可靠符号。
-`cleanup_bridge` 和 `consolidation_bridge` 是图恢复阶段补出的桥接边，不是原始
-几何证据，但会保留在输出中。接口只返回当前“活动特征图边”；
+`cleanup_bridge` 和 `consolidation_bridge` 是图恢复阶段补出的桥接边。
+非拓扑桥返回 `input_edge_index == MANUMESH_INVALID_EDGE_INDEX`、`synthetic != 0`
+和 `geometric_constraint == 0`，它只表达图连续性，不能直接作为 QEM 投影线段。
+接口只返回当前“活动特征图边”；
 `removed_by_cleanup` 为 1 的候选边已被过滤，因此当前返回元素的该字段总为 0。
+旧的 `manumesh_detect_feature_edges`/`ManuMeshFeatureEdge` 保留 ABI-v1 兼容，
+但只提供端点和来源标志，不提供稳定输入边编号。
 
 如果调用方只需要与输入面数组相同风格的扁平索引，可以转换为
 `[a0,b0,a1,b1,...]`：
@@ -321,9 +360,9 @@ featureEdges.resize(written);
 ```cpp
 std::vector<int> featureEdgeIndices;
 featureEdgeIndices.reserve(featureEdges.size() * 2);
-for (const ManuMeshFeatureEdge& edge : featureEdges) {
-    featureEdgeIndices.push_back(std::min(edge.a, edge.b));
-    featureEdgeIndices.push_back(std::max(edge.a, edge.b));
+for (const ManuMeshFeatureEdgeV2& edge : featureEdges) {
+    featureEdgeIndices.push_back(edge.a);
+    featureEdgeIndices.push_back(edge.b);
 }
 ```
 
@@ -331,22 +370,26 @@ for (const ManuMeshFeatureEdge& edge : featureEdges) {
 `MANUMESH_STATUS_BUFFER_TOO_SMALL`，并通过 `edges_written` 返回完整所需数量；
 其他参数或算法错误会把有效的 `edges_written` 置为 0。
 这套入口使用纯 C 数据结构和 C 链接名，调用方可以是 C、C++14 或其他 FFI；
-不要求消费工程启用 C++17。库内部仍以 C++17 编译，这是库的实现要求，与消费者
+不要求消费工程启用 C++。库内部以 C++14 编译，这是库的实现要求，与消费者
 语言标准相互独立。完整示例见 `examples/sdk_consumer/sdk_cpp_c_api_feature_edges.cpp`。
 查询数量和复制数据会各执行一次完整特征检测；若同一个大网格频繁调用，应在应用层
 缓存最终边数组，而不是反复查询。
 
-CMake 工程应链接 C ABI 专用目标，它不会传播 C++17 或 Eigen 使用要求：
+CMake 工程应链接 C ABI 专用目标，它不会传播 C++ 编译特性或 Eigen 使用要求：
 
 ```cmake
-find_package(ManuMesh CONFIG REQUIRED)
+find_package(ManuMesh CONFIG REQUIRED COMPONENTS CApi)
 target_compile_features(my_cpp14_app PRIVATE cxx_std_14)
 target_link_libraries(my_cpp14_app PRIVATE ManuMesh::c_api)
+manumesh_configure_msvc_runtime(my_cpp14_app)
 manumesh_copy_runtime_dependencies(my_cpp14_app)
 ```
 
+只请求 `CApi` 组件时，包配置不会查找 Eigen；该目标只传播 `CApi.h` 所需的
+include、DLL import 定义和 ManuMesh 二进制库。
+
 只有直接包含 `Mesh.h`、`FeatureDetector.h` 等 C++ API 头文件时，才应链接
-`ManuMesh::manumesh` 并以 C++17 编译。
+`ManuMesh::manumesh` 并以 C++14 编译。
 
 ## CMake config 与 Eigen
 
@@ -355,23 +398,26 @@ manumesh_copy_runtime_dependencies(my_cpp14_app)
 ```cmake
 find_package(ManuMesh CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE ManuMesh::manumesh)
+manumesh_configure_msvc_runtime(my_app)
 manumesh_copy_runtime_dependencies(my_app)
 ```
 
-`ManuMeshConfig.cmake` 会先为 SDK 内安装的 vendored Eigen 创建 `Eigen3::Eigen` imported target；如果 SDK 内没有 vendored Eigen，则调用 `find_dependency(Eigen3 3.3 NO_MODULE)`。因此包含 `Mesh.h` 的 C++ 消费方可以从导出的目标获得一致的 Eigen include 契约。
+无组件调用保持原有 C++ SDK 行为，也可以显式请求 `COMPONENTS CXX`。
+这两种方式都会先为 SDK 内安装的 vendored Eigen 创建 `Eigen3::Eigen` imported
+target；如果 SDK 内没有 vendored Eigen，则调用
+`find_dependency(Eigen3 3.3 NO_MODULE)`。因此包含 `Mesh.h` 的 C++ 消费方可以从
+导出的目标获得一致的 Eigen include 契约和 C++14 编译要求。
 
 ## 运行时文件
 
-Windows + MinGW 使用共享库时，应用目录需要：
-
-- `libmanumesh.dll`
-- 当前 MinGW 工具链对应的 `libstdc++-6.dll`、`libgcc_s_*.dll`、`libwinpthread-1.dll` 等运行时 DLL
-
-当前 CMake 会在普通构建时把必要 MinGW 运行时复制到构建目录 `bin`，并在安装型 SDK
-中把这些运行时安装到 SDK `bin/`。MSVC 安装型 SDK 同样携带当前构建工具集对应的
-VC/UCRT 运行时。安装后的 CMake helper 和 MSVC props 会把 SDK `bin/` 中的 DLL 集合
-复制到消费程序旁。MinGW 下 `MANUMESH_GOOGLETEST_PROVIDER=auto` 默认从仓库源码为当前
-编译器构建 GoogleTest，测试程序不依赖历史预编译的 GoogleTest DLL。
+共享库消费程序需要 `manumesh.dll`，并需要 Visual Studio 2019 v142 对应的
+VC/UCRT 运行时。安装型 SDK 会把 ManuMesh DLL 和可部署的 MSVC 运行时放入 SDK
+`bin/`；安装后的 CMake helper 与 MSVC props 会把该目录中的运行时文件复制到消费程序
+旁。静态 ManuMesh 库不需要 `manumesh.dll`，但消费程序仍必须使用兼容的 v142 C/C++
+运行时设置。CMake consumer 应对每个可执行文件或动态库调用
+`manumesh_configure_msvc_runtime(target)`；ManuMesh 的全部配置统一使用 `/MD`，不要改成
+`/MDd`、`/MT` 或 `/MTd`，
+也不要混用不同工具集、架构或 Debug/Release 二进制。
 
 Windows CLI、C++ `std::string` 路径参数和 C ABI `const char*` 路径参数都使用 UTF-8。
 消费方不要把本地 ANSI code page 字节串传给路径接口。
@@ -389,8 +435,9 @@ Windows CLI、C++ `std::string` 路径参数和 C ABI `const char*` 路径参数
 启用安装目标后可运行：
 
 ```powershell
-$buildDir = "build/mingw-ninja-release"
-cmake --build $buildDir --target sdk-consumer-test --parallel
+cmake --preset vs2019-release-sdk
+cmake --build --preset vs2019-release-sdk --target sdk-consumer-test --parallel
+ctest --preset vs2019-release-sdk
 ```
 
 ## 集成边界
@@ -398,6 +445,6 @@ cmake --build $buildDir --target sdk-consumer-test --parallel
 - 公共头只从 `include/` 引入；新代码优先使用 `algorithms/feature_detection`、`algorithms/simplification` 和 `algorithms/analysis`。公共工具头还包括 `core/Tolerances.h`（统一退化三角形容差族）与 `core/MathConstants.h`（`kPi`）；`core/MeshGenerators.h` 提供闭流形共享顶点立方体 `generateClosedCubeGrid(n, size)` 等测试/演示网格生成器。
 - 不要依赖 `src/simplification/detail/`，这些是私有实现。
 - 不要依赖 `src/feature_detection/detail/`，primitive fitting、trace/cycle 恢复等 helper 仍是私有实现。
-- 内部实现命名空间已由 `manumesh::detail` 改名为 `manumesh::common`（保留 `namespace detail = common` 过渡别名一个 minor 版本）；这是内部层调整，不影响任何公共 API。
+- 内部实现命名空间已由 `manumesh::detail` 改名为 `manumesh::common`，旧过渡别名已经移除；这是内部层调整，不影响任何公共 API。
 - 当前 ManuMesh SDK 不承诺通用布尔、offset、修复或去噪能力。
-- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持凸面 fan、凹面 ear clipping、逐角 `vt`，并拒绝重复/退化/自交 polygon；CLI 默认输出标准 little-endian 二进制 STL（不携带 UV），SDK 同时保留 `saveAsciiStl()` / `manumesh_save_ascii_stl()` 兼容接口。STL/OBJ 解析器使用 `std::from_chars` 数值解析加缓冲扫描，内部自动探测 ASCII/二进制 STL 并预读三角形数，解析失败的错误信息更明确。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。
+- STL/OBJ 文件读写主要服务当前 CLI 和测试；OBJ 读取支持凸面 fan、凹面 ear clipping、逐角 `vt`，并拒绝重复/退化/自交 polygon；CLI 默认输出标准 little-endian 二进制 STL（不携带 UV），SDK 同时保留 `saveAsciiStl()` / `manumesh_save_ascii_stl()` 兼容接口。STL/OBJ 解析器使用固定 C locale 的 `_strtod_l`、有界整数解析与缓冲扫描，内部自动探测 ASCII/二进制 STL 并预读三角形数，解析失败的错误信息更明确。生产系统如需更多格式，应在宿主侧或未来 IO 模块中扩展。

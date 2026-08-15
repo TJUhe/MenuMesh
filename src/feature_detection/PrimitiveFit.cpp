@@ -17,9 +17,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 
-namespace manumesh::feature::primitive_fit_detail {
+namespace manumesh {
+namespace feature {
+namespace primitive_fit_detail {
 namespace {
 
 /** @brief 一个特征环的正交最佳拟合平面坐标系。 */
@@ -513,7 +516,7 @@ void classifyPrimitiveFit(const FeatureOptions& options, PrimitiveFit& fit) {
     }
 }
 
-} // 匿名命名空间
+} // namespace
 
 PrimitiveFit fitPrimitive(const Mesh& mesh, const FeatureLoop& loop, const FeatureOptions& options) {
     PrimitiveFit fit;
@@ -603,7 +606,7 @@ DirectionalCurveError measureLoopAgainstCircle(
 
     for (int id : loop.vertices) {
         if (id < 0 || id >= static_cast<int>(mesh.vertices.size())) {
-            continue;
+            throw std::invalid_argument("Feature loop references an invalid mesh vertex index.");
         }
         const Vec3 d = mesh.vertices[id] - center;
         const double plane = d.dot(normal);
@@ -623,4 +626,6 @@ DirectionalCurveError measureLoopAgainstCircle(
     return error;
 }
 
-} // 命名空间 manumesh::feature::primitive_fit_detail
+} // namespace primitive_fit_detail
+} // namespace feature
+} // namespace manumesh

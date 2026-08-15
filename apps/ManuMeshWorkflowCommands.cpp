@@ -14,7 +14,7 @@
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
 
-#include <filesystem>
+#include "core/Filesystem.h"
 #include <fstream>
 #include <initializer_list>
 #include <iostream>
@@ -22,9 +22,11 @@
 #include <string>
 #include <vector>
 
-namespace fs = std::filesystem;
+namespace fs = manumesh::filesystem;
 
-namespace manumesh::cli::workflow_commands {
+namespace manumesh {
+namespace cli {
+namespace workflow_commands {
 namespace {
 
 void runRegisteredCommand(const std::string& name, const Args& args) {
@@ -739,4 +741,6 @@ int validateExternal(const Args& args) {
     return 0;
 }
 
-} // namespace manumesh::cli::workflow_commands
+} // namespace workflow_commands
+} // namespace cli
+} // namespace manumesh

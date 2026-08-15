@@ -17,7 +17,7 @@ src/common/detail/SpatialIndex.h        CellCoord、hash、UniformAabbCandidateG
 src/common/SpatialIndex.cpp             SpatialIndex 实现
 ```
 
-这些能力已经被 feature detection 和 simplification 共享，或已经从 simplification 的私有实现迁入 common。`computeOrientedDihedralAngle` 统一 feature evidence 与 `WeightMode::Dihedral` 的反折角定义；`trianglesIntersectBeyondSharedTopology` 允许仅限声明共享顶点/边的接触，同时拒绝越过该共享拓扑的重叠。`SpatialFaceIndex` 现在只负责把 simplification 的 `FaceState`/`VertexState` 转成 AABB，真正的候选网格由 `UniformAabbCandidateGrid` 维护。通用网格统计与双 mesh 采样距离比较已上浮为 `manumesh::analysis` 模块（`src/analysis/MeshAnalysis.cpp`），点到 mesh 表面的 BVH 距离查询由 `MeshDistanceIndex` 承担。数学常量的正典位置是 `include/core/MathConstants.h`（`kPi`），`src/common/detail/MathConstants.h` 只保留转发别名。common 的命名空间是 `manumesh::common`（由 `manumesh::detail` 改名，过渡别名保留一个 minor 版本）。
+这些能力已经被 feature detection 和 simplification 共享，或已经从 simplification 的私有实现迁入 common。`computeOrientedDihedralAngle` 统一 feature evidence 与 `WeightMode::Dihedral` 的反折角定义；`trianglesIntersectBeyondSharedTopology` 允许仅限声明共享顶点/边的接触，同时拒绝越过该共享拓扑的重叠。`SpatialFaceIndex` 现在只负责把 simplification 的 `FaceState`/`VertexState` 转成 AABB，真正的候选网格由 `UniformAabbCandidateGrid` 维护。通用网格统计与双 mesh 采样距离比较已上浮为 `manumesh::analysis` 模块（`src/analysis/MeshAnalysis.cpp`），点到 mesh 表面的 BVH 距离查询由 `MeshDistanceIndex` 承担。数学常量的正典位置是 `include/core/MathConstants.h`（`kPi`），`src/common/detail/MathConstants.h` 只保留常量转发。common 的命名空间是 `manumesh::common`；旧 `manumesh::detail` 过渡别名已经移除。
 
 后续新增模块应优先检查 common 是否已有能力，再决定是否新增私有 helper。common 测试越扎实，算法模块越容易只测试策略行为。
 
@@ -43,7 +43,8 @@ src/common/SpatialIndex.cpp             SpatialIndex 实现
 common 头文件偏向小函数、小结构、无隐藏全局状态：
 
 ```cpp
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c);
 std::pair<Vec3, Vec3> triangleAabb(const std::array<Vec3, 3>& tri, double padding = 0.0);
@@ -63,7 +64,8 @@ public:
     std::vector<int> queryCandidates(const Vec3& lo, const Vec3& hi) const;
 };
 
-} // namespace manumesh::common
+} // namespace common
+} // namespace manumesh
 ```
 
 不要把 `SimplifyOptions`、`RepairOptions` 或其他算法 options 传进 common。common 只处理通用数据；阈值、策略和报告解释留在调用模块。

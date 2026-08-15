@@ -19,7 +19,8 @@
 #include <numeric>
 #include <vector>
 
-namespace manumesh::analysis {
+namespace manumesh {
+namespace analysis {
 namespace {
 
 bool finitePoint(const Vec3& point) {
@@ -252,4 +253,5 @@ DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& s
     return stats;
 }
 
-} // 命名空间 manumesh::analysis
+} // namespace analysis
+} // namespace manumesh

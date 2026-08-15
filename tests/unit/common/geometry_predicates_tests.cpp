@@ -43,7 +43,9 @@ TEST(ManuMesh, GeometryPredicatesMeasureAabbDistanceAndTriangleBounds) {
         manumesh::Vec3(2.0, -1.0, 3.0),
         manumesh::Vec3(1.0, 0.0, -2.0),
     };
-    const auto [triLo, triHi] = manumesh::common::triangleAabb(tri, 0.25);
+    const std::pair<manumesh::Vec3, manumesh::Vec3> bounds = manumesh::common::triangleAabb(tri, 0.25);
+    const manumesh::Vec3& triLo = bounds.first;
+    const manumesh::Vec3& triHi = bounds.second;
     EXPECT_TRUE(triLo.isApprox(manumesh::Vec3(-0.25, -1.25, -2.25)));
     EXPECT_TRUE(triHi.isApprox(manumesh::Vec3(2.25, 1.25, 3.25)));
 }
@@ -74,7 +76,6 @@ TEST(ManuMesh, GeometryPredicatesDetectTriangleIntersection) {
     EXPECT_FALSE(manumesh::common::trianglesIntersect(base, separated, 1e-12));
     EXPECT_TRUE(manumesh::common::trianglesIntersect(base, piercing, 1e-12));
 }
-
 namespace {
 
 std::array<manumesh::Vec3, 3> scaleTriangle(const std::array<manumesh::Vec3, 3>& tri, double scale) {

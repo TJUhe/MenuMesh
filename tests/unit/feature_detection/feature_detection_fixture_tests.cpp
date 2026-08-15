@@ -13,7 +13,6 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <vector>
-
 namespace {
 
 namespace feature = manumesh::feature;

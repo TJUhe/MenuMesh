@@ -8,9 +8,9 @@
 
 #include "CApiTestSupport.h"
 
+#include "core/Filesystem.h"
 #include <cstddef>
 #include <cstdint>
-#include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <limits>
@@ -50,10 +50,12 @@ TEST_F(CApiTest, CopiesMeshDataOnlyIntoCallerOwnedBuffers) {
 }
 
 TEST_F(CApiTest, ClearsTextureCoordinatesAlongWithLoadedGeometry) {
-    const std::filesystem::path objPath = std::filesystem::temp_directory_path() / "manumesh_c_api_clear_textured.obj";
-    const std::filesystem::path stlPath = std::filesystem::temp_directory_path() / "manumesh_c_api_clear_empty.stl";
-    std::filesystem::remove(objPath);
-    std::filesystem::remove(stlPath);
+    const manumesh::filesystem::path objPath =
+        manumesh::filesystem::temp_directory_path() / "manumesh_c_api_clear_textured.obj";
+    const manumesh::filesystem::path stlPath =
+        manumesh::filesystem::temp_directory_path() / "manumesh_c_api_clear_empty.stl";
+    manumesh::filesystem::remove(objPath);
+    manumesh::filesystem::remove(stlPath);
 
     {
         std::ofstream obj(objPath);
@@ -81,11 +83,11 @@ TEST_F(CApiTest, ClearsTextureCoordinatesAlongWithLoadedGeometry) {
     // 保存操作会检查完整的 Mesh 不变量：清空后的面数组不应再与陈旧的面级 UV
     // 数据错位，否则该调用会失败。
     ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_save_binary_stl(context, stlPath.string().c_str(), mesh));
-    EXPECT_EQ(84u, std::filesystem::file_size(stlPath));
+    EXPECT_EQ(84u, manumesh::filesystem::file_size(stlPath));
 
     manumesh_mesh_destroy(mesh);
-    std::filesystem::remove(stlPath);
-    std::filesystem::remove(objPath);
+    manumesh::filesystem::remove(stlPath);
+    manumesh::filesystem::remove(objPath);
 }
 
 TEST_F(CApiTest, RejectsNonFiniteVertexCoordinatesWithoutReplacingMesh) {
@@ -216,10 +218,11 @@ TEST_F(CApiTest, SavesBinaryStlWithStandardLayoutAndLoadsItBack) {
     const ManuMeshFace faces[] = {{{0, 1, 2}}};
     ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_set_data(context, mesh, vertices, 3, faces, 1));
 
-    const std::filesystem::path path = std::filesystem::temp_directory_path() / "manumesh_c_api_binary_export.stl";
-    std::filesystem::remove(path);
+    const manumesh::filesystem::path path =
+        manumesh::filesystem::temp_directory_path() / "manumesh_c_api_binary_export.stl";
+    manumesh::filesystem::remove(path);
     ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_save_binary_stl(context, path.string().c_str(), mesh));
-    ASSERT_EQ(134u, std::filesystem::file_size(path));
+    ASSERT_EQ(134u, manumesh::filesystem::file_size(path));
 
     std::ifstream in(path, std::ios::binary);
     ASSERT_TRUE(in);
@@ -243,7 +246,7 @@ TEST_F(CApiTest, SavesBinaryStlWithStandardLayoutAndLoadsItBack) {
     EXPECT_EQ(3u, vertexCount);
     EXPECT_EQ(1u, faceCount);
 
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
     manumesh_mesh_destroy(loaded);
     manumesh_mesh_destroy(mesh);
 }

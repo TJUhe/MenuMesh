@@ -2,21 +2,96 @@
 
 include(CMakeFindDependencyMacro)
 
-set(MANUMESH_EIGEN_INCLUDE_DIR
-  "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/manumesh/thirdParty/eigen/include"
+set(_manumesh_compiler_id "${CMAKE_CXX_COMPILER_ID}")
+if(NOT _manumesh_compiler_id)
+  set(_manumesh_compiler_id "${CMAKE_C_COMPILER_ID}")
+endif()
+if(CMAKE_GENERATOR MATCHES "^Visual Studio " AND
+   NOT CMAKE_GENERATOR STREQUAL "Visual Studio 16 2019")
+  set(ManuMesh_FOUND FALSE)
+  set(ManuMesh_NOT_FOUND_MESSAGE
+    "ManuMesh supports only the Visual Studio 16 2019 generator."
+  )
+  unset(_manumesh_compiler_id)
+  return()
+endif()
+if(NOT _manumesh_compiler_id STREQUAL "MSVC" OR
+   MSVC_VERSION LESS 1920 OR MSVC_VERSION GREATER_EQUAL 1930)
+  set(ManuMesh_FOUND FALSE)
+  set(ManuMesh_NOT_FOUND_MESSAGE
+    "ManuMesh supports only Visual Studio 2019 / MSVC v142 consumers."
+  )
+  unset(_manumesh_compiler_id)
+  return()
+endif()
+set(_manumesh_compiler_architecture_id
+  "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}"
 )
-if(NOT TARGET Eigen3::Eigen)
+if(NOT _manumesh_compiler_architecture_id)
+  set(_manumesh_compiler_architecture_id
+    "${CMAKE_C_COMPILER_ARCHITECTURE_ID}"
+  )
+endif()
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8 OR
+   NOT _manumesh_compiler_architecture_id MATCHES "^[Xx]64$")
+  set(ManuMesh_FOUND FALSE)
+  set(ManuMesh_NOT_FOUND_MESSAGE
+    "ManuMesh supports only x64 consumers; detected architecture "
+    "'${_manumesh_compiler_architecture_id}' and pointer size "
+    "'${CMAKE_SIZEOF_VOID_P}'."
+  )
+  unset(_manumesh_compiler_architecture_id)
+  unset(_manumesh_compiler_id)
+  return()
+endif()
+
+set(_manumesh_load_cxx FALSE)
+if(NOT ManuMesh_FIND_COMPONENTS)
+  # Preserve the pre-component package behavior for existing C++ consumers.
+  set(_manumesh_load_cxx TRUE)
+else()
+  foreach(_manumesh_component IN LISTS ManuMesh_FIND_COMPONENTS)
+    if(_manumesh_component STREQUAL "CXX")
+      set(_manumesh_load_cxx TRUE)
+    elseif(NOT _manumesh_component STREQUAL "CApi")
+      set(ManuMesh_${_manumesh_component}_FOUND FALSE)
+    endif()
+  endforeach()
+endif()
+
+if(_manumesh_load_cxx AND NOT TARGET Eigen3::Eigen)
+  set(MANUMESH_EIGEN_INCLUDE_DIR
+    "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/manumesh/thirdParty/eigen/include"
+  )
   if(EXISTS "${MANUMESH_EIGEN_INCLUDE_DIR}/Eigen/Core")
     add_library(Eigen3::Eigen INTERFACE IMPORTED)
     set_target_properties(Eigen3::Eigen PROPERTIES
       INTERFACE_INCLUDE_DIRECTORIES "${MANUMESH_EIGEN_INCLUDE_DIR}"
     )
-  else()
+  elseif(NOT ManuMesh_FIND_COMPONENTS OR ManuMesh_FIND_REQUIRED_CXX)
     find_dependency(Eigen3 3.3 NO_MODULE)
+  else()
+    find_package(Eigen3 3.3 QUIET NO_MODULE)
   endif()
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/ManuMeshTargets.cmake")
+
+set(ManuMesh_CApi_FOUND FALSE)
+if(TARGET ManuMesh::c_api)
+  set(ManuMesh_CApi_FOUND TRUE)
+endif()
+
+set(ManuMesh_CXX_FOUND FALSE)
+if(TARGET ManuMesh::manumesh AND TARGET Eigen3::Eigen)
+  set(ManuMesh_CXX_FOUND TRUE)
+endif()
+
+check_required_components(ManuMesh)
+unset(_manumesh_component)
+unset(_manumesh_compiler_architecture_id)
+unset(_manumesh_compiler_id)
+unset(_manumesh_load_cxx)
 
 set(MANUMESH_SHARED @MANUMESH_BUILD_SHARED_LIBRARY@)
 set(MANUMESH_RUNTIME_DIR
@@ -29,8 +104,24 @@ if(@MANUMESH_HAS_MSVC_PROPS@)
   )
 endif()
 
+set(MANUMESH_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+
+function(manumesh_configure_msvc_runtime target)
+  if(NOT TARGET ${target})
+    message(FATAL_ERROR
+      "manumesh_configure_msvc_runtime expected an existing target; "
+      "'${target}' does not exist."
+    )
+  endif()
+  if(MSVC)
+    set_property(TARGET ${target} PROPERTY
+      MSVC_RUNTIME_LIBRARY "${MANUMESH_MSVC_RUNTIME_LIBRARY}"
+    )
+  endif()
+endfunction()
+
 function(manumesh_copy_runtime_dependencies target)
-  if(WIN32 AND MANUMESH_SHARED AND TARGET ManuMesh::manumesh)
+  if(WIN32 AND TARGET ManuMesh::manumesh_binary)
     file(GLOB MANUMESH_RUNTIME_DLLS
       "${MANUMESH_RUNTIME_DIR}/*.dll"
     )
@@ -43,7 +134,7 @@ function(manumesh_copy_runtime_dependencies target)
         COMMAND_EXPAND_LISTS
         VERBATIM
       )
-    else()
+    elseif(MANUMESH_SHARED)
       message(FATAL_ERROR
         "在 '${MANUMESH_RUNTIME_DIR}' 未找到 ManuMesh 运行时 DLL。"
       )

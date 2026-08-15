@@ -12,7 +12,9 @@
 #include "FeatureDetectionTypes.h"
 #include "algorithms/feature_detection/FeatureTypes.h"
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 为尚未归属的连通分量拟合并生成图元特征环。
@@ -21,4 +23,6 @@ void recoverPrimitiveComponents(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

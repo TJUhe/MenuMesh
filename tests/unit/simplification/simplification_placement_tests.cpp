@@ -8,6 +8,7 @@
 
 #include "SimplificationTestSupport.h"
 #include "algorithms/simplification/QEMSimplifier.h"
+#include "core/MathUtils.h"
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "simplification/detail/FeatureConstraints.h"
@@ -20,7 +21,6 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include <vector>
-
 namespace {
 
 using manumesh::Mesh;
@@ -83,7 +83,7 @@ Vec3 clampToSegmentReference(const Vec3& position, const Vec3& a, const Vec3& b)
     if (len2 <= 1e-30) {
         return 0.5 * (a + b);
     }
-    const double t = std::clamp((position - a).dot(edge) / len2, 0.0, 1.0);
+    const double t = manumesh::clampValue((position - a).dot(edge) / len2, 0.0, 1.0);
     return a + t * edge;
 }
 

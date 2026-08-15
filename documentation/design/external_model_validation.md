@@ -18,7 +18,7 @@
 普通外部验证：
 
 ```powershell
-$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/vs2019-release/bin/Release/manumesh.exe"
 & $exe validate-external `
   --input-dir tests/data/external/common_3d_test_models `
   --ratio 0.25 `
@@ -29,7 +29,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 特征验证：
 
 ```powershell
-$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/vs2019-release/bin/Release/manumesh.exe"
 & $exe validate-features `
   --ratio 0.20 `
   --samples 1000 `
@@ -42,9 +42,10 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 
 - `run: external validation`
 - `run: feature validation`
-- `test: mingw+ninja release`
-- `test: mingw+ninja release performance`
-- `test: mingw+ninja release full`（顺序运行 Release 回归、性能测试、SDK consumer 测试和 API 文档生成）
+- `test: vs2019 release`
+- `test: vs2019 release performance`
+- `test: vs2019 release full`
+- `verify: vs2019 release matrix`（顺序运行 Release、静态库、性能、SDK consumer、文档和格式门禁）
 
 旧文档中提到的 `run: large validation 100 stl`、`open: large validation output` 等任务当前不在 `.vscode/tasks.json` 中，不能继续作为现有入口描述。
 

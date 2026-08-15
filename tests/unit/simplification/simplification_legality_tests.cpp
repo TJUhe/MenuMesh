@@ -16,12 +16,13 @@
 #include "core/PlainMesh.h"
 #include "simplification/detail/CollapseLegality.h"
 
+#include "core/Filesystem.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -70,6 +71,38 @@ TEST(ManuMesh, CollapseIntersectionGuardRejectsOverlapInsideTheNewOneRing) {
 
     vertices[4].p = manumesh::Vec3(1.0, -0.5, 0.0);
     EXPECT_EQ(simplification::CollapseRejectReason::None, simplification::collapsePlacementRejectReason(input));
+}
+
+TEST(ManuMesh, CollapseLegalityRejectsNonFinitePlacementBeforeGeometryChecks) {
+    std::vector<simplification::VertexState> vertices(4);
+    vertices[0].p = manumesh::Vec3(0.0, 0.0, 0.0);
+    vertices[1].p = manumesh::Vec3(1.0, 0.0, 0.0);
+    vertices[2].p = manumesh::Vec3(1.0, 1.0, 0.0);
+    vertices[3].p = manumesh::Vec3(0.0, 1.0, 0.0);
+    const std::vector<simplification::FaceState> faces = {
+        {{{0, 1, 2}}, true},
+        {{{0, 2, 3}}, true},
+    };
+    const simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
+    simplification::CollapseLegalityInput input{
+        {0, 1},
+        manumesh::Vec3::Zero(),
+        {faces, vertices, topology},
+        1e-18,
+        0.0,
+        -1.0,
+        0.0,
+        false,
+        nullptr,
+        nullptr,
+    };
+
+    input.newPosition.x() = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_EQ(simplification::CollapseRejectReason::Topology, simplification::collapsePlacementRejectReason(input));
+
+    input.newPosition = manumesh::Vec3::Zero();
+    input.newPosition.z() = std::numeric_limits<double>::infinity();
+    EXPECT_EQ(simplification::CollapseRejectReason::Topology, simplification::collapsePlacementRejectReason(input));
 }
 
 TEST(ManuMesh, StrictTriangleQualityRejectsPoorCollapsePlacements) {

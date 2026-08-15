@@ -17,7 +17,8 @@
 #include <limits>
 #include <utility>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 bool curveBudgetAllows(const CollapseAttemptInput& input, const Vec3& position) {
@@ -37,8 +38,9 @@ bool curveBudgetAllows(const CollapseAttemptInput& input, const Vec3& position) 
 CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input) {
     CollapseAttemptResult result;
 
-    const FeatureCollapseRejectKind featureRejectKind =
-        input.featurePolicy.collapseRejectKind({input.edge, input.vertices, input.activeLoopCounts});
+    const FeatureCollapseRejectKind featureRejectKind = input.featurePolicy.collapseRejectKind(
+        {input.edge, input.vertices, input.activeLoopCounts, input.featureConstraints}
+    );
     if (featureRejectKind != FeatureCollapseRejectKind::None) {
         result.status = CollapseAttemptStatus::FeatureRejected;
         result.featureRejectKind = featureRejectKind;
@@ -58,7 +60,8 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         return result;
     }
 
-    const bool featureCurveCollapse = input.featurePolicy.isHardProtectedCollapse(input.edge, input.vertices);
+    const bool featureCurveCollapse =
+        input.featurePolicy.isHardProtectedCollapse(input.edge, input.vertices, input.featureConstraints);
     const bool tryFallbackPlacements =
         !featureCurveCollapse &&
         (input.policies.legality.minTriangleQuality > 0.0 || input.maxLocalError > 0.0 || input.minNormalDot > -1.0 ||
@@ -83,7 +86,8 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         }
 
         const bool projected = input.featurePolicy.projectPlacement(
-            {input.edge, input.vertices, input.featureCurves, input.primitiveFits}, collapsePosition
+            {input.edge, input.vertices, input.featureCurves, input.primitiveFits, input.featureConstraints},
+            collapsePosition
         );
         // 约束优先级为：边界 > 特征。当 preserveBoundary 将此次折叠限制为边界边时，若特征投影把放置点拉离边界线段，则重新将其夹回边界线段。
         if (projected && boundaryDecision.boundaryEdge) {
@@ -137,4 +141,5 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
     return result;
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

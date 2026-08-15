@@ -12,6 +12,7 @@
 #include "core/Mesh.h"
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
+#include "core/Optional.h"
 #include "core/Status.h"
 
 #include <algorithm>
@@ -24,7 +25,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-
 namespace {
 
 struct NoDefaultValue {
@@ -32,6 +32,62 @@ struct NoDefaultValue {
         : value(v) {}
     int value = 0;
 };
+
+struct OptionalLifetimeProbe {
+    explicit OptionalLifetimeProbe(int v)
+        : value(v) {
+        ++liveCount;
+    }
+
+    OptionalLifetimeProbe(const OptionalLifetimeProbe& other)
+        : value(other.value) {
+        ++liveCount;
+        ++copyConstructionCount;
+    }
+
+    OptionalLifetimeProbe(OptionalLifetimeProbe&& other) noexcept
+        : value(other.value) {
+        other.value = -1;
+        ++liveCount;
+        ++moveConstructionCount;
+    }
+
+    OptionalLifetimeProbe& operator=(const OptionalLifetimeProbe& other) {
+        value = other.value;
+        ++copyAssignmentCount;
+        return *this;
+    }
+
+    OptionalLifetimeProbe& operator=(OptionalLifetimeProbe&& other) noexcept {
+        value = other.value;
+        other.value = -1;
+        ++moveAssignmentCount;
+        return *this;
+    }
+
+    ~OptionalLifetimeProbe() { --liveCount; }
+
+    static void resetCounts() {
+        liveCount = 0;
+        copyConstructionCount = 0;
+        moveConstructionCount = 0;
+        copyAssignmentCount = 0;
+        moveAssignmentCount = 0;
+    }
+
+    int value = 0;
+    static int liveCount;
+    static int copyConstructionCount;
+    static int moveConstructionCount;
+    static int copyAssignmentCount;
+    static int moveAssignmentCount;
+};
+
+int OptionalLifetimeProbe::liveCount = 0;
+int OptionalLifetimeProbe::copyConstructionCount = 0;
+int OptionalLifetimeProbe::moveConstructionCount = 0;
+int OptionalLifetimeProbe::copyAssignmentCount = 0;
+int OptionalLifetimeProbe::moveAssignmentCount = 0;
 
 bool containsItem(const std::vector<int>& items, int itemId) {
     return std::find(items.begin(), items.end(), itemId) != items.end();
@@ -96,7 +152,9 @@ TEST(ManuMesh, TopologyEdgeKeyIsOrderIndependentAndSharedWithDetail) {
     EXPECT_EQ(forward, manumesh::common::meshEdgeKey(3, 11));
     EXPECT_EQ(forward, manumesh::common::meshEdgeKey(11, 3));
 
-    const auto [a, b] = manumesh::common::unpackMeshEdgeKey(forward);
+    const std::pair<int, int> edge = manumesh::common::unpackMeshEdgeKey(forward);
+    const int a = edge.first;
+    const int b = edge.second;
     EXPECT_EQ(3, a);
     EXPECT_EQ(11, b);
 }
@@ -127,6 +185,25 @@ TEST(ManuMesh, BuildVertexNeighborsReturnsAscendingLists) {
     }
 }
 
+TEST(ManuMesh, UniqueEdgesReturnsLexicographicallyStableInputEdgeOrder) {
+    manumesh::Mesh mesh;
+    mesh.vertices.resize(5, manumesh::Vec3::Zero());
+    mesh.faces = {
+        manumesh::Face{{4, 2, 1}},
+        manumesh::Face{{3, 1, 2}},
+    };
+
+    const std::vector<std::pair<int, int>> edges = manumesh::uniqueEdges(mesh);
+    const std::vector<std::pair<int, int>> expected = {
+        {1, 2},
+        {1, 3},
+        {1, 4},
+        {2, 3},
+        {2, 4},
+    };
+    EXPECT_EQ(expected, edges);
+}
+
 TEST(ManuMesh, ResultDoesNotRequireDefaultConstructibleValues) {
     const manumesh::Result<NoDefaultValue> success(NoDefaultValue(7));
     EXPECT_TRUE(success.ok());
@@ -138,6 +215,59 @@ TEST(ManuMesh, ResultDoesNotRequireDefaultConstructibleValues) {
     EXPECT_FALSE(failure.hasValue());
     EXPECT_EQ(manumesh::StatusCode::InvalidArgument, failure.status().code());
     EXPECT_THROW(failure.value(), std::logic_error);
+}
+
+TEST(ManuMesh, OptionalSupportsCxx14ValueAndLifetimeOperations) {
+    OptionalLifetimeProbe::resetCounts();
+
+    manumesh::Optional<OptionalLifetimeProbe> empty;
+    EXPECT_FALSE(empty.has_value());
+    EXPECT_FALSE(static_cast<bool>(empty));
+    EXPECT_THROW(empty.value(), std::logic_error);
+
+    OptionalLifetimeProbe& emplaced = empty.emplace(7);
+    EXPECT_TRUE(empty.has_value());
+    EXPECT_EQ(7, emplaced.value);
+    EXPECT_EQ(&emplaced, empty.operator->());
+    EXPECT_EQ(1, OptionalLifetimeProbe::liveCount);
+
+    manumesh::Optional<OptionalLifetimeProbe> copied(empty);
+    EXPECT_EQ(7, copied->value);
+    EXPECT_EQ(2, OptionalLifetimeProbe::liveCount);
+    EXPECT_EQ(1, OptionalLifetimeProbe::copyConstructionCount);
+
+    manumesh::Optional<OptionalLifetimeProbe> moved(std::move(copied));
+    EXPECT_EQ(7, moved->value);
+    EXPECT_TRUE(copied.has_value());
+    EXPECT_EQ(-1, copied->value);
+    EXPECT_EQ(3, OptionalLifetimeProbe::liveCount);
+    EXPECT_EQ(1, OptionalLifetimeProbe::moveConstructionCount);
+
+    copied = empty;
+    EXPECT_EQ(7, copied->value);
+    EXPECT_EQ(1, OptionalLifetimeProbe::copyAssignmentCount);
+
+    moved = OptionalLifetimeProbe(11);
+    EXPECT_EQ(11, moved->value);
+    EXPECT_EQ(1, OptionalLifetimeProbe::moveAssignmentCount);
+
+    empty.reset();
+    copied.reset();
+    moved.reset();
+    EXPECT_EQ(0, OptionalLifetimeProbe::liveCount);
+}
+
+TEST(ManuMesh, OptionalAssignmentConstructsAndClearsDisengagedStorage) {
+    manumesh::Optional<NoDefaultValue> source(NoDefaultValue(5));
+    manumesh::Optional<NoDefaultValue> destination;
+
+    destination = source;
+    ASSERT_TRUE(destination.has_value());
+    EXPECT_EQ(5, destination->value);
+
+    source.reset();
+    destination = source;
+    EXPECT_FALSE(destination.has_value());
 }
 
 TEST(ManuMesh, UniformAabbCandidateGridInsertIsIdempotent) {
@@ -404,8 +534,14 @@ TEST(ManuMesh, MeshTopologyRejectsOutOfRangeHandles) {
 }
 
 TEST(ManuMesh, MeshTopologyCopiesAndMovesPimplCache) {
-    static_assert(std::is_nothrow_move_constructible_v<manumesh::MeshTopology>);
-    static_assert(std::is_nothrow_move_assignable_v<manumesh::MeshTopology>);
+    static_assert(
+        std::is_nothrow_move_constructible<manumesh::MeshTopology>::value,
+        "MeshTopology move construction must remain noexcept"
+    );
+    static_assert(
+        std::is_nothrow_move_assignable<manumesh::MeshTopology>::value,
+        "MeshTopology move assignment must remain noexcept"
+    );
 
     const manumesh::Mesh mesh = manumesh::generatePlaneGrid(4, 1.0, false);
     const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(mesh);

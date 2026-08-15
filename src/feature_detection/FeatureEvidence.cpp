@@ -11,6 +11,7 @@
  */
 
 #include "detail/FeatureEvidence.h"
+#include "core/MathUtils.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
@@ -23,7 +24,9 @@
 #include <unordered_map>
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 using DihedralAngle = manumesh::common::OrientedDihedralAngle;
@@ -50,6 +53,7 @@ struct EdgeEvidenceContext {
                                                     NormalTensorOptions{
                                                         options.normalTensorSmoothingIterations,
                                                         options.normalTensorScaleCount,
+                                                        options.normalFilter,
                                                     },
                                                     options.normalTensorFeatureThreshold
                                                 )
@@ -106,12 +110,20 @@ private:
             return;
         }
 
+        analysis.normalTensorVertexWeights.assign(tensor.size(), 0.0);
+        const int requiredPersistentScales = manumesh::clampValue(
+            options.normalTensorMinPersistentScales, 1, std::max(1, options.normalTensorScaleCount)
+        );
         double localScaleSum = 0.0;
         double persistenceSum = 0.0;
-        for (const NormalTensorVertex& vertex : tensor) {
+        for (std::size_t vertexId = 0; vertexId < tensor.size(); ++vertexId) {
+            const NormalTensorVertex& vertex = tensor[vertexId];
             analysis.maxNormalTensorFeatureScore = std::max(analysis.maxNormalTensorFeatureScore, vertex.featureScore);
             analysis.maxNormalTensorPersistentScore =
                 std::max(analysis.maxNormalTensorPersistentScore, vertex.persistentFeatureScore);
+            if (vertex.persistentScales >= requiredPersistentScales) {
+                analysis.normalTensorVertexWeights[vertexId] = vertex.persistentFeatureScore;
+            }
             if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
                 continue;
             }
@@ -129,8 +141,12 @@ private:
 
     void markDiscreteFeatureVertices() {
         dihedralAngles.reserve(edges.size());
-        for (const auto& [key, info] : edges) {
-            const auto [a, b] = manumesh::common::unpackMeshEdgeKey(key);
+        for (const auto& pairEntry : edges) {
+            const auto& key = pairEntry.first;
+            const auto& info = pairEntry.second;
+            const std::pair<int, int> edgeVertices = manumesh::common::unpackMeshEdgeKey(key);
+            const int a = edgeVertices.first;
+            const int b = edgeVertices.second;
             bool discrete = false;
             if (info.faces.size() == 1 || info.faces.size() > 2) {
                 discrete = true;
@@ -190,32 +206,44 @@ bool normalTensorEdgeCandidate(
         edge.b >= static_cast<int>(tensor.size())) {
         return false;
     }
-    if (edge.a < static_cast<int>(discreteFeatureVertex.size()) &&
-        edge.b < static_cast<int>(discreteFeatureVertex.size()) &&
-        (discreteFeatureVertex[edge.a] || discreteFeatureVertex[edge.b])) {
+    const bool aDiscrete = edge.a < static_cast<int>(discreteFeatureVertex.size()) && discreteFeatureVertex[edge.a];
+    const bool bDiscrete = edge.b < static_cast<int>(discreteFeatureVertex.size()) && discreteFeatureVertex[edge.b];
+    // 硬-硬边已经由边界/二面角/非流形通道表达。允许单个软端点连接到硬端点，
+    // 使脊线或张量折痕可以终止在显式硬特征 junction，而不是被整点屏蔽。
+    if (aDiscrete && bDiscrete) {
         return false;
     }
 
-    const double score = 0.5 * (tensor[edge.a].featureScore + tensor[edge.b].featureScore);
+    const int softEndpointCount = (aDiscrete ? 0 : 1) + (bDiscrete ? 0 : 1);
+    const double score =
+        ((aDiscrete ? 0.0 : tensor[edge.a].featureScore) + (bDiscrete ? 0.0 : tensor[edge.b].featureScore)) /
+        static_cast<double>(softEndpointCount);
     analysis.maxNormalTensorFeatureScore = std::max(analysis.maxNormalTensorFeatureScore, score);
-    const double persistentScore =
-        0.5 * (tensor[edge.a].persistentFeatureScore + tensor[edge.b].persistentFeatureScore);
+    const double persistentScore = ((aDiscrete ? 0.0 : tensor[edge.a].persistentFeatureScore) +
+                                    (bDiscrete ? 0.0 : tensor[edge.b].persistentFeatureScore)) /
+                                   static_cast<double>(softEndpointCount);
     analysis.maxNormalTensorPersistentScore = std::max(analysis.maxNormalTensorPersistentScore, persistentScore);
     const int requiredPersistentScales =
-        std::clamp(options.normalTensorMinPersistentScales, 1, std::max(1, options.normalTensorScaleCount));
-    const int minPersistentScales = std::min(tensor[edge.a].persistentScales, tensor[edge.b].persistentScales);
+        manumesh::clampValue(options.normalTensorMinPersistentScales, 1, std::max(1, options.normalTensorScaleCount));
+    const int minPersistentScales =
+        aDiscrete ? tensor[edge.b].persistentScales
+                  : (bDiscrete ? tensor[edge.a].persistentScales
+                               : std::min(tensor[edge.a].persistentScales, tensor[edge.b].persistentScales));
     edge.tensorPersistentScore = persistentScore;
     edge.tensorPersistentScales = minPersistentScales;
     if (minPersistentScales < requiredPersistentScales) {
         return false;
     }
     const double minEndpointScore =
-        std::min(tensor[edge.a].persistentFeatureScore, tensor[edge.b].persistentFeatureScore);
+        aDiscrete
+            ? tensor[edge.b].persistentFeatureScore
+            : (bDiscrete ? tensor[edge.a].persistentFeatureScore
+                         : std::min(tensor[edge.a].persistentFeatureScore, tensor[edge.b].persistentFeatureScore));
     if (minEndpointScore < options.normalTensorFeatureThreshold) {
         return false;
     }
-    if (tensor[edge.a].creaseSaliency < tensor[edge.a].cornerSaliency ||
-        tensor[edge.b].creaseSaliency < tensor[edge.b].cornerSaliency) {
+    if ((!aDiscrete && tensor[edge.a].creaseSaliency < tensor[edge.a].cornerSaliency) ||
+        (!bDiscrete && tensor[edge.b].creaseSaliency < tensor[edge.b].cornerSaliency)) {
         return false;
     }
 
@@ -225,9 +253,9 @@ bool normalTensorEdgeCandidate(
         return false;
     }
     direction /= length;
-    const double alignA = std::abs(direction.dot(tensor[edge.a].creaseTangent));
-    const double alignB = std::abs(direction.dot(tensor[edge.b].creaseTangent));
-    return std::max(alignA, alignB) >= options.normalTensorMinEdgeAlignment;
+    const double alignA = aDiscrete ? 1.0 : std::abs(direction.dot(tensor[edge.a].creaseTangent));
+    const double alignB = bDiscrete ? 1.0 : std::abs(direction.dot(tensor[edge.b].creaseTangent));
+    return std::min(alignA, alignB) >= options.normalTensorMinEdgeAlignment;
 }
 
 bool smoothCurvatureEdgeCandidate(
@@ -242,26 +270,37 @@ bool smoothCurvatureEdgeCandidate(
         edge.a >= static_cast<int>(curvature.size()) || edge.b >= static_cast<int>(curvature.size())) {
         return false;
     }
-    if (edge.a < static_cast<int>(discreteFeatureVertex.size()) &&
-        edge.b < static_cast<int>(discreteFeatureVertex.size()) &&
-        (discreteFeatureVertex[edge.a] || discreteFeatureVertex[edge.b])) {
+    const bool aDiscrete = edge.a < static_cast<int>(discreteFeatureVertex.size()) && discreteFeatureVertex[edge.a];
+    const bool bDiscrete = edge.b < static_cast<int>(discreteFeatureVertex.size()) && discreteFeatureVertex[edge.b];
+    if (aDiscrete && bDiscrete) {
         return false;
     }
 
     const SmoothCurvatureVertex& a = curvature[edge.a];
     const SmoothCurvatureVertex& b = curvature[edge.b];
-    analysis.maxSmoothCurvatureFeatureScore =
-        std::max(analysis.maxSmoothCurvatureFeatureScore, 0.5 * (a.featureScore + b.featureScore));
-    const double persistentScore = 0.5 * (a.persistentFeatureScore + b.persistentFeatureScore);
+    const int softEndpointCount = (aDiscrete ? 0 : 1) + (bDiscrete ? 0 : 1);
+    const double featureScore = ((aDiscrete ? 0.0 : a.featureScore) + (bDiscrete ? 0.0 : b.featureScore)) /
+                                static_cast<double>(softEndpointCount);
+    analysis.maxSmoothCurvatureFeatureScore = std::max(analysis.maxSmoothCurvatureFeatureScore, featureScore);
+    const double persistentScore =
+        ((aDiscrete ? 0.0 : a.persistentFeatureScore) + (bDiscrete ? 0.0 : b.persistentFeatureScore)) /
+        static_cast<double>(softEndpointCount);
     analysis.maxSmoothCurvaturePersistentScore = std::max(analysis.maxSmoothCurvaturePersistentScore, persistentScore);
-    const int requiredPersistentScales =
-        std::clamp(options.smoothCurvatureMinPersistentScales, 1, std::max(1, options.smoothCurvatureScaleCount));
-    const int minPersistentScales = std::min(a.persistentScales, b.persistentScales);
+    const int requiredPersistentScales = manumesh::clampValue(
+        options.smoothCurvatureMinPersistentScales, 1, std::max(1, options.smoothCurvatureScaleCount)
+    );
+    const int minPersistentScales =
+        aDiscrete ? b.persistentScales
+                  : (bDiscrete ? a.persistentScales : std::min(a.persistentScales, b.persistentScales));
+    const double minEndpointScore =
+        aDiscrete
+            ? b.persistentFeatureScore
+            : (bDiscrete ? a.persistentFeatureScore : std::min(a.persistentFeatureScore, b.persistentFeatureScore));
     edge.curvaturePersistentScore = persistentScore;
     edge.curvaturePersistentScales = minPersistentScales;
-    if (minPersistentScales < requiredPersistentScales ||
-        std::min(a.persistentFeatureScore, b.persistentFeatureScore) < options.smoothCurvatureFeatureThreshold ||
-        a.signedKind == 0 || b.signedKind == 0 || a.signedKind != b.signedKind) {
+    if (minPersistentScales < requiredPersistentScales || minEndpointScore < options.smoothCurvatureFeatureThreshold ||
+        (!aDiscrete && a.signedKind == 0) || (!bDiscrete && b.signedKind == 0) ||
+        (!aDiscrete && !bDiscrete && a.signedKind != b.signedKind)) {
         return false;
     }
 
@@ -270,14 +309,14 @@ bool smoothCurvatureEdgeCandidate(
         return false;
     }
     direction.normalize();
-    const double alignA = std::abs(direction.dot(a.curveTangent));
-    const double alignB = std::abs(direction.dot(b.curveTangent));
-    const double tangentConsistency = std::abs(a.curveTangent.dot(b.curveTangent));
+    const double alignA = aDiscrete ? 1.0 : std::abs(direction.dot(a.curveTangent));
+    const double alignB = bDiscrete ? 1.0 : std::abs(direction.dot(b.curveTangent));
+    const double tangentConsistency = aDiscrete || bDiscrete ? 1.0 : std::abs(a.curveTangent.dot(b.curveTangent));
     if (std::min(alignA, alignB) < options.smoothCurvatureMinEdgeAlignment ||
         tangentConsistency < options.smoothCurvatureMinTangentConsistency) {
         return false;
     }
-    edge.signedKind = a.signedKind;
+    edge.signedKind = aDiscrete ? b.signedKind : a.signedKind;
     return true;
 }
 
@@ -361,7 +400,7 @@ public:
     }
 };
 
-} // 匿名命名空间
+} // namespace
 
 std::vector<CandidateEdge> collectFeatureEdges(
     const Mesh& mesh, const FeatureOptions& options, FeatureDetectionCache& cache, FeatureAnalysisBuilder& builder
@@ -377,9 +416,13 @@ std::vector<CandidateEdge> collectFeatureEdges(
         &boundaryEvidence, &dihedralEvidence, &nonManifoldEvidence, &normalTensorEvidence, &smoothCurvatureEvidence
     };
 
-    for (const auto& [key, info] : context.edges) {
+    for (const auto& pairEntry : context.edges) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         CandidateEdge edge;
-        const auto [a, b] = manumesh::common::unpackMeshEdgeKey(key);
+        const std::pair<int, int> edgeVertices = manumesh::common::unpackMeshEdgeKey(key);
+        const int a = edgeVertices.first;
+        const int b = edgeVertices.second;
         edge.a = a;
         edge.b = b;
 
@@ -403,4 +446,6 @@ std::vector<CandidateEdge> collectFeatureEdges(
     return result;
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

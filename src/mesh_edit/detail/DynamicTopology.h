@@ -16,7 +16,8 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::mesh_edit {
+namespace manumesh {
+namespace mesh_edit {
 
 /** @brief 判断可编辑面是否引用指定的顶点编号。*/
 bool containsVertex(const EditableFace& face, int vertex);
@@ -52,4 +53,5 @@ int activeIncidentFaceCountForEdge(
     int a, int b, const std::vector<EditableFace>& faces, const DynamicTopology& topology
 );
 
-} // 结束 manumesh::mesh_edit 命名空间
+} // namespace mesh_edit
+} // namespace manumesh

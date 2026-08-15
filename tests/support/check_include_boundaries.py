@@ -18,12 +18,12 @@ MODULE_DEPENDENCIES = {
     "mesh_edit": frozenset({"common", "core"}),
     "io": frozenset({"core"}),
     "analysis": frozenset({"common", "core"}),
-    "feature_detection": frozenset({"common", "core"}),
+    "feature_detection": frozenset({"common", "core", "debugUtil"}),
     "simplification": frozenset(
         {"analysis", "common", "core", "feature_detection", "mesh_edit"}
     ),
     "api": frozenset({"analysis", "core", "feature_detection", "io", "simplification"}),
-    "debugUtil": frozenset({"core", "feature_detection"}),
+    "debugUtil": frozenset({"core"}),
 }
 
 INCLUDE_MODULE_PREFIXES = (

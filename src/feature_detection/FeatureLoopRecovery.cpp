@@ -14,7 +14,9 @@
 #include "detail/FeaturePrimitiveRecovery.h"
 #include "detail/FeatureTraceRecovery.h"
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 void recoverFeatureLoops(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
@@ -26,4 +28,6 @@ void recoverFeatureLoops(
     recoverCircularVertexClusters(mesh, options, trace, analysis, loopId);
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

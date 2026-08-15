@@ -17,7 +17,9 @@
 #include <cstddef>
 #include <vector>
 
-namespace manumesh::test::feature_detection {
+namespace manumesh {
+namespace test {
+namespace feature_detection {
 namespace {
 
 namespace primitive_fit = feature::primitive_fit_detail;
@@ -110,7 +112,7 @@ void momentAxes(const std::vector<double>& x, const std::vector<double>& y, doub
     minor = std::sqrt(2.0 * yy * invN);
 }
 
-} // 命名空间
+} // namespace
 
 TEST(FeatureDetectionPrimitiveFit, TaubinMatchesExactCircleUnderNonUniformSampling) {
     const double radius = 0.75;
@@ -228,4 +230,6 @@ TEST(FeatureDetectionPrimitiveFit, HalirFlusserRecoversRotatedEllipseAxes) {
     EXPECT_EQ(FeaturePrimitiveType::Ellipse, fit.primitive);
 }
 
-} // 命名空间
+} // namespace feature_detection
+} // namespace test
+} // namespace manumesh

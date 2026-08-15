@@ -40,6 +40,12 @@ def main():
         "algorithms/simplification/SimplificationTypes.h",
         "module 'feature_detection' must not depend on 'simplification'",
     )
+    check_case("src/feature_detection/Feature.cpp", "debugUtil/debugUtil.h")
+    check_case(
+        "src/debugUtil/debugUtil.cpp",
+        "algorithms/feature_detection/FeatureTypes.h",
+        "module 'debugUtil' must not depend on 'feature_detection'",
+    )
     check_case(
         "src/core/Mesh.cpp",
         "common/detail/MeshQueries.h",

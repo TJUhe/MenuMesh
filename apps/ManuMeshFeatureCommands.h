@@ -10,7 +10,9 @@
 
 #include "CliArguments.h"
 
-namespace manumesh::cli::feature_commands {
+namespace manumesh {
+namespace cli {
+namespace feature_commands {
 
 /// 输出输入网格的特征分析报告。
 int report(const Args& args);
@@ -19,4 +21,6 @@ int benchmark(const Args& args);
 /// 比较原始网格和简化网格的特征检测结果。
 int compare(const Args& args);
 
-} // namespace manumesh::cli::feature_commands
+} // namespace feature_commands
+} // namespace cli
+} // namespace manumesh

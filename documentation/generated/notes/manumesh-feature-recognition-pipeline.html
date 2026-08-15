@@ -1281,13 +1281,13 @@ for each barrier separating two patches:
 
     <h3>10. 可直接执行的命令与预期效果</h3>
     <p class="small">
-      以下结果在 2026-07-15、commit <code>789661ed</code>、
-      <code>build/codex-mingw-release/bin/manumesh.exe</code> 上复核。
-      PowerShell 中可直接从仓库根目录执行。
+      以下数值是 2026-07-15、commit <code>789661ed</code> 的历史复核快照。
+      当前从仓库根目录使用 <code>build/vs2019-release/bin/Release/manumesh.exe</code>
+      复现，构建基线为 Visual Studio 16 2019 / MSVC v142。
     </p>
 
     <h4>实验 A：干净 CAD fixture 的四个圆环和四个 surface patches</h4>
-    <pre><code>&amp; build/codex-mingw-release/bin/manumesh.exe feature-report &#96;
+    <pre><code>&amp; build/vs2019-release/bin/Release/manumesh.exe feature-report &#96;
   tests/data/feature_fixtures/coaxial_hole_plate.obj &#96;
   --min-feature-loop-vertices 6 &#96;
   --surface-patches</code></pre>
@@ -1300,12 +1300,12 @@ for each barrier separating two patches:
     </p>
 
     <h4>实验 B：打开 smooth-curvature 后观察光滑 ridge/valley</h4>
-    <pre><code>&amp; build/codex-mingw-release/bin/manumesh.exe generate &#96;
+    <pre><code>&amp; build/vs2019-release/bin/Release/manumesh.exe generate &#96;
   --type ridge --n 48 &#96;
-  --out build/codex-mingw-release/docs-feature-guide/ridge48.stl
+  --out build/vs2019-release/docs-feature-guide/ridge48.stl
 
-&amp; build/codex-mingw-release/bin/manumesh.exe feature-report &#96;
-  build/codex-mingw-release/docs-feature-guide/ridge48.stl &#96;
+&amp; build/vs2019-release/bin/Release/manumesh.exe feature-report &#96;
+  build/vs2019-release/docs-feature-guide/ridge48.stl &#96;
   --feature-angle-deg 180 &#96;
   --no-normal-tensor-features &#96;
   --smooth-curvature-features &#96;
@@ -1324,20 +1324,20 @@ for each barrier separating two patches:
     </p>
 
     <h4>实验 C：法线过滤如何减少低角度噪声硬边</h4>
-    <pre><code>&amp; build/codex-mingw-release/bin/manumesh.exe generate &#96;
+    <pre><code>&amp; build/vs2019-release/bin/Release/manumesh.exe generate &#96;
   --type noisy-plane --n 36 &#96;
-  --out build/codex-mingw-release/docs-feature-guide/noisy_plane36.stl
+  --out build/vs2019-release/docs-feature-guide/noisy_plane36.stl
 
 # 原始检测
-&amp; build/codex-mingw-release/bin/manumesh.exe feature-report &#96;
-  build/codex-mingw-release/docs-feature-guide/noisy_plane36.stl &#96;
+&amp; build/vs2019-release/bin/Release/manumesh.exe feature-report &#96;
+  build/vs2019-release/docs-feature-guide/noisy_plane36.stl &#96;
   --feature-angle-deg 15 &#96;
   --no-normal-tensor-features &#96;
   --no-feature-graph-cleanup
 
 # 过滤检测法向
-&amp; build/codex-mingw-release/bin/manumesh.exe feature-report &#96;
-  build/codex-mingw-release/docs-feature-guide/noisy_plane36.stl &#96;
+&amp; build/vs2019-release/bin/Release/manumesh.exe feature-report &#96;
+  build/vs2019-release/docs-feature-guide/noisy_plane36.stl &#96;
   --feature-angle-deg 15 &#96;
   --no-normal-tensor-features &#96;
   --feature-normal-filter &#96;
@@ -1354,12 +1354,12 @@ for each barrier separating two patches:
     </p>
 
     <h4>实验 D：圆柱被硬边切成 side + 两个 cap</h4>
-    <pre><code>&amp; build/codex-mingw-release/bin/manumesh.exe generate &#96;
+    <pre><code>&amp; build/vs2019-release/bin/Release/manumesh.exe generate &#96;
   --type cylinder --n 32 &#96;
-  --out build/codex-mingw-release/docs-feature-guide/cylinder32.stl
+  --out build/vs2019-release/docs-feature-guide/cylinder32.stl
 
-&amp; build/codex-mingw-release/bin/manumesh.exe feature-report &#96;
-  build/codex-mingw-release/docs-feature-guide/cylinder32.stl &#96;
+&amp; build/vs2019-release/bin/Release/manumesh.exe feature-report &#96;
+  build/vs2019-release/docs-feature-guide/cylinder32.stl &#96;
   --feature-angle-deg 40 &#96;
   --no-normal-tensor-features &#96;
   --surface-patches &#96;
@@ -1371,7 +1371,7 @@ for each barrier separating two patches:
     </p>
 
     <h4>实验 E：ground-truth benchmark</h4>
-    <pre><code>&amp; build/codex-mingw-release/bin/manumesh.exe feature-benchmark &#96;
+    <pre><code>&amp; build/vs2019-release/bin/Release/manumesh.exe feature-benchmark &#96;
   tests/data/feature_fixtures/coaxial_hole_plate.obj &#96;
   tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv</code></pre>
     <p>
@@ -2048,7 +2048,7 @@ flowchart TD
     <h2>15. 边界、风险和后续方向</h2>
     <h3 id="current-validation">2026-07-15 当前构建验证与可复现观察</h3>
     <p>
-      本轮使用 <code>build/codex-mingw-release</code> 完整构建。快速套件 256/256、11 个 external 和全量非性能套件 267/267 均通过，另有 1 个手工性能测试显式运行通过。以下数字是本机复核快照，不是跨平台性能或质量保证。
+      本节保留 2026-07-15 的历史验证快照：快速套件 256/256、11 个 external 和全量非性能套件 267/267 均通过，另有 1 个手工性能测试显式运行通过。当前复现使用 <code>vs2019-release</code> preset；以下数字不是跨机器性能或质量保证。
     </p>
     <table>
       <thead><tr><th>输入/命令</th><th>关键结果</th><th>说明</th></tr></thead>
@@ -2125,7 +2125,7 @@ flowchart TD
         <tr><td><span class="ref">C04</span></td><td><a href="../../../src/feature_detection/FeatureDetector.cpp">src/feature_detection/FeatureDetector.cpp:159</a></td><td>输入 mesh 几何校验入口。</td></tr>
         <tr><td><span class="ref">C05</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:1-385</a></td><td>绕向协调、有向二面角、EdgeEvidenceContext、boundary/non-manifold/dihedral/normal-tensor/smooth-curvature strategy 和候选边收集。</td></tr>
         <tr><td><span class="ref">C06</span></td><td><a href="../../../src/feature_detection/NormalTensor.cpp">src/feature_detection/NormalTensor.cpp</a></td><td>normal tensor 构造、平滑、多尺度和 persistent score。</td></tr>
-        <tr><td><span class="ref">C07</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:166-215</a></td><td><code>normalTensorEdgeCandidate</code> 的 persistence、双端 score、crease/corner 和单端方向对齐条件。</td></tr>
+        <tr><td><span class="ref">C07</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:166-215</a></td><td><code>normalTensorEdgeCandidate</code> 的 persistence、双端 score、crease/corner 和双端方向对齐条件。</td></tr>
         <tr><td><span class="ref">C08</span></td><td><a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp:115-133</a></td><td><code>markDiscreteFeatureVertices</code>，boundary/non-manifold/dihedral 强离散特征顶点标记。</td></tr>
         <tr><td><span class="ref">C09</span></td><td><a href="../../../src/common/MeshQueries.cpp">src/common/MeshQueries.cpp</a>；<a href="../../../src/feature_detection/FeatureEvidence.cpp">src/feature_detection/FeatureEvidence.cpp</a></td><td><code>common::computeOrientedDihedralAngle</code>：绕向感知角度和 convex/concave/unknown 符号；feature evidence 与 <code>WeightMode::Dihedral</code> 共用。</td></tr>
         <tr><td><span class="ref">C10</span></td><td><a href="../../../src/feature_detection/FeatureGraph.cpp">src/feature_detection/FeatureGraph.cpp:62-184</a></td><td>FeatureGraph 初始化和 TraceGraph 构建。</td></tr>

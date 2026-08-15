@@ -22,7 +22,9 @@
 #include <queue>
 #include <utility>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 using primitive_fit_detail::applyPrimitiveFit;
@@ -287,4 +289,6 @@ void recoverCircularVertexClusters(
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

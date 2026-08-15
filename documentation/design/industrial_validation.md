@@ -7,18 +7,18 @@
 ## 当前验证入口
 
 ```powershell
-$buildDir = "build/mingw-ninja-release"
-$exe = "$buildDir/bin/manumesh.exe"
+$buildDir = "build/vs2019-release"
+$exe = "$buildDir/bin/Release/manumesh.exe"
 & $exe validate-features --ratio 0.20 --samples 1000
 & $exe validate-external --ratio 0.25 --samples 800
-cmake -E chdir $buildDir ctest -LE performance --output-on-failure
+ctest --preset vs2019-release-full
 ```
 
 VS Code 中对应常用任务：
 
 - `run: feature validation`
 - `run: external validation`
-- `test: mingw+ninja release`
+- `test: vs2019 release full`
 
 ## 当前工业相关测试点
 

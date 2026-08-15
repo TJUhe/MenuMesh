@@ -16,7 +16,6 @@
 #include <iomanip>
 #include <iostream>
 #include <vector>
-
 namespace {
 
 using manumesh::test::caseFieldInt;

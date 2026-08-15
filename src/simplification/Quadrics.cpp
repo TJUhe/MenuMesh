@@ -10,6 +10,7 @@
  */
 
 #include "detail/Quadrics.h"
+#include "core/MathUtils.h"
 
 #include "common/detail/MeshQueries.h"
 
@@ -18,7 +19,8 @@
 #include <cmath>
 #include <limits>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 double evaluateQuadric(const Mat4& q, const Vec3& p) {
     Eigen::Vector4d h;
@@ -69,11 +71,15 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight, std::vector<Ma
     const std::vector<Vec3> faceNormals = common::computeFaceNormals(mesh);
 
     const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
-    for (const auto& [key, info] : edgeInfo) {
+    for (const auto& pairEntry : edgeInfo) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         if (info.faces.size() != 1) {
             continue;
         }
-        const auto [a, b] = common::unpackMeshEdgeKey(key);
+        const std::pair<int, int> endpoints = common::unpackMeshEdgeKey(key);
+        const int a = endpoints.first;
+        const int b = endpoints.second;
         const Vec3 edge = mesh.vertices[b] - mesh.vertices[a];
         if (edge.norm() <= 1e-20) {
             continue;
@@ -94,6 +100,17 @@ void computeInitialQuadrics(
     const Mesh& mesh,
     const SimplifyOptions& options,
     const FeatureGuidance& featureGuidance,
+    InitialQuadrics& initial,
+    SimplifyReport& report
+) {
+    computeInitialQuadrics(mesh, options, featureGuidance, nullptr, initial, report);
+}
+
+void computeInitialQuadrics(
+    const Mesh& mesh,
+    const SimplifyOptions& options,
+    const FeatureGuidance& featureGuidance,
+    const feature::FeatureAnalysis* precomputedFeatures,
     InitialQuadrics& initial,
     SimplifyReport& report
 ) {
@@ -154,7 +171,7 @@ void computeInitialQuadrics(
     }
 
     const FeatureWeightScores featureScores =
-        useNormalLineQuadrics ? computeFeatureWeightScores(mesh, options) : FeatureWeightScores{};
+        useNormalLineQuadrics ? computeFeatureWeightScores(mesh, options, precomputedFeatures) : FeatureWeightScores{};
     if (featureScores.normalTensorScoredVertices > 0) {
         report.normalTensorScoredVertices =
             std::max(report.normalTensorScoredVertices, featureScores.normalTensorScoredVertices);
@@ -206,7 +223,7 @@ void computeInitialQuadrics(
             }
             const double areaScale = std::max(vertexArea[i], representativeArea);
             const Mat4 qCurve = lineQuadric(mesh.vertices[i], vf.tangent);
-            const double confidenceScale = 0.35 + 0.65 * std::clamp(vf.confidence, 0.0, 1.0);
+            const double confidenceScale = 0.35 + 0.65 * manumesh::clampValue(vf.confidence, 0.0, 1.0);
             quadrics[i] += options.featureCurveWeight * confidenceScale * areaScale * qCurve;
         }
     }
@@ -242,7 +259,7 @@ std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a, 
             const Vec3 d = b - a;
             const double denom = d.dot(A * d);
             if (denom > 1e-12 * maxEval * d.squaredNorm()) {
-                const double t = std::clamp((rhs.dot(d) - d.dot(A * a)) / denom, 0.0, 1.0);
+                const double t = manumesh::clampValue((rhs.dot(d) - d.dot(A * a)) / denom, 0.0, 1.0);
                 const Vec3 alongEdge = a + t * d;
                 if (alongEdge.allFinite()) {
                     candidates.push_back(alongEdge);
@@ -288,9 +305,19 @@ InitialQuadricBuilder::InitialQuadricBuilder(const SimplifyOptions& options)
 
 InitialQuadrics
 InitialQuadricBuilder::build(const Mesh& mesh, const FeatureGuidance& featureGuidance, SimplifyReport& report) const {
+    return build(mesh, featureGuidance, nullptr, report);
+}
+
+InitialQuadrics InitialQuadricBuilder::build(
+    const Mesh& mesh,
+    const FeatureGuidance& featureGuidance,
+    const feature::FeatureAnalysis* precomputedFeatures,
+    SimplifyReport& report
+) const {
     InitialQuadrics initial;
-    computeInitialQuadrics(mesh, options_, featureGuidance, initial, report);
+    computeInitialQuadrics(mesh, options_, featureGuidance, precomputedFeatures, initial, report);
     return initial;
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

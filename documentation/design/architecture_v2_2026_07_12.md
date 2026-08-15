@@ -1,5 +1,7 @@
 # ManuMesh 架构升级蓝图 v2（2026-07-12）
 
+> 当前构建基线已经统一为 Visual Studio 16 2019 / MSVC v142。本文是带日期的架构演进记录；其中构建和验收命令均按当前 `vs2019-*` presets 执行。
+
 本文是把 ManuMesh 从"结构良好的单产品内核"推进到"商用/一流开源水准（10/10）"的架构蓝图。
 对标对象：Polygonica（商用网格内核）、OpenMesh、pmp-library、
 CGAL Polygon Mesh Processing（PMP）。
@@ -25,8 +27,9 @@ CGAL Polygon Mesh Processing（PMP）。
 >   `LoopMatchOptions` 带默认值字段，默认值等于原 CLI 硬编码值）。
 > - R5：决策表落地为 `documentation/design/error_handling_policy.md`，
 >   `include/core/Status.h` 引用该策略。
-> - R6：`src/common` 改名 `manumesh::common`（保留 `namespace detail = common;`
->   过渡别名），`manumesh::feature` 与 `algorithms/` 前缀两处"接受现状"已登记。
+> - R6：`src/common` 已改名为 `manumesh::common`，旧的
+>   `namespace detail = common;` 过渡别名已经删除；`manumesh::feature` 与
+>   `algorithms/` 前缀两处"接受现状"已登记。
 > - R7-a/b/d：扩展点协议落地为 `documentation/design/algorithm_extension_protocol.md`
 >   （7 步路径、`validateOptions` 协议、诊断字段命名规范、mesh_edit 公共化判据）。
 > - R7-c（filter/placement 编译期列表化）为第四批"锦上添花"项，**尚未实施**，
@@ -182,7 +185,7 @@ OpenMesh/pmp 的独有优势，保留并继续作为 CTest `architecture` 标签
 ## 3. 改造清单
 
 约定：工作量 S（≤半天）/ M（1–2 天）/ L（>2 天）；"验收"均隐含
-`cmake --build` + `ctest -LE "performance|external"` + `check-format` +
+`cmake --build --preset vs2019-release` + `ctest --preset vs2019-release-unit` + `check-format` +
 include boundary check 通过。
 
 ### R1（a）Metrics 拆分：通用统计上浮为 analysis 模块，CSV 留 CLI
@@ -271,7 +274,7 @@ include boundary check 通过。
      安装后的 DLL），必要时把 `tests/unit/api/` 三个文件拆出独立的
      `manumesh_sdk_tests` 目标链接 `ManuMesh::manumesh`，专测 DLL 边界。
   4. `gtest_add_tests` 全部替换为 `gtest_discover_tests(... DISCOVERY_MODE PRE_TEST)`
-     （Win + MinGW 下 PRE_TEST 避免构建期跑 exe 失败）。
+     （Windows 下 PRE_TEST 避免构建阶段提前运行尚未部署完整的 exe）。
   5. `*_external_tests.cpp` 与 `qem_parameter_industrial_tests.cpp` 中依赖
      `MANUMESH_TEST_EXTERNAL_DATA_DIR` 的用例拆到独立源文件集合，经
      `gtest_discover_tests` 的 `TEST_FILTER`/独立目标打 `external` 标签；
@@ -280,9 +283,9 @@ include boundary check 通过。
   `tests/unit/api/` 目标拆分、CI 脚本/`README.md` 中的 ctest 命令。
 - 验收：shared build 下 `manumesh_tests` 的链接输入不含任何 `src/*.cpp` 重编与
   object 拼接；`ctest -L external` 与 `-LE external` 集合互斥且并集等于原集合；
-  新增一个 `TEST()` 不改 CMake 即被发现；MSVC + MinGW 两工具链均通过。
-- 工作量 M；风险：中（MinGW/MSVC 链接行为差异、gtest DLL runtime 拷贝路径），
-  用两工具链 CI 兜底；依赖：无，且应最先做——它是 R1/R2/R3 搬迁的安全网。
+  新增一个 `TEST()` 不改 CMake 即被发现；Visual Studio 16 2019 / MSVC v142 共享与静态配置均通过。
+- 工作量 M；风险：中（共享/静态链接行为、GoogleTest 与 MSVC runtime 部署路径），
+  用 VS2019 Debug/Release/静态矩阵兜底；依赖：无，且应最先做——它是 R1/R2/R3 搬迁的安全网。
 
 ### R5（c）错误处理统一：一页决策表 + 渐进迁移
 

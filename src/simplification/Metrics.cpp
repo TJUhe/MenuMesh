@@ -11,7 +11,8 @@
 #include <iomanip>
 #include <sstream>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 MeshStats computeMeshStats(const Mesh& mesh) { return manumesh::analysis::computeMeshStats(mesh); }
 
@@ -41,4 +42,5 @@ std::string statsRowCsv(const std::string& label, const MeshStats& stats, const 
     return out.str();
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

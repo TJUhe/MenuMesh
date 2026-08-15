@@ -1742,8 +1742,8 @@ Phase 3: 增强 QEM 简化
 <div class="callout success">
 <div class="callout-title">当前仓库的落地版本</div>
 <p>当前实现已经接入轻量 normal tensor 路线:<code>computeNormalTensorFeatures()</code> 计算 one-ring 法向张量、特征值显著性和 crease 切向;<code>detectFeatureCurves()</code> 用 tensor 边补充 dihedral 阈值捕捉不到的软特征;<code>--weight-mode normal-tensor</code> 用 tensor <code>featureScore</code> 调整 line quadric 权重。为了不破坏已有圆孔 hard loop,tensor 候选边不会跨接已经有 boundary/dihedral/non-manifold 证据的离散特征顶点。</p>
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
-.\build\mingw-ninja-release\bin\manumesh.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\vs2019-release\bin\Release\manumesh.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
 </div>
 
 <!-- ===== 9 ===== -->

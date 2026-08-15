@@ -9,26 +9,25 @@
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
 
+#include "core/Filesystem.h"
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <limits>
 #include <string>
 #include <vector>
-
 namespace {
 
-std::filesystem::path writeTempFile(const std::string& name, const std::string& contents) {
-    const std::filesystem::path path = std::filesystem::temp_directory_path() / name;
+manumesh::filesystem::path writeTempFile(const std::string& name, const std::string& contents) {
+    const manumesh::filesystem::path path = manumesh::filesystem::temp_directory_path() / name;
     std::ofstream out(path, std::ios::binary);
     out << contents;
     return path;
 }
 
-std::string readFileBytes(const std::filesystem::path& path) {
+std::string readFileBytes(const manumesh::filesystem::path& path) {
     std::ifstream in(path, std::ios::binary);
     if (!in) {
         return {};
@@ -41,7 +40,7 @@ std::string readFileBytes(const std::filesystem::path& path) {
     in.seekg(0, std::ios::beg);
     std::string data(static_cast<std::size_t>(size), '\0');
     if (size > 0) {
-        in.read(data.data(), static_cast<std::streamsize>(size));
+        in.read(&data[0], static_cast<std::streamsize>(size));
     }
     return data;
 }
@@ -97,14 +96,14 @@ std::string singleAsciiStlTriangle() {
 } // 命名空间
 
 TEST(MeshIo, SuccessfulLoadsClearStaleError) {
-    const std::filesystem::path objPath = writeTempFile(
+    const manumesh::filesystem::path objPath = writeTempFile(
         "mesh_io_clear_stale_error.obj",
         "v 0 0 0\n"
         "v 1 0 0\n"
         "v 0 1 0\n"
         "f 1 2 3\n"
     );
-    const std::filesystem::path stlPath = writeTempFile("mesh_io_clear_stale_error.stl", singleAsciiStlTriangle());
+    const manumesh::filesystem::path stlPath = writeTempFile("mesh_io_clear_stale_error.stl", singleAsciiStlTriangle());
 
     manumesh::Mesh mesh;
     std::string error = "stale error";
@@ -119,12 +118,12 @@ TEST(MeshIo, SuccessfulLoadsClearStaleError) {
     EXPECT_TRUE(manumesh::loadMesh(objPath.string(), mesh, &error));
     EXPECT_TRUE(error.empty());
 
-    std::filesystem::remove(objPath);
-    std::filesystem::remove(stlPath);
+    manumesh::filesystem::remove(objPath);
+    manumesh::filesystem::remove(stlPath);
 }
 
 TEST(MeshIo, MalformedObjVertexLineIsAnErrorWithLineNumber) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_bad_vertex.obj",
         "v 0 0 0\n"
         "v 1 0\n"
@@ -136,11 +135,34 @@ TEST(MeshIo, MalformedObjVertexLineIsAnErrorWithLineNumber) {
     std::string error;
     EXPECT_FALSE(manumesh::loadObj(path.string(), mesh, &error));
     EXPECT_NE(error.find("line 2"), std::string::npos) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
+}
+
+TEST(MeshIo, ObjRejectsNonDecimalOrPartiallyParsedCoordinates) {
+    const std::vector<std::string> invalidCoordinates = {
+        "0x1p0",
+        "+0x1p0",
+        "-0x1p0",
+        "1x",
+        "1e9999",
+    };
+
+    for (std::size_t i = 0; i < invalidCoordinates.size(); ++i) {
+        const manumesh::filesystem::path path = writeTempFile(
+            "manumesh_io_invalid_coordinate_" + std::to_string(i) + ".obj",
+            "v " + invalidCoordinates[i] + " 0 0\n" + "v 1 0 0\n" + "v 0 1 0\n" + "f 1 2 3\n"
+        );
+
+        manumesh::Mesh mesh;
+        std::string error;
+        EXPECT_FALSE(manumesh::loadObj(path.string(), mesh, &error)) << invalidCoordinates[i];
+        EXPECT_NE(std::string::npos, error.find("line 1")) << error;
+        manumesh::filesystem::remove(path);
+    }
 }
 
 TEST(MeshIo, ObjAcceptsSingleComponentTextureCoordinate) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_single_vt.obj",
         "v 0 0 0\n"
         "v 1 0 0\n"
@@ -154,7 +176,7 @@ TEST(MeshIo, ObjAcceptsSingleComponentTextureCoordinate) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     ASSERT_EQ(1u, mesh.faceTexCoords.size());
     ASSERT_TRUE(mesh.faceTexCoords[0].valid);
@@ -167,7 +189,7 @@ TEST(MeshIo, ObjAcceptsSingleComponentTextureCoordinate) {
 }
 
 TEST(MeshIo, ObjResolvesNegativeIndices) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_negative_indices.obj",
         "v 0 0 0\n"
         "v 1 0 0\n"
@@ -178,7 +200,7 @@ TEST(MeshIo, ObjResolvesNegativeIndices) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     ASSERT_EQ(1u, mesh.faces.size());
     EXPECT_EQ(0, mesh.faces[0].v[0]);
@@ -188,7 +210,7 @@ TEST(MeshIo, ObjResolvesNegativeIndices) {
 }
 
 TEST(MeshIo, ObjParsesAllFaceCornerFormats) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_corner_formats.obj",
         "# a comment line\n"
         "v 0 0 0\n"
@@ -211,7 +233,7 @@ TEST(MeshIo, ObjParsesAllFaceCornerFormats) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     ASSERT_EQ(4u, mesh.faces.size());
     ASSERT_EQ(4u, mesh.faceTexCoords.size());
@@ -224,7 +246,7 @@ TEST(MeshIo, ObjParsesAllFaceCornerFormats) {
 }
 
 TEST(MeshIo, ObjFanTriangulatesConvexPolygons) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_polygon_fan.obj",
         "v 0 0 0\n"
         "v 2 0 0\n"
@@ -237,7 +259,7 @@ TEST(MeshIo, ObjFanTriangulatesConvexPolygons) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     ASSERT_EQ(3u, mesh.faces.size());
     EXPECT_EQ(5u, mesh.vertices.size());
@@ -250,7 +272,7 @@ TEST(MeshIo, ObjFanTriangulatesConvexPolygons) {
 }
 
 TEST(MeshIo, ObjEarClipsConcavePolygonsWithoutOverlappingFanTriangles) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_concave_polygon.obj",
         "v 0 0 0\n"
         "v 2 0 0\n"
@@ -263,7 +285,7 @@ TEST(MeshIo, ObjEarClipsConcavePolygonsWithoutOverlappingFanTriangles) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     ASSERT_EQ(3u, mesh.faces.size());
     double triangleArea = 0.0;
@@ -279,7 +301,7 @@ TEST(MeshIo, ObjEarClipsConcavePolygonsWithoutOverlappingFanTriangles) {
 }
 
 TEST(MeshIo, ObjPreservesPerCornerTextureCoordinatesThroughConcaveEarClipping) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_concave_polygon_uv.obj",
         "v 0 0 0\n"
         "v 2 0 0\n"
@@ -297,7 +319,7 @@ TEST(MeshIo, ObjPreservesPerCornerTextureCoordinatesThroughConcaveEarClipping) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     ASSERT_EQ(3u, mesh.faces.size());
     ASSERT_EQ(mesh.faces.size(), mesh.faceTexCoords.size());
@@ -311,7 +333,7 @@ TEST(MeshIo, ObjPreservesPerCornerTextureCoordinatesThroughConcaveEarClipping) {
 }
 
 TEST(MeshIo, ObjRejectsSelfIntersectingAndRepeatedPolygonFaces) {
-    const std::filesystem::path selfIntersecting = writeTempFile(
+    const manumesh::filesystem::path selfIntersecting = writeTempFile(
         "manumesh_io_self_intersecting_polygon.obj",
         "v 0 0 0\n"
         "v 2 2 0\n"
@@ -323,9 +345,9 @@ TEST(MeshIo, ObjRejectsSelfIntersectingAndRepeatedPolygonFaces) {
     std::string error;
     EXPECT_FALSE(manumesh::loadObj(selfIntersecting.string(), mesh, &error));
     EXPECT_NE(std::string::npos, error.find("self-intersecting"));
-    std::filesystem::remove(selfIntersecting);
+    manumesh::filesystem::remove(selfIntersecting);
 
-    const std::filesystem::path repeated = writeTempFile(
+    const manumesh::filesystem::path repeated = writeTempFile(
         "manumesh_io_repeated_polygon_corner.obj",
         "v 0 0 0\n"
         "v 2 0 0\n"
@@ -336,11 +358,11 @@ TEST(MeshIo, ObjRejectsSelfIntersectingAndRepeatedPolygonFaces) {
     error.clear();
     EXPECT_FALSE(manumesh::loadObj(repeated.string(), mesh, &error));
     EXPECT_NE(std::string::npos, error.find("repeats a corner position"));
-    std::filesystem::remove(repeated);
+    manumesh::filesystem::remove(repeated);
 }
 
 TEST(MeshIo, ObjPreservesTextureCoordinatesThroughFanTriangulation) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_uv_roundtrip.obj",
         "v 0 0 0\n"
         "v 1 0 0\n"
@@ -356,7 +378,7 @@ TEST(MeshIo, ObjPreservesTextureCoordinatesThroughFanTriangulation) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     ASSERT_EQ(2u, mesh.faces.size());
     ASSERT_EQ(2u, mesh.faceTexCoords.size());
@@ -375,7 +397,7 @@ TEST(MeshIo, ObjPreservesTextureCoordinatesThroughFanTriangulation) {
 }
 
 TEST(MeshIo, LoadStlClearsStaleTextureCoordinates) {
-    const std::filesystem::path path = writeTempFile("manumesh_io_stale_uv.stl", singleAsciiStlTriangle());
+    const manumesh::filesystem::path path = writeTempFile("manumesh_io_stale_uv.stl", singleAsciiStlTriangle());
 
     manumesh::Mesh mesh;
     manumesh::FaceTexCoords stale;
@@ -384,7 +406,7 @@ TEST(MeshIo, LoadStlClearsStaleTextureCoordinates) {
 
     std::string error;
     ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     EXPECT_EQ(1u, mesh.faces.size());
     EXPECT_TRUE(mesh.faceTexCoords.empty());
@@ -393,23 +415,23 @@ TEST(MeshIo, LoadStlClearsStaleTextureCoordinates) {
 
 TEST(MeshIo, TruncatedBinaryStlReportsBinaryError) {
     const std::vector<std::array<float, 9>> triangles = {{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}};
-    const std::filesystem::path path = writeTempFile("manumesh_io_truncated.stl", makeBinaryStl(2, triangles, 0));
+    const manumesh::filesystem::path path = writeTempFile("manumesh_io_truncated.stl", makeBinaryStl(2, triangles, 0));
 
     manumesh::Mesh mesh;
     std::string error;
     EXPECT_FALSE(manumesh::loadStl(path.string(), mesh, &error));
     EXPECT_NE(error.find("binary"), std::string::npos) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 }
 
 TEST(MeshIo, BinaryStlWithTrailingPaddingLoads) {
     const std::vector<std::array<float, 9>> triangles = {{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}};
-    const std::filesystem::path path = writeTempFile("manumesh_io_padded.stl", makeBinaryStl(1, triangles, 6));
+    const manumesh::filesystem::path path = writeTempFile("manumesh_io_padded.stl", makeBinaryStl(1, triangles, 6));
 
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     EXPECT_EQ(1u, mesh.faces.size());
     EXPECT_EQ(3u, mesh.vertices.size());
@@ -425,7 +447,7 @@ TEST(MeshIo, BinaryStlRoundTripUsesStandardLayout) {
     };
     mesh.faces = {{{0, 1, 2}}, {{1, 3, 2}}};
 
-    const std::filesystem::path path = std::filesystem::temp_directory_path() / "manumesh_io_roundtrip.stl";
+    const manumesh::filesystem::path path = manumesh::filesystem::temp_directory_path() / "manumesh_io_roundtrip.stl";
     std::string error;
     ASSERT_TRUE(manumesh::saveBinaryStl(path.string(), mesh, &error)) << error;
 
@@ -438,7 +460,7 @@ TEST(MeshIo, BinaryStlRoundTripUsesStandardLayout) {
 
     manumesh::Mesh loaded;
     ASSERT_TRUE(manumesh::loadStl(path.string(), loaded, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     EXPECT_EQ(mesh.faces.size(), loaded.faces.size());
     EXPECT_EQ(mesh.vertices.size(), loaded.vertices.size());
@@ -455,14 +477,14 @@ TEST(MeshIo, BinaryStlRoundTripsThroughUtf8WindowsPath) {
     };
     mesh.faces = {{{0, 1, 2}}};
 
-    const std::filesystem::path path =
-        std::filesystem::temp_directory_path() / std::filesystem::u8path("manumesh_路径_🚀.stl");
+    const manumesh::filesystem::path path =
+        manumesh::filesystem::temp_directory_path() / manumesh::filesystem::u8path("manumesh_路径_🚀.stl");
     const std::string utf8Path = path.u8string();
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     std::string error;
     ASSERT_TRUE(manumesh::saveBinaryStl(utf8Path, mesh, &error)) << error;
-    ASSERT_TRUE(std::filesystem::exists(path));
+    ASSERT_TRUE(manumesh::filesystem::exists(path));
 
     manumesh::Mesh loaded;
     ASSERT_TRUE(manumesh::loadStl(utf8Path, loaded, &error)) << error;
@@ -480,16 +502,17 @@ TEST(MeshIo, BinaryStlRejectsCoordinatesOutsideFloat32RangeBeforeOpeningFile) {
     };
     mesh.faces = {{{0, 1, 2}}};
 
-    const std::filesystem::path path = std::filesystem::temp_directory_path() / "manumesh_io_outside_float_range.stl";
-    std::filesystem::remove(path);
+    const manumesh::filesystem::path path =
+        manumesh::filesystem::temp_directory_path() / "manumesh_io_outside_float_range.stl";
+    manumesh::filesystem::remove(path);
     std::string error;
     EXPECT_FALSE(manumesh::saveBinaryStl(path.string(), mesh, &error));
     EXPECT_NE(std::string::npos, error.find("float32")) << error;
-    EXPECT_FALSE(std::filesystem::exists(path));
+    EXPECT_FALSE(manumesh::filesystem::exists(path));
 }
 
 TEST(MeshIo, LargeCoordinatesDoNotOverflowVertexMerging) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_large_coords.stl",
         "solid big\n"
         "  facet normal 0 0 1\n"
@@ -514,14 +537,14 @@ TEST(MeshIo, LargeCoordinatesDoNotOverflowVertexMerging) {
     // 相对 epsilon 为零时会触发绝对 1e-12 量化下限；过去这会使坐标/epsilon
     // 的比值远超 long long 可表示范围。
     ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error, 0.0)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     EXPECT_EQ(2u, mesh.faces.size());
     EXPECT_EQ(4u, mesh.vertices.size());
 }
 
 TEST(MeshIo, FiniteCoordinatesRemainDistinctWhenBoundingBoxNormOverflows) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_overflowing_bbox_norm.stl",
         "solid huge\n"
         "  facet normal 0 0 1\n"
@@ -537,14 +560,14 @@ TEST(MeshIo, FiniteCoordinatesRemainDistinctWhenBoundingBoxNormOverflows) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     EXPECT_EQ(1u, mesh.faces.size());
     EXPECT_EQ(3u, mesh.vertices.size());
 }
 
 TEST(MeshIo, StlVertexMergingSearchesAdjacentQuantizationBuckets) {
-    const std::filesystem::path path = writeTempFile(
+    const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_adjacent_merge_buckets.stl",
         "solid adjacent\n"
         "  facet normal 0 0 1\n"
@@ -567,7 +590,7 @@ TEST(MeshIo, StlVertexMergingSearchesAdjacentQuantizationBuckets) {
     manumesh::Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error, 0.01)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
 
     EXPECT_EQ(2u, mesh.faces.size());
     EXPECT_EQ(4u, mesh.vertices.size());
@@ -575,7 +598,7 @@ TEST(MeshIo, StlVertexMergingSearchesAdjacentQuantizationBuckets) {
 }
 
 TEST(MeshIo, StlVertexMergingIsInvariantToLargeTranslation) {
-    const std::filesystem::path originPath = writeTempFile(
+    const manumesh::filesystem::path originPath = writeTempFile(
         "manumesh_io_translation_origin.stl",
         "solid square\n"
         "  facet normal 0 0 1\n"
@@ -594,7 +617,7 @@ TEST(MeshIo, StlVertexMergingIsInvariantToLargeTranslation) {
         "  endfacet\n"
         "endsolid square\n"
     );
-    const std::filesystem::path translatedPath = writeTempFile(
+    const manumesh::filesystem::path translatedPath = writeTempFile(
         "manumesh_io_translation_1e12.stl",
         "solid square\n"
         "  facet normal 0 0 1\n"
@@ -644,12 +667,12 @@ TEST(MeshIo, StlVertexMergingIsInvariantToLargeTranslation) {
         }
     }
 
-    std::filesystem::remove(originPath);
-    std::filesystem::remove(translatedPath);
+    manumesh::filesystem::remove(originPath);
+    manumesh::filesystem::remove(translatedPath);
 }
 
 TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
-    const std::filesystem::path objPath = std::filesystem::temp_directory_path() / "mesh_io_bad_face.obj";
+    const manumesh::filesystem::path objPath = manumesh::filesystem::temp_directory_path() / "mesh_io_bad_face.obj";
     {
         std::ofstream out(objPath);
         out << "v 0 0 0\n";
@@ -662,10 +685,10 @@ TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
     std::string error;
     EXPECT_FALSE(manumesh::loadObj(objPath.string(), mesh, &error));
     EXPECT_FALSE(error.empty());
-    std::filesystem::remove(objPath);
+    manumesh::filesystem::remove(objPath);
 
-    const std::filesystem::path degenerateStlPath =
-        std::filesystem::temp_directory_path() / "mesh_io_degenerate_only.stl";
+    const manumesh::filesystem::path degenerateStlPath =
+        manumesh::filesystem::temp_directory_path() / "mesh_io_degenerate_only.stl";
     {
         std::ofstream out(degenerateStlPath);
         out << "solid degenerate\n";
@@ -681,13 +704,14 @@ TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {
     error.clear();
     EXPECT_FALSE(manumesh::loadStl(degenerateStlPath.string(), mesh, &error));
     EXPECT_FALSE(error.empty());
-    std::filesystem::remove(degenerateStlPath);
+    manumesh::filesystem::remove(degenerateStlPath);
 
     manumesh::Mesh invalid;
     invalid.vertices = {manumesh::Vec3(0.0, 0.0, 0.0)};
     invalid.faces = {{{0, 1, 2}}};
     error.clear();
-    const std::filesystem::path stlPath = std::filesystem::temp_directory_path() / "mesh_io_invalid_indices.stl";
+    const manumesh::filesystem::path stlPath =
+        manumesh::filesystem::temp_directory_path() / "mesh_io_invalid_indices.stl";
     EXPECT_FALSE(manumesh::saveBinaryStl(stlPath.string(), invalid, &error));
     EXPECT_FALSE(error.empty());
 

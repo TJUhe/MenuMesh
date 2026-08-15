@@ -8,10 +8,12 @@
 
 #pragma once
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 
 /// 校验全局参数，分发一个命令并转换异常。
 /// @return 成功返回 0；用法或操作失败返回非零值。
-int run(int argc, char** argv);
+int run(int argc, const char* const* argv);
 
-} // 命令行命名空间
+} // namespace cli
+} // namespace manumesh

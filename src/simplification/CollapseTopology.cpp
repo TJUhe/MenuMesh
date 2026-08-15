@@ -16,7 +16,8 @@
 #include <cstdint>
 #include <unordered_set>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 /** @brief 构成一个单纯形活动链接的顶点集合和边集合。*/
@@ -213,4 +214,5 @@ bool collapseWouldPreserveLinkCondition(
            !endpointLinksShareEdge(keepLink, removeLink);
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

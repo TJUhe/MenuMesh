@@ -12,7 +12,9 @@
 #include "FeatureDetectionTypes.h"
 #include "algorithms/feature_detection/FeatureTypes.h"
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 查找经过高阶顶点且满足图元拟合条件的特征环。
@@ -28,4 +30,6 @@ void recoverSmallCycleBasis(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
 );
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

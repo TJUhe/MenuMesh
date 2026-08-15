@@ -13,7 +13,9 @@
 
 #include <vector>
 
-namespace manumesh::feature::primitive_fit_detail {
+namespace manumesh {
+namespace feature {
+namespace primitive_fit_detail {
 
 /**
  * @brief 保存平面、圆和椭圆拟合的内部结果。
@@ -63,4 +65,6 @@ DirectionalCurveError measureLoopAgainstCircle(
     const Mesh& mesh, const FeatureLoop& loop, const Vec3& center, const Vec3& normalIn, double radius
 );
 
-} // 命名空间 manumesh::feature::primitive_fit_detail
+} // namespace primitive_fit_detail
+} // namespace feature
+} // namespace manumesh

@@ -17,7 +17,9 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 using manumesh::common::kPi;
 
@@ -106,7 +108,10 @@ enum class RecoveredCycleKind {
 class FeatureAnalysisBuilder {
 public:
     /** @brief 为网格中的每个顶点分配一个公共特征记录。 */
-    explicit FeatureAnalysisBuilder(int vertexCount) { analysis_.vertices.assign(vertexCount, VertexFeature{}); }
+    explicit FeatureAnalysisBuilder(int vertexCount) {
+        analysis_.vertices.assign(static_cast<std::size_t>(vertexCount), VertexFeature{});
+        analysis_.graph.vertices.assign(static_cast<std::size_t>(vertexCount), FeatureGraphVertex{});
+    }
 
     /** @brief 返回当前正在累积的分析结果。 */
     FeatureAnalysis& analysis() { return analysis_; }
@@ -146,4 +151,6 @@ private:
     int nextLoopId_ = 0;
 };
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

@@ -16,7 +16,8 @@
 #include <unordered_set>
 #include <vector>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 
 /**
  * @brief 一个均匀网格单元的整数坐标。
@@ -102,10 +103,5 @@ private:
     mutable std::uint32_t queryStamp_ = 0;
 };
 
-} // 命名空间 manumesh::common
-
-namespace manumesh {
-// 过渡别名：manumesh::detail 已重命名为 manumesh::common
-// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
-namespace detail = common;
-} // 命名空间 manumesh
+} // namespace common
+} // namespace manumesh

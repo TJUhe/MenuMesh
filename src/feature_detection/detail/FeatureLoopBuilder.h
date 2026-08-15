@@ -17,7 +17,9 @@
 #include <unordered_set>
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 由环的无向边排序键构成的、与方向无关的环标识。
@@ -82,4 +84,6 @@ bool addRecoveredCycle(
     int& loopId
 );
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

@@ -19,7 +19,8 @@
 #include <unordered_set>
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 /** @brief 局部折叠重写生成的新三角形顶点位置。*/
@@ -231,7 +232,9 @@ CollapseRejectReason checkLocalIntersections(
 
     const bool useSpatialCandidates = input.spatialIndex && input.spatialIndex->enabled();
     for (const NewTriangle& tri : newTriangles) {
-        auto [triLo, triHi] = manumesh::common::triangleAabb(tri.p, 0.0);
+        const std::pair<Vec3, Vec3> bounds = manumesh::common::triangleAabb(tri.p, 0.0);
+        Vec3 triLo = bounds.first;
+        Vec3 triHi = bounds.second;
         // 用与谓词相同的相对松弛量扩展空间查询窗口（长度维度为 eps * 局部尺度）。
         const double pad = kRelativeIntersectionEps * (triHi - triLo).maxCoeff();
         triLo -= Vec3::Constant(pad);
@@ -261,9 +264,13 @@ CollapseRejectReason checkLocalIntersections(
     return CollapseRejectReason::None;
 }
 
-} // 结束匿名命名空间
+} // namespace
 
 CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input) {
+    if (!input.newPosition.allFinite()) {
+        return CollapseRejectReason::Topology;
+    }
+
     std::vector<NewTriangle> newTriangles;
     std::vector<OldTriangle> oldTriangles;
     std::vector<Vec3> localReferencePoints;
@@ -292,4 +299,5 @@ CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& 
     return CollapseRejectReason::None;
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -679,7 +679,7 @@ img, svg, canvas, video {
       </div>
       <div class="top-actions" aria-label="Document metadata">
         <span class="pill">Version 0.1.0</span>
-        <span class="pill">C++17 SDK</span>
+        <span class="pill">C++14 SDK</span>
         <span class="pill">2026-07-12</span>
       </div>
     </div>
@@ -782,7 +782,7 @@ img, svg, canvas, video {
         <div class="hero-banner">
           <h2>ManuMesh Commercial Kernel Documentation</h2>
           <p>
-            ManuMesh is a C++17 faceted mesh geometry kernel focused on
+            ManuMesh is a C++14 faceted mesh geometry kernel focused on
             additive-manufacturing mesh analysis and constrained mesh
             simplification. This guide is written as a delivery document for SDK
             consumers, integrators, QA engineers, and kernel developers.
@@ -910,7 +910,7 @@ img, svg, canvas, video {
               Owns STL/OBJ loading and ASCII STL export through
               <code>include/io/MeshIo.h</code>, keeping file format parsing out
               of core mesh data structures. 解析器本轮重写：
-              <code>std::from_chars</code> 数值解析、缓冲扫描、ASCII/二进制 STL
+              固定 C locale 的 <code>_strtod_l</code>、有界整数解析、缓冲扫描、ASCII/二进制 STL
               探测（含三角形数预读）与加固的解析失败错误信息。
             </p>
           </div>
@@ -1012,7 +1012,7 @@ img, svg, canvas, video {
             </tr>
             <tr>
               <td><code>src/common/detail</code></td>
-              <td>Internal reusable mesh queries and math constants. 内部命名空间已由 <code>manumesh::detail</code> 改名为 <code>manumesh::common</code>（保留 <code>namespace detail = common</code> 过渡别名一个 minor 版本）；这是内部层，不影响公共 API。</td>
+              <td>Internal reusable mesh queries and math constants. 内部命名空间已由 <code>manumesh::detail</code> 改名为 <code>manumesh::common</code>，旧的 <code>namespace detail = common</code> 过渡别名已经删除；这是内部层，不影响公共 API。</td>
               <td>Private implementation</td>
             </tr>
             <tr>
@@ -2059,44 +2059,28 @@ manumesh::feature::LoopMatchReport report =
         <h2>9. Build And Packaging</h2>
         <p>
           ManuMesh uses CMake and supports static or shared library builds. The
-          recommended Windows development profile is MinGW + Ninja or a fully
-          initialized Visual Studio developer environment.
+          supported Windows development baseline is Visual Studio 16 2019 with
+          the x64 MSVC v142 toolset.
         </p>
-        <h3>MinGW + Ninja</h3>
-        <pre><code>cmake -S . -B build/mingw-release -G Ninja ^
-  -DCMAKE_BUILD_TYPE=Release ^
-  -DCMAKE_C_COMPILER=gcc ^
-  -DCMAKE_CXX_COMPILER=g++ ^
-  -DMANUMESH_EIGEN_PROVIDER=vendored ^
-  -DMANUMESH_GOOGLETEST_PROVIDER=source
-
-cmake --build build/mingw-release --parallel
-ctest --test-dir build/mingw-release -LE "performance|external" --output-on-failure</code></pre>
+        <h3>Visual Studio 2019 / v142 Presets</h3>
+        <pre><code>cmake --preset vs2019-release
+cmake --build --preset vs2019-release --parallel
+ctest --preset vs2019-release-unit</code></pre>
         <p>
-          <code>-LE "performance|external"</code> 是快速套件（256 个启用用例，另有 1 个 disabled 手工性能测试）；<code>-LE performance</code> 追加 11 个 external 大网格用例（共 267 个启用用例）。
+          <code>vs2019-release-unit</code> 是快速套件（256 个启用用例，另有 1 个 disabled 手工性能测试）；<code>vs2019-release-full</code> 追加 11 个 external 大网格用例（共 267 个启用用例）。
         </p>
         <h3>SDK Install Layout</h3>
-        <pre><code>cmake -S . -B build/sdk-release -G Ninja ^
-  -DCMAKE_BUILD_TYPE=Release ^
-  -DCMAKE_C_COMPILER=gcc ^
-  -DCMAKE_CXX_COMPILER=g++ ^
-  -DMANUMESH_ENABLE_INSTALL=ON ^
-  -DMANUMESH_INSTALL_CMAKE_CONFIG=ON
-
-cmake --build build/sdk-release --target sdk-consumer-test --parallel</code></pre>
+        <pre><code>cmake --preset vs2019-release-sdk
+cmake --build --preset vs2019-release-sdk --target sdk-consumer-test --parallel
+ctest --preset vs2019-release-sdk</code></pre>
         <h3>Optional Debug HTML Wireframe</h3>
         <p>
           <code>MANUMESH_ENABLE_DEBUG_UTIL</code> builds a private Debug-only
           HTML wireframe helper for local algorithm inspection. It should not be
           enabled for SDK delivery, release packaging, or acceptance evidence.
         </p>
-        <pre><code>cmake -S . -B build/mingw-debug-debugutil -G Ninja ^
-  -DCMAKE_BUILD_TYPE=Debug ^
-  -DCMAKE_C_COMPILER=gcc ^
-  -DCMAKE_CXX_COMPILER=g++ ^
-  -DMANUMESH_ENABLE_DEBUG_UTIL=ON
-
-cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></pre>
+        <pre><code>DebugUtil is temporarily disabled in the repository workflow.
+Use the regular vs2019-debug preset and inspect FeatureAnalysis/metrics instead.</code></pre>
         <p>
           The internal macros <code>MANUMESH_DEBUG_UTIL_WIREFRAME</code>,
           <code>MANUMESH_DEBUG_UTIL_EDGE</code>,
@@ -2143,10 +2127,12 @@ cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></p
           generated STL files.
         </p>
         <h3>Regression Gate</h3>
-        <pre><code>cmake --build build/audit-mingw --target unit-tests --parallel</code></pre>
+        <pre><code>cmake --preset vs2019-release
+cmake --build --preset vs2019-release --parallel
+ctest --preset vs2019-release-full</code></pre>
         <div class="success note">
-          Latest local audit on 2026-07-15: 258 / 258 enabled non-performance tests
-          passed with the MinGW + Ninja release configuration (fast suite
+          Historical local audit snapshot from 2026-07-15: 258 / 258 enabled non-performance tests
+          passed in the then-current release configuration (fast suite
           <code>-LE "performance|external"</code>: 247 / 247; external: 11 / 11;
           performance build: 4 / 4). 2026-07-12
           起，下述新能力测试已注册进同一 <code>unit-tests</code>
@@ -2194,7 +2180,7 @@ cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></p
           <code>feature-report</code>、<code>feature-benchmark</code>、
           <code>feature-compare</code> 与 <code>simplify</code> 暴露 smooth/stable-scale、normal-filter 和 consolidation 参数；feature-analysis 另有 surface-patch 参数。stdout/CSV 包含 stability/filter/consolidation/junction/patch 与既有 winding/cleanup/recovery 字段：
         </p>
-        <pre><code>build/audit-mingw/bin/manumesh.exe feature-report input.stl --csv report.csv ^
+        <pre><code>build/vs2019-release/bin/Release/manumesh.exe feature-report input.stl --csv report.csv ^
   --smooth-curvature-features ^
   --smooth-curvature-threshold 0.015 ^
   --smooth-curvature-edge-alignment 0.55 ^
@@ -2207,7 +2193,7 @@ cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></p
   --feature-normal-filter ^
   --feature-graph-consolidation ^
   --surface-patches</code></pre>
-        <pre><code>build/audit-mingw/bin/manumesh.exe simplify input.obj output.stl --ratio 0.5 ^
+        <pre><code>build/vs2019-release/bin/Release/manumesh.exe simplify input.obj output.stl --ratio 0.5 ^
   --smooth-curvature-features ^
   --smooth-curvature-threshold 0.015 ^
   --feature-graph-min-weak-spur-strength 0.02 ^
@@ -2220,7 +2206,7 @@ cmake --build build/mingw-debug-debugutil --target manumesh --parallel</code></p
           套件与 <code>examples/sdk_consumer/sdk_cpp_simplify.cpp</code> 示例。
         </div>
         <h3>External Model Gate</h3>
-        <pre><code>build/audit-mingw/bin/manumesh.exe validate-external --ratio 0.25 --samples 800</code></pre>
+        <pre><code>build/vs2019-release/bin/Release/manumesh.exe validate-external --ratio 0.25 --samples 800</code></pre>
         <p>
           This command generates simplified STL outputs and metrics under
           <code>tests/output/external_model_validation</code>. Review at least:

@@ -1,7 +1,7 @@
 ---
 Language: Cpp
 BasedOnStyle: LLVM
-Standard: c++17
+Standard: c++14
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
@@ -28,6 +28,7 @@ AllowShortLambdasOnASingleLine: None
 
 BreakStringLiterals: false
 ReflowComments: false
+FixNamespaceComments: false
 
 IndentAccessModifiers: false
 AccessModifierOffset: -4

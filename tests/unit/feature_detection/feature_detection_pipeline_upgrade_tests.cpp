@@ -21,7 +21,8 @@
 #include <cmath>
 #include <vector>
 
-namespace manumesh::tests {
+namespace manumesh {
+namespace tests {
 namespace analytic = manumesh::test::analytic;
 namespace {
 
@@ -71,7 +72,7 @@ void addWeakEdge(
     feature::detector_detail::addTraceGraphEdge(trace, analysis, edge);
 }
 
-} // 命名空间
+} // namespace
 
 TEST(FeatureDetectionUpgrade, NormalFilterStabilizesNoisyNormalsAndPreservesRims) {
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 12, 1.0, 2.0, true);
@@ -104,6 +105,47 @@ TEST(FeatureDetectionUpgrade, NormalFilterStabilizesNoisyNormalsAndPreservesRims
         feature::benchmarkFeatureEdges(analysis, cylinder.groundTruthFeatureEdges());
     EXPECT_EQ(4, analysis.normalFilter.iterationsCompleted);
     EXPECT_GE(benchmark.edgeRecall, 0.95);
+}
+
+TEST(FeatureDetectionUpgrade, NormalTensorConsumesFilteredFaceNormalsFromTheSharedCache) {
+    const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 12, 1.0, 2.0, true);
+    const Mesh noisy =
+        analytic::withDeterministicNoise(cylinder.mesh, 0.08 * analytic::meanEdgeLength(cylinder.mesh), 20260715u);
+
+    feature::FeatureNormalFilterOptions filterOptions;
+    filterOptions.enabled = true;
+    filterOptions.iterations = 4;
+    filterOptions.angleSigmaDeg = 18.0;
+    filterOptions.preserveAngleDeg = 55.0;
+
+    feature::NormalTensorOptions tensorOptions;
+    tensorOptions.smoothingIterations = 1;
+    tensorOptions.scaleCount = 3;
+
+    feature::detector_detail::FeatureDetectionCache rawCache(noisy);
+    feature::detector_detail::FeatureDetectionCache filteredCache(noisy, filterOptions);
+    const std::vector<feature::NormalTensorVertex> raw =
+        feature::detector_detail::computeNormalTensorFeaturesCached(noisy, rawCache, tensorOptions, 0.02);
+    const std::vector<feature::NormalTensorVertex> filtered =
+        feature::detector_detail::computeNormalTensorFeaturesCached(noisy, filteredCache, tensorOptions, 0.02);
+
+    ASSERT_EQ(raw.size(), filtered.size());
+    double maxScoreDelta = 0.0;
+    for (std::size_t i = 0; i < raw.size(); ++i) {
+        maxScoreDelta =
+            std::max(maxScoreDelta, std::abs(raw[i].persistentFeatureScore - filtered[i].persistentFeatureScore));
+    }
+    EXPECT_GT(filteredCache.normalFilterReport().changedFaces, 0);
+    EXPECT_GT(maxScoreDelta, 1e-8);
+
+    tensorOptions.normalFilter = filterOptions;
+    const std::vector<feature::NormalTensorVertex> publicFiltered =
+        feature::computeNormalTensorFeatures(noisy, tensorOptions, 0.02);
+    ASSERT_EQ(filtered.size(), publicFiltered.size());
+    for (std::size_t i = 0; i < filtered.size(); ++i) {
+        EXPECT_NEAR(filtered[i].persistentFeatureScore, publicFiltered[i].persistentFeatureScore, 1e-12);
+        EXPECT_NEAR(filtered[i].localScale, publicFiltered[i].localScale, 1e-12);
+    }
 }
 
 TEST(FeatureDetectionUpgrade, StableScaleSelectionReportsPersistentReferenceScale) {
@@ -238,6 +280,15 @@ TEST(FeatureDetectionUpgrade, CappedCylinderPartitionsIntoSideAndCapPatches) {
     ASSERT_EQ(3u, analysis.patches.size());
     EXPECT_EQ(3, analysis.closedSurfacePatches);
     EXPECT_EQ(2u, analysis.patchAdjacencies.size());
+    const auto sidePatch = std::max_element(
+        analysis.patches.begin(),
+        analysis.patches.end(),
+        [](const feature::FeaturePatch& lhs, const feature::FeaturePatch& rhs) {
+            return lhs.faceCount < rhs.faceCount;
+        }
+    );
+    ASSERT_NE(analysis.patches.end(), sidePatch);
+    EXPECT_TRUE(sidePatch->normal.isApprox(Vec3(0.0, 0.0, 1.0), 1e-12));
     for (const feature::FeaturePatch& patch : analysis.patches) {
         EXPECT_GT(patch.faceCount, 0);
         EXPECT_TRUE(patch.closed);
@@ -271,6 +322,9 @@ TEST(FeatureDetectionUpgrade, PatchBenchmarkDoesNotRewardMissingPredictions) {
     };
 
     feature::FeatureAnalysis analysis;
+    analysis.source = feature::featureAnalysisSource(mesh);
+    analysis.vertices.resize(mesh.vertices.size());
+    analysis.graph.vertices.resize(mesh.vertices.size());
     feature::FeatureBenchmarkLabels labels;
     labels.facePatchIds = {0, 1};
     const feature::FeatureEdgeBenchmark benchmark = feature::benchmarkFeatureAnalysis(mesh, analysis, labels);
@@ -298,6 +352,11 @@ TEST(FeatureDetectionUpgrade, RejectsInvalidUpgradeOptions) {
     feature::FeatureNormalFilterOptions filterOptions;
     filterOptions.iterations = feature::kMaxFeatureNormalFilterIterations + 1;
     EXPECT_THROW(feature::filterFeatureNormals(mesh, filterOptions), std::invalid_argument);
+
+    feature::NormalTensorOptions tensorOptions;
+    tensorOptions.normalFilter = filterOptions;
+    EXPECT_THROW(feature::computeNormalTensorFeatures(mesh, tensorOptions), std::invalid_argument);
 }
 
-} // 命名空间
+} // namespace tests
+} // namespace manumesh

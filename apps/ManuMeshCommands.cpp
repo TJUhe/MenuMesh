@@ -19,8 +19,8 @@
 #include "core/MeshGenerators.h"
 #include "io/MeshIo.h"
 
+#include "core/Filesystem.h"
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
 #include <initializer_list>
 #include <iomanip>
@@ -33,8 +33,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace fs = std::filesystem;
-
+namespace fs = manumesh::filesystem;
 namespace {
 
 using manumesh::cli::Args;
@@ -103,7 +102,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
     }
 
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(outputRoot)) {
-        if (!entry.is_regular_file() || entry.path().filename() != "metrics.csv") {
+        if (!fs::is_regular_file(entry.path()) || entry.path().filename() != "metrics.csv") {
             continue;
         }
 
@@ -247,6 +246,7 @@ int commandSimplify(const Args& args) {
               << " refinement_iterations=" << report.qualityRefinementIterationsCompleted
               << " refinement_attempted=" << report.qualityRefinementAttemptedMoves
               << " refinement_accepted=" << report.qualityRefinementAcceptedMoves
+              << " refinement_skipped_for_texture=" << (report.qualityRefinementSkippedForTexture ? 1 : 0)
               << " termination=" << manumesh::simplification::toString(report.terminationReason)
               << " line_weight_range=[" << report.minAppliedLineWeight << ", " << report.maxAppliedLineWeight << "]\n";
     if (options.preserveFeatureCurves) {
@@ -329,6 +329,7 @@ int commandSimplify(const Args& args) {
                "curve_budget_rejected_collapses,error_rejected_collapses,"
                "projected_feature_placements,quality_refinement_iterations_completed,"
                "quality_refinement_attempted_moves,quality_refinement_accepted_moves,"
+               "quality_refinement_skipped_for_texture,"
                "termination_reason,"
                "min_line_weight,max_line_weight\n";
         csv << manumesh::cli::statsRowCsv("output", outStats, &distance) << "," << report.collapsedEdges << ","
@@ -358,6 +359,7 @@ int commandSimplify(const Args& args) {
             << report.curveBudgetRejectedCollapses << "," << report.errorRejectedCollapses << ","
             << report.projectedFeaturePlacements << "," << report.qualityRefinementIterationsCompleted << ","
             << report.qualityRefinementAttemptedMoves << "," << report.qualityRefinementAcceptedMoves << ","
+            << (report.qualityRefinementSkippedForTexture ? 1 : 0) << ","
             << manumesh::simplification::toString(report.terminationReason) << "," << report.minAppliedLineWeight << ","
             << report.maxAppliedLineWeight << "\n";
     }
@@ -558,10 +560,12 @@ const std::map<std::string, manumesh::cli::CommandHandler>& registeredCommands()
     return commands;
 }
 
-} // 命名空间
+} // namespace
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 
 const std::map<std::string, CommandHandler>& commandRegistry() { return registeredCommands(); }
 
-} // namespace manumesh::cli
+} // namespace cli
+} // namespace manumesh

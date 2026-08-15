@@ -1,6 +1,6 @@
 option(MANUMESH_BUILD_DOCS
-  "Doxygen 可用时启用 docs-api 和 docs-internal 目标"
-  ON
+  "启用 docs-api 和 docs-internal 目标；配置时必须可找到 Doxygen"
+  OFF
 )
 option(MANUMESH_DOXYGEN_ENABLE_GRAPHS
   "dot 可用时在生成的 Doxygen 文档中启用 Graphviz 图表"
@@ -12,9 +12,6 @@ option(MANUMESH_INSTALL_CMAKE_CONFIG
 )
 
 
-set(MANUMESH_VENDORED_DOXYGEN_EXECUTABLE
-  "${PROJECT_SOURCE_DIR}/thirdParty/doxygen/prebuilt/windows-x64/bin/doxygen.exe"
-)
 set(MANUMESH_VENDORED_GRAPHVIZ_ROOT
   "${PROJECT_SOURCE_DIR}/thirdParty/graphviz/prebuilt/windows-x64"
 )
@@ -30,7 +27,42 @@ add_custom_target(check-src-doxygen
   VERBATIM
 )
 
+set(MANUMESH_CLANG_FORMAT_REQUIRED_MAJOR "22")
+set(MANUMESH_CLANG_FORMAT_READY OFF)
+set(MANUMESH_CLANG_FORMAT_DIAGNOSTIC
+  "未找到 clang-format；format/check-format 需要 clang-format 22.x。"
+)
 find_program(CLANG_FORMAT_EXE NAMES clang-format)
+if(CLANG_FORMAT_EXE)
+  execute_process(
+    COMMAND "${CLANG_FORMAT_EXE}" --version
+    RESULT_VARIABLE MANUMESH_CLANG_FORMAT_VERSION_RESULT
+    OUTPUT_VARIABLE MANUMESH_CLANG_FORMAT_VERSION_OUTPUT
+    ERROR_VARIABLE MANUMESH_CLANG_FORMAT_VERSION_ERROR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_STRIP_TRAILING_WHITESPACE
+  )
+  if(NOT MANUMESH_CLANG_FORMAT_VERSION_RESULT EQUAL 0)
+    set(MANUMESH_CLANG_FORMAT_DIAGNOSTIC
+      "无法执行 '${CLANG_FORMAT_EXE} --version'：${MANUMESH_CLANG_FORMAT_VERSION_ERROR}"
+    )
+  elseif(MANUMESH_CLANG_FORMAT_VERSION_OUTPUT MATCHES
+         "clang-format version ([0-9]+)(\\.[0-9]+)*")
+    set(MANUMESH_CLANG_FORMAT_DETECTED_MAJOR "${CMAKE_MATCH_1}")
+    if(MANUMESH_CLANG_FORMAT_DETECTED_MAJOR STREQUAL
+       MANUMESH_CLANG_FORMAT_REQUIRED_MAJOR)
+      set(MANUMESH_CLANG_FORMAT_READY ON)
+    else()
+      set(MANUMESH_CLANG_FORMAT_DIAGNOSTIC
+        "检测到 ${MANUMESH_CLANG_FORMAT_VERSION_OUTPUT}；format/check-format 需要 clang-format 22.x。"
+      )
+    endif()
+  else()
+    set(MANUMESH_CLANG_FORMAT_DIAGNOSTIC
+      "无法识别 clang-format 版本：${MANUMESH_CLANG_FORMAT_VERSION_OUTPUT}"
+    )
+  endif()
+endif()
 file(GLOB_RECURSE MANUMESH_FORMAT_FILES CONFIGURE_DEPENDS
   "${PROJECT_SOURCE_DIR}/include/*.h"
   "${PROJECT_SOURCE_DIR}/apps/*.cpp"
@@ -42,7 +74,7 @@ file(GLOB_RECURSE MANUMESH_FORMAT_FILES CONFIGURE_DEPENDS
   "${PROJECT_SOURCE_DIR}/tests/*.h"
 )
 
-if(CLANG_FORMAT_EXE)
+if(MANUMESH_CLANG_FORMAT_READY)
   add_custom_target(format
     COMMAND "${CLANG_FORMAT_EXE}" -i ${MANUMESH_FORMAT_FILES}
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
@@ -56,41 +88,38 @@ if(CLANG_FORMAT_EXE)
     VERBATIM
   )
 else()
+  message(STATUS "ManuMesh 格式目标不可用：${MANUMESH_CLANG_FORMAT_DIAGNOSTIC}")
   add_custom_target(format
     COMMAND "${CMAKE_COMMAND}" -E echo
-      "未找到 clang-format；请安装后启用 format 目标。"
+      "${MANUMESH_CLANG_FORMAT_DIAGNOSTIC}"
+    COMMAND "${CMAKE_COMMAND}" -E false
     VERBATIM
   )
   add_custom_target(check-format
     COMMAND "${CMAKE_COMMAND}" -E echo
-      "未找到 clang-format；请安装后启用 check-format 目标。"
+      "${MANUMESH_CLANG_FORMAT_DIAGNOSTIC}"
+    COMMAND "${CMAKE_COMMAND}" -E false
     VERBATIM
   )
 endif()
 
 if(MANUMESH_BUILD_DOCS)
-  if(EXISTS "${MANUMESH_VENDORED_DOXYGEN_EXECUTABLE}")
-    set(DOXYGEN_EXECUTABLE "${MANUMESH_VENDORED_DOXYGEN_EXECUTABLE}"
-      CACHE FILEPATH "Vendored Doxygen 可执行文件" FORCE
+  find_package(Doxygen REQUIRED)
+  if(EXISTS "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}")
+    set(MANUMESH_DOXYGEN_DOT_EXE "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}"
+      CACHE FILEPATH "Vendored Graphviz dot 可执行文件" FORCE
+    )
+  else()
+    find_program(MANUMESH_DOXYGEN_DOT_EXE NAMES dot)
+  endif()
+  set(MANUMESH_DOXYGEN_HAVE_DOT "NO")
+  set(MANUMESH_DOXYGEN_DOT_PATH "")
+  if(MANUMESH_DOXYGEN_ENABLE_GRAPHS AND MANUMESH_DOXYGEN_DOT_EXE)
+    set(MANUMESH_DOXYGEN_HAVE_DOT "YES")
+    get_filename_component(MANUMESH_DOXYGEN_DOT_PATH
+      "${MANUMESH_DOXYGEN_DOT_EXE}" DIRECTORY
     )
   endif()
-  find_package(Doxygen QUIET)
-  if(DOXYGEN_FOUND)
-    if(EXISTS "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}")
-      set(MANUMESH_DOXYGEN_DOT_EXE "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}"
-        CACHE FILEPATH "Vendored Graphviz dot 可执行文件" FORCE
-      )
-    else()
-      find_program(MANUMESH_DOXYGEN_DOT_EXE NAMES dot)
-    endif()
-    set(MANUMESH_DOXYGEN_HAVE_DOT "NO")
-    set(MANUMESH_DOXYGEN_DOT_PATH "")
-    if(MANUMESH_DOXYGEN_ENABLE_GRAPHS AND MANUMESH_DOXYGEN_DOT_EXE)
-      set(MANUMESH_DOXYGEN_HAVE_DOT "YES")
-      get_filename_component(MANUMESH_DOXYGEN_DOT_PATH
-        "${MANUMESH_DOXYGEN_DOT_EXE}" DIRECTORY
-      )
-    endif()
     set(MANUMESH_DOXYGEN_INPUT_FILES
       "${PROJECT_SOURCE_DIR}/documentation/doxygen"
       "${PROJECT_SOURCE_DIR}/include"
@@ -102,7 +131,7 @@ if(MANUMESH_BUILD_DOCS)
     set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/doxygen")
     set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh")
     set(MANUMESH_DOXYGEN_PROJECT_BRIEF
-      "C++17 三角网格分析、特征检测与简化内核"
+      "C++14 三角网格分析、特征检测与简化内核"
     )
     set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
     set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
@@ -120,7 +149,6 @@ if(MANUMESH_BUILD_DOCS)
     add_custom_target(docs-api
       COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
       COMMAND "${CMAKE_COMMAND}" -E env
-        "PATH=${MANUMESH_DOXYGEN_DOT_PATH};$ENV{PATH}"
         "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
         "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile"
       WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
@@ -156,26 +184,12 @@ if(MANUMESH_BUILD_DOCS)
     add_custom_target(docs-internal
       COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
       COMMAND "${CMAKE_COMMAND}" -E env
-        "PATH=${MANUMESH_DOXYGEN_DOT_PATH};$ENV{PATH}"
         "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
         "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile.internal"
       WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
       COMMENT "正在使用 Doxygen 生成内部源码文档"
       VERBATIM
     )
-  else()
-    add_custom_target(docs-api
-      COMMAND "${CMAKE_COMMAND}" -E echo
-        "未找到 Doxygen；请安装后启用 API 文档生成。"
-      VERBATIM
-    )
-    add_custom_target(docs-internal
-      COMMAND "${CMAKE_COMMAND}" -E echo
-        "未找到 Doxygen；请安装后启用内部源码文档生成。"
-      VERBATIM
-    )
-  endif()
-
   add_dependencies(docs-api check-src-doxygen)
   add_dependencies(docs-internal check-src-doxygen)
 endif()
@@ -188,6 +202,14 @@ if(MANUMESH_ENABLE_INSTALL)
   set(MANUMESH_SDK_CONSUMER_BUILD_DIR
     "${CMAKE_BINARY_DIR}/sdk-consumer-build"
     CACHE PATH "已安装 SDK consumer 示例的构建目录"
+  )
+  set(MANUMESH_C_API_ONLY_SDK_PREFIX
+    "${CMAKE_BINARY_DIR}/sdk-c-api-only"
+    CACHE PATH "Installed SDK clone used to verify the C ABI without Eigen"
+  )
+  set(MANUMESH_C_API_ONLY_CONSUMER_BUILD_DIR
+    "${CMAKE_BINARY_DIR}/sdk-c-api-only-consumer-build"
+    CACHE PATH "Build directory for the installed pure C ABI consumer"
   )
 
   set(MANUMESH_HAS_MSVC_PROPS FALSE)
@@ -261,15 +283,25 @@ if(MANUMESH_ENABLE_INSTALL)
     VERBATIM
   )
 
-  add_custom_target(sdk-runtime-test
-    COMMAND "${CMAKE_COMMAND}"
-      "-DMANUMESH_SDK_ROOT=${MANUMESH_LOCAL_SDK_PREFIX}"
-      "-DMANUMESH_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
-      -P "${PROJECT_SOURCE_DIR}/adm/CheckInstalledRuntime.cmake"
-    DEPENDS sdk-install-local
-    COMMENT "正在使用隔离运行时 PATH 测试已安装 CLI"
-    VERBATIM
-  )
+  if(TARGET manumesh)
+    add_custom_target(sdk-runtime-test
+      COMMAND "${CMAKE_COMMAND}"
+        "-DMANUMESH_SDK_ROOT=${MANUMESH_LOCAL_SDK_PREFIX}"
+        "-DMANUMESH_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+        -P "${PROJECT_SOURCE_DIR}/adm/CheckInstalledRuntime.cmake"
+      DEPENDS sdk-install-local
+      COMMENT "正在使用隔离运行时 PATH 测试已安装 CLI"
+      VERBATIM
+    )
+  else()
+    add_custom_target(sdk-runtime-test
+      COMMAND "${CMAKE_COMMAND}" -E echo
+        "MANUMESH_BUILD_CLI=OFF：跳过已安装 CLI 运行时检查。"
+      DEPENDS sdk-install-local
+      COMMENT "已关闭 CLI；仅安装 SDK 并继续 consumer 验证"
+      VERBATIM
+    )
+  endif()
 
   if(MANUMESH_INSTALL_CMAKE_CONFIG)
     set(MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS
@@ -297,6 +329,61 @@ if(MANUMESH_ENABLE_INSTALL)
       )
     endif()
 
+    set(MANUMESH_C_API_ONLY_CONSUMER_CONFIGURE_ARGS
+      "-S" "${PROJECT_SOURCE_DIR}/examples/sdk_consumer"
+      "-B" "${MANUMESH_C_API_ONLY_CONSUMER_BUILD_DIR}"
+      "-G" "${CMAKE_GENERATOR}"
+      "-DMANUMESH_SDK_ROOT=${MANUMESH_C_API_ONLY_SDK_PREFIX}"
+      "-DMANUMESH_SDK_C_API_ONLY=ON"
+      "-DCMAKE_DISABLE_FIND_PACKAGE_Eigen3=TRUE"
+      "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+      "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+    )
+    if(MSVC AND CMAKE_MSVC_RUNTIME_LIBRARY)
+      list(APPEND MANUMESH_C_API_ONLY_CONSUMER_CONFIGURE_ARGS
+        "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}"
+      )
+    endif()
+    if(CMAKE_GENERATOR_PLATFORM)
+      list(APPEND MANUMESH_C_API_ONLY_CONSUMER_CONFIGURE_ARGS
+        "-A" "${CMAKE_GENERATOR_PLATFORM}"
+      )
+    endif()
+    if(CMAKE_GENERATOR_TOOLSET)
+      list(APPEND MANUMESH_C_API_ONLY_CONSUMER_CONFIGURE_ARGS
+        "-T" "${CMAKE_GENERATOR_TOOLSET}"
+      )
+    endif()
+    if(NOT CMAKE_CONFIGURATION_TYPES)
+      list(APPEND MANUMESH_C_API_ONLY_CONSUMER_CONFIGURE_ARGS
+        "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+      )
+    endif()
+
+    add_custom_target(sdk-c-api-consumer-test
+      COMMAND "${CMAKE_COMMAND}" -E remove_directory
+        "${MANUMESH_C_API_ONLY_SDK_PREFIX}"
+      COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${MANUMESH_LOCAL_SDK_PREFIX}"
+        "${MANUMESH_C_API_ONLY_SDK_PREFIX}"
+      COMMAND "${CMAKE_COMMAND}" -E remove_directory
+        "${MANUMESH_C_API_ONLY_SDK_PREFIX}/${CMAKE_INSTALL_DATADIR}/manumesh/thirdParty/eigen"
+      COMMAND "${CMAKE_COMMAND}" -E remove_directory
+        "${MANUMESH_C_API_ONLY_CONSUMER_BUILD_DIR}"
+      COMMAND "${CMAKE_COMMAND}" ${MANUMESH_C_API_ONLY_CONSUMER_CONFIGURE_ARGS}
+      COMMAND "${CMAKE_COMMAND}" --build
+        "${MANUMESH_C_API_ONLY_CONSUMER_BUILD_DIR}"
+        --config "$<CONFIG>"
+        --parallel
+      COMMAND "${CMAKE_COMMAND}" -E chdir
+        "${MANUMESH_C_API_ONLY_CONSUMER_BUILD_DIR}"
+        "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
+        --output-on-failure
+      DEPENDS sdk-runtime-test
+      COMMENT "Verifying the installed C ABI without bundled or discoverable Eigen"
+      VERBATIM
+    )
+
     add_custom_target(sdk-consumer-test
       COMMAND "${CMAKE_COMMAND}" -E remove_directory "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
       COMMAND "${CMAKE_COMMAND}" ${MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS}
@@ -306,7 +393,7 @@ if(MANUMESH_ENABLE_INSTALL)
       COMMAND "${CMAKE_COMMAND}" -E chdir "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
         "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
         --output-on-failure
-      DEPENDS sdk-runtime-test
+      DEPENDS sdk-c-api-consumer-test
       COMMENT "正在针对已安装 SDK 构建并运行示例"
       VERBATIM
     )

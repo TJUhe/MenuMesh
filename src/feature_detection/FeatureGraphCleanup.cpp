@@ -11,8 +11,11 @@
  */
 
 #include "detail/FeatureGraphCleanup.h"
+#include "core/MathUtils.h"
 
 #include "common/detail/MeshQueries.h"
+// DebugUtil instrumentation is temporarily disabled.
+// #include "detail/FeatureDebugInstrumentation.h"
 #include "detail/FeatureGraph.h"
 #include "detail/FeatureGraphCompatibility.h"
 
@@ -24,7 +27,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 /** @brief 可参与清理或间隙桥接的开放图端点。 */
@@ -133,7 +138,9 @@ double weakSpurStrength(
     const double curvatureThreshold = std::max(1e-12, options.smoothCurvatureFeatureThreshold);
     double lengthSum = 0.0;
     double strengthSum = 0.0;
-    for (const auto& [a, b] : path) {
+    for (const auto& pairEntry : path) {
+        const auto& a = pairEntry.first;
+        const auto& b = pairEntry.second;
         if (a < 0 || b < 0 || a >= static_cast<int>(mesh.vertices.size()) ||
             b >= static_cast<int>(mesh.vertices.size())) {
             continue;
@@ -220,7 +227,9 @@ void removeWeakSpurs(
             break;
         }
         int removedEdgeCount = 0;
-        for (const auto& [a, b] : removeEdges) {
+        for (const auto& pairEntry : removeEdges) {
+            const auto& a = pairEntry.first;
+            const auto& b = pairEntry.second;
             if (!traceGraphHasEdge(trace, a, b)) {
                 continue;
             }
@@ -483,7 +492,7 @@ double computeClosureRate(int endpointCount, int cycleRank) {
     if (endpointCount <= 0) {
         return 1.0;
     }
-    const double endpointPenalty = std::clamp(1.0 - 0.25 * endpointCount, 0.0, 1.0);
+    const double endpointPenalty = manumesh::clampValue(1.0 - 0.25 * endpointCount, 0.0, 1.0);
     return cycleRank > 0 ? endpointPenalty : 0.5 * endpointPenalty;
 }
 
@@ -491,19 +500,20 @@ double computeConfidence(const FeatureComponent& component, const FeatureOptions
     if (component.edgeCount <= 0) {
         return 0.0;
     }
-    const double tensorScore =
-        std::clamp(component.meanTensorPersistence / std::max(1e-12, options.normalTensorFeatureThreshold), 0.0, 1.0);
-    const double curvatureScore = std::clamp(
+    const double tensorScore = manumesh::clampValue(
+        component.meanTensorPersistence / std::max(1e-12, options.normalTensorFeatureThreshold), 0.0, 1.0
+    );
+    const double curvatureScore = manumesh::clampValue(
         component.meanCurvaturePersistence / std::max(1e-12, options.smoothCurvatureFeatureThreshold), 0.0, 1.0
     );
     const double weakSupportScore = std::max(tensorScore, curvatureScore);
     const double evidenceScore = std::max(component.strongEvidenceRatio, 0.80 * weakSupportScore);
     const double residualScore =
-        hasPrimitiveResidual ? std::clamp(1.0 - component.meanPrimitiveResidual / 0.12, 0.0, 1.0) : 0.5;
+        hasPrimitiveResidual ? manumesh::clampValue(1.0 - component.meanPrimitiveResidual / 0.12, 0.0, 1.0) : 0.5;
     const double junctionPenalty = component.junctionVertices > 2
                                        ? std::min(0.25, 0.04 * static_cast<double>(component.junctionVertices - 2))
                                        : 0.0;
-    return std::clamp(
+    return manumesh::clampValue(
         0.45 * evidenceScore + 0.25 * component.closureRate + 0.20 * residualScore + 0.10 * weakSupportScore -
             junctionPenalty,
         0.0,
@@ -535,7 +545,7 @@ int dominantComponentForLoop(const FeatureLoop& loop, const std::vector<int>& ve
     return bestComponent;
 }
 
-} // 匿名命名空间
+} // namespace
 
 void cleanupTraceGraph(
     const Mesh& mesh,
@@ -547,11 +557,13 @@ void cleanupTraceGraph(
     if (!options.cleanupFeatureGraph || trace.graphEdges.empty()) {
         return;
     }
-    MANUMESH_DEBUG_UTIL_FEATURES("before" , mesh , analysis);
+    // DebugUtil snapshot temporarily disabled; keep the hook documented for a
+    // future diagnostics-only build without making it part of the pipeline.
+    // MANUMESH_DEBUG_UTIL_FEATURES("before", mesh, analysis);
     removeWeakSpurs(mesh, options, cache, trace, analysis);
     bridgeCloseJunctions(mesh, options, cache, trace, analysis);
     bridgeEndpointGaps(mesh, options, cache, trace, analysis);
-    MANUMESH_DEBUG_UTIL_FEATURES("after" , mesh , analysis);
+    // MANUMESH_DEBUG_UTIL_FEATURES("after", mesh, analysis);
 }
 
 void summarizeFeatureComponents(
@@ -700,4 +712,6 @@ void summarizeFeatureComponents(
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

@@ -1,6 +1,6 @@
 # ManuMesh
 
-> 面向增材制造与三角表面网格处理的 C++17 几何内核。
+> 面向增材制造与三角表面网格处理的 C++14 几何内核。
 
 ManuMesh 提供可构建、可测试、可度量并可由外部程序调用的网格处理 SDK。当前核心是由
 QEM/line quadrics 候选排序、三角网格特征图和硬合法性过滤共同组成的受约束边坍缩
@@ -78,79 +78,33 @@ ManuMesh 当前是三角表面网格内核，不是完整 CAD/B-Rep 或实体建
 
 | 工具或组件 | 要求 | 用途 |
 | --- | --- | --- |
-| C++ 编译器 | C++17；MSVC 或 GCC/MinGW | 编译库、CLI 和示例。 |
-| CMake | 3.18 或更高 | 配置、构建、安装和测试。 |
-| Ninja | 推荐 | 单配置快速构建；也可使用 Visual Studio generator。 |
+| Visual Studio | Visual Studio 16 2019 16.11，MSVC v142，x64 | 唯一受支持的编译与 SDK 消费基线。 |
+| CMake | 3.20 或更高 | 配置、构建、安装和测试；兼容 VS2019 16.11 内置 CMake。 |
+| Ninja | 可选 | 在 VS2019 v142 Developer Command Prompt 中使用 Ninja Multi-Config preset。 |
 | Eigen | 3.3 或更高 | 核心向量/矩阵计算；可使用 system、vendored 或 fetch provider。 |
-| GoogleTest | 测试时需要 | 可使用 system、vendored、prebuilt 或 fetch provider。 |
-| Doxygen | 可选 | 优先使用 `thirdParty/doxygen` 中 vendored 的 1.17.0；缺失时回退到系统安装。 |
+| GoogleTest | 测试时需要 | 可使用 vendored source、system 或 fetch provider。 |
+| Doxygen | 文档构建时需要 | 通过 `PATH` 或 `DOXYGEN_EXECUTABLE` 提供；`MANUMESH_BUILD_DOCS=ON` 时配置阶段会验证。 |
 | Graphviz | 可选 | 优先使用 `thirdParty/graphviz` 中 vendored 的 15.0.0 `dot` 运行时；缺失时回退到系统安装。 |
-| clang-format | 可选 | 执行 `format` 与 `check-format` 目标。 |
+| clang-format | 22.x，可选 | 执行 `format` 与 `check-format` 目标；缺失或主版本不匹配时目标会明确失败。 |
 
-Windows 本地开发主路径为 MinGW + Ninja，MSVC + Ninja/Visual Studio generator 作为
-SDK 集成与兼容验证路径。源码与 CMake 目标不依赖 GUI 或 Node.js 运行环境。
-VS Code 的 `msvc selected` 任务可在执行时选择 `v143`（MSVC 2022）或
-`v142`（MSVC 2019）；v142 需要先通过 Visual Studio Installer 安装对应组件。
+仓库只支持 MSVC v142 x64。CMake 会在配置阶段拒绝 MinGW/GCC、Clang、MSVC v143、
+Win32、ARM64 及其他编译器或目标架构；Visual Studio generator 也必须是
+`Visual Studio 16 2019`，不能用 VS2022 generator 搭配 v142 绕过基线。可以使用
+`Visual Studio 16 2019` generator，
+也可以从 VS2019 x64 Developer Command Prompt 使用 Ninja Multi-Config；两种方式都必须
+实际解析到 `_MSC_VER 1920-1929` 和 x64 编译目标。
+所有仓库目标统一使用 DLL CRT：Debug、Release 和安装后的 SDK consumer 都是 `/MD`，
+Debug 不使用 `/MDd`，也不允许 `/MT` 或 `/MTd` 混入同一构建。
+源码与 CMake 目标不依赖 GUI 或 Node.js 运行环境。
 
 ## 快速开始
-
-### MinGW + Ninja
-
-```powershell
-$buildDir = "build/mingw-ninja-release"
-cmake -S . -B $buildDir -G Ninja `
-  -DCMAKE_MAKE_PROGRAM=ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_EIGEN_PROVIDER=vendored `
-  -DMANUMESH_GOOGLETEST_PROVIDER=auto
-cmake --build $buildDir --parallel
-cmake -E chdir $buildDir ctest -LE "performance|external" --output-on-failure
-```
-
-在离线机器上使用固定 MinGW 工具链时，可以直接把完整工具链根目录交给 CMake，
-不需要永久修改系统 `PATH`：
-
-```powershell
-$buildDir = "build/mingw-offline-release"
-cmake -S . -B $buildDir -G Ninja `
-  -DMANUMESH_MINGW_ROOT="D:/tools/mingw64" `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DMANUMESH_EIGEN_PROVIDER=vendored `
-  -DMANUMESH_GOOGLETEST_PROVIDER=source
-```
-
-`MANUMESH_MINGW_ROOT` 必须指向同时包含 `bin/g++.exe` 和
-`libexec/gcc/.../cc1plus.exe` 的完整工具链。CMake 会在 `project()` 前固定
-`gcc`、`g++` 和 `windres` 的绝对路径；如果工具链目录带有 `bin/ninja.exe`，也会使用
-该 Ninja，否则继续使用生成器已找到的 Ninja。配置时还会清理 ID、版本或 C++17
-feature 为空的旧 compiler state，并重新执行编译器识别。
-
-查看 CLI 帮助：
-
-```powershell
-& "$buildDir/bin/manumesh.exe" --help
-```
-
-### MSVC + Ninja
-
-从 Visual Studio Developer Command Prompt，或已包含 `cl.exe`、`rc.exe` 和 `mt.exe`
-的终端运行：
-
-```powershell
-cmake -S . -B build/msvc-ninja-release -G Ninja `
-  -DCMAKE_MAKE_PROGRAM=ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_CXX_COMPILER=cl
-cmake --build build/msvc-ninja-release --parallel
-```
 
 ### Visual Studio 2019 Presets
 
 仓库根目录的 `CMakePresets.json` 仅包含 Visual Studio 2019 配置，覆盖 x64、v142
-环境下的 `Visual Studio 16 2019` 和 `Ninja Multi-Config` 两种 generator。项目基础配置
-仍支持 CMake 3.18，使用该 preset 文件需要 CMake 3.21 或更高版本。
+环境下的 `Visual Studio 16 2019` 和 `Ninja Multi-Config` 两种 generator。项目与 preset
+统一要求 CMake 3.20 或更高版本，因此可以由 Visual Studio 2019 16.11 内置的 CMake 3.20
+直接读取。
 
 ```powershell
 # 日常 Debug 和快速回归
@@ -158,9 +112,10 @@ cmake --preset vs2019-debug
 cmake --build --preset vs2019-debug-tests
 ctest --preset vs2019-debug-unit
 
-# 开启内部 HTML wireframe 调试工具
-cmake --preset vs2019-debug-debugutil
-cmake --build --preset vs2019-debug-debugutil
+# AddressSanitizer 内存安全回归（排除独立性能阈值和外部数据集）
+cmake --preset vs2019-asan
+cmake --build --preset vs2019-asan
+ctest --preset vs2019-asan-unit
 
 # Release 性能测试
 cmake --preset vs2019-release-performance
@@ -172,6 +127,11 @@ cmake --preset vs2019-release-sdk
 cmake --build --preset vs2019-release-sdk
 ```
 
+VS2019 v142 的 Windows AddressSanitizer 不支持 LeakSanitizer 的
+`detect_leaks=1`。`vs2019-asan-unit` 因此同时运行
+`ownership_lifetime_stress`：它在 64 轮 C/C++ API 生命周期中统计未释放的 C++ 分配；
+ASan 则负责检查越界、释放后使用和重复释放。
+
 Ninja preset 必须从 VS2019 x64 Developer Command Prompt（或已经执行对应
 `VsDevCmd.bat` 的终端）运行，确保 `cl`、`rc` 和 `mt` 来自 v142 环境：
 
@@ -180,11 +140,6 @@ Ninja preset 必须从 VS2019 x64 Developer Command Prompt（或已经执行对�
 cmake --preset vs2019-ninja-debug
 cmake --build --preset vs2019-ninja-debug-tests --parallel
 ctest --preset vs2019-ninja-debug-unit
-
-# Ninja Debug + HTML wireframe 调试工具
-cmake --preset vs2019-ninja-debug-debugutil
-cmake --build --preset vs2019-ninja-debug-debugutil --parallel
-ctest --preset vs2019-ninja-debug-debugutil-unit
 
 # Ninja Release、性能和 SDK
 cmake --preset vs2019-ninja-release
@@ -199,10 +154,11 @@ cmake --preset vs2019-ninja-release-sdk
 cmake --build --preset vs2019-ninja-release-sdk --parallel
 ```
 
-VS Code 的 `Terminal > Run Task...` 中提供对应的
-`configure/build/test: vs2019+ninja ... preset` 任务；运行和断点调试可在 Run and Debug 中选择
-`(VS2019 Ninja Preset)` 或 `(VS2019 Ninja Preset + debugUtil)` 配置。启动 VS Code
-前同样需要进入 VS2019 x64 Developer Command Prompt。
+VS Code 的 `Terminal > Run Task...` 中提供对应的 `configure/build/test: vs2019 ...`
+任务；运行和断点调试可在 Run and Debug 中选择 `VS2019 Debug CLI - Feature Curves`、
+`VS2019 Debug CLI - Feature Report`、`VS2019 Debug Unit Tests - Filter` 或
+`VS2019 Debug + debugUtil Unit Tests - Filter`。内存问题可使用
+`VS2019 ASan Unit Tests - Filter` 或 `VS2019 ASan Ownership Lifetime Stress`。
 
 此外还提供 `vs2019-release`、`vs2019-release-static` 以及 unit、external、full、
 performance、SDK，以及同名的 `vs2019-ninja-*` build/test preset。每类配置使用独立
@@ -212,18 +168,11 @@ CMake cache。
 ### 安装 SDK
 
 ```powershell
-cmake -S . -B build/sdk-release -G Ninja `
-  -DCMAKE_MAKE_PROGRAM=ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_ENABLE_INSTALL=ON `
-  -DMANUMESH_EIGEN_PROVIDER=vendored `
-  -DMANUMESH_GOOGLETEST_PROVIDER=auto
-cmake --build build/sdk-release --target sdk-consumer-test --parallel
+cmake --preset vs2019-release-sdk
+cmake --build --preset vs2019-release-sdk --parallel
 ```
 
-该目标先安装到 `build/sdk-release/sdk/`，再从 `examples/sdk_consumer/` 配置独立下游
+该目标先安装到 `build/vs2019-release-sdk/sdk/`，再从 `examples/sdk_consumer/` 配置独立下游
 工程，只使用已安装的 `include/`、`lib/`、`bin/` 和 `share/`。Visual Studio
 `.vcxproj`、`.props` 和 CMake package 的完整接入步骤见
 [SDK 集成指南](documentation/guide/sdk_integration.md)。
@@ -235,7 +184,7 @@ cmake --build build/sdk-release --target sdk-consumer-test --parallel
 将 STL/OBJ 简化到原面数的 25%，并写出采样指标：
 
 ```powershell
-$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/vs2019-release/bin/Release/manumesh.exe"
 & $exe --version
 & $exe simplify input.stl output.stl `
   --method line `
@@ -262,6 +211,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 ### C++ API
 
 ```cpp
+#include "algorithms/feature_detection/FeatureTypes.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
@@ -282,6 +232,9 @@ int main() {
     options.preserveFeatureCurves = true;
     options.featureProtectionMode =
         manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
+    manumesh::feature::FeatureOptions featureOptions;
+    featureOptions.featureAngleDeg = 35.0;
+    options.featureOptionsOverride = featureOptions;
 
     manumesh::simplification::SimplifyReport report;
     manumesh::simplification::QEMSimplifier simplifier(options);
@@ -292,6 +245,11 @@ int main() {
                : 1;
 }
 ```
+
+特征数据流保持为 `Mesh -> FeatureAnalysis -> simplification`。需要跨流程复用检测结果时，
+先通过 `FeatureDetector` 生成 `FeatureAnalysis`，再传给预计算分析重载；该分析会绑定输入的
+精确 indexed geometry。若 `weightMode=NormalTensor`，分析中必须包含覆盖全部顶点的
+`normalTensorVertexWeights`，简化器会直接复用检测时解析好的权重，不会按另一套参数重算。
 
 安装 CMake package 后，下游工程可以使用：
 
@@ -338,11 +296,11 @@ ManuMesh/
 |-- apps/             # manumesh 命令行工具
 |-- examples/                  # C++、C ABI 和安装后 SDK consumer 示例
 |-- tests/                     # unit、external、performance、support 和测试数据
-|-- thirdParty/                # Eigen、GoogleTest、Doxygen 与 Graphviz 本地依赖/工具包
+|-- thirdParty/                # Eigen、GoogleTest 与 Graphviz 本地依赖/工具包
 |-- adm/                       # 格式化、安装和 SDK 辅助目标
 |-- documentation/             # 人工维护的交付文档、设计、指南和论文资料
 |-- docs/                      # 仅存放生成的 Doxygen 输出；不纳入版本控制
-|-- .vscode/                   # MinGW/MSVC 构建、调试和验证任务
+|-- .vscode/                   # VS2019 构建、调试和验证任务
 |-- CMakeLists.txt             # 顶层构建配置
 |-- Doxyfile.in                # Doxygen 配置模板
 |-- CHANGELOG.md               # 更新日志
@@ -368,11 +326,9 @@ system、仓库内依赖或网络拉取版本。
 | `MANUMESH_BUILD_PERFORMANCE_TESTS` | `OFF` | 构建独立的大模型性能套件。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中启用内部 HTML 线框工具。 |
-| `MANUMESH_MINGW_ROOT` | 空 | 可选的完整 MinGW 根目录；在 `project()` 前固定编译器绝对路径。 |
-| `MANUMESH_RECOVER_INVALID_COMPILER_STATE` | `ON` | 自动删除 ID、版本或 C++17 feature 不完整的 CMake compiler state。 |
 | `MANUMESH_EIGEN_PROVIDER` | `auto` | `auto`、`system`、`vendored` 或 `fetch`。 |
-| `MANUMESH_GOOGLETEST_PROVIDER` | `auto` | `auto`、`source`、`prebuilt`、`system` 或 `fetch`。 |
-| `MANUMESH_BUILD_DOCS` | `ON` | 在可用时创建 Doxygen `docs-api` 和 `docs-internal` 目标。 |
+| `MANUMESH_GOOGLETEST_PROVIDER` | `auto` | `auto`、`source`、`system` 或 `fetch`。 |
+| `MANUMESH_BUILD_DOCS` | `OFF` | 开启后要求 Doxygen 可用，并创建 `docs-api` 和 `docs-internal` 目标。 |
 | `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 检测到 vendored 或系统 Graphviz `dot` 时生成关系图。 |
 
 ## 测试
@@ -380,37 +336,27 @@ system、仓库内依赖或网络拉取版本。
 快速回归排除性能和外部大模型用例，适合日常开发：
 
 ```powershell
-cmake -E chdir build/mingw-ninja-release `
-  ctest -LE "performance|external" --output-on-failure
+ctest --preset vs2019-release-unit
 ```
 
 运行全部非性能测试：
 
 ```powershell
-cmake -E chdir build/mingw-ninja-release `
-  ctest -LE performance --output-on-failure
+ctest --preset vs2019-release-full
 ```
 
 只运行外部模型用例：
 
 ```powershell
-cmake -E chdir build/mingw-ninja-release `
-  ctest -L external --output-on-failure
+ctest --preset vs2019-release-external
 ```
 
 性能套件使用独立构建目录，避免改变日常测试配置：
 
 ```powershell
-$perfBuildDir = "build/mingw-ninja-release-performance"
-cmake -S . -B $perfBuildDir -G Ninja `
-  -DCMAKE_MAKE_PROGRAM=ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON `
-  -DMANUMESH_EIGEN_PROVIDER=vendored `
-  -DMANUMESH_GOOGLETEST_PROVIDER=auto
-cmake --build $perfBuildDir --target performance-tests --parallel
+cmake --preset vs2019-release-performance
+cmake --build --preset vs2019-release-performance --parallel
+ctest --preset vs2019-release-performance
 ```
 
 测试结果之外，工业验证还要求检查 CLI 生成的 STL/CSV：拓扑、采样距离、三角形
@@ -418,12 +364,12 @@ cmake --build $perfBuildDir --target performance-tests --parallel
 
 ## Doxygen 文档
 
-配置阶段检测到 Doxygen 后，可分别生成公开/API 参考和内部源码参考：
+文档 preset 会在配置阶段要求 Doxygen 可用，然后可分别生成公开/API 参考和内部源码参考：
 
 ```powershell
-cmake --build build/mingw-ninja-release --target check-src-doxygen
-cmake --build build/mingw-ninja-release --target docs-api --parallel
-cmake --build build/mingw-ninja-release --target docs-internal --parallel
+cmake --preset vs2019-release-docs
+cmake --build build/vs2019-release-docs --config Release --target check-src-doxygen
+cmake --build --preset vs2019-release-docs --parallel
 ```
 
 生成首页分别位于：

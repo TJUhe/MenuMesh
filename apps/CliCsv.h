@@ -10,19 +10,20 @@
 
 #include "algorithms/analysis/MeshAnalysis.h"
 
-#include <filesystem>
+#include "core/Filesystem.h"
 #include <map>
 #include <string>
 #include <vector>
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 
 /// 解析一行 RFC-4180 风格 CSV，支持带引号逗号和双引号转义。
 std::vector<std::string> splitCsvLine(const std::string& line);
 /// 必要时为一个 CSV 字段添加引号并转义。
 std::string quoteCsv(const std::string& value);
 /// 读取表头和首行数据，返回列名到值的映射。
-std::map<std::string, std::string> readFirstCsvRow(const std::filesystem::path& path);
+std::map<std::string, std::string> readFirstCsvRow(const manumesh::filesystem::path& path);
 /// 返回必需列的值；缺少列时抛出异常。
 std::string csvValue(const std::map<std::string, std::string>& row, const std::string& key);
 
@@ -35,4 +36,5 @@ std::string statsRowCsv(
     const manumesh::analysis::DistanceStats* distance = nullptr
 );
 
-} // 命令行命名空间
+} // namespace cli
+} // namespace manumesh

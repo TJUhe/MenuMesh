@@ -9,18 +9,22 @@
 #pragma once
 
 #include "algorithms/analysis/MeshAnalysis.h"
+#include "algorithms/feature_detection/FeatureOptions.h"
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "api/CApi.h"
 
 #include <cstddef>
 #include <string>
 
-namespace manumesh::api {
+namespace manumesh {
+namespace api {
 
+ManuMeshStatus initializeFeatureOptions(ManuMeshFeatureOptions* options, std::size_t structCapacity);
 ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::size_t structCapacity);
 ManuMeshStatus initializeSimplifyReport(ManuMeshSimplifyReport* report, std::size_t structCapacity);
 ManuMeshStatus initializeMeshStats(ManuMeshMeshStats* stats, std::size_t structCapacity);
 
+bool readFeatureOptions(const ManuMeshFeatureOptions* source, feature::FeatureOptions& target, std::string& error);
 bool readSimplifyOptions(
     const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
 );
@@ -32,4 +36,5 @@ ManuMeshStatus fillSimplifyReport(
 );
 ManuMeshStatus fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStats* target, std::size_t structCapacity);
 
-} // manumesh::api 命名空间
+} // namespace api
+} // namespace manumesh

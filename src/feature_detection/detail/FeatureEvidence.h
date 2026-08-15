@@ -15,7 +15,9 @@
 
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 收集强证据和弱证据，并更新来源统计计数。
@@ -25,4 +27,6 @@ std::vector<CandidateEdge> collectFeatureEdges(
     const Mesh& mesh, const FeatureOptions& options, FeatureDetectionCache& cache, FeatureAnalysisBuilder& builder
 );
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

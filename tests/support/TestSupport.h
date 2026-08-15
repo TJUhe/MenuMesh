@@ -12,16 +12,17 @@
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/Mesh.h"
 
+#include "core/Filesystem.h"
 #include <cstddef>
-#include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace manumesh::test {
+namespace manumesh {
+namespace test {
 
 struct CaseLine {
-    std::filesystem::path relativePath;
+    manumesh::filesystem::path relativePath;
     std::vector<std::string> fields;
 };
 
@@ -35,15 +36,15 @@ struct FeatureLabels {
     std::vector<int> junctions;
 };
 
-std::filesystem::path dataRoot();
-std::filesystem::path externalDataRoot();
+manumesh::filesystem::path dataRoot();
+manumesh::filesystem::path externalDataRoot();
 
-std::vector<CaseLine> readCaseLines(const std::filesystem::path& relativeCaseFile);
-FeatureLabels readFeatureLabels(const std::filesystem::path& relativeLabelFile);
-Mesh loadCaseMesh(const std::filesystem::path& relativePath);
-Mesh loadFixtureMesh(const std::filesystem::path& relativePath);
-Mesh loadExternalMesh(const std::filesystem::path& relativePath);
-Mesh loadExternalStl(const std::filesystem::path& relativePath);
+std::vector<CaseLine> readCaseLines(const manumesh::filesystem::path& relativeCaseFile);
+FeatureLabels readFeatureLabels(const manumesh::filesystem::path& relativeLabelFile);
+Mesh loadCaseMesh(const manumesh::filesystem::path& relativePath);
+Mesh loadFixtureMesh(const manumesh::filesystem::path& relativePath);
+Mesh loadExternalMesh(const manumesh::filesystem::path& relativePath);
+Mesh loadExternalStl(const manumesh::filesystem::path& relativePath);
 
 simplification::SimplifyOptions standardOptions(double ratio);
 simplification::SimplifyOptions lineOptions(double ratio);
@@ -58,4 +59,5 @@ void expectReportCountersConsistent(const simplification::SimplifyReport& report
 void expectBudget(const SimplifiedMesh& result, const Mesh& input, double ratio);
 int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue);
 
-} // 命名空间
+} // namespace test
+} // namespace manumesh

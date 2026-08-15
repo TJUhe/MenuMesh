@@ -16,7 +16,7 @@
 #include "core/Mesh.h"
 #include "io/MeshIo.h"
 
-#include <filesystem>
+#include "core/Filesystem.h"
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -26,9 +26,11 @@
 #include <utility>
 #include <vector>
 
-namespace fs = std::filesystem;
+namespace fs = manumesh::filesystem;
 
-namespace manumesh::cli::feature_commands {
+namespace manumesh {
+namespace cli {
+namespace feature_commands {
 
 using manumesh::cli::pathFromUtf8;
 using manumesh::cli::pathToUtf8;
@@ -383,4 +385,6 @@ int compare(const Args& args) {
     return 0;
 }
 
-} // namespace manumesh::cli::feature_commands
+} // namespace feature_commands
+} // namespace cli
+} // namespace manumesh

@@ -1020,11 +1020,11 @@
             <li><span class="math-inline" role="math"><span class="rm">min</span>(m<sub>a</sub>, m<sub>b</sub>)</span> 达到最少支持尺度数；</li>
             <li><span class="math-inline" role="math"><span class="rm">min</span>(P<sub>张,a</sub>, P<sub>张,b</sub>) ≥ τ<sub>张</sub></span>；</li>
             <li>两端均满足 <span class="math-inline" role="math">S<sub>折</sub> ≥ S<sub>角</sub></span>；</li>
-            <li>网格边方向与至少一端的折痕切向充分一致。</li>
+            <li>网格边方向与两个端点的折痕切向都充分一致。</li>
           </ol>
         </div>
 
-        <p>最后一项先检查边长；零长度边直接拒绝，其余边再单位化并取两端对齐度中的较大值：</p>
+        <p>最后一项先检查边长；零长度边直接拒绝，其余边再单位化并取两端对齐度中的较小值：</p>
 
         <div class="formula">
           <math display="block" aria-label="张量边的方向门控">
@@ -1050,7 +1050,7 @@
               </mtr>
               <mtr>
                 <mtd>
-                  <mi mathvariant="normal">max</mi><mo>(</mo>
+                  <mi mathvariant="normal">min</mi><mo>(</mo>
                   <mo>|</mo><mover accent="true"><mi mathvariant="bold-italic">e</mi><mo>^</mo></mover><mo>·</mo><msub><mi mathvariant="bold-italic">t</mi><mi>a</mi></msub><mo>|</mo><mo>,</mo>
                   <mo>|</mo><mover accent="true"><mi mathvariant="bold-italic">e</mi><mo>^</mo></mover><mo>·</mo><msub><mi mathvariant="bold-italic">t</mi><mi>b</mi></msub><mo>|</mo>
                   <mo>)</mo><mo>≥</mo><msub><mi>η</mi><mtext>向</mtext></msub>
@@ -1060,7 +1060,7 @@
           </math>
           <span class="eq-number">(17)</span>
         </div>
-        <p>这里采用两端对齐度的最大值，而分数门控采用两端较弱值。前者意味着只要一端给出可靠方向，边就有机会被接受；后者要求两端都具有足够强度。两个门控一宽一严，分别处理方向估计的不稳定与特征证据的连续性。方向阈值取 <span class="math-inline" role="math">η<sub>向</sub> = 0.45</span>。</p>
+        <p>这里的方向与分数门控都采用两端较弱值，要求同一条边在两个端点上同时具有足够强度和可靠方向，避免单端切向误判把噪声扩展成折痕边。方向阈值取 <span class="math-inline" role="math">η<sub>向</sub> = 0.45</span>。</p>
 
         <div class="discovery">
           <strong>证据组合策略：</strong>法向张量不在硬特征附近重复竞争。只要一条边已经属于强证据，或任一端点已经接触边界、非流形边或达到阈值的二面角边，张量通道就退出。这样牺牲了一部分硬边邻域中的弱响应，却换来更清楚的证据归属：二面角解释尖锐折线，法向张量补充远离硬边的弱折痕。

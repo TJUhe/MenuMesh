@@ -17,7 +17,9 @@
 
 #include <unordered_set>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 bool traceEdgeVisited(const std::unordered_set<std::uint64_t>& visitedEdges, int a, int b) {
@@ -171,7 +173,9 @@ void traceRemainingFeatureLoops(
         }
     }
 
-    for (const auto& [a, b] : trace.graphEdges) {
+    for (const auto& pairEntry : trace.graphEdges) {
+        const auto& a = pairEntry.first;
+        const auto& b = pairEntry.second;
         if (traceEdgeVisited(visitedEdges, a, b)) {
             continue;
         }
@@ -181,4 +185,6 @@ void traceRemainingFeatureLoops(
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

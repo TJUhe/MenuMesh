@@ -25,21 +25,24 @@
 
 ![debugUtil 简化前后对比预览](assets/debug_util_simplify_before_after_preview.png)
 
-## 开启方式
+## 当前状态
 
-默认构建中 `debugUtil` 是 no-op。需要显式打开 CMake 开关，并使用 Debug 构建：
+DebugUtil 的实现和示例仍作为后续诊断参考保留，但当前生产调用点均已暂时注释，CMake preset、VS Code task/launch
+和自动化测试不会主动启用它。恢复时应先重新加入独立 preset，再逐项验证 HTML 输出与资源生命周期。
 
-```powershell
-cmake -S . -B build\debug-util-mingw `
-  -G Ninja `
-  -DCMAKE_BUILD_TYPE=Debug `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_ENABLE_DEBUG_UTIL=ON
-cmake --build build\debug-util-mingw --parallel
+开启后也不会向所有内部翻译单元注入头文件。通用网格/边调试点必须显式包含：
+
+```cpp
+#include "debugUtil/debugUtil.h"
 ```
 
-开启后，ManuMesh 内部 C++ 源文件会自动 force-include `debugUtil/debugUtil.h`，所以在内部 `.cpp` 中可以直接写宏，不需要手动加 include。
+特征识别快照由特征模块自己的适配器把 `FeatureAnalysis` 转换成通用边覆盖层，调用处显式包含：
+
+```cpp
+#include "detail/FeatureDebugInstrumentation.h"
+```
+
+这样依赖方向保持为 `feature_detection -> debugUtil -> core`，`debugUtil` 不再反向依赖特征识别实现。
 
 ## 输出位置
 
@@ -80,6 +83,8 @@ MANUMESH_DEBUG_UTIL_WIREFRAME("input_mesh", mesh);
 ### 2. 查看特征识别结果
 
 ```cpp
+#include "detail/FeatureDebugInstrumentation.h"
+
 const manumesh::feature::FeatureAnalysis analysis =
     manumesh::feature::detectFeatureCurves(mesh, options);
 
@@ -149,6 +154,8 @@ MANUMESH_DEBUG_UTIL_EDGES("collapse_check", mesh, overlays);
 特征识别调试：
 
 ```cpp
+#include "detail/FeatureDebugInstrumentation.h"
+
 FeatureAnalysis analysis = pipeline.run(mesh, options);
 MANUMESH_DEBUG_UTIL_FEATURES("after_feature_detection", mesh, analysis);
 ```

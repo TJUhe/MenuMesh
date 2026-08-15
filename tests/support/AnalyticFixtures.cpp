@@ -7,13 +7,16 @@
  */
 
 #include "AnalyticFixtures.h"
+#include "core/MathUtils.h"
 
 #include "core/MathConstants.h"
 
 #include <algorithm>
 #include <cmath>
 
-namespace manumesh::test::analytic {
+namespace manumesh {
+namespace test {
+namespace analytic {
 namespace {
 
 std::pair<int, int> sortedEdge(int a, int b) { return a < b ? std::make_pair(a, b) : std::make_pair(b, a); }
@@ -281,7 +284,7 @@ std::vector<std::pair<int, int>> ChamferBoxFixture::groundTruthHardEdges() const
 ChamferBoxFixture makeChamferBox(double size, double chamfer, int divisions) {
     ChamferBoxFixture fixture;
     fixture.size = size;
-    fixture.chamfer = std::clamp(chamfer, 1e-6 * size, 0.49 * size);
+    fixture.chamfer = manumesh::clampValue(chamfer, 1e-6 * size, 0.49 * size);
     fixture.divisions = std::max(1, divisions);
     Mesh& mesh = fixture.mesh;
 
@@ -458,10 +461,14 @@ double meanEdgeLength(const Mesh& mesh) {
         return 0.0;
     }
     double total = 0.0;
-    for (const auto& [a, b] : edges) {
+    for (const auto& pairEntry : edges) {
+        const int a = pairEntry.first;
+        const int b = pairEntry.second;
         total += (mesh.vertices[a] - mesh.vertices[b]).norm();
     }
     return total / static_cast<double>(edges.size());
 }
 
-} // manumesh::test::analytic 命名空间
+} // namespace analytic
+} // namespace test
+} // namespace manumesh

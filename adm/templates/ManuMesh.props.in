@@ -6,6 +6,9 @@
     <ManuMeshSdkIncludeDir>$(ManuMeshSdkRoot)\include</ManuMeshSdkIncludeDir>
     <ManuMeshSdkLibraryDir>$(ManuMeshSdkRoot)\lib</ManuMeshSdkLibraryDir>
     <ManuMeshSdkRuntimeDir>$(ManuMeshSdkRoot)\bin</ManuMeshSdkRuntimeDir>
+    <ManuMeshSupportedPlatform>x64</ManuMeshSupportedPlatform>
+    <ManuMeshSupportedPlatformToolset>v142</ManuMeshSupportedPlatformToolset>
+    <ManuMeshSupportedVisualStudioVersion>16.0</ManuMeshSupportedVisualStudioVersion>
     <ManuMeshEigenIncludeDir Condition="'$(ManuMeshEigenIncludeDir)' == ''">$(ManuMeshSdkRoot)\share\manumesh\thirdParty\eigen\include</ManuMeshEigenIncludeDir>
   </PropertyGroup>
 
@@ -16,6 +19,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <LanguageStandard>stdcpp14</LanguageStandard>
       <AdditionalIncludeDirectories>$(ManuMeshSdkIncludeDir);$(ManuMeshEigenIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -23,6 +27,16 @@
       <AdditionalDependencies>manumesh.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+
+  <Target Name="ManuMeshValidatePlatformToolset"
+          BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Platform)' != '$(ManuMeshSupportedPlatform)'"
+           Text="ManuMesh requires the x64 platform; current Platform is '$(Platform)'." />
+    <Error Condition="'$(PlatformToolset)' != '$(ManuMeshSupportedPlatformToolset)'"
+           Text="ManuMesh requires the Visual Studio 2019 v142 platform toolset; current PlatformToolset is '$(PlatformToolset)'." />
+    <Error Condition="'$(VisualStudioVersion)' != '' and '$(VisualStudioVersion)' != '$(ManuMeshSupportedVisualStudioVersion)'"
+           Text="ManuMesh requires Visual Studio 16 2019; current VisualStudioVersion is '$(VisualStudioVersion)'." />
+  </Target>
 
   <Target Name="ManuMeshCopyRuntime"
           AfterTargets="Build"

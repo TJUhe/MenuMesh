@@ -9,14 +9,16 @@
 #pragma once
 
 #include "CliArguments.h"
-#include "algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/feature_detection/FeatureOptions.h"
 #include "algorithms/simplification/SimplificationTypes.h"
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 
 /// 将已校验的参数绑定到简化选项结构。
 simplification::SimplifyOptions parseSimplifyOptions(const Args& args);
 /// 将已校验的参数绑定到独立的特征检测选项结构。
 feature::FeatureOptions parseFeatureOptions(const Args& args);
 
-} // 命令行命名空间
+} // namespace cli
+} // namespace manumesh

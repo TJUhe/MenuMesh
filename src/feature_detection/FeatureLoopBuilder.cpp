@@ -19,7 +19,9 @@
 #include <cmath>
 #include <unordered_set>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 using primitive_fit_detail::applyPrimitiveFit;
@@ -258,4 +260,6 @@ bool addRecoveredCycle(
     return true;
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

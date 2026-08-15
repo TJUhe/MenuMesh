@@ -10,12 +10,14 @@
  */
 
 #include "common/detail/MeshQueries.h"
+#include "core/MathUtils.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 namespace {
 
 int faceEdgeDirection(const Face& face, int a, int b) {
@@ -137,7 +139,7 @@ OrientedDihedralAngle computeOrientedDihedralAngle(
     const int f1 = info.faces[1];
     const int s0 = windingFlip[f0] ? -1 : 1;
     const int s1 = windingFlip[f1] ? -1 : 1;
-    double dot = std::clamp(normals[f0].dot(normals[f1]), -1.0, 1.0) * static_cast<double>(s0 * s1);
+    double dot = manumesh::clampValue(normals[f0].dot(normals[f1]), -1.0, 1.0) * static_cast<double>(s0 * s1);
     const int direction0 = faceEdgeDirection(mesh.faces[f0], a, b) * s0;
     const int direction1 = faceEdgeDirection(mesh.faces[f1], a, b) * s1;
     if (direction0 == 0 || direction1 == 0 || direction0 == direction1) {
@@ -180,7 +182,7 @@ std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh) {
         }
     }
 
-// 排序并去重，使每个邻接列表升序排列；这可保持下游遍历和浮点归约顺序的确定性。
+    // 排序并去重，使每个邻接列表升序排列；这可保持下游遍历和浮点归约顺序的确定性。
     for (std::vector<int>& list : neighbors) {
         std::sort(list.begin(), list.end());
         list.erase(std::unique(list.begin(), list.end()), list.end());
@@ -196,7 +198,9 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
     const MeshEdgeInfoMap edgeInfo = buildMeshEdgeInfo(mesh);
     std::vector<std::uint64_t> edgeKeys;
     edgeKeys.reserve(edgeInfo.size());
-    for (const auto& [key, info] : edgeInfo) {
+    for (const auto& pairEntry : edgeInfo) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         (void)info;
         edgeKeys.push_back(key);
     }
@@ -205,7 +209,9 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
     double totalLength = 0.0;
     int totalEdges = 0;
     for (const std::uint64_t key : edgeKeys) {
-        const auto [a, b] = unpackMeshEdgeKey(key);
+        const std::pair<int, int> edge = unpackMeshEdgeKey(key);
+        const int a = edge.first;
+        const int b = edge.second;
         if (a < 0 || b < 0 || a >= static_cast<int>(mesh.vertices.size()) ||
             b >= static_cast<int>(mesh.vertices.size()) || a == b) {
             continue;
@@ -236,9 +242,13 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
 std::vector<char> computeBoundaryVertices(const Mesh& mesh) {
     std::vector<char> boundary(mesh.vertices.size(), 0);
     const MeshEdgeInfoMap edgeInfo = buildMeshEdgeInfo(mesh);
-    for (const auto& [key, info] : edgeInfo) {
+    for (const auto& pairEntry : edgeInfo) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         if (info.faces.size() == 1) {
-            const auto [a, b] = unpackMeshEdgeKey(key);
+            const std::pair<int, int> edge = unpackMeshEdgeKey(key);
+            const int a = edge.first;
+            const int b = edge.second;
             if (a >= 0 && a < static_cast<int>(boundary.size())) {
                 boundary[a] = 1;
             }
@@ -250,4 +260,5 @@ std::vector<char> computeBoundaryVertices(const Mesh& mesh) {
     return boundary;
 }
 
-} // 命名空间 manumesh::common
+} // namespace common
+} // namespace manumesh

@@ -18,7 +18,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 namespace {
 
 bool aabbOverlap(const Vec3& aLo, const Vec3& aHi, const Vec3& bLo, const Vec3& bHi, double eps) {
@@ -75,10 +76,10 @@ double orient2d(const Eigen::Vector2d& a, const Eigen::Vector2d& b, const Eigen:
     return (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());
 }
 
-    // 二维辅助函数使用由同一个相对 eps 推导出的两个具有明确量纲的容差：
-    // epsLen（eps * scale）用于坐标/区间比较，epsArea（eps * scale^2）用于
-    // orient2d 有向面积比较。在两个量纲中混用单一绝对 eps 会导致谓词判定
-    // 随网格一致缩放而变化。
+// 二维辅助函数使用由同一个相对 eps 推导出的两个具有明确量纲的容差：
+// epsLen（eps * scale）用于坐标/区间比较，epsArea（eps * scale^2）用于
+// orient2d 有向面积比较。在两个量纲中混用单一绝对 eps 会导致谓词判定
+// 随网格一致缩放而变化。
 bool intervalsOverlapWithLength(double a0, double a1, double b0, double b1, double epsLen) {
     if (a0 > a1)
         std::swap(a0, a1);
@@ -390,4 +391,5 @@ bool trianglesIntersectBeyondSharedTopology(
     return (lhsSide > epsArea && rhsSide > epsArea) || (lhsSide < -epsArea && rhsSide < -epsArea);
 }
 
-} // 命名空间 manumesh::common
+} // namespace common
+} // namespace manumesh

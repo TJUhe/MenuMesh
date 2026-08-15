@@ -120,8 +120,10 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
             const int a = face.v[corner];
             const int b = face.v[(corner + 1) % 3];
             const std::uint64_t key = topologyEdgeKey(a, b);
-            auto [it, inserted] =
+            const auto insertResult =
                 edgeByKey.emplace(key, EdgeBuildRecord{static_cast<int>(topology.impl_->edges.size())});
+            auto it = insertResult.first;
+            const bool inserted = insertResult.second;
             if (inserted) {
                 TopologyEdge edge;
                 edge.vertices = {std::min(a, b), std::max(a, b)};

@@ -9,10 +9,13 @@
 #pragma once
 
 #include "Export.h"
+#include "algorithms/feature_detection/FeatureOptions.h"
+#include "core/Optional.h"
 
 #include <string>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /// 空间变化 line-quadric 权重的内置策略。
 enum class WeightMode {
@@ -165,6 +168,12 @@ struct SimplifyOptions {
     /// 每个保留三角形允许的最小带符号 UV 面积比。
     double minTextureAreaRatio = 1e-8;
     /// @}
+
+    /// Canonical feature-detection configuration used by simplification when set.
+    ///
+    /// The flat feature fields above remain supported as a source-compatibility adapter.
+    /// An explicit value here takes precedence over all of those legacy fields.
+    Optional<feature::FeatureOptions> featureOptionsOverride;
 };
 
 /// 简化期间收集的诊断信息。
@@ -261,6 +270,8 @@ struct SimplifyReport {
     int qualityRefinementIterationsCompleted = 0;
     int qualityRefinementAttemptedMoves = 0;
     int qualityRefinementAcceptedMoves = 0;
+    /// Requested refinement was skipped because UV topology is currently immutable during that pass.
+    bool qualityRefinementSkippedForTexture = false;
     /// @}
 
     /// @name 纹理感知坍缩诊断
@@ -296,4 +307,5 @@ MANUMESH_API FeatureProtectionMode parseFeatureProtectionMode(const std::string&
 /// @return 稳定的 CLI/API 令牌。
 MANUMESH_API std::string toString(FeatureProtectionMode mode);
 
-} // namespace manumesh::simplification
+} // namespace simplification
+} // namespace manumesh

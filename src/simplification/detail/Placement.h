@@ -13,7 +13,8 @@
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 // 边折叠的放置策略。本单元负责“合并后的顶点应放在哪里”，合法性检查由 CollapseTopology/CollapseLegality 负责，特征曲线约束由 FeatureConstraints 负责。
 
@@ -34,4 +35,5 @@ struct BoundaryProjectionInput {
  */
 bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& position);
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

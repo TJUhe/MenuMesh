@@ -14,14 +14,26 @@
 int main() {
     // The caller's application-level representation.
     const std::vector<double> vertexData = {
-        0.0, 0.0, 0.0,
-        1.0, 0.0, 0.0,
-        1.0, 1.0, 0.0,
-        0.0, 1.0, 1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
     };
     const std::vector<int> faceData = {
-        0, 1, 2,
-        0, 2, 3,
+        0,
+        1,
+        2,
+        0,
+        2,
+        3,
     };
 
     if (vertexData.size() % 3 != 0 || faceData.size() % 3 != 0) {
@@ -73,7 +85,7 @@ int main() {
     options.feature_angle_deg = 25.0;
 
     std::size_t edgeCount = 0;
-    status = manumesh_detect_feature_edges(context, mesh, &options, nullptr, 0, &edgeCount);
+    status = manumesh_detect_feature_edges_v2(context, mesh, &options, nullptr, 0, &edgeCount);
     if (status != MANUMESH_STATUS_BUFFER_TOO_SMALL && status != MANUMESH_STATUS_OK) {
         std::cerr << manumesh_context_last_error(context) << "\n";
         manumesh_mesh_destroy(mesh);
@@ -81,12 +93,12 @@ int main() {
         return 4;
     }
 
-    std::vector<ManuMeshFeatureEdge> edges(edgeCount);
+    std::vector<ManuMeshFeatureEdgeV2> edges(edgeCount);
     std::size_t written = 0;
-    status = manumesh_detect_feature_edges(
+    status = manumesh_detect_feature_edges_v2(
         context, mesh, &options, edges.empty() ? nullptr : edges.data(), edges.size(), &written
     );
-    if (status != MANUMESH_STATUS_OK) {
+    if (status != MANUMESH_STATUS_OK || written != edges.size()) {
         std::cerr << manumesh_context_last_error(context) << "\n";
         manumesh_mesh_destroy(mesh);
         manumesh_context_destroy(context);
@@ -94,17 +106,26 @@ int main() {
     }
 
     for (std::size_t i = 0; i < written; ++i) {
-        const ManuMeshFeatureEdge& edge = edges[i];
-        std::cout << "edge " << edge.a << " - " << edge.b
-                  << " boundary=" << edge.boundary
-                  << " dihedral=" << edge.dihedral
-                  << " normal_tensor=" << edge.normal_tensor
-                  << " smooth_curvature=" << edge.smooth_curvature
-                  << " non_manifold=" << edge.non_manifold
-                  << " cleanup_bridge=" << edge.cleanup_bridge
-                  << " consolidation_bridge=" << edge.consolidation_bridge
-                  << " removed_by_cleanup=" << edge.removed_by_cleanup
-                  << " signed_kind=" << edge.signed_kind << "\n";
+        const ManuMeshFeatureEdgeV2& edge = edges[i];
+        if (edge.a < 0 || edge.b < 0 || edge.a == edge.b || static_cast<std::size_t>(edge.a) >= vertices.size() ||
+            static_cast<std::size_t>(edge.b) >= vertices.size() || edge.feature_edge_index != i) {
+            std::cerr << "The C ABI returned an invalid feature-edge endpoint index.\n";
+            manumesh_mesh_destroy(mesh);
+            manumesh_context_destroy(context);
+            return 6;
+        }
+        std::cout << "edge " << edge.a << " - " << edge.b << " boundary=" << edge.boundary
+                  << " dihedral=" << edge.dihedral << " normal_tensor=" << edge.normal_tensor
+                  << " smooth_curvature=" << edge.smooth_curvature << " non_manifold=" << edge.non_manifold
+                  << " cleanup_bridge=" << edge.cleanup_bridge << " consolidation_bridge=" << edge.consolidation_bridge
+                  << " removed_by_cleanup=" << edge.removed_by_cleanup << " signed_kind=" << edge.signed_kind
+                  << " feature_edge_index=" << edge.feature_edge_index << " input_edge_index=";
+        if (edge.input_edge_index == MANUMESH_INVALID_EDGE_INDEX) {
+            std::cout << "invalid";
+        } else {
+            std::cout << edge.input_edge_index;
+        }
+        std::cout << " synthetic=" << edge.synthetic << " geometric_constraint=" << edge.geometric_constraint << "\n";
     }
 
     // Optional application-level output: [a0, b0, a1, b1, ...].
@@ -117,6 +138,11 @@ int main() {
         featureEdgeIndices.push_back(a);
         featureEdgeIndices.push_back(b);
     }
+    std::cout << "feature_edge_vertex_indices";
+    for (int vertexIndex : featureEdgeIndices) {
+        std::cout << ' ' << vertexIndex;
+    }
+    std::cout << '\n';
 
     manumesh_mesh_destroy(mesh);
     manumesh_context_destroy(context);

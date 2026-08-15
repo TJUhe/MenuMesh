@@ -9,8 +9,10 @@
  */
 
 #include "detail/FeatureConstraints.h"
+#include "core/MathUtils.h"
 
 #include "common/detail/GeometryPredicates.h"
+#include "detail/SimplificationPolicies.h"
 
 #include <algorithm>
 #include <array>
@@ -19,21 +21,36 @@
 #include <limits>
 #include <numeric>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 int curveSegmentCount(const FeatureCurveConstraint& curve) {
+    if (!curve.segments.empty()) {
+        return static_cast<int>(curve.segments.size());
+    }
     return curve.closed ? static_cast<int>(curve.samples.size())
                         : std::max(0, static_cast<int>(curve.samples.size()) - 1);
 }
 
+std::array<Vec3, 2> curveSegmentEndpoints(const FeatureCurveConstraint& curve, int segment) {
+    if (!curve.segments.empty()) {
+        return curve.segments[static_cast<std::size_t>(segment)];
+    }
+    return {{
+        curve.samples[static_cast<std::size_t>(segment)],
+        curve.samples[static_cast<std::size_t>(segment + 1) % curve.samples.size()],
+    }};
+}
+
 Vec3 closestPointOnCurveSegment(const FeatureCurveConstraint& curve, int segment, const Vec3& position) {
-    const Vec3& p0 = curve.samples[static_cast<std::size_t>(segment)];
-    const Vec3& p1 = curve.samples[static_cast<std::size_t>(segment + 1) % curve.samples.size()];
+    const std::array<Vec3, 2> endpoints = curveSegmentEndpoints(curve, segment);
+    const Vec3& p0 = endpoints[0];
+    const Vec3& p1 = endpoints[1];
     const Vec3 edge = p1 - p0;
     const double len2 = edge.squaredNorm();
     if (len2 > 1e-30) {
-        const double t = std::clamp((position - p0).dot(edge) / len2, 0.0, 1.0);
+        const double t = manumesh::clampValue((position - p0).dot(edge) / len2, 0.0, 1.0);
         return p0 + t * edge;
     }
     return p0;
@@ -72,7 +89,9 @@ bool isGenericFeature(const VertexState& vertex) {
     return vertex.isFeature && !isPrimitiveProtected(vertex, FeatureProtectionMode::PrimitiveCurves);
 }
 
-FeatureCollapseRejectKind featureCollapseRejectKind(const FeatureCollapseInput& input, const SimplifyOptions& options) {
+FeatureCollapseRejectKind featureCollapseRejectKind(
+    const FeatureCollapseInput& input, const SimplifyOptions& options, int minFeatureLoopVertices
+) {
     const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options);
     if (mode == FeatureProtectionMode::None) {
         return FeatureCollapseRejectKind::None;
@@ -83,6 +102,49 @@ FeatureCollapseRejectKind featureCollapseRejectKind(const FeatureCollapseInput& 
     const std::vector<int>& activeLoopCounts = input.activeLoopCounts;
     const VertexState& a = vertices[keep];
     const VertexState& b = vertices[remove];
+
+    if (mode == FeatureProtectionMode::AllFeatureEdges) {
+        const bool aGraphFeature = input.constraints.hasProtectedIncidentEdge(keep);
+        const bool bGraphFeature = input.constraints.hasProtectedIncidentEdge(remove);
+        if (!aGraphFeature && !bGraphFeature && !a.isFeature && !b.isFeature) {
+            return FeatureCollapseRejectKind::None;
+        }
+
+        const FeatureCollapseRejectKind rejectKind = isGenericFeature(a) || isGenericFeature(b)
+                                                         ? FeatureCollapseRejectKind::Generic
+                                                         : FeatureCollapseRejectKind::Primitive;
+        if (!aGraphFeature || !bGraphFeature || !input.constraints.isProtectedPathEdge(keep, remove)) {
+            return rejectKind;
+        }
+        if (a.featureJunction || b.featureJunction) {
+            return rejectKind;
+        }
+        if (input.constraints.isOnlyProtectedEdgeInComponent(keep, remove)) {
+            return rejectKind;
+        }
+
+        const FeatureConstraintEdge* edge = input.constraints.findEdge(keep, remove);
+        if (edge == nullptr || edge->loopIds.empty()) {
+            // Untraced evidence remains protected, but cannot be shortened without a curve budget.
+            return rejectKind;
+        }
+        const int minActiveComponentVertices =
+            (a.circularFeature || b.circularFeature) ? options.minCircularFeatureLoopVertices : minFeatureLoopVertices;
+        const bool hasCurveErrorBudget = options.maxFeatureCurveDeviationRatio > 0.0;
+        const bool ellipseFeature =
+            a.featurePrimitive == FeatureCurveKind::Ellipse || b.featurePrimitive == FeatureCurveKind::Ellipse;
+        const int absoluteMinLoopVertices = (a.circularFeature || b.circularFeature || ellipseFeature) ? 4 : 3;
+        const int activeProtectedComponentVertices = input.constraints.protectedComponentVertexCount(keep, remove);
+        if (activeProtectedComponentVertices <= 0) {
+            return rejectKind;
+        }
+        if (activeProtectedComponentVertices <= minActiveComponentVertices &&
+            (!hasCurveErrorBudget || activeProtectedComponentVertices <= absoluteMinLoopVertices)) {
+            return rejectKind;
+        }
+        return FeatureCollapseRejectKind::None;
+    }
+
     if (!a.isFeature && !b.isFeature) {
         return FeatureCollapseRejectKind::None;
     }
@@ -96,10 +158,7 @@ FeatureCollapseRejectKind featureCollapseRejectKind(const FeatureCollapseInput& 
         return FeatureCollapseRejectKind::Primitive;
     }
 
-    const FeatureCollapseRejectKind rejectKind =
-        mode == FeatureProtectionMode::AllFeatureEdges && (isGenericFeature(a) || isGenericFeature(b))
-            ? FeatureCollapseRejectKind::Generic
-            : FeatureCollapseRejectKind::Primitive;
+    const FeatureCollapseRejectKind rejectKind = FeatureCollapseRejectKind::Primitive;
 
     if (a.isFeature != b.isFeature) {
         return rejectKind;
@@ -113,8 +172,8 @@ FeatureCollapseRejectKind featureCollapseRejectKind(const FeatureCollapseInput& 
     if (a.featureLoopId >= static_cast<int>(activeLoopCounts.size())) {
         return rejectKind;
     }
-    const int minActiveLoopVertices = (a.circularFeature || b.circularFeature) ? options.minCircularFeatureLoopVertices
-                                                                               : options.minFeatureLoopVertices;
+    const int minActiveLoopVertices =
+        (a.circularFeature || b.circularFeature) ? options.minCircularFeatureLoopVertices : minFeatureLoopVertices;
     if (activeLoopCounts[a.featureLoopId] <= minActiveLoopVertices) {
         const bool hasCurveErrorBudget = options.maxFeatureCurveDeviationRatio > 0.0;
         const bool ellipseFeature =
@@ -138,11 +197,17 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
     const std::vector<FeatureCurveConstraint>& curves = input.curves;
     const VertexState& a = vertices[keep];
     const VertexState& b = vertices[remove];
-    if (!a.isFeature || !b.isFeature || a.featureLoopId != b.featureLoopId) {
-        return false;
-    }
-    if (!isPrimitiveProtected(a, mode) && !isPrimitiveProtected(b, mode)) {
-        return false;
+    if (mode == FeatureProtectionMode::AllFeatureEdges) {
+        if (!input.constraints.isProtectedPathEdge(keep, remove)) {
+            return false;
+        }
+    } else {
+        if (!a.isFeature || !b.isFeature || a.featureLoopId != b.featureLoopId) {
+            return false;
+        }
+        if (!isPrimitiveProtected(a, mode) && !isPrimitiveProtected(b, mode)) {
+            return false;
+        }
     }
     if (a.circularFeature) {
         position = projectToCircle(position, a, primitiveFitOf(a, input.primitiveFits));
@@ -160,11 +225,24 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
         position = projectToEllipse(position, b, primitiveFitOf(b, input.primitiveFits));
         return true;
     }
-    if (mode == FeatureProtectionMode::AllFeatureEdges && a.featureLoopId >= 0 &&
-        a.featureLoopId < static_cast<int>(curves.size()) && curves[a.featureLoopId].valid &&
-        curves[a.featureLoopId].primitive == FeatureCurveKind::PolygonalLoop) {
+    if (mode == FeatureProtectionMode::AllFeatureEdges) {
         double bestDist2 = std::numeric_limits<double>::infinity();
-        const Vec3 best = closestPointOnFeatureCurve(curves[a.featureLoopId], position, bestDist2);
+        Vec3 best = position;
+        const FeatureConstraintEdge* edge = input.constraints.findEdge(keep, remove);
+        if (edge != nullptr) {
+            for (int loopId : edge->loopIds) {
+                if (loopId < 0 || loopId >= static_cast<int>(curves.size()) || !curves[loopId].valid ||
+                    curves[loopId].primitive != FeatureCurveKind::PolygonalLoop) {
+                    continue;
+                }
+                double distanceSquared = std::numeric_limits<double>::infinity();
+                const Vec3 candidate = closestPointOnFeatureCurve(curves[loopId], position, distanceSquared);
+                if (distanceSquared < bestDist2) {
+                    bestDist2 = distanceSquared;
+                    best = candidate;
+                }
+            }
+        }
         if (std::isfinite(bestDist2)) {
             position = best;
             return true;
@@ -173,7 +251,7 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
     const Vec3 segment = b.p - a.p;
     const double segmentLen2 = segment.squaredNorm();
     if (segmentLen2 > 1e-30) {
-        const double t = std::clamp((position - a.p).dot(segment) / segmentLen2, 0.0, 1.0);
+        const double t = manumesh::clampValue((position - a.p).dot(segment) / segmentLen2, 0.0, 1.0);
         position = a.p + t * segment;
         return true;
     }
@@ -190,7 +268,7 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
     return false;
 }
 
-} // 结束匿名命名空间
+} // namespace
 
 Vec3 projectToCircle(const Vec3& p, const VertexState& feature, const FeaturePrimitiveFit& fit) {
     Vec3 normal = fit.circleNormal;
@@ -335,8 +413,9 @@ void buildPolylineSegmentIndex(FeatureCurveConstraint& curve) {
 
     std::vector<Vec3> centroids(static_cast<std::size_t>(segmentCount));
     for (int segment = 0; segment < segmentCount; ++segment) {
-        const Vec3& p0 = curve.samples[static_cast<std::size_t>(segment)];
-        const Vec3& p1 = curve.samples[static_cast<std::size_t>(segment + 1) % curve.samples.size()];
+        const std::array<Vec3, 2> endpoints = curveSegmentEndpoints(curve, segment);
+        const Vec3& p0 = endpoints[0];
+        const Vec3& p1 = endpoints[1];
         centroids[static_cast<std::size_t>(segment)] = 0.5 * (p0 + p1);
     }
 
@@ -351,8 +430,9 @@ void buildPolylineSegmentIndex(FeatureCurveConstraint& curve) {
         Vec3 hi = Vec3::Constant(-std::numeric_limits<double>::infinity());
         for (int i = begin; i < end; ++i) {
             const int segment = index.segmentOrder[static_cast<std::size_t>(i)];
-            const Vec3& p0 = curve.samples[static_cast<std::size_t>(segment)];
-            const Vec3& p1 = curve.samples[static_cast<std::size_t>(segment + 1) % curve.samples.size()];
+            const std::array<Vec3, 2> endpoints = curveSegmentEndpoints(curve, segment);
+            const Vec3& p0 = endpoints[0];
+            const Vec3& p1 = endpoints[1];
             lo = lo.cwiseMin(p0).cwiseMin(p1);
             hi = hi.cwiseMax(p0).cwiseMax(p1);
         }
@@ -460,23 +540,33 @@ Vec3 closestPointOnFeatureCurve(const FeatureCurveConstraint& curve, const Vec3&
 }
 
 FeatureConstraintPolicy::FeatureConstraintPolicy(const SimplifyOptions& options)
-    : options_(options) {}
+    : options_(options),
+      minFeatureLoopVertices_(featureOptionsFromSimplifyOptions(options, 5).minFeatureLoopVertices) {}
 
 FeatureCollapseRejectKind FeatureConstraintPolicy::collapseRejectKind(const FeatureCollapseInput& input) const {
-    return featureCollapseRejectKind(input, options_);
+    return featureCollapseRejectKind(input, options_, minFeatureLoopVertices_);
 }
 
-bool FeatureConstraintPolicy::isHardProtectedVertex(int vertex, const std::vector<VertexState>& vertices) const {
-    return vertex >= 0 && vertex < static_cast<int>(vertices.size()) &&
-           isPrimitiveProtected(vertices[vertex], effectiveFeatureProtectionMode(options_));
+bool FeatureConstraintPolicy::isHardProtectedVertex(
+    int vertex, const std::vector<VertexState>& vertices, const FeatureConstraintGraph& constraints
+) const {
+    if (vertex < 0 || vertex >= static_cast<int>(vertices.size())) {
+        return false;
+    }
+    const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options_);
+    return mode == FeatureProtectionMode::AllFeatureEdges ? constraints.hasProtectedIncidentEdge(vertex)
+                                                          : isPrimitiveProtected(vertices[vertex], mode);
 }
 
 bool FeatureConstraintPolicy::isHardProtectedCollapse(
-    CollapseEdge edge, const std::vector<VertexState>& vertices
+    CollapseEdge edge, const std::vector<VertexState>& vertices, const FeatureConstraintGraph& constraints
 ) const {
     const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options_);
     if (mode == FeatureProtectionMode::None) {
         return false;
+    }
+    if (mode == FeatureProtectionMode::AllFeatureEdges) {
+        return constraints.isProtectedPathEdge(edge.keep, edge.remove);
     }
     return isPrimitiveProtected(vertices[edge.keep], mode) && isPrimitiveProtected(vertices[edge.remove], mode) &&
            vertices[edge.keep].featureLoopId == vertices[edge.remove].featureLoopId;
@@ -486,4 +576,5 @@ bool FeatureConstraintPolicy::projectPlacement(const FeatureProjectionInput& inp
     return projectFeaturePlacement(input, options_, position);
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

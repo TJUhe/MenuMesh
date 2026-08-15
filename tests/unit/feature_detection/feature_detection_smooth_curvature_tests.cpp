@@ -17,7 +17,9 @@
 #include <cmath>
 #include <unordered_set>
 
-namespace manumesh::test::feature_detection {
+namespace manumesh {
+namespace test {
+namespace feature_detection {
 namespace {
 
 int persistentVertexCount(const std::vector<feature::SmoothCurvatureVertex>& values, int minimumScales) {
@@ -64,7 +66,7 @@ FeatureOptions smoothFeatureOptions() {
     return options;
 }
 
-} // 命名空间
+} // namespace
 
 TEST(FeatureDetection, SmoothCurvatureRejectsExactPlaneAndFindsSmoothBump) {
     const feature::SmoothCurvatureOptions options{2, 3, 2, 0.55};
@@ -216,4 +218,6 @@ TEST(FeatureDetection, RejectsInvalidSmoothCurvatureOptions) {
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
 }
 
-} // 命名空间
+} // namespace feature_detection
+} // namespace test
+} // namespace manumesh

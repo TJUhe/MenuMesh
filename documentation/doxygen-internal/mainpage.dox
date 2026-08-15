@@ -16,8 +16,9 @@
  * @section internal_build 构建
  *
  * @code{.powershell}
- * cmake --build build/mingw-ninja-release --target check-src-doxygen
- * cmake --build build/mingw-ninja-release --target docs-internal --parallel
+ * cmake --preset vs2019-release-docs
+ * cmake --build --preset vs2019-release-docs --target check-src-doxygen --parallel
+ * cmake --build --preset vs2019-release-docs --target docs-internal --parallel
  * @endcode
  *
  * 生成的入口是 `docs/internal/html/index.html`。

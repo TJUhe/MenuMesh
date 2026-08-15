@@ -12,7 +12,8 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace manumesh::mesh_edit {
+namespace manumesh {
+namespace mesh_edit {
 
 bool containsVertex(const EditableFace& face, int vertex) {
     return face.v[0] == vertex || face.v[1] == vertex || face.v[2] == vertex;
@@ -132,4 +133,5 @@ int activeIncidentFaceCountForEdge(
     return count;
 }
 
-} // 结束 manumesh::mesh_edit 命名空间
+} // namespace mesh_edit
+} // namespace manumesh

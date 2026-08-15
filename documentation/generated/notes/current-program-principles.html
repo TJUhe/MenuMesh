@@ -561,9 +561,9 @@ S_{Co}=\sigma_3.$$
 
 <p>可以用下面两条命令直接看到增强是否生效：第一条把二面角阈值设到 179°，使普通 dihedral 基本失效；如果输出里 <code>dihedral_edges=0</code> 且 <code>normal_tensor_edges</code> 大于 0，就说明 normal tensor 候选边正在补特征。第二条看 <code>line_weight_range</code>，若最大值大于最小值，说明 normal tensor 权重已经参与 QEM 简化。</p>
 
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe generate --type ridge --n 32 --out output\normal_tensor_demo\ridge.stl
-.\build\mingw-ninja-release\bin\manumesh.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
-.\build\mingw-ninja-release\bin\manumesh.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe generate --type ridge --n 32 --out output\normal_tensor_demo\ridge.stl
+.\build\vs2019-release\bin\Release\manumesh.exe feature-report output\normal_tensor_demo\ridge.stl --feature-angle-deg 179 --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2
+.\build\vs2019-release\bin\Release\manumesh.exe simplify output\normal_tensor_demo\ridge.stl output\normal_tensor_demo\ridge_nt.stl --method line --ratio 0.70 --weight-mode normal-tensor --feature-boost 0.08</code></pre>
 
 <h3>5.1 例子：60° 折痕为什么会被判成 crease</h3>
 
@@ -839,12 +839,13 @@ facesByKey[sorted(a,b,c)] = 具有同一顶点集合的活动 face id 集合</co
 
 <p>建议用 Release 跑大模型，否则 Debug 下会明显慢很多。</p>
 
-<pre><code>cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre>
+<pre><code>cmake --preset vs2019-release
+cmake --build --preset vs2019-release --target manumesh --parallel</code></pre>
 
 <p>如果还没有配置过该构建目录，可先运行：</p>
 
-<pre><code>cmake -S . -B build\mingw-ninja-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
-cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre>
+<pre><code>cmake --preset vs2019-release
+cmake --build --preset vs2019-release --target manumesh --parallel</code></pre>
 
 <h3>10.2 案例一：Fandisk，验证硬边特征保留</h3>
 
@@ -852,7 +853,7 @@ cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre
 
 <h4>查看原始特征</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe feature-report `
   tests\data\external\fandisk_2014.stl `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -871,7 +872,7 @@ cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre
 
 <h4>普通 QEM 25% 简化</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\tsuchie2014\fandisk_standard_025.stl `
   --method standard --ratio 0.25 `
@@ -880,7 +881,7 @@ cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre
 
 <h4>Line + hard feature 25% 简化</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\tsuchie2014\fandisk_line_feature_025.stl `
   --method line --ratio 0.25 `
@@ -912,7 +913,7 @@ cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre
 
 <h4>原始特征报告</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe feature-report `
   tests\data\external\casting_aimshape_2014.stl `
   --feature-angle-deg 25 `
   --circle-fit-threshold 0.04 `
@@ -931,7 +932,7 @@ cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre
 
 <h4>Line quadrics 25% 简化，验证 link condition</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\casting_aimshape_2014.stl `
   output\tsuchie2014\casting_line_plain_025.stl `
   --method line --ratio 0.25 `
@@ -959,7 +960,7 @@ cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre
 
 <h4>Hard feature 模式的观察</h4>
 
-<pre><code>.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+<pre><code>.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\casting_aimshape_2014.stl `
   output\tsuchie2014\casting_line_feature_025.stl `
   --method line --ratio 0.25 `
@@ -980,7 +981,7 @@ cmake --build build\mingw-ninja-release --target manumesh --parallel</code></pre
 <p>Armadillo 来自公共大模型验证集，约 99976 个三角面 <a class="cite" href="#ref-common3d">[C3D]</a><a class="cite" href="#ref-large">[LV]</a>。它适合测试大模型性能。</p>
 
 <pre><code>Measure-Command {
-  .\build\mingw-ninja-release\bin\manumesh.exe simplify `
+  .\build\vs2019-release\bin\Release\manumesh.exe simplify `
     tests\data\external\large\armadillo.stl `
     tests\output\large_validation\armadillo_line_050_incremental.stl `
     --method line --ratio 0.5 `
@@ -1024,7 +1025,7 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 
 <p>如果只想验证程序没有被改坏，跑快速套件（不含 performance 和 external 大网格用例）：</p>
 
-<pre><code>ctest --test-dir build\mingw-ninja-release -LE "performance|external" --output-on-failure</code></pre>
+<pre><code>ctest --preset vs2019-release-unit</code></pre>
 
 <p>当前结果为（2026-07-13）：</p>
 
@@ -1034,14 +1035,14 @@ $$\Delta B = B_\text{output}-B_\text{input}\le 0,\qquad
 
 <h3>10.7 VS Code 演示路线</h3>
 
-<p>当前仓库的 <code>.vscode/tasks.json</code> 以 <code>mingw+ninja</code> 为主链路，并保留 <code>msvc+vs2022</code>、<code>msvc+vs2019</code> 和自定义 Visual Studio 生成器任务。现场建议按下面顺序讲：</p>
+<p>当前仓库的 <code>.vscode/tasks.json</code> 统一使用 Visual Studio 16 2019 / MSVC v142 presets。现场建议按下面顺序讲：</p>
 
 <table>
 <tr><th>任务</th><th>推荐输入</th><th>讲什么</th></tr>
 <tr><td><code>demo: feature report selected mesh</code></td><td><code>coaxial_hole_plate.obj</code></td><td>4 个圆形 loop、圆拟合误差和 feature graph。</td></tr>
-<tr><td><code>demo: algorithm comparison selected mesh</code></td><td><code>fandisk_2014.stl</code></td><td>standard QEM、line QEM、dihedral-line、feature-curves、normal-tensor 的差异。</td></tr>
+<tr><td><code>demo: simplify selected mesh</code></td><td><code>fandisk_2014.stl</code></td><td>line QEM、normal-tensor 权重和 feature-curve 保护的组合效果。</td></tr>
 <tr><td><code>demo: ratio sweep selected mesh</code></td><td><code>fandisk_2014.stl</code> 或 <code>coaxial_hole_plate.obj</code></td><td>同一算法在 0.8、0.5、0.25、0.1 ratio 下的误差和质量变化。</td></tr>
-<tr><td><code>Debug CLI Industrial Safe (MinGW Ninja)</code></td><td><code>casting_aimshape_2014.stl</code></td><td>为什么质量、局部误差和特征约束会带来更多 rejected collapses。</td></tr>
+<tr><td><code>VS2019 Debug CLI - Feature Curves</code></td><td><code>casting_aimshape_2014.stl</code></td><td>为什么质量、局部误差和特征约束会带来更多 rejected collapses。</td></tr>
 </table>
 
 <p>最有说明力的参数实验是：在 Fandisk 上扫 <code>--feature-angle-deg 15/25/45</code>，在 coaxial hole 上扫 <code>--max-feature-curve-deviation-ratio 0.02/0.05</code>，在 Casting 上比较是否开启 <code>--industrial-safe --max-local-error-ratio 0.02</code>。这些例子分别说明“特征识别阈值”“曲线预算”和“工业安全 guard”的作用。</p>
@@ -1260,7 +1261,7 @@ $$E_{line}(x)=\|(I-tt^\top)(x-p)\|^2$$
 <tr><th>阶段</th><th>主要输入</th><th>主要输出</th><th>失败信号</th><th>源码与论文锚点</th></tr>
 <tr><td>1. 邻接建图</td><td>三角形索引、顶点坐标。</td><td>无向边到相邻面的 <code>MeshEdgeInfoMap</code>。</td><td>boundary 数异常、non-manifold 过多、后续二面角无法稳定计算。</td><td><code>MeshQueries.h</code>；M016、M018/M019。</td></tr>
 <tr><td>2. 强证据打分</td><td>边的相邻面数、面法向、二面角。</td><td>boundary / dihedral / non-manifold <code>FeatureGraphEdge</code> 候选。</td><td><code>dihedralFeatureEdges</code> 低于预期，通常先看 <code>featureAngleDeg</code> 和法向方向。</td><td><code>FeatureEvidence.cpp</code>；M007、M016。</td></tr>
-<tr><td>3. 弱证据打分</td><td>局部边长、顶点一环/多尺度邻域、面法向分布。</td><td><code>persistentFeatureScore</code>、<code>persistentScales</code>、crease tangent、normal-tensor edge。</td><td>弱特征召回低看 threshold/persistence；假阳性多看两端点分数和 edge/tangent alignment。注意 normal-tensor 对齐使用两端最大值。</td><td><code>NormalTensor.cpp</code>、<code>FeatureEvidence.cpp:330-380</code>；M009、M012/M013、M015。</td></tr>
+<tr><td>3. 弱证据打分</td><td>局部边长、顶点一环/多尺度邻域、面法向分布。</td><td><code>persistentFeatureScore</code>、<code>persistentScales</code>、crease tangent、normal-tensor edge。</td><td>弱特征召回低看 threshold/persistence；假阳性多看两端点分数和 edge/tangent alignment。normal-tensor 边要求两个端点都通过方向对齐。</td><td><code>NormalTensor.cpp</code>、<code>FeatureEvidence.cpp:330-380</code>；M009、M012/M013、M015。</td></tr>
 <tr><td>3b. 光滑曲率打分（opt-in）</td><td>k-ring 邻域、局部平均边长、逐尺度 Monge patch 拟合。</td><td>带符号主曲率/方向、方向极值、persistence 过滤后的 smooth-curvature edge 证据。</td><td>平面误报看 threshold 与残差质量；漏检看 base rings/scale count；碎裂看 tangent consistency 与 edge alignment。</td><td><code>SmoothCurvature.cpp</code>、<code>FeatureEvidence.cpp</code>；M014/M042-M044、M026。</td></tr>
 <tr><td>4. trace eligibility</td><td>所有 edge evidence 和 trace 阈值。</td><td>进入 trace graph 的边集合。</td><td>诊断里有 feature edge 但没有 loop，先看 <code>loopTraceAngleDeg</code> 是否比 evidence 阈值更严。</td><td><code>FeatureGraph.cpp</code>；M018/M019。</td></tr>
 <tr><td>5. graph cleanup / consolidation</td><td>候选图、局部尺度、branch directions、source/sign。</td><td>cleanup/consolidation bridges、removed spur、恢复后的 component。</td><td>bridge 多看兼容规则和局部贪心；spur 多区分 tensor/curvature noise。</td><td><code>FeatureGraphCleanup.cpp</code>、<code>FeatureGraphCompatibility.cpp</code>、<code>FeatureGraphConsolidation.cpp</code>；M026/M044。</td></tr>

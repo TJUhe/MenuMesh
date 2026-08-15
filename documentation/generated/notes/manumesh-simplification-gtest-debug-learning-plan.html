@@ -42,8 +42,8 @@ cmake --build --preset vs2019-debug-tests
   --gtest_break_on_failure</code></pre>
     <p>PowerShell 中也可把最后一条写成一行。Visual Studio 打开根目录后选择 <code>vs2019-debug</code>；VS Code CMake Tools 也会读取同一个 <a href="../../../CMakePresets.json">CMakePresets.json</a>。</p>
     <h3>2.2 开启 HTML 调试工具</h3>
-    <pre><code>cmake --preset vs2019-debug-debugutil
-cmake --build --preset vs2019-debug-debugutil</code></pre>
+    <pre><code>cmake --preset vs2019-debug
+cmake --build --preset vs2019-debug-tests</code></pre>
     <div class="callout warn"><strong>不要混用构建目录：</strong><code>debugUtil</code> 只在该独立 Debug preset 中开启。Release 或普通 <code>vs2019-debug</code> 中宏会成为 no-op。</div>
     <h3>2.3 回归与大模型</h3>
     <pre><code>ctest --preset vs2019-debug-unit
@@ -142,7 +142,7 @@ ctest --preset vs2019-release-performance</code></pre>
   </section>
 
   <section id="debugutil"><h2>5. 用 debugUtil 定位折叠位置</h2>
-    <p>在 <code>vs2019-debug-debugutil</code> 构建中临时插桩，定位候选、被拒 placement 或简化前后差异：</p>
+    <p>DebugUtil 插桩调用当前暂时注释；定位候选、被拒 placement 或简化前后差异时直接使用结构化 metrics 和测试断点：</p>
     <pre><code>MANUMESH_DEBUG_UTIL_EDGE_LABEL(
     "collapse_candidate", inputMesh, keep, remove,
     manumesh::debugUtil::UseCase::Candidate,

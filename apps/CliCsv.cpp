@@ -12,7 +12,8 @@
 #include <iomanip>
 #include <sstream>
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 
 std::vector<std::string> splitCsvLine(const std::string& line) {
     std::vector<std::string> out;
@@ -55,7 +56,7 @@ std::string quoteCsv(const std::string& value) {
     return needsQuotes ? '"' + escaped + '"' : escaped;
 }
 
-std::map<std::string, std::string> readFirstCsvRow(const std::filesystem::path& path) {
+std::map<std::string, std::string> readFirstCsvRow(const manumesh::filesystem::path& path) {
     std::ifstream in(path);
     if (!in) {
         return {};
@@ -105,4 +106,5 @@ std::string statsRowCsv(
     return out.str();
 }
 
-} // namespace manumesh::cli
+} // namespace cli
+} // namespace manumesh

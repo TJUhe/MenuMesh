@@ -15,7 +15,9 @@
 
 #include <algorithm>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 void removeNeighbor(std::vector<int>& neighbors, int id) {
@@ -34,6 +36,10 @@ void appendFeatureGraphEdge(FeatureAnalysis& analysis, const CandidateEdge& edge
     graphEdge.cleanupBridge = edge.cleanupBridge;
     graphEdge.consolidationBridge = edge.consolidationBridge;
     graphEdge.signedKind = edge.signedKind;
+    graphEdge.tensorPersistence = edge.tensorPersistentScore;
+    graphEdge.tensorPersistentScales = edge.tensorPersistentScales;
+    graphEdge.curvaturePersistence = edge.curvaturePersistentScore;
+    graphEdge.curvaturePersistentScales = edge.curvaturePersistentScales;
     const int edgeId = static_cast<int>(analysis.graph.edges.size());
     analysis.graph.edges.push_back(graphEdge);
     if (edge.a >= 0 && edge.a < static_cast<int>(analysis.graph.vertices.size())) {
@@ -316,4 +322,6 @@ void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis) {
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

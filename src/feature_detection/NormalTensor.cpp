@@ -5,22 +5,40 @@
  *
  * @details 实现确定性的多尺度法向张量投票。
  * @algorithm 在每个顶点和尺度上，对相邻面法向累加加权外积；有序特征值差编码
- *            曲面、折痕和角点显著性，中间特征向量提供折痕切线；持久性支持必须
+ *            曲面、折痕和角点显著性，最小特征值对应向量提供折痕切线；持久性支持必须
  *            持续达到配置的尺度数量。
  * @failuremodes 孤立、退化或各向同性邻域返回零显著性及确定性的备用坐标系。
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
+#include "core/MathUtils.h"
 #include "detail/FeatureDetectionCache.h"
 #include "detail/FeatureInputValidation.h"
+#include "detail/FeatureNormalFilter.h"
 
 #include <Eigen/Eigenvalues>
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
+#include <string>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 namespace {
+
+constexpr double kMinScaleTangentConsistency = 0.65;
+
+struct NormalTensorScaleEvidence {
+    explicit NormalTensorScaleEvidence(const NormalTensorVertex& candidate)
+        : creaseTangent(candidate.creaseTangent),
+          featureScore(candidate.featureScore),
+          creaseDominant(candidate.creaseSaliency >= candidate.cornerSaliency) {}
+
+    Vec3 creaseTangent;
+    double featureScore;
+    bool creaseDominant;
+};
 
 NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
     NormalTensorVertex result;
@@ -41,7 +59,64 @@ NormalTensorVertex analyzeNormalTensor(const Eigen::Matrix3d& tensor) {
     return result;
 }
 
-} // 匿名命名空间
+double normalTensorScaleRadiusMultiplier(int scale) { return 1.0 + 0.5 * static_cast<double>(std::max(0, scale)); }
+
+double normalTensorEffectiveRadius(double localEdgeLength, int baseIterations, int selectedScale) {
+    if (!(localEdgeLength > 0.0) || selectedScale < 0) {
+        return 0.0;
+    }
+    // 初始面投票已经覆盖顶点的一环。后续每次平滑近似为独立高斯扩散，
+    // 因此用各次名义半径的平方和报告累计支持宽度。
+    double squaredMultiplier = 1.0 + static_cast<double>(std::max(0, baseIterations));
+    for (int scale = 1; scale <= selectedScale; ++scale) {
+        const double multiplier = normalTensorScaleRadiusMultiplier(scale);
+        squaredMultiplier += multiplier * multiplier;
+    }
+    return localEdgeLength * std::sqrt(squaredMultiplier);
+}
+
+bool isMeaningfullyStrongerScore(double candidate, double reference) {
+    const double tolerance = 1e-12 * std::max({1.0, std::abs(candidate), std::abs(reference)});
+    return candidate > reference + tolerance;
+}
+
+bool isCreaseDominant(const NormalTensorVertex& candidate) {
+    return candidate.creaseSaliency >= candidate.cornerSaliency;
+}
+
+bool hasConsistentCreaseTangent(const NormalTensorScaleEvidence& candidate, const NormalTensorVertex& reference) {
+    return std::abs(candidate.creaseTangent.dot(reference.creaseTangent)) >= kMinScaleTangentConsistency;
+}
+
+bool supportsReferenceFeature(const NormalTensorScaleEvidence& candidate, const NormalTensorVertex& reference) {
+    if (isCreaseDominant(reference)) {
+        return candidate.creaseDominant && hasConsistentCreaseTangent(candidate, reference);
+    }
+    return !candidate.creaseDominant;
+}
+
+void validateNormalTensorOptions(const NormalTensorOptions& options) {
+    if (options.smoothingIterations < 0 || options.smoothingIterations > kMaxNormalTensorSmoothingIterations) {
+        throw std::invalid_argument(
+            "NormalTensorOptions::smoothingIterations must be in [0, " +
+            std::to_string(kMaxNormalTensorSmoothingIterations) + "]."
+        );
+    }
+    if (options.scaleCount < 1 || options.scaleCount > kMaxNormalTensorScaleCount) {
+        throw std::invalid_argument(
+            "NormalTensorOptions::scaleCount must be in [1, " + std::to_string(kMaxNormalTensorScaleCount) + "]."
+        );
+    }
+    detector_detail::validateFeatureNormalFilterOptions(options.normalFilter);
+}
+
+void validatePersistenceThreshold(double threshold) {
+    if (!std::isfinite(threshold) || threshold < 0.0) {
+        throw std::invalid_argument("Normal Tensor persistence threshold must be finite and non-negative.");
+    }
+}
+
+} // namespace
 
 namespace detector_detail {
 
@@ -59,11 +134,13 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
 
     std::vector<Eigen::Matrix3d> tensors(mesh.vertices.size(), Eigen::Matrix3d::Zero());
     std::vector<double> weights(mesh.vertices.size(), 0.0);
-    for (const Face& face : mesh.faces) {
+    const std::vector<Vec3>& faceNormals = cache.faceNormals();
+    for (std::size_t faceId = 0; faceId < mesh.faces.size(); ++faceId) {
+        const Face& face = mesh.faces[faceId];
         const Vec3& a = mesh.vertices[face.v[0]];
         const Vec3& b = mesh.vertices[face.v[1]];
         const Vec3& c = mesh.vertices[face.v[2]];
-        const Vec3 normal = triangleNormal(a, b, c);
+        const Vec3& normal = faceNormals[faceId];
         const double area = triangleArea(a, b, c);
         if (normal.norm() <= 1e-20 || area <= 1e-24) {
             continue;
@@ -74,7 +151,6 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
             weights[id] += area;
         }
     }
-
     for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
         if (weights[i] > 1e-24) {
             tensors[i] /= weights[i];
@@ -83,8 +159,9 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
 
     const std::vector<std::vector<int>>& neighbors = cache.vertexNeighbors();
     const std::vector<double>& localScale = cache.vertexAverageEdgeLength();
-    const int baseIterations = std::clamp(options.smoothingIterations, 0, kMaxNormalTensorSmoothingIterations);
-    const int scaleCount = std::clamp(options.scaleCount, 1, kMaxNormalTensorScaleCount);
+    const int baseIterations =
+        manumesh::clampValue(options.smoothingIterations, 0, kMaxNormalTensorSmoothingIterations);
+    const int scaleCount = manumesh::clampValue(options.scaleCount, 1, kMaxNormalTensorScaleCount);
     const double persistenceThreshold =
         std::isfinite(requestedPersistenceThreshold) ? std::max(1e-12, requestedPersistenceThreshold) : 1e-12;
 
@@ -120,42 +197,65 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
         smoothOnce(tensors, 1.0);
     }
 
+    const std::size_t vertexCount = mesh.vertices.size();
+    std::vector<double> scoreSums(vertexCount, 0.0);
+    // Persistence only needs the per-scale score, feature kind and crease tangent.
+    // Keeping this compact evidence avoids a second tensor propagation/eigendecomposition pass.
+    std::vector<NormalTensorScaleEvidence> scaleEvidence;
+    scaleEvidence.reserve(vertexCount * static_cast<std::size_t>(scaleCount));
     for (int scale = 0; scale < scaleCount; ++scale) {
+        const double radiusMultiplier = normalTensorScaleRadiusMultiplier(scale);
         for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
             NormalTensorVertex candidate = analyzeNormalTensor(tensors[i]);
-            candidate.localScale = i < static_cast<int>(localScale.size()) ? localScale[i] : 0.0;
-            result[i].averageFeatureScore += candidate.featureScore;
-            if (candidate.featureScore >= persistenceThreshold) {
-                ++result[i].persistentScales;
-            }
-            if (scale == 0 || candidate.featureScore > result[i].featureScore) {
-                const double accumulatedAverage = result[i].averageFeatureScore;
-                const int accumulatedPersistence = result[i].persistentScales;
+            scaleEvidence.emplace_back(candidate);
+            const double vertexScale = i < static_cast<int>(localScale.size()) ? localScale[i] : 0.0;
+            candidate.localScale = vertexScale * radiusMultiplier;
+            candidate.selectedScale = scale;
+            candidate.smoothingSteps = baseIterations + scale;
+            candidate.effectiveRadius = normalTensorEffectiveRadius(vertexScale, baseIterations, scale);
+            scoreSums[i] += candidate.featureScore;
+            if (scale == 0 || isMeaningfullyStrongerScore(candidate.featureScore, result[i].featureScore)) {
                 result[i] = candidate;
-                result[i].averageFeatureScore = accumulatedAverage;
-                result[i].persistentScales = accumulatedPersistence;
             }
         }
         if (scale + 1 < scaleCount) {
-            smoothOnce(tensors, 1.0 + 0.5 * static_cast<double>(scale + 1));
+            smoothOnce(tensors, normalTensorScaleRadiusMultiplier(scale + 1));
         }
     }
-    for (NormalTensorVertex& vertex : result) {
-        vertex.averageFeatureScore /= static_cast<double>(scaleCount);
-        const double persistenceRatio =
-            std::clamp(static_cast<double>(vertex.persistentScales) / static_cast<double>(scaleCount), 0.0, 1.0);
+
+    for (int scale = 0; scale < scaleCount; ++scale) {
+        for (int vertexId = 0; vertexId < static_cast<int>(result.size()); ++vertexId) {
+            NormalTensorVertex& vertex = result[vertexId];
+            const NormalTensorScaleEvidence& evidence =
+                scaleEvidence[static_cast<std::size_t>(scale) * vertexCount + static_cast<std::size_t>(vertexId)];
+            if (vertex.featureScore >= persistenceThreshold && evidence.featureScore >= persistenceThreshold &&
+                supportsReferenceFeature(evidence, vertex)) {
+                ++vertex.persistentScales;
+            }
+        }
+    }
+
+    for (int vertexId = 0; vertexId < static_cast<int>(result.size()); ++vertexId) {
+        NormalTensorVertex& vertex = result[vertexId];
+        vertex.averageFeatureScore = scoreSums[vertexId] / static_cast<double>(scaleCount);
+        const double persistenceRatio = manumesh::clampValue(
+            static_cast<double>(vertex.persistentScales) / static_cast<double>(scaleCount), 0.0, 1.0
+        );
         const double robustScore = 0.65 * vertex.featureScore + 0.35 * vertex.averageFeatureScore;
         vertex.persistentFeatureScore = robustScore * persistenceRatio;
     }
     return result;
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
 
 std::vector<NormalTensorVertex> computeNormalTensorFeatures(
     const Mesh& mesh, const NormalTensorOptions& options, double requestedPersistenceThreshold
 ) {
-    detector_detail::FeatureDetectionCache cache(mesh);
+    validateNormalTensorOptions(options);
+    validatePersistenceThreshold(requestedPersistenceThreshold);
+    detector_detail::validateFeatureMeshInput(mesh);
+    detector_detail::FeatureDetectionCache cache(mesh, options.normalFilter);
     return detector_detail::computeNormalTensorFeaturesCached(mesh, cache, options, requestedPersistenceThreshold);
 }
 
@@ -163,4 +263,5 @@ std::vector<NormalTensorVertex> computeNormalTensorFeatures(const Mesh& mesh, co
     return computeNormalTensorFeatures(mesh, options, 0.0);
 }
 
-} // 命名空间 manumesh::feature
+} // namespace feature
+} // namespace manumesh

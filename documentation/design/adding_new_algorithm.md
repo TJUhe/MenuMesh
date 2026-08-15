@@ -70,7 +70,8 @@ include `src/...`，不要让外部示例依赖 `detail`。
 优先采用和现有模块一致的结构：
 
 ```cpp
-namespace manumesh::repair {
+namespace manumesh {
+namespace repair {
 
 struct RepairOptions {
   bool removeDuplicateVertices = true;
@@ -107,7 +108,8 @@ public:
 
 RepairResult repairMesh(const Mesh& input, const RepairOptions& options);
 
-} // namespace manumesh::repair
+} // namespace repair
+} // namespace manumesh
 ```
 
 如果算法需要跨 DLL 边界长期稳定使用，公共对象用 pimpl。公开结构体只放调用方
@@ -235,9 +237,9 @@ C API 更晚加入。加入时要：
 - 公共头只使用 `#include "core/..."`、`#include "algorithms/..."`、`#include "api/..."`。
 - 没有公共头 include `src/...`。
 - 新模块没有和已有模块形成 include 环。
-- `cmake --build <build> --parallel` 通过。
-- `ctest --test-dir <build> -C Release -LE performance --output-on-failure` 通过。
-- `cmake --build <build> --target check-format` 通过。
+- `cmake --build --preset vs2019-release --parallel` 通过。
+- `ctest --preset vs2019-release-full` 通过。
+- `cmake --build --preset vs2019-debug --target check-format --parallel` 通过。
 - 如果新增/改动 SDK 公开头，`sdk-consumer-test` 通过。
 
 这个 checklist 通过后，再考虑是否补性能测试、大模型 fixture、CLI 批处理或 C API。

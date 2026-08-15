@@ -6,13 +6,15 @@
 
 #pragma once
 
-#include <filesystem>
+#include "core/Filesystem.h"
 #include <string>
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 
-inline std::filesystem::path pathFromUtf8(const std::string& value) { return std::filesystem::u8path(value); }
+inline manumesh::filesystem::path pathFromUtf8(const std::string& value) { return manumesh::filesystem::u8path(value); }
 
-inline std::string pathToUtf8(const std::filesystem::path& value) { return value.u8string(); }
+inline std::string pathToUtf8(const manumesh::filesystem::path& value) { return value.u8string(); }
 
-} // 命令行命名空间
+} // namespace cli
+} // namespace manumesh

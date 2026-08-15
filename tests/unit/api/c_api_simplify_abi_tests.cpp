@@ -7,6 +7,7 @@
  */
 
 #include "CApiTestSupport.h"
+#include "api/detail/CApiConverters.h"
 
 #include <array>
 #include <cstddef>
@@ -17,7 +18,6 @@
 #include <vector>
 
 using manumesh::test::dataRoot;
-
 namespace {
 
 constexpr unsigned char kInitializerSentinel = 0xA5;
@@ -42,6 +42,8 @@ static_assert(
     "ManuMeshMeshStats v1 field layout changed"
 );
 
+constexpr std::size_t kLegacyV1FeatureOptionsSize =
+    offsetof(ManuMeshFeatureOptions, graph_consolidation_min_alignment) + sizeof(double);
 constexpr std::size_t kLegacyV1SimplifyOptionsSize = offsetof(ManuMeshSimplifyOptions, loop_trace_angle_deg);
 constexpr std::size_t kLegacyV1SimplifyReportSize = offsetof(ManuMeshSimplifyReport, traced_feature_edges);
 constexpr std::size_t kLegacyV1MeshStatsSize = sizeof(LegacyV1MeshStatsLayout);
@@ -61,6 +63,322 @@ template <typename T> struct GuardedAbiStorage {
 template <typename T> constexpr std::size_t minimumAbiStructSize() {
     return offsetof(T, abi_version) + sizeof(unsigned int);
 }
+
+} // namespace
+
+// Keep this list in ManuMeshFeatureOptions order. It drives exhaustive mapping,
+// prefix-size, and composed-override checks for every public payload field.
+#define MANUMESH_C_ABI_FEATURE_FIELDS(BOOL_FIELD, INT_FIELD, DOUBLE_FIELD)                                             \
+    DOUBLE_FIELD(feature_angle_deg, featureAngleDeg, feature_angle_deg, featureAngleDeg, 41.5)                         \
+    DOUBLE_FIELD(loop_trace_angle_deg, loopTraceAngleDeg, loop_trace_angle_deg, loopTraceAngleDeg, 39.5)               \
+    DOUBLE_FIELD(                                                                                                      \
+        circle_fit_relative_threshold,                                                                                 \
+        circleFitRelativeThreshold,                                                                                    \
+        circle_fit_relative_threshold,                                                                                 \
+        circleFitRelativeThreshold,                                                                                    \
+        0.041                                                                                                          \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        ellipse_fit_relative_threshold,                                                                                \
+        ellipseFitRelativeThreshold,                                                                                   \
+        ellipse_fit_relative_threshold,                                                                                \
+        ellipseFitRelativeThreshold,                                                                                   \
+        0.052                                                                                                          \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        near_circle_axis_ratio_tolerance,                                                                              \
+        nearCircleAxisRatioTolerance,                                                                                  \
+        near_circle_axis_ratio_tolerance,                                                                              \
+        nearCircleAxisRatioTolerance,                                                                                  \
+        0.071                                                                                                          \
+    )                                                                                                                  \
+    INT_FIELD(                                                                                                         \
+        min_feature_loop_vertices, minFeatureLoopVertices, min_feature_loop_vertices, minFeatureLoopVertices, 11       \
+    )                                                                                                                  \
+    BOOL_FIELD(                                                                                                        \
+        use_normal_tensor_features, useNormalTensorFeatures, use_normal_tensor_features, useNormalTensorFeatures, 0    \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        normal_tensor_feature_threshold,                                                                               \
+        normalTensorFeatureThreshold,                                                                                  \
+        normal_tensor_feature_threshold,                                                                               \
+        normalTensorFeatureThreshold,                                                                                  \
+        0.21                                                                                                           \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        normal_tensor_min_edge_alignment,                                                                              \
+        normalTensorMinEdgeAlignment,                                                                                  \
+        normal_tensor_min_edge_alignment,                                                                              \
+        normalTensorMinEdgeAlignment,                                                                                  \
+        0.52                                                                                                           \
+    )                                                                                                                  \
+    INT_FIELD(                                                                                                         \
+        normal_tensor_smoothing_iterations,                                                                            \
+        normalTensorSmoothingIterations,                                                                               \
+        normal_tensor_smoothing_iterations,                                                                            \
+        normalTensorSmoothingIterations,                                                                               \
+        2                                                                                                              \
+    )                                                                                                                  \
+    INT_FIELD(normal_tensor_scale_count, normalTensorScaleCount, normal_tensor_scale_count, normalTensorScaleCount, 4) \
+    INT_FIELD(                                                                                                         \
+        normal_tensor_min_persistent_scales,                                                                           \
+        normalTensorMinPersistentScales,                                                                               \
+        normal_tensor_min_persistent_scales,                                                                           \
+        normalTensorMinPersistentScales,                                                                               \
+        3                                                                                                              \
+    )                                                                                                                  \
+    BOOL_FIELD(                                                                                                        \
+        use_smooth_curvature_features,                                                                                 \
+        useSmoothCurvatureFeatures,                                                                                    \
+        use_smooth_curvature_features,                                                                                 \
+        useSmoothCurvatureFeatures,                                                                                    \
+        1                                                                                                              \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        smooth_curvature_feature_threshold,                                                                            \
+        smoothCurvatureFeatureThreshold,                                                                               \
+        smooth_curvature_feature_threshold,                                                                            \
+        smoothCurvatureFeatureThreshold,                                                                               \
+        0.021                                                                                                          \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        smooth_curvature_min_edge_alignment,                                                                           \
+        smoothCurvatureMinEdgeAlignment,                                                                               \
+        smooth_curvature_min_edge_alignment,                                                                           \
+        smoothCurvatureMinEdgeAlignment,                                                                               \
+        0.61                                                                                                           \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        smooth_curvature_min_tangent_consistency,                                                                      \
+        smoothCurvatureMinTangentConsistency,                                                                          \
+        smooth_curvature_min_tangent_consistency,                                                                      \
+        smoothCurvatureMinTangentConsistency,                                                                          \
+        0.72                                                                                                           \
+    )                                                                                                                  \
+    INT_FIELD(                                                                                                         \
+        smooth_curvature_base_neighborhood_rings,                                                                      \
+        smoothCurvatureBaseNeighborhoodRings,                                                                          \
+        smooth_curvature_base_neighborhood_rings,                                                                      \
+        smoothCurvatureBaseNeighborhoodRings,                                                                          \
+        3                                                                                                              \
+    )                                                                                                                  \
+    INT_FIELD(                                                                                                         \
+        smooth_curvature_scale_count,                                                                                  \
+        smoothCurvatureScaleCount,                                                                                     \
+        smooth_curvature_scale_count,                                                                                  \
+        smoothCurvatureScaleCount,                                                                                     \
+        5                                                                                                              \
+    )                                                                                                                  \
+    INT_FIELD(                                                                                                         \
+        smooth_curvature_min_persistent_scales,                                                                        \
+        smoothCurvatureMinPersistentScales,                                                                            \
+        smooth_curvature_min_persistent_scales,                                                                        \
+        smoothCurvatureMinPersistentScales,                                                                            \
+        4                                                                                                              \
+    )                                                                                                                  \
+    INT_FIELD(                                                                                                         \
+        smooth_curvature_robust_fit_iterations,                                                                        \
+        smoothCurvatureRobustFitIterations,                                                                            \
+        smooth_curvature_robust_fit_iterations,                                                                        \
+        smoothCurvatureRobustFitIterations,                                                                            \
+        3                                                                                                              \
+    )                                                                                                                  \
+    BOOL_FIELD(                                                                                                        \
+        smooth_curvature_use_stable_scale_selection,                                                                   \
+        smoothCurvatureUseStableScaleSelection,                                                                        \
+        smooth_curvature_use_stable_scale_selection,                                                                   \
+        smoothCurvatureUseStableScaleSelection,                                                                        \
+        1                                                                                                              \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        smooth_curvature_min_scale_stability,                                                                          \
+        smoothCurvatureMinScaleStability,                                                                              \
+        smooth_curvature_min_scale_stability,                                                                          \
+        smoothCurvatureMinScaleStability,                                                                              \
+        0.44                                                                                                           \
+    )                                                                                                                  \
+    BOOL_FIELD(cleanup_feature_graph, cleanupFeatureGraph, cleanup_feature_graph, cleanupFeatureGraph, 0)              \
+    DOUBLE_FIELD(                                                                                                      \
+        feature_graph_gap_length_ratio,                                                                                \
+        featureGraphGapLengthRatio,                                                                                    \
+        feature_graph_gap_length_ratio,                                                                                \
+        featureGraphGapLengthRatio,                                                                                    \
+        1.75                                                                                                           \
+    )                                                                                                                  \
+    INT_FIELD(                                                                                                         \
+        feature_graph_max_weak_spur_edges,                                                                             \
+        featureGraphMaxWeakSpurEdges,                                                                                  \
+        feature_graph_max_weak_spur_edges,                                                                             \
+        featureGraphMaxWeakSpurEdges,                                                                                  \
+        5                                                                                                              \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        feature_graph_min_weak_spur_strength,                                                                          \
+        featureGraphMinWeakSpurStrength,                                                                               \
+        feature_graph_min_weak_spur_strength,                                                                          \
+        featureGraphMinWeakSpurStrength,                                                                               \
+        0.12                                                                                                           \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        feature_component_min_confidence,                                                                              \
+        featureComponentMinConfidence,                                                                                 \
+        feature_component_min_confidence,                                                                              \
+        featureComponentMinConfidence,                                                                                 \
+        0.63                                                                                                           \
+    )                                                                                                                  \
+    BOOL_FIELD(normal_filter_enabled, normalFilter.enabled, use_feature_normal_filter, useFeatureNormalFilter, 1)      \
+    INT_FIELD(                                                                                                         \
+        normal_filter_iterations,                                                                                      \
+        normalFilter.iterations,                                                                                       \
+        feature_normal_filter_iterations,                                                                              \
+        featureNormalFilterIterations,                                                                                 \
+        6                                                                                                              \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        normal_filter_angle_sigma_deg,                                                                                 \
+        normalFilter.angleSigmaDeg,                                                                                    \
+        feature_normal_filter_angle_sigma_deg,                                                                         \
+        featureNormalFilterAngleSigmaDeg,                                                                              \
+        17.5                                                                                                           \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        normal_filter_preserve_angle_deg,                                                                              \
+        normalFilter.preserveAngleDeg,                                                                                 \
+        feature_normal_filter_preserve_angle_deg,                                                                      \
+        featureNormalFilterPreserveAngleDeg,                                                                           \
+        48.5                                                                                                           \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        normal_filter_relaxation,                                                                                      \
+        normalFilter.relaxation,                                                                                       \
+        feature_normal_filter_relaxation,                                                                              \
+        featureNormalFilterRelaxation,                                                                                 \
+        0.65                                                                                                           \
+    )                                                                                                                  \
+    BOOL_FIELD(                                                                                                        \
+        graph_consolidation_enabled, graphConsolidation.enabled, consolidate_feature_graph, consolidateFeatureGraph, 1 \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        graph_consolidation_gap_length_ratio,                                                                          \
+        graphConsolidation.maxGapLengthRatio,                                                                          \
+        feature_graph_consolidation_gap_length_ratio,                                                                  \
+        featureGraphConsolidationGapLengthRatio,                                                                       \
+        2.5                                                                                                            \
+    )                                                                                                                  \
+    DOUBLE_FIELD(                                                                                                      \
+        graph_consolidation_min_alignment,                                                                             \
+        graphConsolidation.minAlignment,                                                                               \
+        feature_graph_consolidation_min_alignment,                                                                     \
+        featureGraphConsolidationMinAlignment,                                                                         \
+        0.82                                                                                                           \
+    )
+
+#define MANUMESH_COUNT_FEATURE_FIELD(...) +1
+constexpr std::size_t kFeaturePayloadFieldCount = 0 MANUMESH_C_ABI_FEATURE_FIELDS(
+    MANUMESH_COUNT_FEATURE_FIELD, MANUMESH_COUNT_FEATURE_FIELD, MANUMESH_COUNT_FEATURE_FIELD
+);
+#undef MANUMESH_COUNT_FEATURE_FIELD
+static_assert(kFeaturePayloadFieldCount == 35, "Update the exhaustive C ABI feature field audit.");
+static_assert(
+    offsetof(ManuMeshFeatureOptions, graph_consolidation_min_alignment) +
+            sizeof(((ManuMeshFeatureOptions*)nullptr)->graph_consolidation_min_alignment) ==
+        sizeof(ManuMeshFeatureOptions),
+    "ManuMeshFeatureOptions gained payload fields; extend the exhaustive C ABI feature field audit."
+);
+
+ManuMeshFeatureOptions makeDistinctFeatureOptions() {
+    ManuMeshFeatureOptions options;
+    manumesh_feature_options_init(&options);
+#define MANUMESH_SET_FEATURE_FIELD(cField, featureMember, legacyField, legacyMember, value) options.cField = value;
+    MANUMESH_C_ABI_FEATURE_FIELDS(MANUMESH_SET_FEATURE_FIELD, MANUMESH_SET_FEATURE_FIELD, MANUMESH_SET_FEATURE_FIELD)
+#undef MANUMESH_SET_FEATURE_FIELD
+    return options;
+}
+
+bool featureFieldPresent(std::size_t structSize, std::size_t fieldOffset, std::size_t fieldSize) {
+    return fieldOffset <= std::numeric_limits<std::size_t>::max() - fieldSize && structSize >= fieldOffset + fieldSize;
+}
+
+std::vector<std::size_t> featureOptionPrefixSizes(const ManuMeshFeatureOptions& options) {
+    std::vector<std::size_t> sizes{minimumAbiStructSize<ManuMeshFeatureOptions>()};
+    sizes.reserve(kFeaturePayloadFieldCount + 2);
+#define MANUMESH_ADD_FEATURE_PREFIX(cField, featureMember, legacyField, legacyMember, value)                           \
+    sizes.push_back(offsetof(ManuMeshFeatureOptions, cField) + sizeof(options.cField));
+    MANUMESH_C_ABI_FEATURE_FIELDS(MANUMESH_ADD_FEATURE_PREFIX, MANUMESH_ADD_FEATURE_PREFIX, MANUMESH_ADD_FEATURE_PREFIX)
+#undef MANUMESH_ADD_FEATURE_PREFIX
+    sizes.push_back(sizeof(ManuMeshFeatureOptions) + 16);
+    return sizes;
+}
+
+void expectFeatureOptionsForCapacity(
+    const manumesh::feature::FeatureOptions& actual, const ManuMeshFeatureOptions& source, std::size_t structSize
+) {
+    const manumesh::feature::FeatureOptions defaults;
+#define MANUMESH_EXPECT_FEATURE_BOOL(cField, featureMember, legacyField, legacyMember, value)                          \
+    do {                                                                                                               \
+        const bool expected =                                                                                          \
+            featureFieldPresent(structSize, offsetof(ManuMeshFeatureOptions, cField), sizeof(source.cField))           \
+                ? (value != 0)                                                                                         \
+                : defaults.featureMember;                                                                              \
+        EXPECT_EQ(expected, actual.featureMember) << #cField << " at struct_size=" << structSize;                      \
+    } while (false);
+#define MANUMESH_EXPECT_FEATURE_INT(cField, featureMember, legacyField, legacyMember, value)                           \
+    do {                                                                                                               \
+        const int expected =                                                                                           \
+            featureFieldPresent(structSize, offsetof(ManuMeshFeatureOptions, cField), sizeof(source.cField))           \
+                ? value                                                                                                \
+                : defaults.featureMember;                                                                              \
+        EXPECT_EQ(expected, actual.featureMember) << #cField << " at struct_size=" << structSize;                      \
+    } while (false);
+#define MANUMESH_EXPECT_FEATURE_DOUBLE(cField, featureMember, legacyField, legacyMember, value)                        \
+    do {                                                                                                               \
+        const double expected =                                                                                        \
+            featureFieldPresent(structSize, offsetof(ManuMeshFeatureOptions, cField), sizeof(source.cField))           \
+                ? value                                                                                                \
+                : defaults.featureMember;                                                                              \
+        EXPECT_DOUBLE_EQ(expected, actual.featureMember) << #cField << " at struct_size=" << structSize;               \
+    } while (false);
+    MANUMESH_C_ABI_FEATURE_FIELDS(
+        MANUMESH_EXPECT_FEATURE_BOOL, MANUMESH_EXPECT_FEATURE_INT, MANUMESH_EXPECT_FEATURE_DOUBLE
+    )
+#undef MANUMESH_EXPECT_FEATURE_BOOL
+#undef MANUMESH_EXPECT_FEATURE_INT
+#undef MANUMESH_EXPECT_FEATURE_DOUBLE
+    EXPECT_EQ(defaults.surfacePatches.enabled, actual.surfacePatches.enabled);
+    EXPECT_EQ(defaults.surfacePatches.includeWeakEvidence, actual.surfacePatches.includeWeakEvidence);
+}
+
+void poisonLegacyFeatureFields(ManuMeshSimplifyOptions& options) {
+#define MANUMESH_POISON_FEATURE_BOOL(cField, featureMember, legacyField, legacyMember, value)                          \
+    options.legacyField = value;
+#define MANUMESH_POISON_FEATURE_INT(cField, featureMember, legacyField, legacyMember, value) options.legacyField = -777;
+#define MANUMESH_POISON_FEATURE_DOUBLE(cField, featureMember, legacyField, legacyMember, value)                        \
+    options.legacyField = std::numeric_limits<double>::quiet_NaN();
+    MANUMESH_C_ABI_FEATURE_FIELDS(
+        MANUMESH_POISON_FEATURE_BOOL, MANUMESH_POISON_FEATURE_INT, MANUMESH_POISON_FEATURE_DOUBLE
+    )
+#undef MANUMESH_POISON_FEATURE_BOOL
+#undef MANUMESH_POISON_FEATURE_INT
+#undef MANUMESH_POISON_FEATURE_DOUBLE
+}
+
+void expectLegacyFeatureFieldsRemainDefault(const manumesh::simplification::SimplifyOptions& actual) {
+    const manumesh::simplification::SimplifyOptions defaults{};
+#define MANUMESH_EXPECT_LEGACY_BOOL(cField, featureMember, legacyField, legacyMember, value)                           \
+    EXPECT_EQ(defaults.legacyMember, actual.legacyMember) << #legacyField;
+#define MANUMESH_EXPECT_LEGACY_INT(cField, featureMember, legacyField, legacyMember, value)                            \
+    EXPECT_EQ(defaults.legacyMember, actual.legacyMember) << #legacyField;
+#define MANUMESH_EXPECT_LEGACY_DOUBLE(cField, featureMember, legacyField, legacyMember, value)                         \
+    EXPECT_DOUBLE_EQ(defaults.legacyMember, actual.legacyMember) << #legacyField;
+    MANUMESH_C_ABI_FEATURE_FIELDS(
+        MANUMESH_EXPECT_LEGACY_BOOL, MANUMESH_EXPECT_LEGACY_INT, MANUMESH_EXPECT_LEGACY_DOUBLE
+    )
+#undef MANUMESH_EXPECT_LEGACY_BOOL
+#undef MANUMESH_EXPECT_LEGACY_INT
+#undef MANUMESH_EXPECT_LEGACY_DOUBLE
+}
+
+#undef MANUMESH_C_ABI_FEATURE_FIELDS
 
 template <typename T> void expectSentinelFrom(const GuardedAbiStorage<T>& storage, std::size_t offset) {
     const auto* objectBytes = reinterpret_cast<const unsigned char*>(&storage.object);
@@ -97,8 +415,84 @@ void expectSizeAwareInitializerRejectsInvalidCapacity(ManuMeshStatus (*initializ
     expectAllSentinel(storage);
     EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, initializer(nullptr, sizeof(T)));
 }
+TEST(CApiFeatureOptionsConverter, MapsEveryPayloadFieldAcrossEverySizeAwarePrefix) {
+    const ManuMeshFeatureOptions distinct = makeDistinctFeatureOptions();
+    const std::vector<std::size_t> prefixSizes = featureOptionPrefixSizes(distinct);
+    ASSERT_EQ(kFeaturePayloadFieldCount + 2, prefixSizes.size());
+    for (std::size_t index = 1; index < prefixSizes.size(); ++index) {
+        ASSERT_GT(prefixSizes[index], prefixSizes[index - 1]);
+    }
 
-} // 命名空间
+    for (const std::size_t structSize : prefixSizes) {
+        ManuMeshFeatureOptions source = distinct;
+        source.struct_size = structSize;
+        manumesh::feature::FeatureOptions actual;
+        std::string error;
+
+        ASSERT_TRUE(manumesh::api::readFeatureOptions(&source, actual, error))
+            << "struct_size=" << structSize << ": " << error;
+        expectFeatureOptionsForCapacity(actual, source, structSize);
+    }
+}
+
+TEST(CApiFeatureOptionsConverter, SuccessfulReadClearsStaleErrorText) {
+    manumesh::feature::FeatureOptions actual;
+    std::string error = "stale error";
+
+    ASSERT_TRUE(manumesh::api::readFeatureOptions(nullptr, actual, error));
+    EXPECT_TRUE(error.empty());
+}
+
+TEST(CApiFeatureOptionsConverter, ComposedOverrideOwnsEveryFlatFieldAcrossEverySizeAwarePrefix) {
+    const ManuMeshFeatureOptions distinct = makeDistinctFeatureOptions();
+    const std::vector<std::size_t> prefixSizes = featureOptionPrefixSizes(distinct);
+
+    for (const std::size_t structSize : prefixSizes) {
+        ManuMeshFeatureOptions featureOptions = distinct;
+        featureOptions.struct_size = structSize;
+
+        ManuMeshSimplifyOptions source;
+        manumesh_simplify_options_init(&source);
+        poisonLegacyFeatureFields(source);
+        source.feature_options = &featureOptions;
+
+        manumesh::simplification::SimplifyOptions actual;
+        std::string error;
+        ASSERT_TRUE(manumesh::api::readSimplifyOptions(source, actual, error))
+            << "struct_size=" << structSize << ": " << error;
+        ASSERT_TRUE(actual.featureOptionsOverride.has_value()) << "struct_size=" << structSize;
+        expectFeatureOptionsForCapacity(*actual.featureOptionsOverride, featureOptions, structSize);
+        expectLegacyFeatureFieldsRemainDefault(actual);
+    }
+}
+
+TEST(CApiFeatureOptionsConverter, CopiesBorrowedOverrideAndClearsItWhenTheTargetIsReused) {
+    ManuMeshFeatureOptions featureOptions = makeDistinctFeatureOptions();
+    const double copiedFeatureAngle = featureOptions.feature_angle_deg;
+
+    ManuMeshSimplifyOptions source;
+    manumesh_simplify_options_init(&source);
+    source.feature_options = &featureOptions;
+
+    manumesh::simplification::SimplifyOptions actual;
+    std::string error = "stale error";
+    ASSERT_TRUE(manumesh::api::readSimplifyOptions(source, actual, error)) << error;
+    ASSERT_TRUE(actual.featureOptionsOverride.has_value());
+    EXPECT_DOUBLE_EQ(copiedFeatureAngle, actual.featureOptionsOverride->featureAngleDeg);
+    EXPECT_TRUE(error.empty());
+
+    featureOptions.feature_angle_deg = copiedFeatureAngle + 10.0;
+    EXPECT_DOUBLE_EQ(copiedFeatureAngle, actual.featureOptionsOverride->featureAngleDeg);
+
+    ManuMeshSimplifyOptions sourceWithoutOverride;
+    manumesh_simplify_options_init(&sourceWithoutOverride);
+    sourceWithoutOverride.target_ratio = 0.6;
+    actual.preserveTexture = true;
+    ASSERT_TRUE(manumesh::api::readSimplifyOptions(sourceWithoutOverride, actual, error)) << error;
+    EXPECT_FALSE(actual.featureOptionsOverride.has_value());
+    EXPECT_FALSE(actual.preserveTexture);
+    EXPECT_DOUBLE_EQ(0.6, actual.targetRatio);
+}
 
 TEST_F(CApiTest, MapsInvalidSimplifyOptionsToInvalidArgumentStatus) {
     ManuMeshMeshHandle* input = manumesh_mesh_create(context);
@@ -160,6 +554,90 @@ TEST_F(CApiTest, AcceptsOlderTrailingSimplifyOptionsAbiStruct) {
     EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
     EXPECT_GT(report.initial_faces, report.final_faces);
     EXPECT_EQ(MANUMESH_SIMPLIFY_TERMINATION_REACHED_TARGET, report.termination_reason);
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, ComposedFeatureOptionsOverrideLegacyFields) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 8, input));
+
+    ManuMeshFeatureOptions featureOptions;
+    manumesh_feature_options_init(&featureOptions);
+    featureOptions.feature_angle_deg = 45.0;
+
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.target_ratio = 0.75;
+    options.feature_angle_deg = std::numeric_limits<double>::quiet_NaN();
+    options.normal_tensor_feature_threshold = std::numeric_limits<double>::quiet_NaN();
+    options.smooth_curvature_feature_threshold = std::numeric_limits<double>::quiet_NaN();
+    options.feature_normal_filter_relaxation = std::numeric_limits<double>::quiet_NaN();
+    options.feature_graph_consolidation_gap_length_ratio = std::numeric_limits<double>::quiet_NaN();
+    options.feature_options = &featureOptions;
+
+    ManuMeshSimplifyReport report;
+    manumesh_simplify_report_init(&report);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
+
+    featureOptions.feature_angle_deg = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, manumesh_simplify_mesh(context, input, &options, output, &report));
+
+    ManuMeshFeatureOptions uninitialized{};
+    options.feature_options = &uninitialized;
+    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, manumesh_simplify_mesh(context, input, &options, output, &report));
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, ComposedOlderFeatureOptionsUseDefaultsForAbsentTailFields) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 8, input));
+
+    ManuMeshFeatureOptions featureOptions;
+    manumesh_feature_options_init(&featureOptions);
+    featureOptions.feature_angle_deg = 45.0;
+    featureOptions.normal_tensor_feature_threshold = std::numeric_limits<double>::quiet_NaN();
+    featureOptions.struct_size = offsetof(ManuMeshFeatureOptions, use_normal_tensor_features);
+
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.target_ratio = 0.75;
+    options.feature_options = &featureOptions;
+
+    ManuMeshSimplifyReport report;
+    manumesh_simplify_report_init(&report);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, OlderSimplifyOptionsSizeIgnoresComposedFeaturePointer) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 8, input));
+
+    ManuMeshFeatureOptions uninitialized{};
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.target_ratio = 0.75;
+    options.feature_options = &uninitialized;
+    options.struct_size = offsetof(ManuMeshSimplifyOptions, feature_options);
+
+    ManuMeshSimplifyReport report;
+    manumesh_simplify_report_init(&report);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_simplify_mesh(context, input, &options, output, &report));
 
     manumesh_mesh_destroy(output);
     manumesh_mesh_destroy(input);
@@ -237,6 +715,7 @@ TEST_F(CApiTest, MapsQualityRefinementTailOptionAndReportFields) {
     EXPECT_GE(report.quality_refinement_iterations_completed, 1);
     EXPECT_LE(report.quality_refinement_iterations_completed, 2);
     EXPECT_GE(report.quality_refinement_attempted_moves, report.quality_refinement_accepted_moves);
+    EXPECT_EQ(0, report.quality_refinement_skipped_for_texture);
 
     manumesh_mesh_destroy(output);
     manumesh_mesh_destroy(input);
@@ -363,6 +842,10 @@ TEST_F(CApiTest, SourceCompatibleMeshStatsInitializesUninitializedCurrentOutput)
 }
 
 TEST_F(CApiTest, SourceCompatibilityInitializersSupportGlobalQualification) {
+    ManuMeshFeatureOptions featureOptions;
+    ::manumesh_feature_options_init(&featureOptions);
+    EXPECT_EQ(sizeof(featureOptions), featureOptions.struct_size);
+
     ManuMeshSimplifyOptions options;
     ::manumesh_simplify_options_init(&options);
     EXPECT_EQ(sizeof(options), options.struct_size);
@@ -375,6 +858,11 @@ TEST_F(CApiTest, SourceCompatibilityInitializersSupportGlobalQualification) {
     ::manumesh_mesh_stats_init(&stats);
     EXPECT_EQ(sizeof(stats), stats.struct_size);
 
+    void (*featureOptionsInitializer)(ManuMeshFeatureOptions*) = &manumesh_feature_options_init;
+    ManuMeshFeatureOptions indirectFeatureOptions;
+    featureOptionsInitializer(&indirectFeatureOptions);
+    EXPECT_EQ(sizeof(indirectFeatureOptions), indirectFeatureOptions.struct_size);
+
     void (*optionsInitializer)(ManuMeshSimplifyOptions*) = &manumesh_simplify_options_init;
     ManuMeshSimplifyOptions indirectOptions;
     optionsInitializer(&indirectOptions);
@@ -382,6 +870,21 @@ TEST_F(CApiTest, SourceCompatibilityInitializersSupportGlobalQualification) {
 }
 
 TEST_F(CApiTest, SizeAwareInitializersRespectMinimumLegacyCurrentAndOversizedCapacities) {
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_feature_options_init_with_size,
+        minimumAbiStructSize<ManuMeshFeatureOptions>(),
+        minimumAbiStructSize<ManuMeshFeatureOptions>()
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_feature_options_init_with_size, kLegacyV1FeatureOptionsSize, kLegacyV1FeatureOptionsSize
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_feature_options_init_with_size, sizeof(ManuMeshFeatureOptions), sizeof(ManuMeshFeatureOptions)
+    );
+    expectSizeAwareInitializerIsBounded(
+        &manumesh_feature_options_init_with_size, sizeof(ManuMeshFeatureOptions) + 16, sizeof(ManuMeshFeatureOptions)
+    );
+
     expectSizeAwareInitializerIsBounded(
         &manumesh_simplify_options_init_with_size,
         minimumAbiStructSize<ManuMeshSimplifyOptions>(),
@@ -426,6 +929,7 @@ TEST_F(CApiTest, SizeAwareInitializersRespectMinimumLegacyCurrentAndOversizedCap
 }
 
 TEST_F(CApiTest, SizeAwareInitializersRejectTooSmallAndNullBuffersWithoutWriting) {
+    expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_feature_options_init_with_size);
     expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_simplify_options_init_with_size);
     expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_simplify_report_init_with_size);
     expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_mesh_stats_init_with_size);
@@ -443,6 +947,7 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
     EXPECT_DOUBLE_EQ(-1.0, options.loop_trace_angle_deg);
     EXPECT_DOUBLE_EQ(0.0, options.max_feature_curve_deviation_ratio);
     EXPECT_EQ(6, options.min_circular_feature_loop_vertices);
+    EXPECT_EQ(nullptr, options.feature_options);
     EXPECT_EQ(0, options.preserve_boundary);
     EXPECT_DOUBLE_EQ(0.0, options.min_triangle_quality);
     EXPECT_DOUBLE_EQ(90.0, options.max_normal_deviation_deg);

@@ -1,7 +1,7 @@
 /**
  * @mainpage ManuMesh 开发者参考
  *
- * ManuMesh 是面向三角表面网格的 C++17 内核。当前生产管线覆盖网格校验与拓扑查询、几何
+ * ManuMesh 是面向三角表面网格的 C++14 内核。当前生产管线覆盖网格校验与拓扑查询、几何
  * 分析、确定性特征曲线提取、面向特征的二次误差简化以及 STL/OBJ 交换。点云重建、B-Rep
  * 特征树、实体建模和体网格不在本代码库的范围内。
  *
@@ -15,7 +15,7 @@
  * - @ref manumesh_feature_detection 将局部强证据和弱证据转换为一致的特征图、环、组件和曲面分区。
  * - @ref manumesh_simplification 使用 QEM/line quadrics 对边坍缩排序，然后在修改网格前应用拓扑、几何、
  *   特征、边界、纹理和误差保护条件。
- * - @ref manumesh_analysis、@ref manumesh_mesh_edit 和 @ref manumesh_io 提供跨管线分析、编辑期拓扑和文件交换。
+ * - 跨管线分析由 @ref manumesh_analysis 提供，编辑期拓扑由 @ref manumesh_mesh_edit 提供，文件交换由 @ref manumesh_io 提供。
  * - @ref manumesh_c_api 暴露带大小信息的 ABI，绝不让 C++ 异常越过语言边界。
  *
  * @section feature_pipeline 特征检测管线

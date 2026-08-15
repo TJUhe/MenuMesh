@@ -14,7 +14,9 @@
 #include <stdexcept>
 #include <string>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 公共特征检测 API 共用的入口校验。
@@ -34,4 +36,6 @@ inline void validateFeatureMeshInput(const Mesh& mesh) {
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

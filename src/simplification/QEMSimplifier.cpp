@@ -9,6 +9,7 @@
 
 #include "algorithms/simplification/QEMSimplifier.h"
 
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/PlainSimplifier.h"
 #include "detail/SimplificationRun.h"
 #include "detail/SimplificationValidation.h"
@@ -17,7 +18,8 @@
 #include <stdexcept>
 #include <utility>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /** @brief QEMSimplifier 所拥有的私有选项和最新报告。*/
 struct QEMSimplifier::Impl {
@@ -133,7 +135,7 @@ QEMSimplifier& QEMSimplifier::operator=(QEMSimplifier&& other) noexcept {
 }
 
 const SimplifyOptions& QEMSimplifier::options() const {
-    static const SimplifyOptions defaultOptions;
+    static const SimplifyOptions defaultOptions{};
     return impl_ ? impl_->options : defaultOptions;
 }
 
@@ -176,6 +178,7 @@ Mesh QEMSimplifier::simplify(const Mesh& input, const feature::FeatureAnalysis& 
     }
     validateSimplifyOptions(impl_->options);
     validateSimplifierInput(input);
+    feature::validateFeatureAnalysis(input, features);
     SimplificationRun run(input, impl_->options, &features);
     Mesh output = run.execute(&impl_->report);
     if (outReport) {
@@ -203,4 +206,5 @@ PlainMesh simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& optio
     return toPlainMesh(simplifyMesh(toMesh(input), options, outReport));
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -9,6 +9,7 @@
  */
 
 #include "detail/TextureProtection.h"
+#include "core/MathUtils.h"
 
 #include "common/detail/MeshQueries.h"
 
@@ -17,7 +18,8 @@
 #include <limits>
 #include <utility>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 /** @brief 一个端点 UV 样本及其匹配的图表簇。*/
@@ -185,9 +187,10 @@ TextureUpdatePlan buildUpdatePlan(
 
     const Vec3 edgeVector = vertices[edge.remove].p - vertices[edge.keep].p;
     const double edgeLength2 = edgeVector.squaredNorm();
-    const double t = edgeLength2 > 1e-30
-                         ? std::clamp((position - vertices[edge.keep].p).dot(edgeVector) / edgeLength2, 0.0, 1.0)
-                         : 0.5;
+    const double t =
+        edgeLength2 > 1e-30
+            ? manumesh::clampValue((position - vertices[edge.keep].p).dot(edgeVector) / edgeLength2, 0.0, 1.0)
+            : 0.5;
     std::vector<Vec2> mergedUv(keepCharts.representatives.size(), Vec2::Zero());
     for (int cluster = 0; cluster < static_cast<int>(mergedUv.size()); ++cluster) {
         mergedUv[cluster] =
@@ -367,4 +370,5 @@ bool TextureProtection::apply(const TextureUpdatePlan& plan, std::vector<FaceTex
     return true;
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -14,7 +14,9 @@
 
 #include <algorithm>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 int strongSourceMask(const TraceEdgeAttrs& attrs) {
@@ -94,4 +96,6 @@ int compatibleSignedKind(const TraceEdgeAttrs* lhs, const TraceEdgeAttrs* rhs) {
     return lhs->signedKind != 0 ? lhs->signedKind : rhs->signedKind;
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

@@ -15,7 +15,9 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 按需构建的单次分析缓存，保存网格范围的辅助结构。
@@ -104,4 +106,6 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
     const Mesh& mesh, FeatureDetectionCache& cache, const SmoothCurvatureOptions& options, double persistenceThreshold
 );
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

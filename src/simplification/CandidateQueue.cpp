@@ -13,7 +13,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 void CandidateQueue::clear() { queue_ = std::priority_queue<Candidate>(); }
 
@@ -56,4 +57,5 @@ void CandidateQueue::pushEdge(
     queue_.push(candidate);
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

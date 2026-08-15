@@ -15,7 +15,8 @@
 #include <unordered_set>
 #include <vector>
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 namespace {
 
 /// CLI 选项的唯一规格来源；每条规格同时驱动帮助文本、全局已知选项集合
@@ -45,9 +46,7 @@ const std::vector<OptionSpec>& simplifyOptionSpecs() {
         {"--adaptive-base-line-weight", "W", "自适应 Q 缩放前加入的基础线二次型权重"},
         {"--boundary-weight", "W", "可选的边界平面二次型权重"},
         {"--feature-curve-weight", "W", "环的切线二次型权重"},
-        {"--max-feature-curve-deviation-ratio",
-         "R",
-         "拒绝原始放置偏移超过 R*bbox_diag 的多边形特征折叠"},
+        {"--max-feature-curve-deviation-ratio", "R", "拒绝原始放置偏移超过 R*bbox_diag 的多边形特征折叠"},
         {"--circle-fit-threshold", "R", "圆环的相对拟合阈值"},
         {"--ellipse-fit-threshold", "R", "椭圆报告的相对拟合阈值"},
         {"--near-circle-axis-ratio-tolerance", "R", "近圆的轴比容差"},
@@ -107,9 +106,7 @@ const std::vector<OptionSpec>& featureOptionSpecs() {
         {"--circle-fit-threshold", "R", "圆环的相对拟合阈值"},
         {"--ellipse-fit-threshold", "R", "椭圆报告的相对拟合阈值"},
         {"--near-circle-axis-ratio-tolerance", "R", "近圆的轴比容差"},
-        {"--min-feature-loop-vertices",
-         "N",
-         "恢复循环/基本体拟合所需的最小顶点数；仍会报告追踪到的链"},
+        {"--min-feature-loop-vertices", "N", "恢复循环/基本体拟合所需的最小顶点数；仍会报告追踪到的链"},
         {"--normal-tensor-threshold", "S", "张量边的特征得分阈值"},
         {"--normal-tensor-edge-alignment", "A", "边与切线的最小对齐度"},
         {"--normal-tensor-smoothing", "N", "可选的张量平滑迭代次数"},
@@ -176,12 +173,8 @@ const std::vector<OptionGroup>& helpGroups() {
         std::vector<OptionGroup> g;
         g.push_back({"生成选项（generate）：", generateOptionSpecs()});
         g.push_back({"简化选项（simplify、sweep、ratio-sweep、face-sweep）：", simplifyOptionSpecs()});
-        g.push_back(
-            {"扫描/距离选项：", {kSamplesSpec, kMetricsCsvSpec, kWeightsSpec, kRatiosSpec, kFacesSpec}}
-        );
-        g.push_back(
-            {"特征分析选项（feature-report、feature-benchmark、feature-compare）：", featureOptionSpecs()}
-        );
+        g.push_back({"扫描/距离选项：", {kSamplesSpec, kMetricsCsvSpec, kWeightsSpec, kRatiosSpec, kFacesSpec}});
+        g.push_back({"特征分析选项（feature-report、feature-benchmark、feature-compare）：", featureOptionSpecs()});
         g.push_back(
             {"工作流选项（demo、validate-features、validate-external）：",
              {kInputDirSpec,
@@ -302,7 +295,9 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
 const std::unordered_set<std::string>& valueFlags() {
     static const std::unordered_set<std::string> flags = [] {
         std::unordered_set<std::string> f;
-        for (const auto& [command, set] : commandOptionSets()) {
+        for (const auto& pairEntry : commandOptionSets()) {
+            const auto& command = pairEntry.first;
+            const auto& set = pairEntry.second;
             (void)command;
             f.insert(set.valueFlags.begin(), set.valueFlags.end());
         }
@@ -314,7 +309,9 @@ const std::unordered_set<std::string>& valueFlags() {
 const std::unordered_set<std::string>& switchFlags() {
     static const std::unordered_set<std::string> flags = [] {
         std::unordered_set<std::string> f;
-        for (const auto& [command, set] : commandOptionSets()) {
+        for (const auto& pairEntry : commandOptionSets()) {
+            const auto& command = pairEntry.first;
+            const auto& set = pairEntry.second;
             (void)command;
             f.insert(set.switchFlags.begin(), set.switchFlags.end());
         }
@@ -327,7 +324,9 @@ bool looksLikeMissingValue(const std::string& next) { return next.rfind("--", 0)
 
 std::string commandsAcceptingFlag(const std::string& flag) {
     std::string owners;
-    for (const auto& [command, set] : commandOptionSets()) {
+    for (const auto& pairEntry : commandOptionSets()) {
+        const auto& command = pairEntry.first;
+        const auto& set = pairEntry.second;
         if (set.valueFlags.count(flag) || set.switchFlags.count(flag)) {
             if (!owners.empty()) {
                 owners += ", ";
@@ -338,7 +337,7 @@ std::string commandsAcceptingFlag(const std::string& flag) {
     return owners;
 }
 
-} // 命令行命名空间
+} // namespace
 
 bool hasFlag(const Args& args, const std::string& name) {
     for (const std::string& value : args.values) {
@@ -499,4 +498,5 @@ std::vector<int> parseFaceCounts(const std::string& text) {
     return counts;
 }
 
-} // 命令行命名空间
+} // namespace cli
+} // namespace manumesh

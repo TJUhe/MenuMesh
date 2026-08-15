@@ -10,6 +10,7 @@
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
+#include "core/MathUtils.h"
 
 #include "common/detail/MathConstants.h"
 #include "common/detail/MeshQueries.h"
@@ -23,7 +24,8 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 namespace detector_detail {
 namespace {
 
@@ -37,7 +39,7 @@ double angleBetween(const Vec3& lhs, const Vec3& rhs) {
     if (lhs.squaredNorm() <= 1e-30 || rhs.squaredNorm() <= 1e-30) {
         return 0.0;
     }
-    return std::acos(std::clamp(lhs.dot(rhs), -1.0, 1.0));
+    return std::acos(manumesh::clampValue(lhs.dot(rhs), -1.0, 1.0));
 }
 
 double edgeIndicator(const Vec3& lhs, const Vec3& rhs, double sigmaRad, double preserveRad) {
@@ -66,7 +68,9 @@ std::vector<double> faceAreas(const Mesh& mesh) {
 std::vector<FacePair> manifoldFacePairs(const common::MeshEdgeInfoMap& edgeInfo) {
     std::vector<FacePair> result;
     result.reserve(edgeInfo.size());
-    for (const auto& [key, info] : edgeInfo) {
+    for (const auto& pairEntry : edgeInfo) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         (void)key;
         if (info.faces.size() != 2 || info.faces[0] == info.faces[1]) {
             continue;
@@ -89,7 +93,26 @@ std::vector<FacePair> manifoldFacePairs(const common::MeshEdgeInfoMap& edgeInfo)
     return result;
 }
 
-} // 匿名命名空间
+} // namespace
+
+void validateFeatureNormalFilterOptions(const FeatureNormalFilterOptions& options) {
+    if (options.iterations < 0 || options.iterations > kMaxFeatureNormalFilterIterations) {
+        throw std::invalid_argument(
+            "FeatureNormalFilterOptions::iterations must be in [0, " +
+            std::to_string(kMaxFeatureNormalFilterIterations) + "]."
+        );
+    }
+    if (!std::isfinite(options.angleSigmaDeg) || options.angleSigmaDeg <= 0.0 || options.angleSigmaDeg > 180.0) {
+        throw std::invalid_argument("FeatureNormalFilterOptions::angleSigmaDeg must be finite and in (0, 180].");
+    }
+    if (!std::isfinite(options.preserveAngleDeg) || options.preserveAngleDeg < 0.0 ||
+        options.preserveAngleDeg > 180.0) {
+        throw std::invalid_argument("FeatureNormalFilterOptions::preserveAngleDeg must be finite and in [0, 180].");
+    }
+    if (!std::isfinite(options.relaxation) || options.relaxation < 0.0 || options.relaxation > 1.0) {
+        throw std::invalid_argument("FeatureNormalFilterOptions::relaxation must be finite and in [0, 1].");
+    }
+}
 
 FeatureNormalFilterResult filterFeatureNormalsImpl(
     const Mesh& mesh, const common::MeshEdgeInfoMap& edgeInfo, const FeatureNormalFilterOptions& options
@@ -208,28 +231,14 @@ const FeatureNormalFilterReport& FeatureDetectionCache::normalFilterReport() {
     return normalFilterReport_;
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
 
 FeatureNormalFilterResult filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options) {
     detector_detail::validateFeatureMeshInput(mesh);
-    if (options.iterations < 0 || options.iterations > kMaxFeatureNormalFilterIterations) {
-        throw std::invalid_argument(
-            "FeatureNormalFilterOptions::iterations must be in [0, " +
-            std::to_string(kMaxFeatureNormalFilterIterations) + "]."
-        );
-    }
-    if (!std::isfinite(options.angleSigmaDeg) || options.angleSigmaDeg <= 0.0 || options.angleSigmaDeg > 180.0) {
-        throw std::invalid_argument("FeatureNormalFilterOptions::angleSigmaDeg must be finite and in (0, 180].");
-    }
-    if (!std::isfinite(options.preserveAngleDeg) || options.preserveAngleDeg < 0.0 ||
-        options.preserveAngleDeg > 180.0) {
-        throw std::invalid_argument("FeatureNormalFilterOptions::preserveAngleDeg must be finite and in [0, 180].");
-    }
-    if (!std::isfinite(options.relaxation) || options.relaxation < 0.0 || options.relaxation > 1.0) {
-        throw std::invalid_argument("FeatureNormalFilterOptions::relaxation must be finite and in [0, 1].");
-    }
+    detector_detail::validateFeatureNormalFilterOptions(options);
     const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
     return detector_detail::filterFeatureNormalsImpl(mesh, edgeInfo, options);
 }
 
-} // 命名空间 manumesh::feature
+} // namespace feature
+} // namespace manumesh

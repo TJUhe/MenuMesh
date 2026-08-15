@@ -8,6 +8,7 @@
  *            面片标签采用“同区/异区”的成对一致性，因此数值标签无需一致。
  */
 
+#include "algorithms/feature_detection/FeatureAnalysisViews.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"
@@ -17,7 +18,8 @@
 #include <cstdint>
 #include <unordered_set>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 namespace {
 
 double ratio(int numerator, int denominator) {
@@ -53,25 +55,30 @@ BranchPairKey branchPairKey(int junction, int first, int second) {
     return BranchPairKey{junction, std::min(first, second), std::max(first, second)};
 }
 
-} // 匿名命名空间
+} // namespace
 
 FeatureEdgeBenchmark benchmarkFeatureEdges(
     const FeatureAnalysis& analysis,
     const std::vector<std::pair<int, int>>& groundTruthEdges,
     const std::vector<int>& groundTruthJunctionVertices
 ) {
+    const FeatureEvidenceView evidence = viewFeatureEvidence(analysis);
+    const FeatureCurveView curves = viewFeatureCurves(analysis);
+    const FeatureDiagnosticsView diagnostics = viewFeatureDiagnostics(analysis);
     FeatureEdgeBenchmark result;
     std::unordered_set<std::uint64_t> truthEdges;
     truthEdges.reserve(groundTruthEdges.size());
-    for (const auto& [a, b] : groundTruthEdges) {
+    for (const auto& pairEntry : groundTruthEdges) {
+        const auto& a = pairEntry.first;
+        const auto& b = pairEntry.second;
         if (a >= 0 && b >= 0 && a != b) {
             truthEdges.insert(common::meshEdgeKey(a, b));
         }
     }
 
     std::unordered_set<std::uint64_t> detectedEdges;
-    detectedEdges.reserve(analysis.graph.edges.size());
-    for (const FeatureGraphEdge& edge : analysis.graph.edges) {
+    detectedEdges.reserve(evidence.graphEdges().size());
+    for (const FeatureGraphEdge& edge : evidence.graphEdges()) {
         if (!edge.removedByCleanup && edge.a >= 0 && edge.b >= 0 && edge.a != edge.b) {
             detectedEdges.insert(common::meshEdgeKey(edge.a, edge.b));
         }
@@ -103,7 +110,7 @@ FeatureEdgeBenchmark benchmarkFeatureEdges(
         }
     }
     const std::unordered_set<int> detectedJunctions(
-        analysis.graph.junctionVertices.begin(), analysis.graph.junctionVertices.end()
+        curves.graph().junctionVertices.begin(), curves.graph().junctionVertices.end()
     );
     result.groundTruthJunctions = static_cast<int>(truthJunctions.size());
     result.detectedJunctions = static_cast<int>(detectedJunctions.size());
@@ -125,19 +132,22 @@ FeatureEdgeBenchmark benchmarkFeatureEdges(
         ratio(result.truePositiveJunctions, result.truePositiveJunctions + result.falseNegativeJunctions);
     result.junctionF1 = f1(result.junctionPrecision, result.junctionRecall);
 
-    if (!analysis.components.empty()) {
+    if (!curves.components().empty()) {
         double closureSum = 0.0;
-        for (const FeatureComponent& component : analysis.components) {
+        for (const FeatureComponent& component : curves.components()) {
             closureSum += component.closureRate;
         }
-        result.loopClosureRate = closureSum / static_cast<double>(analysis.components.size());
+        result.loopClosureRate = closureSum / static_cast<double>(curves.components().size());
     }
-    result.meanComponentConfidence = analysis.meanFeatureComponentConfidence;
+    result.meanComponentConfidence = diagnostics.meanFeatureComponentConfidence();
     return result;
 }
 
 FeatureEdgeBenchmark
 benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, const FeatureBenchmarkLabels& labels) {
+    validateFeatureAnalysis(mesh, analysis);
+    const FeatureCurveView curves = viewFeatureCurves(analysis);
+    const FeatureSegmentationView segmentation = viewFeatureSegmentation(analysis);
     FeatureEdgeBenchmark result = benchmarkFeatureEdges(analysis, labels.edges, labels.junctionVertices);
 
     std::unordered_set<BranchPairKey, BranchPairKeyHash> truthPairs;
@@ -148,8 +158,8 @@ benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, cons
         }
     }
     std::unordered_set<BranchPairKey, BranchPairKeyHash> detectedPairs;
-    for (int junction = 0; junction < static_cast<int>(analysis.graph.vertices.size()); ++junction) {
-        const FeatureGraphVertex& vertex = analysis.graph.vertices[junction];
+    for (int junction = 0; junction < static_cast<int>(curves.graph().vertices.size()); ++junction) {
+        const FeatureGraphVertex& vertex = curves.graph().vertices[junction];
         for (const FeatureGraphBranchPair& pair : vertex.branchPairs) {
             if (pair.firstBranch < 0 || pair.secondBranch < 0 ||
                 pair.firstBranch >= static_cast<int>(vertex.branches.size()) ||
@@ -185,7 +195,9 @@ benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, cons
 
     if (!labels.facePatchIds.empty()) {
         const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
-        for (const auto& [key, info] : edgeInfo) {
+        for (const auto& pairEntry : edgeInfo) {
+            const auto& key = pairEntry.first;
+            const auto& info = pairEntry.second;
             (void)key;
             if (info.faces.size() != 2) {
                 continue;
@@ -199,10 +211,12 @@ benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, cons
             }
             ++result.labeledFaceAdjacencies;
             const bool truthSame = labels.facePatchIds[first] == labels.facePatchIds[second];
-            const bool detectedValid = first < static_cast<int>(analysis.facePatchIds.size()) &&
-                                       second < static_cast<int>(analysis.facePatchIds.size()) &&
-                                       analysis.facePatchIds[first] >= 0 && analysis.facePatchIds[second] >= 0;
-            const bool detectedSame = detectedValid && analysis.facePatchIds[first] == analysis.facePatchIds[second];
+            const bool detectedValid = first < static_cast<int>(segmentation.facePatchIds().size()) &&
+                                       second < static_cast<int>(segmentation.facePatchIds().size()) &&
+                                       segmentation.facePatchIds()[first] >= 0 &&
+                                       segmentation.facePatchIds()[second] >= 0;
+            const bool detectedSame =
+                detectedValid && segmentation.facePatchIds()[first] == segmentation.facePatchIds()[second];
             if (detectedValid && truthSame == detectedSame) {
                 ++result.correctFaceAdjacencies;
             }
@@ -212,4 +226,5 @@ benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, cons
     return result;
 }
 
-} // 命名空间 manumesh::feature
+} // namespace feature
+} // namespace manumesh

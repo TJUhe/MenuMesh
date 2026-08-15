@@ -17,7 +17,9 @@
 #include <cstdio>
 #include <vector>
 
-namespace manumesh::test::feature_detection {
+namespace manumesh {
+namespace test {
+namespace feature_detection {
 namespace {
 
 namespace feature = manumesh::feature;
@@ -37,7 +39,7 @@ double timeAnalysisMs(const Mesh& mesh, const feature::FeatureOptions& options, 
     return best;
 }
 
-} // 命名空间
+} // namespace
 
 // 检查该步骤的边界条件，并确保结果保持确定性。
 //   该实现需保持边界条件，并保证结果具有确定性。
@@ -83,7 +85,7 @@ TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
         const auto curvature =
             feature::computeSmoothCurvatureFeatures(mesh, feature::SmoothCurvatureOptions{2, 3, 2, 0.65}, 0.015);
         const auto t1 = std::chrono::steady_clock::now();
-        const auto tensor = feature::computeNormalTensorFeatures(mesh, feature::NormalTensorOptions{1, 3}, 0.16);
+        const auto tensor = feature::computeNormalTensorFeatures(mesh, feature::NormalTensorOptions{1, 3, {}}, 0.16);
         const auto t2 = std::chrono::steady_clock::now();
         const auto curvatureFast =
             feature::computeSmoothCurvatureFeatures(mesh, feature::SmoothCurvatureOptions{2, 1, 0, 0.65}, 0.015);
@@ -104,4 +106,6 @@ TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
     SUCCEED();
 }
 
-} // 命名空间
+} // namespace feature_detection
+} // namespace test
+} // namespace manumesh

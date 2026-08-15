@@ -9,8 +9,8 @@
 #pragma once
 
 #include "Export.h"
+#include "core/Optional.h"
 
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -58,7 +58,7 @@ private:
 
 /// 面向未来无异常 API 的最小值或状态承载器。
 ///
-/// 值存储于 std::optional 中，因此仅在成功结果中构造 T，T 不必支持默认构造。
+/// 值存储于 C++14-compatible Optional 中，因此仅在成功结果中构造 T，T 不必支持默认构造。
 template <typename T> class Result {
 public:
     /// 通过复制值构造成功结果。
@@ -98,7 +98,7 @@ public:
     }
 
 private:
-    std::optional<T> value_;
+    Optional<T> value_;
     Status status_;
 };
 

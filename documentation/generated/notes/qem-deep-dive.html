@@ -491,7 +491,7 @@ Mat4 planeQuadric(<span style="color:#c792ea">const</span> Vec3&amp; normal, <sp
 }</code></pre>
 
 <div class="iter">
-<div class="iter-title">🔧 MinGW+Ninja 实验命令</div>
+<div class="iter-title">🔧 VS2019 / MSVC v142 实验命令</div>
 
 <p><strong>演示目标</strong>：fandisk 模型同时包含平坦区域和折痕曲面，是观察标准 QEM 平面退化与 Line Quadric 正则化差异的最佳案例。先用 MeshLab 打开原始模型观察平面区域的顶点分布，再分别跑标准和线 quadric 简化，对比简化后平面区域的顶点均匀性。</p>
 
@@ -503,14 +503,14 @@ New-Item -ItemType Directory -Force output\plane_quadric
 Copy-Item tests\data\external\fandisk_2014.stl output\plane_quadric\original.stl
 
 # 标准 QEM（不使用线 quadric）：A 矩阵在平面区域秩=1，奇异
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\plane_quadric\standard_r015.stl `
   --method standard --ratio 0.15 --samples 500 `
   --metrics-csv output\plane_quadric\standard_metrics.csv
 
 # Line QEM（使用线 quadric）：A 矩阵在平面区域秩=3，满秩可解
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\fandisk_2014.stl `
   output\plane_quadric\line_r015.stl `
   --method line --ratio 0.15 --line-weight 1e-3 --samples 500 `
@@ -718,7 +718,7 @@ $$Q_i^{\text{line}} = Q_i^x + Q_i^y = \begin{bmatrix} 1 & 0 & 0 & -1 \\ 0 & 1 & 
 </div>
 
 <div class="iter">
-<div class="iter-title">🔧 MinGW+Ninja 实验命令</div>
+<div class="iter-title">🔧 VS2019 / MSVC v142 实验命令</div>
 
 <p><strong>演示目标</strong>：在 fandisk 上做权重 sweep，从 $w=0$（标准 QEM）到 $w=10^{-1}$（强正则化），观察矩阵条件数和三角形质量的渐变趋势。这直接验证"线 quadric 填补零特征值"的数学机制。</p>
 
@@ -730,7 +730,7 @@ New-Item -ItemType Directory -Force output\line_quadric_sweep
 Copy-Item tests\data\external\fandisk_2014.stl output\line_quadric_sweep\original.stl
 
 # 权重 sweep：w 从 0(标准QEM) 到 1e-1(强正则化)
-.\build\mingw-ninja-release\bin\manumesh.exe sweep `
+.\build\vs2019-release\bin\Release\manumesh.exe sweep `
   tests\data\external\fandisk_2014.stl `
   output\line_quadric_sweep `
   --ratio 0.15 --weights "0,1e-5,1e-4,1e-3,1e-2,1e-1" --samples 500</code></pre>
@@ -781,7 +781,7 @@ $$\tilde{A}_i = \underbrace{\sum_{jk} a^i_{jk}\, \hat{n}_{jk}\hat{n}_{jk}^\top}_
 </div>
 
 <div class="iter">
-<div class="iter-title">🔧 MinGW+Ninja 实验命令</div>
+<div class="iter-title">🔧 VS2019 / MSVC v142 实验命令</div>
 
 <p><strong>演示目标</strong>：rocker_arm（~40k 面 CAD 摇臂零件）同时有光滑曲面、锐利折痕和平面区域。用 uniform 和 dihedral 两种权重模式简化到 25%，对比折痕区域的保持效果。<code>uniform</code> 所有顶点 $w_i$ 相同，<code>dihedral</code> 在折痕附近提高 $w_i$。这验证了增广公式 $\tilde{Q}_i = Q_i + w_i \cdot a_i \cdot Q_i^{\text{line}}$ 中 $w_i$ 的自适应价值——在 40k 面的真实 CAD 零件上，折痕保护的差异比小模型更明显。</p>
 
@@ -793,14 +793,14 @@ New-Item -ItemType Directory -Force output\augmented_quadric
 Copy-Item tests\data\external\large\rocker_arm.stl output\augmented_quadric\original.stl
 
 # uniform 权重：所有顶点 w_i = 1e-3，A_aug 各处均匀增强切向约束
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\augmented_quadric\uniform_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 --weight-mode uniform --samples 300 `
   --metrics-csv output\augmented_quadric\uniform_metrics.csv
 
 # dihedral 权重：折痕顶点 w_i = 1e-3 + 0.08×score，A_aug 在特征处约束更强
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\augmented_quadric\dihedral_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 30 --samples 300 `
@@ -1142,7 +1142,7 @@ NormalTensorVertex analyzeNormalTensor(<span style="color:#c792ea">const</span> 
 </div>
 
 <div class="iter">
-<div class="iter-title">🔧 MinGW+Ninja 实验命令</div>
+<div class="iter-title">🔧 VS2019 / MSVC v142 实验命令</div>
 
 <p><strong>演示目标</strong>：rocker_arm（~40k 面 CAD 摇臂）有锐利折痕也有浅折痕和过渡曲面。Dihedral 模式只能检出超过角度阈值的硬边，NormalTensor 模式通过 $3 \times 3$ 法线张量 $T = \sum a \hat{n}\hat{n}^\top$ 的特征值分解，还能检出阈值附近的弱特征。先看特征检测报告的差异，再看简化效果差异。</p>
 
@@ -1154,14 +1154,14 @@ New-Item -ItemType Directory -Force output\normal_tensor
 Copy-Item tests\data\external\large\rocker_arm.stl output\normal_tensor\original.stl
 
 # 1. 特征检测报告：看 NT 和 Dihedral 各检出多少特征边
-.\build\mingw-ninja-release\bin\manumesh.exe feature-report `
+.\build\vs2019-release\bin\Release\manumesh.exe feature-report `
   tests\data\external\large\rocker_arm.stl `
   --feature-angle-deg 25 --circle-fit-threshold 0.04 `
   --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 `
   --csv output\normal_tensor\features.csv
 
 # 2. NormalTensor 模式简化到 25%
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\normal_tensor\nt_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
@@ -1169,7 +1169,7 @@ Copy-Item tests\data\external\large\rocker_arm.stl output\normal_tensor\original
   --metrics-csv output\normal_tensor\nt_metrics.csv
 
 # 3. Dihedral 模式简化到 25%（对照组）
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\large\rocker_arm.stl `
   output\normal_tensor\dih_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
@@ -1177,10 +1177,10 @@ Copy-Item tests\data\external\large\rocker_arm.stl output\normal_tensor\original
   --metrics-csv output\normal_tensor\dih_metrics.csv
 
 # 4. 特征对比：看折痕是否被保护
-.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
+.\build\vs2019-release\bin\Release\manumesh.exe feature-compare `
   tests\data\external\large\rocker_arm.stl output\normal_tensor\nt_r025.stl `
   --csv output\normal_tensor\nt_compare.csv
-.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
+.\build\vs2019-release\bin\Release\manumesh.exe feature-compare `
   tests\data\external\large\rocker_arm.stl output\normal_tensor\dih_r025.stl `
   --csv output\normal_tensor\dih_compare.csv</code></pre>
 
@@ -1252,7 +1252,7 @@ $$Q_{\text{bdry}} = w_b \cdot \|e\| \cdot \begin{bmatrix} m_x^2 & m_x m_y & m_x 
 </div>
 
 <div class="iter">
-<div class="iter-title">🔧 MinGW+Ninja 实验命令</div>
+<div class="iter-title">🔧 VS2019 / MSVC v142 实验命令</div>
 
 <p><strong>演示目标</strong>：nasa_mars2020_wheel 有大量开放边界（轮辐边缘、孔洞边缘）。不加固边界约束时，简化可能导致边界顶点漂移、边界形状变形。对比关闭/开启 <code>--boundary-weight</code> 的效果，验证"边界 quadric 锁定边界位置"的机制。</p>
 
@@ -1264,14 +1264,14 @@ New-Item -ItemType Directory -Force output\boundary_quadric
 Copy-Item tests\data\external\nasa_mars2020_wheel.stl output\boundary_quadric\original.stl
 
 # 无边界保护：boundary_edges 可能因折叠漂移而变化
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\nasa_mars2020_wheel.stl `
   output\boundary_quadric\no_bdry_r020.stl `
   --method line --ratio 0.20 --line-weight 1e-3 --samples 300 `
   --metrics-csv output\boundary_quadric\no_bdry_metrics.csv
 
 # 有边界保护：boundary-weight=5，对边界边加 Q_bdry = 5·|e|·π⊥π⊥ᵀ
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\nasa_mars2020_wheel.stl `
   output\boundary_quadric\with_bdry_r020.stl `
   --method line --ratio 0.20 --line-weight 1e-3 --boundary-weight 5 --samples 300 `
@@ -1358,7 +1358,7 @@ Copy-Item tests\data\external\nasa_mars2020_wheel.stl output\boundary_quadric\or
 <p>对多边形特征环，对每个顶点做<strong>线段最近点投影</strong>：找到多边形上距离最近的线段，投影到该线段上。</p>
 
 <div class="iter">
-<div class="iter-title">🔧 MinGW+Ninja 实验命令</div>
+<div class="iter-title">🔧 VS2019 / MSVC v142 实验命令</div>
 
 <p><strong>演示目标</strong>：elliptical_hole_plate 有椭圆孔特征。不启用曲线保护时，椭圆孔会变形甚至闭合。启用 <code>--preserve-feature-curves</code> 后，系统自动检测椭圆环→拟合椭圆参数→构造切线 quadric + 投影，椭圆孔被精确保护。对比两种方案的圆度/椭圆度保持效果。</p>
 
@@ -1370,7 +1370,7 @@ New-Item -ItemType Directory -Force output\curve_radial
 Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_radial\original.obj
 
 # 无曲线保护（仅线 quadric + dihedral）：椭圆孔可能变形
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\feature_fixtures\elliptical_hole_plate.obj `
   output\curve_radial\line_r050.stl `
   --method line --ratio 0.50 --line-weight 1e-3 `
@@ -1378,7 +1378,7 @@ Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_rad
   --metrics-csv output\curve_radial\line_metrics.csv
 
 # 有曲线保护（+ 切线 quadric + 椭圆投影）：椭圆孔被锁定
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\feature_fixtures\elliptical_hole_plate.obj `
   output\curve_radial\curve_r050.stl `
   --method line --ratio 0.50 --line-weight 1e-3 `
@@ -1389,10 +1389,10 @@ Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_rad
   --metrics-csv output\curve_radial\curve_metrics.csv
 
 # 特征对比：看椭圆孔的径向误差
-.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
+.\build\vs2019-release\bin\Release\manumesh.exe feature-compare `
   tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_radial\line_r050.stl `
   --csv output\curve_radial\line_compare.csv
-.\build\mingw-ninja-release\bin\manumesh.exe feature-compare `
+.\build\vs2019-release\bin\Release\manumesh.exe feature-compare `
   tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_radial\curve_r050.stl `
   --csv output\curve_radial\curve_compare.csv</code></pre>
 
@@ -1461,7 +1461,7 @@ Copy-Item tests\data\feature_fixtures\elliptical_hole_plate.obj output\curve_rad
 </div>
 
 <div class="iter">
-<div class="iter-title">🔧 MinGW+Ninja 实验命令</div>
+<div class="iter-title">🔧 VS2019 / MSVC v142 实验命令</div>
 
 <p><strong>演示目标</strong>：nasa_cubesat_middle 有薄壁结构和开放边界，容易产生非流形边和自交。不加固检查时，过激折叠可能导致拓扑错误。用 <code>--industrial-safe</code> 启用一组保守 guard，对比 rejected_collapses 和 non_manifold_edges 的差异。</p>
 
@@ -1473,14 +1473,14 @@ New-Item -ItemType Directory -Force output\legality_check
 Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\original.stl
 
 # 无保护：折叠不受限制，可能产生 non_manifold 边和法向翻转
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\nasa_cubesat_middle.stl `
   output\legality_check\unsafe_r015.stl `
   --method line --ratio 0.15 --line-weight 1e-3 --samples 300 `
   --metrics-csv output\legality_check\unsafe_metrics.csv
 
 # industrial-safe：启用保守边界/质量/误差 guard
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\nasa_cubesat_middle.stl `
   output\legality_check\safe_r015.stl `
   --method line --ratio 0.15 --line-weight 1e-3 --industrial-safe --samples 300 `
@@ -2089,19 +2089,16 @@ private:
 <!-- ===== 8 ===== -->
 <h2 id="s8"><span class="num">8</span>10k+ 面模型测试指南</h2>
 
-<h3>8.1 构建命令（MinGW+Ninja Release）</h3>
+<h3>8.1 构建命令（Visual Studio 2019 / MSVC v142 Release）</h3>
 
 <pre><code># 配置（在项目根目录，PowerShell）
-cmake -B build\mingw-ninja-release -G "Ninja" ^
-  -DCMAKE_BUILD_TYPE=Release ^
-  -DCMAKE_C_COMPILER=gcc ^
-  -DCMAKE_CXX_COMPILER=g++
+cmake --preset vs2019-release
 
 # 编译
-cmake --build build\mingw-ninja-release --parallel
+cmake --build --preset vs2019-release --parallel
 
 # 验证可执行文件
-.\build\mingw-ninja-release\bin\manumesh.exe --version</code></pre>
+.\build\vs2019-release\bin\Release\manumesh.exe --version</code></pre>
 
 <h3>8.2 获取测试模型</h3>
 
@@ -2139,7 +2136,7 @@ Copy-Item tests\data\external\large\stanford_bunny.stl output\large_test\bunny_2
 
 <h4>50% ratio（中度简化）</h4>
 <pre><code># 50% ratio — 保留一半面数
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\large\stanford_bunny.stl `
   output\large_test\bunny_50\bunny_r050.stl `
   --method line --ratio 0.5 --line-weight 1e-3 `
@@ -2148,7 +2145,7 @@ Copy-Item tests\data\external\large\stanford_bunny.stl output\large_test\bunny_2
 
 <h4>25% ratio（深度简化）</h4>
 <pre><code># 25% ratio — 保留四分之一面数
-.\build\mingw-ninja-release\bin\manumesh.exe simplify `
+.\build\vs2019-release\bin\Release\manumesh.exe simplify `
   tests\data\external\large\stanford_bunny.stl `
   output\large_test\bunny_25\bunny_r025.stl `
   --method line --ratio 0.25 --line-weight 1e-3 `
@@ -2180,7 +2177,7 @@ foreach ($m in $models) {
     $dir50 = "output\large_test\${m}_50"
     New-Item -ItemType Directory -Force $dir50 | Out-Null
     Copy-Item $src "$dir50\original.stl"
-    .\build\mingw-ninja-release\bin\manumesh.exe simplify `
+    .\build\vs2019-release\bin\Release\manumesh.exe simplify `
       $src "$dir50\${m}_r050.stl" `
       --method line --ratio 0.5 --line-weight 1e-3 `
       --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --samples 200 `
@@ -2190,7 +2187,7 @@ foreach ($m in $models) {
     $dir25 = "output\large_test\${m}_25"
     New-Item -ItemType Directory -Force $dir25 | Out-Null
     Copy-Item $src "$dir25\original.stl"
-    .\build\mingw-ninja-release\bin\manumesh.exe simplify `
+    .\build\vs2019-release\bin\Release\manumesh.exe simplify `
       $src "$dir25\${m}_r025.stl" `
       --method line --ratio 0.25 --line-weight 1e-3 `
       --weight-mode dihedral --feature-boost 0.08 --feature-angle-deg 25 --samples 200 `
@@ -2262,21 +2259,15 @@ foreach ($m in $models) {
 
 <h3>8.7 CTest 性能套件</h3>
 
-<pre><code># 运行完整测试套件
-cd build\mingw-ninja-release
-ctest --output-on-failure
+<pre><code># 运行完整非性能套件
+ctest --preset vs2019-release-full
 
-# 仅运行性能测试
-ctest -R "perf" --output-on-failure -V
+# 配置并构建独立性能套件
+cmake --preset vs2019-release-performance
+cmake --build --preset vs2019-release-performance --parallel
 
-# 运行特定性能测试
-ctest -R "perf_large_mesh" --output-on-failure -V
-
-# 并行运行测试
-ctest --parallel 4 --output-on-failure
-
-# 生成测试覆盖率报告
-ctest -T coverage --output-on-failure</code></pre>
+# 运行性能测试
+ctest --preset vs2019-release-performance</code></pre>
 
 <table>
 <tr><th>CTest 测试类别</th><th>测试内容</th><th>典型耗时</th></tr>

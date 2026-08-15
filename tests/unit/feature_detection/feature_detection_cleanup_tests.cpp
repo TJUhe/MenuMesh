@@ -18,7 +18,9 @@
 #include <cmath>
 #include <vector>
 
-namespace manumesh::test::feature_detection {
+namespace manumesh {
+namespace test {
+namespace feature_detection {
 namespace {
 
 namespace detector_detail = feature::detector_detail;
@@ -162,7 +164,7 @@ FeatureOptions spurCleanupOptions() {
     return options;
 }
 
-} // 命名空间
+} // namespace
 
 TEST(FeatureDetectionCleanup, LegacySpurRemovalPrunesByEdgeCountOnly) {
     SpurFixture fixture = makeSpurFixture();
@@ -209,4 +211,6 @@ TEST(FeatureDetectionCleanup, RejectsInvalidWeakSpurStrengthOption) {
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
 }
 
-} // 命名空间
+} // namespace feature_detection
+} // namespace test
+} // namespace manumesh

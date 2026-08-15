@@ -11,7 +11,8 @@
 #include <string>
 #include <vector>
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 
 struct Args {
     std::vector<std::string> values; ///< 不含可执行文件名的原始参数令牌。
@@ -45,4 +46,5 @@ std::vector<double> parseWeights(const std::string& text);
 /// 解析逗号分隔的正整数面数列表。
 std::vector<int> parseFaceCounts(const std::string& text);
 
-} // 命令行参数命名空间
+} // namespace cli
+} // namespace manumesh

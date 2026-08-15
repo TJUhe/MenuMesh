@@ -156,7 +156,6 @@ bool validateMeshIndices(const Mesh& mesh, std::string* error) {
 }
 
 namespace {
-
 bool validateMeshGeometryImpl(const Mesh& mesh, std::string* error, bool rejectZeroAreaFaces) {
     if (!validateMeshIndices(mesh, error)) {
         return false;
@@ -270,6 +269,7 @@ std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh) {
             }
         }
     }
+    std::sort(edges.begin(), edges.end());
     return edges;
 }
 

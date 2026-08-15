@@ -11,7 +11,8 @@
 #include "Export.h"
 #include "core/Mesh.h"
 
-namespace manumesh::analysis {
+namespace manumesh {
+namespace analysis {
 
 /**
  * @brief 基本几何和拓扑网格质量指标。
@@ -58,4 +59,5 @@ MANUMESH_API MeshStats computeMeshStats(const Mesh& mesh);
 /// @complexity O((F_o + F_s) log(F_o + F_s) + maxSamples log(F_o + F_s))。
 MANUMESH_API DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& simplified, int maxSamples);
 
-} // 命名空间 manumesh::analysis
+} // namespace analysis
+} // namespace manumesh

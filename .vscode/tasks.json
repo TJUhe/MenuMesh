@@ -2,671 +2,258 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "configure: mingw+ninja debug",
+      "label": "configure: vs2019 debug",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/mingw-ninja-debug",
-        "-G",
-        "Ninja",
-        "-DCMAKE_MAKE_PROGRAM=ninja",
-        "-DCMAKE_BUILD_TYPE=Debug",
-        "-DCMAKE_C_COMPILER=gcc",
-        "-DCMAKE_CXX_COMPILER=g++",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
-      ],
-      "hide": true,
-      "problemMatcher": []
+      "args": ["--preset", "vs2019-debug"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
     },
     {
-      "label": "configure: mingw+ninja release",
+      "label": "configure: vs2019 asan",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/mingw-ninja-release",
-        "-G",
-        "Ninja",
-        "-DCMAKE_MAKE_PROGRAM=ninja",
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_C_COMPILER=gcc",
-        "-DCMAKE_CXX_COMPILER=g++",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
-      ],
-      "hide": true,
-      "problemMatcher": []
+      "args": ["--preset", "vs2019-asan"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
     },
     {
-      "label": "configure: mingw+ninja debug performance",
+      "label": "configure: vs2019 release",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/mingw-ninja-debug-performance",
-        "-G",
-        "Ninja",
-        "-DCMAKE_MAKE_PROGRAM=ninja",
-        "-DCMAKE_BUILD_TYPE=Debug",
-        "-DCMAKE_C_COMPILER=gcc",
-        "-DCMAKE_CXX_COMPILER=g++",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
-      ],
-      "hide": true,
-      "problemMatcher": []
+      "args": ["--preset", "vs2019-release"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
     },
     {
-      "label": "configure: mingw+ninja release performance",
+      "label": "configure: vs2019 release static",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/mingw-ninja-release-performance",
-        "-G",
-        "Ninja",
-        "-DCMAKE_MAKE_PROGRAM=ninja",
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_C_COMPILER=gcc",
-        "-DCMAKE_CXX_COMPILER=g++",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
-      ],
-      "hide": true,
-      "problemMatcher": []
+      "args": ["--preset", "vs2019-release-static"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
     },
     {
-      "label": "configure: mingw+ninja release sdk",
+      "label": "configure: vs2019 release performance",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/mingw-ninja-release-sdk",
-        "-G",
-        "Ninja",
-        "-DCMAKE_MAKE_PROGRAM=ninja",
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_C_COMPILER=gcc",
-        "-DCMAKE_CXX_COMPILER=g++",
-        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-        "-DMANUMESH_GOOGLETEST_PROVIDER=auto",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF",
-        "-DMANUMESH_ENABLE_INSTALL=ON",
-        "-DMANUMESH_INSTALL_CMAKE_CONFIG=ON"
-      ],
-      "hide": true,
-      "problemMatcher": []
+      "args": ["--preset", "vs2019-release-performance"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
     },
     {
-      "label": "configure: msvc selected",
+      "label": "configure: vs2019 release SDK",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/msvc-${input:msvcToolset}",
-        "-G",
-        "Visual Studio 17 2022",
-        "-A",
-        "x64",
-        "-T",
-        "${input:msvcToolset}",
-        "-DMANUMESH_GOOGLETEST_PROVIDER=source",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF"
-      ],
-      "hide": true,
-      "problemMatcher": []
+      "args": ["--preset", "vs2019-release-sdk"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
     },
     {
-      "label": "configure: msvc selected performance",
+      "label": "configure: vs2019 release docs",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-S",
-        ".",
-        "-B",
-        "build/msvc-${input:msvcToolset}-performance",
-        "-G",
-        "Visual Studio 17 2022",
-        "-A",
-        "x64",
-        "-T",
-        "${input:msvcToolset}",
-        "-DMANUMESH_GOOGLETEST_PROVIDER=source",
-        "-DMANUMESH_BUILD_PERFORMANCE_TESTS=ON"
-      ],
-      "hide": true,
-      "problemMatcher": []
+      "args": ["--preset", "vs2019-release-docs"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
     },
     {
-      "label": "configure: vs2019+ninja debug preset",
+      "label": "build: vs2019 debug",
       "type": "process",
       "command": "cmake",
-      "args": ["--preset", "vs2019-ninja-debug"],
-      "hide": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: vs2019+ninja debug debugutil preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--preset", "vs2019-ninja-debug-debugutil"],
-      "hide": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: vs2019+ninja release preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--preset", "vs2019-ninja-release"],
-      "hide": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: vs2019+ninja release performance preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--preset", "vs2019-ninja-release-performance"],
-      "hide": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "configure: vs2019+ninja release sdk preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--preset", "vs2019-ninja-release-sdk"],
-      "hide": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "build: mingw+ninja debug",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-debug", "--parallel"],
-      "group": "build",
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja debug"
-    },
-    {
-      "label": "build: mingw+ninja release",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "build/mingw-ninja-release", "--parallel"],
+      "args": ["--build", "--preset", "vs2019-debug", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 debug",
       "group": {
         "kind": "build",
         "isDefault": true
-      },
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja release"
+      }
     },
     {
-      "label": "build: mingw+ninja debug performance",
+      "label": "build: vs2019 asan",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-debug-performance",
-        "--target",
-        "manumesh_performance_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja debug performance"
+      "args": ["--build", "--preset", "vs2019-asan", "--", "/m:1"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 asan"
     },
     {
-      "label": "build: mingw+ninja release performance",
+      "label": "build: vs2019 release",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-release-performance",
-        "--target",
-        "manumesh_performance_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja release performance"
+      "args": ["--build", "--preset", "vs2019-release", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 release",
+      "group": "build"
     },
     {
-      "label": "test: mingw+ninja release sdk consumer",
+      "label": "build: vs2019 release static",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-release-sdk",
-        "--target",
-        "sdk-consumer-test",
-        "--parallel"
-      ],
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja release sdk"
+      "args": ["--build", "--preset", "vs2019-release-static", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 release static",
+      "group": "build"
     },
     {
-      "label": "build: msvc selected debug",
+      "label": "build: vs2019 release performance",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-${input:msvcToolset}",
-        "--config",
-        "Debug",
-        "--parallel"
-      ],
-      "group": "build",
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc selected"
+      "args": ["--build", "--preset", "vs2019-release-performance", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 release performance",
+      "group": "build"
     },
     {
-      "label": "build: msvc selected release",
+      "label": "build: vs2019 release SDK",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-${input:msvcToolset}",
-        "--config",
-        "Release",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc selected"
+      "args": ["--build", "--preset", "vs2019-release-sdk", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 release SDK",
+      "group": "build"
     },
     {
-      "label": "build: msvc selected debug performance",
+      "label": "build: vs2019 release docs",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-${input:msvcToolset}-performance",
-        "--config",
-        "Debug",
-        "--target",
-        "manumesh_performance_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc selected performance"
+      "args": ["--build", "--preset", "vs2019-release-docs", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 release docs",
+      "group": "build"
     },
     {
-      "label": "build: msvc selected release performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/msvc-${input:msvcToolset}-performance",
-        "--config",
-        "Release",
-        "--target",
-        "manumesh_performance_tests",
-        "--parallel"
-      ],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: msvc selected performance"
-    },
-    {
-      "label": "build: vs2019+ninja debug preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "vs2019-ninja-debug-tests", "--parallel"],
-      "group": "build",
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: vs2019+ninja debug preset"
-    },
-    {
-      "label": "build: vs2019+ninja debug debugutil preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "vs2019-ninja-debug-debugutil", "--parallel"],
-      "group": "build",
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: vs2019+ninja debug debugutil preset"
-    },
-    {
-      "label": "build: vs2019+ninja release preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "vs2019-ninja-release", "--parallel"],
-      "group": "build",
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: vs2019+ninja release preset"
-    },
-    {
-      "label": "build: vs2019+ninja release performance preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "vs2019-ninja-release-performance", "--parallel"],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: vs2019+ninja release performance preset"
-    },
-    {
-      "label": "build: vs2019+ninja release sdk preset",
-      "type": "process",
-      "command": "cmake",
-      "args": ["--build", "--preset", "vs2019-ninja-release-sdk", "--parallel"],
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "configure: vs2019+ninja release sdk preset"
-    },
-    {
-      "label": "test: mingw+ninja debug",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/mingw-ninja-debug",
-        "ctest",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja debug"
-    },
-    {
-      "label": "test: mingw+ninja release",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/mingw-ninja-release",
-        "ctest",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release"
-    },
-    {
-      "label": "test: mingw+ninja debug performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/mingw-ninja-debug-performance",
-        "ctest",
-        "-L",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja debug performance"
-    },
-    {
-      "label": "test: mingw+ninja release performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/mingw-ninja-release-performance",
-        "ctest",
-        "-L",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release performance"
-    },
-    {
-      "label": "test: msvc selected debug",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-${input:msvcToolset}",
-        "ctest",
-        "-C",
-        "Debug",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc selected debug"
-    },
-    {
-      "label": "test: msvc selected release",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-${input:msvcToolset}",
-        "ctest",
-        "-C",
-        "Release",
-        "-LE",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc selected release"
-    },
-    {
-      "label": "test: msvc selected debug performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-${input:msvcToolset}-performance",
-        "ctest",
-        "-C",
-        "Debug",
-        "-L",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc selected debug performance"
-    },
-    {
-      "label": "test: msvc selected release performance",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "-E",
-        "chdir",
-        "build/msvc-${input:msvcToolset}-performance",
-        "ctest",
-        "-C",
-        "Release",
-        "-L",
-        "performance",
-        "--output-on-failure"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "build: msvc selected release performance"
-    },
-    {
-      "label": "test: vs2019+ninja debug preset",
+      "label": "test: vs2019 debug",
       "type": "process",
       "command": "ctest",
-      "args": ["--preset", "vs2019-ninja-debug-unit"],
+      "args": ["--preset", "vs2019-debug-unit"],
       "problemMatcher": [],
-      "dependsOn": "build: vs2019+ninja debug preset"
+      "dependsOn": "build: vs2019 debug",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
     },
     {
-      "label": "test: vs2019+ninja debug debugutil preset",
+      "label": "test: vs2019 debug external",
       "type": "process",
       "command": "ctest",
-      "args": ["--preset", "vs2019-ninja-debug-debugutil-unit"],
+      "args": ["--preset", "vs2019-debug-external"],
       "problemMatcher": [],
-      "dependsOn": "build: vs2019+ninja debug debugutil preset"
+      "dependsOn": "build: vs2019 debug",
+      "group": "test"
     },
     {
-      "label": "test: vs2019+ninja release preset",
+      "label": "test: vs2019 asan",
       "type": "process",
       "command": "ctest",
-      "args": ["--preset", "vs2019-ninja-release-unit"],
+      "args": ["--preset", "vs2019-asan-unit"],
       "problemMatcher": [],
-      "dependsOn": "build: vs2019+ninja release preset"
+      "dependsOn": "build: vs2019 asan",
+      "group": "test"
     },
     {
-      "label": "test: vs2019+ninja release performance preset",
+      "label": "test: vs2019 release",
       "type": "process",
       "command": "ctest",
-      "args": ["--preset", "vs2019-ninja-release-performance"],
+      "args": ["--preset", "vs2019-release-unit"],
       "problemMatcher": [],
-      "dependsOn": "build: vs2019+ninja release performance preset"
+      "dependsOn": "build: vs2019 release",
+      "group": "test"
     },
     {
-      "label": "test: vs2019+ninja release sdk preset",
+      "label": "test: vs2019 release full",
       "type": "process",
       "command": "ctest",
-      "args": ["--preset", "vs2019-ninja-release-sdk"],
+      "args": ["--preset", "vs2019-release-full"],
       "problemMatcher": [],
-      "dependsOn": "build: vs2019+ninja release sdk preset"
+      "dependsOn": "build: vs2019 release",
+      "group": "test"
     },
     {
-      "label": "test: vs2019+ninja release full",
-      "dependsOrder": "sequence",
+      "label": "test: vs2019 release static",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-release-static-unit"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019 release static",
+      "group": "test"
+    },
+    {
+      "label": "test: vs2019 release performance",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-release-performance"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019 release performance",
+      "group": "test"
+    },
+    {
+      "label": "test: vs2019 release SDK",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-release-sdk"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019 release SDK",
+      "group": "test"
+    },
+    {
+      "label": "verify: vs2019 release matrix",
       "dependsOn": [
-        "test: vs2019+ninja release preset",
-        "test: vs2019+ninja release performance preset",
-        "test: vs2019+ninja release sdk preset"
+        "test: vs2019 release full",
+        "test: vs2019 release static",
+        "test: vs2019 release performance",
+        "test: vs2019 release SDK",
+        "build: vs2019 release docs",
+        "check: format"
       ],
-      "problemMatcher": []
-    },
-    {
-      "label": "test: mingw+ninja release full",
       "dependsOrder": "sequence",
-      "dependsOn": [
-        "test: mingw+ninja release",
-        "test: mingw+ninja release performance",
-        "test: mingw+ninja release sdk consumer",
-        "check: format",
-        "build: docs-api",
-        "build: docs-internal"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "test: msvc selected full",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "test: msvc selected debug",
-        "test: msvc selected release",
-        "test: msvc selected debug performance",
-        "test: msvc selected release performance"
-      ],
       "problemMatcher": []
     },
     {
       "label": "prepare: vscode demo output",
       "type": "process",
       "command": "cmake",
-      "args": [
-        "-E",
-        "make_directory",
-        "${workspaceFolder}/output/vscode_demo/ratio_sweep"
-      ],
-      "hide": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "demo: simplify standard selected mesh",
-      "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
-      "args": [
-        "simplify",
-        "${input:demoMesh}",
-        "output/vscode_demo/standard.stl",
-        "--method",
-        "standard",
-        "--ratio",
-        "${input:demoRatio}",
-        "--samples",
-        "${input:demoSamples}",
-        "--metrics-csv",
-        "output/vscode_demo/standard_metrics.csv"
-      ],
+      "args": ["-E", "make_directory", "output/vscode_demo"],
       "problemMatcher": [],
-      "dependsOn": [
-        "prepare: vscode demo output",
-        "build: mingw+ninja release"
-      ],
-      "dependsOrder": "sequence"
+      "hide": true
     },
     {
-      "label": "demo: simplify feature curves selected mesh",
+      "label": "demo: simplify selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
+      "command": "${workspaceFolder}/build/vs2019-release/bin/Release/manumesh.exe",
       "args": [
         "simplify",
         "${input:demoMesh}",
-        "output/vscode_demo/feature_curves.stl",
-        "--method",
-        "line",
-        "--line-weight",
-        "1e-3",
-        "--weight-mode",
-        "dihedral",
-        "--feature-boost",
-        "0.08",
-        "--feature-angle-deg",
-        "${input:demoFeatureAngle}",
-        "--loop-trace-angle-deg",
-        "${input:demoLoopTraceAngle}",
-        "--preserve-feature-curves",
-        "--feature-curve-weight",
-        "0.08",
-        "--max-feature-curve-deviation-ratio",
-        "0.05",
-        "--circle-fit-threshold",
-        "0.04",
-        "--ellipse-fit-threshold",
-        "0.05",
-        "--min-circular-feature-loop-vertices",
-        "12",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
-        "--ratio",
-        "${input:demoRatio}",
-        "--samples",
-        "${input:demoSamples}",
-        "--metrics-csv",
-        "output/vscode_demo/feature_curves_metrics.csv"
-      ],
-      "problemMatcher": [],
-      "dependsOn": [
-        "prepare: vscode demo output",
-        "build: mingw+ninja release"
-      ],
-      "dependsOrder": "sequence"
-    },
-    {
-      "label": "demo: simplify normal tensor selected mesh",
-      "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
-      "args": [
-        "simplify",
-        "${input:demoMesh}",
-        "output/vscode_demo/normal_tensor.stl",
+        "output/vscode_demo/simplified.stl",
         "--method",
         "line",
         "--line-weight",
@@ -676,9 +263,12 @@
         "--feature-boost",
         "0.08",
         "--feature-angle-deg",
-        "179",
+        "${input:demoFeatureAngle}",
         "--loop-trace-angle-deg",
         "${input:demoLoopTraceAngle}",
+        "--preserve-feature-curves",
+        "--feature-curve-weight",
+        "0.08",
         "--normal-tensor-threshold",
         "0.06",
         "--normal-tensor-edge-alignment",
@@ -687,30 +277,24 @@
         "3",
         "--normal-tensor-min-persistent-scales",
         "2",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
         "--ratio",
         "${input:demoRatio}",
         "--samples",
         "${input:demoSamples}",
         "--metrics-csv",
-        "output/vscode_demo/normal_tensor_metrics.csv"
+        "output/vscode_demo/simplify_metrics.csv"
       ],
       "problemMatcher": [],
       "dependsOn": [
         "prepare: vscode demo output",
-        "build: mingw+ninja release"
+        "build: vs2019 release"
       ],
       "dependsOrder": "sequence"
     },
     {
       "label": "demo: feature report selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
+      "command": "${workspaceFolder}/build/vs2019-release/bin/Release/manumesh.exe",
       "args": [
         "feature-report",
         "${input:demoMesh}",
@@ -730,26 +314,20 @@
         "3",
         "--normal-tensor-min-persistent-scales",
         "2",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
         "--csv",
         "output/vscode_demo/features.csv"
       ],
       "problemMatcher": [],
       "dependsOn": [
         "prepare: vscode demo output",
-        "build: mingw+ninja release"
+        "build: vs2019 release"
       ],
       "dependsOrder": "sequence"
     },
     {
       "label": "demo: feature benchmark selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
+      "command": "${workspaceFolder}/build/vs2019-release/bin/Release/manumesh.exe",
       "args": [
         "feature-benchmark",
         "${input:demoMesh}",
@@ -766,42 +344,32 @@
         "3",
         "--normal-tensor-min-persistent-scales",
         "2",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
         "--csv",
         "output/vscode_demo/feature_benchmark.csv"
       ],
       "problemMatcher": [],
       "dependsOn": [
         "prepare: vscode demo output",
-        "build: mingw+ninja release"
+        "build: vs2019 release"
       ],
       "dependsOrder": "sequence"
     },
     {
       "label": "demo: ratio sweep selected mesh",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
+      "command": "${workspaceFolder}/build/vs2019-release/bin/Release/manumesh.exe",
       "args": [
         "ratio-sweep",
         "${input:demoMesh}",
         "output/vscode_demo/ratio_sweep",
         "--method",
         "line",
-        "--line-weight",
-        "1e-3",
         "--weight-mode",
-        "dihedral",
+        "normal-tensor",
         "--feature-boost",
         "0.08",
         "--feature-angle-deg",
         "${input:demoFeatureAngle}",
-        "--loop-trace-angle-deg",
-        "${input:demoLoopTraceAngle}",
         "--ratios",
         "${input:demoRatios}",
         "--samples",
@@ -810,14 +378,14 @@
       "problemMatcher": [],
       "dependsOn": [
         "prepare: vscode demo output",
-        "build: mingw+ninja release"
+        "build: vs2019 release"
       ],
       "dependsOrder": "sequence"
     },
     {
       "label": "run: feature validation",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
+      "command": "${workspaceFolder}/build/vs2019-release/bin/Release/manumesh.exe",
       "args": [
         "validate-features",
         "--ratio",
@@ -828,12 +396,12 @@
         "tests/output/feature_curve_validation"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release"
+      "dependsOn": "build: vs2019 release"
     },
     {
       "label": "run: external validation",
       "type": "process",
-      "command": "${workspaceFolder}/build/mingw-ninja-release/bin/manumesh.exe",
+      "command": "${workspaceFolder}/build/vs2019-release/bin/Release/manumesh.exe",
       "args": [
         "validate-external",
         "--input-dir",
@@ -846,7 +414,7 @@
         "tests/output/external_model_validation"
       ],
       "problemMatcher": [],
-      "dependsOn": "build: mingw+ninja release"
+      "dependsOn": "build: vs2019 release"
     },
     {
       "label": "check: format",
@@ -854,13 +422,14 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-debug",
+        "--preset",
+        "vs2019-debug",
         "--target",
         "check-format",
         "--parallel"
       ],
-      "problemMatcher": ["$gcc"],
-      "dependsOn": "configure: mingw+ninja debug"
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 debug"
     },
     {
       "label": "format",
@@ -868,41 +437,14 @@
       "command": "cmake",
       "args": [
         "--build",
-        "build/mingw-ninja-debug",
+        "--preset",
+        "vs2019-debug",
         "--target",
         "format",
         "--parallel"
       ],
       "problemMatcher": [],
-      "dependsOn": "configure: mingw+ninja debug"
-    },
-    {
-      "label": "build: docs-api",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-release",
-        "--target",
-        "docs-api",
-        "--parallel"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "configure: mingw+ninja release"
-    },
-    {
-      "label": "build: docs-internal",
-      "type": "process",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "build/mingw-ninja-release",
-        "--target",
-        "docs-internal",
-        "--parallel"
-      ],
-      "problemMatcher": [],
-      "dependsOn": "configure: mingw+ninja release"
+      "dependsOn": "configure: vs2019 debug"
     }
   ],
   "inputs": [
@@ -921,6 +463,15 @@
       ]
     },
     {
+      "id": "demoFeatureLabels",
+      "type": "pickString",
+      "description": "特征基准标签 CSV",
+      "default": "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv",
+      "options": [
+        "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv"
+      ]
+    },
+    {
       "id": "demoRatio",
       "type": "pickString",
       "description": "目标面数比例",
@@ -936,7 +487,7 @@
     {
       "id": "demoSamples",
       "type": "pickString",
-      "description": "采样距离数量",
+      "description": "距离采样数量",
       "default": "512",
       "options": ["128", "512", "1000", "3000"]
     },
@@ -953,22 +504,6 @@
       "description": "环追踪角度（度，-1 表示复用特征角度）",
       "default": "-1",
       "options": ["-1", "15", "25", "35", "45", "179"]
-    },
-    {
-      "id": "demoFeatureLabels",
-      "type": "pickString",
-      "description": "特征基准标签 CSV",
-      "default": "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv",
-      "options": [
-        "tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv"
-      ]
-    },
-    {
-      "id": "msvcToolset",
-      "type": "pickString",
-      "description": "MSVC 工具集（v143 = VS2022，v142 = VS2019）",
-      "default": "v143",
-      "options": ["v143", "v142"]
     }
   ]
 }

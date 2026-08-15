@@ -13,7 +13,9 @@
 
 #include <vector>
 
-namespace manumesh::test::feature_detection {
+namespace manumesh {
+namespace test {
+namespace feature_detection {
 
 namespace feature = manumesh::feature;
 
@@ -51,4 +53,6 @@ Mesh makeFragmentedCircleWithTensorRidgeMesh();
 
 bool hasClosedLoopWithVertices(const FeatureAnalysis& features, const std::vector<int>& expectedVertices);
 
-} // 命名空间
+} // namespace feature_detection
+} // namespace test
+} // namespace manumesh

@@ -14,7 +14,9 @@
 #include <algorithm>
 #include <vector>
 
-namespace manumesh::test::simplification {
+namespace manumesh {
+namespace test {
+namespace simplification {
 
 inline int countBoundaryVertices(const ::manumesh::Mesh& mesh) {
     const ::manumesh::Result<::manumesh::MeshTopology> topologyResult = ::manumesh::MeshTopology::build(mesh);
@@ -190,4 +192,6 @@ inline ::manumesh::Mesh makePlacementFallbackMesh() {
     return mesh;
 }
 
-} // 命名空间
+} // namespace simplification
+} // namespace test
+} // namespace manumesh

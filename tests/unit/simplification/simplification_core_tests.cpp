@@ -51,7 +51,6 @@ TEST(ManuMesh, SimplifierRejectsInvalidOptionsAndMeshes) {
         std::invalid_argument
     );
 }
-
 namespace {
 
 // 检查该步骤的边界条件，并确保结果保持确定性。

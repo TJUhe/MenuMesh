@@ -17,7 +17,6 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <limits>
-
 namespace {
 
 manumesh::Mesh makePoorQualityPlaneGrid() {
@@ -179,7 +178,6 @@ TEST(QualityRefinement, HardProtectedCircularFeatureLoopsRemainStable) {
 }
 
 namespace {
-
 // 检查该步骤的边界条件，并确保结果保持确定性。
 // 检查该步骤的边界条件，并确保结果保持确定性。
 double distanceToNearestCubeEdgeLine(const manumesh::Vec3& p, double half) {

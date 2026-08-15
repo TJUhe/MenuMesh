@@ -14,11 +14,14 @@
 
 #include <memory>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 struct FeatureAnalysis;
-}
+} // namespace feature
+} // namespace manumesh
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -26,6 +29,10 @@ namespace manumesh::simplification {
 #endif
 
 /// 用于配置和运行网格简化的有状态对象 API。
+///
+/// 特征数据依赖保持为 `Mesh -> FeatureAnalysis -> simplification`。配置特征检测时，
+/// `SimplifyOptions::featureOptionsOverride` 是规范入口；旧扁平特征检测字段仅在
+/// override 未设置时作为兼容适配器生效。
 class MANUMESH_API QEMSimplifier {
 public:
     /// 使用默认选项构造简化器。
@@ -60,14 +67,24 @@ public:
     Mesh simplify(const Mesh& input, SimplifyReport* report);
     /// 启用特征保护时，使用预先计算的特征分析简化网格。
     /// @param[in] input 用于计算 `features` 的网格。
-    /// @param[in] features 预先计算的图和环归属信息。
+    /// @param[in] features 预先计算的图、环归属和规范检测证据。
     /// @return 简化后的稠密网格，不会重新运行特征检测。
+    /// @note `features` 必须绑定到 `input` 的精确 indexed geometry；顶点/面及其顺序、
+    /// 坐标和角点索引必须一致。UV 不参与来源指纹。
+    /// @note 当使用 Normal Tensor 权重模式时，预计算分析必须包含覆盖全部输入顶点的
+    /// `normalTensorVertexWeights`。这些权重按原检测配置直接复用，不会按当前简化选项重新阈值化。
+    /// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或所需的
+    /// Normal Tensor 逐顶点权重缺失时抛出。
     Mesh simplify(const Mesh& input, const feature::FeatureAnalysis& features);
     /// 使用预先计算的特征分析简化网格，并可选择复制诊断信息。
     /// @param[in] input 用于计算 `features` 的网格。
     /// @param[in] features 预先计算的特征分析。
     /// @param[out] report 可选的诊断信息副本。
     /// @return 简化后的稠密网格。
+    /// @note 来源验证覆盖精确 indexed geometry 和公开 graph/loop/component/patch 索引；
+    /// UV 不参与来源指纹。
+    /// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或 Normal Tensor
+    /// 权重模式缺少预计算逐顶点权重时抛出。
     Mesh simplify(const Mesh& input, const feature::FeatureAnalysis& features, SimplifyReport* report);
 
 private:
@@ -98,6 +115,10 @@ MANUMESH_API Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options
 /// @param[in] features `input` 的特征图和基本体约束。
 /// @param[out] report 可选的诊断信息。
 /// @return 简化后的网格，不会重复执行特征分析。
+/// @note 入口会校验 `features` 的来源身份和公开索引；来源身份绑定精确 indexed geometry，
+/// 但明确忽略 UV。
+/// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或 Normal Tensor
+/// 权重模式缺少预计算逐顶点权重时抛出。
 MANUMESH_API Mesh simplifyMesh(
     const Mesh& input,
     const SimplifyOptions& options,
@@ -105,4 +126,5 @@ MANUMESH_API Mesh simplifyMesh(
     SimplifyReport* report = nullptr
 );
 
-} // namespace manumesh::simplification
+} // namespace simplification
+} // namespace manumesh

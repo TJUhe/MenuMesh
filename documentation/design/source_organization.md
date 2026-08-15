@@ -21,7 +21,7 @@ ManuMesh 采用小型几何内核布局：公共 SDK 头文件和实现文件分
 | `src/mesh_edit/` | 跨算法私有编辑内核 | 活动面、动态邻接、compact/remap；供 simplification 和未来 remeshing/repair 复用。 |
 | `src/mesh_edit/detail/` | mesh edit 私有头 | 不安装，不包含 QEM 或具体算法策略。 |
 | `src/core/` | 基础数据结构实现 | 对应公共 core 头（含 `Tolerances.h` 统一退化容差、`MathConstants.h`、`generateClosedCubeGrid` 等生成器）。 |
-| `src/io/` | 网格文件读写实现 | 对应 `include/io/`；解析器基于 `std::from_chars` 与缓冲扫描，提供 `probeStlFormat()` ASCII/二进制探测。 |
+| `src/io/` | 网格文件读写实现 | 对应 `include/io/`；解析器基于固定 C locale 的 `_strtod_l`、有界整数解析与缓冲扫描，提供 `probeStlFormat()` ASCII/二进制探测。 |
 | `src/analysis/` | 通用统计与比较实现 | 对应 `include/algorithms/analysis/`，namespace `manumesh::analysis`，只依赖 core/common。 |
 | `src/feature_detection/` | 特征检测实现 | 对应 `FeatureDetector` 算法模块，不能依赖 simplification。 |
 | `src/feature_detection/detail/` | 特征检测私有 helper | primitive fitting、trace graph、loop recovery 等不稳定细节。 |
@@ -49,8 +49,9 @@ src/common/detail/SpatialIndex.h           CellCoord、hash、UniformAabbCandida
 src/common/detail/MathConstants.h          kPi 转发别名；正典常量在 include/core/MathConstants.h
 ```
 
-这层的命名空间是 `manumesh::common`（2026-07 由 `manumesh::detail` 改名，过渡别名
-`namespace manumesh::detail = common;` 保留一个 minor 版本）。这层不是 SDK 合约。外部代码不应 include `src/common/detail/...`；如果某个概念已经足够稳定，应提升到 `include/core/` 或新的公共算法模块。
+这层的命名空间是 `manumesh::common`（2026-07 由 `manumesh::detail` 改名，
+旧过渡别名已于 2026-08 移除）。这层不是 SDK 合约。外部代码不应 include
+`src/common/detail/...`；如果某个概念已经足够稳定，应提升到 `include/core/` 或新的公共算法模块。
 
 ## 当前简化模块拆分
 

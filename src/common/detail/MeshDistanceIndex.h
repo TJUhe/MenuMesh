@@ -12,7 +12,8 @@
 
 #include <vector>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 
 /**
  * @brief 基于 BVH 的参考网格点到表面距离查询。
@@ -30,7 +31,7 @@ public:
      */
     explicit MeshDistanceIndex(const Mesh& mesh);
 
-/** @brief 报告参考网格是否提供了至少一个有效面。 */
+    /** @brief 报告参考网格是否提供了至少一个有效面。 */
     bool empty() const;
     /**
  * @brief 返回点到参考表面的距离平方。
@@ -43,7 +44,7 @@ public:
     int skippedFaceCount() const { return skippedFaceCount_; }
 
 private:
-/** @brief 一个有效参考三角形的缓存边界和质心。 */
+    /** @brief 一个有效参考三角形的缓存边界和质心。 */
     struct TriangleRef {
         int face = -1;
         Vec3 lo = Vec3::Zero();
@@ -51,7 +52,7 @@ private:
         Vec3 centroid = Vec3::Zero();
     };
 
-/** @brief 覆盖半开三角形索引范围的二叉 BVH 节点。 */
+    /** @brief 覆盖半开三角形索引范围的二叉 BVH 节点。 */
     struct BvhNode {
         Vec3 lo = Vec3::Zero();
         Vec3 hi = Vec3::Zero();
@@ -61,9 +62,9 @@ private:
         int end = 0;
     };
 
-/** @brief 在 `[begin,end)` 上构建一个 BVH 子树并返回其节点 id。 */
+    /** @brief 在 `[begin,end)` 上构建一个 BVH 子树并返回其节点 id。 */
     int buildRecursive(int begin, int end);
-/** @brief 遍历 BVH 子树时更新 `best`。 */
+    /** @brief 遍历 BVH 子树时更新 `best`。 */
     void queryRecursive(int nodeId, const Vec3& point, double& best) const;
 
     const Mesh& mesh_;
@@ -73,10 +74,5 @@ private:
     int skippedFaceCount_ = 0;
 };
 
-} // 命名空间 manumesh::common
-
-namespace manumesh {
-// 过渡别名：manumesh::detail 已重命名为 manumesh::common
-// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
-namespace detail = common;
-} // 命名空间 manumesh
+} // namespace common
+} // namespace manumesh

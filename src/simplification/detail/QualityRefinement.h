@@ -16,7 +16,8 @@
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 传递给固定拓扑细化的不可变约束和可变网格。
@@ -27,6 +28,7 @@ struct QualityRefinementInput {
     const std::vector<FaceState>& faces;
     const DynamicTopology& topology;
     const FeatureConstraintPolicy& featurePolicy;
+    const FeatureConstraintGraph& featureConstraints;
     const std::vector<FeatureCurveConstraint>& featureCurves;
     const std::vector<FeaturePrimitiveFit>& primitiveFits;
     SpatialFaceIndex* spatialIndex = nullptr;
@@ -42,4 +44,5 @@ struct QualityRefinementInput {
  */
 void runQualityRefinement(const QualityRefinementInput& input, SimplifyReport& report);
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -10,6 +10,7 @@
 
 #include "detail/SimplificationRun.h"
 
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
 #include "detail/CollapseTopology.h"
 #include "detail/FeatureConstraints.h"
@@ -26,7 +27,8 @@
 #include <memory>
 #include <utility>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 SimplificationRun::SimplificationRun(const Mesh& input, const SimplifyOptions& options)
     : SimplificationRun(input, options, nullptr) {}
@@ -37,6 +39,7 @@ SimplificationRun::SimplificationRun(
     : input_(input),
       options_(options),
       precomputedFeatures_(features),
+      featureAnalysis_(features),
       policies_(SimplificationPolicies::fromOptions(options)),
       quadrics_(options),
       featurePolicy_(options),
@@ -80,7 +83,11 @@ Mesh SimplificationRun::execute(SimplifyReport* outReport) {
 }
 
 void SimplificationRun::refineQuality() {
-    if (options_.qualityRefinementIterations <= 0 || textureProtection_.active()) {
+    if (options_.qualityRefinementIterations <= 0) {
+        return;
+    }
+    if (textureProtection_.active()) {
+        report_.qualityRefinementSkippedForTexture = true;
         return;
     }
     runQualityRefinement(
@@ -89,6 +96,7 @@ void SimplificationRun::refineQuality() {
          faces_,
          *topology_,
          featurePolicy_,
+         featureGuidance_.constraints,
          featureGuidance_.curves,
          primitiveFits_,
          policies_.legality.preventLocalIntersections ? &spatialIndex_ : nullptr,
@@ -115,12 +123,23 @@ void SimplificationRun::analyzeFeatures() {
         return;
     }
 
-    featureGuidance_ = buildFeatureGuidance(input_, policies_.features, precomputedFeatures_);
+    if (featureAnalysis_ == nullptr) {
+        ownedFeatureAnalysis_ = std::make_unique<feature::FeatureAnalysis>(
+            feature::detectFeatureCurves(input_, policies_.features.options)
+        );
+        featureAnalysis_ = ownedFeatureAnalysis_.get();
+    }
+    featureGuidance_ = buildFeatureGuidance(input_, policies_.features, featureAnalysis_);
     applyFeatureGuidanceSummary(featureGuidance_.summary, report_);
 }
 
 void SimplificationRun::initializeVertices() {
-    const InitialQuadrics initialQuadrics = quadrics_.build(input_, featureGuidance_, report_);
+    const feature::FeatureAnalysis* weightAnalysis = precomputedFeatures_;
+    if (weightAnalysis == nullptr && featureAnalysis_ != nullptr &&
+        !featureAnalysis_->normalTensorVertexWeights.empty()) {
+        weightAnalysis = featureAnalysis_;
+    }
+    const InitialQuadrics initialQuadrics = quadrics_.build(input_, featureGuidance_, weightAnalysis, report_);
     // 始终计算边界标志（一次 O(E) 遍历），因为扩展链接条件需要在 preserveBoundary 关闭时也阻止边界弦收缩。preserveBoundary 保持原有含义：只限制边界顶点的移动或合并方式。
     boundaryVertices_ = common::computeBoundaryVertices(input_);
     primitiveFits_.clear();
@@ -140,10 +159,25 @@ void SimplificationRun::initializeVertices() {
         return;
     }
     activeLoopCounts_.assign(featureGuidance_.curves.size(), 0);
-    for (const VertexState& vertex : vertices_) {
-        if (vertex.isFeature && vertex.featureLoopId >= 0 &&
-            vertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
-            ++activeLoopCounts_[vertex.featureLoopId];
+    for (int vertexId = 0; vertexId < static_cast<int>(vertices_.size()); ++vertexId) {
+        const VertexState& vertex = vertices_[static_cast<std::size_t>(vertexId)];
+        if (!vertex.isFeature) {
+            continue;
+        }
+        const FeatureConstraintVertex* constraintVertex =
+            vertexId < static_cast<int>(featureGuidance_.constraints.vertices.size())
+                ? &featureGuidance_.constraints.vertices[static_cast<std::size_t>(vertexId)]
+                : nullptr;
+        if (constraintVertex == nullptr || constraintVertex->loopIds.empty()) {
+            if (vertex.featureLoopId >= 0 && vertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
+                ++activeLoopCounts_[vertex.featureLoopId];
+            }
+            continue;
+        }
+        for (int loopId : constraintVertex->loopIds) {
+            if (loopId >= 0 && loopId < static_cast<int>(activeLoopCounts_.size())) {
+                ++activeLoopCounts_[loopId];
+            }
         }
     }
 }
@@ -215,7 +249,9 @@ void SimplificationRun::initializeBudget() {
 void SimplificationRun::rebuildQueue() {
     queue_.clear();
     int textureProtectedEdges = 0;
-    for (const auto& [a, b] : collectActiveEdges(faces_)) {
+    for (const auto& pairEntry : collectActiveEdges(faces_)) {
+        const int a = pairEntry.first;
+        const int b = pairEntry.second;
         if (pushEdgeCandidate(a, b)) {
             ++textureProtectedEdges;
         }
@@ -360,6 +396,7 @@ bool SimplificationRun::tryCollapse(const Candidate& candidate) {
          faces_,
          *topology_,
          activeLoopCounts_,
+         featureGuidance_.constraints,
          featureGuidance_.curves,
          primitiveFits_,
          featurePolicy_,
@@ -464,10 +501,21 @@ void SimplificationRun::applyCollapse(
 
     // 任何被移除的特征顶点都会离开其所在环，包括跨环合并，因此各环的活动顶点计数始终准确反映剩余顶点。
     const VertexState& removedVertex = vertices_[remove];
-    if (removedVertex.isFeature && removedVertex.featureLoopId >= 0 &&
-        removedVertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
+    const FeatureConstraintVertex* removedConstraintVertex =
+        remove >= 0 && remove < static_cast<int>(featureGuidance_.constraints.vertices.size())
+            ? &featureGuidance_.constraints.vertices[static_cast<std::size_t>(remove)]
+            : nullptr;
+    if (removedVertex.isFeature && (removedConstraintVertex == nullptr || removedConstraintVertex->loopIds.empty()) &&
+        removedVertex.featureLoopId >= 0 && removedVertex.featureLoopId < static_cast<int>(activeLoopCounts_.size())) {
         --activeLoopCounts_[removedVertex.featureLoopId];
+    } else if (removedVertex.isFeature && removedConstraintVertex != nullptr) {
+        for (int loopId : removedConstraintVertex->loopIds) {
+            if (loopId >= 0 && loopId < static_cast<int>(activeLoopCounts_.size())) {
+                --activeLoopCounts_[loopId];
+            }
+        }
     }
+    featureGuidance_.constraints.contractVertex(keep, remove);
 
     // 与边界顶点合并后的顶点会位于开放边界上；更新该标志以满足扩展链接条件。
     vertices_[keep].isBoundary = vertices_[keep].isBoundary || vertices_[remove].isBoundary;
@@ -531,4 +579,5 @@ void SimplificationRun::rewriteIncidentFaces(int keep, int remove) {
     }
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

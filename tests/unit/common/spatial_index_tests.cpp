@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <vector>
-
 namespace {
 
 bool containsItem(const std::vector<int>& items, int itemId) {

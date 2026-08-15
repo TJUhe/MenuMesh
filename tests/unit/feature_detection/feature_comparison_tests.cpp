@@ -7,12 +7,12 @@
  */
 
 #include "algorithms/feature_detection/FeatureComparison.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 
 #include <cmath>
 #include <gtest/gtest.h>
 #include <limits>
 #include <vector>
-
 namespace {
 
 using manumesh::Mesh;
@@ -47,8 +47,86 @@ FeatureLoop appendCircleLoop(Mesh& mesh, int id, const Vec3& center, double radi
     return loop;
 }
 
-} // 命名空间
+} // namespace
 
+void bindAnalysisToMesh(FeatureAnalysis& analysis, Mesh& mesh) {
+    for (const FeatureLoop& loop : analysis.loops) {
+        const int centerVertex = static_cast<int>(mesh.vertices.size());
+        mesh.vertices.push_back(loop.center);
+        for (std::size_t index = 0; index < loop.vertices.size(); ++index) {
+            const int a = loop.vertices[index];
+            const int b = loop.vertices[(index + 1u) % loop.vertices.size()];
+            mesh.faces.push_back({{{a, b, centerVertex}}});
+        }
+    }
+
+    analysis.vertices.assign(mesh.vertices.size(), manumesh::feature::VertexFeature{});
+    analysis.graph.vertices.assign(mesh.vertices.size(), manumesh::feature::FeatureGraphVertex{});
+    analysis.components.clear();
+    analysis.graph.edges.clear();
+    for (std::size_t loopIndex = 0; loopIndex < analysis.loops.size(); ++loopIndex) {
+        FeatureLoop& loop = analysis.loops[loopIndex];
+        loop.componentId = static_cast<int>(loopIndex);
+        manumesh::feature::FeatureComponent component;
+        component.id = static_cast<int>(loopIndex);
+        component.vertices = loop.vertices;
+        component.edgeCount = loop.edgeCount;
+        component.boundaryEdges = loop.edgeCount;
+        component.strongEvidenceEdges = loop.edgeCount;
+        component.cycleRank = 1;
+        component.closed = true;
+        component.closureRate = 1.0;
+        component.strongEvidenceRatio = 1.0;
+        analysis.components.push_back(component);
+
+        for (int vertexId : loop.vertices) {
+            manumesh::feature::VertexFeature& vertex = analysis.vertices[static_cast<std::size_t>(vertexId)];
+            manumesh::feature::FeatureGraphVertex& graphVertex =
+                analysis.graph.vertices[static_cast<std::size_t>(vertexId)];
+            if (!vertex.isFeature) {
+                vertex.isFeature = true;
+                vertex.loopId = loop.id;
+                vertex.componentId = loop.componentId;
+                vertex.circular = loop.circular;
+                vertex.primitive = loop.primitive;
+                vertex.circleCenter = loop.center;
+                vertex.circleNormal = loop.normal;
+                vertex.circleRadius = loop.radius;
+                Vec3 radial = mesh.vertices[static_cast<std::size_t>(vertexId)] - loop.center;
+                radial -= loop.normal * radial.dot(loop.normal);
+                vertex.tangent = loop.normal.cross(radial).normalized();
+            }
+            graphVertex.loopIds.push_back(loop.id);
+        }
+        for (std::size_t index = 0; index < loop.vertices.size(); ++index) {
+            const int a = loop.vertices[index];
+            const int b = loop.vertices[(index + 1u) % loop.vertices.size()];
+            manumesh::feature::FeatureGraphEdge edge;
+            edge.a = a;
+            edge.b = b;
+            edge.boundary = true;
+            const int edgeId = static_cast<int>(analysis.graph.edges.size());
+            analysis.graph.edges.push_back(edge);
+            analysis.graph.vertices[static_cast<std::size_t>(a)].incidentEdges.push_back(edgeId);
+            analysis.graph.vertices[static_cast<std::size_t>(b)].incidentEdges.push_back(edgeId);
+        }
+    }
+    for (std::size_t vertexId = 0; vertexId < analysis.graph.vertices.size(); ++vertexId) {
+        manumesh::feature::FeatureGraphVertex& graphVertex = analysis.graph.vertices[vertexId];
+        for (int edgeId : graphVertex.incidentEdges) {
+            const manumesh::feature::FeatureGraphEdge& edge = analysis.graph.edges[static_cast<std::size_t>(edgeId)];
+            const int owner = static_cast<int>(vertexId);
+            const int neighbor = edge.a == owner ? edge.b : edge.a;
+            const Vec3 tangent =
+                (mesh.vertices[static_cast<std::size_t>(neighbor)] - mesh.vertices[vertexId]).normalized();
+            graphVertex.branches.push_back({edgeId, neighbor, tangent, edge.signedKind});
+        }
+    }
+    analysis.featureEdges = static_cast<int>(analysis.graph.edges.size());
+    analysis.tracedFeatureEdges = analysis.featureEdges;
+    analysis.boundaryFeatureEdges = analysis.featureEdges;
+    analysis.source = manumesh::feature::featureAnalysisSource(mesh);
+}
 // 检查该步骤的边界条件，并确保结果保持确定性。
 // 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, IdenticalLoopsMatchStronglyWithZeroErrors) {
@@ -60,6 +138,7 @@ TEST(FeatureComparison, IdenticalLoopsMatchStronglyWithZeroErrors) {
     originalFeatures.loops.push_back(appendCircleLoop(original, 1, Vec3(5.0, 0.0, 0.0), 0.5, 10));
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.0, 8));
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 1, Vec3(5.0, 0.0, 0.0), 0.5, 8));
+    bindAnalysisToMesh(simplifiedFeatures, simplified);
 
     const LoopMatchReport report = matchCircularLoops(originalFeatures, simplifiedFeatures, simplified);
 
@@ -93,6 +172,7 @@ TEST(FeatureComparison, RadiusDriftInsidePlausibleBandIsWeakMatch) {
     originalFeatures.loops.push_back(appendCircleLoop(original, 0, Vec3(0.0, 0.0, 0.0), 1.0, 12));
     // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.15, 12));
+    bindAnalysisToMesh(simplifiedFeatures, simplified);
 
     LoopMatchOptions options;
     options.referenceDiagonal = 10.0;
@@ -127,6 +207,7 @@ TEST(FeatureComparison, VanishedLoopIsMissingAndSimplifiedLoopsAreConsumedOnce) 
     originalFeatures.loops.push_back(appendCircleLoop(original, 1, Vec3(0.2, 0.0, 0.0), 1.0, 12));
     // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.0, 8));
+    bindAnalysisToMesh(simplifiedFeatures, simplified);
 
     LoopMatchOptions options;
     options.referenceDiagonal = 10.0;
@@ -163,6 +244,7 @@ TEST(FeatureComparison, ChoosesBestPlausibleCandidateAfterThresholdFiltering) {
     // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.81, 0.0, 0.0), 1.0, 8));
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 1, Vec3(0.7, 0.0, 0.0), 1.02, 8));
+    bindAnalysisToMesh(simplifiedFeatures, simplified);
 
     LoopMatchOptions options;
     options.referenceDiagonal = 10.0;
@@ -221,6 +303,7 @@ TEST(FeatureComparison, NonCircularLoopsAreIgnored) {
     polygonal.primitive = manumesh::feature::FeaturePrimitiveType::PolygonalLoop;
     originalFeatures.loops.push_back(polygonal);
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.0, 6));
+    bindAnalysisToMesh(simplifiedFeatures, simplified);
 
     const LoopMatchReport report = matchCircularLoops(originalFeatures, simplifiedFeatures, simplified);
 

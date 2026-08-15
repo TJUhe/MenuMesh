@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "(MinGW Ninja) Debug CLI Feature Curves",
-      "type": "cppdbg",
+      "name": "VS2019 Debug CLI - Feature Curves",
+      "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/manumesh.exe",
+      "program": "${workspaceFolder}/build/vs2019-debug/bin/Debug/manumesh.exe",
       "args": [
         "simplify",
         "${input:launchMesh}",
@@ -15,7 +15,7 @@
         "--line-weight",
         "1e-3",
         "--weight-mode",
-        "dihedral",
+        "normal-tensor",
         "--feature-boost",
         "0.08",
         "--feature-angle-deg",
@@ -31,8 +31,14 @@
         "0.04",
         "--ellipse-fit-threshold",
         "0.05",
-        "--min-circular-feature-loop-vertices",
-        "12",
+        "--normal-tensor-threshold",
+        "0.06",
+        "--normal-tensor-edge-alignment",
+        "0.2",
+        "--normal-tensor-scales",
+        "3",
+        "--normal-tensor-min-persistent-scales",
+        "2",
         "--feature-graph-gap-ratio",
         "1.25",
         "--feature-graph-max-weak-spur-edges",
@@ -48,16 +54,14 @@
       ],
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug"
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: vs2019 debug"
     },
     {
-      "name": "(MinGW Ninja) Debug CLI Feature Report",
-      "type": "cppdbg",
+      "name": "VS2019 Debug CLI - Feature Report",
+      "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/manumesh.exe",
+      "program": "${workspaceFolder}/build/vs2019-debug/bin/Debug/manumesh.exe",
       "args": [
         "feature-report",
         "${input:launchMesh}",
@@ -88,130 +92,14 @@
       ],
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug"
-    },
-    {
-      "name": "(MinGW Ninja) Debug Unit Tests Filter",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug/bin/manumesh_tests.exe",
-      "args": [
-        "--gtest_filter=${input:gtestFilter}",
-        "--gtest_color=yes"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug"
-    },
-    {
-      "name": "(MinGW Ninja) Debug Performance Tests Filter",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/mingw-ninja-debug-performance/bin/manumesh_performance_tests.exe",
-      "args": [
-        "--gtest_filter=${input:performanceGtestFilter}",
-        "--gtest_color=yes"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb.exe",
-      "preLaunchTask": "build: mingw+ninja debug performance"
-    },
-    {
-      "name": "(VS2019 Ninja Preset) Debug CLI Feature Curves",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/vs2019-ninja-debug/bin/Debug/manumesh.exe",
-      "args": [
-        "simplify",
-        "${input:launchMesh}",
-        "output/vscode_debug_vs2019_ninja_feature_curves.stl",
-        "--method",
-        "line",
-        "--line-weight",
-        "1e-3",
-        "--weight-mode",
-        "dihedral",
-        "--feature-boost",
-        "0.08",
-        "--feature-angle-deg",
-        "${input:launchFeatureAngle}",
-        "--loop-trace-angle-deg",
-        "${input:launchLoopTraceAngle}",
-        "--preserve-feature-curves",
-        "--feature-curve-weight",
-        "0.08",
-        "--max-feature-curve-deviation-ratio",
-        "0.05",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
-        "--ratio",
-        "${input:launchRatio}",
-        "--samples",
-        "${input:launchSamples}",
-        "--metrics-csv",
-        "output/vscode_debug_vs2019_ninja_feature_curves_metrics.csv"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: vs2019+ninja debug preset"
+      "preLaunchTask": "build: vs2019 debug"
     },
     {
-      "name": "(VS2019 Ninja Preset) Debug CLI Feature Report",
+      "name": "VS2019 Debug Unit Tests - Filter",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/vs2019-ninja-debug/bin/Debug/manumesh.exe",
-      "args": [
-        "feature-report",
-        "${input:launchMesh}",
-        "--feature-angle-deg",
-        "${input:launchFeatureAngle}",
-        "--loop-trace-angle-deg",
-        "${input:launchLoopTraceAngle}",
-        "--circle-fit-threshold",
-        "0.04",
-        "--ellipse-fit-threshold",
-        "0.05",
-        "--normal-tensor-threshold",
-        "0.06",
-        "--normal-tensor-edge-alignment",
-        "0.2",
-        "--normal-tensor-scales",
-        "3",
-        "--normal-tensor-min-persistent-scales",
-        "2",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
-        "--csv",
-        "output/vscode_debug_vs2019_ninja_features.csv"
-      ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "console": "integratedTerminal",
-      "preLaunchTask": "build: vs2019+ninja debug preset"
-    },
-    {
-      "name": "(VS2019 Ninja Preset) Debug Unit Tests Filter",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/vs2019-ninja-debug/bin/Debug/manumesh_tests.exe",
+      "program": "${workspaceFolder}/build/vs2019-debug/bin/Debug/manumesh_tests.exe",
       "args": [
         "--gtest_filter=${input:gtestFilter}",
         "--gtest_color=yes"
@@ -219,13 +107,13 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: vs2019+ninja debug preset"
+      "preLaunchTask": "build: vs2019 debug"
     },
     {
-      "name": "(VS2019 Ninja Preset + debugUtil) Debug Unit Tests Filter",
+      "name": "VS2019 ASan Unit Tests - Filter",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/vs2019-ninja-debug-debugutil/bin/Debug/manumesh_tests.exe",
+      "program": "${workspaceFolder}/build/vs2019-asan/bin/Debug/manumesh_tests.exe",
       "args": [
         "--gtest_filter=${input:gtestFilter}",
         "--gtest_color=yes"
@@ -233,65 +121,30 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: vs2019+ninja debug debugutil preset"
+      "environment": [
+        {
+          "name": "ASAN_OPTIONS",
+          "value": "halt_on_error=1:abort_on_error=1"
+        }
+      ],
+      "preLaunchTask": "build: vs2019 asan"
     },
     {
-      "name": "(MSVC Selected) Debug CLI Feature Curves",
+      "name": "VS2019 ASan Ownership Lifetime Stress",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-${input:msvcToolset}/bin/Debug/manumesh.exe",
-      "args": [
-        "simplify",
-        "${input:launchMesh}",
-        "output/vscode_debug_msvc_feature_curves.stl",
-        "--method",
-        "line",
-        "--line-weight",
-        "1e-3",
-        "--weight-mode",
-        "dihedral",
-        "--feature-boost",
-        "0.08",
-        "--feature-angle-deg",
-        "${input:launchFeatureAngle}",
-        "--loop-trace-angle-deg",
-        "${input:launchLoopTraceAngle}",
-        "--preserve-feature-curves",
-        "--feature-curve-weight",
-        "0.08",
-        "--max-feature-curve-deviation-ratio",
-        "0.05",
-        "--feature-graph-gap-ratio",
-        "1.25",
-        "--feature-graph-max-weak-spur-edges",
-        "2",
-        "--feature-component-min-confidence",
-        "0.35",
-        "--ratio",
-        "${input:launchRatio}",
-        "--samples",
-        "${input:launchSamples}",
-        "--metrics-csv",
-        "output/vscode_debug_msvc_feature_curves_metrics.csv"
-      ],
+      "program": "${workspaceFolder}/build/vs2019-asan/bin/Debug/manumesh_ownership_lifetime_stress.exe",
+      "args": [],
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc selected debug"
-    },
-    {
-      "name": "(MSVC Selected) Debug Unit Tests Filter",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/msvc-${input:msvcToolset}/bin/Debug/manumesh_tests.exe",
-      "args": [
-        "--gtest_filter=${input:gtestFilter}",
-        "--gtest_color=yes"
+      "environment": [
+        {
+          "name": "ASAN_OPTIONS",
+          "value": "halt_on_error=1:abort_on_error=1"
+        }
       ],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "console": "integratedTerminal",
-      "preLaunchTask": "build: msvc selected debug"
+      "preLaunchTask": "build: vs2019 asan"
     }
   ],
   "inputs": [
@@ -319,7 +172,7 @@
     {
       "id": "launchSamples",
       "type": "pickString",
-      "description": "采样距离数量",
+      "description": "距离采样数量",
       "default": "512",
       "options": ["128", "512", "1000", "3000"]
     },
@@ -342,19 +195,6 @@
       "type": "promptString",
       "description": "GoogleTest 过滤器",
       "default": "ManuMeshParameters.*"
-    },
-    {
-      "id": "performanceGtestFilter",
-      "type": "promptString",
-      "description": "数据集 GoogleTest 过滤器",
-      "default": "ManuMeshDataset.*"
-    },
-    {
-      "id": "msvcToolset",
-      "type": "pickString",
-      "description": "MSVC 工具集（v143 = VS2022，v142 = VS2019；需与 preLaunch 任务匹配）",
-      "default": "v143",
-      "options": ["v143", "v142"]
     }
   ]
 }

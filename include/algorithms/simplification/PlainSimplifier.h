@@ -12,7 +12,8 @@
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "core/PlainMesh.h"
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /// 通过无 Eigen 的 C++ 交换类型简化网格。
 ///
@@ -26,4 +27,5 @@ namespace manumesh::simplification {
 MANUMESH_API PlainMesh
 simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& options, SimplifyReport* report = nullptr);
 
-} // namespace manumesh::simplification
+} // namespace simplification
+} // namespace manumesh

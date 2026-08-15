@@ -1,5 +1,51 @@
 # 更新日志
 
+## 2026-08-15
+
+### API、生命周期与诊断收口
+
+- C API v2 的特征边结果现在同时返回 `feature_edge_index`、`input_edge_index`、`synthetic` 和 `geometric_constraint`；容量查询保持原子写入语义，并由纯 C/C++14 consumer 覆盖端点序号范围和重试路径。
+- 新增 `FeatureAnalysisViews` 的证据、曲线、分区和诊断视图；视图禁止绑定临时 `FeatureAnalysis`，避免悬空引用，同时不改变分析结果的所有权和布局。
+- C ABI 异常边界改为 `noexcept` 错误翻译，OOM 发生在参数校验和 catch 路径时均映射为 `MANUMESH_STATUS_OUT_OF_MEMORY`，不允许 C++ 异常穿过 ABI。
+- Windows CLI 参数、DebugUtil 模块句柄和其他局部资源改用 RAII；64 轮生命周期压力测试累计 2,512,640 次分配，净未释放分配为 0，VS2019 ASan 316/316 通过。
+- NormalTensor 每个尺度只执行一次证据传播和分解，简化侧复用规范缓存；Release 中位耗时约下降 26.8%，相关尺度、旋转协变、采样稳定性和权重复用测试通过。
+- DebugUtil 当前暂不参与产品流程：特征快照调用已保留为注释，VS2019/Ninja DebugUtil preset、VS Code task/launch 和自动化测试入口已移除；实现和文档保留供后续诊断恢复。
+- 普通 VS2019 Debug 回归执行 333 项全部通过，Debug/Release/ASan/SDK 的目标继续统一使用 C++14、MSVC v142 x64 和 `/MD`。
+
+## 2026-08-14
+
+### 特征识别与简化解耦
+
+- 简化侧开始直接消费规范特征约束图，区分输入网格证据边、恢复连续边和可投影几何段；同时移除 `manumesh::detail` 到 `manumesh::common` 的内部过渡别名。
+- 新增轻量公共头 `FeatureOptions.h`，将检测策略与包含完整分析结果的 `FeatureTypes.h` 分离；简化公共头只依赖配置，不再被迫包含特征图、环、primitive 和 patch 数据结构。
+- `SimplifyOptions::featureOptionsOverride` 成为简化侧规范特征配置；旧扁平字段保留为源码兼容适配器，override 存在时不再参与解析。CLI 复用统一的 `parseFeatureOptions()`，同时保留简化命令历史上的最小环顶点数默认值。
+- `FeatureAnalysis` 新增确定性的来源身份，绑定精确 indexed geometry 并明确排除 UV；预计算简化、特征比较、benchmark 和分区入口会校验来源、公开索引及图连接关系。
+- 预计算分析新增紧凑的 `normalTensorVertexWeights`。Normal Tensor 权重模式直接复用检测时已解析的规范证据；显式传入分析但缺少逐顶点权重时拒绝调用，不在简化内部换一套参数重算。
+- 特征检测和简化的 `minFeatureLoopVertices` 统一使用同一个归一化值，避免检测出的环与硬坍缩预算采用不同门限。
+
+### Normal Tensor
+
+- 法向张量边候选要求两个端点都满足折痕切向对齐；修正所选名义尺度报告，并让权重计算统一使用解析后的 `FeatureOptions`。独立 `computeNormalTensorFeatures()` 也支持相同的 normal filter，并与完整检测管线共享参数校验规则。
+- 多尺度 persistence 改为先选择参考尺度，再只统计与参考类型一致的支持尺度；折痕主导候选还必须保持切向一致，稳定角点只贡献顶点权重而不会直接生成折痕边。
+- 增加统一缩放、刚体旋转协变、非均匀采样、多尺度持久性、双端点对齐和预计算权重复用回归；`localScale` 明确表示所选尺度的名义核半径，而不是多轮扩散后的精确支持域。
+
+### C ABI、构建与诊断
+
+- `ManuMeshSimplifyOptions` 尾部新增调用期借用的 `feature_options` 指针；外层和嵌套结构分别按 `struct_size` 读取，非空时覆盖全部旧扁平特征字段。初始化器、C 示例、旧布局和安装后 consumer 同步更新。
+- 移除内部全局 force-include；`debugUtil` 只保留通用 overlay 接口，特征快照转换由 feature-owned 适配器承担。新增特征检测和简化的独立链接边界测试，防止隐藏依赖回流。
+- 纹理保护导致固定拓扑质量精修跳过时，C++ report、C ABI、CLI 文本和 CSV 均返回显式诊断。
+- 安装包拆分为 `ManuMesh::manumesh_binary`、`ManuMesh::manumesh` 和 `ManuMesh::c_api`，并提供 `COMPONENTS CXX CApi`；纯 C ABI consumer 不再继承 Eigen 或 C++17 头文件要求。
+
+### Visual Studio 2019 构建基线
+
+- 新增 `vs2019-asan` 配置/构建/测试 preset，并增加跨 C API、Pimpl copy/move、容量重试和错误返回的所有权压力测试；Debug 仍固定使用 `/MD`。
+- 仓库唯一受支持工具链收敛为 Visual Studio 16 2019 / MSVC v142（`_MSC_VER 1920-1929`）；顶层工程、安装后 package 和 SDK consumer 会在配置阶段拒绝其他编译器。
+- 删除 MinGW 运行时复制、MinGW GoogleTest 选择、GNU big-object 分支、VS2022/v143 与 GDB 工作流，以及仓库内 `mingw-x64-shared` GoogleTest 二进制包。
+- GoogleTest provider 收敛为 `auto`、`source`、`system` 和 `fetch`；删除包含 `/MDd` Debug 归档的 MSVC 预编译包及导入逻辑，所有测试依赖改由当前 v142、C++14、`/MD` 配置构建。
+- `CMakePresets.json`、VS Code、README、SDK/调试/测试指南统一使用 VS2019 x64 preset；仍可在 VS2019 v142 Developer Command Prompt 中使用 Ninja Multi-Config。
+- 删除依赖 MinGW 运行库且无法启动的仓库内 Doxygen 二进制；文档配置改为从开发环境发现 Doxygen，`MANUMESH_BUILD_DOCS=ON` 时缺失工具会在配置阶段明确失败，不再生成伪成功目标。
+- 格式规则明确保留中文命名空间注释，并重新格式化全仓 C/C++ 文件；`format` / `check-format` 固定要求 clang-format 22.x，缺失或版本不匹配时明确失败，不再伪成功。
+
 ## 0.2.0 - 2026-07-17
 
 ### 离线发布加固
@@ -395,7 +441,7 @@
 ### Debug 辅助工具
 
 - 新增内部 `debugUtil` HTML wireframe 工具，默认关闭，开启 `MANUMESH_ENABLE_DEBUG_UTIL` 且使用 Debug 构建时可通过一行宏输出本地 HTML，支持普通线框、按场景着色的边覆盖、feature analysis 叠加和简化前后对比。
-- CMake 会对内部 C++ object target force-include `debugUtil/debugUtil.h`；Release 或未开启 debugUtil 时宏保持 no-op，不进入 public SDK install headers。
+- 内部 C++ 源文件在插桩点显式包含调试头：通用线框/边覆盖使用 `debugUtil/debugUtil.h`，特征快照使用 feature-owned `FeatureDebugInstrumentation.h` 适配器；Release 或未开启 debugUtil 时宏保持 no-op，且调试头不进入 public SDK install headers。
 
 ### 工程工具链
 

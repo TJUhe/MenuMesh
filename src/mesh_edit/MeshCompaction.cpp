@@ -10,7 +10,8 @@
 
 #include "mesh_edit/detail/MeshCompaction.h"
 
-namespace manumesh::mesh_edit {
+namespace manumesh {
+namespace mesh_edit {
 
 MeshCompactionResult compactActiveMesh(
     const std::vector<Vec3>& positions, const std::vector<char>& activeVertices, const std::vector<EditableFace>& faces
@@ -54,4 +55,5 @@ MeshCompactionResult compactActiveMesh(
     return result;
 }
 
-} // 结束 manumesh::mesh_edit 命名空间
+} // namespace mesh_edit
+} // namespace manumesh

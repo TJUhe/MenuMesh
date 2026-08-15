@@ -9,6 +9,7 @@
  */
 
 #include "detail/FeatureGuidance.h"
+#include "core/MathUtils.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MathConstants.h"
@@ -18,12 +19,43 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <utility>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 using manumesh::common::kPi;
+
+Vec3 protectedFeatureTangent(const Mesh& mesh, const FeatureConstraintGraph& graph, int vertex) {
+    const std::vector<int> neighbors = graph.protectedNeighbors(vertex);
+    if (vertex < 0 || vertex >= static_cast<int>(mesh.vertices.size()) || neighbors.empty()) {
+        return Vec3::Zero();
+    }
+    if (neighbors.size() == 1) {
+        const Vec3 tangent = mesh.vertices[neighbors[0]] - mesh.vertices[vertex];
+        return tangent.norm() > 1e-20 ? tangent.normalized() : Vec3::Zero();
+    }
+    if (neighbors.size() == 2) {
+        const Vec3 tangent = mesh.vertices[neighbors[1]] - mesh.vertices[neighbors[0]];
+        return tangent.norm() > 1e-20 ? tangent.normalized() : Vec3::Zero();
+    }
+    return Vec3::Zero();
+}
+
+bool isAnalyticPrimitive(feature::FeaturePrimitiveType primitive) {
+    return primitive == feature::FeaturePrimitiveType::Circle ||
+           primitive == feature::FeaturePrimitiveType::NearCircle ||
+           primitive == feature::FeaturePrimitiveType::Ellipse;
+}
+
+int loopPairCount(const feature::FeatureLoop& loop) {
+    if (loop.vertices.size() < 2) {
+        return 0;
+    }
+    return loop.closed ? static_cast<int>(loop.vertices.size()) : static_cast<int>(loop.vertices.size()) - 1;
+}
 
 FeatureCurveKind toFeatureCurveKind(feature::FeaturePrimitiveType primitive) {
     switch (primitive) {
@@ -41,26 +73,47 @@ FeatureCurveKind toFeatureCurveKind(feature::FeaturePrimitiveType primitive) {
     return FeatureCurveKind::Unknown;
 }
 
-FeatureVertexGuidance toVertexGuidance(const feature::VertexFeature& source) {
+FeatureVertexGuidance toVertexGuidance(
+    const feature::VertexFeature& source, const FeatureConstraintVertex& constraintVertex, const Vec3& graphTangent
+) {
     FeatureVertexGuidance target;
-    target.isFeature = source.isFeature;
-    target.circular = source.circular;
-    target.junction = source.junction;
+    const bool analyticSource = isAnalyticPrimitive(source.primitive);
+    const bool sourceLoopIsCanonical =
+        source.loopId >= 0 &&
+        std::find(constraintVertex.loopIds.begin(), constraintVertex.loopIds.end(), source.loopId) !=
+            constraintVertex.loopIds.end();
+    const bool useSourcePrimitive = analyticSource && (!constraintVertex.protectedFeature || sourceLoopIsCanonical);
+
+    target.isFeature = constraintVertex.protectedFeature || (source.isFeature && useSourcePrimitive);
+    target.circular = useSourcePrimitive && source.circular;
+    target.junction = constraintVertex.junction || constraintVertex.shared || constraintVertex.ambiguousJunction;
+    if (useSourcePrimitive) {
+        target.junction = target.junction || source.junction;
+    }
     target.weakFeature = source.weakFeature;
-    target.primitive = toFeatureCurveKind(source.primitive);
-    target.loopId = source.loopId;
-    target.componentId = source.componentId;
-    target.confidence = source.confidence;
-    target.tangent = source.tangent;
-    target.circleCenter = source.circleCenter;
-    target.circleNormal = source.circleNormal;
-    target.circleRadius = source.circleRadius;
-    target.ellipseCenter = source.ellipseCenter;
-    target.ellipseNormal = source.ellipseNormal;
-    target.ellipseMajorAxis = source.ellipseMajorAxis;
-    target.ellipseMinorAxis = source.ellipseMinorAxis;
-    target.ellipseMajorRadius = source.ellipseMajorRadius;
-    target.ellipseMinorRadius = source.ellipseMinorRadius;
+    target.primitive = useSourcePrimitive ? toFeatureCurveKind(source.primitive)
+                                          : (constraintVertex.protectedFeature ? FeatureCurveKind::PolygonalLoop
+                                                                               : FeatureCurveKind::Unknown);
+    target.loopIds = constraintVertex.loopIds;
+    target.componentIds = constraintVertex.componentIds;
+    target.loopId = useSourcePrimitive && source.loopId >= 0 ? source.loopId
+                                                             : (target.loopIds.empty() ? -1 : target.loopIds.front());
+    target.componentId = useSourcePrimitive && source.componentId >= 0
+                             ? source.componentId
+                             : (target.componentIds.empty() ? -1 : target.componentIds.front());
+    target.confidence = std::max(source.confidence, constraintVertex.confidence);
+    target.tangent = useSourcePrimitive ? source.tangent : graphTangent;
+    if (useSourcePrimitive) {
+        target.circleCenter = source.circleCenter;
+        target.circleNormal = source.circleNormal;
+        target.circleRadius = source.circleRadius;
+        target.ellipseCenter = source.ellipseCenter;
+        target.ellipseNormal = source.ellipseNormal;
+        target.ellipseMajorAxis = source.ellipseMajorAxis;
+        target.ellipseMinorAxis = source.ellipseMinorAxis;
+        target.ellipseMajorRadius = source.ellipseMajorRadius;
+        target.ellipseMinorRadius = source.ellipseMinorRadius;
+    }
     return target;
 }
 
@@ -74,8 +127,10 @@ int curveStorageSize(const feature::FeatureAnalysis& analysis) {
     return size;
 }
 
-int resolveNormalTensorMinPersistentScales(const SimplifyOptions& options) {
-    return std::clamp(options.normalTensorMinPersistentScales, 1, std::max(1, options.normalTensorScaleCount));
+int resolveNormalTensorMinPersistentScales(const feature::FeatureOptions& options) {
+    return manumesh::clampValue(
+        options.normalTensorMinPersistentScales, 1, std::max(1, options.normalTensorScaleCount)
+    );
 }
 
 void summarizeNormalTensorScores(const std::vector<feature::NormalTensorVertex>& tensor, FeatureWeightScores& result) {
@@ -102,6 +157,7 @@ void summarizeNormalTensorScores(const std::vector<feature::NormalTensorVertex>&
 FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature::FeatureAnalysis& analysis) {
     FeatureGuidance guidance;
     guidance.enabled = true;
+    guidance.constraints = buildFeatureConstraintGraph(mesh, analysis);
 
     guidance.summary.featureLoops = static_cast<int>(analysis.loops.size());
     guidance.summary.tracedFeatureEdges = analysis.tracedFeatureEdges;
@@ -134,10 +190,19 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
     guidance.summary.junctionBranchPairs = analysis.junctionBranchPairs;
     guidance.summary.ambiguousFeatureJunctions = analysis.ambiguousJunctions;
 
-    guidance.vertices.reserve(analysis.vertices.size());
-    for (const feature::VertexFeature& vertex : analysis.vertices) {
-        guidance.vertices.push_back(toVertexGuidance(vertex));
-        if (vertex.isFeature) {
+    guidance.vertices.reserve(mesh.vertices.size());
+    for (int vertexId = 0; vertexId < static_cast<int>(mesh.vertices.size()); ++vertexId) {
+        const feature::VertexFeature empty;
+        const feature::VertexFeature& vertex = vertexId < static_cast<int>(analysis.vertices.size())
+                                                   ? analysis.vertices[static_cast<std::size_t>(vertexId)]
+                                                   : empty;
+        const FeatureVertexGuidance vertexGuidance = toVertexGuidance(
+            vertex,
+            guidance.constraints.vertices[static_cast<std::size_t>(vertexId)],
+            protectedFeatureTangent(mesh, guidance.constraints, vertexId)
+        );
+        guidance.vertices.push_back(vertexGuidance);
+        if (vertexGuidance.isFeature) {
             ++guidance.summary.featureVertices;
         }
     }
@@ -148,7 +213,7 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
             ++guidance.summary.circularFeatureLoops;
         }
         if (loop.id < 0 || loop.id >= static_cast<int>(guidance.curves.size())) {
-            continue;
+            throw std::invalid_argument("FeatureAnalysis contains an invalid feature loop id.");
         }
         FeatureCurveConstraint constraint;
         constraint.valid = loop.vertices.size() >= 2;
@@ -156,11 +221,29 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
         constraint.primitive = toFeatureCurveKind(loop.primitive);
         constraint.samples.reserve(loop.vertices.size());
         for (int vertexId : loop.vertices) {
-            if (vertexId >= 0 && vertexId < static_cast<int>(mesh.vertices.size())) {
-                constraint.samples.push_back(mesh.vertices[vertexId]);
+            if (vertexId < 0 || vertexId >= static_cast<int>(mesh.vertices.size())) {
+                throw std::invalid_argument("FeatureAnalysis contains an invalid feature loop vertex index.");
             }
+            constraint.samples.push_back(mesh.vertices[vertexId]);
         }
-        constraint.valid = constraint.valid && constraint.samples.size() >= 2;
+        if (constraint.primitive == FeatureCurveKind::PolygonalLoop) {
+            const int pairCount = loopPairCount(loop);
+            constraint.segments.reserve(static_cast<std::size_t>(pairCount));
+            for (int pair = 0; pair < pairCount; ++pair) {
+                const int a = loop.vertices[static_cast<std::size_t>(pair)];
+                const int b = loop.vertices[static_cast<std::size_t>(pair + 1) % loop.vertices.size()];
+                const FeatureConstraintEdge* edge = guidance.constraints.findEdge(a, b);
+                if (edge == nullptr || !edge->protectedFeature || !edge->pathBacked || !edge->inputMeshEdge ||
+                    edge->syntheticRecovery) {
+                    continue;
+                }
+                constraint.segments.push_back({{mesh.vertices[a], mesh.vertices[b]}});
+            }
+            constraint.valid = !constraint.segments.empty();
+            constraint.closed = loop.closed && static_cast<int>(constraint.segments.size()) == pairCount;
+        } else {
+            constraint.valid = constraint.valid && constraint.samples.size() >= 2;
+        }
         // 对长折线只构建一次线段索引，使每次折叠的最近点查询从 O(L) 降为 O(log L)。
         if (constraint.valid && constraint.primitive == FeatureCurveKind::PolygonalLoop) {
             buildPolylineSegmentIndex(constraint);
@@ -171,7 +254,7 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
     return guidance;
 }
 
-} // 结束匿名命名空间
+} // namespace
 
 FeatureGuidance buildFeatureGuidance(const Mesh& mesh, const FeatureDetectionPolicy& policy) {
     return buildFeatureGuidance(mesh, policy, nullptr);
@@ -193,7 +276,9 @@ FeatureGuidance buildFeatureGuidance(
     return buildFeatureGuidanceFromAnalysis(mesh, analysis);
 }
 
-FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyOptions& options) {
+FeatureWeightScores computeFeatureWeightScores(
+    const Mesh& mesh, const SimplifyOptions& options, const feature::FeatureAnalysis* precomputed
+) {
     const WeightMode mode = options.weightMode;
     FeatureWeightScores result;
     std::vector<double>& score = result.values;
@@ -209,7 +294,7 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
     if (mode == WeightMode::Height) {
         const double denom = std::max(1e-12, span.z());
         for (int i = 0; i < static_cast<int>(mesh.vertices.size()); ++i) {
-            score[i] = std::clamp((mesh.vertices[i].z() - lo.z()) / denom, 0.0, 1.0);
+            score[i] = manumesh::clampValue((mesh.vertices[i].z() - lo.z()) / denom, 0.0, 1.0);
         }
         return result;
     }
@@ -224,16 +309,29 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
     }
 
     if (mode == WeightMode::NormalTensor) {
-        const std::vector<feature::NormalTensorVertex> tensor = feature::computeNormalTensorFeatures(
-            mesh,
-            feature::NormalTensorOptions{
-                options.normalTensorSmoothingIterations,
-                options.normalTensorScaleCount,
-            },
-            options.normalTensorFeatureThreshold
-        );
+        if (precomputed != nullptr) {
+            if (precomputed->normalTensorVertexWeights.size() != mesh.vertices.size()) {
+                throw std::invalid_argument(
+                    "Normal Tensor weighting with precomputed FeatureAnalysis requires one "
+                    "normalTensorVertexWeights value per input vertex."
+                );
+            }
+            score = precomputed->normalTensorVertexWeights;
+            result.normalTensorScoredVertices = precomputed->normalTensorScoredVertices;
+            result.maxNormalTensorPersistentScore = precomputed->maxNormalTensorPersistentScore;
+            result.meanNormalTensorLocalScale = precomputed->meanNormalTensorLocalScale;
+            result.meanNormalTensorPersistence = precomputed->meanNormalTensorPersistence;
+            return result;
+        }
+        const feature::FeatureOptions featureOptions = featureOptionsFromSimplifyOptions(options);
+        feature::NormalTensorOptions tensorOptions;
+        tensorOptions.smoothingIterations = featureOptions.normalTensorSmoothingIterations;
+        tensorOptions.scaleCount = featureOptions.normalTensorScaleCount;
+        tensorOptions.normalFilter = featureOptions.normalFilter;
+        const std::vector<feature::NormalTensorVertex> tensor =
+            feature::computeNormalTensorFeatures(mesh, tensorOptions, featureOptions.normalTensorFeatureThreshold);
         summarizeNormalTensorScores(tensor, result);
-        const int requiredPersistentScales = resolveNormalTensorMinPersistentScales(options);
+        const int requiredPersistentScales = resolveNormalTensorMinPersistentScales(featureOptions);
         for (int i = 0; i < static_cast<int>(tensor.size()); ++i) {
             if (tensor[i].persistentScales >= requiredPersistentScales) {
                 score[i] = tensor[i].persistentFeatureScore;
@@ -245,9 +343,12 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
     const std::vector<Vec3> faceNormals = common::computeFaceNormals(mesh);
     const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
     const std::vector<char> windingFlip = common::harmonizeFaceWindings(mesh, edgeInfo);
-    const double threshold = options.featureAngleDeg * kPi / 180.0;
+    const feature::FeatureOptions featureOptions = featureOptionsFromSimplifyOptions(options);
+    const double threshold = featureOptions.featureAngleDeg * kPi / 180.0;
     const double denom = std::max(1e-12, kPi - threshold);
-    for (const auto& [key, info] : edgeInfo) {
+    for (const auto& pairEntry : edgeInfo) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         double edgeScore = 0.0;
         if (info.faces.size() == 1) {
             edgeScore = 1.0;
@@ -256,14 +357,18 @@ FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyO
             const Vec3& n1 = faceNormals[info.faces[1]];
             // 退化（三角形面积为零）的面法向量为零，其点积会伪装成 90 度折痕。跳过该边，不对其评分。
             if (n0.squaredNorm() > 0.0 && n1.squaredNorm() > 0.0) {
-                const auto [a, b] = common::unpackMeshEdgeKey(key);
+                const std::pair<int, int> edge = common::unpackMeshEdgeKey(key);
+                const int a = edge.first;
+                const int b = edge.second;
                 const double angle =
                     common::computeOrientedDihedralAngle(mesh, faceNormals, windingFlip, info, a, b).angleRad;
-                edgeScore = std::clamp((angle - threshold) / denom, 0.0, 1.0);
+                edgeScore = manumesh::clampValue((angle - threshold) / denom, 0.0, 1.0);
             }
         }
         if (edgeScore > 0.0) {
-            const auto [a, b] = common::unpackMeshEdgeKey(key);
+            const std::pair<int, int> edge = common::unpackMeshEdgeKey(key);
+            const int a = edge.first;
+            const int b = edge.second;
             score[a] = std::max(score[a], edgeScore);
             score[b] = std::max(score[b], edgeScore);
         }
@@ -311,4 +416,5 @@ void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, Simplify
     report.ambiguousFeatureJunctions = summary.ambiguousFeatureJunctions;
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

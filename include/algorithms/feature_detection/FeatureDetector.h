@@ -16,7 +16,8 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -71,7 +72,7 @@ filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options
 
 /// 根据多尺度面法向投票计算局部法向张量分数。
 /// @param[in] mesh 输入三角表面。
-/// @param[in] options 平滑和尺度计划。
+/// @param[in] options 张量平滑、尺度计划和可选法向预处理。
 /// @return 每个顶点一个张量分解和持久性记录。
 /// @algorithm 累积按面积/空间加权的法向外积，对对称张量进行特征分解，
 /// 再根据有序特征值差异推导曲面、折痕和角点显著性。
@@ -81,9 +82,10 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
 
 /// 仅当尺度显著性达到给定阈值时，才将该尺度计为持久证据。
 /// @param[in] mesh 输入三角表面。
-/// @param[in] options 平滑和尺度计划。
+/// @param[in] options 张量平滑、尺度计划和可选法向预处理。
 /// @param[in] persistenceThreshold 每个尺度的最小归一化支持度。
 /// @return 每个输入顶点一个张量记录。
+/// @throws std::invalid_argument 当尺度、平滑、法向过滤或持久性阈值参数无效时抛出。
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options, double persistenceThreshold);
 
@@ -123,6 +125,18 @@ MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 /// 恢复有界回退环，拟合解析基本体，计算组件置信度，并可选地将面划分为分区。
 /// @invariants 证据计数不包含合成桥接边；图边端点始终是有效网格顶点；每个简化环拥有稳定 ID。
 MANUMESH_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options);
+
+/// Compute the deterministic source identity stored in `FeatureAnalysis`.
+/// @param[in] mesh Valid indexed geometry. UV data is ignored.
+/// @return Counts and stable topology/geometry fingerprints.
+MANUMESH_API FeatureAnalysisSource featureAnalysisSource(const Mesh& mesh);
+
+/// Verify that an analysis belongs to `mesh` and that all public index-bearing
+/// records are internally consistent.
+/// @param[in] mesh Mesh expected to have produced `analysis`.
+/// @param[in] analysis Feature result to validate before reuse.
+/// @throws std::invalid_argument when source identity or stored indices differ.
+MANUMESH_API void validateFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis);
 
 /// 构建由活动特征图边分隔的面分区，并写入 analysis.facePatchIds / patches / patchAdjacencies。
 /// @param[in] mesh 生成 `analysis` 的网格。
@@ -167,4 +181,5 @@ MANUMESH_API FeatureEdgeBenchmark benchmarkFeatureEdges(
 MANUMESH_API FeatureEdgeBenchmark
 benchmarkFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis, const FeatureBenchmarkLabels& labels);
 
-} // namespace manumesh::feature
+} // namespace feature
+} // namespace manumesh

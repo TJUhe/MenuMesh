@@ -17,7 +17,7 @@
 ## 特征报告
 
 ```powershell
-$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/vs2019-release/bin/Release/manumesh.exe"
 & $exe feature-report `
   tests/data/feature_fixtures/coaxial_hole_plate.obj `
   --feature-angle-deg 25 `
@@ -29,7 +29,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 ## 简化实验
 
 ```powershell
-$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/vs2019-release/bin/Release/manumesh.exe"
 & $exe simplify `
   tests/data/feature_fixtures/coaxial_hole_plate.obj `
   output/vscode_demo/coaxial_feature_curves.stl `

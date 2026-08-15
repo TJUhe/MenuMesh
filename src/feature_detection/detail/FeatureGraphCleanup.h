@@ -13,7 +13,9 @@
 #include "FeatureDetectionTypes.h"
 #include "algorithms/feature_detection/FeatureTypes.h"
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 裁剪弱毛刺、桥接兼容的短间隙，并重写图诊断信息。
@@ -33,4 +35,6 @@ void summarizeFeatureComponents(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis
 );
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

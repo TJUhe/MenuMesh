@@ -27,7 +27,17 @@ typedef struct LegacyV1MeshStatsLayout {
     double edge_length_cv;
 } LegacyV1MeshStatsLayout;
 
+static const size_t kLegacyV1FeatureOptionsSize =
+    offsetof(ManuMeshFeatureOptions, graph_consolidation_min_alignment) +
+    sizeof(((ManuMeshFeatureOptions*)0)->graph_consolidation_min_alignment);
+
 int main(void) {
+    ManuMeshFeatureOptions feature_options;
+    manumesh_feature_options_init(&feature_options);
+    if (feature_options.struct_size != kLegacyV1FeatureOptionsSize) {
+        return 8;
+    }
+
     ManuMeshSimplifyOptions options;
     manumesh_simplify_options_init(&options);
     if (options.struct_size != offsetof(ManuMeshSimplifyOptions, loop_trace_angle_deg)) {

@@ -8,10 +8,11 @@
 
 #pragma once
 
-#include "algorithms/feature_detection/FeatureTypes.h"
+#include "algorithms/feature_detection/FeatureOptions.h"
 #include "algorithms/simplification/SimplificationTypes.h"
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 归一化的绝对/相对目标选择策略。
@@ -33,7 +34,7 @@ struct FeatureDetectionPolicy {
 };
 
 /**
- * @brief 将简化特征字段转换为独立检测器的契约。
+ * @brief 解析规范特征检测配置；未显式组合时从旧扁平字段适配。
  */
 feature::FeatureOptions
 featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeatureLoopVerticesFloor = 0);
@@ -67,4 +68,5 @@ struct SimplificationPolicies {
     static SimplificationPolicies fromOptions(const SimplifyOptions& options);
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

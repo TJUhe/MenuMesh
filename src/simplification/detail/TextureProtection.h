@@ -14,7 +14,8 @@
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 一次放置的纹理约束结果和标量惩罚。
@@ -88,4 +89,5 @@ private:
     double minAreaRatio_ = 0.0;
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -13,7 +13,8 @@
 #include <queue>
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 带版本号且缓存放置解的折叠候选最小堆。
@@ -48,4 +49,5 @@ private:
     std::priority_queue<Candidate> queue_;
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

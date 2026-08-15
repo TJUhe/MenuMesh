@@ -8,9 +8,10 @@
 
 #include "../../../src/common/detail/MeshDistanceIndex.h"
 
+#include "core/MeshGenerators.h"
+
 #include <cmath>
 #include <gtest/gtest.h>
-
 namespace {
 
 manumesh::Mesh twoTriangleMesh() {
@@ -51,4 +52,22 @@ TEST(ManuMesh, MeshDistanceIndexIgnoresDegenerateTriangles) {
 
     EXPECT_TRUE(index.empty());
     EXPECT_TRUE(std::isinf(index.distanceSquared(manumesh::Vec3(0.0, 0.0, 1.0))));
+}
+
+TEST(ManuMesh, MeshDistanceIndexBuildsLargeTreesWithoutInvalidatingParentNodes) {
+    const manumesh::Mesh mesh = manumesh::generatePlaneGrid(64, 2.0, false);
+
+    for (int build = 0; build < 8; ++build) {
+        const manumesh::common::MeshDistanceIndex index(mesh);
+        ASSERT_FALSE(index.empty());
+
+        for (int y = -3; y <= 3; ++y) {
+            for (int x = -3; x <= 3; ++x) {
+                const double px = static_cast<double>(x) * 0.25;
+                const double py = static_cast<double>(y) * 0.25;
+                EXPECT_NEAR(0.25, index.distanceSquared(manumesh::Vec3(px, py, 0.5)), 1e-12);
+                EXPECT_NEAR(4.0, index.distanceSquared(manumesh::Vec3(px, py, -2.0)), 1e-12);
+            }
+        }
+    }
 }

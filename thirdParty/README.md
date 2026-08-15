@@ -7,14 +7,14 @@ Current policy:
 
 - `eigen/` is an Eigen header bundle. Eigen is header-only, so there is no
   `.dll`, `.lib`, `.so`, or `.a` to link.
-- `googletest/` contains repository test dependencies. The `source/` subtree is
-  used to build GoogleTest from source when prebuilt binaries are undesirable.
-- `doxygen/` vendors the documentation generator used by `docs-api` and
-  `docs-internal`.
+- `googletest/` contains repository test dependencies for the supported
+  Visual Studio 2019, MSVC v142, x64 baseline. The `source/` subtree is the
+  only bundled provider; GoogleTest is built with the active C++14 and `/MD`
+  settings instead of using repository-hosted prebuilt libraries.
 - `graphviz/` vendors the `dot` runtime and plugin/configuration files used by
   Doxygen graphs.
-- Build scripts should prefer vendored bundles here and only fall back to
-  machine-global tools when a vendored bundle is absent.
+- Build scripts should prefer supported vendored libraries and tools here when
+  present. Doxygen itself is discovered from the developer environment.
 
 Preferred bundle shape:
 

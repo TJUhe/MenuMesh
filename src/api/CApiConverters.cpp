@@ -13,7 +13,8 @@
 #include <cstring>
 #include <limits>
 
-namespace manumesh::api {
+namespace manumesh {
+namespace api {
 namespace {
 
 bool boolFromInt(int value) { return value != 0; }
@@ -40,6 +41,14 @@ void writeAbiField(T* value, std::size_t writeSize, std::size_t fieldOffset, con
         return;
     }
     std::memcpy(reinterpret_cast<unsigned char*>(value) + fieldOffset, &fieldValue, sizeof(Field));
+}
+
+template <typename T, typename Field> bool readAbiField(const T& value, std::size_t fieldOffset, Field& fieldValue) {
+    if (!abiFieldPresent(value.struct_size, fieldOffset, sizeof(Field))) {
+        return false;
+    }
+    std::memcpy(&fieldValue, reinterpret_cast<const unsigned char*>(&value) + fieldOffset, sizeof(Field));
+    return true;
 }
 
 template <typename T> ManuMeshStatus initializeAbiBuffer(T* value, std::size_t structCapacity, std::size_t& writeSize) {
@@ -83,6 +92,9 @@ bool validateOutputCapacity(
 
 #define MANUMESH_SIMPLIFY_FIELD_PRESENT(options, field)                                                                \
     abiFieldPresent((options).struct_size, offsetof(ManuMeshSimplifyOptions, field), sizeof((options).field))
+
+#define MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(options, field, hasOverride)                                             \
+    (!(hasOverride) && MANUMESH_SIMPLIFY_FIELD_PRESENT(options, field))
 
 #define MANUMESH_REPORT_FIELD_PRESENT(size, field)                                                                     \
     abiFieldPresent((size), offsetof(ManuMeshSimplifyReport, field), sizeof(ManuMeshSimplifyReport{}.field))
@@ -159,7 +171,135 @@ ManuMeshSimplifyTerminationReason convertTerminationReason(simplification::Simpl
     return MANUMESH_SIMPLIFY_TERMINATION_NOT_STARTED;
 }
 
-} // 匿名命名空间
+} // namespace
+
+ManuMeshStatus initializeFeatureOptions(ManuMeshFeatureOptions* options, std::size_t structCapacity) {
+    std::size_t writeSize = 0;
+    const ManuMeshStatus status = initializeAbiBuffer(options, structCapacity, writeSize);
+    if (status != MANUMESH_STATUS_OK) {
+        return status;
+    }
+
+    const feature::FeatureOptions defaults;
+#define MANUMESH_INITIALIZE_FEATURE_OPTION(field, value)                                                               \
+    writeAbiField(options, writeSize, offsetof(ManuMeshFeatureOptions, field), value)
+    MANUMESH_INITIALIZE_FEATURE_OPTION(feature_angle_deg, defaults.featureAngleDeg);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(loop_trace_angle_deg, defaults.loopTraceAngleDeg);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(circle_fit_relative_threshold, defaults.circleFitRelativeThreshold);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(ellipse_fit_relative_threshold, defaults.ellipseFitRelativeThreshold);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(near_circle_axis_ratio_tolerance, defaults.nearCircleAxisRatioTolerance);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(min_feature_loop_vertices, defaults.minFeatureLoopVertices);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(use_normal_tensor_features, defaults.useNormalTensorFeatures ? 1 : 0);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_feature_threshold, defaults.normalTensorFeatureThreshold);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_min_edge_alignment, defaults.normalTensorMinEdgeAlignment);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_smoothing_iterations, defaults.normalTensorSmoothingIterations);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_scale_count, defaults.normalTensorScaleCount);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_min_persistent_scales, defaults.normalTensorMinPersistentScales);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(use_smooth_curvature_features, defaults.useSmoothCurvatureFeatures ? 1 : 0);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_feature_threshold, defaults.smoothCurvatureFeatureThreshold);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_min_edge_alignment, defaults.smoothCurvatureMinEdgeAlignment);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(
+        smooth_curvature_min_tangent_consistency, defaults.smoothCurvatureMinTangentConsistency
+    );
+    MANUMESH_INITIALIZE_FEATURE_OPTION(
+        smooth_curvature_base_neighborhood_rings, defaults.smoothCurvatureBaseNeighborhoodRings
+    );
+    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_scale_count, defaults.smoothCurvatureScaleCount);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(
+        smooth_curvature_min_persistent_scales, defaults.smoothCurvatureMinPersistentScales
+    );
+    MANUMESH_INITIALIZE_FEATURE_OPTION(
+        smooth_curvature_robust_fit_iterations, defaults.smoothCurvatureRobustFitIterations
+    );
+    MANUMESH_INITIALIZE_FEATURE_OPTION(
+        smooth_curvature_use_stable_scale_selection, defaults.smoothCurvatureUseStableScaleSelection ? 1 : 0
+    );
+    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_min_scale_stability, defaults.smoothCurvatureMinScaleStability);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(cleanup_feature_graph, defaults.cleanupFeatureGraph ? 1 : 0);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(feature_graph_gap_length_ratio, defaults.featureGraphGapLengthRatio);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(feature_graph_max_weak_spur_edges, defaults.featureGraphMaxWeakSpurEdges);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(feature_graph_min_weak_spur_strength, defaults.featureGraphMinWeakSpurStrength);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(feature_component_min_confidence, defaults.featureComponentMinConfidence);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_filter_enabled, defaults.normalFilter.enabled ? 1 : 0);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_filter_iterations, defaults.normalFilter.iterations);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_filter_angle_sigma_deg, defaults.normalFilter.angleSigmaDeg);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_filter_preserve_angle_deg, defaults.normalFilter.preserveAngleDeg);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(normal_filter_relaxation, defaults.normalFilter.relaxation);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(graph_consolidation_enabled, defaults.graphConsolidation.enabled ? 1 : 0);
+    MANUMESH_INITIALIZE_FEATURE_OPTION(
+        graph_consolidation_gap_length_ratio, defaults.graphConsolidation.maxGapLengthRatio
+    );
+    MANUMESH_INITIALIZE_FEATURE_OPTION(graph_consolidation_min_alignment, defaults.graphConsolidation.minAlignment);
+#undef MANUMESH_INITIALIZE_FEATURE_OPTION
+    return MANUMESH_STATUS_OK;
+}
+
+bool readFeatureOptions(const ManuMeshFeatureOptions* source, feature::FeatureOptions& target, std::string& error) {
+    target = feature::FeatureOptions{};
+    error.clear();
+    if (source == nullptr) {
+        return true;
+    }
+    if (!abiStructLooksInitialized(*source)) {
+        error = "ManuMeshFeatureOptions must be initialized with "
+                "manumesh_feature_options_init for this ABI version.";
+        return false;
+    }
+
+#define MANUMESH_READ_FEATURE_OPTION(field, member)                                                                    \
+    do {                                                                                                               \
+        using FieldType = decltype(target.member);                                                                     \
+        FieldType value{};                                                                                             \
+        if (readAbiField(*source, offsetof(ManuMeshFeatureOptions, field), value)) {                                   \
+            target.member = value;                                                                                     \
+        }                                                                                                              \
+    } while (false)
+#define MANUMESH_READ_FEATURE_BOOL(field, member)                                                                      \
+    do {                                                                                                               \
+        int value = 0;                                                                                                 \
+        if (readAbiField(*source, offsetof(ManuMeshFeatureOptions, field), value)) {                                   \
+            target.member = boolFromInt(value);                                                                        \
+        }                                                                                                              \
+    } while (false)
+    MANUMESH_READ_FEATURE_OPTION(feature_angle_deg, featureAngleDeg);
+    MANUMESH_READ_FEATURE_OPTION(loop_trace_angle_deg, loopTraceAngleDeg);
+    MANUMESH_READ_FEATURE_OPTION(circle_fit_relative_threshold, circleFitRelativeThreshold);
+    MANUMESH_READ_FEATURE_OPTION(ellipse_fit_relative_threshold, ellipseFitRelativeThreshold);
+    MANUMESH_READ_FEATURE_OPTION(near_circle_axis_ratio_tolerance, nearCircleAxisRatioTolerance);
+    MANUMESH_READ_FEATURE_OPTION(min_feature_loop_vertices, minFeatureLoopVertices);
+    MANUMESH_READ_FEATURE_BOOL(use_normal_tensor_features, useNormalTensorFeatures);
+    MANUMESH_READ_FEATURE_OPTION(normal_tensor_feature_threshold, normalTensorFeatureThreshold);
+    MANUMESH_READ_FEATURE_OPTION(normal_tensor_min_edge_alignment, normalTensorMinEdgeAlignment);
+    MANUMESH_READ_FEATURE_OPTION(normal_tensor_smoothing_iterations, normalTensorSmoothingIterations);
+    MANUMESH_READ_FEATURE_OPTION(normal_tensor_scale_count, normalTensorScaleCount);
+    MANUMESH_READ_FEATURE_OPTION(normal_tensor_min_persistent_scales, normalTensorMinPersistentScales);
+    MANUMESH_READ_FEATURE_BOOL(use_smooth_curvature_features, useSmoothCurvatureFeatures);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_feature_threshold, smoothCurvatureFeatureThreshold);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_edge_alignment, smoothCurvatureMinEdgeAlignment);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_tangent_consistency, smoothCurvatureMinTangentConsistency);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_base_neighborhood_rings, smoothCurvatureBaseNeighborhoodRings);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_scale_count, smoothCurvatureScaleCount);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_persistent_scales, smoothCurvatureMinPersistentScales);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_robust_fit_iterations, smoothCurvatureRobustFitIterations);
+    MANUMESH_READ_FEATURE_BOOL(smooth_curvature_use_stable_scale_selection, smoothCurvatureUseStableScaleSelection);
+    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_scale_stability, smoothCurvatureMinScaleStability);
+    MANUMESH_READ_FEATURE_BOOL(cleanup_feature_graph, cleanupFeatureGraph);
+    MANUMESH_READ_FEATURE_OPTION(feature_graph_gap_length_ratio, featureGraphGapLengthRatio);
+    MANUMESH_READ_FEATURE_OPTION(feature_graph_max_weak_spur_edges, featureGraphMaxWeakSpurEdges);
+    MANUMESH_READ_FEATURE_OPTION(feature_graph_min_weak_spur_strength, featureGraphMinWeakSpurStrength);
+    MANUMESH_READ_FEATURE_OPTION(feature_component_min_confidence, featureComponentMinConfidence);
+    MANUMESH_READ_FEATURE_BOOL(normal_filter_enabled, normalFilter.enabled);
+    MANUMESH_READ_FEATURE_OPTION(normal_filter_iterations, normalFilter.iterations);
+    MANUMESH_READ_FEATURE_OPTION(normal_filter_angle_sigma_deg, normalFilter.angleSigmaDeg);
+    MANUMESH_READ_FEATURE_OPTION(normal_filter_preserve_angle_deg, normalFilter.preserveAngleDeg);
+    MANUMESH_READ_FEATURE_OPTION(normal_filter_relaxation, normalFilter.relaxation);
+    MANUMESH_READ_FEATURE_BOOL(graph_consolidation_enabled, graphConsolidation.enabled);
+    MANUMESH_READ_FEATURE_OPTION(graph_consolidation_gap_length_ratio, graphConsolidation.maxGapLengthRatio);
+    MANUMESH_READ_FEATURE_OPTION(graph_consolidation_min_alignment, graphConsolidation.minAlignment);
+#undef MANUMESH_READ_FEATURE_OPTION
+#undef MANUMESH_READ_FEATURE_BOOL
+    return true;
+}
 
 ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::size_t structCapacity) {
     std::size_t writeSize = 0;
@@ -228,6 +368,7 @@ ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::
     MANUMESH_INITIALIZE_OPTION(consolidate_feature_graph, 0);
     MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_gap_length_ratio, 3.0);
     MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_min_alignment, 0.75);
+    MANUMESH_INITIALIZE_OPTION(feature_options, static_cast<const ManuMeshFeatureOptions*>(nullptr));
 
 #undef MANUMESH_INITIALIZE_OPTION
 
@@ -247,10 +388,21 @@ ManuMeshStatus initializeMeshStats(ManuMeshMeshStats* stats, std::size_t structC
 bool readSimplifyOptions(
     const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
 ) {
+    target = simplification::SimplifyOptions{};
+    error.clear();
     if (!abiStructLooksInitialized(source)) {
         error = "ManuMeshSimplifyOptions must be initialized with "
                 "manumesh_simplify_options_init for this ABI version.";
         return false;
+    }
+    const bool hasFeatureOptionsOverride =
+        MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_options) && source.feature_options != nullptr;
+    if (hasFeatureOptionsOverride) {
+        feature::FeatureOptions featureOptions;
+        if (!readFeatureOptions(source.feature_options, featureOptions, error)) {
+            return false;
+        }
+        target.featureOptionsOverride = featureOptions;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, target_faces)) {
         target.targetFaces = source.target_faces;
@@ -275,11 +427,11 @@ bool readSimplifyOptions(
         !readFiniteDouble(source.feature_boost, "feature_boost", target.featureBoost, error)) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_angle_deg) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_angle_deg, hasFeatureOptionsOverride) &&
         !readFiniteDouble(source.feature_angle_deg, "feature_angle_deg", target.featureAngleDeg, error)) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, loop_trace_angle_deg) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, loop_trace_angle_deg, hasFeatureOptionsOverride) &&
         !readFiniteDouble(source.loop_trace_angle_deg, "loop_trace_angle_deg", target.loopTraceAngleDeg, error)) {
         return false;
     }
@@ -320,7 +472,7 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, circle_fit_relative_threshold) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, circle_fit_relative_threshold, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.circle_fit_relative_threshold,
             "circle_fit_relative_threshold",
@@ -329,7 +481,7 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, ellipse_fit_relative_threshold) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, ellipse_fit_relative_threshold, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.ellipse_fit_relative_threshold,
             "ellipse_fit_relative_threshold",
@@ -338,7 +490,7 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, near_circle_axis_ratio_tolerance) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, near_circle_axis_ratio_tolerance, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.near_circle_axis_ratio_tolerance,
             "near_circle_axis_ratio_tolerance",
@@ -347,16 +499,16 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, min_feature_loop_vertices)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, min_feature_loop_vertices, hasFeatureOptionsOverride)) {
         target.minFeatureLoopVertices = source.min_feature_loop_vertices;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, min_circular_feature_loop_vertices)) {
         target.minCircularFeatureLoopVertices = source.min_circular_feature_loop_vertices;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, use_normal_tensor_features)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, use_normal_tensor_features, hasFeatureOptionsOverride)) {
         target.useNormalTensorFeatures = boolFromInt(source.use_normal_tensor_features);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_feature_threshold) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, normal_tensor_feature_threshold, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.normal_tensor_feature_threshold,
             "normal_tensor_feature_threshold",
@@ -365,7 +517,7 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_min_edge_alignment) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, normal_tensor_min_edge_alignment, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.normal_tensor_min_edge_alignment,
             "normal_tensor_min_edge_alignment",
@@ -374,19 +526,19 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_smoothing_iterations)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, normal_tensor_smoothing_iterations, hasFeatureOptionsOverride)) {
         target.normalTensorSmoothingIterations = source.normal_tensor_smoothing_iterations;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_scale_count)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, normal_tensor_scale_count, hasFeatureOptionsOverride)) {
         target.normalTensorScaleCount = source.normal_tensor_scale_count;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, normal_tensor_min_persistent_scales)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, normal_tensor_min_persistent_scales, hasFeatureOptionsOverride)) {
         target.normalTensorMinPersistentScales = source.normal_tensor_min_persistent_scales;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, use_smooth_curvature_features)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, use_smooth_curvature_features, hasFeatureOptionsOverride)) {
         target.useSmoothCurvatureFeatures = boolFromInt(source.use_smooth_curvature_features);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_feature_threshold) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, smooth_curvature_feature_threshold, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.smooth_curvature_feature_threshold,
             "smooth_curvature_feature_threshold",
@@ -395,7 +547,7 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_edge_alignment) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, smooth_curvature_min_edge_alignment, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.smooth_curvature_min_edge_alignment,
             "smooth_curvature_min_edge_alignment",
@@ -404,7 +556,9 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_tangent_consistency) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, smooth_curvature_min_tangent_consistency, hasFeatureOptionsOverride
+        ) &&
         !readFiniteDouble(
             source.smooth_curvature_min_tangent_consistency,
             "smooth_curvature_min_tangent_consistency",
@@ -413,22 +567,28 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_base_neighborhood_rings)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, smooth_curvature_base_neighborhood_rings, hasFeatureOptionsOverride
+        )) {
         target.smoothCurvatureBaseNeighborhoodRings = source.smooth_curvature_base_neighborhood_rings;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_scale_count)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, smooth_curvature_scale_count, hasFeatureOptionsOverride)) {
         target.smoothCurvatureScaleCount = source.smooth_curvature_scale_count;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_persistent_scales)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, smooth_curvature_min_persistent_scales, hasFeatureOptionsOverride
+        )) {
         target.smoothCurvatureMinPersistentScales = source.smooth_curvature_min_persistent_scales;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_robust_fit_iterations)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, smooth_curvature_robust_fit_iterations, hasFeatureOptionsOverride
+        )) {
         target.smoothCurvatureRobustFitIterations = source.smooth_curvature_robust_fit_iterations;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, cleanup_feature_graph)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, cleanup_feature_graph, hasFeatureOptionsOverride)) {
         target.cleanupFeatureGraph = boolFromInt(source.cleanup_feature_graph);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_gap_length_ratio) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_graph_gap_length_ratio, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.feature_graph_gap_length_ratio,
             "feature_graph_gap_length_ratio",
@@ -437,10 +597,12 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_max_weak_spur_edges)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_graph_max_weak_spur_edges, hasFeatureOptionsOverride)) {
         target.featureGraphMaxWeakSpurEdges = source.feature_graph_max_weak_spur_edges;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_min_weak_spur_strength) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, feature_graph_min_weak_spur_strength, hasFeatureOptionsOverride
+        ) &&
         !readFiniteDouble(
             source.feature_graph_min_weak_spur_strength,
             "feature_graph_min_weak_spur_strength",
@@ -449,7 +611,7 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_component_min_confidence) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_component_min_confidence, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.feature_component_min_confidence,
             "feature_component_min_confidence",
@@ -458,13 +620,15 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, use_feature_normal_filter)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, use_feature_normal_filter, hasFeatureOptionsOverride)) {
         target.useFeatureNormalFilter = boolFromInt(source.use_feature_normal_filter);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_iterations)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_normal_filter_iterations, hasFeatureOptionsOverride)) {
         target.featureNormalFilterIterations = source.feature_normal_filter_iterations;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_angle_sigma_deg) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, feature_normal_filter_angle_sigma_deg, hasFeatureOptionsOverride
+        ) &&
         !readFiniteDouble(
             source.feature_normal_filter_angle_sigma_deg,
             "feature_normal_filter_angle_sigma_deg",
@@ -473,7 +637,9 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_preserve_angle_deg) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, feature_normal_filter_preserve_angle_deg, hasFeatureOptionsOverride
+        ) &&
         !readFiniteDouble(
             source.feature_normal_filter_preserve_angle_deg,
             "feature_normal_filter_preserve_angle_deg",
@@ -482,7 +648,7 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_normal_filter_relaxation) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_normal_filter_relaxation, hasFeatureOptionsOverride) &&
         !readFiniteDouble(
             source.feature_normal_filter_relaxation,
             "feature_normal_filter_relaxation",
@@ -491,10 +657,14 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_use_stable_scale_selection)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, smooth_curvature_use_stable_scale_selection, hasFeatureOptionsOverride
+        )) {
         target.smoothCurvatureUseStableScaleSelection = boolFromInt(source.smooth_curvature_use_stable_scale_selection);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, smooth_curvature_min_scale_stability) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, smooth_curvature_min_scale_stability, hasFeatureOptionsOverride
+        ) &&
         !readFiniteDouble(
             source.smooth_curvature_min_scale_stability,
             "smooth_curvature_min_scale_stability",
@@ -503,10 +673,12 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, consolidate_feature_graph)) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, consolidate_feature_graph, hasFeatureOptionsOverride)) {
         target.consolidateFeatureGraph = boolFromInt(source.consolidate_feature_graph);
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_consolidation_gap_length_ratio) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, feature_graph_consolidation_gap_length_ratio, hasFeatureOptionsOverride
+        ) &&
         !readFiniteDouble(
             source.feature_graph_consolidation_gap_length_ratio,
             "feature_graph_consolidation_gap_length_ratio",
@@ -515,7 +687,9 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_graph_consolidation_min_alignment) &&
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
+            source, feature_graph_consolidation_min_alignment, hasFeatureOptionsOverride
+        ) &&
         !readFiniteDouble(
             source.feature_graph_consolidation_min_alignment,
             "feature_graph_consolidation_min_alignment",
@@ -682,6 +856,9 @@ ManuMeshStatus fillSimplifyReport(
     );
     MANUMESH_SET_REPORT_FIELD(target, writeSize, junction_branch_pairs, source.junctionBranchPairs);
     MANUMESH_SET_REPORT_FIELD(target, writeSize, ambiguous_feature_junctions, source.ambiguousFeatureJunctions);
+    MANUMESH_SET_REPORT_FIELD(
+        target, writeSize, quality_refinement_skipped_for_texture, source.qualityRefinementSkippedForTexture ? 1 : 0
+    );
     return MANUMESH_STATUS_OK;
 }
 
@@ -705,4 +882,5 @@ ManuMeshStatus fillMeshStats(const analysis::MeshStats& source, ManuMeshMeshStat
     return MANUMESH_STATUS_OK;
 }
 
-} // manumesh::api 命名空间
+} // namespace api
+} // namespace manumesh

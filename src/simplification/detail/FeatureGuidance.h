@@ -11,15 +11,19 @@
 #include "algorithms/feature_detection/FeatureTypes.h"
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "core/Mesh.h"
+#include "detail/FeatureConstraintGraph.h"
 #include "detail/SimplificationTypes.h"
 
 #include <vector>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 struct FeatureAnalysis;
-}
+} // namespace feature
+} // namespace manumesh
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 struct FeatureDetectionPolicy;
 
@@ -34,6 +38,8 @@ struct FeatureVertexGuidance {
     FeatureCurveKind primitive = FeatureCurveKind::Unknown;
     int loopId = -1;
     int componentId = -1;
+    std::vector<int> loopIds;
+    std::vector<int> componentIds;
     double confidence = 0.0;
     Vec3 tangent = Vec3::Zero();
     Vec3 circleCenter = Vec3::Zero();
@@ -92,6 +98,7 @@ struct FeatureGuidance {
     bool enabled = false;
     std::vector<FeatureVertexGuidance> vertices;
     std::vector<FeatureCurveConstraint> curves;
+    FeatureConstraintGraph constraints;
     FeatureGuidanceSummary summary;
 };
 
@@ -117,11 +124,14 @@ FeatureGuidance buildFeatureGuidance(
 /**
  * @brief 计算可选的特征敏感队列权重，不修改二次误差矩阵。
  */
-FeatureWeightScores computeFeatureWeightScores(const Mesh& mesh, const SimplifyOptions& options);
+FeatureWeightScores computeFeatureWeightScores(
+    const Mesh& mesh, const SimplifyOptions& options, const feature::FeatureAnalysis* precomputed = nullptr
+);
 
 /**
  * @brief 将特征诊断复制到运行报告中。
  */
 void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, SimplifyReport& report);
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

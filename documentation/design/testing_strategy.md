@@ -76,21 +76,21 @@
 
 ## 套件命令与预期规模
 
-以 `build/mingw-ninja-release` 为例（2026-07-15 实测，Windows x64 MinGW Release）：
+当前支持基线使用 Visual Studio 16 2019 / MSVC v142 presets。下列用例数量来自 2026-07-15 的历史快照；耗时只用于量级参考，不作为当前机器或配置的性能承诺：
 
 ```
 # 快速套件：256 个启用用例（另有 1 个 DISABLED 计时用例），
-# 本机 MinGW Release、-j 10 并行实测约 2 秒（受环境影响）
-ctest --test-dir build/mingw-ninja-release -LE "performance|external" --output-on-failure
+# 历史 Release 并行实测约 2 秒（受环境影响）
+ctest --preset vs2019-release-unit
 
 # 全量非性能套件：267 个启用用例（快速套件 + 11 个 external 大网格用例）
-ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure
+ctest --preset vs2019-release-full
 
 # 仅 external 大网格用例（需要 tests/data/external 数据）
-ctest --test-dir build/mingw-ninja-release -L external --output-on-failure
+ctest --preset vs2019-release-external
 
 # performance 套件：独立构建目录 + -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON
-ctest --test-dir <perf-build> -L performance --output-on-failure
+ctest --preset vs2019-release-performance
 ```
 
 打开 `MANUMESH_ENABLE_INSTALL=ON` 且安装 CMake package config 时，会额外注册
@@ -100,18 +100,15 @@ ctest --test-dir <perf-build> -L performance --output-on-failure
 对应的构建目标：`unit-tests`（等价于快速套件）、`external-tests`、
 `performance-tests`（仅性能构建）。
 
-## MSVC 2019 / v142 兼容门禁
+## Visual Studio 2019 / v142 支持门禁
 
-`.github/workflows/msvc-v142.yml` 在每个 pull request 和 `main` push 上使用固定的
-`windows-2022` runner、Visual Studio 2022 generator 和 `-T v142`。Debug 运行快速
-套件，Release 额外运行 external 与安装后 C/C++ SDK consumer；依赖固定使用仓库内
-Eigen 和源码 GoogleTest，确保测试代码本身也由 v142 编译。
+`.github/workflows/msvc-v142.yml` 与本地验证统一使用 `vs2019-*` presets。主路径由
+`Visual Studio 16 2019` generator、x64 和 `v142` toolset 生成；Debug 运行快速套件，
+Release 额外覆盖 external、静态库、性能和安装后 C/C++ SDK consumer。依赖固定使用
+仓库内 Eigen 和源码 GoogleTest，确保库、测试与消费程序都由 v142 编译。
 
-该门禁验证的是 Visual Studio 2019 16.11 对应的 MSVC 19.29/v142 编译器、STL 与
-ABI，不等同于验证 VS16 generator、MSBuild 16、VS2019 IDE 或调试器。GitHub 托管的
-`windows-2019` runner 已退役；若交付要求精确覆盖 VS2019 IDE 工程链，应另设安装
-VS2019 16.11 的隔离 self-hosted runner，并用 `Visual Studio 16 2019` generator 运行
-同一套 Release、external 和 SDK consumer 测试。
+`vs2019-ninja-*` presets 只是同一 VS2019 v142 Developer PowerShell 下的可选
+Ninja Multi-Config 前端，不是另一套编译器支持面。两种生成器不得复用同一构建目录。
 
 性能护栏的上限设计（`tests/unit/perf/pipeline_perf_guard_tests.cpp` 注释中有
 机器基准）：上限取实测值的 ≥3 倍，慢一些的 CI 机器仍能通过；而这一规模下的

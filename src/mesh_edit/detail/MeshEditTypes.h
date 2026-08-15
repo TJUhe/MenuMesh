@@ -10,7 +10,8 @@
 
 #include <array>
 
-namespace manumesh::mesh_edit {
+namespace manumesh {
+namespace mesh_edit {
 
 /**
  * @brief 网格拓扑编辑算法共享的三角形记录。
@@ -23,4 +24,5 @@ struct EditableFace {
     bool active = true;
 };
 
-} // 结束 manumesh::mesh_edit 命名空间
+} // namespace mesh_edit
+} // namespace manumesh

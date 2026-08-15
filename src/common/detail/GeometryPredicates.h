@@ -13,7 +13,8 @@
 #include <array>
 #include <utility>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c);
 double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b, const Vec3& c);
@@ -40,10 +41,5 @@ bool trianglesIntersectBeyondSharedTopology(
     double eps
 );
 
-} // 命名空间 manumesh::common
-
-namespace manumesh {
-// 过渡别名：manumesh::detail 已重命名为 manumesh::common
-// （架构 v2，R6）。新代码必须使用 manumesh::common；此别名将在一个小版本后移除。
-namespace detail = common;
-} // 命名空间 manumesh
+} // namespace common
+} // namespace manumesh

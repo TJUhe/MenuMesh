@@ -12,7 +12,8 @@
 
 #include <string>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 using MeshStats = manumesh::analysis::MeshStats;
 using DistanceStats = manumesh::analysis::DistanceStats;
@@ -29,4 +30,5 @@ MANUMESH_API std::string statsHeaderCsv();
 MANUMESH_API std::string
 statsRowCsv(const std::string& label, const MeshStats& stats, const DistanceStats* distance = nullptr);
 
-} // namespace manumesh::simplification
+} // namespace simplification
+} // namespace manumesh

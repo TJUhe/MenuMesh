@@ -9,6 +9,7 @@
 #include "ManuMeshCli.h"
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -16,8 +17,17 @@
 #include <windows.h>
 
 #include <shellapi.h>
-
 namespace {
+
+struct LocalMemoryDeleter {
+    void operator()(wchar_t** memory) const noexcept {
+        if (memory) {
+            (void)LocalFree(memory);
+        }
+    }
+};
+
+using WideArgumentArray = std::unique_ptr<wchar_t*, LocalMemoryDeleter>;
 
 bool wideToUtf8(const wchar_t* value, std::string& output) {
     if (!value) {
@@ -39,7 +49,7 @@ bool wideToUtf8(const wchar_t* value, std::string& output) {
 
 int main() {
     int argc = 0;
-    wchar_t** wideArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    WideArgumentArray wideArgv(CommandLineToArgvW(GetCommandLineW(), &argc));
     if (!wideArgv) {
         std::cerr << "error: failed to read the Windows command line\n";
         return 1;
@@ -48,21 +58,20 @@ int main() {
     std::vector<std::string> utf8Args(static_cast<std::size_t>(argc));
     bool converted = true;
     for (int i = 0; i < argc; ++i) {
-        if (!wideToUtf8(wideArgv[i], utf8Args[static_cast<std::size_t>(i)])) {
+        if (!wideToUtf8(wideArgv.get()[i], utf8Args[static_cast<std::size_t>(i)])) {
             converted = false;
             break;
         }
     }
-    LocalFree(wideArgv);
     if (!converted) {
         std::cerr << "error: command-line argument is not valid Unicode\n";
         return 1;
     }
 
-    std::vector<char*> argv;
+    std::vector<const char*> argv;
     argv.reserve(utf8Args.size());
-    for (std::string& argument : utf8Args) {
-        argv.push_back(argument.data());
+    for (const std::string& argument : utf8Args) {
+        argv.push_back(argument.c_str());
     }
     return manumesh::cli::run(argc, argv.data());
 }

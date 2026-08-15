@@ -16,7 +16,8 @@
 #include <stdexcept>
 #include <string>
 
-namespace manumesh::cli {
+namespace manumesh {
+namespace cli {
 namespace {
 
 void printUsage() {
@@ -48,7 +49,7 @@ void printUsage() {
 
 } // 命名空间
 
-int run(int argc, char** argv) {
+int run(int argc, const char* const* argv) {
     try {
         if (argc < 2) {
             printUsage();
@@ -89,4 +90,5 @@ int run(int argc, char** argv) {
     }
 }
 
-} // namespace manumesh::cli
+} // namespace cli
+} // namespace manumesh

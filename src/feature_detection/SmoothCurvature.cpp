@@ -12,6 +12,7 @@
  */
 
 #include "algorithms/feature_detection/FeatureDetector.h"
+#include "core/MathUtils.h"
 
 #include "common/detail/MeshQueries.h"
 #include "detail/FeatureDetectionCache.h"
@@ -28,7 +29,8 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 namespace {
 
 /**
@@ -331,7 +333,7 @@ ScaleEstimate fitScale(
     std::vector<double>& residuals = workspace.residuals;
     robustWeights.assign(rows.size(), 1.0);
     residuals.assign(rows.size(), 0.0);
-    const int iterations = std::clamp(robustIterations, 0, kMaxSmoothCurvatureRobustFitIterations);
+    const int iterations = manumesh::clampValue(robustIterations, 0, kMaxSmoothCurvatureRobustFitIterations);
     for (int iteration = 0; iteration <= iterations; ++iteration) {
         // 使用标量循环累加加权正规方程的上三角部分。坐标已按邻域半径预归一化，
         // 使 9x9 系统保持良好条件，并避免每次稳健迭代执行一次稠密 QR。
@@ -539,10 +541,10 @@ ScaleCandidate classifyScaleCandidate(
             continue;
         }
 
-        const double anisotropy = std::clamp(
+        const double anisotropy = manumesh::clampValue(
             std::abs(curvature - otherCurvature) / (std::abs(curvature) + std::abs(otherCurvature) + 0.025), 0.0, 1.0
         );
-        const double extremumRatio = std::clamp(extremum / (std::abs(curvature) + 0.025), 0.0, 1.0);
+        const double extremumRatio = manumesh::clampValue(extremum / (std::abs(curvature) + 0.025), 0.0, 1.0);
         const double fitQuality = 1.0 / (1.0 + 25.0 * center.fitResidual);
         const double score = std::min(std::abs(curvature), 4.0) * std::sqrt(anisotropy * extremumRatio) * fitQuality;
         if (!std::isfinite(score) || score <= best.score) {
@@ -589,11 +591,13 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
         return result;
     }
 
-    const int baseRings = std::clamp(options.baseNeighborhoodRings, 1, kMaxSmoothCurvatureBaseNeighborhoodRings);
-    const int scaleCount = std::clamp(options.scaleCount, 1, kMaxSmoothCurvatureScaleCount);
+    const int baseRings =
+        manumesh::clampValue(options.baseNeighborhoodRings, 1, kMaxSmoothCurvatureBaseNeighborhoodRings);
+    const int scaleCount = manumesh::clampValue(options.scaleCount, 1, kMaxSmoothCurvatureScaleCount);
     const int maxRings = baseRings + scaleCount - 1;
-    const int robustIterations = std::clamp(options.robustFitIterations, 0, kMaxSmoothCurvatureRobustFitIterations);
-    const double tangentConsistency = std::clamp(options.minTangentConsistency, 0.0, 1.0);
+    const int robustIterations =
+        manumesh::clampValue(options.robustFitIterations, 0, kMaxSmoothCurvatureRobustFitIterations);
+    const double tangentConsistency = manumesh::clampValue(options.minTangentConsistency, 0.0, 1.0);
     const double persistenceThreshold =
         std::isfinite(requestedPersistenceThreshold) ? std::max(1e-12, requestedPersistenceThreshold) : 1e-12;
 
@@ -699,4 +703,5 @@ computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& o
     return computeSmoothCurvatureFeatures(mesh, options, 0.0);
 }
 
-} // 命名空间 manumesh::feature
+} // namespace feature
+} // namespace manumesh

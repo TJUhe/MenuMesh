@@ -14,7 +14,8 @@
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /** @copydoc mesh_edit::activeIncidentFaceCountForEdge */
 using mesh_edit::activeIncidentFaceCountForEdge;
@@ -61,4 +62,5 @@ bool collapseWouldPreserveLinkCondition(
     const DynamicTopology& topology
 );
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

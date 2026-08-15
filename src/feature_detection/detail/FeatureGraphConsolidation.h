@@ -13,7 +13,9 @@
 #include "FeatureDetectionTypes.h"
 #include "algorithms/feature_detection/FeatureTypes.h"
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 在相邻图分量的对齐端点之间桥接，且要求证据兼容。
@@ -26,4 +28,6 @@ void consolidateFeatureGraph(
     FeatureAnalysis& analysis
 );
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

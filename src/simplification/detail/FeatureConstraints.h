@@ -9,12 +9,14 @@
 #pragma once
 
 #include "algorithms/simplification/SimplificationTypes.h"
+#include "detail/FeatureConstraintGraph.h"
 #include "detail/SimplificationTypes.h"
 #include "mesh_edit/detail/DynamicTopology.h"
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 使用确定性的径向回退轴将点投影到拟合圆上。
@@ -36,7 +38,7 @@ void refreshEllipseTangent(VertexState& vertex, const FeaturePrimitiveFit& fit);
 /**
  * @brief 至少包含该数量线段的环会建立 PolylineSegmentIndex；较短的环继续使用常数因子更小的普通线性扫描。
  */
-inline constexpr int kPolylineIndexMinSegments = 64;
+constexpr int kPolylineIndexMinSegments = 64;
 
 /**
  * @brief 当折线足够长时构建 curve.segmentIndex。样本确定后每个环只调用一次；查询随后以 O(log L) 运行。该索引类似长多边形特征曲线的 BVH。
@@ -69,6 +71,7 @@ struct FeatureCollapseInput {
     CollapseEdge edge;
     const std::vector<VertexState>& vertices;
     const std::vector<int>& activeLoopCounts;
+    const FeatureConstraintGraph& constraints;
 };
 
 /**
@@ -79,6 +82,7 @@ struct FeatureProjectionInput {
     const std::vector<VertexState>& vertices;
     const std::vector<FeatureCurveConstraint>& curves;
     const std::vector<FeaturePrimitiveFit>& primitiveFits;
+    const FeatureConstraintGraph& constraints;
 };
 
 /**
@@ -92,14 +96,20 @@ public:
     /** @brief 对边折叠的特征保护原因进行分类。*/
     FeatureCollapseRejectKind collapseRejectKind(const FeatureCollapseInput& input) const;
     /** @brief 判断顶点是否必须由硬保护保持固定。*/
-    bool isHardProtectedVertex(int vertex, const std::vector<VertexState>& vertices) const;
+    bool isHardProtectedVertex(
+        int vertex, const std::vector<VertexState>& vertices, const FeatureConstraintGraph& constraints
+    ) const;
     /** @brief 判断硬保护是否禁止折叠一条边。*/
-    bool isHardProtectedCollapse(CollapseEdge edge, const std::vector<VertexState>& vertices) const;
+    bool isHardProtectedCollapse(
+        CollapseEdge edge, const std::vector<VertexState>& vertices, const FeatureConstraintGraph& constraints
+    ) const;
     /** @brief 将接受的原始放置投影到其受保护的解析图元上。*/
     bool projectPlacement(const FeatureProjectionInput& input, Vec3& position) const;
 
 private:
     const SimplifyOptions& options_;
+    int minFeatureLoopVertices_ = 5;
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

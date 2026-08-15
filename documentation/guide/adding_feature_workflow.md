@@ -122,7 +122,8 @@ documentation/design/<domain>_design.md
 新模块建议形态：
 
 ```cpp
-namespace manumesh::<domain> {
+namespace manumesh {
+namespace domain_name {
 
 struct XxxOptions {
   double tolerance = 1e-8;
@@ -150,7 +151,8 @@ private:
 
 MANUMESH_API XxxResult runXxx(const Mesh& input, const XxxOptions& options);
 
-} // namespace manumesh::<domain>
+} // namespace domain_name
+} // namespace manumesh
 ```
 
 如果暂时只是 demo 或 CLI 组合能力，可以先在 `.cpp` 内部使用同样的 `Options / Report / Result` 形态，不公开到 `include/`。这样未来提升为正式 API 时迁移成本很低。
@@ -315,14 +317,15 @@ examples/feature_workflow_demo.cpp
 运行方式：
 
 ```powershell
-cmake --build build\mingw-ninja-release --target manumesh_feature_workflow_demo
-build\mingw-ninja-release\bin\manumesh_feature_workflow_demo.exe
+cmake --preset vs2019-release
+cmake --build --preset vs2019-release --target manumesh_feature_workflow_demo --parallel
+build\vs2019-release\bin\Release\manumesh_feature_workflow_demo.exe
 ```
 
 或通过 CTest：
 
 ```powershell
-ctest --test-dir build\mingw-ninja-release -R manumesh_example_feature_workflow --output-on-failure
+ctest --preset vs2019-release-full -R manumesh_example_feature_workflow
 ```
 
 如果未来这个质量门禁要升级为正式功能，可以按下面方式落地：
@@ -346,20 +349,19 @@ examples/quality_gate.cpp
 每次新增功能合入前至少跑：
 
 ```powershell
-cmake --build build\mingw-ninja-release --parallel
-cmake --build build\mingw-ninja-release --target check-format
-ctest --test-dir build\mingw-ninja-release --output-on-failure
+cmake --preset vs2019-release
+cmake --build --preset vs2019-release --parallel
+ctest --preset vs2019-release-full
+cmake --preset vs2019-debug
+cmake --build --preset vs2019-debug --target check-format --parallel
 ```
 
 如果改了 SDK 公开头、安装规则、示例或 CMake package：
 
 ```powershell
-cmake -S . -B build\install-check -G Ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DMANUMESH_ENABLE_INSTALL=ON `
-  -DMANUMESH_INSTALL_CMAKE_CONFIG=ON
-
-cmake --build build\install-check --target sdk-consumer-test --parallel
+cmake --preset vs2019-release-sdk
+cmake --build --preset vs2019-release-sdk --target sdk-consumer-test --parallel
+ctest --preset vs2019-release-sdk
 ```
 
 最终确认：

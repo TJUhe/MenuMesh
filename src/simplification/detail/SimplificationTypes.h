@@ -14,7 +14,8 @@
 #include <array>
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 面向简化器的已恢复特征曲线分类。
@@ -198,10 +199,13 @@ struct FeatureCurveConstraint {
     bool closed = false;
     FeatureCurveKind primitive = FeatureCurveKind::Unknown;
     std::vector<Vec3> samples;
+    /** Explicit detector-evidence segments. Recovery bridges are never stored here. */
+    std::vector<std::array<Vec3, 2>> segments;
     /**
      * @brief 折线线段上的可选加速结构；短环保持为空并继续使用普通线性扫描。
      */
     PolylineSegmentIndex segmentIndex;
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

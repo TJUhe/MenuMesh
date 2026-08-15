@@ -15,7 +15,8 @@
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 计算齐次误差 [p,1]^T q [p,1]。
@@ -58,6 +59,18 @@ void computeInitialQuadrics(
 );
 
 /**
+ * @brief Reuse compact detector evidence when a validated analysis is available.
+ */
+void computeInitialQuadrics(
+    const Mesh& mesh,
+    const SimplifyOptions& options,
+    const FeatureGuidance& featureGuidance,
+    const feature::FeatureAnalysis* precomputedFeatures,
+    InitialQuadrics& initial,
+    SimplifyReport& report
+);
+
+/**
  * @brief 返回按二次误差代价升序排列的唯一有限放置候选。
  */
 std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a, const Vec3& b);
@@ -77,8 +90,17 @@ public:
     /** @brief 计算初始二次误差、优先级缩放因子和报告诊断信息。*/
     InitialQuadrics build(const Mesh& mesh, const FeatureGuidance& featureGuidance, SimplifyReport& report) const;
 
+    /** @brief 优先复用已校验特征分析中的紧凑逐顶点证据。 */
+    InitialQuadrics build(
+        const Mesh& mesh,
+        const FeatureGuidance& featureGuidance,
+        const feature::FeatureAnalysis* precomputedFeatures,
+        SimplifyReport& report
+    ) const;
+
 private:
     const SimplifyOptions& options_;
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

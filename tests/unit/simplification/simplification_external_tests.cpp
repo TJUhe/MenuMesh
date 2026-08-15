@@ -15,10 +15,10 @@
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
 
+#include "core/Filesystem.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <stdexcept>

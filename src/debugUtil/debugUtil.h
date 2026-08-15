@@ -15,11 +15,8 @@ namespace manumesh {
 struct Mesh;
 }
 
-namespace manumesh::feature {
-struct FeatureAnalysis;
-}
-
-namespace manumesh::debugUtil {
+namespace manumesh {
+namespace debugUtil {
 
 /**
  * @brief 用于选择颜色和线宽的调试绘制语义。
@@ -98,6 +95,14 @@ struct EdgeOverlay {
 #if defined(MANUMESH_ENABLE_DEBUG_UTIL) && !defined(NDEBUG)
 
 /**
+ * @brief Returns whether runtime debug snapshots are enabled.
+ *
+ * Set `MANUMESH_DEBUG_UTIL_ENABLED=0` to suppress HTML generation while
+ * keeping the instrumentation compiled into the Debug build.
+ */
+bool enabled();
+
+/**
  * @brief 为网格写入本地交互式 HTML 线框页面。
  */
 void showWireframe(const char* tag, const Mesh& mesh, UseCase useCase = UseCase::Mesh);
@@ -112,19 +117,16 @@ void showEdges(
     const char* tag, const Mesh& mesh, const std::vector<EdgeOverlay>& overlays, UseCase baseUseCase = UseCase::Mesh
 );
 /**
- * @brief 写入特征图和恢复特征环覆盖层的本地 HTML 快照。
- */
-void showFeatures(const char* tag, const Mesh& mesh, const feature::FeatureAnalysis& analysis);
-/**
  * @brief 写入并排显示简化前后网格的本地 HTML 快照。
  */
 void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after);
 
 #endif
 
-} // 命名空间 manumesh::debugUtil
+} // namespace debugUtil
+} // namespace manumesh
 
-// 这些宏通过 CMake 强制包含钩子提供给所有内部 C++ 源文件。
+// Include this header explicitly at instrumentation sites.
 // 只有启用 CMake 调试工具选项且不是 NDEBUG 构建时才会执行，否则为空操作。
 #if defined(MANUMESH_ENABLE_DEBUG_UTIL) && !defined(NDEBUG)
 
@@ -141,8 +143,6 @@ void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after);
 
 #define MANUMESH_DEBUG_UTIL_EDGES(tag, mesh, overlays) ::manumesh::debugUtil::showEdges((tag), (mesh), (overlays))
 
-#define MANUMESH_DEBUG_UTIL_FEATURES(tag, mesh, analysis) ::manumesh::debugUtil::showFeatures((tag), (mesh), (analysis))
-
 #define MANUMESH_DEBUG_UTIL_BEFORE_AFTER(tag, beforeMesh, afterMesh)                                                   \
     ::manumesh::debugUtil::showBeforeAfter((tag), (beforeMesh), (afterMesh))
 
@@ -153,7 +153,6 @@ void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after);
 #define MANUMESH_DEBUG_UTIL_EDGE(tag, mesh, a, b, useCase) ((void)0)
 #define MANUMESH_DEBUG_UTIL_EDGE_LABEL(tag, mesh, a, b, useCase, label) ((void)0)
 #define MANUMESH_DEBUG_UTIL_EDGES(tag, mesh, overlays) ((void)0)
-#define MANUMESH_DEBUG_UTIL_FEATURES(tag, mesh, analysis) ((void)0)
 #define MANUMESH_DEBUG_UTIL_BEFORE_AFTER(tag, beforeMesh, afterMesh) ((void)0)
 
 #endif

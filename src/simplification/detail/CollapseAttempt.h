@@ -14,7 +14,8 @@
 #include "detail/SimplificationPolicies.h"
 #include "detail/TextureProtection.h"
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 评估当前候选所有放置后的粗粒度结果。
@@ -45,6 +46,7 @@ struct CollapseAttemptInput {
     const std::vector<FaceState>& faces;
     const DynamicTopology& topology;
     const std::vector<int>& activeLoopCounts;
+    const FeatureConstraintGraph& featureConstraints;
     const std::vector<FeatureCurveConstraint>& featureCurves;
     const std::vector<FeaturePrimitiveFit>& primitiveFits;
     const FeatureConstraintPolicy& featurePolicy;
@@ -84,4 +86,5 @@ struct CollapseAttemptResult {
  */
 CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input);
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

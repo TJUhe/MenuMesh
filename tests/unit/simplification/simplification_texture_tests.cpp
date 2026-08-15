@@ -13,11 +13,10 @@
 
 #include <gtest/gtest.h>
 
+#include "core/Filesystem.h"
 #include <cmath>
-#include <filesystem>
 #include <fstream>
 #include <vector>
-
 namespace {
 
 using manumesh::FaceTexCoords;
@@ -69,14 +68,13 @@ Mesh texturedGrid() {
     return mesh;
 }
 
+} // namespace
+
 void offsetFaceUv(FaceTexCoords& texcoords, const Vec2& offset) {
     for (Vec2& uv : texcoords.uv) {
         uv += offset;
     }
 }
-
-} // 命名空间
-
 TEST(TextureQem, SeamToleranceFlipsChartGroupingAroundPerturbationScale) {
     // 检查该步骤的边界条件，并确保结果保持确定性。
     // 检查该步骤的边界条件，并确保结果保持确定性。
@@ -204,8 +202,8 @@ TEST(TextureQem, MinTextureAreaRatioRejectionsReachTextureRejectedCounter) {
 }
 
 TEST(TextureQem, GeometryQuadricRemainsFourByFour) {
-    static_assert(Mat4::RowsAtCompileTime == 4);
-    static_assert(Mat4::ColsAtCompileTime == 4);
+    static_assert(Mat4::RowsAtCompileTime == 4, "QEM matrix row count changed");
+    static_assert(Mat4::ColsAtCompileTime == 4, "QEM matrix column count changed");
     EXPECT_EQ(16, Mat4::SizeAtCompileTime);
     EXPECT_FALSE(SimplifyOptions{}.preserveTexture);
 }
@@ -319,7 +317,8 @@ TEST(TextureQem, RejectsUvTriangleDegeneration) {
 }
 
 TEST(TextureQem, ObjLoaderPreservesPerCornerTextureSeams) {
-    const std::filesystem::path path = std::filesystem::temp_directory_path() / "manumesh_texture_seam_test.obj";
+    const manumesh::filesystem::path path =
+        manumesh::filesystem::temp_directory_path() / "manumesh_texture_seam_test.obj";
     {
         std::ofstream out(path);
         out << "v 0 0 0\n"
@@ -339,7 +338,7 @@ TEST(TextureQem, ObjLoaderPreservesPerCornerTextureSeams) {
     Mesh mesh;
     std::string error;
     ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
-    std::filesystem::remove(path);
+    manumesh::filesystem::remove(path);
     ASSERT_EQ(2u, mesh.faceTexCoords.size());
     ASSERT_TRUE(mesh.faceTexCoords[0].valid);
     ASSERT_TRUE(mesh.faceTexCoords[1].valid);
@@ -364,6 +363,23 @@ TEST(TextureQem, SimplifierReturnsFaceAlignedTextureCoordinates) {
     EXPECT_TRUE(output.hasTextureCoordinates());
     EXPECT_GT(report.textureProtectedEdges, 0);
     EXPECT_TRUE(manumesh::validateMeshGeometry(output));
+}
+
+TEST(TextureQem, ReportsQualityRefinementSkippedByTextureProtection) {
+    Mesh mesh = texturedGrid();
+    SimplifyOptions options;
+    options.targetRatio = 0.5;
+    options.preserveTexture = true;
+    options.qualityRefinementIterations = 3;
+    manumesh::simplification::SimplifyReport report;
+
+    const Mesh output = manumesh::simplification::simplifyMesh(mesh, options, &report);
+
+    EXPECT_FALSE(output.empty());
+    EXPECT_TRUE(report.qualityRefinementSkippedForTexture);
+    EXPECT_EQ(0, report.qualityRefinementIterationsCompleted);
+    EXPECT_EQ(0, report.qualityRefinementAttemptedMoves);
+    EXPECT_EQ(0, report.qualityRefinementAcceptedMoves);
 }
 
 TEST(TextureQem, DefaultDisabledProtectionPreservesLegacyGeometryResult) {

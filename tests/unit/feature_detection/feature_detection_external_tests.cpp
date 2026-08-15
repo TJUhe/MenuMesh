@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <gtest/gtest.h>
-
 namespace {
 
 namespace feature = manumesh::feature;

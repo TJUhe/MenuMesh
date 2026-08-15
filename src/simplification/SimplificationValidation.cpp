@@ -17,7 +17,8 @@
 #include <stdexcept>
 #include <string>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 void requireFiniteNonNegative(double value, const char* name) {
@@ -82,4 +83,5 @@ void validateSimplifierInput(const Mesh& input) {
     }
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -9,13 +9,15 @@
  */
 
 #include "detail/Placement.h"
+#include "core/MathUtils.h"
 
 #include <algorithm>
 #include <cmath>
 #include <utility>
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 namespace {
 
 /**
@@ -55,7 +57,9 @@ BoundaryChainSums collectBoundaryChain(const BoundaryProjectionInput& input) {
     }
     std::sort(halfEdges.begin(), halfEdges.end());
     halfEdges.erase(std::unique(halfEdges.begin(), halfEdges.end()), halfEdges.end());
-    for (const auto& [u, w] : halfEdges) {
+    for (const auto& pairEntry : halfEdges) {
+        const int u = pairEntry.first;
+        const int w = pairEntry.second;
         const Vec3& p0 = input.vertices[u].p;
         const Vec3& p1 = input.vertices[w].p;
         sums.e1 += p1 - p0;
@@ -72,7 +76,7 @@ Vec3 clampToSegment(const Vec3& position, const Vec3& a, const Vec3& b) {
     if (len2 <= 1e-30) {
         return 0.5 * (a + b);
     }
-    const double t = std::clamp((position - a).dot(edge) / len2, 0.0, 1.0);
+    const double t = manumesh::clampValue((position - a).dot(edge) / len2, 0.0, 1.0);
     return a + t * edge;
 }
 
@@ -102,7 +106,7 @@ bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& positi
         // 将点夹到约束线上的收缩边投影，避免放置点沿整条边界滑移。
         const double ta = (a - p0).dot(direction);
         const double tb = (b - p0).dot(direction);
-        const double t = std::clamp((position - p0).dot(direction), std::min(ta, tb), std::max(ta, tb));
+        const double t = manumesh::clampValue((position - p0).dot(direction), std::min(ta, tb), std::max(ta, tb));
         const Vec3 constrained = p0 + t * direction;
         // 安全保护：若约束解偏离收缩线段超过一个边长（例如边界链异常或 e1 近似抵消），则拒绝该解，退回普通线段夹紧。
         if (constrained.allFinite() &&
@@ -116,4 +120,5 @@ bool projectBoundaryPlacement(const BoundaryProjectionInput& input, Vec3& positi
     return true;
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -416,8 +416,10 @@ Mesh generateClosedCubeGrid(int n, double size) {
     indexByPoint.reserve(patchMesh.vertices.size());
     std::vector<int> remap(patchMesh.vertices.size(), -1);
     for (std::size_t vi = 0; vi < patchMesh.vertices.size(); ++vi) {
-        const auto [it, inserted] =
+        const auto insertResult =
             indexByPoint.emplace(quantize(patchMesh.vertices[vi]), static_cast<int>(mesh.vertices.size()));
+        const auto it = insertResult.first;
+        const bool inserted = insertResult.second;
         if (inserted) {
             mesh.vertices.push_back(patchMesh.vertices[vi]);
         }

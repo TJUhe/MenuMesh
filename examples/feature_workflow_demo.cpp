@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
-
 namespace {
 
 struct QualityGateOptions {
@@ -55,7 +54,7 @@ QualityGateResult runManufacturingQualityGate(const manumesh::Mesh& input, const
     simplifyOptions.useLineQuadrics = true;
     simplifyOptions.preserveFeatureCurves = true;
     simplifyOptions.featureCurveWeight = 0.05;
-    simplifyOptions.minFeatureLoopVertices = 6;
+    simplifyOptions.featureOptionsOverride = featureOptions;
     simplifyOptions.minCircularFeatureLoopVertices = 6;
     simplifyOptions.boundaryWeight = 1.0;
 
@@ -84,7 +83,7 @@ QualityGateResult runManufacturingQualityGate(const manumesh::Mesh& input, const
     return result;
 }
 
-} // 命名空间
+} // namespace
 
 int main() {
     const manumesh::Mesh input = manumesh::generateCylinderGrid(48, 12, 1.0, 2.0);

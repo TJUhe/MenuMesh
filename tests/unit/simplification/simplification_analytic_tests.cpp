@@ -28,7 +28,6 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-
 namespace {
 
 namespace analytic = manumesh::test::analytic;

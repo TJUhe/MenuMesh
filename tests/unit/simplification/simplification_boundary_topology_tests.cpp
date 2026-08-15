@@ -9,6 +9,7 @@
 #include "SimplificationTestSupport.h"
 #include "algorithms/simplification/Metrics.h"
 #include "algorithms/simplification/QEMSimplifier.h"
+#include "core/MathUtils.h"
 #include "core/MeshGenerators.h"
 #include "core/MeshTopology.h"
 #include "simplification/detail/CollapseTopology.h"
@@ -24,7 +25,6 @@
 using manumesh::test::SimplifiedMesh;
 using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
-
 namespace {
 
 /// 说明该辅助函数的输入、输出和边界条件。
@@ -76,7 +76,7 @@ double distanceToPolyline(const manumesh::Vec3& point, const BoundaryPolyline& p
         const double len2 = edge.squaredNorm();
         manumesh::Vec3 closest = segment[0];
         if (len2 > 1e-30) {
-            const double t = std::clamp((point - segment[0]).dot(edge) / len2, 0.0, 1.0);
+            const double t = manumesh::clampValue((point - segment[0]).dot(edge) / len2, 0.0, 1.0);
             closest = segment[0] + t * edge;
         }
         best2 = std::min(best2, (point - closest).squaredNorm());

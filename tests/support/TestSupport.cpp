@@ -17,7 +17,8 @@
 #include <sstream>
 #include <utility>
 
-namespace manumesh::test {
+namespace manumesh {
+namespace test {
 namespace {
 
 std::vector<std::string> splitWords(const std::string& line) {
@@ -30,23 +31,42 @@ std::vector<std::string> splitWords(const std::string& line) {
     return words;
 }
 
-std::vector<std::filesystem::path> expandPattern(const std::string& pattern) {
+manumesh::filesystem::path relativeTo(const manumesh::filesystem::path& path, const manumesh::filesystem::path& base) {
+    manumesh::filesystem::path::const_iterator pathIt = path.begin();
+    manumesh::filesystem::path::const_iterator baseIt = base.begin();
+    while (pathIt != path.end() && baseIt != base.end() && *pathIt == *baseIt) {
+        ++pathIt;
+        ++baseIt;
+    }
+    if (baseIt != base.end()) {
+        return path;
+    }
+
+    manumesh::filesystem::path relative;
+    for (; pathIt != path.end(); ++pathIt) {
+        relative /= *pathIt;
+    }
+    return relative;
+}
+
+std::vector<manumesh::filesystem::path> expandPattern(const std::string& pattern) {
     const std::string marker = "/**/";
     const std::size_t markerPos = pattern.find(marker);
     const std::size_t starPos = pattern.find_last_of('*');
     if (markerPos == std::string::npos || starPos == std::string::npos) {
-        return {std::filesystem::path(pattern)};
+        return {manumesh::filesystem::path(pattern)};
     }
 
-    const std::filesystem::path root = dataRoot() / pattern.substr(0, markerPos);
+    const manumesh::filesystem::path root = dataRoot() / pattern.substr(0, markerPos);
     const std::string suffix = pattern.substr(starPos + 1);
 
-    std::vector<std::filesystem::path> paths;
-    for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(root)) {
-        if (!entry.is_regular_file()) {
+    std::vector<manumesh::filesystem::path> paths;
+    for (const manumesh::filesystem::directory_entry& entry :
+         manumesh::filesystem::recursive_directory_iterator(root)) {
+        if (!manumesh::filesystem::is_regular_file(entry.path())) {
             continue;
         }
-        const std::filesystem::path relative = std::filesystem::relative(entry.path(), dataRoot());
+        const manumesh::filesystem::path relative = relativeTo(entry.path(), dataRoot());
         const std::string text = relative.generic_string();
         if (text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0) {
             paths.push_back(relative);
@@ -58,24 +78,24 @@ std::vector<std::filesystem::path> expandPattern(const std::string& pattern) {
 
 } // 命名空间
 
-std::filesystem::path dataRoot() {
+manumesh::filesystem::path dataRoot() {
 #ifdef MANUMESH_TEST_DATA_DIR
-    return std::filesystem::path(MANUMESH_TEST_DATA_DIR);
+    return manumesh::filesystem::path(MANUMESH_TEST_DATA_DIR);
 #else
-    return std::filesystem::path(__FILE__).parent_path().parent_path() / "data";
+    return manumesh::filesystem::path(__FILE__).parent_path().parent_path() / "data";
 #endif
 }
 
-std::filesystem::path externalDataRoot() {
+manumesh::filesystem::path externalDataRoot() {
 #ifdef MANUMESH_TEST_EXTERNAL_DATA_DIR
-    return std::filesystem::path(MANUMESH_TEST_EXTERNAL_DATA_DIR);
+    return manumesh::filesystem::path(MANUMESH_TEST_EXTERNAL_DATA_DIR);
 #else
     return dataRoot() / "external";
 #endif
 }
 
-std::vector<CaseLine> readCaseLines(const std::filesystem::path& relativeCaseFile) {
-    const std::filesystem::path path = dataRoot() / "qem_test" / relativeCaseFile;
+std::vector<CaseLine> readCaseLines(const manumesh::filesystem::path& relativeCaseFile) {
+    const manumesh::filesystem::path path = dataRoot() / "qem_test" / relativeCaseFile;
     std::ifstream in(path);
     EXPECT_TRUE(in) << "Failed to open qem_test case file: " << path.string();
 
@@ -91,7 +111,7 @@ std::vector<CaseLine> readCaseLines(const std::filesystem::path& relativeCaseFil
             continue;
         }
 
-        for (const std::filesystem::path& expanded : expandPattern(words.front())) {
+        for (const manumesh::filesystem::path& expanded : expandPattern(words.front())) {
             CaseLine testCase;
             testCase.relativePath = expanded;
             testCase.fields.assign(words.begin() + 1, words.end());
@@ -102,8 +122,8 @@ std::vector<CaseLine> readCaseLines(const std::filesystem::path& relativeCaseFil
     return cases;
 }
 
-FeatureLabels readFeatureLabels(const std::filesystem::path& relativeLabelFile) {
-    const std::filesystem::path path = dataRoot() / relativeLabelFile;
+FeatureLabels readFeatureLabels(const manumesh::filesystem::path& relativeLabelFile) {
+    const manumesh::filesystem::path path = dataRoot() / relativeLabelFile;
     std::ifstream in(path);
     EXPECT_TRUE(in) << "Failed to open feature label file: " << path.string();
 
@@ -128,40 +148,40 @@ FeatureLabels readFeatureLabels(const std::filesystem::path& relativeLabelFile) 
     return labels;
 }
 
-Mesh loadCaseMesh(const std::filesystem::path& relativePath) {
+Mesh loadCaseMesh(const manumesh::filesystem::path& relativePath) {
     Mesh mesh;
     std::string error;
-    const std::filesystem::path path = dataRoot() / relativePath;
+    const manumesh::filesystem::path path = dataRoot() / relativePath;
     if (!loadMesh(path.string(), mesh, &error)) {
         ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
     }
     return mesh;
 }
 
-Mesh loadFixtureMesh(const std::filesystem::path& relativePath) {
+Mesh loadFixtureMesh(const manumesh::filesystem::path& relativePath) {
     Mesh mesh;
     std::string error;
-    const std::filesystem::path path = dataRoot() / relativePath;
+    const manumesh::filesystem::path path = dataRoot() / relativePath;
     if (!loadMesh(path.string(), mesh, &error)) {
         ADD_FAILURE() << "Failed to load fixture " << path.string() << ": " << error;
     }
     return mesh;
 }
 
-Mesh loadExternalMesh(const std::filesystem::path& relativePath) {
+Mesh loadExternalMesh(const manumesh::filesystem::path& relativePath) {
     Mesh mesh;
     std::string error;
-    const std::filesystem::path path = externalDataRoot() / relativePath;
+    const manumesh::filesystem::path path = externalDataRoot() / relativePath;
     if (!loadMesh(path.string(), mesh, &error)) {
         ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
     }
     return mesh;
 }
 
-Mesh loadExternalStl(const std::filesystem::path& relativePath) {
+Mesh loadExternalStl(const manumesh::filesystem::path& relativePath) {
     Mesh mesh;
     std::string error;
-    const std::filesystem::path path = externalDataRoot() / relativePath;
+    const manumesh::filesystem::path path = externalDataRoot() / relativePath;
     if (!loadStl(path.string(), mesh, &error)) {
         ADD_FAILURE() << "Failed to load " << path.string() << ": " << error;
     }
@@ -262,4 +282,5 @@ int caseFieldInt(const CaseLine& testCase, std::size_t field, int defaultValue) 
     return std::stoi(testCase.fields[field]);
 }
 
-} // 命名空间
+} // namespace test
+} // namespace manumesh

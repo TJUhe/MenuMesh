@@ -15,7 +15,8 @@
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 供合法性谓词使用的只读活动顶点、面和拓扑视图。
@@ -49,4 +50,5 @@ struct CollapseLegalityInput {
  */
 CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input);
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

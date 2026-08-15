@@ -17,7 +17,8 @@
 #include <algorithm>
 #include <limits>
 
-namespace manumesh::common {
+namespace manumesh {
+namespace common {
 
 MeshDistanceIndex::MeshDistanceIndex(const Mesh& mesh)
     : mesh_(mesh) {
@@ -103,8 +104,13 @@ int MeshDistanceIndex::buildRecursive(int begin, int end) {
     std::nth_element(order_.begin() + begin, order_.begin() + mid, order_.begin() + end, [&](int lhs, int rhs) {
         return triangles_[lhs].centroid[axis] < triangles_[rhs].centroid[axis];
     });
-    nodes_[nodeId].left = buildRecursive(begin, mid);
-    nodes_[nodeId].right = buildRecursive(mid, end);
+    // C++14 does not sequence assignment operands. Finish recursive growth
+    // before indexing nodes_, because push_back may reallocate its storage.
+    const int left = buildRecursive(begin, mid);
+    const int right = buildRecursive(mid, end);
+    BvhNode& parent = nodes_[nodeId];
+    parent.left = left;
+    parent.right = right;
     return nodeId;
 }
 
@@ -140,4 +146,5 @@ void MeshDistanceIndex::queryRecursive(int nodeId, const Vec3& point, double& be
     }
 }
 
-} // 命名空间 manumesh::common
+} // namespace common
+} // namespace manumesh

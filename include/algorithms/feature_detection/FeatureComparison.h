@@ -15,7 +15,8 @@
 #include <string>
 #include <vector>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 
 /// 两个特征分析之间贪心匹配圆环时使用的阈值。
 ///
@@ -105,4 +106,5 @@ MANUMESH_API LoopMatchReport matchCircularLoops(
 /// 环匹配状态的稳定字符串名称（"matched"、"weak_match"、"missing"）。
 MANUMESH_API std::string toString(LoopMatchStatus status);
 
-} // namespace manumesh::feature
+} // namespace feature
+} // namespace manumesh

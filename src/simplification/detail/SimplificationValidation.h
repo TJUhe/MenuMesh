@@ -11,7 +11,8 @@
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "core/Mesh.h"
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @throws 任一选项或跨字段范围无效时抛出 std::invalid_argument。
@@ -22,4 +23,5 @@ void validateSimplifyOptions(const SimplifyOptions& options);
  */
 void validateSimplifierInput(const Mesh& input);
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

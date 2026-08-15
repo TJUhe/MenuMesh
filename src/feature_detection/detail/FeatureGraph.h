@@ -14,7 +14,9 @@
 
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 将候选边复制到公共图，并初始化顶点存储。
@@ -79,4 +81,6 @@ void rebuildTraceGraphEdges(TraceGraph& trace);
  */
 void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis);
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

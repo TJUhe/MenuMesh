@@ -68,7 +68,7 @@ footer { padding: 22px 44px 34px; border-top: 1px solid var(--border); color: va
 <header>
   <h1>ManuMesh 特征识别：GTest 调试学习规划与 debugUtil 使用指南</h1>
   <p class="subtitle">从最小测试案例进入特征识别源码，以“预测结果、单步调试、观察状态、可视化、解释断言”为固定循环，逐步掌握硬边、特征图、环恢复、弱特征、图修复、面片分区和 QEM 消费。</p>
-  <div class="tags"><span class="tag">GoogleTest</span><span class="tag">VS Code + GDB</span><span class="tag">FeatureGraph</span><span class="tag">debugUtil</span><span class="tag">约 28-32 小时</span></div>
+  <div class="tags"><span class="tag">GoogleTest</span><span class="tag">VS Code + MSVC Debugger</span><span class="tag">FeatureGraph</span><span class="tag">debugUtil</span><span class="tag">约 28-32 小时</span></div>
 </header>
 <main>
   <section class="toc">
@@ -109,18 +109,17 @@ footer { padding: 22px 44px 34px; border-top: 1px solid var(--border); color: va
   <section id="setup">
     <h2>2. Debug 构建与 VS Code 启动</h2>
     <h3>2.1 配置 Debug 测试程序</h3>
-    <pre><code>cmake -S . -B build/mingw-ninja-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DMANUMESH_BUILD_TESTS=ON -DMANUMESH_ENABLE_DEBUG_UTIL=ON
-
-cmake --build build/mingw-ninja-debug --target manumesh_tests --parallel</code></pre>
-    <div class="callout warn"><strong>必须检查缓存：</strong>目录名包含 <code>debug</code> 不代表 debugUtil 已开启。运行 <code>rg "MANUMESH_ENABLE_DEBUG_UTIL" build/mingw-ninja-debug/CMakeCache.txt</code>，结果必须为 <code>ON</code>。此外，Release 构建定义了 <code>NDEBUG</code>，宏仍会成为 no-op。</div>
+    <pre><code>cmake --preset vs2019-debug
+cmake --build --preset vs2019-debug-tests --parallel</code></pre>
+    <div class="callout warn"><strong>当前限制：</strong>DebugUtil 调用点已暂时注释，默认 Debug preset 不生成 HTML 快照；请使用 FeatureAnalysis、metrics CSV 和测试断点定位问题。</div>
 
     <h3>2.2 使用 VS Code 过滤调试</h3>
-    <p>仓库已经提供 <a href="../../../.vscode/launch.json"><code>(MinGW Ninja) Debug Unit Tests Filter</code></a>。在“运行和调试”中选择它，按 F5 后输入完整测试名：</p>
+    <p>仓库已经提供 <a href="../../../.vscode/launch.json"><code>VS2019 Debug + debugUtil Unit Tests - Filter</code></a>。在“运行和调试”中选择它，按 F5 后输入完整测试名：</p>
     <pre><code>FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle</code></pre>
-    <p>该配置运行 <code>build/mingw-ninja-debug/bin/manumesh_tests.exe</code>，参数为 <code>--gtest_filter=&lt;测试名&gt;</code>，工作目录是仓库根目录。</p>
+    <p>当前使用 <code>build/vs2019-debug/bin/Debug/manumesh_tests.exe</code>，参数为 <code>--gtest_filter=&lt;测试名&gt;</code>，工作目录是仓库根目录；DebugUtil 快照调用暂时注释。</p>
 
     <h3>2.3 不进调试器时的快速运行</h3>
-    <pre><code>$tests = ".\build\mingw-ninja-debug\bin\manumesh_tests.exe"
+    <pre><code>$tests = ".\build\vs2019-debug\bin\Debug\manumesh_tests.exe"
 & $tests "--gtest_filter=FeatureDetection.DihedralThresholdControlsCreaseEdges" --gtest_break_on_failure</code></pre>
   </section>
 
@@ -287,7 +286,7 @@ segmentation_.run(context);</code></pre>
     <ul>
       <li>CMake 必须配置 <code>-DMANUMESH_ENABLE_DEBUG_UTIL=ON</code>。</li>
       <li>必须是非 <code>NDEBUG</code> 的 Debug 构建。</li>
-      <li>内部源码由 CMake force-include <code>debugUtil/debugUtil.h</code>，可直接使用宏。</li>
+      <li>内部源码在插桩点显式包含调试头：通用线框/边覆盖包含 <code>debugUtil/debugUtil.h</code>，特征快照包含 feature-owned <code>detail/FeatureDebugInstrumentation.h</code>。</li>
       <li>未满足条件时所有宏静默展开为 <code>((void)0)</code>。</li>
     </ul>
 
@@ -323,7 +322,7 @@ MANUMESH_DEBUG_UTIL_FEATURES("05_consolidation", mesh, context.analysis());
 
 loopRecovery_.run(context);
 MANUMESH_DEBUG_UTIL_FEATURES("06_loops", mesh, context.analysis());</code></pre>
-    <div class="callout info"><strong>图像解释：</strong><code>showFeatures</code> 同时绘制公共 <code>FeatureGraph</code> 和已恢复 loop。cleanup 从活动 <code>TraceGraph</code> 移除边时，公共图中的边保留但会标为 <code>removedByCleanup</code>，便于诊断来源与最终活动状态。</div>
+    <div class="callout info"><strong>图像解释：</strong>feature-owned 调试适配器把公共 <code>FeatureGraph</code> 和已恢复 loop 转换为通用 edge overlays 后交给 <code>debugUtil</code> 绘制。cleanup 从活动 <code>TraceGraph</code> 移除边时，公共图中的边保留但会标为 <code>removedByCleanup</code>，便于诊断来源与最终活动状态。</div>
 
     <h3>5.5 颜色语义</h3>
     <table>
@@ -356,7 +355,7 @@ MANUMESH_DEBUG_UTIL_FEATURES("06_loops", mesh, context.analysis());</code></pre>
       <thead><tr><th>现象</th><th>优先检查</th><th>处理</th></tr></thead>
       <tbody>
         <tr><td>宏执行后没有 HTML</td><td><code>CMakeCache.txt</code> 是否为 ON；是否 Debug</td><td>重新 configure 并重建相关对象和测试程序</td></tr>
-        <tr><td>F5 提示找不到测试程序</td><td><code>build/mingw-ninja-debug/bin/manumesh_tests.exe</code></td><td>先运行 VS Code 的 debug build task</td></tr>
+        <tr><td>F5 提示找不到测试程序</td><td><code>build/vs2019-debug/bin/Debug/manumesh_tests.exe</code></td><td>先运行 <code>build: vs2019 debug</code></td></tr>
         <tr><td>断点为灰色或不命中</td><td>是否误用 release 目录；源码与二进制是否一致</td><td>区分 debug/release 构建目录并重新构建</td></tr>
         <tr><td>一次打开很多页面</td><td><code>MANUMESH_DEBUG_UTIL_OPEN</code></td><td>设置为 <code>0</code></td></tr>
         <tr><td>输出 HTML 太大或卡顿</td><td>边数是否超过默认上限</td><td>调低 <code>MANUMESH_DEBUG_UTIL_MAX_EDGES</code> 或只画局部 overlay</td></tr>

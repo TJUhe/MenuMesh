@@ -25,11 +25,14 @@
 #include <unordered_set>
 #include <vector>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 struct FeatureAnalysis;
-}
+} // namespace feature
+} // namespace manumesh
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 一次边折叠简化运行的可变、单次执行对象。
@@ -102,6 +105,8 @@ private:
     const Mesh& input_;
     const SimplifyOptions& options_;
     const feature::FeatureAnalysis* precomputedFeatures_ = nullptr;
+    std::unique_ptr<feature::FeatureAnalysis> ownedFeatureAnalysis_;
+    const feature::FeatureAnalysis* featureAnalysis_ = nullptr;
     SimplificationPolicies policies_;
     SimplifyReport report_;
     FeatureGuidance featureGuidance_;
@@ -136,4 +141,5 @@ private:
     bool queueBuiltOnce_ = false;
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

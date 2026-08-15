@@ -29,7 +29,9 @@
 #include <utility>
 #include <vector>
 
-namespace manumesh::test::feature_detection {
+namespace manumesh {
+namespace test {
+namespace feature_detection {
 namespace {
 
 namespace analytic = manumesh::test::analytic;
@@ -130,7 +132,7 @@ double crestPersistentRecall(
     return static_cast<double>(detected) / static_cast<double>(crestVertices.size());
 }
 
-} // 命名空间
+} // namespace
 
 // 检查该步骤的边界条件，并确保结果保持确定性。
 // 检查该步骤的边界条件，并确保结果保持确定性。
@@ -447,4 +449,6 @@ TEST(FeatureDetectionAnalytic, FeatureEdgeSetIsExactlyScaleInvariant) {
     }
 }
 
-} // 命名空间
+} // namespace feature_detection
+} // namespace test
+} // namespace manumesh

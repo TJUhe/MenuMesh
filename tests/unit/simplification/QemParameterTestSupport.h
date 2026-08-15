@@ -12,7 +12,9 @@
 
 #include <vector>
 
-namespace manumesh::test::qem_parameters {
+namespace manumesh {
+namespace test {
+namespace qem_parameters {
 
 inline std::vector<feature::FeatureLoop> innerEllipseLoops(const feature::FeatureAnalysis& analysis) {
     std::vector<feature::FeatureLoop> loops;
@@ -25,4 +27,6 @@ inline std::vector<feature::FeatureLoop> innerEllipseLoops(const feature::Featur
     return loops;
 }
 
-} // 命名空间
+} // namespace qem_parameters
+} // namespace test
+} // namespace manumesh

@@ -10,7 +10,6 @@
 #include "mesh_edit/detail/MeshCompaction.h"
 
 #include <gtest/gtest.h>
-
 namespace {
 
 namespace mesh_edit = manumesh::mesh_edit;

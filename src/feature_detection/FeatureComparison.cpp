@@ -9,6 +9,8 @@
  */
 
 #include "algorithms/feature_detection/FeatureComparison.h"
+#include "algorithms/feature_detection/FeatureAnalysisViews.h"
+#include "core/MathUtils.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "core/MathConstants.h"
@@ -19,20 +21,21 @@
 #include <stdexcept>
 #include <vector>
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 namespace {
 
-std::vector<int> circularLoopIndices(const FeatureAnalysis& analysis) {
+std::vector<int> circularLoopIndices(const FeatureCurveView& curves) {
     std::vector<int> indices;
-    for (int i = 0; i < static_cast<int>(analysis.loops.size()); ++i) {
-        if (analysis.loops[i].circular) {
+    for (int i = 0; i < static_cast<int>(curves.loops().size()); ++i) {
+        if (curves.loops()[i].circular) {
             indices.push_back(i);
         }
     }
     return indices;
 }
 
-} // 匿名命名空间
+} // namespace
 
 Status validateLoopMatchOptions(const LoopMatchOptions& options) {
     auto finiteNonNegative = [](double value) {
@@ -67,20 +70,23 @@ LoopMatchReport matchCircularLoops(
     if (!optionsStatus.ok()) {
         throw std::invalid_argument(optionsStatus.message());
     }
+    validateFeatureAnalysis(simplified, simplifiedFeatures);
 
+    const FeatureCurveView originalCurves = viewFeatureCurves(original);
+    const FeatureCurveView simplifiedCurves = viewFeatureCurves(simplifiedFeatures);
     LoopMatchReport report;
-    const std::vector<int> originalCircular = circularLoopIndices(original);
-    const std::vector<int> simplifiedCircular = circularLoopIndices(simplifiedFeatures);
+    const std::vector<int> originalCircular = circularLoopIndices(originalCurves);
+    const std::vector<int> simplifiedCircular = circularLoopIndices(simplifiedCurves);
     report.originalCircularLoops = static_cast<int>(originalCircular.size());
     report.simplifiedCircularLoops = static_cast<int>(simplifiedCircular.size());
     report.matches.reserve(originalCircular.size());
 
     const double diag =
         std::max(1e-12, options.referenceDiagonal > 0.0 ? options.referenceDiagonal : simplified.bboxDiag());
-    std::vector<char> usedSimplified(simplifiedFeatures.loops.size(), 0);
+    std::vector<char> usedSimplified(simplifiedCurves.loops().size(), 0);
 
     for (int originalId : originalCircular) {
-        const FeatureLoop& origLoop = original.loops[originalId];
+        const FeatureLoop& origLoop = originalCurves.loops()[originalId];
         int bestLoopId = -1;
         double bestScore = std::numeric_limits<double>::infinity();
         double bestCenterError = 0.0;
@@ -91,11 +97,12 @@ LoopMatchReport matchCircularLoops(
             if (usedSimplified[simplifiedId]) {
                 continue;
             }
-            const FeatureLoop& simpLoop = simplifiedFeatures.loops[simplifiedId];
+            const FeatureLoop& simpLoop = simplifiedCurves.loops()[simplifiedId];
             const double centerError = (origLoop.center - simpLoop.center).norm();
             const double radiusError = std::abs(origLoop.radius - simpLoop.radius);
-            const double normalDot =
-                std::clamp(std::abs(origLoop.normal.normalized().dot(simpLoop.normal.normalized())), 0.0, 1.0);
+            const double normalDot = manumesh::clampValue(
+                std::abs(origLoop.normal.normalized().dot(simpLoop.normal.normalized())), 0.0, 1.0
+            );
             const double normalAngle = std::acos(normalDot);
             const double normalAngleDeg = normalAngle * 180.0 / kPi;
             const double radiusRel = radiusError / std::max(1e-12, origLoop.radius);
@@ -119,7 +126,7 @@ LoopMatchReport matchCircularLoops(
         match.originalRadius = origLoop.radius;
 
         if (bestLoopId >= 0) {
-            const FeatureLoop& simpLoop = simplifiedFeatures.loops[bestLoopId];
+            const FeatureLoop& simpLoop = simplifiedCurves.loops()[bestLoopId];
             usedSimplified[bestLoopId] = 1;
             match.directional =
                 measureLoopAgainstCircle(simplified, simpLoop, origLoop.center, origLoop.normal, origLoop.radius);
@@ -157,4 +164,5 @@ std::string toString(LoopMatchStatus status) {
     return "missing";
 }
 
-} // 命名空间 manumesh::feature
+} // namespace feature
+} // namespace manumesh

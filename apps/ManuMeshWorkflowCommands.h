@@ -10,7 +10,9 @@
 
 #include "CliArguments.h"
 
-namespace manumesh::cli::workflow_commands {
+namespace manumesh {
+namespace cli {
+namespace workflow_commands {
 
 /// 运行内置的端到端演示工作流。
 int demo(const Args& args);
@@ -19,4 +21,6 @@ int validateFeatures(const Args& args);
 /// 对调用方提供的外部网格执行数据集验证。
 int validateExternal(const Args& args);
 
-} // namespace manumesh::cli::workflow_commands
+} // namespace workflow_commands
+} // namespace cli
+} // namespace manumesh

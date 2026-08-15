@@ -11,6 +11,6 @@
 namespace manumesh {
 
 /// 所有模块共享的圆周率常量，使生成器、特征检测和简化使用同一表示。
-inline constexpr double kPi = 3.141592653589793238462643383279502884;
+constexpr double kPi = 3.141592653589793238462643383279502884;
 
 } // 命名空间 manumesh

@@ -11,6 +11,7 @@
 #include "Export.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 /**
  * @addtogroup manumesh_c_api
@@ -142,6 +143,8 @@ typedef struct ManuMeshFeatureOptions {
  * `a` 和 `b` 是输入网格的零基顶点索引；来源标志可以同时为真。
  * 端点顺序不保证升序；需要稳定键时由调用方规范化为 `(min(a,b), max(a,b))`。
  * `signed_kind` 大于零表示凸，小于零表示凹，零表示未知或无符号。
+ * C ABI 输入没有独立的边数组或全局边编号，因此一条输入边由无向端点对唯一标识。
+ * 此结构是固定的 ABI-v1 数组元素布局；后续扩展必须使用新的结构或入口，不能改变其步长。
  */
 typedef struct ManuMeshFeatureEdge {
     int a;
@@ -156,6 +159,39 @@ typedef struct ManuMeshFeatureEdge {
     int removed_by_cleanup;
     int signed_kind;
 } ManuMeshFeatureEdge;
+
+/** `ManuMeshFeatureEdgeV2::input_edge_index` 没有对应输入网格边时使用的哨兵。 */
+#define MANUMESH_INVALID_EDGE_INDEX ((uint64_t)~(uint64_t)0)
+
+/**
+ * @brief 带稳定序号和几何约束语义的特征边 ABI-v2 数组元素。
+ *
+ * 前 11 个字段与 `ManuMeshFeatureEdge` 完全相同，但这是独立的固定步长结构，
+ * 调用方不得把两种数组相互转换。`feature_edge_index` 是 v2 结果按规范端点和
+ * 来源排序后的零基序号；`input_edge_index` 是 `uniqueEdges` 语义下按 `(a,b)`
+ * 字典序排列的输入网格边序号。
+ *
+ * `synthetic` 表示该图边由 cleanup/consolidation 恢复产生。只有端点对确实是
+ * 输入网格边时 `geometric_constraint` 才为真并拥有有效 `input_edge_index`；
+ * 非拓扑恢复桥仅表达图连续性，不能直接作为 QEM 投影线段。
+ */
+typedef struct ManuMeshFeatureEdgeV2 {
+    int a;
+    int b;
+    int boundary;
+    int dihedral;
+    int normal_tensor;
+    int smooth_curvature;
+    int non_manifold;
+    int cleanup_bridge;
+    int consolidation_bridge;
+    int removed_by_cleanup;
+    int signed_kind;
+    uint64_t feature_edge_index;
+    uint64_t input_edge_index;
+    int synthetic;
+    int geometric_constraint;
+} ManuMeshFeatureEdgeV2;
 
 /** @brief 用于 ABI 兼容扩展的带大小版本简化选项。 */
 typedef struct ManuMeshSimplifyOptions {
@@ -232,6 +268,12 @@ typedef struct ManuMeshSimplifyOptions {
     int consolidate_feature_graph;
     double feature_graph_consolidation_gap_length_ratio;
     double feature_graph_consolidation_min_alignment;
+    /**
+     * 可选的借用式规范特征配置。非 NULL 时覆盖上面的全部扁平特征检测字段，
+     * 仅在简化调用期间读取且库不会保留该指针；所指对象必须由
+     * manumesh_feature_options_init 初始化。
+     */
+    const ManuMeshFeatureOptions* feature_options;
 } ManuMeshSimplifyOptions;
 
 /** @brief 一次简化运行的带大小版本诊断信息。 */
@@ -316,6 +358,8 @@ typedef struct ManuMeshSimplifyReport {
     int graph_consolidation_skipped_by_cap;
     int junction_branch_pairs;
     int ambiguous_feature_junctions;
+    /** 请求了质量精修，但纹理保护要求保持逐角 UV 拓扑，因此本次精修被跳过。 */
+    int quality_refinement_skipped_for_texture;
 } ManuMeshSimplifyReport;
 
 /** @brief 带大小版本的几何和拓扑网格统计信息。 */
@@ -474,10 +518,12 @@ MANUMESH_API ManuMeshStatus
 manumesh_generate_mesh(ManuMeshContext* context, const char* name, int n, ManuMeshMeshHandle* mesh);
 
 /** 按给定缓冲区字节数初始化独立特征检测选项。 */
-MANUMESH_API ManuMeshStatus manumesh_feature_options_init_with_size(
-    ManuMeshFeatureOptions* options, size_t struct_capacity
-);
-/** 使用当前 `ManuMeshFeatureOptions` 大小的便捷初始化器。 */
+MANUMESH_API ManuMeshStatus
+manumesh_feature_options_init_with_size(ManuMeshFeatureOptions* options, size_t struct_capacity);
+/**
+ * 为已构建调用方保留的旧 ABI-v1 无容量符号。它只初始化该符号首次发布时的
+ * `ManuMeshFeatureOptions` 布局；当前源码通过下方 inline alias 传入当前公共结构体大小。
+ */
 MANUMESH_API void manumesh_feature_options_init(ManuMeshFeatureOptions* options);
 
 /**
@@ -490,6 +536,8 @@ MANUMESH_API void manumesh_feature_options_init(ManuMeshFeatureOptions* options)
  * @param[out] edges_written 所需或已写入的元素数量。
  * @retval MANUMESH_STATUS_BUFFER_TOO_SMALL 容量小于所需数量。
  * @note 除成功和缓冲区不足外，若 `edges_written` 有效，函数将其置零。
+ * @note 查询调用在结果非空时返回 `MANUMESH_STATUS_BUFFER_TOO_SMALL` 并给出所需容量；
+ * 空结果返回 `MANUMESH_STATUS_OK` 且数量为零。缓冲区不足时不会部分写入 `edges`。
  * @note 被清理移除的边不输出；清理和整合产生的桥接边保留，并通过对应
  * 标志区分。函数不缓存结果，因此查询和复制两次调用会各执行一次检测。
  */
@@ -498,6 +546,22 @@ MANUMESH_API ManuMeshStatus manumesh_detect_feature_edges(
     const ManuMeshMeshHandle* mesh,
     const ManuMeshFeatureOptions* options,
     ManuMeshFeatureEdge* edges,
+    size_t edge_capacity,
+    size_t* edges_written
+);
+
+/**
+ * @brief 检测特征边并输出稳定的特征边序号、输入边序号和恢复桥语义。
+ *
+ * 容量查询、错误恢复和不部分写入规则与 `manumesh_detect_feature_edges` 相同。
+ * v2 结果按规范端点对及来源标志确定性排序，因此相同输入和选项的
+ * `feature_edge_index` 可跨重复调用稳定比较。
+ */
+MANUMESH_API ManuMeshStatus manumesh_detect_feature_edges_v2(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    const ManuMeshFeatureOptions* options,
+    ManuMeshFeatureEdgeV2* edges,
     size_t edge_capacity,
     size_t* edges_written
 );
@@ -587,6 +651,10 @@ static MANUMESH_C_API_INLINE void manumesh_detail_simplify_options_init_current(
     (void)manumesh_simplify_options_init_with_size(options, sizeof(ManuMeshSimplifyOptions));
 }
 
+static MANUMESH_C_API_INLINE void manumesh_detail_feature_options_init_current(ManuMeshFeatureOptions* options) {
+    (void)manumesh_feature_options_init_with_size(options, sizeof(ManuMeshFeatureOptions));
+}
+
 static MANUMESH_C_API_INLINE void manumesh_detail_simplify_report_init_current(ManuMeshSimplifyReport* report) {
     (void)manumesh_simplify_report_init_with_size(report, sizeof(ManuMeshSimplifyReport));
 }
@@ -615,6 +683,7 @@ static MANUMESH_C_API_INLINE ManuMeshStatus manumesh_detail_compute_mesh_stats_c
 
 #undef MANUMESH_C_API_INLINE
 
+#define manumesh_feature_options_init manumesh_detail_feature_options_init_current
 #define manumesh_simplify_options_init manumesh_detail_simplify_options_init_current
 #define manumesh_simplify_report_init manumesh_detail_simplify_report_init_current
 #define manumesh_mesh_stats_init manumesh_detail_mesh_stats_init_current

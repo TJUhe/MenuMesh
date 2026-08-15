@@ -2,18 +2,23 @@ set(MANUMESH_PUBLIC_HEADERS
   "${PROJECT_SOURCE_DIR}/include/Export.h"
   "${PROJECT_SOURCE_DIR}/include/api/CApi.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/analysis/MeshAnalysis.h"
+  "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureAnalysisViews.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureComparison.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureDetector.h"
+  "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureOptions.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/feature_detection/FeatureTypes.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/simplification/Metrics.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/simplification/PlainSimplifier.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/simplification/QEMSimplifier.h"
   "${PROJECT_SOURCE_DIR}/include/algorithms/simplification/SimplificationTypes.h"
   "${PROJECT_SOURCE_DIR}/include/core/Handles.h"
+  "${PROJECT_SOURCE_DIR}/include/core/Filesystem.h"
+  "${PROJECT_SOURCE_DIR}/include/core/MathUtils.h"
   "${PROJECT_SOURCE_DIR}/include/core/Mesh.h"
   "${PROJECT_SOURCE_DIR}/include/core/MeshGenerators.h"
   "${PROJECT_SOURCE_DIR}/include/core/MeshTopology.h"
   "${PROJECT_SOURCE_DIR}/include/core/PlainMesh.h"
+  "${PROJECT_SOURCE_DIR}/include/core/Optional.h"
   "${PROJECT_SOURCE_DIR}/include/core/Status.h"
   "${PROJECT_SOURCE_DIR}/include/io/MeshIo.h"
 )
@@ -83,25 +88,18 @@ set(MANUMESH_FEATURE_DETECTION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureSegmentation.cpp"
 )
 
-if(MSVC)
-  set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
-    PROPERTIES COMPILE_OPTIONS "/bigobj"
-  )
-elseif(MINGW)
-  set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
-    PROPERTIES COMPILE_OPTIONS "-Wa,-mbig-obj"
-  )
-endif()
+set_source_files_properties(
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
+  PROPERTIES COMPILE_OPTIONS "/bigobj"
+)
 
 set(MANUMESH_SIMPLIFICATION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CandidateQueue.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseAttempt.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseLegality.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/CollapseTopology.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureConstraintGraph.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureConstraints.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/FeatureGuidance.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/Metrics.cpp"
@@ -145,6 +143,7 @@ set(MANUMESH_MESH_EDIT_PRIVATE_HEADERS
 set(MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureCircularRecovery.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureCycleRecovery.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureDebugInstrumentation.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureDetectionTypes.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureEvidence.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/detail/FeatureGraph.h"
@@ -166,6 +165,7 @@ set(MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CollapseLegality.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/CollapseTopology.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureConstraints.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureConstraintGraph.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/FeatureGuidance.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/Placement.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail/Quadrics.h"
@@ -224,46 +224,56 @@ target_compile_definitions(manumesh_c_api_objects
   PRIVATE MANUMESH_C_API_IMPLEMENTATION
 )
 
-target_link_libraries(manumesh_common_objects
-  PRIVATE manumesh_geometry_objects
-)
-target_link_libraries(manumesh_mesh_edit_objects
-  PRIVATE
-    manumesh_common_objects
-    manumesh_geometry_objects
-)
-target_link_libraries(manumesh_analysis_objects
-  PRIVATE
-    manumesh_common_objects
-    manumesh_geometry_objects
-)
-target_link_libraries(manumesh_io_objects
-  PRIVATE manumesh_geometry_objects
-)
-target_link_libraries(manumesh_feature_detection_objects
-  PRIVATE
-    manumesh_common_objects
-    manumesh_geometry_objects
-)
-target_link_libraries(manumesh_simplification_objects
-  PRIVATE
-    manumesh_common_objects
-    manumesh_geometry_objects
-    manumesh_feature_detection_objects
-    manumesh_mesh_edit_objects
-)
-target_link_libraries(manumesh_c_api_objects
-  PRIVATE
-    manumesh_analysis_objects
-    manumesh_geometry_objects
-    manumesh_io_objects
-    manumesh_simplification_objects
-)
+set(MANUMESH_COMMON_MODULE_DEPENDENCIES geometry)
+set(MANUMESH_MESH_EDIT_MODULE_DEPENDENCIES common geometry)
+set(MANUMESH_ANALYSIS_MODULE_DEPENDENCIES common geometry)
+set(MANUMESH_IO_MODULE_DEPENDENCIES geometry)
+set(MANUMESH_DEBUG_UTIL_MODULE_DEPENDENCIES geometry)
+set(MANUMESH_FEATURE_DETECTION_MODULE_DEPENDENCIES common geometry)
 if(MANUMESH_ENABLE_DEBUG_UTIL)
-  target_link_libraries(manumesh_debug_util_objects
+  list(APPEND MANUMESH_FEATURE_DETECTION_MODULE_DEPENDENCIES debug_util)
+endif()
+set(MANUMESH_SIMPLIFICATION_MODULE_DEPENDENCIES
+  analysis
+  common
+  geometry
+  feature_detection
+  mesh_edit
+)
+set(MANUMESH_C_API_MODULE_DEPENDENCIES
+  analysis
+  feature_detection
+  geometry
+  io
+  simplification
+)
+
+function(manumesh_link_module_dependencies target module suffix visibility)
+  string(TOUPPER "${module}" module_upper)
+  set(dependency_variable "MANUMESH_${module_upper}_MODULE_DEPENDENCIES")
+  set(dependency_targets)
+  foreach(dependency IN LISTS ${dependency_variable})
+    list(APPEND dependency_targets "manumesh_${dependency}_${suffix}")
+  endforeach()
+  if(dependency_targets)
+    target_link_libraries(${target} ${visibility} ${dependency_targets})
+  endif()
+endfunction()
+
+foreach(module IN ITEMS common mesh_edit analysis io feature_detection simplification c_api)
+  manumesh_link_module_dependencies(
+    manumesh_${module}_objects
+    ${module}
+    objects
     PRIVATE
-      manumesh_geometry_objects
-      manumesh_feature_detection_objects
+  )
+endforeach()
+if(MANUMESH_ENABLE_DEBUG_UTIL)
+  manumesh_link_module_dependencies(
+    manumesh_debug_util_objects
+    debug_util
+    objects
+    PRIVATE
   )
 endif()
 
@@ -308,10 +318,16 @@ else()
     ${MANUMESH_PUBLIC_HEADERS}
   )
 endif()
-add_library(ManuMesh::manumesh ALIAS manumesh_core)
+
+# Keep the physical library free of C++ header usage requirements. The two
+# installed interface targets below link the same binary while exposing only
+# the requirements needed by their respective APIs.
+add_library(manumesh_cpp_api INTERFACE)
+add_library(ManuMesh::manumesh ALIAS manumesh_cpp_api)
+set_target_properties(manumesh_cpp_api PROPERTIES EXPORT_NAME manumesh)
 
 # C ABI-only consumers do not include the Eigen-backed C++ headers. Keep this
-# target's usage requirements independent from the C++17 requirement of the
+# target's usage requirements independent from the C++14 requirement of the
 # full C++ SDK target while linking the same built library.
 add_library(manumesh_c_api INTERFACE)
 add_library(ManuMesh::c_api ALIAS manumesh_c_api)
@@ -333,6 +349,16 @@ if(MSVC)
 endif()
 target_link_libraries(manumesh_c_api
   INTERFACE "$<LINK_ONLY:manumesh_core>"
+)
+
+target_compile_features(manumesh_cpp_api INTERFACE cxx_std_14)
+target_include_directories(manumesh_cpp_api
+  INTERFACE
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
+target_link_libraries(manumesh_cpp_api
+  INTERFACE manumesh_core
 )
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -366,7 +392,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/simplification/detail"
 )
 
 foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
-  target_compile_features(${manumesh_internal_target} PRIVATE cxx_std_17)
+  target_compile_features(${manumesh_internal_target} PRIVATE cxx_std_14)
   target_include_directories(${manumesh_internal_target}
     PRIVATE
       "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
@@ -375,18 +401,6 @@ foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
   target_compile_definitions(${manumesh_internal_target}
     PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
   )
-  if(MSVC)
-    target_compile_options(${manumesh_internal_target}
-      PRIVATE
-        $<$<COMPILE_LANGUAGE:CXX>:/FIdebugUtil/debugUtil.h>
-    )
-  else()
-    target_compile_options(${manumesh_internal_target}
-      PRIVATE
-        $<$<COMPILE_LANGUAGE:CXX>:-include>
-        $<$<COMPILE_LANGUAGE:CXX>:debugUtil/debugUtil.h>
-    )
-  endif()
   if(MANUMESH_ENABLE_DEBUG_UTIL)
     target_compile_definitions(${manumesh_internal_target}
       PRIVATE $<$<CONFIG:Debug>:MANUMESH_ENABLE_DEBUG_UTIL>
@@ -407,29 +421,27 @@ target_include_directories(manumesh_simplification_objects
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
 )
 
-target_compile_features(manumesh_core PUBLIC cxx_std_17)
+target_compile_features(manumesh_core PRIVATE cxx_std_14)
 target_include_directories(manumesh_core
-  PUBLIC
-    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
   PRIVATE
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 if(MSVC)
   # Keep the installed C++ target consistent with the in-tree warning helper.
-  target_compile_options(manumesh_core
+  target_compile_options(manumesh_cpp_api
     INTERFACE
       $<$<COMPILE_LANGUAGE:C>:/utf-8>
       $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
   )
 endif()
 if(TARGET Eigen3::Eigen)
-  target_link_libraries(manumesh_core PUBLIC Eigen3::Eigen)
+  target_link_libraries(manumesh_cpp_api INTERFACE Eigen3::Eigen)
   foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
     target_link_libraries(${manumesh_internal_target} PRIVATE Eigen3::Eigen)
   endforeach()
 elseif(DEFINED eigen_SOURCE_DIR)
-  target_include_directories(manumesh_core PUBLIC "${eigen_SOURCE_DIR}")
+  target_include_directories(manumesh_cpp_api INTERFACE "${eigen_SOURCE_DIR}")
   foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
     target_include_directories(${manumesh_internal_target} PRIVATE "${eigen_SOURCE_DIR}")
   endforeach()
@@ -440,8 +452,8 @@ else()
 endif()
 
 if(MANUMESH_RESOLVED_EIGEN_PROVIDER STREQUAL "vendored")
-  target_include_directories(manumesh_core
-    PUBLIC
+  target_include_directories(manumesh_cpp_api
+    INTERFACE
       "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_DATADIR}/manumesh/thirdParty/eigen/include>"
   )
@@ -456,13 +468,56 @@ target_compile_definitions(manumesh_core
   PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
 )
 
+# Non-installed module archives give architecture tests real link boundaries
+# while reusing the production object files. A link-check executable adds the
+# root module objects directly, so all of their unresolved symbols must be
+# provided by the dependency modules declared here.
+if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
+  function(manumesh_add_boundary_module module)
+    add_library(manumesh_${module}_boundary_module STATIC
+      $<TARGET_OBJECTS:manumesh_${module}_objects>
+    )
+    set_target_properties(manumesh_${module}_boundary_module PROPERTIES
+      EXCLUDE_FROM_ALL TRUE
+      FOLDER "architecture/module-boundaries"
+    )
+  endfunction()
+
+  manumesh_add_boundary_module(geometry)
+  manumesh_add_boundary_module(common)
+  manumesh_add_boundary_module(mesh_edit)
+  manumesh_add_boundary_module(analysis)
+  if(MANUMESH_ENABLE_DEBUG_UTIL)
+    manumesh_add_boundary_module(debug_util)
+  endif()
+  manumesh_add_boundary_module(feature_detection)
+  manumesh_add_boundary_module(simplification)
+
+  foreach(module IN ITEMS common mesh_edit analysis feature_detection simplification)
+    manumesh_link_module_dependencies(
+      manumesh_${module}_boundary_module
+      ${module}
+      boundary_module
+      PUBLIC
+    )
+  endforeach()
+  if(MANUMESH_ENABLE_DEBUG_UTIL)
+    manumesh_link_module_dependencies(
+      manumesh_debug_util_boundary_module
+      debug_util
+      boundary_module
+      PUBLIC
+    )
+  endif()
+endif()
+
 # 供白盒测试使用的内部 STATIC 聚合库。它复用上面的对象库（每个源文件仍只编译一次），
 # 因此测试链接每个内部符号的唯一副本，而不是在 DLL 旁重复编译 src/*.cpp（避免 ODR 风险）。
 # 该库不会导出或安装；consumer 不定义 MANUMESH_USING_DLL，因此其翻译单元中的 MANUMESH_API 展开为空，
 # 符号通过静态方式解析。
 add_library(manumesh_internal STATIC ${MANUMESH_LIBRARY_OBJECTS})
 add_library(ManuMesh::internal ALIAS manumesh_internal)
-target_compile_features(manumesh_internal PUBLIC cxx_std_17)
+target_compile_features(manumesh_internal PUBLIC cxx_std_14)
 target_include_directories(manumesh_internal
   PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
 )
@@ -480,14 +535,14 @@ endif()
 if(MANUMESH_BUILD_SHARED_LIBRARY)
   target_compile_definitions(manumesh_core PRIVATE MANUMESH_BUILDING_DLL)
   if(WIN32)
-    target_compile_definitions(manumesh_core INTERFACE MANUMESH_USING_DLL)
+    target_compile_definitions(manumesh_cpp_api INTERFACE MANUMESH_USING_DLL)
     target_compile_definitions(manumesh_c_api INTERFACE MANUMESH_USING_DLL)
   endif()
 endif()
 
 set_target_properties(manumesh_core PROPERTIES
   OUTPUT_NAME manumesh
-  EXPORT_NAME manumesh
+  EXPORT_NAME manumesh_binary
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR}
 )
@@ -500,6 +555,9 @@ if(MANUMESH_ENABLE_INSTALL)
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  )
+  install(TARGETS manumesh_cpp_api
+    EXPORT ManuMeshTargets
   )
   install(TARGETS manumesh_c_api
     EXPORT ManuMeshTargets

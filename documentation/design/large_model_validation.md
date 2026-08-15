@@ -20,27 +20,17 @@
 非性能回归：
 
 ```powershell
-$buildDir = "build/mingw-ninja-release"
-cmake -S . -B $buildDir -G Ninja `
-  -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_BUILD_PERFORMANCE_TESTS=OFF
-cmake --build $buildDir --parallel
-cmake -E chdir $buildDir ctest -LE performance --output-on-failure
+cmake --preset vs2019-release
+cmake --build --preset vs2019-release --parallel
+ctest --preset vs2019-release-full
 ```
 
 性能测试需要单独配置：
 
 ```powershell
-$perfBuildDir = "build/mingw-ninja-debug-performance"
-cmake -S . -B $perfBuildDir -G Ninja `
-  -DCMAKE_BUILD_TYPE=Debug `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_BUILD_PERFORMANCE_TESTS=ON
-cmake --build $perfBuildDir --target manumesh_performance_tests --parallel
-cmake -E chdir $perfBuildDir ctest -L performance --output-on-failure
+cmake --preset vs2019-release-performance
+cmake --build --preset vs2019-release-performance --parallel
+ctest --preset vs2019-release-performance
 ```
 
 ## 手动抽样命令
@@ -48,7 +38,7 @@ cmake -E chdir $perfBuildDir ctest -L performance --output-on-failure
 90% 保守简化：
 
 ```powershell
-$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/vs2019-release/bin/Release/manumesh.exe"
 & $exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_090.stl `
@@ -61,7 +51,7 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 50% 更深简化：
 
 ```powershell
-$exe = "build/mingw-ninja-release/bin/manumesh.exe"
+$exe = "build/vs2019-release/bin/Release/manumesh.exe"
 & $exe simplify `
   tests\data\external\large\<model>.stl `
   tests\output\large_validation\<model>_line_050.stl `
@@ -77,6 +67,6 @@ $exe = "build/mingw-ninja-release/bin/manumesh.exe"
 
 ## 当前注意事项
 
-- ManuMesh 当前 VS Code 任务没有 `run: large validation 100 stl` 这类旧入口；大模型验证应使用 `test: mingw+ninja release performance`、`test: mingw+ninja release full` 或手动 CLI 批处理。
+- ManuMesh 当前 VS Code 任务没有 `run: large validation 100 stl` 这类旧入口；大模型验证应使用 `test: vs2019 release performance`、`test: vs2019 release full` 或手动 CLI 批处理。
 - 部分公开模型输入本身就有边界，验证时应比较 boundary delta，而不是要求输出边界为 0。
 - 下一步更严格的质量保护应继续关注 normal flip、极差三角形和全局误差 envelope。

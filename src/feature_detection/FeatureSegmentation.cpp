@@ -16,13 +16,27 @@
 #include "detail/FeatureSegmentation.h"
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <queue>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
+
+Vec3 resolveSurfacePatchNormal(const Vec3& normalSum, double patchArea) {
+    const double magnitude = normalSum.norm();
+    const double summedDoubleArea = 2.0 * patchArea;
+    constexpr double cancellationRatio = 1e-12;
+    if (!std::isfinite(magnitude) || !std::isfinite(summedDoubleArea) || summedDoubleArea <= 0.0 ||
+        magnitude <= cancellationRatio * summedDoubleArea) {
+        return Vec3(0.0, 0.0, 1.0);
+    }
+    return normalSum / magnitude;
+}
 
 void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const SurfacePatchOptions& options) {
     analysis.facePatchIds.assign(mesh.faces.size(), -1);
@@ -57,7 +71,9 @@ void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const Surf
     }
 
     std::vector<std::vector<int>> faceNeighbors(mesh.faces.size());
-    for (const auto& [key, info] : edgeInfo) {
+    for (const auto& pairEntry : edgeInfo) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         if (info.faces.size() != 2 || barriers.find(key) != barriers.end()) {
             continue;
         }
@@ -101,14 +117,14 @@ void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const Surf
                 }
             }
         }
-        if (normalSum.squaredNorm() > 1e-30) {
-            patch.normal = normalSum.normalized();
-        }
+        patch.normal = resolveSurfacePatchNormal(normalSum, patch.area);
         analysis.patches.push_back(std::move(patch));
     }
 
     std::map<std::pair<int, int>, int> adjacencyCounts;
-    for (const auto& [key, info] : edgeInfo) {
+    for (const auto& pairEntry : edgeInfo) {
+        const auto& key = pairEntry.first;
+        const auto& info = pairEntry.second;
         if (info.faces.size() == 1) {
             const int patchId = analysis.facePatchIds[info.faces.front()];
             if (patchId >= 0) {
@@ -152,7 +168,9 @@ void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const Surf
             ++analysis.closedSurfacePatches;
         }
     }
-    for (const auto& [pair, featureEdges] : adjacencyCounts) {
+    for (const auto& pairEntry : adjacencyCounts) {
+        const auto& pair = pairEntry.first;
+        const auto& featureEdges = pairEntry.second;
         analysis.patchAdjacencies.push_back({pair.first, pair.second, featureEdges});
         analysis.patches[pair.first].neighboringPatches.push_back(pair.second);
         analysis.patches[pair.second].neighboringPatches.push_back(pair.first);
@@ -166,13 +184,17 @@ void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const Surf
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh
 
-namespace manumesh::feature {
+namespace manumesh {
+namespace feature {
 
 void segmentFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const SurfacePatchOptions& options) {
-    detector_detail::validateFeatureMeshInput(mesh);
+    validateFeatureAnalysis(mesh, analysis);
     detector_detail::buildFeaturePatches(mesh, analysis, options);
 }
 
-} // 命名空间 manumesh::feature
+} // namespace feature
+} // namespace manumesh

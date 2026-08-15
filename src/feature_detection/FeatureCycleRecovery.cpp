@@ -19,7 +19,9 @@
 #include <queue>
 #include <unordered_set>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 /** @brief 图环恢复期间使用的有序链及闭合状态。 */
@@ -240,4 +242,6 @@ void recoverSmallCycleBasis(
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

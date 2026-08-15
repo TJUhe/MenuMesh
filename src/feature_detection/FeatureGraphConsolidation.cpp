@@ -19,7 +19,9 @@
 #include <unordered_set>
 #include <vector>
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 namespace {
 
 /** @brief 带有位置局部尺度的合并端点。 */
@@ -174,4 +176,6 @@ void consolidateFeatureGraph(
     }
 }
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

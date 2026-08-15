@@ -12,17 +12,19 @@
 
 #include "io/MeshIo.h"
 
+#include "core/Filesystem.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <charconv>
+#include <cerrno>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <limits>
+#include <locale.h>
 #include <string>
 #include <system_error>
 #include <unordered_map>
@@ -31,7 +33,7 @@
 namespace manumesh {
 namespace {
 
-std::filesystem::path pathFromUtf8(const std::string& path) { return std::filesystem::u8path(path); }
+manumesh::filesystem::path pathFromUtf8(const std::string& path) { return manumesh::filesystem::u8path(path); }
 
 /** @brief 用于 STL 顶点合并的量化三维位置。*/
 struct QuantizedKey {
@@ -129,21 +131,64 @@ const char* findTokenEnd(const char* p, const char* end) {
     return p;
 }
 
+class ClassicNumericLocale {
+public:
+    ClassicNumericLocale()
+        : value_(_create_locale(LC_NUMERIC, "C")) {}
+    ~ClassicNumericLocale() {
+        if (value_ != nullptr) {
+            _free_locale(value_);
+        }
+    }
+
+    ClassicNumericLocale(const ClassicNumericLocale&) = delete;
+    ClassicNumericLocale& operator=(const ClassicNumericLocale&) = delete;
+
+    _locale_t get() const { return value_; }
+
+private:
+    _locale_t value_ = nullptr;
+};
+
+_locale_t classicNumericLocale() {
+    static const ClassicNumericLocale locale;
+    return locale.get();
+}
+
 /**
  * @brief 从 `p` 解析 double，并允许显式的前导 `+`。返回首个未消费字符；无法解析时返回 nullptr。
  */
 const char* parseDoubleAt(const char* p, const char* end, double& value) {
+    if (p == end || isAsciiSpace(*p)) {
+        return nullptr;
+    }
     if (p != end && *p == '+') {
         ++p;
         if (p != end && (*p == '+' || *p == '-')) {
             return nullptr;
         }
     }
-    const std::from_chars_result result = std::from_chars(p, end, value);
-    if (result.ec != std::errc()) {
+    const char* magnitude = p;
+    if (magnitude != end && *magnitude == '-') {
+        ++magnitude;
+    }
+    if (p == end || (end - magnitude >= 2 && magnitude[0] == '0' && (magnitude[1] == 'x' || magnitude[1] == 'X'))) {
         return nullptr;
     }
-    return result.ptr;
+    const char* const tokenEnd = findTokenEnd(p, end);
+
+    const _locale_t locale = classicNumericLocale();
+    if (locale == nullptr) {
+        return nullptr;
+    }
+    errno = 0;
+    char* parsedEnd = nullptr;
+    const double parsed = _strtod_l(p, &parsedEnd, locale);
+    if (parsedEnd != tokenEnd || errno == ERANGE) {
+        return nullptr;
+    }
+    value = parsed;
+    return tokenEnd;
 }
 
 /**
@@ -180,7 +225,7 @@ enum class StlFormat { Binary, Ascii, Invalid };
  * 为截断的二进制 STL，而不会回退到 ASCII 解析器。
  */
 StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::string* error) {
-    const std::filesystem::path inputPath = pathFromUtf8(path);
+    const manumesh::filesystem::path inputPath = pathFromUtf8(path);
     std::ifstream in(inputPath, std::ios::binary);
     if (!in) {
         if (error)
@@ -222,7 +267,7 @@ StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::
 
     triangleCount = readUint32LE(header.data() + 80);
     std::error_code ec;
-    const std::uintmax_t fileSize = std::filesystem::file_size(inputPath, ec);
+    const std::uintmax_t fileSize = manumesh::filesystem::file_size(inputPath, ec);
     if (ec) {
         if (startsWithSolid) {
             return StlFormat::Ascii;
@@ -390,7 +435,8 @@ void mergeDuplicateTriangleVertices(
     };
     double relativeEps = 0.0;
     if (mergeRelativeEpsilon > 0.0) {
-        relativeEps = std::hypot(scaledSpan(lo.x(), hi.x()), scaledSpan(lo.y(), hi.y()), scaledSpan(lo.z(), hi.z()));
+        relativeEps =
+            std::hypot(std::hypot(scaledSpan(lo.x(), hi.x()), scaledSpan(lo.y(), hi.y())), scaledSpan(lo.z(), hi.z()));
         if (!std::isfinite(relativeEps)) {
             relativeEps = std::numeric_limits<double>::max();
         }
@@ -449,16 +495,41 @@ std::string objLineError(int lineNumber, const char* message) {
  * 整个片段必须是有效整数，解析后的从零开始索引也必须在范围内。
  */
 bool parseObjIndexText(const char* begin, const char* end, int valueCount, int& indexOut) {
-    if (begin != end && *begin == '+') {
+    if (begin == end) {
+        return false;
+    }
+
+    bool negative = false;
+    if (*begin == '+' || *begin == '-') {
+        negative = *begin == '-';
         ++begin;
-        if (begin != end && (*begin == '+' || *begin == '-')) {
+        if (begin == end || *begin == '+' || *begin == '-') {
             return false;
         }
     }
-    int raw = 0;
-    const std::from_chars_result result = std::from_chars(begin, end, raw);
-    if (result.ec != std::errc() || result.ptr != end || raw == 0) {
+
+    const unsigned int maxPositive = static_cast<unsigned int>(std::numeric_limits<int>::max());
+    const unsigned int magnitudeLimit = negative ? maxPositive + 1u : maxPositive;
+    unsigned int magnitude = 0;
+    for (const char* cursor = begin; cursor != end; ++cursor) {
+        if (*cursor < '0' || *cursor > '9') {
+            return false;
+        }
+        const unsigned int digit = static_cast<unsigned int>(*cursor - '0');
+        if (magnitude > (magnitudeLimit - digit) / 10u) {
+            return false;
+        }
+        magnitude = magnitude * 10u + digit;
+    }
+    if (magnitude == 0) {
         return false;
+    }
+
+    int raw = 0;
+    if (negative) {
+        raw = magnitude == maxPositive + 1u ? std::numeric_limits<int>::min() : -static_cast<int>(magnitude);
+    } else {
+        raw = static_cast<int>(magnitude);
     }
     const int index = raw > 0 ? raw - 1 : valueCount + raw;
     if (index < 0 || index >= valueCount) {
@@ -985,10 +1056,10 @@ bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error
         }
     }
 
-    const std::filesystem::path outputPath = pathFromUtf8(path);
+    const manumesh::filesystem::path outputPath = pathFromUtf8(path);
     if (outputPath.has_parent_path()) {
         std::error_code ec;
-        std::filesystem::create_directories(outputPath.parent_path(), ec);
+        manumesh::filesystem::create_directories(outputPath.parent_path(), ec);
         if (ec) {
             if (error)
                 *error = "Failed to create output directory: " + ec.message();
@@ -1041,10 +1112,10 @@ bool saveAsciiStl(const std::string& path, const Mesh& mesh, const std::string& 
     if (!validateMeshGeometry(mesh, error)) {
         return false;
     }
-    const std::filesystem::path outputPath = pathFromUtf8(path);
+    const manumesh::filesystem::path outputPath = pathFromUtf8(path);
     if (outputPath.has_parent_path()) {
         std::error_code ec;
-        std::filesystem::create_directories(outputPath.parent_path(), ec);
+        manumesh::filesystem::create_directories(outputPath.parent_path(), ec);
         if (ec) {
             if (error)
                 *error = "Failed to create output directory: " + ec.message();

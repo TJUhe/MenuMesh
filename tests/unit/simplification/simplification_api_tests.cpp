@@ -15,10 +15,10 @@
 #include "core/MeshTopology.h"
 #include "core/PlainMesh.h"
 
+#include "core/Filesystem.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <stdexcept>
@@ -53,9 +53,18 @@ TEST(ManuMesh, WeightModesRoundTripAndRejectUnknownValues) {
 }
 
 TEST(ManuMesh, SimplificationNamespaceApiIsProjectScoped) {
-    static_assert(std::is_same_v<manumesh::simplification::SimplifyOptions, simplification::SimplifyOptions>);
-    static_assert(std::is_same_v<manumesh::simplification::SimplifyReport, simplification::SimplifyReport>);
-    static_assert(std::is_same_v<manumesh::simplification::QEMSimplifier, simplification::QEMSimplifier>);
+    static_assert(
+        std::is_same<manumesh::simplification::SimplifyOptions, simplification::SimplifyOptions>::value,
+        "SimplifyOptions namespace alias changed"
+    );
+    static_assert(
+        std::is_same<manumesh::simplification::SimplifyReport, simplification::SimplifyReport>::value,
+        "SimplifyReport namespace alias changed"
+    );
+    static_assert(
+        std::is_same<manumesh::simplification::QEMSimplifier, simplification::QEMSimplifier>::value,
+        "QEMSimplifier namespace alias changed"
+    );
 
     const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
     simplification::SimplifyOptions options = standardQemOptions(0.5);
@@ -173,9 +182,79 @@ TEST(ManuMesh, QEMSimplifierConsumesPrecomputedFeatureAnalysis) {
     EXPECT_EQ(objectReport.finalFaces, freeReport.finalFaces);
 }
 
+TEST(ManuMesh, QEMSimplifierRejectsMismatchedOrCorruptPrecomputedFeatureAnalysis) {
+    const manumesh::Mesh input = manumesh::generateCylinderGrid(24, 6, 1.0, 2.0);
+    const manumesh::feature::FeatureAnalysis features =
+        manumesh::feature::detectFeatureCurves(input, circularFeatureOptions());
+    ASSERT_FALSE(features.loops.empty());
+
+    manumesh::simplification::QEMSimplifier simplifier(protectedIndustrialFeatureOptions(0.75));
+
+    manumesh::Mesh changedGeometry = input;
+    changedGeometry.vertices[0].x() += 0.01;
+    EXPECT_THROW(simplifier.simplify(changedGeometry, features), std::invalid_argument);
+
+    manumesh::Mesh changedTopology = input;
+    std::swap(changedTopology.faces[0].v[0], changedTopology.faces[0].v[1]);
+    EXPECT_THROW(simplifier.simplify(changedTopology, features), std::invalid_argument);
+
+    manumesh::feature::FeatureAnalysis badLoopVertex = features;
+    badLoopVertex.loops.front().vertices.front() = static_cast<int>(input.vertices.size());
+    EXPECT_THROW(simplifier.simplify(input, badLoopVertex), std::invalid_argument);
+
+    manumesh::feature::FeatureAnalysis badLoopId = features;
+    badLoopId.loops.front().id = static_cast<int>(badLoopId.loops.size());
+    EXPECT_THROW(
+        manumesh::simplification::simplifyMesh(input, protectedIndustrialFeatureOptions(0.75), badLoopId, nullptr),
+        std::invalid_argument
+    );
+}
+
+TEST(ManuMesh, QEMSimplifierRequiresPrecomputedNormalTensorWeightsWhenRequested) {
+    const manumesh::Mesh input = manumesh::generateRidgeGrid(16, 2.0, 0.5);
+    manumesh::feature::FeatureOptions detectionOptions;
+    detectionOptions.useNormalTensorFeatures = false;
+    const manumesh::feature::FeatureAnalysis features = manumesh::feature::detectFeatureCurves(input, detectionOptions);
+    ASSERT_TRUE(features.normalTensorVertexWeights.empty());
+
+    manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.75);
+    options.weightMode = manumesh::simplification::WeightMode::NormalTensor;
+
+    EXPECT_THROW(manumesh::simplification::simplifyMesh(input, options, features, nullptr), std::invalid_argument);
+}
+
+TEST(ManuMesh, PrimarySimplifyComputesNormalTensorWeightsWhenTensorGraphEvidenceIsDisabled) {
+    const manumesh::Mesh input = manumesh::generateRidgeGrid(24, 2.0, 0.6);
+    manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.75);
+    options.weightMode = manumesh::simplification::WeightMode::NormalTensor;
+    options.preserveFeatureCurves = true;
+
+    manumesh::feature::FeatureOptions featureOptions;
+    featureOptions.featureAngleDeg = 179.0;
+    featureOptions.useNormalTensorFeatures = false;
+    featureOptions.normalTensorFeatureThreshold = 0.04;
+    featureOptions.normalTensorSmoothingIterations = 1;
+    featureOptions.normalTensorScaleCount = 3;
+    featureOptions.normalTensorMinPersistentScales = 2;
+    options.featureOptionsOverride = featureOptions;
+
+    manumesh::simplification::SimplifyReport report;
+    const manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &report);
+
+    EXPECT_LT(output.faces.size(), input.faces.size());
+    EXPECT_GT(report.normalTensorScoredVertices, 0);
+    EXPECT_GT(report.maxAppliedLineWeight, report.minAppliedLineWeight);
+}
+
 TEST(ManuMesh, QEMSimplifierCopiesPimplStateIndependently) {
-    static_assert(std::is_nothrow_move_constructible_v<manumesh::simplification::QEMSimplifier>);
-    static_assert(std::is_nothrow_move_assignable_v<manumesh::simplification::QEMSimplifier>);
+    static_assert(
+        std::is_nothrow_move_constructible<manumesh::simplification::QEMSimplifier>::value,
+        "QEMSimplifier move construction must remain noexcept"
+    );
+    static_assert(
+        std::is_nothrow_move_assignable<manumesh::simplification::QEMSimplifier>::value,
+        "QEMSimplifier move assignment must remain noexcept"
+    );
 
     manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.60);
     manumesh::simplification::QEMSimplifier original(options);

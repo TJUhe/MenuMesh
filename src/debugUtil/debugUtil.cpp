@@ -10,20 +10,20 @@
 
 #if defined(MANUMESH_ENABLE_DEBUG_UTIL) && !defined(NDEBUG)
 
-#include "algorithms/feature_detection/FeatureTypes.h"
 #include "core/Mesh.h"
 
+#include "core/Filesystem.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cctype>
 #include <chrono>
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <system_error>
@@ -40,7 +40,8 @@
 #include <windows.h>
 #endif
 
-namespace manumesh::debugUtil {
+namespace manumesh {
+namespace debugUtil {
 namespace {
 
 /** @brief 一个调试语义对应的具体 HTML 颜色和线宽。 */
@@ -82,6 +83,16 @@ const PaletteEntry& palette(UseCase useCase) {
     return kPalette[0];
 }
 
+std::string environmentValue(const char* name) {
+    char* buffer = nullptr;
+    std::size_t size = 0;
+    if (_dupenv_s(&buffer, &size, name) != 0 || buffer == nullptr) {
+        return {};
+    }
+    const std::unique_ptr<char, decltype(&std::free)> owned(buffer, &std::free);
+    return std::string(owned.get());
+}
+
 bool validEdge(const Mesh& mesh, int a, int b) {
     return a >= 0 && b >= 0 && a < static_cast<int>(mesh.vertices.size()) &&
            b < static_cast<int>(mesh.vertices.size()) && a != b;
@@ -106,22 +117,21 @@ std::string sanitizeTag(const char* rawTag) {
     return sanitized.empty() ? "debug" : sanitized;
 }
 
-std::filesystem::path outputDirectory() {
-    if (const char* env = std::getenv("MANUMESH_DEBUG_UTIL_DIR")) {
-        if (env[0] != '\0') {
-            return std::filesystem::path(env);
-        }
+manumesh::filesystem::path outputDirectory() {
+    const std::string configured = environmentValue("MANUMESH_DEBUG_UTIL_DIR");
+    if (!configured.empty()) {
+        return manumesh::filesystem::path(configured);
     }
 
     std::error_code ec;
-    std::filesystem::path temp = std::filesystem::temp_directory_path(ec);
+    manumesh::filesystem::path temp = manumesh::filesystem::temp_directory_path(ec);
     if (ec || temp.empty()) {
-        temp = std::filesystem::current_path(ec);
+        temp = manumesh::filesystem::current_path(ec);
     }
     return temp / "manumesh-debugUtil";
 }
 
-std::filesystem::path makeOutputPath(const char* tag) {
+manumesh::filesystem::path makeOutputPath(const char* tag) {
     static std::atomic<int> counter{0};
     const int id = ++counter;
     const auto now = std::chrono::system_clock::now().time_since_epoch();
@@ -200,7 +210,9 @@ void writeHtmlText(std::ostream& out, const std::string& value) {
 void appendBaseEdges(
     const Mesh& mesh, const std::vector<std::pair<int, int>>& meshEdges, UseCase useCase, std::vector<RenderEdge>& edges
 ) {
-    for (const auto& [a, b] : meshEdges) {
+    for (const auto& pairEntry : meshEdges) {
+        const auto& a = pairEntry.first;
+        const auto& b = pairEntry.second;
         if (validEdge(mesh, a, b)) {
             const PaletteEntry& entry = palette(useCase);
             edges.push_back({a, b, useCase, {}, entry.width});
@@ -251,7 +263,9 @@ void appendMeshEdges(
     const char* firstLabel = nullptr
 ) {
     bool labeled = false;
-    for (const auto& [a, b] : meshEdges) {
+    for (const auto& pairEntry : meshEdges) {
+        const auto& a = pairEntry.first;
+        const auto& b = pairEntry.second;
         if (!validEdge(mesh, a, b)) {
             continue;
         }
@@ -265,60 +279,8 @@ void appendMeshEdges(
     }
 }
 
-UseCase useCaseForFeatureEdge(const feature::FeatureGraphEdge& edge) {
-    if (edge.removedByCleanup) {
-        return UseCase::Warning;
-    }
-    if (edge.nonManifold) {
-        return UseCase::Error;
-    }
-    if (edge.boundary) {
-        return UseCase::Boundary;
-    }
-    if (edge.normalTensor && !edge.dihedral) {
-        return UseCase::WeakFeature;
-    }
-    if (edge.cleanupBridge) {
-        return UseCase::Candidate;
-    }
-    return UseCase::Feature;
-}
-
-std::vector<EdgeOverlay> featureOverlays(const Mesh& mesh, const feature::FeatureAnalysis& analysis) {
-    std::vector<EdgeOverlay> overlays;
-    overlays.reserve(analysis.graph.edges.size() + analysis.loops.size() * 8);
-
-    for (const feature::FeatureGraphEdge& edge : analysis.graph.edges) {
-        if (validEdge(mesh, edge.a, edge.b)) {
-            overlays.push_back({edge.a, edge.b, useCaseForFeatureEdge(edge), {}});
-        }
-    }
-
-    for (const feature::FeatureLoop& loop : analysis.loops) {
-        if (loop.vertices.size() < 2) {
-            continue;
-        }
-        for (std::size_t i = 0; i + 1 < loop.vertices.size(); ++i) {
-            const int a = loop.vertices[i];
-            const int b = loop.vertices[i + 1];
-            if (validEdge(mesh, a, b)) {
-                overlays.push_back({a, b, UseCase::FeatureLoop, {}});
-            }
-        }
-        if (loop.closed && loop.vertices.size() > 2) {
-            const int a = loop.vertices.back();
-            const int b = loop.vertices.front();
-            if (validEdge(mesh, a, b)) {
-                overlays.push_back({a, b, UseCase::FeatureLoop, {}});
-            }
-        }
-    }
-
-    return overlays;
-}
-
 void writeHtml(
-    const std::filesystem::path& path,
+    const manumesh::filesystem::path& path,
     const char* tag,
     const Mesh& mesh,
     const std::vector<RenderEdge>& edges,
@@ -326,7 +288,7 @@ void writeHtml(
 ) {
     if (path.has_parent_path()) {
         std::error_code ec;
-        std::filesystem::create_directories(path.parent_path(), ec);
+        manumesh::filesystem::create_directories(path.parent_path(), ec);
     }
 
     std::ofstream out(path);
@@ -459,12 +421,11 @@ resize();
 }
 
 bool envFlagEnabled(const char* name, bool defaultValue) {
-    const char* raw = std::getenv(name);
-    if (!raw || raw[0] == '\0') {
+    std::string value = environmentValue(name);
+    if (value.empty()) {
         return defaultValue;
     }
 
-    std::string value(raw);
     std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
         return static_cast<char>(std::tolower(ch));
     });
@@ -505,13 +466,13 @@ bool shellSafePath(const std::string& path) {
 std::size_t maxRenderEdges() {
     constexpr long kDefaultMaxEdges = 200000;
     long limit = kDefaultMaxEdges;
-    if (const char* raw = std::getenv("MANUMESH_DEBUG_UTIL_MAX_EDGES")) {
-        if (raw[0] != '\0') {
-            char* end = nullptr;
-            const long parsed = std::strtol(raw, &end, 10);
-            if (end != raw && *end == '\0') {
-                limit = parsed;
-            }
+    const std::string configured = environmentValue("MANUMESH_DEBUG_UTIL_MAX_EDGES");
+    if (!configured.empty()) {
+        char* end = nullptr;
+        const char* raw = configured.c_str();
+        const long parsed = std::strtol(raw, &end, 10);
+        if (end != raw && *end == '\0') {
+            limit = parsed;
         }
     }
     if (limit <= 0) {
@@ -539,7 +500,7 @@ void capEdgesForOutput(std::vector<RenderEdge>& edges, std::vector<std::string>&
     );
 }
 
-void openBrowser(const std::filesystem::path& path) {
+void openBrowser(const manumesh::filesystem::path& path) {
     if (!envFlagEnabled("MANUMESH_DEBUG_UTIL_OPEN", true)) {
         return;
     }
@@ -554,6 +515,11 @@ void openBrowser(const std::filesystem::path& path) {
                   << " manually\n";
         return;
     }
+    struct ModuleGuard {
+        HMODULE value;
+        ~ModuleGuard() noexcept { (void)::FreeLibrary(value); }
+    } shell32Guard{shell32};
+    (void)shell32Guard;
     const auto shellExecuteW =
         reinterpret_cast<ShellExecuteWFn>(reinterpret_cast<void*>(::GetProcAddress(shell32, "ShellExecuteW")));
     if (shellExecuteW) {
@@ -561,7 +527,6 @@ void openBrowser(const std::filesystem::path& path) {
     } else {
         std::cerr << "manumesh debugUtil: ShellExecuteW unavailable; open " << path.string() << " manually\n";
     }
-    ::FreeLibrary(shell32);
 #else
     const std::string pathString = path.string();
     // 下方命令通过 std::system 执行，因此只允许不会跳出双引号或触发展开的字符。
@@ -589,7 +554,7 @@ void render(const char* tag, const Mesh& mesh, const std::vector<EdgeOverlay>& o
     std::vector<std::string> summaryLines;
     capEdgesForOutput(edges, summaryLines);
 
-    const std::filesystem::path path = makeOutputPath(tag);
+    const manumesh::filesystem::path path = makeOutputPath(tag);
     writeHtml(path, tag, mesh, edges, summaryLines);
     std::cerr << "manumesh debugUtil: " << path.string() << "\n";
     openBrowser(path);
@@ -627,32 +592,47 @@ void renderBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) {
     );
     capEdgesForOutput(edges, summaryLines);
 
-    const std::filesystem::path path = makeOutputPath(tag);
+    const manumesh::filesystem::path path = makeOutputPath(tag);
     writeHtml(path, tag, combined, edges, summaryLines);
     std::cerr << "manumesh debugUtil: " << path.string() << "\n";
     openBrowser(path);
 }
 
-} // 命名空间
+} // namespace
 
-void showWireframe(const char* tag, const Mesh& mesh, UseCase useCase) { render(tag, mesh, {}, useCase); }
+bool enabled() { return envFlagEnabled("MANUMESH_DEBUG_UTIL_ENABLED", true); }
+
+void showWireframe(const char* tag, const Mesh& mesh, UseCase useCase) {
+    if (!enabled()) {
+        return;
+    }
+    render(tag, mesh, {}, useCase);
+}
 
 void showEdge(const char* tag, const Mesh& mesh, int a, int b, UseCase useCase, const char* label) {
+    if (!enabled()) {
+        return;
+    }
     std::vector<EdgeOverlay> overlays;
     overlays.push_back({a, b, useCase, label ? label : ""});
     render(tag, mesh, overlays, UseCase::Mesh);
 }
 
 void showEdges(const char* tag, const Mesh& mesh, const std::vector<EdgeOverlay>& overlays, UseCase baseUseCase) {
+    if (!enabled()) {
+        return;
+    }
     render(tag, mesh, overlays, baseUseCase);
 }
 
-void showFeatures(const char* tag, const Mesh& mesh, const feature::FeatureAnalysis& analysis) {
-    render(tag, mesh, featureOverlays(mesh, analysis), UseCase::Mesh);
+void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) {
+    if (!enabled()) {
+        return;
+    }
+    renderBeforeAfter(tag, before, after);
 }
 
-void showBeforeAfter(const char* tag, const Mesh& before, const Mesh& after) { renderBeforeAfter(tag, before, after); }
-
-} // 命名空间 manumesh::debugUtil
+} // namespace debugUtil
+} // namespace manumesh
 
 #endif

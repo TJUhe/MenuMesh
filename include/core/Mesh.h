@@ -101,7 +101,7 @@ MANUMESH_API double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c);
 /// @return 遵循 `(b-a) x (c-a)` 的单位法向量；退化时返回零向量。
 MANUMESH_API Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c);
 /// @param[in] mesh 面索引有效的网格。
-/// @return 每条无向边仅出现一次，并表示为升序顶点索引对。
+/// @return 每条无向边仅出现一次，并按 `(a,b)` 字典序排列；每个端点对满足 `a < b`。
 /// @complexity 预期为 O(F)，其中 F 为面数量。
 MANUMESH_API std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh);
 

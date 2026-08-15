@@ -14,7 +14,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 using manumesh::common::kPi;
 
@@ -27,6 +28,12 @@ int TargetPolicy::resolveTargetFaceCount(int inputFaceCount) const {
 
 feature::FeatureOptions
 featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeatureLoopVerticesFloor) {
+    if (options.featureOptionsOverride.has_value()) {
+        feature::FeatureOptions resolved = *options.featureOptionsOverride;
+        resolved.minFeatureLoopVertices = std::max(minFeatureLoopVerticesFloor, resolved.minFeatureLoopVertices);
+        return resolved;
+    }
+
     feature::FeatureOptions featureOptions;
     featureOptions.featureAngleDeg = options.featureAngleDeg;
     featureOptions.loopTraceAngleDeg = options.loopTraceAngleDeg;
@@ -91,4 +98,5 @@ SimplificationPolicies SimplificationPolicies::fromOptions(const SimplifyOptions
     return policies;
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

@@ -13,7 +13,8 @@
 
 #include <limits>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 void SpatialFaceIndex::rebuild(const std::vector<FaceState>& faces, const std::vector<VertexState>& vertices) {
     grid_.clear();
@@ -63,8 +64,11 @@ std::vector<int> SpatialFaceIndex::query(const Vec3& lo, const Vec3& hi) const {
 
 void SpatialFaceIndex::insertFace(int faceId, const FaceState& face, const std::vector<VertexState>& vertices) {
     const std::array<Vec3, 3> tri = {vertices[face.v[0]].p, vertices[face.v[1]].p, vertices[face.v[2]].p};
-    const auto [lo, hi] = manumesh::common::triangleAabb(tri);
+    const std::pair<Vec3, Vec3> bounds = manumesh::common::triangleAabb(tri);
+    const Vec3& lo = bounds.first;
+    const Vec3& hi = bounds.second;
     grid_.insert(faceId, lo, hi);
 }
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

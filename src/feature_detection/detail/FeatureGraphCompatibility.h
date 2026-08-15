@@ -12,7 +12,9 @@
 #include "FeatureDetectionTypes.h"
 #include "core/Mesh.h"
 
-namespace manumesh::feature::detector_detail {
+namespace manumesh {
+namespace feature {
+namespace detector_detail {
 
 /**
  * @brief 保存穿过图顶点的最佳证据兼容分支。
@@ -39,4 +41,6 @@ bool compatibleFeatureEvidence(const TraceEdgeAttrs* lhs, const TraceEdgeAttrs* 
  */
 int compatibleSignedKind(const TraceEdgeAttrs* lhs, const TraceEdgeAttrs* rhs);
 
-} // 命名空间 manumesh::feature::detector_detail
+} // namespace detector_detail
+} // namespace feature
+} // namespace manumesh

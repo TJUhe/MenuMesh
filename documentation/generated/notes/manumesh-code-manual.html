@@ -395,9 +395,9 @@ img, svg, canvas, video {
 </tbody>
 </table>
 
-<pre><code>cmake -S . -B build/industrial
-cmake --build build/industrial --config Release --parallel
-cmake -E chdir build/industrial ctest -C Release --output-on-failure</code></pre>
+<pre><code>cmake --preset vs2019-release
+cmake --build --preset vs2019-release --parallel
+ctest --preset vs2019-release-full</code></pre>
 
 <div class="callout success">
 <div class="callout-title">Windows DLL 拷贝处理</div>
@@ -480,7 +480,7 @@ struct Mesh {
 <thead><tr><th>文件</th><th>职责</th><th>说明</th></tr></thead>
 <tbody>
 <tr><td><code>src/core/Mesh.cpp</code></td><td>基础网格容器辅助函数</td><td>bbox、索引/几何校验、移除未使用顶点、唯一边；不再负责 STL/OBJ 解析。</td></tr>
-<tr><td><code>src/io/MeshIo.cpp</code></td><td>网格文件读写</td><td>STL 读取/ASCII 写出与 OBJ 读取；OBJ 现在按多边形网格读取并自动三角化，同时保留每个三角化后角点的 <code>vt</code> 索引。解析器已重写：数值解析改用 <code>std::from_chars</code>，按缓冲扫描，新增 <code>probeStlFormat(path, triangleCount, error)</code> 做 ASCII/二进制 STL 探测，错误路径加固。网格写出目前只有 <code>saveAsciiStl</code>（STL 不携带 UV），简化后的 UV 经 C++ <code>Mesh</code>/<code>PlainMesh</code> 结果传播。公共声明位于 <code>include/io/MeshIo.h</code>。</td></tr>
+<tr><td><code>src/io/MeshIo.cpp</code></td><td>网格文件读写</td><td>STL 读取/ASCII 写出与 OBJ 读取；OBJ 现在按多边形网格读取并自动三角化，同时保留每个三角化后角点的 <code>vt</code> 索引。解析器已重写：数值解析使用固定 C locale 的 <code>_strtod_l</code> 和有界整数解析，按缓冲扫描，新增 <code>probeStlFormat(path, triangleCount, error)</code> 做 ASCII/二进制 STL 探测，错误路径加固。网格写出目前只有 <code>saveAsciiStl</code>（STL 不携带 UV），简化后的 UV 经 C++ <code>Mesh</code>/<code>PlainMesh</code> 结果传播。公共声明位于 <code>include/io/MeshIo.h</code>。</td></tr>
 <tr><td><code>src/simplification/QEMSimplifier.cpp</code></td><td>简化算法核心</td><td>平面 quadric、line quadric、边界项、特征项、边坍缩循环。</td></tr>
 <tr><td><code>src/simplification/TextureProtection.cpp</code></td><td>纹理感知坍缩保护</td><td>局部 UV chart 分组与配对、seam/定向/有符号面积检查、<code>E_uv_local</code> 标量失真代价；现拆分为 evaluate/buildPlan/apply 三阶段（新增诊断 <code>textureApplyFailures</code>，应恒为 0）。声明位于 <code>src/simplification/detail/TextureProtection.h</code>，由 <code>preserveTexture</code> 启用。</td></tr>
 <tr><td><code>src/simplification/Placement.cpp</code></td><td>坍缩位置求解与边界投影</td><td><code>projectBoundaryPlacement</code> 从 FeatureConstraints 迁入并升级为 Lindstrom-Turk 边界守恒约束：投影到最小化边界有向面积变化的直线，夹取到折叠边投影区间，退化时回退线段夹取；声明位于 <code>detail/Placement.h</code>。</td></tr>
@@ -502,7 +502,7 @@ struct Mesh {
 <tr><th>阅读顺序</th><th>文件</th><th>要看懂的问题</th><th>对应论文/算法线索</th></tr>
 <tr><td>1</td><td><code>include/algorithms/feature_detection/FeatureTypes.h</code></td><td>先看 <code>FeatureOptions</code>、<code>FeatureGraphEdge</code>、<code>FeatureLoop</code>、<code>VertexFeature</code>、<code>FeatureComponent</code>、<code>FeatureAnalysis</code>；这些是模块契约。</td><td>把后续 detector 都约束成可消费的数据结构。</td></tr>
 <tr><td>2</td><td><code>FeatureDetector.cpp</code></td><td>看九阶段 pipeline：<code>Evidence → DegenerateFilter → Graph → Cleanup → Consolidation → LoopRecovery → ComponentSummary → Finalize → Segmentation</code>。normal filter 在 evidence 前按需执行。</td><td>工程化 staged pipeline；各模块保持可测试边界。</td></tr>
-<tr><td>3</td><td><code>FeatureEvidence.cpp</code></td><td>看 boundary / signed dihedral / non-manifold / normal-tensor / smooth-curvature edge 怎样进入候选边。两条弱通道都跳过接触强离散特征顶点的边；normal-tensor edge alignment 用两端最大值，smooth-curvature 用两端最小值并要求两端切向一致。</td><td>M007、M009、M012-M016、M018/M019、M011/M014/M021/M042-M044。</td></tr>
+<tr><td>3</td><td><code>FeatureEvidence.cpp</code></td><td>看 boundary / signed dihedral / non-manifold / normal-tensor / smooth-curvature edge 怎样进入候选边。两条弱通道都跳过接触强离散特征顶点的边；normal-tensor 和 smooth-curvature edge alignment 都要求两端通过，后者还要求两端切向一致。</td><td>M007、M009、M012-M016、M018/M019、M011/M014/M021/M042-M044。</td></tr>
 <tr><td>4</td><td><code>NormalTensor.cpp</code></td><td>看局部尺度归一化、multi-scale score、<code>persistentFeatureScore</code> 和 <code>persistentScales</code>。</td><td>M009、M012、M013、M015。</td></tr>
 <tr><td>4b</td><td><code>SmoothCurvature.cpp</code></td><td>看 opt-in 光滑曲率路径：k-ring 邻域、尺度归一化、鲁棒三次 Monge patch、方向极值和对最佳尺度的支持票数。支持尺度不要求相邻，最粗尺度不具否决权；精确公式在 <code>SmoothCurvature.cpp:579-639</code>。</td><td>M014/M042-M044 曲率与 quadric 拟合，M026 弱特征 consolidation；设计文档 <code>documentation/design/smooth_curvature_feature_detection_2026_07_11.md</code>。</td></tr>
 <tr><td>5</td><td><code>FeatureGraph.cpp</code></td><td>看 <code>featureAngleDeg</code> 与 <code>loopTraceAngleDeg</code> 的分工，以及 trace graph 如何保留 cleanup/evidence 标记。</td><td>M016、polygon crawling M018/M019。</td></tr>
@@ -562,12 +562,8 @@ struct Mesh {
 <h2><span class="num">5B</span>内部 HTML wireframe 调试工具</h2>
 <p><code>src/debugUtil</code> 是当前源码里的私有排查工具，不是交付 viewer。它的目标是让开发者在某个算法阶段把 mesh edge、feature edge、候选 collapse、拒绝边或 warning/error 边直接画成一个独立 HTML 文件，快速确认“问题发生在空间上的哪里”。</p>
 
-<pre><code>cmake -S . -B build/mingw-ninja-debug-debugutil -G Ninja `
-  -DCMAKE_BUILD_TYPE=Debug `
-  -DCMAKE_C_COMPILER=gcc `
-  -DCMAKE_CXX_COMPILER=g++ `
-  -DMANUMESH_ENABLE_DEBUG_UTIL=ON
-cmake --build build/mingw-ninja-debug-debugutil --target manumesh --parallel</code></pre>
+<pre><code>DebugUtil is temporarily disabled in the repository workflow.
+Use the regular vs2019-debug preset and inspect FeatureAnalysis/metrics instead.</code></pre>
 
 <table>
 <tr><th>入口</th><th>用途</th></tr>
@@ -692,9 +688,9 @@ $$Q_i=Q_i^{plane}+Q_i^{normalLine}+Q_i^{boundary}+Q_i^{featureCurve}$$
 </ul>
 
 <pre><code># 快速套件（不含 performance 和 external 大网格用例）：256 个启用用例
-ctest --test-dir build/mingw-ninja-release -LE "performance|external" --output-on-failure
+ctest --preset vs2019-release-unit
 # 全量非性能套件（追加 11 个 external 用例）：267 个启用用例
-ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure</code></pre>
+ctest --preset vs2019-release-full</code></pre>
 <p>测试分层（unit/analytic/perf-guard/external/performance）、解析真值 fixture 设计与新增测试注册方式见 <code>documentation/design/testing_strategy.md</code>。</p>
 
 <h3>8.2 Metrics</h3>
@@ -705,12 +701,11 @@ ctest --test-dir build/mingw-ninja-release -LE performance --output-on-failure</
 
 <h3>8.3 VS Code 演示任务</h3>
 
-<p><code>.vscode/tasks.json</code> 当前以 <code>mingw+ninja</code> 为主链路，并保留 <code>msvc+vs2022</code>、<code>msvc+vs2019</code> 和自定义 Visual Studio 生成器任务。Ninja 构建任务使用 <code>--parallel</code> 不指定数字，让 CMake/Ninja 使用可用核心。现场演示优先运行：</p>
+<p><code>.vscode/tasks.json</code> 当前统一使用 Visual Studio 16 2019 / MSVC v142 presets；构建任务使用 <code>--parallel</code> 不指定数字，让 CMake/MSBuild 使用可用核心。现场演示优先运行：</p>
 
 <ul>
 <li><code>demo: feature report selected mesh</code>：生成输入特征报告。</li>
-<li><code>demo: simplify selected mesh (mingw+ninja release)</code>：从下拉框选择 mesh、preset、ratio 和 samples。</li>
-<li><code>demo: algorithm comparison selected mesh</code>：同一网格上比较 standard QEM、line QEM、dihedral-line、feature-curves、normal-tensor。</li>
+<li><code>demo: simplify selected mesh</code>：从下拉框选择 mesh、ratio 和 samples。</li>
 <li><code>demo: ratio sweep selected mesh</code>：固定算法预设，扫多档 ratio。</li>
 </ul>
 

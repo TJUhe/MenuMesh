@@ -14,7 +14,8 @@
 
 #include <vector>
 
-namespace manumesh::simplification {
+namespace manumesh {
+namespace simplification {
 
 /**
  * @brief 用于精确局部自相交检查的动态宽相位 AABB 网格。
@@ -39,4 +40,5 @@ private:
     manumesh::common::UniformAabbCandidateGrid grid_;
 };
 
-} // 结束 manumesh::simplification 命名空间
+} // namespace simplification
+} // namespace manumesh

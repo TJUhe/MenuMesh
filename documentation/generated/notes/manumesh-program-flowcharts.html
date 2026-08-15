@@ -195,14 +195,14 @@ footer {
   <section id="scope">
     <h2>1. 阅读范围和总览</h2>
     <p>
-      ManuMesh 当前是一个 C++17 三角网格处理内核。可执行程序 <code>manumesh</code> 只是应用层消费者；真正的算法入口在
+      ManuMesh 当前是一个 C++14 三角网格处理内核。可执行程序 <code>manumesh</code> 只是应用层消费者；真正的算法入口在
       <code>include/algorithms/feature_detection</code>、<code>include/algorithms/simplification</code> 和 <code>src/</code> 对应实现中。
     </p>
     <div class="source-map">
       <strong>主要源码阅读范围：</strong>
       <ul>
         <li><code>apps/main.cpp</code>、<code>ManuMeshCli.cpp</code>、<code>CliArguments.cpp</code>、<code>ManuMeshCommands.cpp</code>、<code>ManuMeshFeatureCommands.cpp</code>：CLI 入口、共享 <code>OptionSpec</code> 选项表（<code>optionsHelpText()</code> 生成 help、<code>validateArgsForCommand()</code> 逐命令校验）、命令注册和命令处理；CSV 拼装在 <code>CliCsv.cpp</code>。</li>
-        <li><code>src/io/MeshIo.cpp</code>：STL/OBJ 读取和 ASCII STL 写出；<code>probeStlFormat</code> 探测 ASCII/二进制，数值解析用 <code>std::from_chars</code>。</li>
+        <li><code>src/io/MeshIo.cpp</code>：STL/OBJ 读取和 ASCII STL 写出；<code>probeStlFormat</code> 探测 ASCII/二进制，数值解析使用固定 C locale 的 <code>_strtod_l</code> 和有界整数解析。</li>
         <li><code>src/feature_detection/*.cpp</code>：法线预处理、edge evidence、trace graph、cleanup/compatibility/consolidation、junction branches、loop/primitive、component confidence、patch segmentation 与 benchmark；辅助结构由 <code>FeatureDetectionCache</code> 复用。</li>
         <li><code>src/simplification/*.cpp</code>：QEM/line-quadrics 初始化、候选队列、动态拓扑、折叠合法性、placement 与边界投影（<code>Placement.cpp</code>）、结果 compact。</li>
         <li><code>src/analysis/MeshAnalysis.cpp</code>：<code>manumesh::analysis</code> 的网格统计与采样距离；<code>src/simplification/Metrics.cpp</code> 仅保留弃用 API 的兼容转发实现。</li>
@@ -407,7 +407,7 @@ flowchart TD
 
   <section id="io">
     <h2>4. 网格 I/O 流程</h2>
-    <p>所有 CLI、C API 和 SDK 示例最终都使用 <code>loadMesh</code>/<code>saveAsciiStl</code>。当前支持输入 <code>.stl</code> 和 <code>.obj</code>，输出为 ASCII STL。解析器已重写：先由 <code>probeStlFormat</code> 探测 ASCII/二进制，再按缓冲扫描解析，数值解析统一用 <code>std::from_chars</code>，错误路径（截断、非法计数、非有限坐标）逐条返回具体 error。</p>
+    <p>所有 CLI、C API 和 SDK 示例最终都使用 <code>loadMesh</code>/<code>saveAsciiStl</code>。当前支持输入 <code>.stl</code> 和 <code>.obj</code>，输出为 ASCII STL。解析器已重写：先由 <code>probeStlFormat</code> 探测 ASCII/二进制，再按缓冲扫描解析，数值解析统一使用固定 C locale 的 <code>_strtod_l</code> 和有界整数解析，错误路径（截断、非法计数、非有限坐标）逐条返回具体 error。</p>
 
     <div class="diagram-wrap">
       <pre class="mermaid">
@@ -423,7 +423,7 @@ flowchart TD
   S0 -- 是 --> SP["probeStlFormat(path, triangleCount, error)<br/>按文件大小 84+50n 与 solid 前缀判定"]
   SP --> SPF{探测结果}
   SPF -- Binary --> SB["readBinaryTriangles"]
-  SPF -- Ascii --> SA["readAsciiTriangles<br/>缓冲扫描 + std::from_chars 数值解析"]
+  SPF -- Ascii --> SA["readAsciiTriangles<br/>缓冲扫描 + C locale 数值解析"]
   SPF -- Invalid --> SE["error = localError<br/>return false"]
   SB --> SBOK{解析成功?}
   SA --> SBOK

@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureGraphCompatibility.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征图兼容性功能。
+ * @brief 判定图分支的方向延续和证据兼容性。
  * @ingroup manumesh_feature_detection
  *
  * @details 定义图恢复共用的延续分支和证据兼容性判定。

@@ -1,10 +1,7 @@
 /**
  * @file src/feature_detection/detail/FeatureCycleRecovery.h
- * @brief 声明 ManuMesh 特征检测模块的图环恢复功能。
+ * @brief 声明分叉环和有界图环基恢复入口。
  * @ingroup manumesh_feature_detection
- *
- * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
- *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once
@@ -17,7 +14,7 @@ namespace feature {
 namespace detector_detail {
 
 /**
- * @brief 查找经过高阶顶点且满足图元拟合条件的特征环。
+ * @brief 查找经过高阶顶点且满足几何基元拟合条件的特征环。
  */
 void recoverCircularCyclesThroughJunctions(
     const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId

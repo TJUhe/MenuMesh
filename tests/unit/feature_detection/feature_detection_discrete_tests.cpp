@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_discrete_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 离散测试行为。
+ * @brief 验证边界、非流形边和带符号二面角等离散特征证据。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -26,15 +24,6 @@ using manumesh::test::feature_detection::countClosedLoops;
 using manumesh::test::feature_detection::discreteOnlyOptions;
 using manumesh::test::feature_detection::makeMixedDiscreteEvidenceMesh;
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 /// (n0 x n1) . d = (z x -x) . y = -1.
 Mesh makeRightAngleFoldMesh(double wallZ) {
     Mesh mesh;
@@ -51,13 +40,6 @@ Mesh makeRightAngleFoldMesh(double wallZ) {
     return mesh;
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 Mesh makeLShapedPrismMesh() {
     const std::array<std::pair<double, double>, 6> polygon = {
         std::make_pair(0.0, 0.0),
@@ -78,8 +60,6 @@ Mesh makeLShapedPrismMesh() {
         const double y = pairEntry.second;
         mesh.vertices.emplace_back(x, y, 1.0);
     }
-    // 命名空间
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     mesh.faces = {
         {{3, 5, 4}},
         {{3, 0, 5}},
@@ -98,12 +78,6 @@ Mesh makeLShapedPrismMesh() {
     return mesh;
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 Mesh makeStaircaseSheetMesh() {
     const std::array<std::pair<double, double>, 6> profile = {
         std::make_pair(0.0, 0.0),
@@ -131,7 +105,6 @@ Mesh makeStaircaseSheetMesh() {
     return mesh;
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
 std::set<std::pair<std::pair<int, int>, int>> dihedralSignedEdges(const FeatureAnalysis& features) {
     std::set<std::pair<std::pair<int, int>, int>> result;
     for (const feature::FeatureGraphEdge& edge : features.graph.edges) {
@@ -293,10 +266,6 @@ TEST(FeatureDetection, SplitsBranchedFeatureGraphAndMarksJunctions) {
     EXPECT_TRUE(features.graph.vertices[0].junction);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 
 TEST(FeatureDetection, ClassifiesRightAngleConvexRidgePerEdge) {
     const Mesh ridge = makeRightAngleFoldMesh(-1.0);
@@ -337,9 +306,6 @@ TEST(FeatureDetection, ClassifiesLShapedPrismConvexityPerEdge) {
     options.featureAngleDeg = 40.0;
     const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(0, features.boundaryFeatureEdges);
     EXPECT_EQ(0, features.inconsistentWindingEdges);
     EXPECT_EQ(18, features.dihedralFeatureEdges);
@@ -348,21 +314,18 @@ TEST(FeatureDetection, ClassifiesLShapedPrismConvexityPerEdge) {
     EXPECT_EQ(0, features.unknownSignedFeatureEdges);
 
     const std::set<std::pair<std::pair<int, int>, int>> expected = {
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         {{0, 1}, 1},
         {{1, 2}, 1},
         {{2, 3}, 1},
         {{3, 4}, 1},
         {{4, 5}, 1},
         {{0, 5}, 1},
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         {{6, 7}, 1},
         {{7, 8}, 1},
         {{8, 9}, 1},
         {{9, 10}, 1},
         {{10, 11}, 1},
         {{6, 11}, 1},
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         {{0, 6}, 1},
         {{1, 7}, 1},
         {{2, 8}, 1},
@@ -380,8 +343,6 @@ TEST(FeatureDetection, ClassifiesStaircaseFoldsPerEdge) {
     options.featureAngleDeg = 40.0;
     const FeatureAnalysis features = feature::detectFeatureCurves(mesh, options);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(0, features.inconsistentWindingEdges);
     EXPECT_EQ(4, features.dihedralFeatureEdges);
     EXPECT_EQ(2, features.convexFeatureEdges);

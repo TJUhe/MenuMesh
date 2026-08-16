@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/simplification/QEMSimplifier.h
- * @brief 声明 ManuMesh 简化模块的 QEMSimplifier 设施。
+ * @brief 声明有状态 QEM 简化器和无状态便捷入口。
  * @ingroup manumesh_simplification
  *
- * @details 此文件属于面向特征的边坍缩管线。二次误差代价负责候选排序；拓扑、几何、特征、边界、误差和可选纹理策略共同决定位置是否可以修改网格。
+ * @details QEMSimplifier 保存配置与最近一次报告；自由函数适合一次性调用和预计算特征分析工作流。
  */
 
 #pragma once
@@ -30,9 +30,8 @@ namespace simplification {
 
 /// 用于配置和运行网格简化的有状态对象 API。
 ///
-/// 特征数据依赖保持为 `Mesh -> FeatureAnalysis -> simplification`。配置特征检测时，
-/// `SimplifyOptions::featureOptionsOverride` 是规范入口；旧扁平特征检测字段仅在
-/// override 未设置时作为兼容适配器生效。
+/// 特征数据依赖保持为 `Mesh -> FeatureAnalysis -> simplification`。新配置通过
+/// `SimplifyConfig::features.detection` 提供特征检测参数；旧扁平字段仅供兼容调用使用。
 class MANUMESH_API QEMSimplifier {
 public:
     /// 使用默认选项构造简化器。
@@ -53,6 +52,10 @@ public:
     /// @param[in] options 新的已校验策略。
     /// @throws std::invalid_argument 当选项不一致时抛出。
     void setOptions(SimplifyOptions options);
+    /// 用规范分组配置替换后续简化运行使用的选项。
+    /// @param[in] config 目标、代价、特征、质量、纹理和日志配置。
+    /// @throws std::invalid_argument 当配置不一致时抛出。
+    void setConfig(const SimplifyConfig& config);
     /// 返回最近一次简化运行的诊断信息。
     const SimplifyReport& report() const;
 
@@ -112,7 +115,7 @@ MANUMESH_API Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options
 /// 使用已为 `input` 计算的特征分析进行简化。
 /// @param[in] input 源网格。
 /// @param[in] options 简化策略。
-/// @param[in] features `input` 的特征图和基本体约束。
+/// @param[in] features `input` 的特征图和几何基元约束。
 /// @param[out] report 可选的诊断信息。
 /// @return 简化后的网格，不会重复执行特征分析。
 /// @note 入口会校验 `features` 的来源身份和公开索引；来源身份绑定精确 indexed geometry，

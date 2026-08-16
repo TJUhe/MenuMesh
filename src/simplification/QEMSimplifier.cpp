@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/QEMSimplifier.cpp
- * @brief 实现 ManuMesh 的简化模块的QEM 简化器功能。
+ * @brief 实现公共 QEM 简化器外观和便捷入口。
  * @ingroup manumesh_simplification
  *
  * @details 实现公开的简化器外观、选项校验以及预计算特征的重载接口。
@@ -145,6 +145,10 @@ void QEMSimplifier::setOptions(SimplifyOptions options) {
         impl_ = std::make_unique<Impl>();
     }
     impl_->options = std::move(options);
+}
+
+void QEMSimplifier::setConfig(const SimplifyConfig& config) {
+    setOptions(makeSimplifyOptions(config));
 }
 
 const SimplifyReport& QEMSimplifier::report() const {

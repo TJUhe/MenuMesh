@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/CollapseAttempt.cpp
- * @brief 实现 ManuMesh 的简化模块的折叠尝试功能。
+ * @brief 在提交拓扑修改前评估一个边坍缩候选。
  * @ingroup manumesh_simplification
  *
  * @details 评估当前边候选在修改网格前必须通过的全部策略。

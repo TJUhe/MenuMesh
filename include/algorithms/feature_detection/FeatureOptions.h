@@ -1,6 +1,6 @@
 /**
  * @file include/algorithms/feature_detection/FeatureOptions.h
- * @brief 声明 ManuMesh 特征检测模块的轻量配置类型。
+ * @brief 定义特征检测各阶段的分组配置。
  * @ingroup manumesh_feature_detection
  *
  * @details 此头文件只包含特征检测配置契约，不依赖网格、Eigen 或检测结果类型。
@@ -61,8 +61,8 @@ struct FeatureOptions {
     double ellipseFitRelativeThreshold = 0.05;
     /// 低于此轴比容差的椭圆视为近圆。
     double nearCircleAxisRatioTolerance = 0.08;
-    /// 恢复环接受和基本体拟合所需的最少顶点数。
-    /// 直接追踪的开放链和闭合追踪结果即使低于此阈值仍会报告，只是不会通过该路径获得基本体拟合。
+    /// 恢复环接受和几何基元拟合所需的最少顶点数。
+    /// 直接追踪的开放链和闭合追踪结果即使低于此阈值仍会报告，只是不会通过该路径获得几何基元拟合。
     int minFeatureLoopVertices = 8;
     /// 除图边外，启用由张量推导的弱特征候选。
     bool useNormalTensorFeatures = true;
@@ -105,7 +105,7 @@ struct FeatureOptions {
     bool smoothCurvatureUseStableScaleSelection = false;
     /// 选定平滑曲率尺度可接受的最小稳定性。
     double smoothCurvatureMinScaleStability = 0.0;
-    /// 在环恢复前启用局部特征图清理。
+    /// 在环恢复前清理局部特征图中的弱碎片。
     bool cleanupFeatureGraph = true;
     /// 清理阶段可桥接的最大端点间隙，单位为局部平均边长。
     double featureGraphGapLengthRatio = 1.25;

@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/simplification/Metrics.h
- * @brief 声明 ManuMesh 简化模块的度量设施。
+ * @brief 保留旧版简化统计接口并转发到 analysis 模块。
  * @ingroup manumesh_simplification
  *
- * @details 此文件属于面向特征的边坍缩管线。二次误差代价负责候选排序；拓扑、几何、特征、边界、误差和可选纹理策略共同决定位置是否可以修改网格。
+ * @details 新代码应直接使用 algorithms/analysis/MeshAnalysis.h；这里的别名和函数仅用于源码迁移。
  */
 
 #pragma once

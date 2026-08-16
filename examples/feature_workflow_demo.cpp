@@ -1,6 +1,6 @@
 /**
  * @file examples/feature_workflow_demo.cpp
- * @brief 通过 ManuMesh SDK 示例演示特征工作流示例。
+ * @brief 演示检测特征、复用分析结果并评估简化后的特征保持。
  * @ingroup manumesh_examples
  *
  * @details 示例只使用受支持的公共入口，同时作为特征分析与简化集成流程的可执行文档。
@@ -49,20 +49,21 @@ QualityGateResult runManufacturingQualityGate(const manumesh::Mesh& input, const
     const manumesh::feature::FeatureAnalysis features =
         manumesh::feature::FeatureDetector(featureOptions).analyze(input);
 
-    manumesh::simplification::SimplifyOptions simplifyOptions;
-    simplifyOptions.targetRatio = gateOptions.targetRatio;
-    simplifyOptions.useLineQuadrics = true;
-    simplifyOptions.preserveFeatureCurves = true;
-    simplifyOptions.featureCurveWeight = 0.05;
-    simplifyOptions.featureOptionsOverride = featureOptions;
-    simplifyOptions.minCircularFeatureLoopVertices = 6;
-    simplifyOptions.boundaryWeight = 1.0;
+    manumesh::simplification::SimplifyConfig simplifyConfig;
+    simplifyConfig.target = manumesh::simplification::SimplifyTarget::ratio(gateOptions.targetRatio);
+    simplifyConfig.cost.lineQuadrics = manumesh::simplification::LineQuadricConfig::uniform(1e-3);
+    simplifyConfig.features.enabled = true;
+    simplifyConfig.features.curveWeight = 0.05;
+    simplifyConfig.features.detection = featureOptions;
+    simplifyConfig.features.minCircularLoopVertices = 6;
+    simplifyConfig.cost.boundaryWeight = 1.0;
 
     manumesh::simplification::SimplifyReport simplifyReport;
     // 复用上面已经计算的 FeatureAnalysis，避免简化器在内部再次检测特征；
     // (input, features, report) 重载确保同一网格不会重复运行特征分析。
-    const manumesh::Mesh output =
-        manumesh::simplification::QEMSimplifier(simplifyOptions).simplify(input, features, &simplifyReport);
+    manumesh::simplification::QEMSimplifier simplifier;
+    simplifier.setConfig(simplifyConfig);
+    const manumesh::Mesh output = simplifier.simplify(input, features, &simplifyReport);
 
     const manumesh::analysis::MeshStats inputStats = manumesh::analysis::computeMeshStats(input);
     const manumesh::analysis::MeshStats outputStats = manumesh::analysis::computeMeshStats(output);

@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_primitive_fit_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 图元拟合测试行为。
+ * @brief 验证 Taubin 圆拟合和 Halir-Flusser 椭圆拟合的数值精度。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -44,8 +42,6 @@ LoopFixture makePlanarLoopFixture(const std::vector<double>& x, const std::vecto
     return fixture;
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 double kasaRadius(const std::vector<double>& x, const std::vector<double>& y) {
     double meanX = 0.0;
     double meanY = 0.0;
@@ -69,9 +65,6 @@ double kasaRadius(const std::vector<double>& x, const std::vector<double>& y) {
     return std::sqrt(std::max(0.0, solution.z() + solution.x() * solution.x() + solution.y() * solution.y()));
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 double geometricRadius(const std::vector<double>& x, const std::vector<double>& y, double cx, double cy, double r) {
     for (int iteration = 0; iteration < 50; ++iteration) {
         Eigen::Matrix3d jtj = Eigen::Matrix3d::Zero();
@@ -98,8 +91,6 @@ double geometricRadius(const std::vector<double>& x, const std::vector<double>& 
     return r;
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 void momentAxes(const std::vector<double>& x, const std::vector<double>& y, double& major, double& minor) {
     double xx = 0.0;
     double yy = 0.0;
@@ -121,7 +112,6 @@ TEST(FeatureDetectionPrimitiveFit, TaubinMatchesExactCircleUnderNonUniformSampli
     std::vector<double> y;
     for (int i = 0; i < count; ++i) {
         const double t = static_cast<double>(i) / static_cast<double>(count);
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         const double angle = kTau * std::pow(t, 2.0);
         x.push_back(0.3 + radius * std::cos(angle));
         y.push_back(-0.2 + radius * std::sin(angle));
@@ -144,7 +134,6 @@ TEST(FeatureDetectionPrimitiveFit, TaubinBeatsKasaOnNoisyPartialArc) {
     for (int i = 0; i < count; ++i) {
         const double t = static_cast<double>(i) / static_cast<double>(count - 1);
         const double angle = 0.2 + 1.75 * t; // 该实现需保持边界条件，并保证结果具有确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         const double noisy = radius + 0.02 * std::sin(37.0 * angle + 0.7) + 0.015 * std::cos(23.0 * angle);
         x.push_back(noisy * std::cos(angle));
         y.push_back(noisy * std::sin(angle));
@@ -153,14 +142,9 @@ TEST(FeatureDetectionPrimitiveFit, TaubinBeatsKasaOnNoisyPartialArc) {
     const primitive_fit::PrimitiveFit fit = primitive_fit::fitPrimitive(fixture.mesh, fixture.loop, FeatureOptions{});
 
     ASSERT_TRUE(fit.valid);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double reference = geometricRadius(x, y, fit.center.x(), fit.center.y(), fit.radius);
     const double taubinError = std::abs(fit.radius - reference);
     const double kasaError = std::abs(kasaRadius(x, y) - reference);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_LT(taubinError, 0.05 * kasaError);
     EXPECT_LT(taubinError, 1e-3 * radius);
     EXPECT_GT(kasaError, 5e-3 * radius);
@@ -174,7 +158,6 @@ TEST(FeatureDetectionPrimitiveFit, HalirFlusserRecoversEllipseUnderNonUniformSam
     std::vector<double> y;
     for (int i = 0; i < count; ++i) {
         const double t = static_cast<double>(i) / static_cast<double>(count);
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         const double angle = kTau * t + 0.45 * std::sin(kTau * t);
         x.push_back(major * std::cos(angle));
         y.push_back(minor * std::sin(angle));
@@ -191,7 +174,6 @@ TEST(FeatureDetectionPrimitiveFit, HalirFlusserRecoversEllipseUnderNonUniformSam
     EXPECT_GT(std::abs(fit.minorAxis.y()), 0.999);
     EXPECT_EQ(FeaturePrimitiveType::Ellipse, fit.primitive);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     double momentMajor = 0.0;
     double momentMinor = 0.0;
     momentAxes(x, y, momentMajor, momentMinor);

@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/FeatureConstraints.cpp
- * @brief 实现 ManuMesh 的简化模块的特征约束功能。
+ * @brief 执行硬特征曲线判定和解析曲线投影。
  * @ingroup manumesh_simplification
  *
- * @details 构建并执行硬性特征曲线约束和解析图元约束。
+ * @details 构建并执行硬性特征曲线约束和解析几何基元约束。
  * @algorithm 将检测到的环转换为线段索引，并拟合解析圆/椭圆；判断端点归属，拒绝不兼容的合并或违反顶点预算的操作，并将接受的放置点投影到策略选定的受保护曲线。
  * @failuremodes 对多环归属不明确的情况采取保守处理。
  */

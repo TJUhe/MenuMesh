@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/core/core_tests.cpp
- * @brief 验证 ManuMesh 测试中的核心测试行为。
+ * @brief 验证网格核心类型、拓扑查询、生成器和 C++14 辅助类型。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "algorithms/analysis/MeshAnalysis.h"

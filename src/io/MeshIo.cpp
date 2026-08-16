@@ -1,6 +1,6 @@
 /**
  * @file src/io/MeshIo.cpp
- * @brief 实现 ManuMesh 的网格输入输出模块的网格输入输出功能。
+ * @brief 解析 STL、OBJ 网格并序列化 ASCII 或二进制 STL。
  * @ingroup manumesh_io
  *
  * @details 实现确定性的 STL/OBJ 解析以及 ASCII/二进制 STL 序列化。

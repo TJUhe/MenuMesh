@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_texture_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 纹理测试行为。
+ * @brief 验证纹理图表保护、UV 退化拒绝和纹理感知简化诊断。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "algorithms/simplification/QEMSimplifier.h"
@@ -76,19 +74,9 @@ void offsetFaceUv(FaceTexCoords& texcoords, const Vec2& offset) {
     }
 }
 TEST(TextureQem, SeamToleranceFlipsChartGroupingAroundPerturbationScale) {
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     constexpr double kUvPerturbation = 1e-3;
     const auto evaluateWithTolerance = [&](double tolerance) {
         TextureFixture fixture(texturedGrid());
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         for (int corner = 0; corner < 3; ++corner) {
             if (fixture.faces[2].v[corner] == 1) {
                 fixture.mesh.faceTexCoords[2].uv[corner] += Vec2(kUvPerturbation, 0.0);
@@ -108,25 +96,12 @@ TEST(TextureQem, SeamToleranceFlipsChartGroupingAroundPerturbationScale) {
     EXPECT_TRUE(sameChart.allowed());
     EXPECT_GT(sameChart.cost, 0.0);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto seam = evaluateWithTolerance(2e-4);
     EXPECT_EQ(TextureCollapseRejectReason::ChartMismatch, seam.rejectReason);
     EXPECT_FALSE(seam.allowed());
 }
 
 TEST(TextureQem, MinTextureAreaRatioFlipsAroundCompressedUvArea) {
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto evaluateWithRatio = [&](double minAreaRatio) {
         TextureFixture fixture(texturedGrid());
         for (int face : {0, 2, 3}) {
@@ -156,13 +131,6 @@ TEST(TextureQem, MinTextureAreaRatioFlipsAroundCompressedUvArea) {
 }
 
 TEST(TextureQem, MinTextureAreaRatioRejectionsReachTextureRejectedCounter) {
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto runWithRatio = [](double minAreaRatio) {
         Mesh mesh = manumesh::generatePlaneGrid(6, 1.0, false);
         mesh.faceTexCoords.resize(mesh.faces.size());
@@ -184,20 +152,12 @@ TEST(TextureQem, MinTextureAreaRatioRejectionsReachTextureRejectedCounter) {
         return report;
     };
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto permissive = runWithRatio(1e-8);
     EXPECT_EQ(0, permissive.textureRejectedCollapses);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto strict = runWithRatio(0.95);
     EXPECT_GT(strict.textureRejectedCollapses, 0);
     EXPECT_GE(strict.rejectedCollapses, strict.textureRejectedCollapses);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(strict.finalFaces, permissive.finalFaces);
 }
 

@@ -1,6 +1,6 @@
 /**
  * @file include/io/MeshIo.h
- * @brief 声明 ManuMesh 网格 I/O 模块的网格读写设施。
+ * @brief 提供 STL、OBJ 网格读取和 STL 写出入口。
  * @ingroup manumesh_io
  *
  * @details 导入和导出路径在具体化或序列化三角几何前校验索引和数值。

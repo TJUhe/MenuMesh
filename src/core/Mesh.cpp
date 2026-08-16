@@ -1,6 +1,6 @@
 /**
  * @file src/core/Mesh.cpp
- * @brief 实现 ManuMesh 核心网格模块的网格设施。
+ * @brief 实现 Mesh 校验、边界查询、压缩和基础几何运算。
  * @ingroup manumesh_core
  *
  * @details 实现网格边界、校验、压缩和基本三角形几何运算。

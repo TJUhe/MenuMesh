@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/FeatureGuidance.cpp
- * @brief 实现 ManuMesh 的简化模块的特征引导功能。
+ * @brief 将 FeatureAnalysis 转换为简化器使用的引导和约束。
  * @ingroup manumesh_simplification
  *
  * @details 将特征证据转换为软二次误差项和队列优先级引导。
@@ -103,18 +103,21 @@ FeatureVertexGuidance toVertexGuidance(
                              : (target.componentIds.empty() ? -1 : target.componentIds.front());
     target.confidence = std::max(source.confidence, constraintVertex.confidence);
     target.tangent = useSourcePrimitive ? source.tangent : graphTangent;
-    if (useSourcePrimitive) {
-        target.circleCenter = source.circleCenter;
-        target.circleNormal = source.circleNormal;
-        target.circleRadius = source.circleRadius;
-        target.ellipseCenter = source.ellipseCenter;
-        target.ellipseNormal = source.ellipseNormal;
-        target.ellipseMajorAxis = source.ellipseMajorAxis;
-        target.ellipseMinorAxis = source.ellipseMinorAxis;
-        target.ellipseMajorRadius = source.ellipseMajorRadius;
-        target.ellipseMinorRadius = source.ellipseMinorRadius;
-    }
     return target;
+}
+
+FeaturePrimitiveFit makePrimitiveFit(const feature::VertexFeature& source) {
+    FeaturePrimitiveFit fit;
+    fit.circleCenter = source.circleCenter;
+    fit.circleNormal = source.circleNormal;
+    fit.circleRadius = source.circleRadius;
+    fit.ellipseCenter = source.ellipseCenter;
+    fit.ellipseNormal = source.ellipseNormal;
+    fit.ellipseMajorAxis = source.ellipseMajorAxis;
+    fit.ellipseMinorAxis = source.ellipseMinorAxis;
+    fit.ellipseMajorRadius = source.ellipseMajorRadius;
+    fit.ellipseMinorRadius = source.ellipseMinorRadius;
+    return fit;
 }
 
 int curveStorageSize(const feature::FeatureAnalysis& analysis) {
@@ -159,59 +162,28 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
     guidance.enabled = true;
     guidance.constraints = buildFeatureConstraintGraph(mesh, analysis);
 
-    guidance.summary.featureLoops = static_cast<int>(analysis.loops.size());
-    guidance.summary.tracedFeatureEdges = analysis.tracedFeatureEdges;
-    guidance.summary.untracedFeatureEdges = analysis.untracedFeatureEdges;
-    guidance.summary.normalTensorFeatureEdges = analysis.normalTensorFeatureEdges;
-    guidance.summary.normalTensorScoredVertices = analysis.normalTensorScoredVertices;
-    guidance.summary.smoothCurvatureFeatureEdges = analysis.smoothCurvatureFeatureEdges;
-    guidance.summary.smoothCurvatureScoredVertices = analysis.smoothCurvatureScoredVertices;
-    guidance.summary.featureComponents = static_cast<int>(analysis.components.size());
-    guidance.summary.weakFeatureComponents = analysis.weakFeatureComponents;
-    guidance.summary.highConfidenceFeatureComponents = analysis.highConfidenceFeatureComponents;
-    guidance.summary.graphCleanupBridgedGaps = analysis.graphCleanupBridgedGaps;
-    guidance.summary.graphCleanupRemovedSpurs = analysis.graphCleanupRemovedSpurs;
-    guidance.summary.graphCleanupMergedJunctions = analysis.graphCleanupMergedJunctions;
-    guidance.summary.maxNormalTensorPersistentScore = analysis.maxNormalTensorPersistentScore;
-    guidance.summary.meanNormalTensorLocalScale = analysis.meanNormalTensorLocalScale;
-    guidance.summary.meanNormalTensorPersistence = analysis.meanNormalTensorPersistence;
-    guidance.summary.maxSmoothCurvaturePersistentScore = analysis.maxSmoothCurvaturePersistentScore;
-    guidance.summary.meanSmoothCurvatureLocalScale = analysis.meanSmoothCurvatureLocalScale;
-    guidance.summary.meanSmoothCurvaturePersistence = analysis.meanSmoothCurvaturePersistence;
-    guidance.summary.meanSmoothCurvatureScaleStability = analysis.meanSmoothCurvatureScaleStability;
-    guidance.summary.meanFeatureComponentConfidence = analysis.meanFeatureComponentConfidence;
-    guidance.summary.minFeatureComponentConfidence = analysis.minFeatureComponentConfidence;
-    guidance.summary.inconsistentWindingEdges = analysis.inconsistentWindingEdges;
-    guidance.summary.graphCleanupSkippedByCap = analysis.graphCleanupSkippedByCap;
-    guidance.summary.circularRecoveryTruncated = analysis.circularRecoveryTruncated;
-    guidance.summary.normalFilter = analysis.normalFilter;
-    guidance.summary.graphConsolidationBridges = analysis.graphConsolidationBridges;
-    guidance.summary.graphConsolidationSkippedByCap = analysis.graphConsolidationSkippedByCap;
-    guidance.summary.junctionBranchPairs = analysis.junctionBranchPairs;
-    guidance.summary.ambiguousFeatureJunctions = analysis.ambiguousJunctions;
-
     guidance.vertices.reserve(mesh.vertices.size());
     for (int vertexId = 0; vertexId < static_cast<int>(mesh.vertices.size()); ++vertexId) {
         const feature::VertexFeature empty;
         const feature::VertexFeature& vertex = vertexId < static_cast<int>(analysis.vertices.size())
                                                    ? analysis.vertices[static_cast<std::size_t>(vertexId)]
                                                    : empty;
-        const FeatureVertexGuidance vertexGuidance = toVertexGuidance(
+        FeatureVertexGuidance vertexGuidance = toVertexGuidance(
             vertex,
             guidance.constraints.vertices[static_cast<std::size_t>(vertexId)],
             protectedFeatureTangent(mesh, guidance.constraints, vertexId)
         );
-        guidance.vertices.push_back(vertexGuidance);
-        if (vertexGuidance.isFeature) {
-            ++guidance.summary.featureVertices;
+        if (vertexGuidance.isFeature && (vertexGuidance.primitive == FeatureCurveKind::Circle ||
+                                         vertexGuidance.primitive == FeatureCurveKind::NearCircle ||
+                                         vertexGuidance.primitive == FeatureCurveKind::Ellipse)) {
+            vertexGuidance.primitiveFitId = static_cast<int>(guidance.primitiveFits.size());
+            guidance.primitiveFits.push_back(makePrimitiveFit(vertex));
         }
+        guidance.vertices.push_back(vertexGuidance);
     }
 
     guidance.curves.resize(curveStorageSize(analysis));
     for (const feature::FeatureLoop& loop : analysis.loops) {
-        if (loop.circular) {
-            ++guidance.summary.circularFeatureLoops;
-        }
         if (loop.id < 0 || loop.id >= static_cast<int>(guidance.curves.size())) {
             throw std::invalid_argument("FeatureAnalysis contains an invalid feature loop id.");
         }
@@ -376,44 +348,54 @@ FeatureWeightScores computeFeatureWeightScores(
     return result;
 }
 
-void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, SimplifyReport& report) {
-    report.featureLoops = summary.featureLoops;
-    report.circularFeatureLoops = summary.circularFeatureLoops;
-    report.featureVertices = summary.featureVertices;
-    report.tracedFeatureEdges = summary.tracedFeatureEdges;
-    report.untracedFeatureEdges = summary.untracedFeatureEdges;
-    report.normalTensorFeatureEdges = summary.normalTensorFeatureEdges;
-    report.normalTensorScoredVertices = summary.normalTensorScoredVertices;
-    report.smoothCurvatureFeatureEdges = summary.smoothCurvatureFeatureEdges;
-    report.smoothCurvatureScoredVertices = summary.smoothCurvatureScoredVertices;
-    report.featureComponents = summary.featureComponents;
-    report.weakFeatureComponents = summary.weakFeatureComponents;
-    report.highConfidenceFeatureComponents = summary.highConfidenceFeatureComponents;
-    report.graphCleanupBridgedGaps = summary.graphCleanupBridgedGaps;
-    report.graphCleanupRemovedSpurs = summary.graphCleanupRemovedSpurs;
-    report.graphCleanupMergedJunctions = summary.graphCleanupMergedJunctions;
-    report.maxNormalTensorPersistentScore = summary.maxNormalTensorPersistentScore;
-    report.meanNormalTensorLocalScale = summary.meanNormalTensorLocalScale;
-    report.meanNormalTensorPersistence = summary.meanNormalTensorPersistence;
-    report.maxSmoothCurvaturePersistentScore = summary.maxSmoothCurvaturePersistentScore;
-    report.meanSmoothCurvatureLocalScale = summary.meanSmoothCurvatureLocalScale;
-    report.meanSmoothCurvaturePersistence = summary.meanSmoothCurvaturePersistence;
-    report.meanSmoothCurvatureScaleStability = summary.meanSmoothCurvatureScaleStability;
-    report.meanFeatureComponentConfidence = summary.meanFeatureComponentConfidence;
-    report.minFeatureComponentConfidence = summary.minFeatureComponentConfidence;
-    report.inconsistentWindingEdges = summary.inconsistentWindingEdges;
-    report.graphCleanupSkippedByCap = summary.graphCleanupSkippedByCap;
-    report.circularRecoveryTruncated = summary.circularRecoveryTruncated;
-    report.featureNormalFilterIterationsCompleted = summary.normalFilter.iterationsCompleted;
-    report.featureNormalFilterChangedFaces = summary.normalFilter.changedFaces;
-    report.featureNormalFilterPreservedEdges = summary.normalFilter.preservedEdges;
-    report.meanFeatureNormalFilterAngularChangeDeg = summary.normalFilter.meanAngularChangeDeg;
-    report.maxFeatureNormalFilterAngularChangeDeg = summary.normalFilter.maxAngularChangeDeg;
-    report.meanFeatureNormalFilterEdgeIndicator = summary.normalFilter.meanEdgeIndicator;
-    report.graphConsolidationBridges = summary.graphConsolidationBridges;
-    report.graphConsolidationSkippedByCap = summary.graphConsolidationSkippedByCap;
-    report.junctionBranchPairs = summary.junctionBranchPairs;
-    report.ambiguousFeatureJunctions = summary.ambiguousFeatureJunctions;
+void applyFeatureAnalysisReport(
+    const feature::FeatureAnalysis& analysis, const FeatureGuidance& guidance, SimplifyReport& report
+) {
+    report.featureLoops = static_cast<int>(analysis.loops.size());
+    report.circularFeatureLoops = static_cast<int>(
+        std::count_if(analysis.loops.begin(), analysis.loops.end(), [](const feature::FeatureLoop& loop) {
+            return loop.circular;
+        })
+    );
+    report.featureVertices = static_cast<int>(
+        std::count_if(guidance.vertices.begin(), guidance.vertices.end(), [](const FeatureVertexGuidance& vertex) {
+            return vertex.isFeature;
+        })
+    );
+    report.tracedFeatureEdges = analysis.tracedFeatureEdges;
+    report.untracedFeatureEdges = analysis.untracedFeatureEdges;
+    report.normalTensorFeatureEdges = analysis.normalTensorFeatureEdges;
+    report.normalTensorScoredVertices = analysis.normalTensorScoredVertices;
+    report.smoothCurvatureFeatureEdges = analysis.smoothCurvatureFeatureEdges;
+    report.smoothCurvatureScoredVertices = analysis.smoothCurvatureScoredVertices;
+    report.featureComponents = static_cast<int>(analysis.components.size());
+    report.weakFeatureComponents = analysis.weakFeatureComponents;
+    report.highConfidenceFeatureComponents = analysis.highConfidenceFeatureComponents;
+    report.graphCleanupBridgedGaps = analysis.graphCleanupBridgedGaps;
+    report.graphCleanupRemovedSpurs = analysis.graphCleanupRemovedSpurs;
+    report.graphCleanupMergedJunctions = analysis.graphCleanupMergedJunctions;
+    report.maxNormalTensorPersistentScore = analysis.maxNormalTensorPersistentScore;
+    report.meanNormalTensorLocalScale = analysis.meanNormalTensorLocalScale;
+    report.meanNormalTensorPersistence = analysis.meanNormalTensorPersistence;
+    report.maxSmoothCurvaturePersistentScore = analysis.maxSmoothCurvaturePersistentScore;
+    report.meanSmoothCurvatureLocalScale = analysis.meanSmoothCurvatureLocalScale;
+    report.meanSmoothCurvaturePersistence = analysis.meanSmoothCurvaturePersistence;
+    report.meanSmoothCurvatureScaleStability = analysis.meanSmoothCurvatureScaleStability;
+    report.meanFeatureComponentConfidence = analysis.meanFeatureComponentConfidence;
+    report.minFeatureComponentConfidence = analysis.minFeatureComponentConfidence;
+    report.inconsistentWindingEdges = analysis.inconsistentWindingEdges;
+    report.graphCleanupSkippedByCap = analysis.graphCleanupSkippedByCap;
+    report.circularRecoveryTruncated = analysis.circularRecoveryTruncated;
+    report.featureNormalFilterIterationsCompleted = analysis.normalFilter.iterationsCompleted;
+    report.featureNormalFilterChangedFaces = analysis.normalFilter.changedFaces;
+    report.featureNormalFilterPreservedEdges = analysis.normalFilter.preservedEdges;
+    report.meanFeatureNormalFilterAngularChangeDeg = analysis.normalFilter.meanAngularChangeDeg;
+    report.maxFeatureNormalFilterAngularChangeDeg = analysis.normalFilter.maxAngularChangeDeg;
+    report.meanFeatureNormalFilterEdgeIndicator = analysis.normalFilter.meanEdgeIndicator;
+    report.graphConsolidationBridges = analysis.graphConsolidationBridges;
+    report.graphConsolidationSkippedByCap = analysis.graphConsolidationSkippedByCap;
+    report.junctionBranchPairs = analysis.junctionBranchPairs;
+    report.ambiguousFeatureJunctions = analysis.ambiguousJunctions;
 }
 
 } // namespace simplification

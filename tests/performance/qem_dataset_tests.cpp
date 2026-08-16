@@ -1,9 +1,7 @@
 /**
  * @file tests/performance/qem_dataset_tests.cpp
- * @brief 验证 ManuMesh 测试中的QEM 数据集测试行为。
+ * @brief 在真实数据集上检查 QEM 简化预算、特征保持和闭合拓扑。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "TestSupport.h"

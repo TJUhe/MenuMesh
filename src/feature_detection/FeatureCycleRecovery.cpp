@@ -1,11 +1,11 @@
 /**
  * @file src/feature_detection/FeatureCycleRecovery.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征环恢复功能。
+ * @brief 恢复经过分叉点的候选环和有界小环基。
  * @ingroup manumesh_feature_detection
  *
  * @details 恢复经过分叉点或属于小型环基的有界特征环。
  * @algorithm 使用确定性的最短路/环候选，以规范化无向边签名去重，
- *            并在接受环之前通过图元拟合和证据门限校验。
+ *            并在接受环之前通过几何基元拟合和证据门限校验。
  * @failuremodes 在稠密图上限制搜索深度和候选数量。
  */
 

@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/Quadrics.h
- * @brief 声明 ManuMesh 的简化模块的二次误差功能。
+ * @brief 声明 QEM 累积、候选位置求解和优先级缩放。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 二次误差负责候选代价和位置；是否允许修改网格由独立合法性策略决定。
  */
 
 #pragma once
@@ -59,7 +59,7 @@ void computeInitialQuadrics(
 );
 
 /**
- * @brief Reuse compact detector evidence when a validated analysis is available.
+ * @brief 有已校验分析结果时复用其中的紧凑检测证据。
  */
 void computeInitialQuadrics(
     const Mesh& mesh,

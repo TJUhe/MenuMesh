@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/SmoothCurvature.cpp
- * @brief 实现 ManuMesh 的特征检测模块的平滑曲率功能。
+ * @brief 估计多尺度平滑曲率并提取稳定脊线、谷线证据。
  * @ingroup manumesh_feature_detection
  *
  * @details 实现稳健、按尺度归一化的光顺脊线/谷线证据。

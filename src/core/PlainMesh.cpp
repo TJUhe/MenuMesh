@@ -1,9 +1,9 @@
 /**
  * @file src/core/PlainMesh.cpp
- * @brief 实现 ManuMesh 核心网格模块的纯数据网格设施。
+ * @brief 在 PlainMesh 与内部 Mesh 之间复制几何和逐角 UV。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 转换保持顶点、面和纹理坐标顺序，不进行隐式修复或三角化。
  */
 
 #include "core/PlainMesh.h"

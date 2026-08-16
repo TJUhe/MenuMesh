@@ -1,6 +1,6 @@
 /**
  * @file src/common/detail/SpatialIndex.h
- * @brief 声明 ManuMesh 公共几何模块的空间索引设施。
+ * @brief 声明保守 AABB 查询使用的稀疏均匀网格。
  * @ingroup manumesh_common
  *
  * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。

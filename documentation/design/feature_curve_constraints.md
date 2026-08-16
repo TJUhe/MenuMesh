@@ -28,20 +28,20 @@ normal tensor 弱特征现在还会记录每个顶点的局部边长尺度、多
 
 `QEMSimplifier::simplify(input, features, ...)`、面分区、benchmark 和需要网格坐标的比较入口会验证来源指纹及公开 graph/loop/component/patch 索引。错误分析会抛出 `std::invalid_argument`，不会静默跳过非法索引或在简化器内重新猜测归属。
 
-C++ 简化侧的规范检测配置是 `SimplifyOptions::featureOptionsOverride`：
+C++ 简化侧的规范配置是 `SimplifyConfig`；检测参数集中在 `features.detection`：
 
 ```cpp
-manumesh::simplification::SimplifyOptions simplifyOptions;
-simplifyOptions.preserveFeatureCurves = true;
+manumesh::simplification::SimplifyConfig simplifyConfig;
+simplifyConfig.features.enabled = true;
 
 manumesh::feature::FeatureOptions featureOptions;
 featureOptions.featureAngleDeg = 30.0;
 featureOptions.normalTensorScaleCount = 3;
 featureOptions.normalTensorMinPersistentScales = 2;
-simplifyOptions.featureOptionsOverride = featureOptions;
+simplifyConfig.features.detection = featureOptions;
 ```
 
-旧的 `SimplifyOptions` 扁平特征检测字段仍可编译，但只作为兼容适配器：仅当 override 未设置时，它们才被映射成 `FeatureOptions`；override 存在时始终优先。`preserveFeatureCurves`、`featureCurveWeight`、`featureProtectionMode`、`minCircularFeatureLoopVertices` 等简化专属策略不属于 `FeatureOptions`，仍由 `SimplifyOptions` 直接控制。
+旧的 `SimplifyOptions` 扁平特征检测字段仍可编译，但只作为兼容适配器；新配置由 `makeSimplifyOptions()` 一次性转换，不能与旧字段隐式合并。`features.enabled`、`features.curveWeight`、`features.protectionMode`、`features.minCircularLoopVertices` 等简化专属策略与 `features.detection` 分组保存。
 
 启用 Normal Tensor 证据时，检测器会把经过当次阈值、尺度数量和 persistence 门限解析后的权重写入 `FeatureAnalysis::normalTensorVertexWeights`；禁用时该数组为空。预计算分析进入 `weightMode=NormalTensor` 的简化时，这组逐顶点权重是必需的规范证据，简化器直接复用，不再依据另一组 `SimplifyOptions` 重算或重新阈值化；数组为空或尺寸不匹配会抛出 `std::invalid_argument`。只有不传入预计算分析的普通简化入口才会使用有效的 `FeatureOptions` 现场计算权重。
 
@@ -130,7 +130,7 @@ QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。�
 - 浅二面角需要进入 loop：降低 `--feature-angle-deg`，并让 `--loop-trace-angle-deg -1` 复用同一阈值。
 - 只想观察浅边但暂不让它保护简化：把 `--loop-trace-angle-deg` 设得高于 `--feature-angle-deg`，再检查 `untraced_edges`。
 - 弱特征不明显：尝试 `--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2`。
-- 光滑 fillet 中心线或平缓 ridge/valley 完全不出现在 feature graph：先用 `feature-report --smooth-curvature-features` 校准阈值；需要直接保护简化时在 `simplify` 使用同一组选项。CLI 会自动打开 feature-curve policy；C++ 调用需同时设置 `preserveFeatureCurves` 与 `useSmoothCurvatureFeatures`，也可继续传入预计算 `FeatureAnalysis`。
+- 光滑 fillet 中心线或平缓 ridge/valley 完全不出现在 feature graph：先用 `feature-report --smooth-curvature-features` 校准阈值；在 `simplify` 中使用同一组选项时，`--smooth-curvature-features` 会沿用 0.x 语义自动打开 feature-curve policy。C++ 新代码应设置 `SimplifyConfig::features.enabled` 与 `features.detection.useSmoothCurvatureFeatures`；旧代码仍需同时设置 `preserveFeatureCurves` 与 `useSmoothCurvatureFeatures`，也可继续传入预计算 `FeatureAnalysis`。
 - 输出偏离曲线：增大 `featureCurveWeight` 或减小 `maxFeatureCurveDeviationRatio`，同时检查拒绝计数是否过高。
 
 ## 相关算法出处

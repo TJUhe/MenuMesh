@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/QualityRefinement.cpp
- * @brief 实现 ManuMesh 的简化模块的质量细化功能。
+ * @brief 在固定拓扑上执行受约束的切向质量优化。
  * @ingroup manumesh_simplification
  *
  * @details 在折叠完成后，可选地执行固定拓扑的切向质量改进。

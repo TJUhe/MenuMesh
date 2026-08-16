@@ -1,9 +1,9 @@
 /**
  * @file include/core/PlainMesh.h
- * @brief 声明 ManuMesh 核心网格模块的纯数据网格设施。
+ * @brief 定义不向 SDK 使用方暴露 Eigen 的网格交换类型。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details PlainMesh 保存普通坐标、索引和逐角 UV，并可显式转换为算法内部使用的 Mesh。
  */
 
 #pragma once

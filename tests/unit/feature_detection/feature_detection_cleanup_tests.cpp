@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_cleanup_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 清理测试行为。
+ * @brief 验证弱毛刺清理的长度、强度阈值和参数校验。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -29,9 +27,6 @@ using detector_detail::CandidateEdge;
 using detector_detail::FeatureDetectionCache;
 using detector_detail::TraceGraph;
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 ///  该实现需保持边界条件，并保证结果具有确定性。
 ///  该实现需保持边界条件，并保证结果具有确定性。
 ///  该实现需保持边界条件，并保证结果具有确定性。
@@ -59,8 +54,6 @@ void appendSupportTriangles(Mesh& mesh, const std::vector<int>& chain) {
     for (std::size_t i = 0; i + 1 < chain.size(); ++i) {
         const Vec3 a = mesh.vertices[chain[i]];
         const Vec3 b = mesh.vertices[chain[i + 1]];
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         const Vec3 direction = (b - a).normalized();
         const Vec3 perpendicular(-direction.y(), direction.x(), 0.0);
         const Vec3 apexPosition = 0.5 * (a + b) + apexHeight * perpendicular;
@@ -94,8 +87,6 @@ SpurFixture makeSpurFixture() {
     appendChainVertices(fixture.mesh, 12, 0.0, fixture.chainA);
     appendChainVertices(fixture.mesh, 6, 5.0, fixture.chainB);
     appendChainVertices(fixture.mesh, 4, 10.0, fixture.chainC);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const int branchBase = static_cast<int>(fixture.mesh.vertices.size());
     fixture.mesh.vertices.emplace_back(1.0, -1.0, 10.0);
     fixture.mesh.vertices.emplace_back(1.0, -2.0, 10.0);
@@ -111,20 +102,16 @@ SpurFixture makeSpurFixture() {
     fixture.analysis.vertices.assign(fixture.mesh.vertices.size(), feature::VertexFeature{});
     fixture.analysis.graph.vertices.assign(fixture.mesh.vertices.size(), feature::FeatureGraphVertex{});
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (std::size_t i = 0; i + 1 < fixture.chainA.size(); ++i) {
         detector_detail::addTraceGraphEdge(
             fixture.trace, fixture.analysis, weakEdge(fixture.chainA[i], fixture.chainA[i + 1], 0.03)
         );
     }
-    // 命名空间
     for (std::size_t i = 0; i + 1 < fixture.chainB.size(); ++i) {
         detector_detail::addTraceGraphEdge(
             fixture.trace, fixture.analysis, weakEdge(fixture.chainB[i], fixture.chainB[i + 1], 0.003)
         );
     }
-    // 命名空间
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (std::size_t i = 0; i + 1 < fixture.chainC.size(); ++i) {
         detector_detail::addTraceGraphEdge(
             fixture.trace, fixture.analysis, dihedralEdge(fixture.chainC[i], fixture.chainC[i + 1])
@@ -175,10 +162,8 @@ TEST(FeatureDetectionCleanup, LegacySpurRemovalPrunesByEdgeCountOnly) {
     detector_detail::cleanupTraceGraph(fixture.mesh, options, cache, fixture.trace, fixture.analysis);
 
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainA));
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainB));
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainC));
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyAbsent(fixture.trace, fixture.branchC));
     EXPECT_EQ(2, fixture.analysis.graphCleanupRemovedSpurs);
 }
@@ -186,21 +171,15 @@ TEST(FeatureDetectionCleanup, LegacySpurRemovalPrunesByEdgeCountOnly) {
 TEST(FeatureDetectionCleanup, StrengthFilterKeepsLongWeakLinesAndStrongBranches) {
     SpurFixture fixture = makeSpurFixture();
     FeatureOptions options = spurCleanupOptions();
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     options.featureGraphMinWeakSpurStrength = 10.0;
     feature::validateFeatureOptions(options);
 
     FeatureDetectionCache cache(fixture.mesh);
     detector_detail::cleanupTraceGraph(fixture.mesh, options, cache, fixture.trace, fixture.analysis);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainA));
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyAbsent(fixture.trace, fixture.chainB));
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.chainC));
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(chainFullyPresent(fixture.trace, fixture.branchC));
     EXPECT_EQ(5, fixture.analysis.graphCleanupRemovedSpurs);
 }

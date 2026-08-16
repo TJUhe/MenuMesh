@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/SimplificationValidation.cpp
- * @brief 实现 ManuMesh 的简化模块的简化 校验功能。
+ * @brief 在创建运行状态前校验简化选项和输入网格。
  * @ingroup manumesh_simplification
  *
  * @details 在分配可变运行状态前校验网格和选项契约。

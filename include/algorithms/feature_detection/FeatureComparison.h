@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/feature_detection/FeatureComparison.h
- * @brief 声明 ManuMesh 特征检测模块的特征比较设施。
+ * @brief 声明原始网格与处理后网格的圆形特征匹配度量。
  * @ingroup manumesh_feature_detection
  *
- * @details 此文件属于确定性的三角表面特征管线。局部证据与图清理、追踪、基本体恢复和分区相互分离，使每个阶段都有明确契约。
+ * @details 比较接口消费两份已计算的特征结果，不在匹配过程中重新运行检测。
  */
 
 #pragma once

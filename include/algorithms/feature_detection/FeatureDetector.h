@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/feature_detection/FeatureDetector.h
- * @brief 声明 ManuMesh 特征检测模块的特征检测器设施。
+ * @brief 声明特征曲线检测器及其无状态便捷入口。
  * @ingroup manumesh_feature_detection
  *
- * @details 此文件属于确定性的三角表面特征管线。局部证据与图清理、追踪、基本体恢复和分区相互分离，使每个阶段都有明确契约。
+ * @details 检测器拥有配置，分析时按固定顺序收集证据、清理图、恢复曲线并汇总组件。
  */
 
 #pragma once
@@ -114,7 +114,7 @@ computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& o
 /// @throws std::invalid_argument 当值非有限、范围无效或持久尺度数量大于尺度总数时抛出。
 MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 
-/// 检测边界、非流形、二面角、张量、可选平滑曲率以及拟合的基本体曲线。
+/// 检测边界、非流形、二面角、张量、可选平滑曲率以及拟合的几何基元曲线。
 ///
 /// 实现首先追踪图支持的环，然后为稀疏圆环应用有界的 CAD 修复回退。它不是针对含噪扫描的一般曲率脊提取器；
 /// 对此类输入应启用张量特征并调节尺度/阈值参数。
@@ -122,20 +122,19 @@ MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 /// @param[in] options 检测、恢复、清理和分区策略。
 /// @return 完整的确定性特征分析。
 /// @algorithm 收集强弱证据，构建显式追踪图，清理并整合兼容组件，追踪链和环，
-/// 恢复有界回退环，拟合解析基本体，计算组件置信度，并可选地将面划分为分区。
+/// 恢复有界回退环，拟合解析几何基元，计算组件置信度，并可选地将面划分为分区。
 /// @invariants 证据计数不包含合成桥接边；图边端点始终是有效网格顶点；每个简化环拥有稳定 ID。
 MANUMESH_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options);
 
-/// Compute the deterministic source identity stored in `FeatureAnalysis`.
-/// @param[in] mesh Valid indexed geometry. UV data is ignored.
-/// @return Counts and stable topology/geometry fingerprints.
+/// 计算并返回存储在 `FeatureAnalysis` 中的确定性来源身份。
+/// @param[in] mesh 有效的索引几何；忽略 UV 数据。
+/// @return 计数以及稳定的拓扑/几何指纹。
 MANUMESH_API FeatureAnalysisSource featureAnalysisSource(const Mesh& mesh);
 
-/// Verify that an analysis belongs to `mesh` and that all public index-bearing
-/// records are internally consistent.
-/// @param[in] mesh Mesh expected to have produced `analysis`.
-/// @param[in] analysis Feature result to validate before reuse.
-/// @throws std::invalid_argument when source identity or stored indices differ.
+/// 验证分析结果是否属于 `mesh`，以及所有公开索引记录是否内部一致。
+/// @param[in] mesh 预期生成 `analysis` 的网格。
+/// @param[in] analysis 复用前需要验证的特征结果。
+/// @throws std::invalid_argument 当来源身份或存储索引不一致时抛出。
 MANUMESH_API void validateFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis);
 
 /// 构建由活动特征图边分隔的面分区，并写入 analysis.facePatchIds / patches / patchAdjacencies。
@@ -160,7 +159,7 @@ MANUMESH_API DirectionalCurveError measureLoopAgainstCircle(
 MANUMESH_API std::string featureReportHeaderCsv();
 /// 一个特征环的 CSV 行。
 MANUMESH_API std::string featureLoopRowCsv(const FeatureLoop& loop);
-/// 拟合特征基本体的稳定字符串名称。
+/// 拟合特征几何基元的稳定字符串名称。
 MANUMESH_API std::string toString(FeaturePrimitiveType primitive);
 /// 将检测到的图边与顶点索引形式的真实标签进行比较。
 /// @param[in] analysis 待评分的检测结果。

@@ -52,7 +52,11 @@ simplification::SimplifyOptions parseSimplifyOptions(const Args& args) {
         options.preserveBoundary = true;
         options.minTriangleQuality = std::max(options.minTriangleQuality, 1e-4);
         options.maxNormalDeviationDeg = std::min(options.maxNormalDeviationDeg, 75.0);
-        options.maxLocalErrorRatio = std::max(options.maxLocalErrorRatio, 0.02);
+        if (options.maxLocalErrorRatio == 0.0) {
+            options.maxLocalErrorRatio = 0.02;
+        } else if (options.maxLocalErrorRatio > 0.0) {
+            options.maxLocalErrorRatio = std::min(options.maxLocalErrorRatio, 0.02);
+        }
         options.preventLocalIntersections = true;
         options.qualityRefinementIterations = std::max(options.qualityRefinementIterations, 2);
     }

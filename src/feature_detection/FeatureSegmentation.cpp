@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureSegmentation.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征分割功能。
+ * @brief 沿活动特征边将网格面划分为连通曲面片。
  * @ingroup manumesh_feature_detection
  *
  * @details 将由活动特征边分隔的面划分为连通面片。

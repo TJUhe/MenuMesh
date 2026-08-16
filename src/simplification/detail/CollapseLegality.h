@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/CollapseLegality.h
- * @brief 声明 ManuMesh 的简化模块的折叠合法性功能。
+ * @brief 声明依赖候选位置的拓扑和几何合法性检查。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 检查只读取活动状态，并返回稳定拒绝类别；它不修改网格或报告。
  */
 
 #pragma once

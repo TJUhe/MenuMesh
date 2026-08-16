@@ -1,6 +1,6 @@
 /**
  * @file src/mesh_edit/detail/MeshEditTypes.h
- * @brief 声明 ManuMesh 的网格编辑模块的网格编辑类型功能。
+ * @brief 定义局部拓扑编辑共享的活动面记录。
  * @ingroup manumesh_mesh_edit
  *
  * @details 编辑期间保持索引稳定，仅将面和顶点标记为非活动；确定性的压缩过程负责生成最终的稠密网格。

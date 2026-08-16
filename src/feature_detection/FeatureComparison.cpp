@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureComparison.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征比较功能。
+ * @brief 匹配两份分析中的圆形特征并计算保持误差。
  * @ingroup manumesh_feature_detection
  *
  * @details 匹配两份分析中的圆形特征，用于评估特征保持情况。

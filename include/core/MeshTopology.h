@@ -1,9 +1,9 @@
 /**
  * @file include/core/MeshTopology.h
- * @brief 声明 ManuMesh 核心网格模块的网格拓扑设施。
+ * @brief 声明三角网格的只读边和顶点入射索引。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details MeshTopology 一次构建稠密拓扑缓存，供校验和只读算法复用；局部编辑使用独立的 mesh_edit 层。
  */
 
 #pragma once

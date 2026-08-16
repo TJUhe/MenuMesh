@@ -850,7 +850,7 @@ img, svg, canvas, video {
             <tr>
               <td>Texture-aware simplification (opt-in)</td>
               <td><span class="status">Implemented</span></td>
-              <td>面向带逐角 UV 的网格：局部 chart 配对保护加标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式。<code>preserveTexture</code> 默认关闭，必须显式开启；当前仅通过 C++ <code>SimplifyOptions</code> 暴露，CLI <code>simplify</code> 未提供纹理选项。</td>
+              <td>面向带逐角 UV 的网格：局部 chart 配对保护加标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式。<code>preserveTexture</code> 默认关闭，必须显式开启；新代码通过 C++ <code>SimplifyConfig::texture</code> 配置，<code>SimplifyOptions</code> 仅作兼容入口，CLI <code>simplify</code> 未提供纹理选项。</td>
             </tr>
             <tr>
               <td>Deterministic smooth curvature feature detection (opt-in)</td>
@@ -1813,7 +1813,8 @@ debugUtil
           4×4 line-quadric 主干（M004/085）保持兼容。
         </p>
         <div class="warning note">
-          纹理保护当前只通过 C++ <code>SimplifyOptions</code> 暴露；CLI
+          纹理保护当前通过 C++ <code>SimplifyConfig::texture</code> 暴露，<code>SimplifyOptions</code>
+          只作兼容入口；CLI
           <code>simplify</code> 命令没有 <code>--preserve-texture</code>
           之类选项，请勿在自动化脚本中假设其存在。
         </div>

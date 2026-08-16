@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/CollapseAttempt.h
- * @brief 声明 ManuMesh 的简化模块的折叠尝试功能。
+ * @brief 声明单个边坍缩候选的无副作用评估过程。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 评估返回接受计划或首个可观察拒绝原因，真正的状态提交由 SimplificationRun 负责。
  */
 
 #pragma once

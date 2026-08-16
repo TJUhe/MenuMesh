@@ -103,6 +103,15 @@ else()
   )
 endif()
 
+function(manumesh_quote_doxygen_paths output_variable)
+  set(quoted_paths "")
+  foreach(path IN LISTS ARGN)
+    string(APPEND quoted_paths " \"${path}\"")
+  endforeach()
+  string(STRIP "${quoted_paths}" quoted_paths)
+  set(${output_variable} "${quoted_paths}" PARENT_SCOPE)
+endfunction()
+
 if(MANUMESH_BUILD_DOCS)
   find_package(Doxygen REQUIRED)
   if(EXISTS "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}")
@@ -110,86 +119,101 @@ if(MANUMESH_BUILD_DOCS)
       CACHE FILEPATH "Vendored Graphviz dot 可执行文件" FORCE
     )
   else()
+    if(MANUMESH_DOXYGEN_DOT_EXE AND
+       NOT EXISTS "${MANUMESH_DOXYGEN_DOT_EXE}")
+      unset(MANUMESH_DOXYGEN_DOT_EXE CACHE)
+    endif()
     find_program(MANUMESH_DOXYGEN_DOT_EXE NAMES dot)
   endif()
   set(MANUMESH_DOXYGEN_HAVE_DOT "NO")
   set(MANUMESH_DOXYGEN_DOT_PATH "")
-  if(MANUMESH_DOXYGEN_ENABLE_GRAPHS AND MANUMESH_DOXYGEN_DOT_EXE)
+  if(MANUMESH_DOXYGEN_ENABLE_GRAPHS AND
+     MANUMESH_DOXYGEN_DOT_EXE AND
+     EXISTS "${MANUMESH_DOXYGEN_DOT_EXE}" AND
+     NOT IS_DIRECTORY "${MANUMESH_DOXYGEN_DOT_EXE}")
     set(MANUMESH_DOXYGEN_HAVE_DOT "YES")
     get_filename_component(MANUMESH_DOXYGEN_DOT_PATH
       "${MANUMESH_DOXYGEN_DOT_EXE}" DIRECTORY
     )
+  elseif(MANUMESH_DOXYGEN_ENABLE_GRAPHS)
+    message(STATUS
+      "未找到可用的 Graphviz dot；Doxygen 继续生成，但不包含关系图。"
+    )
   endif()
-    set(MANUMESH_DOXYGEN_INPUT_FILES
-      "${PROJECT_SOURCE_DIR}/documentation/doxygen"
-      "${PROJECT_SOURCE_DIR}/include"
-      "${PROJECT_SOURCE_DIR}/src"
-      "${PROJECT_SOURCE_DIR}/apps"
-      "${PROJECT_SOURCE_DIR}/examples"
-    )
-    string(JOIN " " MANUMESH_DOXYGEN_INPUT ${MANUMESH_DOXYGEN_INPUT_FILES})
-    set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/doxygen")
-    set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh")
-    set(MANUMESH_DOXYGEN_PROJECT_BRIEF
-      "C++14 三角网格分析、特征检测与简化内核"
-    )
-    set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_STATIC "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_LOCAL_CLASSES "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_ANON_NSPACES "NO")
-    set(MANUMESH_DOXYGEN_INTERNAL_DOCS "NO")
-    set(MANUMESH_DOXYGEN_WARN_IF_UNDOCUMENTED "YES")
-    set(MANUMESH_DOXYGEN_INLINE_SOURCES "NO")
-    configure_file(
-      "${PROJECT_SOURCE_DIR}/Doxyfile.in"
-      "${PROJECT_BINARY_DIR}/Doxyfile"
-      @ONLY
-    )
-    add_custom_target(docs-api
-      COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
-      COMMAND "${CMAKE_COMMAND}" -E env
-        "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
-        "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile"
-      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-      COMMENT "正在使用 Doxygen 生成 API 文档"
-      VERBATIM
-    )
+  set(MANUMESH_DOXYGEN_INPUT_FILES
+    "${PROJECT_SOURCE_DIR}/documentation/doxygen"
+    "${PROJECT_SOURCE_DIR}/include"
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/apps"
+    "${PROJECT_SOURCE_DIR}/examples"
+  )
+  manumesh_quote_doxygen_paths(MANUMESH_DOXYGEN_INPUT
+    ${MANUMESH_DOXYGEN_INPUT_FILES}
+  )
+  set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/doxygen")
+  set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh")
+  set(MANUMESH_DOXYGEN_PROJECT_BRIEF
+    "C++14 三角网格分析、特征检测与简化内核"
+  )
+  set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_STATIC "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_LOCAL_CLASSES "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_ANON_NSPACES "NO")
+  set(MANUMESH_DOXYGEN_INTERNAL_DOCS "NO")
+  set(MANUMESH_DOXYGEN_WARN_IF_UNDOCUMENTED "YES")
+  set(MANUMESH_DOXYGEN_INLINE_SOURCES "NO")
+  configure_file(
+    "${PROJECT_SOURCE_DIR}/Doxyfile.in"
+    "${PROJECT_BINARY_DIR}/Doxyfile"
+    @ONLY
+  )
+  add_custom_target(docs-api
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E env
+      "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
+      "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    COMMENT "正在使用 Doxygen 生成 API 文档"
+    VERBATIM
+  )
 
-    set(MANUMESH_DOXYGEN_INPUT_FILES
-      "${PROJECT_SOURCE_DIR}/documentation/doxygen-internal"
-      "${PROJECT_SOURCE_DIR}/documentation/doxygen/groups.dox"
-      "${PROJECT_SOURCE_DIR}/include"
-      "${PROJECT_SOURCE_DIR}/src"
-    )
-    string(JOIN " " MANUMESH_DOXYGEN_INPUT ${MANUMESH_DOXYGEN_INPUT_FILES})
-    set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/internal")
-    set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh Internal Source Reference")
-    set(MANUMESH_DOXYGEN_PROJECT_BRIEF
-      "私有实现、源码浏览和工程调用关系"
-    )
-    set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_STATIC "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_LOCAL_CLASSES "YES")
-    set(MANUMESH_DOXYGEN_EXTRACT_ANON_NSPACES "YES")
-    set(MANUMESH_DOXYGEN_INTERNAL_DOCS "YES")
-    set(MANUMESH_DOXYGEN_WARN_IF_UNDOCUMENTED "NO")
-    set(MANUMESH_DOXYGEN_INLINE_SOURCES "YES")
-    configure_file(
-      "${PROJECT_SOURCE_DIR}/Doxyfile.in"
-      "${PROJECT_BINARY_DIR}/Doxyfile.internal"
-      @ONLY
-    )
-    add_custom_target(docs-internal
-      COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
-      COMMAND "${CMAKE_COMMAND}" -E env
-        "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
-        "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile.internal"
-      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-      COMMENT "正在使用 Doxygen 生成内部源码文档"
-      VERBATIM
-    )
+  set(MANUMESH_DOXYGEN_INPUT_FILES
+    "${PROJECT_SOURCE_DIR}/documentation/doxygen-internal"
+    "${PROJECT_SOURCE_DIR}/documentation/doxygen/groups.dox"
+    "${PROJECT_SOURCE_DIR}/include"
+    "${PROJECT_SOURCE_DIR}/src"
+  )
+  manumesh_quote_doxygen_paths(MANUMESH_DOXYGEN_INPUT
+    ${MANUMESH_DOXYGEN_INPUT_FILES}
+  )
+  set(MANUMESH_DOXYGEN_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/docs/internal")
+  set(MANUMESH_DOXYGEN_PROJECT_NAME "ManuMesh Internal Source Reference")
+  set(MANUMESH_DOXYGEN_PROJECT_BRIEF
+    "私有实现、源码浏览和工程调用关系"
+  )
+  set(MANUMESH_DOXYGEN_EXTRACT_ALL "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_PRIVATE "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_STATIC "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_LOCAL_CLASSES "YES")
+  set(MANUMESH_DOXYGEN_EXTRACT_ANON_NSPACES "YES")
+  set(MANUMESH_DOXYGEN_INTERNAL_DOCS "YES")
+  set(MANUMESH_DOXYGEN_WARN_IF_UNDOCUMENTED "NO")
+  set(MANUMESH_DOXYGEN_INLINE_SOURCES "YES")
+  configure_file(
+    "${PROJECT_SOURCE_DIR}/Doxyfile.in"
+    "${PROJECT_BINARY_DIR}/Doxyfile.internal"
+    @ONLY
+  )
+  add_custom_target(docs-internal
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${MANUMESH_DOXYGEN_OUTPUT_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E env
+      "GVBINDIR=${MANUMESH_DOXYGEN_DOT_PATH}"
+      "${DOXYGEN_EXECUTABLE}" "${PROJECT_BINARY_DIR}/Doxyfile.internal"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    COMMENT "正在使用 Doxygen 生成内部源码文档"
+    VERBATIM
+  )
   add_dependencies(docs-api check-src-doxygen)
   add_dependencies(docs-internal check-src-doxygen)
 endif()
@@ -384,12 +408,14 @@ if(MANUMESH_ENABLE_INSTALL)
       VERBATIM
     )
 
+    # 已安装 SDK 的 consumer 共用一个输出目录，并复制同一组运行时 DLL。
+    # 串行构建这些小目标，避免 Windows 上的 post-build 复制相互竞争。
     add_custom_target(sdk-consumer-test
       COMMAND "${CMAKE_COMMAND}" -E remove_directory "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
       COMMAND "${CMAKE_COMMAND}" ${MANUMESH_SDK_CONSUMER_CONFIGURE_ARGS}
       COMMAND "${CMAKE_COMMAND}" --build "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
         --config "$<CONFIG>"
-        --parallel
+        --parallel 1
       COMMAND "${CMAKE_COMMAND}" -E chdir "${MANUMESH_SDK_CONSUMER_BUILD_DIR}"
         "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>"
         --output-on-failure

@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_fixture_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 夹具测试行为。
+ * @brief 验证孔、凸台和凹槽夹具上的特征检测及真值基准。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -98,12 +96,6 @@ TEST(FeatureDetection, FixtureBenchmarkUsesCoaxialHoleGroundTruthLabels) {
     EXPECT_EQ(24, benchmark.truePositiveEdges);
     EXPECT_EQ(0, benchmark.falseNegativeEdges);
     EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(benchmark.edgePrecision, 0.20);
     EXPECT_GT(benchmark.loopClosureRate, 0.95);
 }
@@ -126,11 +118,6 @@ TEST(FeatureDetection, FixtureBenchmarkUsesEllipticalHoleGroundTruthLabels) {
     EXPECT_EQ(40, benchmark.truePositiveEdges);
     EXPECT_EQ(0, benchmark.falseNegativeEdges);
     EXPECT_DOUBLE_EQ(1.0, benchmark.edgeRecall);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(benchmark.edgePrecision, 0.20);
     EXPECT_GT(benchmark.loopClosureRate, 0.95);
 }
@@ -266,13 +253,6 @@ TEST(FeatureDetection, FixtureDetectsBossPocketPlanesAndHardEdges) {
 
     EXPECT_EQ(0, features.boundaryFeatureEdges);
     EXPECT_EQ(0, features.inconsistentWindingEdges);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     // 60 - 12 = 48.
     EXPECT_EQ(60, features.dihedralFeatureEdges);
     EXPECT_EQ(48, features.convexFeatureEdges);
@@ -286,26 +266,17 @@ TEST(FeatureDetection, FixtureDetectsBossPocketPlanesAndHardEdges) {
         return loop.concaveEdges > 0;
     }));
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto approx = [](double value, double target) {
         return std::abs(value - target) < 1e-9;
     };
     const auto isConcaveTruthEdge = [&](const Vec3& pa, const Vec3& pb) {
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         if (approx(pa.z(), -0.25) && approx(pb.z(), -0.25)) {
             return true;
         }
-        // 命名空间
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         if (approx(pa.x(), pb.x()) && approx(pa.y(), pb.y()) && (approx(pa.x(), 0.25) || approx(pa.x(), 0.85)) &&
             approx(std::abs(pa.y()), 0.35)) {
             return true;
         }
-        // 命名空间
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         if (approx(pa.z(), 0.2) && approx(pb.z(), 0.2) && pa.x() >= -0.8 - 1e-9 && pa.x() <= -0.2 + 1e-9 &&
             pb.x() >= -0.8 - 1e-9 && pb.x() <= -0.2 + 1e-9 && std::abs(pa.y()) <= 0.35 + 1e-9 &&
             std::abs(pb.y()) <= 0.35 + 1e-9) {

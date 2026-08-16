@@ -1,9 +1,7 @@
 /**
  * @file tests/support/TestSupport.h
- * @brief 验证 ManuMesh 测试中的测试支持行为。
+ * @brief 声明跨测试套件共享的数据加载、简化和结果检查工具。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once

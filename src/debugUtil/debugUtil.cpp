@@ -1,6 +1,6 @@
 /**
  * @file src/debugUtil/debugUtil.cpp
- * @brief 实现 ManuMesh 调试可视化模块的辅助功能。
+ * @brief 生成带语义叠加层的本地 HTML 网格快照。
  * @ingroup manumesh_debug
  *
  * @details 发布构建会去除调试可视化，调试工具不得影响算法结果。

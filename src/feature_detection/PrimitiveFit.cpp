@@ -1,13 +1,13 @@
 /**
  * @file src/feature_detection/PrimitiveFit.cpp
- * @brief 实现 ManuMesh 的特征检测模块的图元拟合功能。
+ * @brief 为恢复曲线拟合圆、近圆、椭圆或多边形环。
  * @ingroup manumesh_feature_detection
  *
  * @details 为恢复出的曲线拟合圆、近圆、椭圆或多边形环模型。
  * @algorithm 先用最佳拟合平面建立二维坐标；圆拟合采用 Taubin 代数模型并以
  *            Kasa 回退；椭圆使用直接 Halir-Flusser 二次曲线拟合并从其系数恢复
  *            几何轴；最后用归一化径向、平面和方向残差接受模型。
- * @failuremodes 对共线、秩亏、非椭圆或采样不足的环，回退为多边形分类，避免不稳定图元。
+ * @failuremodes 对共线、秩亏、非椭圆或采样不足的环，回退为多边形分类，避免不稳定几何基元。
  */
 
 #include "detail/PrimitiveFit.h"

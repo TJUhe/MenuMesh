@@ -1,6 +1,6 @@
 /**
  * @file src/common/MeshDistanceIndex.cpp
- * @brief 实现 ManuMesh 公共几何模块的网格距离索引设施。
+ * @brief 构建并查询点到三角网格表面的距离 BVH。
  * @ingroup manumesh_common
  *
  * @details 为重复的点到表面距离查询构建包围体层次结构。

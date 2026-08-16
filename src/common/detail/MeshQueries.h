@@ -1,6 +1,6 @@
 /**
  * @file src/common/detail/MeshQueries.h
- * @brief 声明 ManuMesh 公共几何模块的网格查询设施。
+ * @brief 声明算法共享的只读网格拓扑与几何查询。
  * @ingroup manumesh_common
  *
  * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。

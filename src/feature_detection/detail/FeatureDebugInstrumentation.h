@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/detail/FeatureDebugInstrumentation.h
- * @brief Adapts feature-analysis diagnostics to the generic debug overlay sink.
+ * @brief 将特征分析结果转换为通用调试叠加层。
  * @ingroup manumesh_feature_detection
  */
 

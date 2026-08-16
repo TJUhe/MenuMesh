@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_quality_refinement_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 质量细化测试行为。
+ * @brief 验证固定拓扑质量细化对误差包络和特征约束的保持。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "TestSupport.h"
@@ -140,8 +138,6 @@ TEST(QualityRefinement, ImprovesQualityAfterActualEdgeCollapse) {
     EXPECT_GT(baseline.report.collapsedEdges, 0);
     EXPECT_EQ(baseline.mesh.faces.size(), refined.mesh.faces.size());
     EXPECT_EQ(baselineTopology.value().boundaryEdgeCount(), refinedTopology.value().boundaryEdgeCount());
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(refinedStats.minTriangleQuality, baselineStats.minTriangleQuality);
     EXPECT_GT(refinedStats.meanTriangleQuality, baselineStats.meanTriangleQuality);
     EXPECT_GT(refined.report.qualityRefinementAcceptedMoves, 0);
@@ -178,8 +174,6 @@ TEST(QualityRefinement, HardProtectedCircularFeatureLoopsRemainStable) {
 }
 
 namespace {
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 double distanceToNearestCubeEdgeLine(const manumesh::Vec3& p, double half) {
     double best = std::numeric_limits<double>::infinity();
     for (int freeAxis = 0; freeAxis < 3; ++freeAxis) {
@@ -195,9 +189,6 @@ double distanceToNearestCubeEdgeLine(const manumesh::Vec3& p, double half) {
 } // 命名空间
 
 TEST(QualityRefinement, SoftProtectedPolygonalCreaseVerticesOnlySlideAlongTheCrease) {
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double half = 1.0;
     const manumesh::Mesh input = manumesh::generateClosedCubeGrid(10, 2.0 * half);
 
@@ -212,18 +203,10 @@ TEST(QualityRefinement, SoftProtectedPolygonalCreaseVerticesOnlySlideAlongTheCre
     refinedOptions.qualityRefinementIterations = 5;
     const manumesh::test::SimplifiedMesh refined = manumesh::test::simplifyWithReport(input, refinedOptions);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     ASSERT_EQ(baseline.mesh.vertices.size(), refined.mesh.vertices.size());
     ASSERT_EQ(baseline.mesh.faces.size(), refined.mesh.faces.size());
     EXPECT_GT(refined.report.qualityRefinementAcceptedMoves, 0);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     int creaseVertices = 0;
     double maxDriftGrowth = 0.0;
     for (std::size_t i = 0; i < baseline.mesh.vertices.size(); ++i) {

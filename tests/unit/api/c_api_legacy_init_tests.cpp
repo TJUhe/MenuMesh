@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/api/c_api_legacy_init_tests.cpp
- * @brief 验证 ManuMesh 测试中的 C API 旧版初始化测试行为。
+ * @brief 验证旧版 C ABI 初始化函数只写入首个发布布局。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #define MANUMESH_DISABLE_SIZE_AWARE_ALIASES

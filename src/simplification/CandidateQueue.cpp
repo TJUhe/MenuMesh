@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/CandidateQueue.cpp
- * @brief 实现 ManuMesh 的简化模块的候选队列功能。
+ * @brief 维护带版本戳和缓存位置的最低代价坍缩队列。
  * @ingroup manumesh_simplification
  *
  * @details 维护带缓存放置解的最小代价候选堆。

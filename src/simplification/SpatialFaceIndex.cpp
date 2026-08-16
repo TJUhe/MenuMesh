@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/SpatialFaceIndex.cpp
- * @brief 实现 ManuMesh 的简化模块的空间面索引功能。
+ * @brief 维护局部自相交检查使用的活动面 AABB 索引。
  * @ingroup manumesh_simplification
  *
  * @details 在局部编辑期间维护活动面的宽相位 AABB 登记。

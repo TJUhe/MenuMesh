@@ -1,6 +1,6 @@
 /**
  * @file apps/ManuMeshCli.cpp
- * @brief 实现 ManuMesh 命令行入口的帮助、版本和命令调度。
+ * @brief 解析顶层 CLI 命令并统一处理帮助、版本和错误退出。
  * @ingroup manumesh_cli
  *
  * @details 入口只负责解析顶层命令；具体参数校验和业务操作由命令模块完成。

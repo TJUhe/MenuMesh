@@ -1,6 +1,6 @@
 /**
  * @file src/api/CApiConverters.cpp
- * @brief 实现 ManuMesh 的C ABI 模块的C API 转换器功能。
+ * @brief 在带大小的 C ABI 结构与内部 C++ 类型之间转换。
  * @ingroup manumesh_c_api
  *
  * @details 转换器复用 C ABI 的容量检查和有限数值约定，将内部结果安全写入公开结构体。
@@ -385,25 +385,11 @@ ManuMeshStatus initializeMeshStats(ManuMeshMeshStats* stats, std::size_t structC
     return initializeAbiBuffer(stats, structCapacity, writeSize);
 }
 
-bool readSimplifyOptions(
+namespace {
+
+bool readSimplifyTargetAndCostOptions(
     const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
 ) {
-    target = simplification::SimplifyOptions{};
-    error.clear();
-    if (!abiStructLooksInitialized(source)) {
-        error = "ManuMeshSimplifyOptions must be initialized with "
-                "manumesh_simplify_options_init for this ABI version.";
-        return false;
-    }
-    const bool hasFeatureOptionsOverride =
-        MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_options) && source.feature_options != nullptr;
-    if (hasFeatureOptionsOverride) {
-        feature::FeatureOptions featureOptions;
-        if (!readFeatureOptions(source.feature_options, featureOptions, error)) {
-            return false;
-        }
-        target.featureOptionsOverride = featureOptions;
-    }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, target_faces)) {
         target.targetFaces = source.target_faces;
     }
@@ -427,14 +413,6 @@ bool readSimplifyOptions(
         !readFiniteDouble(source.feature_boost, "feature_boost", target.featureBoost, error)) {
         return false;
     }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_angle_deg, hasFeatureOptionsOverride) &&
-        !readFiniteDouble(source.feature_angle_deg, "feature_angle_deg", target.featureAngleDeg, error)) {
-        return false;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, loop_trace_angle_deg, hasFeatureOptionsOverride) &&
-        !readFiniteDouble(source.loop_trace_angle_deg, "loop_trace_angle_deg", target.loopTraceAngleDeg, error)) {
-        return false;
-    }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, adaptive_scale)) {
         target.adaptiveScale = boolFromInt(source.adaptive_scale);
     }
@@ -448,8 +426,22 @@ bool readSimplifyOptions(
         !readFiniteDouble(source.boundary_weight, "boundary_weight", target.boundaryWeight, error)) {
         return false;
     }
-    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, preserve_boundary)) {
-        target.preserveBoundary = boolFromInt(source.preserve_boundary);
+    return true;
+}
+
+bool readSimplifyFeatureFields(
+    const ManuMeshSimplifyOptions& source,
+    bool hasFeatureOptionsOverride,
+    simplification::SimplifyOptions& target,
+    std::string& error
+) {
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, feature_angle_deg, hasFeatureOptionsOverride) &&
+        !readFiniteDouble(source.feature_angle_deg, "feature_angle_deg", target.featureAngleDeg, error)) {
+        return false;
+    }
+    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, loop_trace_angle_deg, hasFeatureOptionsOverride) &&
+        !readFiniteDouble(source.loop_trace_angle_deg, "loop_trace_angle_deg", target.loopTraceAngleDeg, error)) {
+        return false;
     }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, preserve_feature_curves)) {
         target.preserveFeatureCurves = boolFromInt(source.preserve_feature_curves);
@@ -698,6 +690,15 @@ bool readSimplifyOptions(
         )) {
         return false;
     }
+    return true;
+}
+
+bool readSimplifyQualityFields(
+    const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
+) {
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, preserve_boundary)) {
+        target.preserveBoundary = boolFromInt(source.preserve_boundary);
+    }
     if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, quality_refinement_iterations)) {
         target.qualityRefinementIterations = source.quality_refinement_iterations;
     }
@@ -726,6 +727,34 @@ bool readSimplifyOptions(
         target.verbose = boolFromInt(source.verbose);
     }
     return true;
+}
+
+} // namespace
+
+bool readSimplifyOptions(
+    const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
+) {
+    target = simplification::SimplifyOptions{};
+    error.clear();
+    if (!abiStructLooksInitialized(source)) {
+        error = "ManuMeshSimplifyOptions must be initialized with "
+                "manumesh_simplify_options_init for this ABI version.";
+        return false;
+    }
+
+    const bool hasFeatureOptionsOverride =
+        MANUMESH_SIMPLIFY_FIELD_PRESENT(source, feature_options) && source.feature_options != nullptr;
+    if (hasFeatureOptionsOverride) {
+        feature::FeatureOptions featureOptions;
+        if (!readFeatureOptions(source.feature_options, featureOptions, error)) {
+            return false;
+        }
+        target.featureOptionsOverride = featureOptions;
+    }
+
+    return readSimplifyTargetAndCostOptions(source, target, error) &&
+           readSimplifyFeatureFields(source, hasFeatureOptionsOverride, target, error) &&
+           readSimplifyQualityFields(source, target, error);
 }
 
 bool validateSimplifyReportOutput(

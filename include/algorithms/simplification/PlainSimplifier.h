@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/simplification/PlainSimplifier.h
- * @brief 声明 ManuMesh 简化模块的纯数据简化设施。
+ * @brief 提供不暴露 Eigen 的 PlainMesh 简化入口。
  * @ingroup manumesh_simplification
  *
- * @details 此文件属于面向特征的边坍缩管线。二次误差代价负责候选排序；拓扑、几何、特征、边界、误差和可选纹理策略共同决定位置是否可以修改网格。
+ * @details 入口在 SDK 边界完成 PlainMesh 与 Mesh 的显式转换，简化行为与 QEMSimplifier 保持一致。
  */
 
 #pragma once

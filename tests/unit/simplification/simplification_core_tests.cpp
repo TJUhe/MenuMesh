@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_core_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 核心测试行为。
+ * @brief 验证简化器对非法输入和退化三角形的基础处理。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "algorithms/simplification/QEMSimplifier.h"
@@ -14,9 +12,6 @@
 #include <limits>
 #include <stdexcept>
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 
 TEST(ManuMesh, SimplifierRejectsInvalidOptionsAndMeshes) {
     const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
@@ -53,12 +48,6 @@ TEST(ManuMesh, SimplifierRejectsInvalidOptionsAndMeshes) {
 }
 namespace {
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 manumesh::Mesh makePlaneGridWithDegenerateTriangle(double collinearScale) {
     manumesh::Mesh mesh = manumesh::generatePlaneGrid(6, 1.0, false);
     const manumesh::Vec3 base = mesh.vertices[0];
@@ -88,8 +77,6 @@ void expectDegenerateInputSimplifiesSafely(double collinearScale) {
     options.targetRatio = 0.5;
     options.preserveBoundary = true;
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     manumesh::simplification::SimplifyReport dirtyReport;
     manumesh::Mesh dirtyResult;
     ASSERT_NO_THROW(dirtyResult = manumesh::simplification::simplifyMesh(dirty, options, &dirtyReport));
@@ -98,8 +85,6 @@ void expectDegenerateInputSimplifiesSafely(double collinearScale) {
     expectFiniteMesh(dirtyResult);
     EXPECT_TRUE(manumesh::validateMeshGeometryLenient(dirtyResult));
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     manumesh::simplification::SimplifyReport cleanReport;
     const manumesh::Mesh cleanResult = manumesh::simplification::simplifyMesh(clean, options, &cleanReport);
     EXPECT_EQ(0, cleanReport.degenerateInputFaces);

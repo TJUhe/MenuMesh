@@ -1,9 +1,7 @@
 /**
  * @file tests/support/TestSupport.cpp
- * @brief 验证 ManuMesh 测试中的测试支持行为。
+ * @brief 实现测试数据加载、常用简化配置和结果一致性断言。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "TestSupport.h"

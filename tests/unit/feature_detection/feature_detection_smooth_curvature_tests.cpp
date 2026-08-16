@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_smooth_curvature_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 平滑曲率测试行为。
+ * @brief 验证平滑曲率特征的尺度不变性、持久性和图恢复。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -83,13 +81,6 @@ TEST(FeatureDetection, SmoothCurvatureRejectsExactPlaneAndFindsSmoothBump) {
         feature::detectFeatureCurves(generateNoisyPlaneGrid(32, 2.0, 0.008), graphOptions);
     EXPECT_GT(bumpGraph.smoothCurvatureFeatureEdges, 0);
     EXPECT_LT(noisyGraph.smoothCurvatureFeatureEdges, bumpGraph.smoothCurvatureFeatureEdges);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_LE(4 * noisyGraph.smoothCurvatureFeatureEdges, 3 * bumpGraph.smoothCurvatureFeatureEdges);
 }
 
@@ -105,10 +96,6 @@ TEST(FeatureDetection, SmoothCurvatureEvidenceIsInvariantUnderUniformScaling) {
 }
 
 TEST(FeatureDetection, SmoothCurvaturePersistenceSuppressesSingleScaleCandidates) {
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const Mesh bump = generateBumpGrid(28, 2.0);
     const feature::SmoothCurvatureOptions curvatureOptions{2, 3, 2, 0.55};
     const auto values = feature::computeSmoothCurvatureFeatures(bump, curvatureOptions, 0.008);
@@ -125,11 +112,6 @@ TEST(FeatureDetection, SmoothCurvaturePersistenceSuppressesSingleScaleCandidates
     strict.smoothCurvatureMinPersistentScales = 3;
     const FeatureAnalysis strictResult = feature::detectFeatureCurves(bump, strict);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GT(strictResult.smoothCurvatureFeatureEdges, 0);
     EXPECT_LT(strictResult.smoothCurvatureFeatureEdges, permissiveResult.smoothCurvatureFeatureEdges);
 }
@@ -160,14 +142,7 @@ TEST(FeatureDetection, SmoothCurvatureGraphRecoversLabeledGaussianRidge) {
 
     constexpr double size = 2.0;
     const double spacing = size / static_cast<double>(subdivisions);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     //   该实现需保持边界条件，并保证结果具有确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const std::array<double, 3> featureX = {-0.25, 0.0, 0.25};
 
     int detected = 0;

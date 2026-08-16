@@ -1,9 +1,9 @@
 /**
  * @file include/core/Status.h
- * @brief 声明 ManuMesh 核心网格模块的状态设施。
+ * @brief 定义无异常调用使用的 Status 和 Result 值类型。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 数据和 I/O 错误通过稳定状态码返回；程序员违反 C++ 前置条件时仍可使用异常。
  */
 
 #pragma once

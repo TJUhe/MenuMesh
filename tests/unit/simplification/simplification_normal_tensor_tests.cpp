@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_normal_tensor_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 法向张量测试行为。
+ * @brief 验证法向张量证据、持久尺度和特征加权的几何不变性。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"

@@ -67,6 +67,7 @@ if(MANUMESH_ENABLE_DEBUG_UTIL)
 endif()
 
 set(MANUMESH_FEATURE_DETECTION_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureAnalysisValidation.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureBenchmark.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureCircularRecovery.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureComparison.cpp"

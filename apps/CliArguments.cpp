@@ -106,7 +106,7 @@ const std::vector<OptionSpec>& featureOptionSpecs() {
         {"--circle-fit-threshold", "R", "圆环的相对拟合阈值"},
         {"--ellipse-fit-threshold", "R", "椭圆报告的相对拟合阈值"},
         {"--near-circle-axis-ratio-tolerance", "R", "近圆的轴比容差"},
-        {"--min-feature-loop-vertices", "N", "恢复循环/基本体拟合所需的最小顶点数；仍会报告追踪到的链"},
+        {"--min-feature-loop-vertices", "N", "恢复循环/几何基元拟合所需的最小顶点数；仍会报告追踪到的链"},
         {"--normal-tensor-threshold", "S", "张量边的特征得分阈值"},
         {"--normal-tensor-edge-alignment", "A", "边与切线的最小对齐度"},
         {"--normal-tensor-smoothing", "N", "可选的张量平滑迭代次数"},

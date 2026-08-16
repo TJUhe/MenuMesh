@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureGraphConsolidation.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征图合并功能。
+ * @brief 在局部清理后桥接跨连通分量的兼容弱特征间隙。
  * @ingroup manumesh_feature_detection
  *
  * @details 在局部清理后执行分量级弱特征恢复。

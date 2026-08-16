@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SimplificationRun.h
- * @brief 声明 ManuMesh 的简化模块的简化 运行功能。
+ * @brief 声明一次性边坍缩运行的可变状态和调度入口。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details SimplificationRun 组合代价、拓扑、约束和诊断模块，但各模块仍保持独立判断职责。
  */
 
 #pragma once
@@ -119,7 +119,7 @@ private:
     std::unique_ptr<manumesh::common::MeshDistanceIndex> referenceSurface_;
     std::vector<int> activeLoopCounts_;
     /**
-     * @brief 圆/椭圆拟合数据的紧凑旁表；只有拟合图元环上的特征顶点才在其中拥有条目（VertexState::primitiveFitId）。
+     * @brief 圆/椭圆拟合数据的紧凑旁表；只有拟合几何基元环上的特征顶点才在其中拥有条目（VertexState::primitiveFitId）。
      */
     std::vector<FeaturePrimitiveFit> primitiveFits_;
     CandidateQueue queue_;

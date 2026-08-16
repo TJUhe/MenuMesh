@@ -1,6 +1,6 @@
 /**
  * @file src/common/detail/MeshDistanceIndex.h
- * @brief 声明 ManuMesh 公共几何模块的网格距离索引设施。
+ * @brief 声明重复点到表面查询使用的三角形 BVH。
  * @ingroup manumesh_common
  *
  * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。

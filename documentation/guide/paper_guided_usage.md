@@ -107,7 +107,7 @@ line quadrics 对照：
   --metrics-csv smooth_metrics.csv
 ```
 
-CLI 中 `--smooth-curvature-features`、`--feature-normal-filter` 或 `--feature-graph-consolidation` 会自动启用 feature-curve policy；默认保护模式仍是 `primitive-curves`。normal filter 只改检测法向，surface patches 只属于 feature analysis。报告除 scored vertices、persistence 外，还包含 scale stability、normal-filter、consolidation、junction pair 和 patch 诊断。纹理感知简化（`preserveTexture`）仍是 C++ `SimplifyOptions` 能力，CLI `simplify` 没有对应选项。
+在 `simplify` 中，`--smooth-curvature-features`、`--feature-normal-filter` 和 `--feature-graph-consolidation` 会沿用 0.x 的自动特征保护行为，等价于同时启用 `--preserve-feature-curves`。`feature-report` 可以单独使用这些检测选项。默认保护模式仍是 `primitive-curves`。normal filter 只改检测法向，surface patches 只属于 feature analysis。报告除 scored vertices、persistence 外，还包含 scale stability、normal-filter、consolidation、junction pair 和 patch 诊断。纹理感知简化通过 C++ `SimplifyConfig::texture` 显式开启，CLI `simplify` 没有对应选项。
 
 曲线特征保护的推荐起点：
 

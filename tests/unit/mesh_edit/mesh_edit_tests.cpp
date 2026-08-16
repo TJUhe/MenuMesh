@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/mesh_edit/mesh_edit_tests.cpp
- * @brief 验证 ManuMesh 测试中的网格编辑测试行为。
+ * @brief 验证动态拓扑缓存和活动网格压缩后的稳定重映射。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "mesh_edit/detail/DynamicTopology.h"

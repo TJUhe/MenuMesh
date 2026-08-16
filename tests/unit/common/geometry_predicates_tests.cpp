@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/common/geometry_predicates_tests.cpp
- * @brief 验证 ManuMesh 测试中的几何谓词测试行为。
+ * @brief 验证三角形质量、距离、包围盒和相交谓词的数值契约。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "../../../src/common/detail/GeometryPredicates.h"

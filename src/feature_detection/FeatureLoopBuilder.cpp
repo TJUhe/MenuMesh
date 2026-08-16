@@ -1,10 +1,10 @@
 /**
  * @file src/feature_detection/FeatureLoopBuilder.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征环构建功能。
+ * @brief 将追踪序列和边证据物化为公共 FeatureLoop 记录。
  * @ingroup manumesh_feature_detection
  *
  * @details 将追踪到的顶点序列和边证据转换为公共 FeatureLoop 记录。
- * @algorithm 在追加环之前计算证据计数、闭合状态、图元拟合、分量归属以及
+ * @algorithm 在追加环之前计算证据计数、闭合状态、几何基元拟合、分量归属以及
  *            每个顶点的切线/投影数据。
  * @invariants 只有在所有顶点 ID 及相邻图边都通过校验后，才会发布特征环。
  */

@@ -33,7 +33,7 @@ ManuMesh 将公共 SDK、可复用几何基础、算法实现和应用层分开�
 include/                         稳定的 C++ SDK 与 C ABI
    |
    +-- core / io / analysis      网格、拓扑、文件交换与公共分析
-   +-- feature_detection         特征证据、图、环、原语和曲面分区
+   +-- feature_detection         特征证据、图、环、几何基元和曲面分区
    `-- simplification            QEM/line-quadrics 与约束边坍缩入口
 
 src/common + src/mesh_edit       跨算法私有几何基础和动态拓扑
@@ -53,7 +53,7 @@ src/common + src/mesh_edit       跨算法私有几何基础和动态拓扑
 | `common` | 私有几何谓词、邻域查询、距离索引和空间加速结构。 |
 | `mesh_edit` | 活动拓扑、局部 incidence 更新以及 compact/remap。 |
 | `analysis` | 网格统计、采样距离和跨网格比较。 |
-| `feature_detection` | 特征证据提取、图清理/整合、追踪、原语拟合和曲面分区。 |
+| `feature_detection` | 特征证据提取、图清理/整合、追踪、几何基元拟合和曲面分区。 |
 | `simplification` | QEM/line-quadrics 排序、placement、合法性过滤和局部拓扑修改。 |
 | `api` | 不让 C++ 类型或异常穿越边界的 size-aware C ABI。 |
 | `apps` | CLI 参数校验、命令分派、CSV 输出和批处理工作流。 |
@@ -84,7 +84,8 @@ ManuMesh 当前是三角表面网格内核，不是完整 CAD/B-Rep 或实体建
 | Eigen | 3.3 或更高 | 核心向量/矩阵计算；可使用 system、vendored 或 fetch provider。 |
 | GoogleTest | 测试时需要 | 可使用 vendored source、system 或 fetch provider。 |
 | Doxygen | 文档构建时需要 | 通过 `PATH` 或 `DOXYGEN_EXECUTABLE` 提供；`MANUMESH_BUILD_DOCS=ON` 时配置阶段会验证。 |
-| Graphviz | 可选 | 优先使用 `thirdParty/graphviz` 中 vendored 的 15.0.0 `dot` 运行时；缺失时回退到系统安装。 |
+| Graphviz | 可选 | 找到 `dot` 时生成关系图；缺少 Graphviz 时 Doxygen 仍可生成 API 和源码文档，但不包含关系图。 |
+| Python 3 | 架构检查时需要 | VS2019 preset 和 CI 会开启 include 边界守卫；自定义测试配置可在没有 Python 时跳过该增强检查。 |
 | clang-format | 22.x，可选 | 执行 `format` 与 `check-format` 目标；缺失或主版本不匹配时目标会明确失败。 |
 
 仓库只支持 MSVC v142 x64。CMake 会在配置阶段拒绝 MinGW/GCC、Clang、MSVC v143、
@@ -225,19 +226,20 @@ int main() {
         return 1;
     }
 
-    manumesh::simplification::SimplifyOptions options;
-    options.targetRatio = 0.25;
-    options.useLineQuadrics = true;
-    options.lineWeight = 1e-3;
-    options.preserveFeatureCurves = true;
-    options.featureProtectionMode =
+    manumesh::simplification::SimplifyConfig config;
+    config.target = manumesh::simplification::SimplifyTarget::ratio(0.25);
+    config.cost.lineQuadrics =
+        manumesh::simplification::LineQuadricConfig::uniform(1e-3);
+    config.features.enabled = true;
+    config.features.protectionMode =
         manumesh::simplification::FeatureProtectionMode::PrimitiveCurves;
     manumesh::feature::FeatureOptions featureOptions;
     featureOptions.featureAngleDeg = 35.0;
-    options.featureOptionsOverride = featureOptions;
+    config.features.detection = featureOptions;
 
     manumesh::simplification::SimplifyReport report;
-    manumesh::simplification::QEMSimplifier simplifier(options);
+    manumesh::simplification::QEMSimplifier simplifier;
+    simplifier.setConfig(config);
     manumesh::Mesh output = simplifier.simplify(input, &report);
 
     return manumesh::saveBinaryStl("output.stl", output, &error)
@@ -323,13 +325,14 @@ system、仓库内依赖或网络拉取版本。
 | `MANUMESH_BUILD_CLI` | `ON` | 构建 `manumesh` CLI。 |
 | `MANUMESH_BUILD_EXAMPLES` | `ON` | 构建 C/C++ 示例。 |
 | `MANUMESH_BUILD_TESTS` | `ON` | 注册 GoogleTest/CTest 测试。 |
+| `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` | `OFF` | 测试构建时要求 Python 3 并注册 include 边界守卫；VS2019 preset 和 CI 显式设为 `ON`。 |
 | `MANUMESH_BUILD_PERFORMANCE_TESTS` | `OFF` | 构建独立的大模型性能套件。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中启用内部 HTML 线框工具。 |
 | `MANUMESH_EIGEN_PROVIDER` | `auto` | `auto`、`system`、`vendored` 或 `fetch`。 |
 | `MANUMESH_GOOGLETEST_PROVIDER` | `auto` | `auto`、`source`、`system` 或 `fetch`。 |
 | `MANUMESH_BUILD_DOCS` | `OFF` | 开启后要求 Doxygen 可用，并创建 `docs-api` 和 `docs-internal` 目标。 |
-| `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 检测到 vendored 或系统 Graphviz `dot` 时生成关系图。 |
+| `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 找到 vendored 或系统 Graphviz `dot` 时生成关系图；缺少 `dot` 时继续生成无图文档。 |
 
 ## 测试
 

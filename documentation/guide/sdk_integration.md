@@ -35,23 +35,30 @@ Eigen-backed 便利入口适合同编译器、同 C++ ABI 的消费工程：
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/Mesh.h"
 
-manumesh::simplification::SimplifyOptions options;
-options.targetRatio = 0.25;
-options.useLineQuadrics = true;
-options.lineWeight = 1e-3;
-options.preserveFeatureCurves = true;
+manumesh::simplification::SimplifyConfig config;
+config.target = manumesh::simplification::SimplifyTarget::ratio(0.25);
+config.cost.lineQuadrics =
+    manumesh::simplification::LineQuadricConfig::uniform(1e-3);
+config.features.enabled = true;
 
 manumesh::feature::FeatureOptions featureOptions;
 featureOptions.featureAngleDeg = 30.0;
 featureOptions.normalTensorScaleCount = 3;
 featureOptions.normalTensorMinPersistentScales = 2;
-options.featureOptionsOverride = featureOptions;
+config.features.detection = featureOptions;
 
 manumesh::simplification::SimplifyReport report;
-manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &report);
+manumesh::simplification::QEMSimplifier simplifier;
+simplifier.setConfig(config);
+manumesh::Mesh output = simplifier.simplify(input, &report);
+const manumesh::simplification::SimplifySummary summary = report.summary();
 ```
 
-需要复用配置时使用 `manumesh::simplification::QEMSimplifier` 对象。特征检测参数的规范入口是 `SimplifyOptions::featureOptionsOverride`；旧扁平特征检测字段只在 override 未设置时作为兼容适配器生效，override 存在时优先。`preserveFeatureCurves`、`featureCurveWeight`、`featureProtectionMode` 等简化专属策略仍直接配置在 `SimplifyOptions`。`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
+新代码使用 `SimplifyConfig` 的 `target`、`cost`、`features`、`quality` 和 `texture` 五组，运行日志由顶层 `verbose` 开关控制。目标必须通过 `SimplifyTarget::faceCount()` 或 `SimplifyTarget::ratio()` 明确选择一种单位；局部误差同样通过 `SimplifyErrorLimit::absolute()` 或 `SimplifyErrorLimit::boundingBoxRatio()` 二选一。`features.detection` 是唯一的特征检测配置来源。`features.enabled` 只控制特征曲线约束、投影和保护；Dihedral 或 NormalTensor 权重模式仍会读取相应检测参数来计算排序代价。有状态调用直接使用 `QEMSimplifier::setConfig()`；`makeSimplifyOptions()` 供仍接收旧 `SimplifyOptions` 的自由函数使用。`SimplifyOptions` 及其扁平字段继续作为 0.x 源码兼容入口。
+
+`SimplifyReport` 保留完整诊断字段；普通日志和 UI 可使用 `report.summary()` 获取输入/输出规模、坍缩数和终止原因。特征分析、拒绝原因、精修和纹理诊断仍按命名分组直接保存在报告中，只有需要调参或排查问题的调用方才需要读取。
+
+`SimplifyReport` 中的拒绝计数是“每个当前候选第一次被哪个硬过滤拒绝”的诊断信息，不应当当作互斥之外的总失败次数相加解释。
 
 如果使用 normal-tensor 弱特征，规范 `FeatureOptions::normalTensorMinPersistentScales`
 控制最小多尺度支持数；`SimplifyReport` 会返回
@@ -70,13 +77,17 @@ manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &
 #include "algorithms/simplification/PlainSimplifier.h"
 
 manumesh::PlainMesh input;
-manumesh::simplification::SimplifyOptions options;
+manumesh::simplification::SimplifyConfig config;
 manumesh::simplification::SimplifyReport report;
 manumesh::PlainMesh output =
-    manumesh::simplification::simplifyPlainMesh(input, options, &report);
+    manumesh::simplification::simplifyPlainMesh(
+        input,
+        manumesh::simplification::makeSimplifyOptions(config),
+        &report
+    );
 ```
 
-`SimplificationTypes.h` 包含 `SimplifyOptions`、`SimplifyReport` 和相关枚举，不依赖 Eigen；`QEMSimplifier.h` 仍包含 Eigen-backed `Mesh`。
+`SimplificationTypes.h` 包含 `SimplifyConfig`、兼容用的 `SimplifyOptions`、`SimplifyReport` 和相关枚举，不依赖 Eigen；`QEMSimplifier.h` 仍包含 Eigen-backed `Mesh`。
 
 ## 网格统计与比较（manumesh::analysis）
 
@@ -120,17 +131,17 @@ manumesh::feature::LoopMatchReport loopReport =
 
 `faceTexCoords` 为空表示无纹理；非空时必须与 `faces` 对齐，个别条目可以 invalid（例如 OBJ 中未贴图的面）。UV 是“角拥有”而不是“顶点拥有”，因为一个几何顶点可能属于多个 UV chart（纹理接缝）。`Mesh::hasTextureCoordinates()` 在至少一个面带有效逐角坐标时返回 true。IO 层的 `loadObj()` / `loadMesh()` 会读取多边形 OBJ：严格凸面保持确定性 fan 三角化，凹面使用主轴投影 ear clipping，并保留每个三角化后角点的 `vt` 索引；重复、退化、自交 polygon 以及同一面混用有/无纹理角会返回错误。
 
-纹理保护是显式 opt-in 的 `SimplifyOptions` 能力：
+纹理保护是显式 opt-in 的 `SimplifyConfig::texture` 能力：
 
 ```cpp
-manumesh::simplification::SimplifyOptions options;
-options.preserveTexture = true;    // 默认 false，必须显式打开
-options.textureWeight = 1.0;       // 只缩放局部标量排序代价
-options.textureSeamTolerance = 1e-8;
-options.minTextureAreaRatio = 1e-8;
+manumesh::simplification::SimplifyConfig config;
+config.texture.preserveTexture = true;    // 默认 false，必须显式打开
+config.texture.weight = 1.0;              // 只缩放局部标量排序代价
+config.texture.seamTolerance = 1e-8;
+config.texture.minAreaRatio = 1e-8;
 ```
 
-启用后，几何 quadric 仍保持 4×4，placement 求解不变；纹理只作为局部 UV 失真标量加入候选排序，并通过局部 chart 配对、UV 定向和有符号面积检查硬性拒绝会破坏接缝或压扁 UV 三角形的坍缩。`SimplifyReport` 返回 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）和 `textureRejectedCollapses`（placement 评估后被纹理检查否决的候选数）。注意两点：`preserveTexture = false` 时几何输出与旧无纹理路径完全一致，UV 仍会传播但没有失真/接缝保证；纹理保护启用时可选的固定拓扑质量精修轮（`qualityRefinementIterations`）会被暂时跳过。该能力当前只在 C++ API 提供，CLI `simplify` 与 C ABI 均未暴露纹理选项。设计细节见 [`../design/texture_aware_qem.md`](../design/texture_aware_qem.md)。
+启用后，几何 quadric 仍保持 4×4，placement 求解不变；纹理只作为局部 UV 失真标量加入候选排序，并通过局部 chart 配对、UV 定向和有符号面积检查硬性拒绝会破坏接缝或压扁 UV 三角形的坍缩。`SimplifyReport` 返回 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）和 `textureRejectedCollapses`（placement 评估后被纹理检查否决的候选数）。注意两点：`preserveTexture = false` 时几何输出与旧无纹理路径完全一致，UV 仍会传播但没有失真/接缝保证；纹理保护启用时可选的固定拓扑质量精修轮（`quality.refinementIterations`）会被暂时跳过。该能力当前只在 C++ API 提供，CLI `simplify` 与 C ABI 均未暴露纹理选项。设计细节见 [`../design/texture_aware_qem.md`](../design/texture_aware_qem.md)。
 
 独立特征检测入口：
 
@@ -190,9 +201,9 @@ featureOptions.smoothCurvatureMinScaleStability = 0.4;
 简化侧可直接启用同一检测器：
 
 ```cpp
-manumesh::simplification::SimplifyOptions simplifyOptions;
-simplifyOptions.preserveFeatureCurves = true;
-simplifyOptions.featureOptionsOverride = featureOptions;
+manumesh::simplification::SimplifyConfig simplifyConfig;
+simplifyConfig.features.enabled = true;
+simplifyConfig.features.detection = featureOptions;
 ```
 
 `SimplifyReport` 会返回 smooth score/local scale/persistence/stability、normal-filter iterations/changed faces/preserved edges/angular change、consolidation bridge/cap，以及既有 winding/cleanup/recovery 诊断。需要让多个流程共享同一分析时，先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。当 `weightMode=NormalTensor` 时，预计算分析中的 `normalTensorVertexWeights` 是按检测时阈值和尺度解析好的规范证据；验证通过后直接复用，即使当前 options 带有不同的 Normal Tensor 参数也不会重新阈值化。显式传入的分析若未启用 Normal Tensor、因而权重数组为空，该调用会抛出 `std::invalid_argument`；应改用包含该证据的分析，或改走不传预计算分析的普通入口以按当前有效配置计算。

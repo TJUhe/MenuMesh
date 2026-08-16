@@ -1,9 +1,9 @@
 /**
  * @file src/feature_detection/FeaturePrimitiveRecovery.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征图元恢复功能。
+ * @brief 在未归属图分量中恢复可拟合的几何基元曲线。
  * @ingroup manumesh_feature_detection
  *
- * @details 为尚未由追踪环表示的图分量应用图元拟合。
+ * @details 为尚未由追踪环表示的图分量应用几何基元拟合。
  * @algorithm 按图连续性排序分量顶点，拟合并依据图边校验，
  *            仅在不与已有更强环的归属冲突时写入结果。
  */

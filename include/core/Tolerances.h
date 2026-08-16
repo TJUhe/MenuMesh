@@ -1,9 +1,9 @@
 /**
  * @file include/core/Tolerances.h
- * @brief 声明 ManuMesh 核心网格模块的容差设施。
+ * @brief 定义跨模块共用的三角形退化阈值。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 校验、法向、距离索引和质量度量从同一组常量派生阈值，避免模块间出现不同的退化判定。
  */
 
 #pragma once

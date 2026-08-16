@@ -1,6 +1,6 @@
 /**
  * @file src/api/CApi.cpp
- * @brief 实现 ManuMesh 的C ABI 模块的C API功能。
+ * @brief 实现稳定 C ABI 的句柄、错误边界和算法入口。
  * @ingroup manumesh_c_api
  *
  * @details C 边界负责校验指针和容量，将失败转换为状态码，并且不允许 C++ 异常穿过 ABI。
@@ -305,33 +305,114 @@ static_assert(
     offsetof(ManuMeshFeatureEdgeV2, input_edge_index) == offsetof(FeatureEdgeV2Layout, input_edge_index),
     "ManuMeshFeatureEdgeV2 input_edge_index offset changed"
 );
+#define MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(field)                                                               \
+    static_assert(                                                                                                     \
+        offsetof(LegacyV1SimplifyOptionsLayout, field) == offsetof(ManuMeshSimplifyOptions, field),                    \
+        "ManuMeshSimplifyOptions v1 field layout changed: " #field                                                    \
+    )
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(struct_size);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(abi_version);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(target_faces);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(target_ratio);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(use_line_quadrics);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(line_weight);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(weight_mode);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(feature_boost);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(feature_angle_deg);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(adaptive_scale);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(adaptive_base_line_weight);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(boundary_weight);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(preserve_boundary);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(preserve_feature_curves);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(feature_curve_weight);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(max_feature_curve_deviation_ratio);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(circle_fit_relative_threshold);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(ellipse_fit_relative_threshold);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(near_circle_axis_ratio_tolerance);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(min_feature_loop_vertices);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(min_circular_feature_loop_vertices);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(use_normal_tensor_features);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(normal_tensor_feature_threshold);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(normal_tensor_min_edge_alignment);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(normal_tensor_smoothing_iterations);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(normal_tensor_scale_count);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(min_triangle_quality);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(max_normal_deviation_deg);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(max_local_error);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(max_local_error_ratio);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(prevent_local_intersections);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(verbose);
+MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(feature_protection_mode);
+#undef MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD
+
 static_assert(
     sizeof(LegacyV1SimplifyOptionsLayout) == offsetof(ManuMeshSimplifyOptions, loop_trace_angle_deg),
     "ManuMeshSimplifyOptions v1 prefix layout changed"
-);
-static_assert(
-    offsetof(LegacyV1SimplifyOptionsLayout, feature_protection_mode) ==
-        offsetof(ManuMeshSimplifyOptions, feature_protection_mode),
-    "ManuMeshSimplifyOptions v1 field layout changed"
 );
 static_assert(
     offsetof(ManuMeshSimplifyOptions, feature_options) + sizeof(((ManuMeshSimplifyOptions*)nullptr)->feature_options) ==
         sizeof(ManuMeshSimplifyOptions),
     "ManuMeshSimplifyOptions feature_options must remain the final ABI field"
 );
+
+#define MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(field)                                                                \
+    static_assert(                                                                                                     \
+        offsetof(LegacyV1SimplifyReportLayout, field) == offsetof(ManuMeshSimplifyReport, field),                      \
+        "ManuMeshSimplifyReport v1 field layout changed: " #field                                                     \
+    )
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(struct_size);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(abi_version);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(initial_vertices);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(initial_faces);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(final_vertices);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(final_faces);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(collapsed_edges);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(solver_fallbacks);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(queue_rebuilds);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(feature_loops);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(circular_feature_loops);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(feature_vertices);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(normal_tensor_feature_edges);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(feature_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(primitive_feature_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(generic_feature_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(boundary_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(topology_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(normal_flip_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(quality_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(self_intersection_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(curve_budget_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(error_rejected_collapses);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(projected_feature_placements);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(termination_reason);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(min_applied_line_weight);
+MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(max_applied_line_weight);
+#undef MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD
+
 static_assert(
     sizeof(LegacyV1SimplifyReportLayout) == offsetof(ManuMeshSimplifyReport, traced_feature_edges),
     "ManuMeshSimplifyReport v1 prefix layout changed"
 );
-static_assert(
-    offsetof(LegacyV1SimplifyReportLayout, max_applied_line_weight) ==
-        offsetof(ManuMeshSimplifyReport, max_applied_line_weight),
-    "ManuMeshSimplifyReport v1 field layout changed"
-);
-static_assert(
-    offsetof(LegacyV1MeshStatsLayout, edge_length_cv) == offsetof(ManuMeshMeshStats, edge_length_cv),
-    "ManuMeshMeshStats v1 field layout changed"
-);
+
+#define MANUMESH_ASSERT_MESH_STATS_V1_FIELD(field)                                                                     \
+    static_assert(                                                                                                     \
+        offsetof(LegacyV1MeshStatsLayout, field) == offsetof(ManuMeshMeshStats, field),                                \
+        "ManuMeshMeshStats v1 field layout changed: " #field                                                          \
+    )
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(struct_size);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(abi_version);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(vertices);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(faces);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(edges);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(boundary_edges);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(non_manifold_edges);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(area);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(mean_triangle_quality);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(min_triangle_quality);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(mean_edge_length);
+MANUMESH_ASSERT_MESH_STATS_V1_FIELD(edge_length_cv);
+#undef MANUMESH_ASSERT_MESH_STATS_V1_FIELD
 
 constexpr std::size_t kLegacyV1FeatureOptionsSize = sizeof(LegacyV1FeatureOptionsLayout);
 constexpr std::size_t kLegacyV1SimplifyOptionsSize = sizeof(LegacyV1SimplifyOptionsLayout);

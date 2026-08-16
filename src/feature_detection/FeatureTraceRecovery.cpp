@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureTraceRecovery.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征轨迹恢复功能。
+ * @brief 追踪尚未归属的开放链和二度顶点环。
  * @ingroup manumesh_feature_detection
  *
  * @details 在更强证据恢复阶段之后，追踪剩余的二度顶点链和环。

@@ -1,9 +1,9 @@
 /**
  * @file include/core/Handles.h
- * @brief 声明 ManuMesh 核心网格模块的句柄设施。
+ * @brief 定义顶点、边和面的强类型整数句柄。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 不同拓扑域的句柄不可隐式互换，底层索引仍保持紧凑整数表示。
  */
 
 #pragma once

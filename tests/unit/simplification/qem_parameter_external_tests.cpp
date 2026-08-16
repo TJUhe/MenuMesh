@@ -1,14 +1,9 @@
 /**
  * @file tests/unit/simplification/qem_parameter_external_tests.cpp
- * @brief 验证 ManuMesh 测试中的QEM 参数 外部测试行为。
+ * @brief 在真实网格上比较特征保护、质量约束和保护模式。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 #include "QemParameterTestSupport.h"
 #include "TestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"

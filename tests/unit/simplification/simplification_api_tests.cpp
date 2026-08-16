@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_api_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 API测试行为。
+ * @brief 验证简化公共 API、分组配置、紧凑摘要和兼容适配。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -34,6 +32,7 @@ using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
 
 namespace simplification = manumesh::simplification;
+
 TEST(ManuMesh, WeightModesRoundTripAndRejectUnknownValues) {
     EXPECT_EQ(manumesh::simplification::WeightMode::Uniform, manumesh::simplification::parseWeightMode("uniform"));
     EXPECT_EQ(manumesh::simplification::WeightMode::Dihedral, manumesh::simplification::parseWeightMode("dihedral"));
@@ -79,6 +78,199 @@ TEST(ManuMesh, SimplificationNamespaceApiIsProjectScoped) {
     const manumesh::PlainMesh plainOutput =
         simplification::simplifyPlainMesh(manumesh::toPlainMesh(input), options, nullptr);
     EXPECT_EQ(output.faces.size(), plainOutput.faces.size());
+}
+
+TEST(ManuMesh, GroupedSimplifyConfigDefaultsMatchLegacyFeatureDefaults) {
+    const simplification::SimplifyOptions legacy{};
+    const simplification::SimplifyOptions grouped =
+        simplification::makeSimplifyOptions(simplification::SimplifyConfig{});
+
+    EXPECT_EQ(legacy.targetFaces, grouped.targetFaces);
+    EXPECT_DOUBLE_EQ(legacy.targetRatio, grouped.targetRatio);
+    ASSERT_TRUE(grouped.featureOptionsOverride.has_value());
+    EXPECT_DOUBLE_EQ(legacy.featureAngleDeg, grouped.featureOptionsOverride->featureAngleDeg);
+    EXPECT_EQ(legacy.minFeatureLoopVertices, grouped.featureOptionsOverride->minFeatureLoopVertices);
+    EXPECT_EQ(legacy.minCircularFeatureLoopVertices, grouped.minCircularFeatureLoopVertices);
+}
+
+TEST(ManuMesh, LegacyFreeFunctionBraceOptionsRemainUnambiguous) {
+    const manumesh::Mesh input = manumesh::generatePlaneGrid(2, 1.0, false);
+    simplification::QEMSimplifier simplifier(simplification::SimplifyOptions{});
+    const manumesh::Mesh output = simplification::simplifyMesh(input, {});
+    const manumesh::PlainMesh plainOutput = simplification::simplifyPlainMesh(manumesh::toPlainMesh(input), {});
+
+    EXPECT_FALSE(output.empty());
+    EXPECT_FALSE(plainOutput.faces.empty());
+    EXPECT_EQ(simplifier.options().targetFaces, -1);
+}
+
+TEST(ManuMesh, GroupedFeatureConfigCopiesOneDetectionObject) {
+    simplification::SimplifyConfig config;
+    config.features.enabled = true;
+    config.features.protectionMode = simplification::FeatureProtectionMode::AllFeatureEdges;
+    config.features.curveWeight = 0.12;
+    config.features.maxCurveDeviationRatio = 0.015;
+    config.features.minCircularLoopVertices = 7;
+    config.features.detection.featureAngleDeg = 31.0;
+    config.features.detection.useSmoothCurvatureFeatures = true;
+    config.features.detection.normalFilter.iterations = 3;
+    config.features.detection.graphConsolidation.minAlignment = 0.8;
+    config.features.detection.surfacePatches.includeWeakEvidence = false;
+
+    const simplification::SimplifyOptions options = simplification::makeSimplifyOptions(config);
+    EXPECT_TRUE(options.preserveFeatureCurves);
+    EXPECT_EQ(simplification::FeatureProtectionMode::AllFeatureEdges, options.featureProtectionMode);
+    EXPECT_DOUBLE_EQ(0.12, options.featureCurveWeight);
+    EXPECT_DOUBLE_EQ(0.015, options.maxFeatureCurveDeviationRatio);
+    EXPECT_EQ(7, options.minCircularFeatureLoopVertices);
+    ASSERT_TRUE(options.featureOptionsOverride.has_value());
+    const manumesh::feature::FeatureOptions& detection = *options.featureOptionsOverride;
+    EXPECT_DOUBLE_EQ(31.0, detection.featureAngleDeg);
+    EXPECT_TRUE(detection.useSmoothCurvatureFeatures);
+    EXPECT_EQ(3, detection.normalFilter.iterations);
+    EXPECT_DOUBLE_EQ(0.8, detection.graphConsolidation.minAlignment);
+    EXPECT_FALSE(detection.surfacePatches.includeWeakEvidence);
+}
+
+TEST(ManuMesh, GroupedQualityTextureAndLoggingMapDirectly) {
+    simplification::SimplifyConfig config;
+    config.quality.preserveBoundary = true;
+    config.quality.minTriangleQuality = 0.001;
+    config.quality.maxNormalDeviationDeg = 120.0;
+    config.quality.localError = simplification::SimplifyErrorLimit::boundingBoxRatio(0.03);
+    config.quality.preventLocalIntersections = true;
+    config.quality.refinementIterations = 1;
+    config.texture.preserveTexture = true;
+    config.texture.weight = 2.5;
+    config.texture.seamTolerance = 1e-7;
+    config.texture.minAreaRatio = 2e-8;
+    config.verbose = true;
+
+    const simplification::SimplifyOptions options = simplification::makeSimplifyOptions(config);
+    EXPECT_TRUE(options.preserveBoundary);
+    EXPECT_DOUBLE_EQ(0.001, options.minTriangleQuality);
+    EXPECT_DOUBLE_EQ(120.0, options.maxNormalDeviationDeg);
+    EXPECT_DOUBLE_EQ(0.0, options.maxLocalError);
+    EXPECT_DOUBLE_EQ(0.03, options.maxLocalErrorRatio);
+    EXPECT_TRUE(options.preventLocalIntersections);
+    EXPECT_TRUE(options.preserveTexture);
+    EXPECT_DOUBLE_EQ(2.5, options.textureWeight);
+    EXPECT_DOUBLE_EQ(1e-7, options.textureSeamTolerance);
+    EXPECT_DOUBLE_EQ(2e-8, options.minTextureAreaRatio);
+    EXPECT_TRUE(options.verbose);
+    EXPECT_EQ(1, options.qualityRefinementIterations);
+}
+
+TEST(ManuMesh, GroupedTargetSelectsExactlyOneUnit) {
+    simplification::SimplifyConfig config;
+    config.target = simplification::SimplifyTarget::faceCount(8);
+    const simplification::SimplifyOptions faceCount = simplification::makeSimplifyOptions(config);
+    EXPECT_EQ(8, faceCount.targetFaces);
+
+    config.target = simplification::SimplifyTarget::ratio(0.9);
+    const simplification::SimplifyOptions ratio = simplification::makeSimplifyOptions(config);
+    EXPECT_EQ(-1, ratio.targetFaces);
+    EXPECT_DOUBLE_EQ(0.9, ratio.targetRatio);
+}
+
+TEST(ManuMesh, GroupedConfigRunsThroughObjectAndPlainMeshApis) {
+    simplification::SimplifyConfig config;
+    config.target = simplification::SimplifyTarget::faceCount(8);
+    config.cost.lineQuadrics = simplification::LineQuadricConfig::uniform(1e-3);
+
+    const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
+    simplification::QEMSimplifier simplifier;
+    simplifier.setConfig(config);
+    simplification::SimplifyReport report;
+    const manumesh::Mesh output = simplifier.simplify(input, &report);
+    EXPECT_LE(output.faces.size(), 8u);
+    EXPECT_EQ(static_cast<int>(output.faces.size()), report.finalFaces);
+
+    simplification::SimplifyReport plainReport;
+    const manumesh::PlainMesh plainOutput = simplification::simplifyPlainMesh(
+        manumesh::toPlainMesh(input), simplification::makeSimplifyOptions(config), &plainReport
+    );
+    EXPECT_EQ(output.faces.size(), plainOutput.faces.size());
+    EXPECT_EQ(report.finalFaces, plainReport.finalFaces);
+}
+
+TEST(ManuMesh, GroupedLineQuadricConfigUsesOneModeAndOneWeight) {
+    simplification::SimplifyConfig disabledConfig;
+    disabledConfig.cost.lineQuadrics = simplification::LineQuadricConfig::disabled();
+    const simplification::SimplifyOptions disabled = simplification::makeSimplifyOptions(disabledConfig);
+    EXPECT_FALSE(disabled.useLineQuadrics);
+    EXPECT_FALSE(disabled.adaptiveScale);
+    EXPECT_DOUBLE_EQ(0.0, disabled.lineWeight);
+    EXPECT_DOUBLE_EQ(0.0, disabled.adaptiveBaseLineWeight);
+
+    simplification::SimplifyConfig uniformConfig;
+    uniformConfig.cost.lineQuadrics = simplification::LineQuadricConfig::uniform(0.002);
+    const simplification::SimplifyOptions uniform = simplification::makeSimplifyOptions(uniformConfig);
+    EXPECT_TRUE(uniform.useLineQuadrics);
+    EXPECT_FALSE(uniform.adaptiveScale);
+    EXPECT_DOUBLE_EQ(0.002, uniform.lineWeight);
+    EXPECT_DOUBLE_EQ(0.0, uniform.adaptiveBaseLineWeight);
+
+    simplification::SimplifyConfig adaptiveConfig;
+    adaptiveConfig.cost.lineQuadrics = simplification::LineQuadricConfig::adaptive(0.02);
+    adaptiveConfig.cost.weightMode = simplification::WeightMode::Dihedral;
+    adaptiveConfig.cost.featureBoost = 0.12;
+    adaptiveConfig.cost.boundaryWeight = 0.03;
+    const simplification::SimplifyOptions adaptive = simplification::makeSimplifyOptions(adaptiveConfig);
+    EXPECT_TRUE(adaptive.useLineQuadrics);
+    EXPECT_TRUE(adaptive.adaptiveScale);
+    EXPECT_DOUBLE_EQ(0.0, adaptive.lineWeight);
+    EXPECT_DOUBLE_EQ(0.02, adaptive.adaptiveBaseLineWeight);
+    EXPECT_EQ(simplification::WeightMode::Dihedral, adaptive.weightMode);
+    EXPECT_DOUBLE_EQ(0.12, adaptive.featureBoost);
+    EXPECT_DOUBLE_EQ(0.03, adaptive.boundaryWeight);
+
+    simplification::QEMSimplifier simplifier;
+    uniformConfig.cost.lineQuadrics = simplification::LineQuadricConfig::uniform(-1.0);
+    EXPECT_THROW(simplifier.setConfig(uniformConfig), std::invalid_argument);
+}
+
+TEST(ManuMesh, TaggedFaceCountDoesNotReuseLegacyRatioSentinel) {
+    simplification::SimplifyConfig config;
+    config.target = simplification::SimplifyTarget::faceCount(-1);
+
+    simplification::QEMSimplifier simplifier;
+    EXPECT_THROW(simplifier.setConfig(config), std::invalid_argument);
+}
+
+TEST(ManuMesh, GroupedLocalErrorUsesExactlyOneUnit) {
+    simplification::SimplifyConfig absoluteConfig;
+    absoluteConfig.quality.localError = simplification::SimplifyErrorLimit::absolute(0.02);
+    const simplification::SimplifyOptions absoluteOptions = simplification::makeSimplifyOptions(absoluteConfig);
+    EXPECT_DOUBLE_EQ(0.02, absoluteOptions.maxLocalError);
+    EXPECT_DOUBLE_EQ(0.0, absoluteOptions.maxLocalErrorRatio);
+
+    simplification::SimplifyConfig relativeConfig;
+    relativeConfig.quality.localError = simplification::SimplifyErrorLimit::boundingBoxRatio(0.03);
+    const simplification::SimplifyOptions relativeOptions = simplification::makeSimplifyOptions(relativeConfig);
+    EXPECT_DOUBLE_EQ(0.0, relativeOptions.maxLocalError);
+    EXPECT_DOUBLE_EQ(0.03, relativeOptions.maxLocalErrorRatio);
+}
+
+TEST(ManuMesh, SimplifyReportProvidesCommonSummary) {
+    simplification::SimplifyReport report;
+    report.initialVertices = 10;
+    report.initialFaces = 12;
+    report.finalVertices = 7;
+    report.finalFaces = 6;
+    report.collapsedEdges = 3;
+    report.rejectedCollapses = 4;
+    report.terminationReason = simplification::SimplifyTerminationReason::ReachedTarget;
+    simplification::SimplifySummary summary = report.summary();
+    EXPECT_TRUE(summary.reachedTarget());
+    EXPECT_EQ(7, summary.finalVertices);
+    EXPECT_EQ(6, summary.finalFaces);
+    EXPECT_EQ(3, summary.collapsedEdges);
+
+    summary.terminationReason = simplification::SimplifyTerminationReason::AlreadyAtOrBelowTarget;
+    EXPECT_TRUE(summary.reachedTarget());
+    summary.terminationReason = simplification::SimplifyTerminationReason::NoCandidates;
+    EXPECT_FALSE(summary.reachedTarget());
 }
 
 TEST(ManuMesh, LegacyMetricsApiForwardsToAnalysisDuringMigration) {

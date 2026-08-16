@@ -1,10 +1,7 @@
 /**
  * @file src/feature_detection/detail/FeatureLoopRecovery.h
- * @brief 声明 ManuMesh 特征检测模块的特征环恢复功能。
+ * @brief 声明全部特征曲线恢复方法的固定调用顺序。
  * @ingroup manumesh_feature_detection
- *
- * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
- *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once

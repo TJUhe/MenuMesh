@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/api/c_api_simplify_abi_tests.cpp
- * @brief 验证 ManuMesh 测试中的 C API 简化 ABI 测试行为。
+ * @brief 验证简化与特征选项在不同结构体容量下的 C ABI 兼容性。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "CApiTestSupport.h"

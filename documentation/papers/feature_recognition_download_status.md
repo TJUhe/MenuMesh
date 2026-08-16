@@ -23,7 +23,7 @@
 | 特征检测 | Estimating Curvatures and Their Derivatives on Triangle Meshes?OpenAlex ???294? | `feature_detection/rusinkiewicz_2004_estimating_curvatures_derivatives_triangle_meshes.pdf` | `10.1109/TDPVT.2004.1335277` | https://gfx.cs.princeton.edu/pubs/Rusinkiewicz_2004_ECA/curvpaper.pdf | ridge/valley 和软特征检测的曲率及导数估计基线。 |
 | 特征检测 | Extraction of Surface-Feature Lines on Meshes Using Normal Tensor Framework?OpenAlex ???3? | `feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` | `10.1080/16864360.2014.846088` | 本地 PDF 归档 | 表面特征线提取的 normal tensor 特征分数参考。 |
 | 特征检测 | Robust Feature Line Extraction on CAD Triangular Meshes?OpenAlex ???11? | `feature_detection/vidal_wolf_dupont_2011_robust_feature_line_extraction_cad_triangular_meshes.pdf` | `10.5220/0003361701620167` | 本地 PDF 归档 | CAD 三角网格特征线提取及鲁棒图/环构建参考。 |
-| 特征检测 | PIE-NET: Parametric Inference of Point Cloud Edges?OpenAlex ???43? | `feature_detection/wang_2020_pienet_parametric_inference_point_cloud_edges.pdf` | `10.48550/arxiv.2007.04883` | https://proceedings.neurips.cc/paper/2020/file/e94550c93cd70fe748e6982b3439ad3b-Paper.pdf | 点云边/基本体拟合的学习式参数边推断参考。 |
+| 特征检测 | PIE-NET: Parametric Inference of Point Cloud Edges?OpenAlex ???43? | `feature_detection/wang_2020_pienet_parametric_inference_point_cloud_edges.pdf` | `10.48550/arxiv.2007.04883` | https://proceedings.neurips.cc/paper/2020/file/e94550c93cd70fe748e6982b3439ad3b-Paper.pdf | 点云边/几何基元拟合的学习式参数边推断参考。 |
 | 特征检测 | Polygon Crawling: Feature-Edge Extraction from a General Polygonal Surface for Mesh Generation?OpenAlex ???12? | `feature_detection/yamakawa_2005_polygon_crawling_feature_edge_extraction.pdf` | `10.1007/3-540-29090-7_15` | 原始 IMR/Sandia PDF 的 Internet Archive 快照 | CAD/STL 特征边提取的会议版 polygon-crawling 参考。 |
 | 特征检测 | Polygon Crawling: Feature Edge Extraction from a General Polygonal Surface for Mesh Generation?OpenAlex ???7? | `feature_detection/yamakawa_shimada_2009_polygon_crawling_feature_edge_extraction.pdf` | `10.1007/s00366-009-0165-y` | 用户提供的 PDF | 非均匀 CAD facet 曲面的期刊版 polygon-crawling 扩展。 |
 | 特征检测 | NEF: Neural Edge Fields for 3D Parametric Curve Reconstruction from Multi-View Images?OpenAlex ???26? | `feature_detection/ye_2023_nef_neural_edge_fields_curve_reconstruction.pdf` | `10.1109/CVPR52729.2023.00820` | https://openaccess.thecvf.com/content/CVPR2023/papers/Ye_NEF_Neural_Edge_Fields_for_3D_Parametric_Curve_Reconstruction_From_CVPR_2023_paper.pdf | 从图像证据进行参数曲线重建的神经 edge field 参考。 |
@@ -46,6 +46,6 @@
 2. 更早地将特征边提升为图/环对象：D-FRAME、PC2WF 和 Polygon Crawling 都将连通性和 junction 视为一等概念，
    这符合商业内核对稳定 CAD patch 边界的需求。
 3. 将硬 CAD crease 与平滑 ridge/valley/fillet 过渡分开：硬边界使用 dihedral 和 facet 分布，软特征使用曲率/crest/ridge 方法。
-4. 增加分割验证循环：检测后，在简化消费结果前验证环闭合、patch 泄漏、基本体残差和边界一致性。
+4. 增加分割验证循环：检测后，在简化消费结果前验证环闭合、patch 泄漏、几何基元残差和边界一致性。
 5. 首先将学习式方法作为基准或离线工具：DEF、PIE-NET、EC-Net、NerVE 和 NEF 可用于标签、压力案例和架构思路，
    但确定性几何过滤器应继续作为商业核心默认方案。

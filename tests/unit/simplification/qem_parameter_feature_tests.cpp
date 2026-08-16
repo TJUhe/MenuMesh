@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/qem_parameter_feature_tests.cpp
- * @brief 验证 ManuMesh 测试中的QEM 参数 特征测试行为。
+ * @brief 验证圆和椭圆特征在激进简化下的投影与保护。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "QemParameterTestSupport.h"
@@ -39,16 +37,9 @@ TEST(ManuMeshParameters, FeatureProtectedCircularLoopsRemainDetectableAfterAggre
     const SimplifiedMesh result = simplifyWithReport(input, options);
 
     expectBudget(result, input, 0.25);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(4, result.report.circularFeatureLoops);
     EXPECT_GT(result.report.projectedFeaturePlacements, 0);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const struct {
         double radius;
         double z;
@@ -72,18 +63,6 @@ TEST(ManuMeshParameters, FeatureProtectedCircularLoopsRemainDetectableAfterAggre
     const manumesh::feature::FeatureAnalysis outputFeatures =
         manumesh::feature::detectFeatureCurves(result.mesh, outputFeatureOptions);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(countCircularLoops(outputFeatures), 2);
     int detectableHoleRims = 0;
     for (const manumesh::feature::FeatureLoop& loop : outputFeatures.loops) {

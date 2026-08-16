@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/api/c_api_external_tests.cpp
- * @brief 验证 ManuMesh 测试中的 C API 外部测试行为。
+ * @brief 使用真实 STL 夹具验证 C API 不透明句柄的加载与简化流程。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 // 使用真实外部 STL 夹具执行 C API 冒烟测试（夹具位于 tests/data/external）。

@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SimplificationTypes.h
- * @brief 声明 ManuMesh 的简化模块的简化 类型功能。
+ * @brief 定义一次边坍缩运行使用的内部热状态和候选类型。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 高频逐顶点字段保持连续存储，较大的几何基元拟合和曲线索引放入旁表。
  */
 
 #pragma once
@@ -63,7 +63,7 @@ struct VertexState {
 };
 
 /**
- * @brief 一个特征顶点的圆/椭圆拟合参数。数据按行外置（见 VertexState::primitiveFitId），使每顶点热状态保持紧凑；只有拟合图元环上的顶点才拥有条目。
+ * @brief 一个特征顶点的圆/椭圆拟合参数。数据按行外置（见 VertexState::primitiveFitId），使每顶点热状态保持紧凑；只有拟合几何基元环上的顶点才拥有条目。
  */
 struct FeaturePrimitiveFit {
     Vec3 circleCenter = Vec3::Zero();
@@ -78,7 +78,7 @@ struct FeaturePrimitiveFit {
 };
 
 /**
- * @brief 获取顶点的图元拟合数据；若顶点没有拟合数据，则返回半径为零的默认值。投影将零半径视为“无图元”并原样传递位置，因此该默认值是安全的空操作。
+ * @brief 获取顶点的几何基元拟合数据；若顶点没有拟合数据，则返回半径为零的默认值。投影将零半径视为“无几何基元”并原样传递位置，因此该默认值是安全的空操作。
  */
 inline const FeaturePrimitiveFit&
 primitiveFitOf(const VertexState& vertex, const std::vector<FeaturePrimitiveFit>& fits) {

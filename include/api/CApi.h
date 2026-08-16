@@ -1,9 +1,9 @@
 /**
  * @file include/api/CApi.h
- * @brief 声明 ManuMesh C ABI 模块的 C API 设施。
+ * @brief 声明 ManuMesh 稳定 C ABI 接口。
  * @ingroup manumesh_c_api
  *
- * @details C 边界校验指针和容量，将失败转换为状态码，并绝不允许 C++ 异常越过 ABI。
+ * @details C 边界检查指针和容量，将失败转换为状态码，并确保 C++ 异常不会越过 ABI。
  */
 
 #pragma once
@@ -21,6 +21,10 @@
  *
  * @par 线程安全
  * ManuMeshContext 不是线程安全的。没有外部同步时不要跨线程共享同一个上下文；应为每个线程使用独立上下文。
+ *
+ * @par 错误上下文
+ * 除非函数另有说明，`context` 可以为 NULL；操作仍会执行并返回状态码，但错误文本会被丢弃。
+ * `manumesh_context_last_error(NULL)` 返回固定诊断文本，`manumesh_context_clear_error(NULL)` 不执行任何操作。
  *
  * @par 纹理坐标
  * v1 ABI 不携带逐角纹理坐标。manumesh_mesh_set_data 只接受顶点位置和面索引，
@@ -57,7 +61,7 @@ typedef enum ManuMeshWeightMode {
     MANUMESH_WEIGHT_MODE_NORMAL_TENSOR = 4
 } ManuMeshWeightMode;
 
-/** @brief 原本成功的简化运行停止的原因。 */
+/** @brief 简化运行停止的原因。 */
 typedef enum ManuMeshSimplifyTerminationReason {
     MANUMESH_SIMPLIFY_TERMINATION_NOT_STARTED = 0,
     MANUMESH_SIMPLIFY_TERMINATION_REACHED_TARGET = 1,
@@ -78,16 +82,22 @@ typedef enum ManuMeshFeatureProtectionMode {
     MANUMESH_FEATURE_PROTECTION_ALL_FEATURE_EDGES = 3
 } ManuMeshFeatureProtectionMode;
 
-/** @brief 模型单位下的普通双精度位置。 */
+/** @brief 以模型单位表示的双精度三维坐标。 */
 typedef struct ManuMeshVec3 {
     double x; ///< X 坐标。
     double y; ///< Y 坐标。
     double z; ///< Z 坐标。
 } ManuMeshVec3;
 
-/** @brief 包含三个从零开始顶点索引的三角形。 */
+/**
+ * @brief 包含三个从零开始顶点索引的三角形面。
+ *
+ * 索引顺序决定三角面的法向方向，但 C ABI 不要求统一为逆时针，也不会自动翻转索引。
+ * `manumesh_mesh_set_data` 与 `manumesh_mesh_copy_faces` 按原顺序传递索引；
+ * 下游需要一致法向时，调用方应保持相邻三角面的绕序一致。
+ */
 typedef struct ManuMeshFace {
-    int v[3]; ///< 指向所提供顶点数组的逆时针索引。
+    int v[3]; ///< 指向顶点数组的从零开始索引，顺序按输入保留。
 } ManuMeshFace;
 
 /**
@@ -396,19 +406,20 @@ MANUMESH_API ManuMeshContext* manumesh_context_create(void);
 /** @param[in] context 待销毁的上下文；接受 NULL。 */
 MANUMESH_API void manumesh_context_destroy(ManuMeshContext* context);
 /**
- * 返回此上下文记录的最后一条错误消息，若无则返回空字符串。
+ * 返回此上下文记录的最后一条错误消息，若无则返回空字符串。传入 NULL 时返回固定的诊断文本，
+ * 不返回 NULL。
  *
  * 生命周期：返回指针指向上下文拥有的存储，仅保证在使用同一上下文进行下一次 ManuMesh API 调用之前
  *（任何调用都可能清除或替换消息）或上下文销毁之前有效。如需超出该窗口使用，请复制字符串。上下文不是
  * 线程安全的；参见头文件说明。
  */
 MANUMESH_API const char* manumesh_context_last_error(const ManuMeshContext* context);
-/** @param[in,out] context 待清除错误字符串的上下文；必须非空。 */
+/** @param[in,out] context 待清除错误字符串的上下文；可以为 NULL，此时函数不执行任何操作。 */
 MANUMESH_API void manumesh_context_clear_error(ManuMeshContext* context);
 
 /**
- * @param[in,out] context 记录分配错误的上下文。
- * @return 新的空网格句柄；上下文无效或分配失败时为 NULL。
+ * @param[in,out] context 可选的分配错误上下文；可以为 NULL。
+ * @return 新的空网格句柄；仅分配失败时为 NULL。
  */
 MANUMESH_API ManuMeshMeshHandle* manumesh_mesh_create(ManuMeshContext* context);
 /** @param[in] mesh 待销毁的网格句柄；接受 NULL。 */
@@ -416,20 +427,22 @@ MANUMESH_API void manumesh_mesh_destroy(ManuMeshMeshHandle* mesh);
 /**
  * @param[in,out] context 错误上下文。
  * @param[in,out] mesh 待清除几何的网格。
- * @retval MANUMESH_STATUS_OK 网格为空。
- * @retval MANUMESH_STATUS_INVALID_ARGUMENT 必需指针为 NULL。
+ * @retval MANUMESH_STATUS_OK 网格已清空。
+ * @retval MANUMESH_STATUS_INVALID_ARGUMENT 必需指针为空。
  */
 MANUMESH_API ManuMeshStatus manumesh_mesh_clear(ManuMeshContext* context, ManuMeshMeshHandle* mesh);
 /**
  * @brief 使用调用方拥有的位置和三角形数组替换网格。
  * @param[in,out] context 错误上下文。
  * @param[in,out] mesh 目标网格句柄。
- * @param[in] vertices 包含 `vertex_count` 个位置的数组。
- * @param[in] vertex_count 位置数量。
+ * @param[in] vertices 包含 `vertex_count` 个顶点坐标的数组。
+ * @param[in] vertex_count 顶点数量。
  * @param[in] faces 包含 `face_count` 个三角形的数组。
  * @param[in] face_count 三角形数量。
- * @return 状态；无效索引和非有限值会被拒绝。
+ * @return 状态。无效索引、非有限坐标和面内重复顶点索引会被拒绝；
+ *         顶点索引不同但几何面积为零的面会被接受，并由分析/简化报告为退化面。
  * @note 输入数组会被复制，函数返回后可以释放。
+ * @note 校验失败时目标网格保持不变。
  */
 MANUMESH_API ManuMeshStatus manumesh_mesh_set_data(
     ManuMeshContext* context,
@@ -454,10 +467,12 @@ MANUMESH_API ManuMeshStatus manumesh_mesh_get_counts(
  * @brief 将顶点复制到调用方拥有的存储中。
  * @param[in,out] context 错误上下文。
  * @param[in] mesh 源网格。
- * @param[out] vertices 输出数组；仅当容量为零时可以为 NULL。
+ * @param[out] vertices 输出数组。查询调用（容量为零）可以为 NULL；源网格为空时也可以为 NULL。
+ *                      容量足够且需要写入元素时必须提供非空数组。
  * @param[in] vertex_capacity 可用数组元素数量。
- * @param[out] vertices_written 所需/已写入元素数量。
+ * @param[out] vertices_written 必须非 NULL；成功时为已写入数量，容量不足时为所需数量。
  * @retval MANUMESH_STATUS_BUFFER_TOO_SMALL 容量小于所需数量。
+ * @note 容量不足时不会部分写入 `vertices`。
  */
 MANUMESH_API ManuMeshStatus manumesh_mesh_copy_vertices(
     ManuMeshContext* context,
@@ -466,7 +481,7 @@ MANUMESH_API ManuMeshStatus manumesh_mesh_copy_vertices(
     size_t vertex_capacity,
     size_t* vertices_written
 );
-/** 与 manumesh_mesh_copy_vertices() 相同的约定，用于三角形索引。 */
+/** 与 manumesh_mesh_copy_vertices() 相同的约定，用于三角形索引；索引顺序按原样返回。 */
 MANUMESH_API ManuMeshStatus manumesh_mesh_copy_faces(
     ManuMeshContext* context,
     const ManuMeshMeshHandle* mesh,
@@ -517,7 +532,10 @@ manumesh_save_binary_stl(ManuMeshContext* context, const char* path, const ManuM
 MANUMESH_API ManuMeshStatus
 manumesh_generate_mesh(ManuMeshContext* context, const char* name, int n, ManuMeshMeshHandle* mesh);
 
-/** 按给定缓冲区字节数初始化独立特征检测选项。 */
+/**
+ * 按给定缓冲区字节数初始化独立特征检测选项。
+ * `options` 不能为空，`struct_capacity` 至少要覆盖 `struct_size` 和 `abi_version` 字段。
+ */
 MANUMESH_API ManuMeshStatus
 manumesh_feature_options_init_with_size(ManuMeshFeatureOptions* options, size_t struct_capacity);
 /**
@@ -530,7 +548,7 @@ MANUMESH_API void manumesh_feature_options_init(ManuMeshFeatureOptions* options)
  * @brief 检测活动特征图边并复制到调用方拥有的缓冲区。
  * @param[in,out] context 错误上下文。
  * @param[in] mesh 输入三角网格。
- * @param[in] options 已初始化的检测选项；NULL 使用库默认值。
+ * @param[in] options 可选的已初始化检测选项；NULL 使用库默认值。
  * @param[out] edges 输出边数组；查询数量时可以为 NULL。
  * @param[in] edge_capacity `edges` 可容纳的元素数量；查询时传 0。
  * @param[out] edges_written 所需或已写入的元素数量。
@@ -568,7 +586,8 @@ MANUMESH_API ManuMeshStatus manumesh_detect_feature_edges_v2(
 
 /**
  * 带大小信息的初始化器。库最多写入 struct_capacity 字节，在 struct_size 中记录初始化大小；
- * 当 struct_capacity 大于库当前类型时，忽略未知的未来尾部字节。
+ * 当 struct_capacity 大于库当前类型时，忽略未知的未来尾部字节。输出指针不能为空，容量至少要覆盖
+ * `struct_size` 和 `abi_version` 字段。
  */
 MANUMESH_API ManuMeshStatus
 manumesh_simplify_options_init_with_size(ManuMeshSimplifyOptions* options, size_t struct_capacity);
@@ -589,15 +608,15 @@ MANUMESH_API void manumesh_simplify_report_init(ManuMeshSimplifyReport* report);
 MANUMESH_API void manumesh_mesh_stats_init(ManuMeshMeshStats* stats);
 
 /**
- * 带容量信息的输出入口。非空输出缓冲区必须包含完整的 abi_version 字段。
- * 库最多写入给定容量和当前结构体大小中的较小值；更大的未知尾部保持不变。
- * report 可以为 null，因为简化诊断是可选的。manumesh_compute_mesh_stats_with_size 要求 stats 非空。
+ * 带容量信息的输出入口。非空输出缓冲区的容量必须至少覆盖完整的 `abi_version` 字段；
+ * 库最多写入给定容量和当前结构体大小中的较小值，更大的未知尾部保持不变。
+ * `report` 可以为 NULL，因为简化诊断是可选的；`manumesh_compute_mesh_stats_with_size` 要求 `stats` 非空。
  */
 /**
  * @brief 使用容量受限的诊断输出简化网格。
  * @param[in,out] context 错误上下文。
  * @param[in] input 源网格；不能与 `output` 或已销毁存储别名。
- * @param[in] options 已初始化且 ABI 兼容的选项。
+ * @param[in] options 可选的已初始化且 ABI 兼容的选项；NULL 使用库默认简化选项。
  * @param[in,out] output 目标网格，仅成功时替换。
  * @param[out] report 可选的前缀兼容报告缓冲区。
  * @param[in] report_capacity `report` 处可写字节数；report 为 NULL 时忽略。
@@ -624,8 +643,8 @@ MANUMESH_API ManuMeshStatus manumesh_compute_mesh_stats_with_size(
 );
 
 /**
- * 为已构建调用方保留的旧 ABI v1 输出符号。它们不检查输出内存，只写入最初发布的 v1 报告/统计布局。
- * 当前源码调用会重定向到带容量信息的入口。
+ * 为已构建调用方保留的旧 ABI v1 输出符号。它们不接收容量参数，只按最初发布的 v1 报告/统计前缀写入，
+ * 并使用与 v1 布局匹配的固定容量执行必要校验。当前源码调用会重定向到带容量信息的入口。
  */
 /** @brief 旧 ABI-v1 简化符号；新源码通过宏路由到带大小信息的入口。 */
 MANUMESH_API ManuMeshStatus manumesh_simplify_mesh(

@@ -12,16 +12,21 @@ def write_source(root, relative_path, contents):
     path.write_text(contents, encoding="utf-8")
 
 
+def require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
 def check_case(relative_path, include, expected_fragment=None):
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_source(root, relative_path, f'#include "{include}"\n')
         violations = find_violations(root)
         if expected_fragment is None:
-            assert not violations, violations
+            require(not violations, violations)
         else:
-            assert len(violations) == 1, violations
-            assert expected_fragment in violations[0], violations[0]
+            require(len(violations) == 1, violations)
+            require(expected_fragment in violations[0], violations[0])
 
 
 def main():
@@ -82,8 +87,8 @@ def main():
         root = Path(directory)
         write_source(root, "src/repair/Repair.cpp", '#include "core/Mesh.h"\n')
         violations = find_violations(root)
-        assert len(violations) == 1, violations
-        assert "source module 'repair' is missing" in violations[0], violations[0]
+        require(len(violations) == 1, violations)
+        require("source module 'repair' is missing" in violations[0], violations[0])
 
     print("Include boundary checker tests passed.")
     return 0

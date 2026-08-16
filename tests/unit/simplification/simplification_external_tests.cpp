@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_external_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 外部测试行为。
+ * @brief 在公开工业网格上验证加载、特征拓扑、简化模式和距离度量。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"

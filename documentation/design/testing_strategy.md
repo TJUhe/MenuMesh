@@ -1,6 +1,6 @@
 # 测试体系与策略
 
-日期：2026-07-15（对应 2026-07 测试体系重构：解析真值 fixture、性能护栏、core/io 用例迁移）
+日期：2026-08-16（更新快速套件规模、架构检查门禁和构建目标依赖）
 
 本文说明 ManuMesh 当前的测试分层、解析 fixture 的设计理念、确定性验证方式、
 快速/全量套件的命令与规模，以及新增测试的注册方式。测试目录契约见
@@ -23,6 +23,11 @@
 此外有 `architecture` 标签的 2 个守卫测试（`include_boundaries` 与
 `include_boundary_checker_tests`）：`tests/support/check_include_boundaries.py`
 按集中定义的模块依赖表拒绝越界 include，属于快速套件的一部分。
+
+VS2019 preset 和 CI 将 `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` 显式设为 `ON`；在这些
+受支持的构建中找不到 Python 3 会使 CMake 配置失败。自定义构建默认保持 `OFF`，因此
+没有 Python 时仍可运行其余测试。边界检查脚本要求调用方显式传入仓库根目录，并验证
+`include/`、`src/`、`apps/` 与 `examples/` 均存在，避免错误工作目录或空扫描产生假通过。
 
 ## 解析真值 fixture（`tests/support/AnalyticFixtures.{h,cpp}`）
 
@@ -76,14 +81,14 @@
 
 ## 套件命令与预期规模
 
-当前支持基线使用 Visual Studio 16 2019 / MSVC v142 presets。下列用例数量来自 2026-07-15 的历史快照；耗时只用于量级参考，不作为当前机器或配置的性能承诺：
+当前支持基线使用 Visual Studio 16 2019 / MSVC v142 presets。下列用例数量来自
+2026-08-16 的 Debug 快速套件注册结果；耗时受配置、机器和数据缓存影响，不作为性能承诺：
 
 ```
-# 快速套件：256 个启用用例（另有 1 个 DISABLED 计时用例），
-# 历史 Release 并行实测约 2 秒（受环境影响）
+# 快速套件：341 个启用用例（另有 1 个 DISABLED 计时用例）
 ctest --preset vs2019-release-unit
 
-# 全量非性能套件：267 个启用用例（快速套件 + 11 个 external 大网格用例）
+# 全量非性能套件：352 个启用用例（快速套件 + 11 个 external 大网格用例）
 ctest --preset vs2019-release-full
 
 # 仅 external 大网格用例（需要 tests/data/external 数据）
@@ -93,19 +98,21 @@ ctest --preset vs2019-release-external
 ctest --preset vs2019-release-performance
 ```
 
-打开 `MANUMESH_ENABLE_INSTALL=ON` 且安装 CMake package config 时，会额外注册
-`sdk_consumer_examples`，因此安装验证配置对应 257 个快速用例、268 个启用的
-非性能用例。
+打开 `MANUMESH_ENABLE_INSTALL=ON` 且安装 CMake package config 时，会额外注册一个
+`sdk_consumer_examples` 聚合测试，在独立消费工程中验证安装后的 C 与 C++ SDK。
 
 对应的构建目标：`unit-tests`（等价于快速套件）、`external-tests`、
-`performance-tests`（仅性能构建）。
+`performance-tests`（仅性能构建）。`unit-tests` 只依赖快速套件需要的测试程序、CLI
+与三个示例，不再先构建 `manumesh_external_tests`；外部大网格程序由
+`external-tests` 单独构建和运行。
 
 ## Visual Studio 2019 / v142 支持门禁
 
-`.github/workflows/msvc-v142.yml` 与本地验证统一使用 `vs2019-*` presets。主路径由
-`Visual Studio 16 2019` generator、x64 和 `v142` toolset 生成；Debug 运行快速套件，
-Release 额外覆盖 external、静态库、性能和安装后 C/C++ SDK consumer。依赖固定使用
-仓库内 Eigen 和源码 GoogleTest，确保库、测试与消费程序都由 v142 编译。
+`.github/workflows/msvc-v142.yml` 使用显式 CMake 命令，本地验证使用等价的
+`vs2019-*` presets。两条路径都由 `Visual Studio 16 2019` generator、x64 和
+`v142` toolset 生成；Debug 运行快速套件，Release 额外覆盖 external 和安装后
+C/C++ SDK consumer。当前 CI 不构建性能测试、静态库矩阵或 Doxygen 文档。依赖固定
+使用仓库内 Eigen 和源码 GoogleTest，确保库、测试与消费程序都由 v142 编译。
 
 `vs2019-ninja-*` presets 只是同一 VS2019 v142 Developer PowerShell 下的可选
 Ninja Multi-Config 前端，不是另一套编译器支持面。两种生成器不得复用同一构建目录。

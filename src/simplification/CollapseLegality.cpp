@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/CollapseLegality.cpp
- * @brief 实现 ManuMesh 的简化模块的折叠合法性功能。
+ * @brief 检查候选位置的拓扑和几何硬约束。
  * @ingroup manumesh_simplification
  *
  * @details 实现拓扑和几何层面的硬性接受谓词。

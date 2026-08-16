@@ -1,15 +1,10 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_analytic_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 解析测试行为。
+ * @brief 在解析曲面上验证曲率特征、硬边恢复和尺度不变性。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //  该实现需保持边界条件，并保证结果具有确定性。
 //    该实现需保持边界条件，并保证结果具有确定性。
 //    该实现需保持边界条件，并保证结果具有确定性。
@@ -53,8 +48,6 @@ double median(std::vector<double> values) {
     return values[middle];
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 FeatureOptions smoothChannelOptions() {
     FeatureOptions options = discreteOnlyOptions();
     options.featureAngleDeg = 180.0;
@@ -96,7 +89,6 @@ const FeatureLoop* circularLoopNearestTo(const FeatureAnalysis& analysis, const 
     return best;
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
 std::vector<std::pair<int, int>> activeGraphEdges(const FeatureAnalysis& analysis) {
     std::vector<std::pair<int, int>> edges;
     for (const feature::FeatureGraphEdge& edge : analysis.graph.edges) {
@@ -109,10 +101,6 @@ std::vector<std::pair<int, int>> activeGraphEdges(const FeatureAnalysis& analysi
     return edges;
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 double crestPersistentRecall(
     const std::vector<feature::SmoothCurvatureVertex>& values,
     const std::vector<int>& crestVertices,
@@ -134,16 +122,6 @@ double crestPersistentRecall(
 
 } // namespace
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, SphereAndCylinderProduceNoSmoothCurvatureFeatures) {
     const analytic::SphereFixture sphere = analytic::makeUvSphere(24, 48, 1.0);
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 12, 1.0, 2.0, false);
@@ -168,18 +146,6 @@ TEST(FeatureDetectionAnalytic, SphereAndCylinderProduceNoSmoothCurvatureFeatures
     }
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, TorusInnerSideProducesNoSmoothCurvatureFeatures) {
     const analytic::TorusFixture torus = analytic::makeTorus(48, 24, 1.0, 0.3);
     const feature::SmoothCurvatureOptions curvatureOptions{2, 3, 2, 0.55};
@@ -190,21 +156,11 @@ TEST(FeatureDetectionAnalytic, TorusInnerSideProducesNoSmoothCurvatureFeatures) 
     EXPECT_EQ(0, analysis.smoothCurvatureFeatureEdges);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, GaussianRidgeCrestCurvatureMatchesAnalyticProfile) {
     const analytic::GaussianRidgeSheetFixture ridge = analytic::makeGaussianRidgeSheet(48, 2.0, 0.35, 6.0);
     const double crestCurvature = ridge.analyticCrestCurvature();
     ASSERT_GT(crestCurvature, 0.0);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto values =
         feature::computeSmoothCurvatureFeatures(ridge.mesh, feature::SmoothCurvatureOptions{2, 1, 0, 0.55}, 1e-6);
 
@@ -215,30 +171,16 @@ TEST(FeatureDetectionAnalytic, GaussianRidgeCrestCurvatureMatchesAnalyticProfile
         if (value.signedKind == 0 || value.localScale <= 0.0) {
             continue;
         }
-        // 命名空间
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         const double estimated = std::abs(value.principalCurvature) / value.localScale;
         relativeErrors.push_back(std::abs(estimated - crestCurvature) / crestCurvature);
         tangentAlignments.push_back(std::abs(value.curveTangent.dot(ridge.crestTangent())));
     }
 
-    // 命名空间
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GT(static_cast<int>(relativeErrors.size()), static_cast<int>(ridge.interiorCrestVertices().size()) / 2);
     EXPECT_LT(median(relativeErrors), 0.15);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GT(median(tangentAlignments), 0.9);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, CappedCylinderRimsRecoverAsTwoExactCircles) {
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(64, 6, 1.0, 2.0, true);
     const FeatureAnalysis analysis = feature::detectFeatureCurves(cylinder.mesh, rimDetectionOptions());
@@ -252,20 +194,10 @@ TEST(FeatureDetectionAnalytic, CappedCylinderRimsRecoverAsTwoExactCircles) {
         EXPECT_EQ(cylinder.segments, loop->edgeCount);
         EXPECT_NEAR(truth.radius, loop->radius, 1e-7 * truth.radius);
         EXPECT_LT((loop->center - truth.center).norm(), 1e-7 * truth.radius);
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         EXPECT_GT(std::abs(loop->normal.dot(truth.normal)), 1.0 - 1e-9);
     }
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, ChamferBoxHardEdgesRecoverWithHighPrecisionAndRecall) {
     const analytic::ChamferBoxFixture box = analytic::makeChamferBox(2.0, 0.3, 6);
     FeatureOptions options = discreteOnlyOptions();
@@ -273,8 +205,6 @@ TEST(FeatureDetectionAnalytic, ChamferBoxHardEdgesRecoverWithHighPrecisionAndRec
     options.minFeatureLoopVertices = 8;
     const FeatureAnalysis analysis = feature::detectFeatureCurves(box.mesh, options);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     std::vector<int> junctions;
     for (int corner = 0; corner < 8; ++corner) {
         junctions.push_back(corner);
@@ -289,18 +219,6 @@ TEST(FeatureDetectionAnalytic, ChamferBoxHardEdgesRecoverWithHighPrecisionAndRec
     EXPECT_GE(benchmark.junctionRecall, 0.99);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, ChamferBoxJunctionPrecisionIsNotFloodedByCircularRecovery) {
     const analytic::ChamferBoxFixture box = analytic::makeChamferBox(2.0, 0.3, 6);
     FeatureOptions options = discreteOnlyOptions();
@@ -318,11 +236,6 @@ TEST(FeatureDetectionAnalytic, ChamferBoxJunctionPrecisionIsNotFloodedByCircular
     EXPECT_GE(benchmark.junctionPrecision, 0.99);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //  该实现需保持边界条件，并保证结果具有确定性。
 //    该实现需保持边界条件，并保证结果具有确定性。
 //    该实现需保持边界条件，并保证结果具有确定性。
@@ -347,34 +260,13 @@ TEST(FeatureDetectionAnalytic, NoisyCappedCylinderStillRecoversBothRimCircles) {
     }
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //   该实现需保持边界条件，并保证结果具有确定性。
 //   该实现需保持边界条件，并保证结果具有确定性。
 //   该实现需保持边界条件，并保证结果具有确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, GradedDensityGaussianRidgeCrestSurvivesDensityTransition) {
     const feature::SmoothCurvatureOptions options{2, 3, 2, 0.55};
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const analytic::GradedGaussianRidgeSheetFixture ridge =
         analytic::makeGradedGaussianRidgeSheet(48, 2.0, 0.50, 14.0, 3);
     const auto values = feature::computeSmoothCurvatureFeatures(ridge.mesh, options, 0.008);
@@ -384,8 +276,6 @@ TEST(FeatureDetectionAnalytic, GradedDensityGaussianRidgeCrestSurvivesDensityTra
     }
     const double gradedRecall = crestPersistentRecall(values, crest, 2, 0.008);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const analytic::GaussianRidgeSheetFixture uniform = analytic::makeGaussianRidgeSheet(64, 2.0, 0.50, 14.0);
     const auto uniformValues = feature::computeSmoothCurvatureFeatures(uniform.mesh, options, 0.008);
     const double uniformRecall = crestPersistentRecall(uniformValues, uniform.interiorCrestVertices(), 2, 0.008);
@@ -394,17 +284,7 @@ TEST(FeatureDetectionAnalytic, GradedDensityGaussianRidgeCrestSurvivesDensityTra
     EXPECT_GE(gradedRecall, uniformRecall - 0.10);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //   该实现需保持边界条件，并保证结果具有确定性。
 //   该实现需保持边界条件，并保证结果具有确定性。
 TEST(FeatureDetectionAnalytic, NarrowRidgeOnDenseSheetSurvivesCoarsestScale) {
@@ -416,12 +296,6 @@ TEST(FeatureDetectionAnalytic, NarrowRidgeOnDenseSheetSurvivesCoarsestScale) {
     EXPECT_GT(recall, 0.90);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionAnalytic, FeatureEdgeSetIsExactlyScaleInvariant) {
     const analytic::ChamferBoxFixture box = analytic::makeChamferBox(2.0, 0.3, 6);
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 6, 1.0, 2.0, true);

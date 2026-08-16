@@ -1,6 +1,10 @@
 include(FetchContent)
 
 option(MANUMESH_BUILD_PERFORMANCE_TESTS "构建大型网格性能测试" OFF)
+option(MANUMESH_REQUIRE_ARCHITECTURE_CHECKS
+  "要求 Python 架构边界检查存在；启用时缺少 Python 会使配置失败"
+  OFF
+)
 
 set(MANUMESH_GOOGLETEST_PROVIDER "auto" CACHE STRING
   "测试的 GoogleTest 提供方式：auto、source、system 或 fetch"
@@ -106,8 +110,11 @@ if(NOT TARGET GTest::gtest_main)
 endif()
 
 set(MANUMESH_UNIT_TEST_SOURCES
+  "${PROJECT_SOURCE_DIR}/apps/CliArguments.cpp"
+  "${PROJECT_SOURCE_DIR}/apps/CliOptionBinding.cpp"
   support/AnalyticFixtures.cpp
   support/TestSupport.cpp
+  unit/apps/cli_option_binding_tests.cpp
   unit/common/geometry_predicates_tests.cpp
   unit/common/mesh_distance_index_tests.cpp
   unit/common/spatial_index_tests.cpp
@@ -176,6 +183,7 @@ function(manumesh_configure_test_target target)
       "${PROJECT_SOURCE_DIR}/src"
       "${PROJECT_SOURCE_DIR}/src/feature_detection"
       "${PROJECT_SOURCE_DIR}/src/simplification"
+      "${PROJECT_SOURCE_DIR}/apps"
   )
   target_link_libraries(${target}
     PRIVATE
@@ -289,12 +297,20 @@ if(Python3_Interpreter_FOUND)
     PROPERTIES LABELS architecture
   )
 else()
-message(STATUS "未找到 Python3；已禁用 include 边界 CTest。")
+  if(MANUMESH_REQUIRE_ARCHITECTURE_CHECKS)
+    message(FATAL_ERROR
+      "未找到 Python3，无法注册 include 边界架构检查；"
+      "如需明确跳过，请设置 -DMANUMESH_REQUIRE_ARCHITECTURE_CHECKS=OFF。"
+    )
+  endif()
+  message(STATUS
+    "未找到 Python3；已跳过 include 边界 CTest。"
+    "设置 -DMANUMESH_REQUIRE_ARCHITECTURE_CHECKS=ON 可将该检查设为必需。"
+  )
 endif()
 
 set(MANUMESH_UNIT_TEST_DEPENDS
   manumesh_tests
-  manumesh_external_tests
   manumesh_ownership_lifetime_stress
   manumesh_options_header_compile_check
   manumesh_feature_detection_link_check
@@ -303,6 +319,7 @@ set(MANUMESH_UNIT_TEST_DEPENDS
 foreach(optional_target IN ITEMS
     manumesh
     manumesh_basic_simplify
+    manumesh_feature_workflow_demo
     manumesh_c_api_basic
 )
   if(TARGET ${optional_target})
@@ -313,6 +330,7 @@ endforeach()
 add_custom_target(unit-tests
   COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}"
     "${CMAKE_CTEST_COMMAND}" -C "$<CONFIG>" -LE "performance|external"
+    -E "^manumesh_external_tests_NOT_BUILT$"
     --output-on-failure
   DEPENDS ${MANUMESH_UNIT_TEST_DEPENDS}
   COMMENT "正在运行快速回归测试集（不含性能/外部测试）"

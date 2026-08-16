@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_feature_protection_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 特征 保护测试行为。
+ * @brief 验证特征约束图、合成恢复边和曲线保护策略。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -291,7 +289,9 @@ TEST(ManuMesh, UntracedEvidenceEdgeStillCreatesHardFeatureProtection) {
     EXPECT_TRUE(guidance.vertices[1].isFeature);
     EXPECT_TRUE(guidance.vertices[3].isFeature);
     EXPECT_GT(guidance.vertices[1].tangent.norm(), 0.0);
-    EXPECT_EQ(2, guidance.summary.featureVertices);
+    EXPECT_EQ(2, std::count_if(guidance.vertices.begin(), guidance.vertices.end(), [](const auto& vertex) {
+                  return vertex.isFeature;
+              }));
 
     simplification::SimplifyOptions options;
     options.preserveFeatureCurves = true;
@@ -367,7 +367,7 @@ TEST(ManuMesh, SyntheticOnlySourcePrimitiveCannotOverrideCanonicalPolygonalConst
     EXPECT_EQ(simplification::FeatureCurveKind::PolygonalLoop, vertex.primitive);
     EXPECT_EQ(0, vertex.loopId);
     EXPECT_EQ(std::vector<int>({0}), vertex.loopIds);
-    EXPECT_DOUBLE_EQ(0.0, vertex.circleRadius);
+    EXPECT_EQ(-1, vertex.primitiveFitId);
 
     std::vector<simplification::VertexState> vertices = policyVertices(guidance);
     for (int vertexId = 0; vertexId < static_cast<int>(vertices.size()); ++vertexId) {
@@ -624,16 +624,9 @@ TEST(ManuMesh, ReportsFeatureLoopsOnCylinderCreases) {
 
     const manumesh::feature::FeatureAnalysis features = manumesh::feature::detectFeatureCurves(input, options);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(64, features.featureEdges);
     EXPECT_EQ(64, features.dihedralFeatureEdges);
     EXPECT_EQ(0, features.boundaryFeatureEdges);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     ASSERT_EQ(2u, features.loops.size());
     for (const manumesh::feature::FeatureLoop& loop : features.loops) {
         EXPECT_TRUE(loop.closed);

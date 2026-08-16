@@ -1,6 +1,6 @@
 /**
  * @file src/mesh_edit/MeshCompaction.cpp
- * @brief 实现 ManuMesh 的网格编辑模块的网格压缩功能。
+ * @brief 将带稳定编辑索引的活动状态压缩为稠密 Mesh。
  * @ingroup manumesh_mesh_edit
  *
  * @details 将保持稳定索引的编辑状态转换回稠密的公共 Mesh。

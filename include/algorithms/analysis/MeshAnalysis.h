@@ -1,6 +1,6 @@
 /**
  * @file include/algorithms/analysis/MeshAnalysis.h
- * @brief 声明 ManuMesh 分析模块的网格分析设施。
+ * @brief 声明网格质量统计和采样曲面距离分析。
  * @ingroup manumesh_analysis
  *
  * @details 分析例程在文档说明处允许不可用面，并在不修改输入网格的情况下报告测量结果。

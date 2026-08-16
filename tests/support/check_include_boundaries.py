@@ -140,7 +140,20 @@ def find_violations(root):
 
 
 def main():
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
+    if len(sys.argv) != 2:
+        print("Usage: check_include_boundaries.py <repository-root>", file=sys.stderr)
+        return 2
+
+    root = Path(sys.argv[1]).resolve()
+    missing_scan_roots = [scan_root for scan_root in SCAN_ROOTS if not (root / scan_root).is_dir()]
+    if missing_scan_roots:
+        print(
+            "Include boundary check requires scan roots: "
+            + ", ".join(missing_scan_roots),
+            file=sys.stderr,
+        )
+        return 2
+
     violations = find_violations(root)
 
     if violations:

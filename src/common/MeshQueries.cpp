@@ -1,6 +1,6 @@
 /**
  * @file src/common/MeshQueries.cpp
- * @brief 实现 ManuMesh 公共几何模块的网格查询设施。
+ * @brief 构建边入射、法向、绕序协调和一环邻域查询。
  * @ingroup manumesh_common
  *
  * @details 构建确定性的边入射、法向、绕序协调和邻域。

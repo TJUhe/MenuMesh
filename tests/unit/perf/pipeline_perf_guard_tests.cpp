@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/perf/pipeline_perf_guard_tests.cpp
- * @brief 验证 ManuMesh 测试中的流水线性能门禁测试行为。
+ * @brief 为约 1.6 万面网格的特征检测与简化设置粗粒度性能上限。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 // 针对两个流水线入口、约 1.6 万面解析球体的粗粒度墙钟回归保护。

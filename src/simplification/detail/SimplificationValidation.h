@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SimplificationValidation.h
- * @brief 声明 ManuMesh 的简化模块的简化 校验功能。
+ * @brief 声明简化输入网格和选项的入口校验。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 校验在分配可变状态前完成，失败直接报告原始配置问题。
  */
 
 #pragma once

@@ -6,7 +6,7 @@
 PROJECT_NAME           = "@MANUMESH_DOXYGEN_PROJECT_NAME@"
 PROJECT_NUMBER         = @PROJECT_VERSION@
 PROJECT_BRIEF          = "@MANUMESH_DOXYGEN_PROJECT_BRIEF@"
-OUTPUT_DIRECTORY       = @MANUMESH_DOXYGEN_OUTPUT_DIR@
+OUTPUT_DIRECTORY       = "@MANUMESH_DOXYGEN_OUTPUT_DIR@"
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = Chinese
 
@@ -44,7 +44,7 @@ EXCLUDE                =
 EXCLUDE_PATTERNS       = */thirdParty/* */build/* */docs/* */documentation/archive/* */CMakeLists.txt */vcpkg.json
 EXCLUDE_SYMBOLS        = std Eigen
 FULL_PATH_NAMES        = YES
-STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@
+STRIP_FROM_PATH        = "@PROJECT_SOURCE_DIR@"
 
 #---------------------------------------------------------------------------
 # 与源码浏览相关的配置选项
@@ -94,7 +94,7 @@ PREDEFINED             = MANUMESH_API= \
 # 与 Graphviz dot 相关的配置选项
 #---------------------------------------------------------------------------
 HAVE_DOT               = @MANUMESH_DOXYGEN_HAVE_DOT@
-DOT_PATH               = @MANUMESH_DOXYGEN_DOT_PATH@
+DOT_PATH               = "@MANUMESH_DOXYGEN_DOT_PATH@"
 DOT_NUM_THREADS        = 4
 CLASS_GRAPH            = YES
 COLLABORATION_GRAPH    = YES

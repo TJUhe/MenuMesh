@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_perf_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 性能测试行为。
+ * @brief 提供特征检测手动计时用例，记录不同网格规模的运行时间。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -30,7 +28,6 @@ double timeAnalysisMs(const Mesh& mesh, const feature::FeatureOptions& options, 
         const auto start = std::chrono::steady_clock::now();
         const feature::FeatureAnalysis analysis = feature::detectFeatureCurves(mesh, options);
         const auto stop = std::chrono::steady_clock::now();
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         if (analysis.featureEdges < 0) {
             std::printf("unexpected\n");
         }
@@ -41,10 +38,8 @@ double timeAnalysisMs(const Mesh& mesh, const feature::FeatureOptions& options, 
 
 } // namespace
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //   该实现需保持边界条件，并保证结果具有确定性。
 //     该实现需保持边界条件，并保证结果具有确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
     feature::FeatureOptions weakOptions;
     weakOptions.featureAngleDeg = 40.0;

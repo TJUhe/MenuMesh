@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/simplification/SimplificationTypes.h
- * @brief 声明 ManuMesh 简化模块的简化类型设施。
+ * @brief 定义网格简化配置、策略枚举和运行结果。
  * @ingroup manumesh_simplification
  *
- * @details 此文件属于面向特征的边坍缩管线。二次误差代价负责候选排序；拓扑、几何、特征、边界、误差和可选纹理策略共同决定位置是否可以修改网格。
+ * @details 新代码使用按职责分组的 SimplifyConfig；旧 SimplifyOptions 和详细报告继续保留为兼容边界。
  */
 
 #pragma once
@@ -26,6 +26,54 @@ enum class WeightMode {
     XBand,
 };
 
+/** @brief line-quadric 正则项的单一模式和基础权重。 */
+class LineQuadricConfig {
+public:
+    enum class Kind {
+        Disabled,
+        Uniform,
+        Adaptive,
+    };
+
+    /// 默认使用权重为 1e-3 的均匀 line quadrics。
+    LineQuadricConfig() noexcept = default;
+
+    /// 禁用普通 line quadrics；边界和特征曲线的独立代价不受影响。
+    static LineQuadricConfig disabled() noexcept {
+        LineQuadricConfig config;
+        config.kind_ = Kind::Disabled;
+        config.weight_ = 0.0;
+        return config;
+    }
+
+    /// 使用固定基础权重。
+    /// @param[in] weight 非负基础权重。
+    static LineQuadricConfig uniform(double weight) noexcept {
+        LineQuadricConfig config;
+        config.kind_ = Kind::Uniform;
+        config.weight_ = weight;
+        return config;
+    }
+
+    /// 使用基础权重和独立的特征敏感队列优先级。
+    /// @param[in] baseWeight 非负基础权重。
+    static LineQuadricConfig adaptive(double baseWeight) noexcept {
+        LineQuadricConfig config;
+        config.kind_ = Kind::Adaptive;
+        config.weight_ = baseWeight;
+        return config;
+    }
+
+    /// @return 当前选择的 line-quadric 模式。
+    Kind kind() const noexcept { return kind_; }
+    /// @return 均匀权重或自适应模式的基础权重；禁用时为零。
+    double weight() const noexcept { return weight_; }
+
+private:
+    Kind kind_ = Kind::Uniform;
+    double weight_ = 1e-3;
+};
+
 /// 一次简化运行停止的原因。
 enum class SimplifyTerminationReason {
     NotStarted,
@@ -43,7 +91,7 @@ enum class FeatureProtectionMode {
     None,
     /// 仅硬保护圆环和近圆环。
     CircularOnly,
-    /// 硬保护拟合的基本体环：圆、近圆和椭圆。
+    /// 硬保护拟合的几何基元曲线：圆、近圆和椭圆。
     PrimitiveCurves,
     /// 严格模式：硬保护所有检测到的特征边。
     AllFeatureEdges,
@@ -91,13 +139,13 @@ struct SimplifyOptions {
     /// @{
     /// 启用特征检测、特征 quadrics、投影和保护。
     bool preserveFeatureCurves = false;
-    /// 首选硬特征策略。默认使用基本体曲线，使通用折痕保持软约束，除非调用方明确请求严格锁定。
+    /// 首选硬特征策略。默认使用几何基元曲线，使通用折痕保持软约束，除非调用方明确请求严格锁定。
     FeatureProtectionMode featureProtectionMode = FeatureProtectionMode::PrimitiveCurves;
     /// 应用于检测环的软特征曲线 quadric 权重。
     double featureCurveWeight = 0.05;
     /// 在投影前拒绝偏离特征曲线过远的原始坍缩位置。零值禁用曲线距离预算。
     double maxFeatureCurveDeviationRatio = 0.0;
-    /// 简化前特征检测使用的基本体拟合阈值。
+    /// 简化前特征检测使用的几何基元拟合阈值。
     double circleFitRelativeThreshold = 0.05;
     double ellipseFitRelativeThreshold = 0.05;
     double nearCircleAxisRatioTolerance = 0.08;
@@ -148,7 +196,10 @@ struct SimplifyOptions {
     /// 零局部误差预算禁用这些测试。
     double minTriangleQuality = 0.0;
     double maxNormalDeviationDeg = 90.0;
+    /// 模型坐标中的绝对局部误差预算。与 maxLocalErrorRatio 同时设置时，
+    /// 为兼容旧版本，实际预算取两者换算后的较大值；新代码应使用 SimplifyErrorLimit 只选择一种单位。
     double maxLocalError = 0.0;
+    /// 相对于输入包围盒对角线的局部误差预算。零值禁用；不要与 maxLocalError 同时用于新配置。
     double maxLocalErrorRatio = 0.0;
     bool preventLocalIntersections = false;
     bool verbose = false;
@@ -169,17 +220,179 @@ struct SimplifyOptions {
     double minTextureAreaRatio = 1e-8;
     /// @}
 
-    /// Canonical feature-detection configuration used by simplification when set.
+    /// 简化器启用时使用的特征检测配置。
     ///
-    /// The flat feature fields above remain supported as a source-compatibility adapter.
-    /// An explicit value here takes precedence over all of those legacy fields.
+    /// 上方的扁平特征字段仍作为源码兼容适配器保留；设置此值后，它优先于所有旧字段。
     Optional<feature::FeatureOptions> featureOptionsOverride;
 };
 
-/// 简化期间收集的诊断信息。
+/** @brief 以面数或输入面数比例表示的单一简化目标。 */
+class SimplifyTarget {
+public:
+    enum class Kind {
+        FaceCount,
+        Ratio,
+    };
+
+    /// 默认保留输入面数的 25%。
+    SimplifyTarget() noexcept = default;
+
+    /// 创建绝对面数目标。
+    static SimplifyTarget faceCount(int count) noexcept {
+        SimplifyTarget target;
+        target.kind_ = Kind::FaceCount;
+        target.faceCount_ = count;
+        return target;
+    }
+
+    /// 创建输入面数比例目标。
+    static SimplifyTarget ratio(double value) noexcept {
+        SimplifyTarget target;
+        target.kind_ = Kind::Ratio;
+        target.ratio_ = value;
+        return target;
+    }
+
+    Kind kind() const noexcept { return kind_; }
+    int faceCount() const noexcept { return faceCount_; }
+    double ratio() const noexcept { return ratio_; }
+
+private:
+    Kind kind_ = Kind::Ratio;
+    int faceCount_ = -1;
+    double ratio_ = 0.25;
+};
+
+/**
+ * @brief 候选排序所使用的 QEM/line-quadric 配置。
+ *
+ * 这些参数只影响候选优先级；拓扑、几何、特征和边界约束仍由
+ * `SimplifyQualityOptions` 与 `SimplifyFeatureOptions` 决定。
+ */
+struct SimplifyCostOptions {
+    LineQuadricConfig lineQuadrics;
+    WeightMode weightMode = WeightMode::Uniform;
+    double featureBoost = 0.05;
+    double boundaryWeight = 0.0;
+};
+
+/**
+ * @brief 特征检测及简化阶段的特征曲线策略。
+ *
+ * 检测参数只保存在 `detection` 中，避免简化层与特征检测层各维护一份阈值。
+ * `enabled` 控制特征曲线约束、投影和保护；选择 Dihedral 或 NormalTensor
+ * 权重模式时，`detection` 也会提供相应的排序参数，不受 `enabled` 控制。
+ */
+struct SimplifyFeatureOptions {
+    SimplifyFeatureOptions() { detection.minFeatureLoopVertices = 16; }
+
+    bool enabled = false;
+    FeatureProtectionMode protectionMode = FeatureProtectionMode::PrimitiveCurves;
+    double curveWeight = 0.05;
+    double maxCurveDeviationRatio = 0.0;
+    int minCircularLoopVertices = 6;
+    feature::FeatureOptions detection;
+};
+
+/** @brief 以绝对模型单位或包围盒对角线比例表示的单一局部误差预算。 */
+class SimplifyErrorLimit {
+public:
+    enum class Kind {
+        Disabled,
+        Absolute,
+        BoundingBoxRatio,
+    };
+
+    SimplifyErrorLimit() noexcept = default;
+
+    /// 创建模型坐标中的绝对误差预算。
+    static SimplifyErrorLimit absolute(double value) noexcept {
+        SimplifyErrorLimit limit;
+        limit.kind_ = Kind::Absolute;
+        limit.value_ = value;
+        return limit;
+    }
+
+    /// 创建相对于输入包围盒对角线的误差预算。
+    static SimplifyErrorLimit boundingBoxRatio(double value) noexcept {
+        SimplifyErrorLimit limit;
+        limit.kind_ = Kind::BoundingBoxRatio;
+        limit.value_ = value;
+        return limit;
+    }
+
+    Kind kind() const noexcept { return kind_; }
+    double value() const noexcept { return value_; }
+
+private:
+    Kind kind_ = Kind::Disabled;
+    double value_ = 0.0;
+};
+
+/** @brief 坍缩合法性、几何质量约束和固定拓扑精修配置。 */
+struct SimplifyQualityOptions {
+    bool preserveBoundary = false;
+    double minTriangleQuality = 0.0;
+    double maxNormalDeviationDeg = 90.0;
+    SimplifyErrorLimit localError;
+    bool preventLocalIntersections = false;
+    int refinementIterations = 0;
+};
+
+/** @brief 纹理坐标保护和局部 UV 失真代价配置。 */
+struct SimplifyTextureOptions {
+    bool preserveTexture = false;
+    double weight = 1.0;
+    double seamTolerance = 1e-8;
+    double minAreaRatio = 1e-8;
+};
+
+/**
+ * @brief 新代码使用的分组简化配置。
+ *
+ * 该类型按职责组织参数，避免调用方在一个平面结构中同时维护目标、代价、
+ * 特征检测和质量约束。`makeSimplifyOptions` 是兼容适配点；适配后
+ * 旧热循环仍只接收已归一化的 `SimplifyOptions`，不会在运行中再次猜测参数来源。
+ */
+struct SimplifyConfig {
+    SimplifyTarget target;
+    SimplifyCostOptions cost;
+    SimplifyFeatureOptions features;
+    SimplifyQualityOptions quality;
+    SimplifyTextureOptions texture;
+    bool verbose = false;
+};
+
+/**
+ * @brief 将分组配置转换为兼容的平面选项。
+ *
+ * 转换会把 `features.detection` 设置为显式 override，因此不会发生旧字段与
+ * 新字段的隐式合并。返回值可传给现有的 `QEMSimplifier` 和 `simplifyMesh` 入口。
+ */
+MANUMESH_API SimplifyOptions makeSimplifyOptions(const SimplifyConfig& config);
+
+/** @brief 一次简化运行最常用的结果摘要。 */
+struct SimplifySummary {
+    int initialVertices = 0;
+    int initialFaces = 0;
+    int finalVertices = 0;
+    int finalFaces = 0;
+    int collapsedEdges = 0;
+    int rejectedCollapses = 0;
+    SimplifyTerminationReason terminationReason = SimplifyTerminationReason::NotStarted;
+
+    /// @return 是否到达了请求的目标面数。
+    bool reachedTarget() const noexcept {
+        return terminationReason == SimplifyTerminationReason::ReachedTarget ||
+               terminationReason == SimplifyTerminationReason::AlreadyAtOrBelowTarget;
+    }
+};
+
+/// 简化期间收集的详细诊断信息。
 ///
 /// 拒绝计数将每次被拒绝的坍缩尝试归因于第一个拒绝其首个位置候选的硬过滤器
 ///（位置按代价顺序尝试）。这些计数用于参数调节和回归测试，不应视为每个失败子检查的独立总数。
+/// 常规调用可使用 `summary()` 获取网格规模、进度和终止原因；其余字段用于参数调节和诊断。
 struct SimplifyReport {
     /// @name 网格大小摘要
     /// @{
@@ -270,7 +483,7 @@ struct SimplifyReport {
     int qualityRefinementIterationsCompleted = 0;
     int qualityRefinementAttemptedMoves = 0;
     int qualityRefinementAcceptedMoves = 0;
-    /// Requested refinement was skipped because UV topology is currently immutable during that pass.
+    /// 由于当前精修阶段不修改 UV 拓扑，请求的精修被跳过。
     bool qualityRefinementSkippedForTexture = false;
     /// @}
 
@@ -282,6 +495,19 @@ struct SimplifyReport {
     /// 这表示内部不一致，正常情况下应保持为零。
     int textureApplyFailures = 0;
     /// @}
+
+    /// 返回网格规模、进度和终止原因。
+    SimplifySummary summary() const noexcept {
+        return SimplifySummary{
+            initialVertices,
+            initialFaces,
+            finalVertices,
+            finalFaces,
+            collapsedEdges,
+            rejectedCollapses,
+            terminationReason,
+        };
+    }
 };
 
 /// 将命令/用户字符串解析为权重模式。

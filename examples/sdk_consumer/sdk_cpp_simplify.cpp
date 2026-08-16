@@ -1,6 +1,6 @@
 /**
  * @file examples/sdk_consumer/sdk_cpp_simplify.cpp
- * @brief 通过 ManuMesh SDK 示例演示SDK C++ 简化。
+ * @brief 验证已安装 C++ SDK 的网格简化调用路径。
  * @ingroup manumesh_examples
  *
  * @details 示例只使用已安装 SDK 的公共 C++ 入口，作为可执行的集成文档。
@@ -19,19 +19,21 @@
 int main() {
     manumesh::Mesh input = manumesh::generateCylinderGrid(32, 8, 1.0, 2.0);
 
-    manumesh::simplification::SimplifyOptions options;
-    options.targetRatio = 0.35;
-    options.useLineQuadrics = true;
-    options.weightMode = manumesh::simplification::WeightMode::Dihedral;
+    manumesh::simplification::SimplifyConfig config;
+    config.target = manumesh::simplification::SimplifyTarget::ratio(0.35);
+    config.cost.lineQuadrics = manumesh::simplification::LineQuadricConfig::uniform(1e-3);
+    config.cost.weightMode = manumesh::simplification::WeightMode::Dihedral;
 
-    manumesh::simplification::QEMSimplifier simplifier(options);
+    manumesh::simplification::QEMSimplifier simplifier;
+    simplifier.setConfig(config);
     manumesh::simplification::SimplifyReport report;
     manumesh::Mesh output = simplifier.simplify(input, &report);
+    const manumesh::simplification::SimplifySummary summary = report.summary();
 
     if (output.empty()) {
         return 1;
     }
-    if (report.finalFaces >= report.initialFaces) {
+    if (summary.finalFaces >= summary.initialFaces) {
         return 2;
     }
     const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
@@ -63,9 +65,10 @@ int main() {
             textured.faceTexCoords[face].uv[corner] = manumesh::Vec2(point.x(), point.y());
         }
     }
-    options.targetRatio = 0.5;
-    options.preserveTexture = true;
-    const manumesh::Mesh texturedOutput = manumesh::simplification::simplifyMesh(textured, options);
+    config.target = manumesh::simplification::SimplifyTarget::ratio(0.5);
+    config.texture.preserveTexture = true;
+    simplifier.setConfig(config);
+    const manumesh::Mesh texturedOutput = simplifier.simplify(textured);
     if (!texturedOutput.hasTextureCoordinates() || texturedOutput.faceTexCoords.size() != texturedOutput.faces.size()) {
         return 6;
     }

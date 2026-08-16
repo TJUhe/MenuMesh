@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/FeatureConstraints.h
- * @brief 声明 ManuMesh 的简化模块的特征约束功能。
+ * @brief 声明特征曲线保护、偏差预算和解析投影。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 曲线策略消费已构建的 FeatureGuidance，不在坍缩期间重新运行特征检测。
  */
 
 #pragma once
@@ -103,7 +103,7 @@ public:
     bool isHardProtectedCollapse(
         CollapseEdge edge, const std::vector<VertexState>& vertices, const FeatureConstraintGraph& constraints
     ) const;
-    /** @brief 将接受的原始放置投影到其受保护的解析图元上。*/
+    /** @brief 将接受的原始放置投影到其受保护的解析几何基元上。*/
     bool projectPlacement(const FeatureProjectionInput& input, Vec3& position) const;
 
 private:

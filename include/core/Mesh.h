@@ -1,9 +1,9 @@
 /**
  * @file include/core/Mesh.h
- * @brief 声明 ManuMesh 核心网格模块的网格设施。
+ * @brief 定义三角网格存储、校验和基础几何查询。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details Mesh 拥有顶点、三角面和可选逐角 UV；算法不会在构造时静默修复输入。
  */
 
 #pragma once
@@ -26,8 +26,11 @@ using Vec2 = Eigen::Vector2d;
 using Mat4 = Eigen::Matrix4d;
 
 /// 存储三个从零开始顶点索引的三角形面。
+///
+/// 索引顺序决定面法向方向，但存储层不要求逆时针，也不会自动翻转。
+/// 下游需要一致法向时，调用方应保持相邻三角面的绕序一致。
 struct Face {
-    std::array<int, 3> v{}; ///< 按逆时针顺序排列的从零开始顶点索引。
+    std::array<int, 3> v{}; ///< 指向顶点数组的从零开始索引，顺序按输入保留。
 };
 
 /// 一个三角形的逐角纹理坐标。

@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/CollapseTopology.h
- * @brief 声明 ManuMesh 的简化模块的折叠拓扑功能。
+ * @brief 声明边坍缩的链接条件、边界分类和局部重写计划。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 拓扑层不计算 QEM 代价，也不执行特征曲线投影。
  */
 
 #pragma once

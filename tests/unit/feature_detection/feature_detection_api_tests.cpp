@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_api_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 API测试行为。
+ * @brief 验证特征检测公共 API、结果来源指纹和分析一致性校验。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "AnalyticFixtures.h"

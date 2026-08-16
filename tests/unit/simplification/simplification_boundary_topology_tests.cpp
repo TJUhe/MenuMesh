@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_boundary_topology_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 边界拓扑测试行为。
+ * @brief 验证边界折叠、完整 link condition 和闭曲面最小拓扑。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -27,9 +25,6 @@ using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
 namespace {
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 int maxBoundaryEdgesAtAnyVertex(const manumesh::Mesh& mesh) {
     const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(mesh);
     if (!topologyResult.ok()) {
@@ -114,9 +109,6 @@ void expectVertexManifoldOpenSurface(const manumesh::Mesh& mesh) {
     EXPECT_LE(maxBoundaryEdges, 2);
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 manumesh::Mesh makeNormalFlipFallbackMesh() {
     manumesh::Mesh mesh;
     mesh.vertices = {
@@ -195,18 +187,9 @@ manumesh::Mesh makeTwoDisjointTrianglesMesh() {
 } // 命名空间
 
 TEST(ManuMesh, BoundaryWeightPullsOpenBoundaryPlacementsBackToPolyline) {
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const manumesh::Mesh input = manumesh::generatePlaneGrid(16, 2.0, false);
     const BoundaryPolyline inputBoundary = collectBoundaryPolyline(input);
     ASSERT_FALSE(inputBoundary.segments.empty());
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double gridSpacing = 2.0 / 16.0;
 
     const auto driftForWeight = [&](double boundaryWeight) {
@@ -216,10 +199,6 @@ TEST(ManuMesh, BoundaryWeightPullsOpenBoundaryPlacementsBackToPolyline) {
         const SimplifiedMesh result = simplifyWithReport(input, options);
         EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);
         EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         expectVertexManifoldOpenSurface(result.mesh);
         return maxBoundaryVertexDriftFromPolyline(result.mesh, inputBoundary);
     };
@@ -227,20 +206,12 @@ TEST(ManuMesh, BoundaryWeightPullsOpenBoundaryPlacementsBackToPolyline) {
     const double driftUnweighted = driftForWeight(0.0);
     const double driftWeighted = driftForWeight(1e3);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(driftUnweighted, 0.5 * gridSpacing);
     EXPECT_LE(driftWeighted, 0.05 * gridSpacing);
     EXPECT_LT(driftWeighted, driftUnweighted);
 }
 
 TEST(ManuMesh, BoundaryChordCollapseFailsExtendedLinkCondition) {
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const manumesh::Mesh input = makePlacementFallbackMesh();
     std::vector<manumesh::simplification::FaceState> faces(input.faces.size());
     for (int face = 0; face < static_cast<int>(input.faces.size()); ++face) {
@@ -257,8 +228,6 @@ TEST(ManuMesh, BoundaryChordCollapseFailsExtendedLinkCondition) {
     EXPECT_FALSE(manumesh::simplification::collapseWouldPreserveLinkCondition(2, 1, faces, vertices, topology));
     EXPECT_TRUE(manumesh::simplification::collapseWouldPreserveLinkCondition(0, 1, faces, vertices, topology));
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (manumesh::simplification::VertexState& vertex : vertices) {
         vertex.isBoundary = false;
     }
@@ -277,9 +246,6 @@ TEST(ManuMesh, TetrahedronEdgeCollapseFailsFullSimplicialLinkCondition) {
     }
     const manumesh::simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (int keep = 0; keep < 4; ++keep) {
         for (int remove = keep + 1; remove < 4; ++remove) {
             EXPECT_FALSE(
@@ -451,9 +417,6 @@ TEST(ManuMesh, PreserveBoundaryKeepsHoleBoundaryNearOriginalPolyline) {
     EXPECT_EQ(countBoundaryComponents(input), countBoundaryComponents(result.mesh));
     expectVertexManifoldOpenSurface(result.mesh);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double drift = maxBoundaryVertexDriftFromPolyline(result.mesh, inputBoundary);
     EXPECT_LE(drift, 2.0 * inputBoundary.maxSegmentLength);
 }
@@ -491,9 +454,6 @@ TEST(ManuMesh, NormalFlipRejectionFallsBackToEndpointPlacement) {
     options.targetFaces = 2;
     options.useLineQuadrics = false;
     options.lineWeight = 0.0;
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const SimplifiedMesh result = simplifyWithReport(input, options);
 
     EXPECT_EQ(manumesh::simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);

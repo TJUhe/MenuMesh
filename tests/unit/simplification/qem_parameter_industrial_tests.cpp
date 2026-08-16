@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/qem_parameter_industrial_tests.cpp
- * @brief 验证 ManuMesh 测试中的QEM 参数 工业测试行为。
+ * @brief 验证工业安全配置的特征漂移、误差包络和拓扑约束。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "QemParameterTestSupport.h"

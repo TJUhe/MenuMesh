@@ -1,12 +1,10 @@
 /**
  * @file include/algorithms/feature_detection/FeatureAnalysisViews.h
- * @brief Read-only, non-owning views over a FeatureAnalysis result.
+ * @brief FeatureAnalysis 结果的只读、非拥有视图。
  * @ingroup manumesh_feature_detection
  *
- * @details FeatureAnalysis remains the source-compatible aggregate returned by
- *          the detector. New consumers can depend on a narrower view so that
- *          local evidence, recovered curves, segmentation, and run diagnostics
- *          do not become an implicit all-or-nothing contract.
+ * @details FeatureAnalysis 仍是检测器返回的源码兼容聚合结果。新消费者可以依赖更窄的视图，
+ *          让局部证据、恢复曲线、面分区和运行诊断不再隐式绑定为一个整体契约。
  */
 
 #pragma once
@@ -16,11 +14,10 @@
 namespace manumesh {
 namespace feature {
 
-/// Read-only local evidence used to construct the feature graph.
+/// 构建特征图所使用的只读局部证据。
 ///
-/// The view does not own data and must not outlive the referenced analysis.
-/// `graphEdges()` includes synthetic recovery edges; inspect
-/// FeatureGraphEdge::synthetic() when only original local evidence is valid.
+/// 视图不拥有数据，生命周期不得超过所引用的分析结果。
+/// `graphEdges()` 包含合成恢复边；只需要原始局部证据时，应检查 FeatureGraphEdge::synthetic()。
 class FeatureEvidenceView {
 public:
     explicit FeatureEvidenceView(const FeatureAnalysis& analysis) noexcept
@@ -44,9 +41,9 @@ private:
     const FeatureAnalysis* analysis_;
 };
 
-/// Read-only recovered curve topology and primitive ownership.
+/// 恢复曲线拓扑和几何基元归属的只读视图。
 ///
-/// The view does not own data and must not outlive the referenced analysis.
+/// 视图不拥有数据，生命周期不得超过所引用的分析结果。
 class FeatureCurveView {
 public:
     explicit FeatureCurveView(const FeatureAnalysis& analysis) noexcept
@@ -63,9 +60,9 @@ private:
     const FeatureAnalysis* analysis_;
 };
 
-/// Read-only surface patches induced by the active feature graph.
+/// 活动特征图诱导的只读曲面分区视图。
 ///
-/// The view does not own data and must not outlive the referenced analysis.
+/// 视图不拥有数据，生命周期不得超过所引用的分析结果。
 class FeatureSegmentationView {
 public:
     explicit FeatureSegmentationView(const FeatureAnalysis& analysis) noexcept
@@ -83,11 +80,10 @@ private:
     const FeatureAnalysis* analysis_;
 };
 
-/// Read-only counters and quality diagnostics produced by the detection run.
+/// 检测运行产生的只读计数和质量诊断视图。
 ///
-/// Evidence source counts live on FeatureEvidenceView and surface-patch data
-/// lives on FeatureSegmentationView. The view does not own data and must not
-/// outlive the referenced analysis.
+/// 证据来源计数位于 FeatureEvidenceView，曲面分区数据位于 FeatureSegmentationView。
+/// 视图不拥有数据，生命周期不得超过所引用的分析结果。
 class FeatureDiagnosticsView {
 public:
     explicit FeatureDiagnosticsView(const FeatureAnalysis& analysis) noexcept

@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/TextureProtection.cpp
- * @brief 实现 ManuMesh 的简化模块的纹理保护功能。
+ * @brief 评估并应用逐角 UV 图表的坍缩约束。
  * @ingroup manumesh_simplification
  *
  * @details 在不增加 4x4 几何二次误差维度的前提下，增加局部的每角 UV 策略。

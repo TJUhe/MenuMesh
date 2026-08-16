@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/QemParameterTestSupport.h
- * @brief 验证 ManuMesh 测试中的QEM 参数 测试支持行为。
+ * @brief 提供 QEM 参数测试使用的椭圆特征筛选工具。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once

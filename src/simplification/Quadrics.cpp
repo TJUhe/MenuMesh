@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/Quadrics.cpp
- * @brief 实现 ManuMesh 的简化模块的二次误差功能。
+ * @brief 构建 QEM 误差项并求解边坍缩候选位置。
  * @ingroup manumesh_simplification
  *
  * @details 构建平面、直线、边界和特征曲线的二次误差项。
@@ -165,7 +165,8 @@ void computeInitialQuadrics(
 
     report.minAppliedLineWeight = std::numeric_limits<double>::infinity();
     report.maxAppliedLineWeight = 0.0;
-    const bool useNormalLineQuadrics = options.useLineQuadrics && options.lineWeight > 0.0;
+    const double baseLineWeight = options.adaptiveScale ? options.adaptiveBaseLineWeight : options.lineWeight;
+    const bool useNormalLineQuadrics = options.useLineQuadrics && baseLineWeight > 0.0;
     if (!useNormalLineQuadrics) {
         report.minAppliedLineWeight = 0.0;
     }

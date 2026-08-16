@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/SimplificationTestSupport.h
- * @brief 验证 ManuMesh 测试中的简化 测试支持行为。
+ * @brief 提供简化测试共用的边界统计、标准配置和几何夹具。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once

@@ -1,9 +1,9 @@
 /**
  * @file include/core/MeshGenerators.h
- * @brief 声明 ManuMesh 核心网格模块的网格生成器设施。
+ * @brief 声明示例、解析测试和压力测试使用的确定性网格生成器。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 每个生成器产生参数可控的三角网格，用于复现边界、特征、噪声和采样密度场景。
  */
 
 #pragma once

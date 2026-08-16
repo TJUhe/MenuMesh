@@ -62,8 +62,9 @@ tests/unit/repair/repair_non_manifold_tests.cpp
 tests/unit/repair/repair_fixture_tests.cpp
 ```
 
-公共头只表达 SDK 合约；`src/repair/detail/` 承载可变实现细节。不要从公共头
-include `src/...`，不要让外部示例依赖 `detail`。
+公共头只表达 SDK 合约；`src/repair/detail/` 承载已经形成独立职责的实现细节。不要
+为了目录对称预先创建空阶段文件，也不要从公共头 include `src/...`，或让外部示例
+依赖 `detail`。
 
 ## 公共 API 形态
 
@@ -87,16 +88,15 @@ enum class RepairIssueKind {
   NonManifoldEdge,
 };
 
-struct RepairReport {
+struct RepairSummary {
   int removedDegenerateFaces = 0;
   int mergedVertices = 0;
   int filledHoles = 0;
-  int splitNonManifoldEdges = 0;
 };
 
 struct RepairResult {
   Mesh mesh;
-  RepairReport report;
+  RepairSummary summary;
 };
 
 class MANUMESH_API Repairer {
@@ -112,16 +112,20 @@ RepairResult repairMesh(const Mesh& input, const RepairOptions& options);
 } // namespace manumesh
 ```
 
-如果算法需要跨 DLL 边界长期稳定使用，公共对象用 pimpl。公开结构体只放调用方
-确实需要读写的扁平数据；临时图、队列、候选集、空间索引、访问标记等全部放
-`src/<domain>/detail/` 或 `.cpp` 匿名命名空间。
+如果算法需要跨 DLL 边界长期稳定使用，公共对象用 pimpl。公开结果只放调用方
+确实会据此继续处理的稳定数据；调参计数放可选 diagnostics，逐元素结果放属性或
+专用分析对象。临时图、队列、候选集、空间索引、访问标记等全部放
+`src/<domain>/detail/` 或 `.cpp` 匿名命名空间。不要用多组投影结构或成排 getter
+去遮住一个已经过长的结果结构；应先重新划分数据所有权。
 
 如果需要 Eigen-free 入口，另加 `PlainRepairer.h` 或 `repairPlainMesh()`，
 内部转换到 `Mesh` 后复用同一套实现。不要复制一套 repair pipeline。
 
 ## 实现拆分
 
-新模块一开始就按阶段拆，避免形成新的“大文件”：
+先写清楚 facade、运行编排和数据所有权，再按已经存在的独立阶段拆分。不要为了
+预想中的规模一次创建整套文件；当一个阶段有自己的不变量、测试边界或被多处复用时
+再提取。例如完整 repair 管线最终可能形成：
 
 - `Repairer.cpp`：public facade、pimpl、薄函数包装。
 - `RepairValidation.cpp`：options 和输入 mesh 校验。
@@ -181,8 +185,8 @@ core
 - 如公共头依赖 Eigen，确认这是有意的；能放在 `RepairTypes.h` 的扁平结构尽量
   不依赖 Eigen。
 
-测试文件加入 `tests/CMakeLists.txt`。测试数量一开始就按功能拆，不要先堆一个
-`repair_tests.cpp`。
+测试文件加入 `tests/CMakeLists.txt`。首批相关行为可以放在一个文件；当 fixture、
+编译时间或行为类别已经明显分离时再拆，避免只有一两个用例的样板文件。
 
 ## 测试规划
 

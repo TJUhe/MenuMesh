@@ -1,6 +1,6 @@
 /**
  * @file examples/c_api_basic.c
- * @brief 通过 ManuMesh SDK 示例演示C API 基础。
+ * @brief 演示纯 C 调用方创建、简化并读取网格。
  * @ingroup manumesh_examples
  *
  * @details 示例只使用受支持的公共入口，同时展示 C API 的基本调用流程。

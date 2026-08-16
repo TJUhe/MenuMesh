@@ -261,7 +261,7 @@ Garland-Heckbert 1998 的属性 QEM 把颜色/UV 追加进齐次向量，让 qua
 
 数据模型上，UV 存储为 `Mesh::faceTexCoords` 的“角拥有”逐面逐角坐标（一个几何顶点可属于多个 UV chart，接缝才可表达），OBJ 读取按逐角 `vt` 索引保留。整套检查是局部 O(k)（k 为 one-ring 规模），无全局参数化或属性空间矩阵分解，edge-collapse 渐近复杂度不变。
 
-`preserveTexture` 默认 `false`：关闭时几何输出与旧无纹理路径完全一致（bit-exact），UV 仍会传播但无失真/接缝保证。启用纹理保护时，可选的固定拓扑质量精修轮会被暂时跳过，因为该顶点重定位阶段尚未约束 UV 失真。实现上纹理工作分三段：`evaluate()` 只为排序/否决打分、不物化 UV 重写；被接受的 placement 由 `buildPlan()` 构建一次 `TextureUpdatePlan`（具体的逐面角 UV 重写），`apply()` 直接应用，避免 `applyCollapse` 内重建同一计划。诊断字段为 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）、`textureRejectedCollapses`（placement 评估后被纹理检查否决的队列候选数）和 `textureApplyFailures`（已接受坍缩的预建计划无法重放的内部一致性计数，应保持为零）。该能力目前只在 C++ `SimplifyOptions` 暴露，CLI `simplify` 未提供纹理选项。
+`preserveTexture` 默认 `false`：关闭时几何输出与旧无纹理路径完全一致（bit-exact），UV 仍会传播但无失真/接缝保证。启用纹理保护时，可选的固定拓扑质量精修轮会被暂时跳过，因为该顶点重定位阶段尚未约束 UV 失真。实现上纹理工作分三段：`evaluate()` 只为排序/否决打分、不物化 UV 重写；被接受的 placement 由 `buildPlan()` 构建一次 `TextureUpdatePlan`（具体的逐面角 UV 重写），`apply()` 直接应用，避免 `applyCollapse` 内重建同一计划。诊断字段为 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）、`textureRejectedCollapses`（placement 评估后被纹理检查否决的队列候选数）和 `textureApplyFailures`（已接受坍缩的预建计划无法重放的内部一致性计数，应保持为零）。该能力当前通过 C++ `SimplifyConfig::texture` 暴露；`SimplifyOptions` 保留同名兼容字段，CLI `simplify` 未提供纹理选项。
 
 ## 当前算法和论文的对应关系
 

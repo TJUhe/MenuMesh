@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/api/c_api_mesh_tests.cpp
- * @brief 验证 ManuMesh 测试中的 C API 网格测试行为。
+ * @brief 验证 C API 网格缓冲区、错误处理以及 STL 往返契约。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "CApiTestSupport.h"
@@ -33,6 +31,22 @@ TEST_F(CApiTest, CopiesMeshDataOnlyIntoCallerOwnedBuffers) {
     EXPECT_EQ(MANUMESH_STATUS_BUFFER_TOO_SMALL, manumesh_mesh_copy_vertices(context, mesh, nullptr, 0, &required));
     EXPECT_EQ(3u, required);
 
+    ManuMeshVec3 undersizedVertices[] = {
+        {11.0, 12.0, 13.0},
+        {21.0, 22.0, 23.0},
+    };
+    EXPECT_EQ(
+        MANUMESH_STATUS_BUFFER_TOO_SMALL,
+        manumesh_mesh_copy_vertices(context, mesh, undersizedVertices, 2, &required)
+    );
+    EXPECT_EQ(3u, required);
+    EXPECT_DOUBLE_EQ(11.0, undersizedVertices[0].x);
+    EXPECT_DOUBLE_EQ(12.0, undersizedVertices[0].y);
+    EXPECT_DOUBLE_EQ(13.0, undersizedVertices[0].z);
+    EXPECT_DOUBLE_EQ(21.0, undersizedVertices[1].x);
+    EXPECT_DOUBLE_EQ(22.0, undersizedVertices[1].y);
+    EXPECT_DOUBLE_EQ(23.0, undersizedVertices[1].z);
+
     std::vector<ManuMeshVec3> copiedVertices(required);
     EXPECT_EQ(
         MANUMESH_STATUS_OK,
@@ -41,10 +55,55 @@ TEST_F(CApiTest, CopiesMeshDataOnlyIntoCallerOwnedBuffers) {
     EXPECT_EQ(1.0, copiedVertices[1].x);
 
     size_t copiedFaces = 0;
-    ManuMeshFace copiedFace;
+    ManuMeshFace copiedFace = {{7, 8, 9}};
+    EXPECT_EQ(
+        MANUMESH_STATUS_BUFFER_TOO_SMALL,
+        manumesh_mesh_copy_faces(context, mesh, &copiedFace, 0, &copiedFaces)
+    );
+    EXPECT_EQ(1u, copiedFaces);
+    EXPECT_EQ(7, copiedFace.v[0]);
+    EXPECT_EQ(8, copiedFace.v[1]);
+    EXPECT_EQ(9, copiedFace.v[2]);
+
     EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_copy_faces(context, mesh, &copiedFace, 1, &copiedFaces));
     EXPECT_EQ(1u, copiedFaces);
     EXPECT_EQ(2, copiedFace.v[2]);
+
+    manumesh_mesh_destroy(mesh);
+}
+
+TEST(CApiMeshCreate, AllowsNullErrorContext) {
+    ManuMeshMeshHandle* mesh = manumesh_mesh_create(nullptr);
+    ASSERT_NE(mesh, nullptr);
+    EXPECT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_clear(nullptr, mesh));
+    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, manumesh_mesh_clear(nullptr, nullptr));
+    manumesh_mesh_destroy(mesh);
+}
+
+TEST(CApiContext, AllowsNullContextForErrorQueries) {
+    EXPECT_STREQ("ManuMeshContext is null.", manumesh_context_last_error(nullptr));
+    manumesh_context_clear_error(nullptr);
+}
+
+TEST_F(CApiTest, PreservesFaceIndexOrderAcrossCAbiBoundary) {
+    ManuMeshMeshHandle* mesh = manumesh_mesh_create(context);
+    ASSERT_NE(mesh, nullptr);
+
+    const ManuMeshVec3 vertices[] = {
+        {0.0, 0.0, 0.0},
+        {1.0, 0.0, 0.0},
+        {0.0, 1.0, 0.0},
+    };
+    const ManuMeshFace inputFace[] = {{{2, 0, 1}}};
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_set_data(context, mesh, vertices, 3, inputFace, 1));
+
+    ManuMeshFace outputFace{};
+    size_t written = 0;
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_mesh_copy_faces(context, mesh, &outputFace, 1, &written));
+    ASSERT_EQ(1u, written);
+    EXPECT_EQ(inputFace[0].v[0], outputFace.v[0]);
+    EXPECT_EQ(inputFace[0].v[1], outputFace.v[1]);
+    EXPECT_EQ(inputFace[0].v[2], outputFace.v[2]);
 
     manumesh_mesh_destroy(mesh);
 }

@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_legality_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 合法性测试行为。
+ * @brief 验证折叠的拓扑、质量、法向、误差和自交合法性检查。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -148,10 +146,6 @@ TEST(ManuMesh, StrictNormalDeviationRejectsFoldoverRisk) {
 
     EXPECT_FALSE(result.mesh.empty());
     EXPECT_GT(result.report.collapsedEdges, 0);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (const manumesh::Face& face : result.mesh.faces) {
         const manumesh::Vec3 normal = manumesh::triangleNormal(
             result.mesh.vertices[face.v[0]], result.mesh.vertices[face.v[1]], result.mesh.vertices[face.v[2]]

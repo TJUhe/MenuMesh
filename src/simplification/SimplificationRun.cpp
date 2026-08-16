@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/SimplificationRun.cpp
- * @brief 实现 ManuMesh 的简化模块的简化 运行功能。
+ * @brief 调度一次完整的边坍缩简化运行。
  * @ingroup manumesh_simplification
  *
  * @details 拥有可变状态，并调度一次完整的简化运行。
@@ -130,7 +130,7 @@ void SimplificationRun::analyzeFeatures() {
         featureAnalysis_ = ownedFeatureAnalysis_.get();
     }
     featureGuidance_ = buildFeatureGuidance(input_, policies_.features, featureAnalysis_);
-    applyFeatureGuidanceSummary(featureGuidance_.summary, report_);
+    applyFeatureAnalysisReport(*featureAnalysis_, featureGuidance_, report_);
 }
 
 void SimplificationRun::initializeVertices() {
@@ -142,7 +142,7 @@ void SimplificationRun::initializeVertices() {
     const InitialQuadrics initialQuadrics = quadrics_.build(input_, featureGuidance_, weightAnalysis, report_);
     // 始终计算边界标志（一次 O(E) 遍历），因为扩展链接条件需要在 preserveBoundary 关闭时也阻止边界弦收缩。preserveBoundary 保持原有含义：只限制边界顶点的移动或合并方式。
     boundaryVertices_ = common::computeBoundaryVertices(input_);
-    primitiveFits_.clear();
+    primitiveFits_ = featureGuidance_.primitiveFits;
     vertices_.assign(input_.vertices.size(), VertexState{});
     for (int i = 0; i < static_cast<int>(input_.vertices.size()); ++i) {
         vertices_[i].p = input_.vertices[i];
@@ -197,23 +197,7 @@ void SimplificationRun::initializeVertexFeature(int vertexId) {
     vertex.featureComponentId = vf.componentId;
     vertex.featureConfidence = vf.confidence;
     vertex.curveTangent = vf.tangent;
-    // 圆/椭圆拟合数据存放在紧凑的旁表中；没有拟合图元的顶点保持 primitiveFitId == -1，并且不会额外占用内存。
-    const bool hasCircleFit = vf.circular || vf.circleRadius > 0.0;
-    const bool hasEllipseFit = vf.primitive == FeatureCurveKind::Ellipse || vf.ellipseMajorRadius > 0.0;
-    if (vf.isFeature && (hasCircleFit || hasEllipseFit)) {
-        FeaturePrimitiveFit fit;
-        fit.circleCenter = vf.circleCenter;
-        fit.circleNormal = vf.circleNormal;
-        fit.circleRadius = vf.circleRadius;
-        fit.ellipseCenter = vf.ellipseCenter;
-        fit.ellipseNormal = vf.ellipseNormal;
-        fit.ellipseMajorAxis = vf.ellipseMajorAxis;
-        fit.ellipseMinorAxis = vf.ellipseMinorAxis;
-        fit.ellipseMajorRadius = vf.ellipseMajorRadius;
-        fit.ellipseMinorRadius = vf.ellipseMinorRadius;
-        vertex.primitiveFitId = static_cast<int>(primitiveFits_.size());
-        primitiveFits_.push_back(fit);
-    }
+    vertex.primitiveFitId = vf.primitiveFitId;
 }
 
 void SimplificationRun::initializeFaces() {

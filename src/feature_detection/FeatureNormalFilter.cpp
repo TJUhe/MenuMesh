@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureNormalFilter.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征法向过滤功能。
+ * @brief 在不移动顶点的前提下稳定特征检测使用的面法向。
  * @ingroup manumesh_feature_detection
  *
  * @details 在不改变网格位置和拓扑的前提下稳定面法向。

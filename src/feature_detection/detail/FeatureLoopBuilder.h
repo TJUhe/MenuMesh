@@ -1,10 +1,7 @@
 /**
  * @file src/feature_detection/detail/FeatureLoopBuilder.h
- * @brief 声明 ManuMesh 特征检测模块的特征环构建功能。
+ * @brief 声明追踪序列到 FeatureLoop 的物化与去重。
  * @ingroup manumesh_feature_detection
- *
- * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
- *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once
@@ -45,7 +42,7 @@ using CycleSignatureSet = std::unordered_set<CycleSignature, CycleSignatureHash>
 CycleSignature cycleSignature(const std::vector<int>& vertices);
 
 /**
- * @brief 写入环归属、图元投影数据以及顶点切线。
+ * @brief 写入环归属、几何基元投影数据以及顶点切线。
  */
 void assignLoopToVertices(
     const FeatureLoop& loop, const Mesh& mesh, const std::vector<std::vector<int>>& adjacency, FeatureAnalysis& analysis

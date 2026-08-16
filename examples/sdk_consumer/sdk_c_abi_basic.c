@@ -1,6 +1,6 @@
 /**
  * @file examples/sdk_consumer/sdk_c_abi_basic.c
- * @brief 通过 ManuMesh SDK 示例演示SDK C ABI 基础。
+ * @brief 验证已安装 SDK 的稳定 C ABI 基本调用路径。
  * @ingroup manumesh_examples
  *
  * @details 示例只使用已安装 SDK 的公共 C ABI 入口，作为可执行的集成文档。

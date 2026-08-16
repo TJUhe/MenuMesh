@@ -1,6 +1,11 @@
 if(NOT DEFINED MANUMESH_SOURCE_DIR)
   message(FATAL_ERROR "必须设置 MANUMESH_SOURCE_DIR")
 endif()
+if(NOT IS_DIRECTORY "${MANUMESH_SOURCE_DIR}/src")
+  message(FATAL_ERROR
+    "MANUMESH_SOURCE_DIR 必须包含 src 目录：'${MANUMESH_SOURCE_DIR}'"
+  )
+endif()
 
 file(GLOB_RECURSE MANUMESH_SRC_DOXYGEN_FILES
   "${MANUMESH_SOURCE_DIR}/src/*.c"
@@ -55,6 +60,11 @@ if(MANUMESH_SRC_DOXYGEN_ERRORS)
 endif()
 
 list(LENGTH MANUMESH_SRC_DOXYGEN_FILES checked_file_count)
+if(checked_file_count EQUAL 0)
+  message(FATAL_ERROR
+    "未在 '${MANUMESH_SOURCE_DIR}/src' 中找到可检查的 C/C++ 源文件"
+  )
+endif()
 message(STATUS
   "已在 ${checked_file_count} 个 src 文件中验证块式 Doxygen 元数据"
 )

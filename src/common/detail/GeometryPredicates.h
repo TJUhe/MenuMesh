@@ -1,6 +1,6 @@
 /**
  * @file src/common/detail/GeometryPredicates.h
- * @brief 声明 ManuMesh 公共几何模块的几何谓词设施。
+ * @brief 声明距离、包围盒和三角形相交谓词。
  * @ingroup manumesh_common
  *
  * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。

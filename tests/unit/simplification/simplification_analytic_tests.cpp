@@ -1,14 +1,10 @@
 /**
  * @file tests/unit/simplification/simplification_analytic_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 解析测试行为。
+ * @brief 在球体、圆柱、环面和纹理曲面上验证简化误差与确定性。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //  该实现需保持边界条件，并保证结果具有确定性。
 //    该实现需保持边界条件，并保证结果具有确定性。
 //    该实现需保持边界条件，并保证结果具有确定性。
@@ -57,17 +53,12 @@ int countCircularLoops(const feature::FeatureAnalysis& analysis) {
     );
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
 double circularUvDistance(double a, double b) {
     const double difference = std::abs(a - b);
     const double wrapped = difference - std::floor(difference);
     return std::min(wrapped, 1.0 - wrapped);
 }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 void assignCylinderUvs(analytic::CylinderFixture& fixture) {
     Mesh& mesh = fixture.mesh;
     mesh.faceTexCoords.resize(mesh.faces.size());
@@ -103,14 +94,6 @@ double signedUvArea(const manumesh::FaceTexCoords& texcoords) {
 
 } // 命名空间
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(SimplificationAnalytic, SphereVerticesStayOnSphereAndTopologyIsPreserved) {
     const analytic::SphereFixture sphere = analytic::makeUvSphere(48, 96, 1.0);
     const SimplifiedMesh result = simplifyWithReport(sphere.mesh, manumesh::test::standardOptions(0.2));
@@ -122,21 +105,12 @@ TEST(SimplificationAnalytic, SphereVerticesStayOnSphereAndTopologyIsPreserved) {
     }
     EXPECT_LT(maxRadialDeviation, 0.01 * sphere.radius);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(result.mesh);
     EXPECT_EQ(0, stats.boundaryEdges);
     EXPECT_EQ(0, stats.nonManifoldEdges);
     EXPECT_EQ(2, stats.vertices - stats.edges + stats.faces);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(SimplificationAnalytic, PrimitiveProtectionKeepsCylinderRimsExactlyCircular) {
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(64, 8, 1.0, 2.0, true);
 
@@ -149,8 +123,6 @@ TEST(SimplificationAnalytic, PrimitiveProtectionKeepsCylinderRimsExactlyCircular
     const SimplifiedMesh result = simplifyWithReport(cylinder.mesh, options);
     manumesh::test::expectBudget(result, cylinder.mesh, 0.3);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const feature::FeatureAnalysis reDetected = feature::detectFeatureCurves(result.mesh, rimFeatureOptions());
     ASSERT_EQ(2, countCircularLoops(reDetected));
 
@@ -170,8 +142,6 @@ TEST(SimplificationAnalytic, PrimitiveProtectionKeepsCylinderRimsExactlyCircular
     }
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
 //  该实现需保持边界条件，并保证结果具有确定性。
 //    该实现需保持边界条件，并保证结果具有确定性。
 //  该实现需保持边界条件，并保证结果具有确定性。
@@ -219,9 +189,6 @@ TEST(SimplificationAnalytic, TexturedCylinderKeepsUvAlignedWithAnalyticParametri
             const Vec3& p = result.mesh.vertices[result.mesh.faces[face].v[corner]];
             const double analyticU = std::atan2(p.y(), p.x()) / (2.0 * kPi) + 0.5;
             const double analyticV = p.z() / cylinder.height + 0.5;
-            // 检查该步骤的边界条件，并确保结果保持确定性。
-            // 检查该步骤的边界条件，并确保结果保持确定性。
-            // 检查该步骤的边界条件，并确保结果保持确定性。
             EXPECT_LT(circularUvDistance(texcoords.uv[corner].x() + 0.5, analyticU), uTolerance)
                 << "face " << face << " corner " << corner;
             EXPECT_NEAR(analyticV, texcoords.uv[corner].y(), vTolerance) << "face " << face << " corner " << corner;
@@ -230,14 +197,6 @@ TEST(SimplificationAnalytic, TexturedCylinderKeepsUvAlignedWithAnalyticParametri
     EXPECT_GT(validFaces, 0);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(SimplificationAnalytic, TorusStaysWithinSampledHausdorffBudget) {
     const analytic::TorusFixture torus = analytic::makeTorus(96, 48, 1.0, 0.3);
     const SimplifiedMesh result = simplifyWithReport(torus.mesh, manumesh::test::standardOptions(0.35));
@@ -249,19 +208,12 @@ TEST(SimplificationAnalytic, TorusStaysWithinSampledHausdorffBudget) {
     EXPECT_LT(distance.maxOriginalToSimplified, budget);
     EXPECT_LT(distance.maxSimplifiedToOriginal, budget);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(result.mesh);
     EXPECT_EQ(0, stats.boundaryEdges);
     EXPECT_EQ(0, stats.nonManifoldEdges);
     EXPECT_EQ(0, stats.vertices - stats.edges + stats.faces);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(SimplificationAnalytic, DetectAndSimplifyPipelineIsByteStableAcrossRuns) {
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 6, 1.0, 2.0, true);
 
@@ -286,8 +238,6 @@ TEST(SimplificationAnalytic, DetectAndSimplifyPipelineIsByteStableAcrossRuns) {
         ASSERT_EQ(reference.vertices.size(), output.vertices.size());
         ASSERT_EQ(reference.faces.size(), output.faces.size());
         for (std::size_t vertex = 0; vertex < reference.vertices.size(); ++vertex) {
-            // 检查该步骤的边界条件，并确保结果保持确定性。
-            // 检查该步骤的边界条件，并确保结果保持确定性。
             EXPECT_EQ(reference.vertices[vertex].x(), output.vertices[vertex].x());
             EXPECT_EQ(reference.vertices[vertex].y(), output.vertices[vertex].y());
             EXPECT_EQ(reference.vertices[vertex].z(), output.vertices[vertex].z());

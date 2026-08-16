@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureBenchmark.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征基准测试功能。
+ * @brief 计算特征边、分叉、延续关系和曲面片的基准指标。
  * @ingroup manumesh_feature_detection
  *
  * @details 计算边、分叉、延续关系和面片标签的基准指标。

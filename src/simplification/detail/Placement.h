@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/Placement.h
- * @brief 声明 ManuMesh 的简化模块的放置功能。
+ * @brief 声明边坍缩候选位置求解与边界投影。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 该层只处理位置几何，不决定拓扑、特征或纹理合法性。
  */
 
 #pragma once

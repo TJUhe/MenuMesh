@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_external_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 外部测试行为。
+ * @brief 在 Thingi10k 真实网格上检查特征图具有非平凡输出。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"

@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureCircularRecovery.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征圆形恢复功能。
+ * @brief 从稀疏但空间连贯的特征顶点簇恢复圆形曲线。
  * @ingroup manumesh_feature_detection
  *
  * @details 恢复严格图追踪遗漏的稀疏圆形顶点簇。

@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/api/c_api_diagnostics_tests.cpp
- * @brief 验证 ManuMesh 测试中的 C API 诊断测试行为。
+ * @brief 检查 C API 对特征、合法性和简化诊断字段的映射。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "CApiTestSupport.h"

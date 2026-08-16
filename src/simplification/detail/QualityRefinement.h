@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/QualityRefinement.h
- * @brief 声明 ManuMesh 的简化模块的质量细化功能。
+ * @brief 声明边坍缩完成后的固定拓扑质量优化。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 细化只移动允许移动的顶点，并复用边界、特征和几何合法性约束。
  */
 
 #pragma once

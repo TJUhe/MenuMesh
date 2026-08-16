@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/CollapseTopology.cpp
- * @brief 实现 ManuMesh 的简化模块的折叠拓扑功能。
+ * @brief 规划边坍缩所需的局部面重写和边界决策。
  * @ingroup manumesh_simplification
  *
  * @details 计算候选折叠对应的局部面重写和关联变化。

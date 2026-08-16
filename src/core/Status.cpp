@@ -1,9 +1,9 @@
 /**
  * @file src/core/Status.cpp
- * @brief 实现 ManuMesh 核心网格模块的状态设施。
+ * @brief 实现 Status 的状态码和诊断文本存储。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 本文件只实现轻量状态值，不执行日志记录或异常转换。
  */
 
 #include "core/Status.h"

@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_comparison_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征比较测试行为。
+ * @brief 验证特征环匹配的强匹配、弱匹配、缺失和参数校验语义。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "algorithms/feature_detection/FeatureComparison.h"
@@ -27,8 +25,6 @@ using manumesh::feature::matchCircularLoops;
 
 constexpr double kTestPi = 3.141592653589793238462643383279502884;
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 FeatureLoop appendCircleLoop(Mesh& mesh, int id, const Vec3& center, double radius, int count) {
     FeatureLoop loop;
     loop.id = id;
@@ -127,8 +123,6 @@ void bindAnalysisToMesh(FeatureAnalysis& analysis, Mesh& mesh) {
     analysis.boundaryFeatureEdges = analysis.featureEdges;
     analysis.source = manumesh::feature::featureAnalysisSource(mesh);
 }
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, IdenticalLoopsMatchStronglyWithZeroErrors) {
     Mesh original;
     Mesh simplified;
@@ -162,15 +156,12 @@ TEST(FeatureComparison, IdenticalLoopsMatchStronglyWithZeroErrors) {
     }
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, RadiusDriftInsidePlausibleBandIsWeakMatch) {
     Mesh original;
     Mesh simplified;
     FeatureAnalysis originalFeatures;
     FeatureAnalysis simplifiedFeatures;
     originalFeatures.loops.push_back(appendCircleLoop(original, 0, Vec3(0.0, 0.0, 0.0), 1.0, 12));
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.15, 12));
     bindAnalysisToMesh(simplifiedFeatures, simplified);
 
@@ -188,7 +179,6 @@ TEST(FeatureComparison, RadiusDriftInsidePlausibleBandIsWeakMatch) {
     EXPECT_NEAR(0.15, match.directional.radialMax, 1e-12);
     EXPECT_EQ(0, static_cast<int>(std::lround(match.normalAngleDeg)));
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     LoopMatchOptions strict = options;
     strict.plausibleRadiusErrorRel = 0.10;
     const LoopMatchReport strictReport = matchCircularLoops(originalFeatures, simplifiedFeatures, simplified, strict);
@@ -196,8 +186,6 @@ TEST(FeatureComparison, RadiusDriftInsidePlausibleBandIsWeakMatch) {
     EXPECT_EQ(LoopMatchStatus::Missing, strictReport.matches.front().status);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, VanishedLoopIsMissingAndSimplifiedLoopsAreConsumedOnce) {
     Mesh original;
     Mesh simplified;
@@ -205,7 +193,6 @@ TEST(FeatureComparison, VanishedLoopIsMissingAndSimplifiedLoopsAreConsumedOnce) 
     FeatureAnalysis simplifiedFeatures;
     originalFeatures.loops.push_back(appendCircleLoop(original, 0, Vec3(0.0, 0.0, 0.0), 1.0, 12));
     originalFeatures.loops.push_back(appendCircleLoop(original, 1, Vec3(0.2, 0.0, 0.0), 1.0, 12));
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.0, 0.0, 0.0), 1.0, 8));
     bindAnalysisToMesh(simplifiedFeatures, simplified);
 
@@ -231,8 +218,6 @@ TEST(FeatureComparison, VanishedLoopIsMissingAndSimplifiedLoopsAreConsumedOnce) 
     EXPECT_EQ(0, missing.directional.samples);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureComparison, ChoosesBestPlausibleCandidateAfterThresholdFiltering) {
     Mesh original;
     Mesh simplified;
@@ -240,8 +225,6 @@ TEST(FeatureComparison, ChoosesBestPlausibleCandidateAfterThresholdFiltering) {
     FeatureAnalysis simplifiedFeatures;
     originalFeatures.loops.push_back(appendCircleLoop(original, 0, Vec3(0.0, 0.0, 0.0), 1.0, 12));
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 0, Vec3(0.81, 0.0, 0.0), 1.0, 8));
     simplifiedFeatures.loops.push_back(appendCircleLoop(simplified, 1, Vec3(0.7, 0.0, 0.0), 1.02, 8));
     bindAnalysisToMesh(simplifiedFeatures, simplified);
@@ -292,7 +275,6 @@ TEST(FeatureComparison, RejectsInvalidLoopMatchOptionsBeforeMatching) {
     EXPECT_THROW(matchCircularLoops(analysis, analysis, mesh, options), std::invalid_argument);
 }
 
-// 命名空间
 TEST(FeatureComparison, NonCircularLoopsAreIgnored) {
     Mesh original;
     Mesh simplified;

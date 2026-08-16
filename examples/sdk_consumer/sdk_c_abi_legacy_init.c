@@ -1,6 +1,6 @@
 /**
  * @file examples/sdk_consumer/sdk_c_abi_legacy_init.c
- * @brief 通过 ManuMesh SDK 示例演示SDK C ABI 旧版初始化。
+ * @brief 验证旧版 C ABI 结构初始化仍可由已安装 SDK 使用。
  * @ingroup manumesh_examples
  *
  * @details 示例只使用已安装 SDK 的旧版 C ABI 初始化入口，作为兼容性集成文档。

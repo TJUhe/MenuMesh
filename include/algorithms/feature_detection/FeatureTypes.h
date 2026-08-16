@@ -1,9 +1,9 @@
 /**
  * @file include/algorithms/feature_detection/FeatureTypes.h
- * @brief 声明 ManuMesh 特征检测模块的特征类型设施。
+ * @brief 定义特征证据、特征图、曲线、组件和曲面分区结果。
  * @ingroup manumesh_feature_detection
  *
- * @details 此文件属于确定性的三角表面特征管线。局部证据与图清理、追踪、基本体恢复和分区相互分离，使每个阶段都有明确契约。
+ * @details FeatureAnalysis 是现有兼容结果；普通消费者应只读取所需的图、曲线或组件数据。
  */
 
 #pragma once
@@ -18,7 +18,7 @@
 namespace manumesh {
 namespace feature {
 
-/// 一个检测特征环的拟合基本体类型。
+/// 一个检测特征环的拟合几何基元类型。
 enum class FeaturePrimitiveType {
     Unknown,
     Circle,
@@ -111,7 +111,7 @@ struct FeatureLoop {
     double primitiveResidual = 0.0;
     /// @}
 
-    /// @name 基本体拟合
+    /// @name 几何基元拟合
     /// 圆和近圆使用 `radius`；椭圆使用长轴/短轴参数对。
     /// @{
     FeaturePrimitiveType primitive = FeaturePrimitiveType::Unknown;
@@ -285,14 +285,11 @@ struct FeaturePatchAdjacency {
     int featureEdges = 0;
 };
 
-/// Identifies the exact indexed geometry used to produce a feature analysis.
+/// 标识生成特征分析结果时使用的精确索引几何。
 ///
-/// Fingerprints use a fixed byte encoding rather than `std::hash`, so they are
-/// deterministic across processes and standard-library versions. Topology
-/// includes vertex/face counts and every face corner in storage order;
-/// geometry additionally includes every IEEE-754 vertex coordinate in storage
-/// order. Texture coordinates are intentionally excluded because feature
-/// detection does not consume them.
+/// 指纹使用固定字节编码而不是 `std::hash`，因此跨进程和标准库版本保持确定性。
+/// 拓扑包含顶点/面数量以及存储顺序中的每个面角点；几何还包含存储顺序中的每个
+/// IEEE-754 顶点坐标。特征检测不使用纹理坐标，因此有意将其排除在外。
 struct FeatureAnalysisSource {
     std::uint64_t vertexCount = 0;
     std::uint64_t faceCount = 0;
@@ -363,12 +360,11 @@ struct FeatureAnalysis {
     std::vector<FeaturePatchAdjacency> patchAdjacencies;
     int closedSurfacePatches = 0;
     int segmentationIgnoredRecoveryEdges = 0;
-    /// Appended to preserve the offsets of existing public fields.
+    /// 追加字段，用于保留既有公共字段的布局偏移。
     FeatureAnalysisSource source;
-    /// Compact per-vertex Normal Tensor weights resolved with the options that
-    /// produced this analysis. Empty when Normal Tensor evidence was disabled.
-    /// Downstream consumers should use these values directly instead of
-    /// reinterpreting them with another threshold or scale configuration.
+    /// 使用生成本分析结果的配置解析得到的紧凑逐顶点 Normal Tensor 权重。
+    /// 禁用 Normal Tensor 证据时为空。下游应直接使用这些权重，不要用另一组阈值
+    /// 或尺度配置重新解释它们。
     std::vector<double> normalTensorVertexWeights;
 };
 

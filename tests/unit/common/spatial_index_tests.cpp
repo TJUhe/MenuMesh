@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/common/spatial_index_tests.cpp
- * @brief 验证 ManuMesh 测试中的空间索引测试行为。
+ * @brief 验证均匀 AABB 候选网格的查询、更新和保守回退行为。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "../../../src/common/detail/SpatialIndex.h"

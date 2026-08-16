@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/CandidateQueue.h
- * @brief 声明 ManuMesh 的简化模块的候选队列功能。
+ * @brief 声明带缓存位置和版本戳的坍缩候选队列。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 队列只负责排序与失效检测；候选合法性由 CollapseAttempt 单独评估。
  */
 
 #pragma once

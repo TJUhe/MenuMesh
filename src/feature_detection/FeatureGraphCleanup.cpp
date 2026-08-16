@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureGraphCleanup.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征图清理功能。
+ * @brief 裁剪弱毛刺并桥接局部兼容的短间隙。
  * @ingroup manumesh_feature_detection
  *
  * @details 清除弱图噪声，并桥接相邻且证据兼容的局部间隙。

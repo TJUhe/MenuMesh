@@ -1,6 +1,6 @@
 /**
  * @file src/common/GeometryPredicates.cpp
- * @brief 实现 ManuMesh 公共几何模块的几何谓词设施。
+ * @brief 实现尺度归一化的距离、包围盒和三角形相交谓词。
  * @ingroup manumesh_common
  *
  * @details 实现尺度归一化距离、AABB 和三角形精确窄相位谓词。

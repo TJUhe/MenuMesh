@@ -27,8 +27,9 @@
 | [`design/texture_aware_qem.md`](design/texture_aware_qem.md) | 纹理感知 4×4 QEM 的权威设计文档：逐角 UV 数据模型、局部 chart 配对与拒绝规则、标量失真代价 `E_uv_local`、选项与诊断、复杂度与文献定位。 |
 | [`design/smooth_curvature_feature_detection_2026_07_11.md`](design/smooth_curvature_feature_detection_2026_07_11.md) | 确定性光滑曲率特征检测的权威设计文档：双证据路径理念、多尺度 quadric 拟合算法八步、`FeatureOptions` 新参数与默认值、诊断字段和开源/文献对照。 |
 | [`design/architecture_v2_2026_07_12.md`](design/architecture_v2_2026_07_12.md) | 架构升级蓝图 v2：R1-R7 改进项与实施状态（第一至三批已落地），包含 `manumesh::analysis` 模块、CLI 选项表、C ABI 加固等本轮架构改动的立项论证。 |
+| [`design/long_term_library_roadmap_2026_08_16.md`](design/long_term_library_roadmap_2026_08_16.md) | 面向大型网格库的长期路线：参数分组、validation/repair、类型化属性、大网格索引、remeshing 与 C ABI v2 的实施顺序和验收门槛。 |
 | [`design/error_handling_policy.md`](design/error_handling_policy.md) | 错误处理策略一页决策表：数据错误用 Status/Result、编程错误用异常、C 边界用状态码、IO 渐进迁移 `Result<Mesh>`；新增公共入口前先查本表。 |
-| [`design/algorithm_extension_protocol.md`](design/algorithm_extension_protocol.md) | 算法扩展协议：新增算法模块的 7 步机械化路径、`validateOptions` 协议与诊断字段命名规范。 |
+| [`design/algorithm_extension_protocol.md`](design/algorithm_extension_protocol.md) | 算法扩展协议：新增模块的边界与验收路径、`validateOptions` 协议，以及紧凑结果/可选诊断规范。 |
 | [`design/testing_strategy.md`](design/testing_strategy.md) | 测试体系与策略：unit/analytic/perf-guard/external/performance 五层划分、解析真值 fixture 设计理念（真值访问器 + 推导断言界）、确定性测试、快速/全量套件命令与规模、新增测试的注册方式。 |
 | [`archive/prototype-docs-2026-07-09/`](archive/prototype-docs-2026-07-09/) | 2026-07-09 归档的阶段性设计、指南和生成笔记，用作历史备份。 |
 | [`papers/`](papers/) | 论文 PDF 资料库。该目录没有复制进归档目录，以避免重复大文件。 |
@@ -50,8 +51,8 @@ ManuMesh 当前定位为面向增材制造和三角网格处理的 C++14 mesh ge
 - 跨算法网格分析模块 `manumesh::analysis`（`computeMeshStats` / `compareMeshesBySampledDistance`）与特征 loop 匹配公共入口 `manumesh::feature::matchCircularLoops`；
 - feature evidence、feature graph、loop recovery 和 primitive fitting；
 - QEM / line-quadrics edge-collapse simplification；
-- 纹理感知 4×4 QEM 简化（opt-in）：逐角 UV chart 保护与标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式，当前仅通过 C++ `SimplifyOptions` 暴露；
-- 确定性光滑曲率特征检测与保护（opt-in）：多尺度 quadric 拟合的 ridge/valley 弱证据路径，经显式 `FeatureGraph` 与硬证据汇合；feature-analysis CLI 和 `simplify` 均支持 `--smooth-curvature-*`，`simplify --smooth-curvature-features` 自动开启特征曲线策略；C++/C ABI 均有对应尾字段；
+- 纹理感知 4×4 QEM 简化（opt-in）：逐角 UV chart 保护与标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式，当前通过 C++ `SimplifyConfig::texture` 暴露，`SimplifyOptions` 仅作兼容入口；
+- 确定性光滑曲率特征检测与保护（opt-in）：多尺度 quadric 拟合的 ridge/valley 弱证据路径，经显式 `FeatureGraph` 与硬证据汇合；feature-analysis CLI 和 `simplify` 均支持 `--smooth-curvature-*`，在 `simplify` 中启用检测通道会保持 0.x 的自动特征保护行为；C++/C ABI 均有对应尾字段；
 - feature、boundary、topology、normal、triangle quality、local error 和 local intersection 过滤；相交检查覆盖新一环内部与附近活动面，但不声称全局无自交认证；
 - STL/OBJ IO；OBJ 严格凸面保持 fan 顺序，凹面使用投影 ear clipping，并拒绝重复、退化或自交 polygon；
 - CLI、examples、CTest/GoogleTest 和外部 STL/OBJ 验证路径。

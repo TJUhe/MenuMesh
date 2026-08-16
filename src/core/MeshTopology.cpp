@@ -1,6 +1,6 @@
 /**
  * @file src/core/MeshTopology.cpp
- * @brief 实现 ManuMesh 核心网格模块的网格拓扑设施。
+ * @brief 从三角面构建不可变的边和顶点入射缓存。
  * @ingroup manumesh_core
  *
  * @details 构建不可变的无向边和逐顶点入射缓存。
@@ -110,10 +110,6 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
             if (id >= 0 && id < static_cast<int>(topology.impl_->vertices.size())) {
                 topology.impl_->vertices[id].faces.push_back(fi);
             }
-        }
-
-        if (validate && (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2])) {
-            return Status::topologyError("Mesh contains a degenerate face.");
         }
 
         for (int corner = 0; corner < 3; ++corner) {

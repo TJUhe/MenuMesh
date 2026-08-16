@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/NormalTensor.cpp
- * @brief 实现 ManuMesh 的特征检测模块的法向张量功能。
+ * @brief 计算确定性的多尺度法向张量特征证据。
  * @ingroup manumesh_feature_detection
  *
  * @details 实现确定性的多尺度法向张量投票。

@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/detail/FeatureConstraintGraph.h
- * @brief Declares the simplifier-owned canonical view of detected feature constraints.
+ * @brief 声明简化器拥有的规范特征约束图。
  * @ingroup manumesh_simplification
  */
 

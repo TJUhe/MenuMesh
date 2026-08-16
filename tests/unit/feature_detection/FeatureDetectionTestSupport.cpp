@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/FeatureDetectionTestSupport.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 测试支持行为。
+ * @brief 实现特征检测测试共用的几何夹具和结果查询工具。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"

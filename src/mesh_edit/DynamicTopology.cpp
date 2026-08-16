@@ -1,6 +1,6 @@
 /**
  * @file src/mesh_edit/DynamicTopology.cpp
- * @brief 实现 ManuMesh 的网格编辑模块的动态拓扑功能。
+ * @brief 维护局部编辑期间的顶点面关联和重复面索引。
  * @ingroup manumesh_mesh_edit
  *
  * @details 在局部编辑过程中维护可变的顶点-面关联和重复面查找表。

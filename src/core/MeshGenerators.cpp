@@ -1,9 +1,9 @@
 /**
  * @file src/core/MeshGenerators.cpp
- * @brief 实现 ManuMesh 核心网格模块的网格生成器设施。
+ * @brief 生成可复现的解析网格与算法压力测试样例。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 生成器使用固定拓扑与确定性采样，便于测试直接比较结果。
  */
 
 #include "core/MeshGenerators.h"

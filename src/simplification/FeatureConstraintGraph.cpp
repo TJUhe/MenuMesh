@@ -1,6 +1,6 @@
 /**
  * @file src/simplification/FeatureConstraintGraph.cpp
- * @brief Implements the simplifier-owned canonical feature constraint graph.
+ * @brief 构建并维护简化器自己的规范特征约束图。
  * @ingroup manumesh_simplification
  */
 

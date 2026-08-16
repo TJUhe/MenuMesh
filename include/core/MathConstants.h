@@ -1,9 +1,9 @@
 /**
  * @file include/core/MathConstants.h
- * @brief 声明 ManuMesh 核心网格模块的数学常量设施。
+ * @brief 定义公共 API 使用的 C++14 数学常量。
  * @ingroup manumesh_core
  *
- * @details 核心类型建立所有算法模块共同使用的存储、校验、容差、拓扑和状态契约。
+ * @details 常量集中定义，避免依赖非标准的 M_PI 宏。
  */
 
 #pragma once

@@ -1,10 +1,10 @@
 /**
  * @file src/feature_detection/FeatureLoopRecovery.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征环恢复功能。
+ * @brief 按固定顺序运行全部特征曲线恢复方法。
  * @ingroup manumesh_feature_detection
  *
  * @details 本文件执行确定性的三角曲面特征环恢复流水线，将局部证据与图清理、
- *          轨迹追踪及图元拟合阶段串联起来。
+ *          轨迹追踪及几何基元拟合阶段串联起来。
  */
 
 #include "detail/FeatureLoopRecovery.h"

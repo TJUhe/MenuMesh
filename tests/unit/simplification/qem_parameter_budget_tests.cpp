@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/qem_parameter_budget_tests.cpp
- * @brief 验证 ManuMesh 测试中的QEM 参数 预算测试行为。
+ * @brief 在真实 STL 上验证目标面数优先级和 line-quadric 权重诊断。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "QemParameterTestSupport.h"
@@ -42,15 +40,6 @@ TEST(ManuMeshParameters, TargetFacesOverridesRatioOnRealStlFixtures) {
         EXPECT_EQ(result.report.initialFaces, static_cast<int>(input.faces.size()));
         EXPECT_EQ(result.report.finalFaces, static_cast<int>(result.mesh.faces.size()));
         EXPECT_LT(result.report.finalFaces, result.report.initialFaces);
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
-        // 检查该步骤的边界条件，并确保结果保持确定性。
         EXPECT_LE(result.report.finalFaces, options.targetFaces + 2);
     }
 }

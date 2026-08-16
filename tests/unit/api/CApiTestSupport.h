@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/api/CApiTestSupport.h
- * @brief 验证 ManuMesh 测试中的 C API 测试支持行为。
+ * @brief 提供自动创建和销毁 ManuMesh C API 上下文的测试夹具。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once

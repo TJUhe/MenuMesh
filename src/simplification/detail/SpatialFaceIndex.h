@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/SpatialFaceIndex.h
- * @brief 声明 ManuMesh 的简化模块的空间面索引功能。
+ * @brief 声明活动面局部自相交检查使用的动态宽相索引。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 索引只提供保守候选面，最终相交结论仍由精确窄相谓词给出。
  */
 
 #pragma once

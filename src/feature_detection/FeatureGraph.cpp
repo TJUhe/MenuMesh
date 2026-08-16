@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureGraph.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征图功能。
+ * @brief 将候选边证据构建为确定性的无向轨迹图。
  * @ingroup manumesh_feature_detection
  *
  * @details 将候选证据物化为确定性的无向特征轨迹图。
@@ -22,6 +22,16 @@ namespace {
 
 void removeNeighbor(std::vector<int>& neighbors, int id) {
     neighbors.erase(std::remove(neighbors.begin(), neighbors.end(), id), neighbors.end());
+}
+
+int otherEndpoint(const FeatureGraphEdge& edge, int vertex) {
+    if (edge.a == vertex) {
+        return edge.b;
+    }
+    if (edge.b == vertex) {
+        return edge.a;
+    }
+    return -1;
 }
 
 void appendFeatureGraphEdge(FeatureAnalysis& analysis, const CandidateEdge& edge) {
@@ -250,7 +260,7 @@ void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis) {
             if (edge.removedByCleanup) {
                 continue;
             }
-            const int neighbor = edge.a == id ? edge.b : edge.b == id ? edge.a : -1;
+            const int neighbor = otherEndpoint(edge, id);
             if (neighbor < 0 || id >= static_cast<int>(mesh.vertices.size()) ||
                 neighbor >= static_cast<int>(mesh.vertices.size())) {
                 continue;

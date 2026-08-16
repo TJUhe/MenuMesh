@@ -1,10 +1,7 @@
 /**
  * @file src/feature_detection/detail/FeatureGraphCleanup.h
- * @brief 声明 ManuMesh 特征检测模块的轨迹图清理功能。
+ * @brief 声明弱毛刺裁剪、局部间隙桥接和组件汇总。
  * @ingroup manumesh_feature_detection
- *
- * @details 本文件属于确定性的三角曲面特征流水线。局部证据与图清理、轨迹追踪、
- *          图元恢复及面片分割相互独立，各阶段均有明确的接口契约。
  */
 
 #pragma once

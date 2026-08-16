@@ -1,6 +1,6 @@
 /**
  * @file src/api/detail/CApiConverters.h
- * @brief 声明 ManuMesh 的C ABI 模块的C API 转换器功能。
+ * @brief 声明 C ABI 选项、报告和特征边的有界转换函数。
  * @ingroup manumesh_c_api
  *
  * @details 声明 C ABI 结构体与内部 C++ 结果之间的有界转换辅助函数。

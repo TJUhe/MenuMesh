@@ -42,11 +42,11 @@ documentation/                           当前设计、指南、论文索引和
 - `QEMSimplifier`：隐藏单次简化运行状态、队列、QEM 属性和策略对象。
 - `FeatureDetector`：隐藏检测器内部配置和后续可能加入的缓存、策略或统计字段。
 
-`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开结构体，因为它们是调用方需要读写的稳定数据交换格式。`FeatureAnalysis` 的 graph branches、components、patches 和 benchmark labels 也是公开结果语义；候选 bridge、trace state、compatibility candidate 等运行时细节仍留在私有层。`FeatureAnalysis` 不是可以任意移植到另一份网格的标签包：其 `source` 绑定生成分析时的精确 indexed geometry，包括顶点/面数量、面与角点索引顺序以及按顶点顺序排列的坐标；UV 不参与该身份指纹。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。
+`SimplifyConfig`、`SimplifyOptions`、`SimplifyReport`、`FeatureOptions`、`FeatureAnalysis` 仍是公开数据交换类型。新代码以按职责分组的 `SimplifyConfig` 为规范入口，目标通过 `SimplifyTarget` 明确选择面数或比例，`SimplifyOptions` 仅作为 0.x 源码兼容适配器保留。`SimplifyReport` 的扁平字段也保留用于兼容和完整诊断；常规调用只需 `SimplifySummary`，不应把每个内部计数都当成主流程输出，也不再为每组计数建立镜像 summary 类型。`FeatureAnalysis` 的 graph branches、components、patches 和 benchmark labels 是公开结果语义；候选 bridge、trace state、compatibility candidate 等运行时细节仍留在私有层。`FeatureAnalysis` 不是可以任意移植到另一份网格的标签包：其 `source` 绑定生成分析时的精确 indexed geometry，包括顶点/面数量、面与角点索引顺序以及按顶点顺序排列的坐标；UV 不参与该身份指纹。C++ API 根命名空间为 `manumesh`，核心网格类型和基础工具位于根命名空间；特征检测位于 `manumesh::feature`，QEM/line-quadrics 简化位于 `manumesh::simplification`。
 
 特征检测内部按九阶段 pipeline 组织：evidence、退化证据过滤、graph、cleanup、component consolidation、loop recovery、component summary、graph finalize、patch segmentation。`FeatureNormalFilter.cpp` 只稳定 evidence normals；`FeatureGraphCompatibility.cpp` 统一 cleanup/consolidation 的方向/source/sign 规则；`FeatureGraph.cpp` 生成 junction branches/continuation pairs；`FeatureBenchmark.cpp` 和 `FeatureSegmentation.cpp` 分别承载扩展 benchmark 与 face partition。`FeatureDetector.cpp` 只负责 public facade、校验和阶段编排。新增识别能力应优先加入职责明确的 translation unit，而不是继续扩张 facade。
 
-简化内部也按 pipeline/strategy 分层：`QEMSimplifier.cpp` 是 public facade；`SimplificationRun.cpp` 负责编排单次运行、队列和状态应用；`SimplificationPolicies.cpp` 把规范的 `SimplifyOptions::featureOptionsOverride` 或兼容扁平特征字段归一化成内部 policy，override 存在时优先；`CollapseAttempt.cpp` 负责把 feature、boundary、curve budget 和 legality filters 组合成一次候选坍缩的接受/拒绝结果；`Quadrics.cpp`、`Placement.cpp`（placement 策略单元，含 Lindstrom-Turk 边界守恒投影）、`FeatureConstraints.cpp`、`CollapseTopology.cpp`（含与 `preserveBoundary` 无关的边界弦 pinch 拒绝）、`CollapseLegality.cpp` 等模块只表达各自策略；`TextureProtection.cpp`（配套 `detail/TextureProtection.h`）承载 opt-in 的纹理感知策略——局部 UV chart 配对、有符号 UV 面积检查和标量失真代价，几何 quadric 保持 4×4，不做属性扩维。新增 collapse 过滤器优先进入对应 policy/evaluator，而不是继续扩张 `SimplificationRun.cpp`。
+简化内部也按 pipeline/strategy 分层：`QEMSimplifier.cpp` 是 public facade；`SimplificationRun.cpp` 负责编排单次运行、队列和状态应用；`SimplificationPolicies.cpp` 接收 `SimplifyConfig` 经 `makeSimplifyOptions()` 生成的显式 `featureOptionsOverride`，或处理旧扁平字段适配，随后归一化成内部 policy；`CollapseAttempt.cpp` 负责把 feature、boundary、curve budget 和 legality filters 组合成一次候选坍缩的接受/拒绝结果；`Quadrics.cpp`、`Placement.cpp`（placement 策略单元，含 Lindstrom-Turk 边界守恒投影）、`FeatureConstraints.cpp`、`CollapseTopology.cpp`（含与 `preserveBoundary` 无关的边界弦 pinch 拒绝）、`CollapseLegality.cpp` 等模块只表达各自策略；`TextureProtection.cpp`（配套 `detail/TextureProtection.h`）承载 opt-in 的纹理感知策略——局部 UV chart 配对、有符号 UV 面积检查和标量失真代价，几何 quadric 保持 4×4，不做属性扩维。新增 collapse 过滤器优先进入对应 policy/evaluator，而不是继续扩张 `SimplificationRun.cpp`。
 
 CLI 是应用层消费者，不承载算法状态。`apps/main.cpp` 只调用 `manumesh::cli::run()`；`CliArguments.cpp` 用共享 `OptionSpec` 选项表驱动帮助生成（`optionsHelpText()`）和逐命令参数校验（`validateArgsForCommand()`，拼错或属于其他命令的选项在入口统一报错）；`ManuMeshCli.cpp` 负责帮助输出和 `run()` 派发；`ManuMeshCommands.cpp` 承载命令 handler 与 command registry；`CliCsv.cpp` 承担 CSV 表现层（含自 simplification 移入的网格统计 CSV 拼装）。新增 CLI 命令应新增 handler 并注册到 registry，公共算法能力仍优先进入 SDK 层。
 
@@ -126,7 +126,8 @@ feature_detection 不能反向 include simplification；
 
 `Mesh` 是 Eigen-backed 便利类型，适合同编译器、同 C++ ABI 的 SDK 消费方。
 pre-1.0 C++ SDK 只保证有明确的源码迁移路径，不承诺跨 SDK 版本直接复用旧二进制；
-公开 options/report 仍是扁平 C++ struct，升级 SDK 后消费工程必须重新编译。
+`SimplifyConfig` 按职责嵌套组织新配置，`SimplifyOptions` 保留为扁平的 0.x 源码兼容适配器；
+升级 SDK 后消费工程必须重新编译。
 `PlainMesh` 是 Eigen-free C++ 交换类型，提供对应的 `PlainVec2`、`PlainFaceTexCoords` 和
 `PlainMesh::faceTexCoords` 字段，与 `Mesh` 的双向转换、compaction/validation/remap 都会保留逐角 UV；`PlainSimplifier.h` 提供
 `simplifyPlainMesh()`，内部转换为 `Mesh` 后复用同一套简化实现。真正跨语言或
@@ -141,6 +142,7 @@ pre-1.0 C++ SDK 只保证有明确的源码迁移路径，不承诺跨 SDK 版�
 ```cpp
 namespace manumesh {
 namespace simplification {
+SimplifyOptions makeSimplifyOptions(const SimplifyConfig& config);
 Mesh simplifyMesh(const manumesh::Mesh& input,
                   const SimplifyOptions& options,
                   SimplifyReport* report = nullptr);
@@ -148,10 +150,25 @@ Mesh simplifyMesh(const manumesh::Mesh& input,
 } // namespace manumesh
 ```
 
+新代码优先使用 `SimplifyConfig` 的 `target`、`cost`、`features`、`quality` 和
+`texture` 五个分组，运行日志由顶层 `verbose` 开关控制。目标使用
+`SimplifyTarget::faceCount()` 或 `SimplifyTarget::ratio()` 明确选择一种单位；
+line quadrics 使用 `LineQuadricConfig::disabled()`、`uniform(weight)` 或
+`adaptive(baseWeight)` 明确选择一种模式；
+局部误差使用 `SimplifyErrorLimit::absolute()` 或
+`SimplifyErrorLimit::boundingBoxRatio()` 明确选择一种单位；
+有状态调用使用 `QEMSimplifier::setConfig()`。
+`makeSimplifyOptions()` 只把规范配置转为现有热循环
+使用的已归一化选项；`features.detection` 是唯一的特征检测配置来源，不会与旧扁平字段
+隐式合并。旧 `SimplifyOptions` 只作为兼容适配器保留，详见
+[`long_term_library_roadmap_2026_08_16.md`](long_term_library_roadmap_2026_08_16.md)。
+
 需要复用配置时使用对象入口：
 
 ```cpp
-manumesh::simplification::QEMSimplifier simplifier(options);
+manumesh::simplification::SimplifyConfig config;
+manumesh::simplification::QEMSimplifier simplifier;
+simplifier.setConfig(config);
 manumesh::Mesh output = simplifier.simplify(input, &report);
 ```
 
@@ -172,11 +189,14 @@ manumesh::feature::FeatureAnalysis features = detector.analyze(mesh);
 预计算结果通过显式数据流进入简化：
 
 ```cpp
-options.featureOptionsOverride = featureOptions; // 规范特征检测配置
-manumesh::simplification::QEMSimplifier simplifier(options);
+manumesh::simplification::SimplifyConfig config;
+config.features.enabled = true;
+config.features.detection = featureOptions; // 规范特征检测配置
+manumesh::simplification::QEMSimplifier simplifier;
+simplifier.setConfig(config);
 manumesh::Mesh output = simplifier.simplify(mesh, features, &report);
 ```
 
-旧的 `SimplifyOptions` 扁平特征检测字段只保留为源码兼容适配器；未设置 `featureOptionsOverride` 时才会映射为 `FeatureOptions`。设置 override 后，override 对应配置优先。已验证的预计算 `FeatureAnalysis` 在启用 Normal Tensor 证据时还携带按检测时阈值和尺度解析好的逐顶点权重；简化器把这组权重视为规范证据直接复用，不会用另一组简化选项重新阈值化。显式传入预计算分析并选择 `weightMode=NormalTensor` 时，权重数组必须覆盖全部输入顶点；缺失权重会抛出 `std::invalid_argument`，只有未传入预计算分析的普通简化入口才会按当前有效配置计算权重。
+新代码使用按职责分组的 `SimplifyConfig`；`features.detection` 是唯一的检测配置来源，转换到内部热循环只发生一次。旧的 `SimplifyOptions` 扁平特征检测字段只保留为源码兼容适配器；设置 `featureOptionsOverride` 后，override 对应配置优先。已验证的预计算 `FeatureAnalysis` 在启用 Normal Tensor 证据时还携带按检测时阈值和尺度解析好的逐顶点权重；简化器把这组权重视为规范证据直接复用，不会用另一组简化选项重新阈值化。显式传入预计算分析并选择 `weightMode=NormalTensor` 时，权重数组必须覆盖全部输入顶点；缺失权重会抛出 `std::invalid_argument`，只有未传入预计算分析的普通简化入口才会按当前有效配置计算权重。
 
 C API 使用 `ManuMeshContext`、`ManuMeshMeshHandle`、`ManuMeshSimplifyOptions`、`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats`。输入 options 调用前必须用对应 `*_init` 初始化，避免 ABI 版本和默认值漂移；同一 `MANUMESH_ABI_VERSION` 内允许尾部较短的旧 `struct_size`，库只读取存在的字段，新增尾字段使用默认值。`ManuMeshSimplifyOptions::feature_options` 是调用期借用的 `ManuMeshFeatureOptions` 指针，库不保留所有权；非空时覆盖全部旧的扁平特征检测字段。外层和嵌套 options 都独立按各自 `struct_size` 做 size-aware 读取，嵌套结构缺失的尾字段同样使用默认值。report/stats 是纯输出，current 源码 alias 与显式 `*_with_size` 入口以调用方容量为唯一写入边界，不读取 output 原有字节；旧 ABI 符号固定写首发 v1 前缀。

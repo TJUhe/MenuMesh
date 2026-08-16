@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/simplification/simplification_placement_tests.cpp
- * @brief 验证 ManuMesh 测试中的简化 放置测试行为。
+ * @brief 验证 QEM 退化求解、边界投影、曲线索引和自适应权重。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "SimplificationTestSupport.h"
@@ -35,8 +33,6 @@ using manumesh::simplification::VertexState;
 
 double evaluateCost(const manumesh::Mat4& q, const Vec3& p) { return manumesh::simplification::evaluateQuadric(q, p); }
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 struct BoundaryStrip {
     std::vector<VertexState> vertices;
     std::vector<FaceState> faces;
@@ -69,8 +65,6 @@ private:
     }
 };
 
-/// 说明该辅助函数的输入、输出和边界条件。
-/// 说明该辅助函数的输入、输出和边界条件。
 double boundaryAreaObjective(const std::array<Vec3, 4>& chain, const Vec3& v) {
     const Vec3 e1 = (chain[0] - chain[1]) + (chain[1] - chain[2]) + (chain[2] - chain[3]);
     const Vec3 e2 = chain[1].cross(chain[0]) + chain[2].cross(chain[1]) + chain[3].cross(chain[2]);
@@ -118,10 +112,6 @@ std::vector<std::array<Vec3, 2>> collectBoundarySegments(const Mesh& mesh, doubl
 
 } // 命名空间
 
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(PlacementSolve, RankTwoQuadricUsesAlongEdgeOptimum) {
     const manumesh::Mat4 q = manumesh::simplification::planeQuadric(Vec3(0.0, 0.0, 1.0), Vec3::Zero()) +
                              manumesh::simplification::planeQuadric(Vec3(0.0, 1.0, 0.0), Vec3::Zero());
@@ -131,10 +121,7 @@ TEST(PlacementSolve, RankTwoQuadricUsesAlongEdgeOptimum) {
     const std::vector<SolveResult> placements = manumesh::simplification::solvePlacementCandidates(q, a, b);
 
     ASSERT_FALSE(placements.empty());
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_TRUE(placements.front().usedFallback);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const double costA = evaluateCost(q, a);
     const double costB = evaluateCost(q, b);
     const double costMid = evaluateCost(q, 0.5 * (a + b));
@@ -147,7 +134,6 @@ TEST(PlacementSolve, RankTwoQuadricUsesAlongEdgeOptimum) {
     EXPECT_NEAR(placements.front().cost, 0.0, 1e-18);
 }
 
-// 命名空间
 TEST(PlacementSolve, RankTwoAlongEdgeOptimumIsScaleInvariant) {
     for (const double scale : {1e-3, 1.0, 1e+3}) {
         const manumesh::Mat4 q = manumesh::simplification::planeQuadric(Vec3(0.0, 0.0, 1.0), Vec3::Zero()) +
@@ -198,8 +184,6 @@ TEST(PlacementSolve, DegenerateFacePointQuadricsScaleWithAreaWeightedQem) {
     }
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(BoundaryPlacement, StraightChainProjectsOntoBoundaryLine) {
     const std::array<Vec3, 4> chain = {
         Vec3(-1.0, 1.0, 0.0),
@@ -222,9 +206,6 @@ TEST(BoundaryPlacement, StraightChainProjectsOntoBoundaryLine) {
     EXPECT_NEAR(position.z(), 0.0, 1e-12);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(BoundaryPlacement, CorneredChainReducesDirectedAreaChangeVersusClamp) {
     const std::array<Vec3, 4> chain = {
         Vec3(-1.0, 0.3, 0.0),
@@ -247,19 +228,12 @@ TEST(BoundaryPlacement, CorneredChainReducesDirectedAreaChangeVersusClamp) {
     const double ltObjective = boundaryAreaObjective(chain, position);
     const double clampObjective = boundaryAreaObjective(chain, clamped);
     EXPECT_LT(ltObjective, clampObjective);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_NEAR(position.y(), -0.1, 1e-12);
     EXPECT_NEAR(position.z(), 0.0, 1e-12);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GE(position.x(), 0.0);
     EXPECT_LE(position.x(), 1.0);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(BoundaryPlacement, PreserveBoundarySimplifyKeepsBoundaryDriftTight) {
     const Mesh input = manumesh::generateHolePlaneGrid(16, 2.0, 0.35);
     double maxSegmentLength = 0.0;
@@ -283,8 +257,6 @@ TEST(BoundaryPlacement, PreserveBoundarySimplifyKeepsBoundaryDriftTight) {
     EXPECT_LE(drift, 1.0 * maxSegmentLength);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureCurves, SegmentIndexMatchesLinearScan) {
     FeatureCurveConstraint linear;
     linear.valid = true;
@@ -313,9 +285,6 @@ TEST(FeatureCurves, SegmentIndexMatchesLinearScan) {
     }
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureBoost, AdaptiveScaleKeepsQuadricsCleanAndFillsPriorityScales) {
     const Mesh input = manumesh::generateRidgeGrid(16, 2.0, 0.6);
     manumesh::simplification::SimplifyOptions boosted;
@@ -349,15 +318,42 @@ TEST(FeatureBoost, AdaptiveScaleKeepsQuadricsCleanAndFillsPriorityScales) {
         EXPECT_GE(scale, 1.0);
         maxScale = std::max(maxScale, scale);
     }
-    // 命名空间
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_GT(maxScale, 1.0);
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     for (double scale : unboostedQ.priorityScales) {
         EXPECT_DOUBLE_EQ(1.0, scale);
     }
-    // 命名空间
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_DOUBLE_EQ(boostedReport.minAppliedLineWeight, boostedReport.maxAppliedLineWeight);
     EXPECT_DOUBLE_EQ(boostedReport.minAppliedLineWeight, unboostedReport.minAppliedLineWeight);
+}
+
+TEST(FeatureBoost, AdaptiveScaleUsesItsOwnBaseLineWeight) {
+    const Mesh input = manumesh::generateRidgeGrid(8, 2.0, 0.6);
+    manumesh::simplification::SimplifyOptions zeroLegacyWeight;
+    zeroLegacyWeight.useLineQuadrics = true;
+    zeroLegacyWeight.lineWeight = 0.0;
+    zeroLegacyWeight.adaptiveScale = true;
+    zeroLegacyWeight.adaptiveBaseLineWeight = 0.02;
+
+    manumesh::simplification::SimplifyOptions nonzeroLegacyWeight = zeroLegacyWeight;
+    nonzeroLegacyWeight.lineWeight = 1e-3;
+
+    manumesh::simplification::FeatureGuidance guidance;
+    manumesh::simplification::InitialQuadrics zeroLegacyQuadrics;
+    manumesh::simplification::InitialQuadrics nonzeroLegacyQuadrics;
+    manumesh::simplification::SimplifyReport zeroLegacyReport;
+    manumesh::simplification::SimplifyReport nonzeroLegacyReport;
+    manumesh::simplification::computeInitialQuadrics(
+        input, zeroLegacyWeight, guidance, zeroLegacyQuadrics, zeroLegacyReport
+    );
+    manumesh::simplification::computeInitialQuadrics(
+        input, nonzeroLegacyWeight, guidance, nonzeroLegacyQuadrics, nonzeroLegacyReport
+    );
+
+    ASSERT_EQ(zeroLegacyQuadrics.quadrics.size(), nonzeroLegacyQuadrics.quadrics.size());
+    for (std::size_t i = 0; i < zeroLegacyQuadrics.quadrics.size(); ++i) {
+        EXPECT_TRUE(zeroLegacyQuadrics.quadrics[i].isApprox(nonzeroLegacyQuadrics.quadrics[i], 0.0));
+    }
+    EXPECT_DOUBLE_EQ(0.02, zeroLegacyReport.minAppliedLineWeight);
+    EXPECT_DOUBLE_EQ(0.02, zeroLegacyReport.maxAppliedLineWeight);
+    EXPECT_EQ(input.vertices.size(), zeroLegacyQuadrics.priorityScales.size());
 }

@@ -1,6 +1,6 @@
 /**
  * @file src/debugUtil/debugUtil.h
- * @brief 声明 ManuMesh 调试可视化模块的辅助功能。
+ * @brief 声明仅调试构建可用的 HTML 网格快照接口。
  * @ingroup manumesh_debug
  *
  * @details 发布构建会去除调试可视化，调试工具不得影响算法结果。

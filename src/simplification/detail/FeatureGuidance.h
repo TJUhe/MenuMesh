@@ -1,9 +1,9 @@
 /**
  * @file src/simplification/detail/FeatureGuidance.h
- * @brief 声明 ManuMesh 的简化模块的特征引导功能。
+ * @brief 声明从特征分析派生的逐顶点引导和曲线约束。
  * @ingroup manumesh_simplification
  *
- * @details 本文件属于带特征感知的边折叠流水线。二次误差代价用于排序候选；拓扑、几何、特征、边界、误差及可选纹理策略共同决定一个放置是否可以修改网格。
+ * @details 该适配层把检测结果转换为简化器自己的紧凑数据，不把 FeatureAnalysis 传播到坍缩热循环。
  */
 
 #pragma once
@@ -42,64 +42,19 @@ struct FeatureVertexGuidance {
     std::vector<int> componentIds;
     double confidence = 0.0;
     Vec3 tangent = Vec3::Zero();
-    Vec3 circleCenter = Vec3::Zero();
-    Vec3 circleNormal = Vec3(0.0, 0.0, 1.0);
-    double circleRadius = 0.0;
-    Vec3 ellipseCenter = Vec3::Zero();
-    Vec3 ellipseNormal = Vec3(0.0, 0.0, 1.0);
-    Vec3 ellipseMajorAxis = Vec3(1.0, 0.0, 0.0);
-    Vec3 ellipseMinorAxis = Vec3(0.0, 1.0, 0.0);
-    double ellipseMajorRadius = 0.0;
-    double ellipseMinorRadius = 0.0;
+    int primitiveFitId = -1;
 };
 
 /**
- * @brief 复制到 SimplifyReport 的特征分析诊断汇总。
- */
-struct FeatureGuidanceSummary {
-    int featureLoops = 0;
-    int circularFeatureLoops = 0;
-    int featureVertices = 0;
-    int tracedFeatureEdges = 0;
-    int untracedFeatureEdges = 0;
-    int normalTensorFeatureEdges = 0;
-    int normalTensorScoredVertices = 0;
-    int smoothCurvatureFeatureEdges = 0;
-    int smoothCurvatureScoredVertices = 0;
-    int featureComponents = 0;
-    int weakFeatureComponents = 0;
-    int highConfidenceFeatureComponents = 0;
-    int graphCleanupBridgedGaps = 0;
-    int graphCleanupRemovedSpurs = 0;
-    int graphCleanupMergedJunctions = 0;
-    double maxNormalTensorPersistentScore = 0.0;
-    double meanNormalTensorLocalScale = 0.0;
-    double meanNormalTensorPersistence = 0.0;
-    double maxSmoothCurvaturePersistentScore = 0.0;
-    double meanSmoothCurvatureLocalScale = 0.0;
-    double meanSmoothCurvaturePersistence = 0.0;
-    double meanFeatureComponentConfidence = 0.0;
-    double minFeatureComponentConfidence = 0.0;
-    int inconsistentWindingEdges = 0;
-    int graphCleanupSkippedByCap = 0;
-    int circularRecoveryTruncated = 0;
-    feature::FeatureNormalFilterReport normalFilter;
-    double meanSmoothCurvatureScaleStability = 0.0;
-    int graphConsolidationBridges = 0;
-    int graphConsolidationSkippedByCap = 0;
-    int junctionBranchPairs = 0;
-    int ambiguousFeatureJunctions = 0;
-};
-
-/**
- * @brief 从一次特征分析派生的逐顶点软引导和解析图元拟合。
+ * @brief 从一次特征分析派生的逐顶点软引导、曲线约束和可选几何基元旁表。
  */
 struct FeatureGuidance {
     bool enabled = false;
     std::vector<FeatureVertexGuidance> vertices;
     std::vector<FeatureCurveConstraint> curves;
+    /// 仅解析圆/椭圆顶点拥有条目；FeatureVertexGuidance::primitiveFitId 引用该表。
+    std::vector<FeaturePrimitiveFit> primitiveFits;
     FeatureConstraintGraph constraints;
-    FeatureGuidanceSummary summary;
 };
 
 /**
@@ -129,9 +84,11 @@ FeatureWeightScores computeFeatureWeightScores(
 );
 
 /**
- * @brief 将特征诊断复制到运行报告中。
+ * @brief 将特征分析的稳定计数复制到兼容运行报告中。
  */
-void applyFeatureGuidanceSummary(const FeatureGuidanceSummary& summary, SimplifyReport& report);
+void applyFeatureAnalysisReport(
+    const feature::FeatureAnalysis& analysis, const FeatureGuidance& guidance, SimplifyReport& report
+);
 
 } // namespace simplification
 } // namespace manumesh

@@ -1,6 +1,6 @@
 /**
  * @file src/mesh_edit/detail/MeshCompaction.h
- * @brief 声明 ManuMesh 的网格编辑模块的网格压缩功能。
+ * @brief 声明编辑状态压缩和旧索引到新索引的映射。
  * @ingroup manumesh_mesh_edit
  *
  * @details 编辑期间保持索引稳定，仅将面和顶点标记为非活动；确定性的压缩过程负责生成最终的稠密网格。

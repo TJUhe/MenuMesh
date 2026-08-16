@@ -1,9 +1,7 @@
 /**
  * @file tests/support/AnalyticFixtures.h
- * @brief 验证 ManuMesh 测试中的解析夹具行为。
+ * @brief 声明具有解析曲率与特征真值的确定性测试网格。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #pragma once

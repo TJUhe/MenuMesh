@@ -15,7 +15,7 @@
 
 /**
  * @defgroup manumesh_feature_detection 特征检测
- * @brief 确定性的强/弱证据、特征图、曲线、基本体和分区。
+ * @brief 确定性的强/弱证据、特征图、曲线、几何基元和分区。
  */
 
 /**

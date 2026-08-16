@@ -1,9 +1,7 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_robustness_tests.cpp
- * @brief 验证 ManuMesh 测试中的特征检测 稳健性测试行为。
+ * @brief 验证异常输入、绕序不一致、退化面和重复运行下的稳健性。
  * @ingroup manumesh_tests
- *
- * @details 测试夹具和断言记录可观察契约、数值容差、确定性要求以及已修复的回归问题。
  */
 
 #include "FeatureDetectionTestSupport.h"
@@ -58,9 +56,6 @@ Mesh makeNonFiniteVertexMesh() {
     return mesh;
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeFoldedFinMesh(double foldAngleDeg) {
     const double angle = foldAngleDeg * std::acos(-1.0) / 180.0;
     Mesh mesh;
@@ -77,9 +72,6 @@ Mesh makeFoldedFinMesh(double foldAngleDeg) {
     return mesh;
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeInconsistentWindingFlatMesh() {
     Mesh mesh;
     mesh.vertices = {
@@ -95,11 +87,6 @@ Mesh makeInconsistentWindingFlatMesh() {
     return mesh;
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeMoebiusBandMesh(int segments) {
     Mesh mesh;
     const double radius = 2.0;
@@ -118,7 +105,6 @@ Mesh makeMoebiusBandMesh(int segments) {
         int b0 = 2 * ((i + 1) % segments);
         int b1 = b0 + 1;
         if (i + 1 == segments) {
-            // 检查该步骤的边界条件，并确保结果保持确定性。
             std::swap(b0, b1);
         }
         mesh.faces.push_back({{a0, b0, b1}});
@@ -127,10 +113,6 @@ Mesh makeMoebiusBandMesh(int segments) {
     return mesh;
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makeRectangularBipyramidMesh() {
     Mesh mesh;
     mesh.vertices = {
@@ -234,7 +216,6 @@ TEST(FeatureDetection, PublicScoringApisRejectMalformedMeshes) {
     EXPECT_THROW(feature::computeNormalTensorFeatures(badCoordinates), std::invalid_argument);
     EXPECT_THROW(feature::computeSmoothCurvatureFeatures(badCoordinates), std::invalid_argument);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     Mesh vertexOnly;
     vertexOnly.vertices = {Vec3(0.0, 0.0, 0.0)};
     EXPECT_NO_THROW(feature::computeNormalTensorFeatures(vertexOnly));
@@ -254,8 +235,6 @@ TEST(FeatureDetection, RejectsScaleParametersAboveSupportedMaximum) {
     triangle.faces = {{{0, 1, 2}}};
     EXPECT_THROW(feature::detectFeatureCurves(triangle, options), std::invalid_argument);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     options = discreteOnlyOptions();
     options.smoothCurvatureMinPersistentScales = 8;
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
@@ -277,7 +256,6 @@ TEST(FeatureDetection, RejectsScaleParametersAboveSupportedMaximum) {
     options.smoothCurvatureRobustFitIterations = 5;
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     options = discreteOnlyOptions();
     options.normalTensorScaleCount = feature::kMaxNormalTensorScaleCount;
     options.normalTensorMinPersistentScales = feature::kMaxNormalTensorScaleCount;
@@ -299,7 +277,6 @@ TEST(FeatureDetection, DetectsKnifeEdgeFoldBeyondNinetyDegrees) {
     EXPECT_TRUE(features.vertices[0].isFeature);
     EXPECT_TRUE(features.vertices[1].isFeature);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     FeatureOptions strict = options;
     strict.featureAngleDeg = 160.0;
     EXPECT_EQ(0, feature::detectFeatureCurves(fin, strict).dihedralFeatureEdges);
@@ -312,19 +289,11 @@ TEST(FeatureDetection, HarmonizesInconsistentWindingOnFlatSurface) {
     options.featureAngleDeg = 40.0;
     const FeatureAnalysis features = feature::detectFeatureCurves(flat, options);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     EXPECT_EQ(0, features.dihedralFeatureEdges);
     EXPECT_EQ(4, features.boundaryFeatureEdges);
     EXPECT_EQ(0, features.inconsistentWindingEdges);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetection, DetectsKnifeEdgeAcrossReversedWindingPatch) {
     Mesh fin = makeFoldedFinMesh(150.0);
     std::swap(fin.faces[1].v[0], fin.faces[1].v[1]); // {1,0,3} -> {0,1,3}
@@ -339,10 +308,6 @@ TEST(FeatureDetection, DetectsKnifeEdgeAcrossReversedWindingPatch) {
     EXPECT_TRUE(features.vertices[1].isFeature);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetection, MoebiusBandKeepsInconsistentWindingDiagnostic) {
     const Mesh band = makeMoebiusBandMesh(16);
 
@@ -357,16 +322,10 @@ TEST(FeatureDetection, MoebiusBandKeepsInconsistentWindingDiagnostic) {
     EXPECT_EQ(features.dihedralFeatureEdges, second.dihedralFeatureEdges);
 }
 
-// 命名空间
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 TEST(FeatureDetection, ReversedPatchYieldsIdenticalFeatureEdgeSet) {
     const Mesh original = loadFixtureMesh("feature_fixtures/boss_pocket_plate.obj");
     ASSERT_FALSE(original.empty());
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const auto edgeInfo = [](const Mesh& mesh) {
         std::unordered_map<std::uint64_t, std::vector<int>> info;
         for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
@@ -480,10 +439,6 @@ TEST(FeatureDetection, DetectFeatureCurvesIsDeterministicAcrossRuns) {
 }
 
 namespace {
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
-// 检查该步骤的边界条件，并确保结果保持确定性。
 Mesh makePlaneWithDegenerateTriangle(bool duplicateVertex) {
     Mesh mesh = manumesh::generatePlaneGrid(6, 1.0, false);
     const Vec3 base = mesh.vertices[0];
@@ -516,16 +471,11 @@ void expectDegenerateFaceTolerated(bool duplicateVertex) {
     FeatureOptions options = discreteOnlyOptions();
     options.featureAngleDeg = 40.0;
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     FeatureAnalysis analysis;
     ASSERT_NO_THROW(analysis = feature::detectFeatureCurves(dirty, options));
     EXPECT_EQ(1, analysis.degenerateFaces);
     expectFiniteAnalysis(analysis);
 
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
-    // 检查该步骤的边界条件，并确保结果保持确定性。
     const FeatureAnalysis clean = feature::detectFeatureCurves(manumesh::generatePlaneGrid(6, 1.0, false), options);
     EXPECT_EQ(0, clean.degenerateFaces);
     EXPECT_EQ(clean.dihedralFeatureEdges, analysis.dihedralFeatureEdges);

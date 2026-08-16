@@ -1,6 +1,6 @@
 /**
  * @file src/feature_detection/FeatureEvidence.cpp
- * @brief 实现 ManuMesh 的特征检测模块的特征证据功能。
+ * @brief 从边界、二面角、法向张量和曲率收集边证据。
  * @ingroup manumesh_feature_detection
  *
  * @details 将网格局部观测转换为带类型的候选边证据。
@@ -17,7 +17,6 @@
 #include "common/detail/MeshQueries.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -320,85 +319,57 @@ bool smoothCurvatureEdgeCandidate(
     return true;
 }
 
-/** @brief 单个独立边证据通道的多态分类器。 */
-class EdgeEvidenceStrategy {
-public:
-    virtual ~EdgeEvidenceStrategy() = default;
-    /** @brief 当策略接受关联拓扑时更新 edge。 */
-    virtual void
-    classify(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info, EdgeEvidenceContext& context) const = 0;
-};
-
 /** @brief 将只关联一个面的边标记为边界证据。 */
-class BoundaryEvidenceStrategy final : public EdgeEvidenceStrategy {
-public:
-    void
-    classify(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info, EdgeEvidenceContext&) const override {
-        edge.boundary = info.faces.size() == 1;
-    }
-};
+void classifyBoundaryEvidence(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info) {
+    edge.boundary = info.faces.size() == 1;
+}
 
 /** @brief 将面关联数超过两个的边标记为非流形证据。 */
-class NonManifoldEvidenceStrategy final : public EdgeEvidenceStrategy {
-public:
-    void
-    classify(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info, EdgeEvidenceContext&) const override {
-        edge.nonManifold = info.faces.size() > 2;
-    }
-};
+void classifyNonManifoldEvidence(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info) {
+    edge.nonManifold = info.faces.size() > 2;
+}
 
 /** @brief 根据考虑绕序的二面角，将尖锐边分类为带符号证据。 */
-class DihedralEvidenceStrategy final : public EdgeEvidenceStrategy {
-public:
-    void classify(
-        CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info, EdgeEvidenceContext& context
-    ) const override {
-        if (info.faces.size() != 2) {
-            return;
-        }
-
-        const DihedralAngle* dihedral = context.dihedralAngle(manumesh::common::meshEdgeKey(edge.a, edge.b));
-        if (dihedral == nullptr) {
-            return;
-        }
-        if (dihedral->inconsistentWinding) {
-            ++context.analysis.inconsistentWindingEdges;
-        }
-        edge.angleRad = dihedral->angleRad;
-        edge.dihedral = edge.angleRad >= context.dihedralThreshold;
-        if (edge.dihedral) {
-            edge.signedKind = dihedral->signedKind;
-        }
+void classifyDihedralEvidence(
+    CandidateEdge& edge, const manumesh::common::MeshEdgeInfo& info, EdgeEvidenceContext& context
+) {
+    if (info.faces.size() != 2) {
+        return;
     }
-};
+
+    const DihedralAngle* dihedral = context.dihedralAngle(manumesh::common::meshEdgeKey(edge.a, edge.b));
+    if (dihedral == nullptr) {
+        return;
+    }
+    if (dihedral->inconsistentWinding) {
+        ++context.analysis.inconsistentWindingEdges;
+    }
+    edge.angleRad = dihedral->angleRad;
+    edge.dihedral = edge.angleRad >= context.dihedralThreshold;
+    if (edge.dihedral) {
+        edge.signedKind = dihedral->signedKind;
+    }
+}
 
 /** @brief 添加多尺度持久法向张量证据。 */
-class NormalTensorEvidenceStrategy final : public EdgeEvidenceStrategy {
-public:
-    void
-    classify(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo&, EdgeEvidenceContext& context) const override {
-        if (edge.boundary || edge.dihedral || edge.nonManifold) {
-            return;
-        }
-        edge.normalTensor = normalTensorEdgeCandidate(
-            edge, context.tensor, context.discreteFeatureVertex, context.mesh, context.options, context.analysis
-        );
+void classifyNormalTensorEvidence(CandidateEdge& edge, EdgeEvidenceContext& context) {
+    if (edge.boundary || edge.dihedral || edge.nonManifold) {
+        return;
     }
-};
+    edge.normalTensor = normalTensorEdgeCandidate(
+        edge, context.tensor, context.discreteFeatureVertex, context.mesh, context.options, context.analysis
+    );
+}
 
 /** @brief 添加由光顺曲率拟合得到的持久脊线/谷线证据。 */
-class SmoothCurvatureEvidenceStrategy final : public EdgeEvidenceStrategy {
-public:
-    void
-    classify(CandidateEdge& edge, const manumesh::common::MeshEdgeInfo&, EdgeEvidenceContext& context) const override {
-        if (edge.boundary || edge.dihedral || edge.nonManifold) {
-            return;
-        }
-        edge.smoothCurvature = smoothCurvatureEdgeCandidate(
-            edge, context.curvature, context.discreteFeatureVertex, context.mesh, context.options, context.analysis
-        );
+void classifySmoothCurvatureEvidence(CandidateEdge& edge, EdgeEvidenceContext& context) {
+    if (edge.boundary || edge.dihedral || edge.nonManifold) {
+        return;
     }
-};
+    edge.smoothCurvature = smoothCurvatureEdgeCandidate(
+        edge, context.curvature, context.discreteFeatureVertex, context.mesh, context.options, context.analysis
+    );
+}
 
 } // namespace
 
@@ -407,14 +378,6 @@ std::vector<CandidateEdge> collectFeatureEdges(
 ) {
     std::vector<CandidateEdge> result;
     EdgeEvidenceContext context(mesh, options, cache, builder.analysis());
-    const BoundaryEvidenceStrategy boundaryEvidence;
-    const DihedralEvidenceStrategy dihedralEvidence;
-    const NonManifoldEvidenceStrategy nonManifoldEvidence;
-    const NormalTensorEvidenceStrategy normalTensorEvidence;
-    const SmoothCurvatureEvidenceStrategy smoothCurvatureEvidence;
-    const std::array<const EdgeEvidenceStrategy*, 5> strategies = {
-        &boundaryEvidence, &dihedralEvidence, &nonManifoldEvidence, &normalTensorEvidence, &smoothCurvatureEvidence
-    };
 
     for (const auto& pairEntry : context.edges) {
         const auto& key = pairEntry.first;
@@ -426,9 +389,11 @@ std::vector<CandidateEdge> collectFeatureEdges(
         edge.a = a;
         edge.b = b;
 
-        for (const EdgeEvidenceStrategy* strategy : strategies) {
-            strategy->classify(edge, info, context);
-        }
+        classifyBoundaryEvidence(edge, info);
+        classifyDihedralEvidence(edge, info, context);
+        classifyNonManifoldEvidence(edge, info);
+        classifyNormalTensorEvidence(edge, context);
+        classifySmoothCurvatureEvidence(edge, context);
 
         if (edge.boundary || edge.dihedral || edge.normalTensor || edge.smoothCurvature || edge.nonManifold) {
             result.push_back(edge);

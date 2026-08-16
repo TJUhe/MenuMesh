@@ -1,6 +1,6 @@
 /**
  * @file src/common/SpatialIndex.cpp
- * @brief 实现 ManuMesh 公共几何模块的空间索引设施。
+ * @brief 实现用于 AABB 候选查询的稀疏均匀网格。
  * @ingroup manumesh_common
  *
  * @details 实现用于宽相位 AABB 候选查询的可变均匀网格。

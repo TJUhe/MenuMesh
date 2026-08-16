@@ -1,10 +1,10 @@
 /**
  * @file src/simplification/Placement.cpp
- * @brief 实现 ManuMesh 的简化模块的放置功能。
+ * @brief 求解、约束并排序一条边的候选坍缩位置。
  * @ingroup manumesh_simplification
  *
  * @details 求解并排序一条边收缩的候选位置。
- * @algorithm 在考虑尺度的谱条件下尝试完整的 Garland-Heckbert 3x3 最优解。秩亏系统使用收缩边上的一维最优解，然后依次尝试端点和中点。边界与解析图元约束会在最终代价排序前投影或夹紧候选位置。
+ * @algorithm 在考虑尺度的谱条件下尝试完整的 Garland-Heckbert 3x3 最优解。秩亏系统使用收缩边上的一维最优解，然后依次尝试端点和中点。边界与解析几何基元约束会在最终代价排序前投影或夹紧候选位置。
  * @failuremodes 拒绝非有限或病态的求解结果，不将其作为放置候选返回。
  */
 

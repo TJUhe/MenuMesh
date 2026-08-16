@@ -1,6 +1,6 @@
 /**
  * @file src/common/detail/MathConstants.h
- * @brief 声明 ManuMesh 公共几何模块的数学常量设施。
+ * @brief 定义内部几何算法共用的 C++14 数学常量。
  * @ingroup manumesh_common
  *
  * @details 此处的例程是无策略几何基础，由特征检测、简化、分析和网格编辑共享。

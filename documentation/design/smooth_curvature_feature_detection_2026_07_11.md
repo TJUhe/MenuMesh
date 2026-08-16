@@ -142,7 +142,7 @@ cyclideness 门禁，由解析环面 fixture 暴露；2026-07-15 更新：当前
 通道，或调用方提供包含平滑特征的预计算分析，否则现有简化行为保持不变。
 
 CLI 将相同控制项提供给 `feature-report`、`feature-benchmark`、`feature-compare` 和 `simplify`。在 `simplify` 中，
-`--smooth-curvature-features` 还会启用 `preserveFeatureCurves`，因此检测到的图会被保护策略消费，而不是计算后
+`--smooth-curvature-features` 启用平滑曲率证据；在 `simplify` 中它沿用 0.x 的自动特征保护行为，因此检测到的图会被保护策略消费，而不是计算后
 丢弃。稳定尺度控制项以
 `--smooth-curvature-stable-scale` and
 `--smooth-curvature-min-scale-stability`.
@@ -220,8 +220,8 @@ CLI 将相同控制项提供给 `feature-report`、`feature-benchmark`、`featur
 
 `SimplifyOptions` 镜像平滑曲率控制项，包括稳定尺度选择和最小稳定性，以及 `featureGraphMinWeakSpurStrength`；
 `featureOptionsFromSimplifyOptions` 在不改变阈值的情况下完成映射。C++ 调用方同时启用
-`preserveFeatureCurves = true` 和 `useSmoothCurvatureFeatures = true`。CLI 在出现 `--smooth-curvature-features`
-时会自动完成前一项。`SimplifyReport`、简化标准输出/指标 CSV 和带大小信息的 C ABI 报告，携带平滑边、评分顶点
+`preserveFeatureCurves = true` 和 `useSmoothCurvatureFeatures = true`。在 `simplify` 中，CLI 会沿用 0.x 语义，在出现
+`--smooth-curvature-features`、`--feature-normal-filter` 或 `--feature-graph-consolidation` 时自动打开 feature-curve policy；`feature-report` 则可以单独分析这些通道。`SimplifyReport`、简化标准输出/指标 CSV 和带大小信息的 C ABI 报告，携带平滑边、评分顶点
 及持久性诊断，并与 winding、清理上限和圆形恢复诊断一起输出。
 
 当检测结果在 repair/remeshing/validation 之间共享时，仍支持预计算 `FeatureAnalysis` 的重载。两条路径都汇合

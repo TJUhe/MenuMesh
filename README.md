@@ -81,19 +81,16 @@ ManuMesh 当前是三角表面网格内核，不是完整 CAD/B-Rep 或实体建
 | Visual Studio | Visual Studio 16 2019 16.11，MSVC v142，x64 | 唯一受支持的编译与 SDK 消费基线。 |
 | CMake | 3.20 或更高 | 配置、构建、安装和测试；兼容 VS2019 16.11 内置 CMake。 |
 | Ninja | 可选 | 在 VS2019 v142 Developer Command Prompt 中使用 Ninja Multi-Config preset。 |
-| Eigen | 3.3 或更高 | 核心向量/矩阵计算；可使用 system、vendored 或 fetch provider。 |
-| GoogleTest | 测试时需要 | 可使用 vendored source、system 或 fetch provider。 |
+| Eigen | 默认 3.4.0；显式 system 为 3.3+ | 核心向量/矩阵计算；默认使用仓库内 header bundle，`system` 与 `fetch` 仅供显式覆盖。 |
+| GoogleTest | 1.15.2（测试时需要） | 默认从仓库内源码构建；`system` 与 `fetch` 仅供显式覆盖。 |
 | Doxygen | 文档构建时需要 | 通过 `PATH` 或 `DOXYGEN_EXECUTABLE` 提供；`MANUMESH_BUILD_DOCS=ON` 时配置阶段会验证。 |
 | Graphviz | 可选 | 找到 `dot` 时生成关系图；缺少 Graphviz 时 Doxygen 仍可生成 API 和源码文档，但不包含关系图。 |
 | Python 3 | 架构检查时需要 | VS2019 preset 和 CI 会开启 include 边界守卫；自定义测试配置可在没有 Python 时跳过该增强检查。 |
 | clang-format | 22.x，可选 | 执行 `format` 与 `check-format` 目标；缺失或主版本不匹配时目标会明确失败。 |
 
-仓库只支持 MSVC v142 x64。CMake 会在配置阶段拒绝 MinGW/GCC、Clang、MSVC v143、
-Win32、ARM64 及其他编译器或目标架构；Visual Studio generator 也必须是
-`Visual Studio 16 2019`，不能用 VS2022 generator 搭配 v142 绕过基线。可以使用
-`Visual Studio 16 2019` generator，
-也可以从 VS2019 x64 Developer Command Prompt 使用 Ninja Multi-Config；两种方式都必须
-实际解析到 `_MSC_VER 1920-1929` 和 x64 编译目标。
+仓库的 Windows 构建基线为 Visual Studio 2019、MSVC v142 和 x64。可以使用
+`Visual Studio 16 2019` generator，也可以从 VS2019 x64 Developer Command Prompt
+使用 Ninja Multi-Config；CMake 会在配置阶段验证编译器、工具集和目标架构。
 所有仓库目标统一使用 DLL CRT：Debug、Release 和安装后的 SDK consumer 都是 `/MD`，
 Debug 不使用 `/MDd`，也不允许 `/MT` 或 `/MTd` 混入同一构建。
 源码与 CMake 目标不依赖 GUI 或 Node.js 运行环境。
@@ -126,6 +123,12 @@ ctest --preset vs2019-release-performance
 # 安装并验证独立 SDK consumer
 cmake --preset vs2019-release-sdk
 cmake --build --preset vs2019-release-sdk
+ctest --preset vs2019-release-sdk
+
+# 安装并验证静态库 SDK 的 C/C++ consumer
+cmake --preset vs2019-release-static-sdk
+cmake --build --preset vs2019-release-static-sdk
+ctest --preset vs2019-release-static-sdk
 ```
 
 VS2019 v142 的 Windows AddressSanitizer 不支持 LeakSanitizer 的
@@ -153,15 +156,20 @@ ctest --preset vs2019-ninja-release-performance
 
 cmake --preset vs2019-ninja-release-sdk
 cmake --build --preset vs2019-ninja-release-sdk --parallel
+ctest --preset vs2019-ninja-release-sdk
+
+cmake --preset vs2019-ninja-release-static-sdk
+cmake --build --preset vs2019-ninja-release-static-sdk --parallel
+ctest --preset vs2019-ninja-release-static-sdk
 ```
 
 VS Code 的 `Terminal > Run Task...` 中提供对应的 `configure/build/test: vs2019 ...`
 任务；运行和断点调试可在 Run and Debug 中选择 `VS2019 Debug CLI - Feature Curves`、
 `VS2019 Debug CLI - Feature Report`、`VS2019 Debug Unit Tests - Filter` 或
-`VS2019 Debug + debugUtil Unit Tests - Filter`。内存问题可使用
+`VS2019 Debug C ABI Stress`。内存问题可使用
 `VS2019 ASan Unit Tests - Filter` 或 `VS2019 ASan Ownership Lifetime Stress`。
 
-此外还提供 `vs2019-release`、`vs2019-release-static` 以及 unit、external、full、
+此外还提供 `vs2019-release`、`vs2019-release-static`、`vs2019-release-static-sdk` 以及 unit、external、full、
 performance、SDK，以及同名的 `vs2019-ninja-*` build/test preset。每类配置使用独立
 构建目录，切换 generator、debugUtil、静态/动态库、性能和安装选项时不会污染已有
 CMake cache。
@@ -171,9 +179,10 @@ CMake cache。
 ```powershell
 cmake --preset vs2019-release-sdk
 cmake --build --preset vs2019-release-sdk --parallel
+ctest --preset vs2019-release-sdk
 ```
 
-该目标先安装到 `build/vs2019-release-sdk/sdk/`，再从 `examples/sdk_consumer/` 配置独立下游
+CTest 会先安装到 `build/vs2019-release-sdk/sdk/`，再从 `examples/sdk_consumer/` 配置独立下游
 工程，只使用已安装的 `include/`、`lib/`、`bin/` 和 `share/`。Visual Studio
 `.vcxproj`、`.props` 和 CMake package 的完整接入步骤见
 [SDK 集成指南](documentation/guide/sdk_integration.md)。
@@ -315,9 +324,11 @@ ManuMesh/
 ## 依赖与构建选项
 
 Eigen 是库的 header-only 编译依赖。GoogleTest 只用于仓库测试，不是 ManuMesh SDK
-运行时依赖。安装型 Windows SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在
-`sdk-consumer-test` 中使用隔离 `PATH` 验证可启动性。CMake 会根据 provider 选择
-system、仓库内依赖或网络拉取版本。
+运行时依赖。默认配置固定使用仓库内 Eigen 3.4.0 与 GoogleTest 1.15.2 源码，避免
+开发机安装的包改变构建结果；显式 `system` 路径接受 Eigen 3.3 及更高版本，`auto`、
+`system` 和 `fetch` 都是显式覆盖路径。安装型 Windows
+SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-consumer-test` 中使用隔离
+`PATH` 验证可启动性。
 
 | 选项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -329,8 +340,8 @@ system、仓库内依赖或网络拉取版本。
 | `MANUMESH_BUILD_PERFORMANCE_TESTS` | `OFF` | 构建独立的大模型性能套件。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中启用内部 HTML 线框工具。 |
-| `MANUMESH_EIGEN_PROVIDER` | `auto` | `auto`、`system`、`vendored` 或 `fetch`。 |
-| `MANUMESH_GOOGLETEST_PROVIDER` | `auto` | `auto`、`source`、`system` 或 `fetch`。 |
+| `MANUMESH_EIGEN_PROVIDER` | `vendored` | 默认仓库内 Eigen 3.4.0；显式 `system` 支持 3.3+，也可设为 `auto` 或 `fetch`。 |
+| `MANUMESH_GOOGLETEST_PROVIDER` | `source` | 默认仓库内 GoogleTest 1.15.2 源码；可显式设为 `auto`、`system` 或 `fetch`。 |
 | `MANUMESH_BUILD_DOCS` | `OFF` | 开启后要求 Doxygen 可用，并创建 `docs-api` 和 `docs-internal` 目标。 |
 | `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 找到 vendored 或系统 Graphviz `dot` 时生成关系图；缺少 `dot` 时继续生成无图文档。 |
 

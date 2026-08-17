@@ -6,8 +6,8 @@ option(MANUMESH_REQUIRE_ARCHITECTURE_CHECKS
   OFF
 )
 
-set(MANUMESH_GOOGLETEST_PROVIDER "auto" CACHE STRING
-  "测试的 GoogleTest 提供方式：auto、source、system 或 fetch"
+set(MANUMESH_GOOGLETEST_PROVIDER "source" CACHE STRING
+  "测试的 GoogleTest 提供方式：默认 source；可选 auto、system 或 fetch"
 )
 set_property(CACHE MANUMESH_GOOGLETEST_PROVIDER PROPERTY STRINGS
   auto
@@ -93,6 +93,7 @@ if(NOT TARGET GTest::gtest_main AND
   FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+    URL_HASH SHA256=F179EC217F9B3B3F3C6E8B02D3E7EDA997B49E4CE26D6B235C9053BEC9C0BF9F
     ${MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS}
   )
   set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)

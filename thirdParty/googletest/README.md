@@ -16,9 +16,9 @@ DLL 版 MSVC 运行时。仓库不再提供 GoogleTest 预编译二进制包，D
 
 提供方式：
 
-- 根目录的 `vs2019-*` presets 显式使用
+- 默认值和根目录的 `vs2019-*` presets 均使用
   `MANUMESH_GOOGLETEST_PROVIDER=source`，从 vendored 源码构建测试依赖。
-- `auto` 依次尝试 vendored 源码、`find_package(GTest)` 可发现的 system 包和
+- 显式选择 `auto` 时，依次尝试 vendored 源码、`find_package(GTest)` 可发现的 system 包和
   `FetchContent` 下载。
 - `source` 只使用仓库内源码，缺失时立即配置失败，适合离线和可复现构建。
 - `system` 只接受 `find_package(GTest)` 可发现且与 v142、x64、C++14、`/MD`

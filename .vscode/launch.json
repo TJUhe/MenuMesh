@@ -110,6 +110,17 @@
       "preLaunchTask": "build: vs2019 debug"
     },
     {
+      "name": "VS2019 Debug C ABI Stress",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/vs2019-debug/bin/Debug/manumesh_c_api_abi_stress.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "preLaunchTask": "build: vs2019 debug"
+    },
+    {
       "name": "VS2019 ASan Unit Tests - Filter",
       "type": "cppvsdbg",
       "request": "launch",

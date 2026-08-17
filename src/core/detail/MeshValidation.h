@@ -1,6 +1,7 @@
 /**
  * @file src/core/detail/MeshValidation.h
  * @brief 核心拓扑构建使用的已索引校验辅助函数。
+ * @ingroup manumesh_core
  */
 
 #pragma once

@@ -93,8 +93,8 @@ if(MANUMESH_ENABLE_INSTALL)
   include(InstallRequiredSystemLibraries)
 endif()
 
-set(MANUMESH_EIGEN_PROVIDER "auto" CACHE STRING
-  "Eigen 提供方式：auto、system、vendored 或 fetch"
+set(MANUMESH_EIGEN_PROVIDER "vendored" CACHE STRING
+  "Eigen 提供方式：默认 vendored；可选 auto、system 或 fetch"
 )
 set_property(CACHE MANUMESH_EIGEN_PROVIDER PROPERTY STRINGS auto system vendored fetch)
 set(MANUMESH_EIGEN_SOURCE_DIR
@@ -152,6 +152,7 @@ if(NOT TARGET Eigen3::Eigen AND
   FetchContent_Declare(
     eigen
     URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+    URL_HASH SHA256=8586084F71F9BDE545EE7FA6D00288B264A2B7AC3607B974E54D13E7162C1C72
     ${MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS}
   )
   set(MANUMESH_SAVED_BUILD_TESTING "${BUILD_TESTING}")

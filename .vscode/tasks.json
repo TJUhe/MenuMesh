@@ -50,6 +50,18 @@
       "hide": true
     },
     {
+      "label": "configure: vs2019 release static SDK",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "vs2019-release-static-sdk"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
+    },
+    {
       "label": "configure: vs2019 release performance",
       "type": "process",
       "command": "cmake",
@@ -124,6 +136,15 @@
       "group": "build"
     },
     {
+      "label": "build: vs2019 release static SDK",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "vs2019-release-static-sdk", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 release static SDK",
+      "group": "build"
+    },
+    {
       "label": "build: vs2019 release performance",
       "type": "process",
       "command": "cmake",
@@ -190,6 +211,15 @@
       "group": "test"
     },
     {
+      "label": "test: vs2019 release external",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-release-external"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019 release",
+      "group": "test"
+    },
+    {
       "label": "test: vs2019 release full",
       "type": "process",
       "command": "ctest",
@@ -205,6 +235,15 @@
       "args": ["--preset", "vs2019-release-static-unit"],
       "problemMatcher": [],
       "dependsOn": "build: vs2019 release static",
+      "group": "test"
+    },
+    {
+      "label": "test: vs2019 release static SDK",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "vs2019-release-static-sdk"],
+      "problemMatcher": [],
+      "dependsOn": "build: vs2019 release static SDK",
       "group": "test"
     },
     {
@@ -230,6 +269,7 @@
       "dependsOn": [
         "test: vs2019 release full",
         "test: vs2019 release static",
+        "test: vs2019 release static SDK",
         "test: vs2019 release performance",
         "test: vs2019 release SDK",
         "build: vs2019 release docs",

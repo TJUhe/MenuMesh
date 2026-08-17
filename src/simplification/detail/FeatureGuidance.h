@@ -52,7 +52,7 @@ struct FeatureGuidance {
     bool enabled = false;
     std::vector<FeatureVertexGuidance> vertices;
     std::vector<FeatureCurveConstraint> curves;
-    /// 解析圆/椭圆顶点与 loop 拥有条目；顶点引导和曲线约束各自用 primitiveFitId 引用该表。
+    /** @brief 解析圆/椭圆顶点与 loop 拥有条目；顶点引导和曲线约束各自用 primitiveFitId 引用该表。 */
     std::vector<FeaturePrimitiveFit> primitiveFits;
     FeatureConstraintGraph constraints;
 };

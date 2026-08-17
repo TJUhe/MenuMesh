@@ -114,7 +114,7 @@ cmake --build --preset vs2019-debug-tests --parallel</code></pre>
     <div class="callout warn"><strong>当前限制：</strong>DebugUtil 调用点已暂时注释，默认 Debug preset 不生成 HTML 快照；请使用 FeatureAnalysis、metrics CSV 和测试断点定位问题。</div>
 
     <h3>2.2 使用 VS Code 过滤调试</h3>
-    <p>仓库已经提供 <a href="../../../.vscode/launch.json"><code>VS2019 Debug + debugUtil Unit Tests - Filter</code></a>。在“运行和调试”中选择它，按 F5 后输入完整测试名：</p>
+    <p>仓库已经提供 <a href="../../../.vscode/launch.json"><code>VS2019 Debug Unit Tests - Filter</code></a>。在“运行和调试”中选择它，按 F5 后输入完整测试名：</p>
     <pre><code>FeatureDetection.ClassifiesBoundaryEdgesOnOpenTriangle</code></pre>
     <p>当前使用 <code>build/vs2019-debug/bin/Debug/manumesh_tests.exe</code>，参数为 <code>--gtest_filter=&lt;测试名&gt;</code>，工作目录是仓库根目录；DebugUtil 快照调用暂时注释。</p>
 

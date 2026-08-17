@@ -610,6 +610,9 @@ manumesh_mesh_transform(ManuMeshContext* context, ManuMeshMeshHandle* mesh, cons
 MANUMESH_API ManuMeshStatus MANUMESH_CDECL manumesh_mesh_compact(ManuMeshContext* context, ManuMeshMeshHandle* mesh);
 /**
  * @brief 校验网格。strict 非零时零面积面也会返回 INVALID_MESH。
+ * @param context 可选错误上下文。
+ * @param mesh 要校验的只读网格句柄。
+ * @param strict 非零时将零面积面视为无效；零时仅报告其数量。
  * @param[out] degenerate_face_count 可选；索引可安全读取时即使严格校验失败也会写入计数。
  */
 MANUMESH_API ManuMeshStatus MANUMESH_CDECL manumesh_mesh_validate(

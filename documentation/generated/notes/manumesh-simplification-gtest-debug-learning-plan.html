@@ -41,10 +41,8 @@ cmake --build --preset vs2019-debug-tests
   --gtest_filter=PlacementSolve.RankTwoQuadricUsesAlongEdgeOptimum \
   --gtest_break_on_failure</code></pre>
     <p>PowerShell 中也可把最后一条写成一行。Visual Studio 打开根目录后选择 <code>vs2019-debug</code>；VS Code CMake Tools 也会读取同一个 <a href="../../../CMakePresets.json">CMakePresets.json</a>。</p>
-    <h3>2.2 开启 HTML 调试工具</h3>
-    <pre><code>cmake --preset vs2019-debug
-cmake --build --preset vs2019-debug-tests</code></pre>
-    <div class="callout warn"><strong>不要混用构建目录：</strong><code>debugUtil</code> 只在该独立 Debug preset 中开启。Release 或普通 <code>vs2019-debug</code> 中宏会成为 no-op。</div>
+    <h3>2.2 HTML 调试工具状态</h3>
+    <div class="callout warn"><strong>当前限制：</strong><code>debugUtil</code> 的生产调用点已暂时注释，仓库不提供独立的 debugUtil preset。请使用普通 <code>vs2019-debug</code>、测试断点和报告字段定位问题；恢复调用点前不要把 HTML 快照当作回归依据。</div>
     <h3>2.3 回归与大模型</h3>
     <pre><code>ctest --preset vs2019-debug-unit
 ctest --preset vs2019-release-external

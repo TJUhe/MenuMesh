@@ -46,7 +46,8 @@ VS Code 的日常任务使用下列 Visual Studio 2019 preset：
 | `vs2019-debug` | `build/vs2019-debug` | 日常 Debug、CLI、示例和快速测试。 |
 | `vs2019-asan` | `build/vs2019-asan` | VS2019 AddressSanitizer 内存安全回归。 |
 | `vs2019-release` | `build/vs2019-release` | 优化共享库、CLI、示例和回归测试。 |
-| `vs2019-release-static` | `build/vs2019-release-static` | 静态库及静态 consumer 验证。 |
+| `vs2019-release-static` | `build/vs2019-release-static` | 静态库和快速回归。 |
+| `vs2019-release-static-sdk` | `build/vs2019-release-static-sdk` | 安装后的静态 C/C++ SDK consumer 和 CMake package 验证。 |
 | `vs2019-release-performance` | `build/vs2019-release-performance` | 性能测试。 |
 | `vs2019-release-sdk` | `build/vs2019-release-sdk` | 安装包、C/C++ SDK consumer 和 CMake package 验证。 |
 | `vs2019-release-docs` | `build/vs2019-release-docs` | API 与内部 Doxygen 文档。 |
@@ -91,6 +92,10 @@ cmake --preset vs2019-release-static
 cmake --build --preset vs2019-release-static --parallel
 ctest --preset vs2019-release-static-unit
 
+cmake --preset vs2019-release-static-sdk
+cmake --build --preset vs2019-release-static-sdk --parallel
+ctest --preset vs2019-release-static-sdk
+
 cmake --preset vs2019-release-performance
 cmake --build --preset vs2019-release-performance --parallel
 ctest --preset vs2019-release-performance
@@ -127,6 +132,7 @@ build/vs2019-release-performance/bin/Release/manumesh_performance_tests.exe
 - `build: vs2019 asan`
 - `build: vs2019 release`
 - `build: vs2019 release static`
+- `build: vs2019 release static SDK`
 - `build: vs2019 release performance`
 - `build: vs2019 release SDK`
 - `build: vs2019 release docs`
@@ -134,8 +140,10 @@ build/vs2019-release-performance/bin/Release/manumesh_performance_tests.exe
 - `test: vs2019 debug external`
 - `test: vs2019 asan`
 - `test: vs2019 release`
+- `test: vs2019 release external`
 - `test: vs2019 release full`
 - `test: vs2019 release static`
+- `test: vs2019 release static SDK`
 - `test: vs2019 release performance`
 - `test: vs2019 release SDK`
 - `verify: vs2019 release matrix`
@@ -148,7 +156,7 @@ build/vs2019-release-performance/bin/Release/manumesh_performance_tests.exe
 - `check: format`
 - `format`
 
-构建和测试任务会先执行对应的 configure preset。`verify: vs2019 release matrix` 顺序覆盖 Release 动态库、静态库、性能、SDK、文档和格式检查，适合发布前使用。
+构建和测试任务会先执行对应的 configure preset。`verify: vs2019 release matrix` 顺序覆盖 Release 动态库、静态库、静态 SDK consumer、性能、SDK、文档和格式检查，适合发布前使用。
 
 ## F5 调试
 
@@ -157,7 +165,7 @@ build/vs2019-release-performance/bin/Release/manumesh_performance_tests.exe
 - `VS2019 Debug CLI - Feature Curves`
 - `VS2019 Debug CLI - Feature Report`
 - `VS2019 Debug Unit Tests - Filter`
-- `VS2019 Debug + debugUtil Unit Tests - Filter`
+- `VS2019 Debug C ABI Stress`
 - `VS2019 ASan Unit Tests - Filter`
 - `VS2019 ASan Ownership Lifetime Stress`
 

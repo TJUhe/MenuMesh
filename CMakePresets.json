@@ -87,6 +87,16 @@
       }
     },
     {
+      "name": "vs2019-release-static-sdk",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-release-static-sdk",
+      "cacheVariables": {
+        "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
+        "MANUMESH_ENABLE_INSTALL": "ON",
+        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON"
+      }
+    },
+    {
       "name": "vs2019-release-performance",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-performance",
@@ -110,7 +120,14 @@
       "binaryDir": "${sourceDir}/build/vs2019-release-docs",
       "cacheVariables": {
         "MANUMESH_BUILD_DOCS": "ON",
-        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": "ON"
+        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": "ON",
+        "BUILD_TESTING": "OFF",
+        "MANUMESH_BUILD_TESTS": "OFF",
+        "MANUMESH_REQUIRE_ARCHITECTURE_CHECKS": null,
+        "MANUMESH_BUILD_PERFORMANCE_TESTS": null,
+        "MANUMESH_GOOGLETEST_PROVIDER": null,
+        "MANUMESH_BUILD_CLI": "OFF",
+        "MANUMESH_BUILD_EXAMPLES": "OFF"
       }
     },
     {
@@ -129,6 +146,16 @@
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-static",
       "cacheVariables": {
         "MANUMESH_BUILD_SHARED_LIBRARY": "OFF"
+      }
+    },
+    {
+      "name": "vs2019-ninja-release-static-sdk",
+      "inherits": "vs2019-ninja-base",
+      "binaryDir": "${sourceDir}/build/vs2019-ninja-release-static-sdk",
+      "cacheVariables": {
+        "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
+        "MANUMESH_ENABLE_INSTALL": "ON",
+        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON"
       }
     },
     {
@@ -155,7 +182,14 @@
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-docs",
       "cacheVariables": {
         "MANUMESH_BUILD_DOCS": "ON",
-        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": "ON"
+        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": "ON",
+        "BUILD_TESTING": "OFF",
+        "MANUMESH_BUILD_TESTS": "OFF",
+        "MANUMESH_REQUIRE_ARCHITECTURE_CHECKS": null,
+        "MANUMESH_BUILD_PERFORMANCE_TESTS": null,
+        "MANUMESH_GOOGLETEST_PROVIDER": null,
+        "MANUMESH_BUILD_CLI": "OFF",
+        "MANUMESH_BUILD_EXAMPLES": "OFF"
       }
     }
   ],
@@ -220,6 +254,14 @@
       "configuration": "Release"
     },
     {
+      "name": "vs2019-release-static-sdk",
+      "configurePreset": "vs2019-release-static-sdk",
+      "configuration": "Release",
+      "targets": [
+        "manumesh"
+      ]
+    },
+    {
       "name": "vs2019-release-performance",
       "configurePreset": "vs2019-release-performance",
       "configuration": "Release",
@@ -232,7 +274,6 @@
       "configurePreset": "vs2019-release-sdk",
       "configuration": "Release",
       "targets": [
-        "sdk-consumer-test",
         "manumesh_tests",
         "manumesh_external_tests",
         "manumesh_options_header_compile_check",
@@ -300,6 +341,14 @@
       "configuration": "Release"
     },
     {
+      "name": "vs2019-ninja-release-static-sdk",
+      "configurePreset": "vs2019-ninja-release-static-sdk",
+      "configuration": "Release",
+      "targets": [
+        "manumesh"
+      ]
+    },
+    {
       "name": "vs2019-ninja-release-performance",
       "configurePreset": "vs2019-ninja-release-performance",
       "configuration": "Release",
@@ -312,7 +361,6 @@
       "configurePreset": "vs2019-ninja-release-sdk",
       "configuration": "Release",
       "targets": [
-        "sdk-consumer-test",
         "manumesh_tests",
         "manumesh_external_tests",
         "manumesh_options_header_compile_check",
@@ -453,6 +501,23 @@
       }
     },
     {
+      "name": "vs2019-release-static-sdk",
+      "configurePreset": "vs2019-release-static-sdk",
+      "configuration": "Release",
+      "filter": {
+        "include": {
+          "name": "^sdk_consumer_examples$"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
       "name": "vs2019-release-performance",
       "configurePreset": "vs2019-release-performance",
       "configuration": "Release",
@@ -568,6 +633,23 @@
       "filter": {
         "exclude": {
           "label": "performance|external"
+        }
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "vs2019-ninja-release-static-sdk",
+      "configurePreset": "vs2019-ninja-release-static-sdk",
+      "configuration": "Release",
+      "filter": {
+        "include": {
+          "name": "^sdk_consumer_examples$"
         }
       },
       "output": {

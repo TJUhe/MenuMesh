@@ -2,7 +2,6 @@
   "cmake.useCMakePresets": "always",
   "cmake.configureOnOpen": false,
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-  "C_Cpp.default.cStandard": "c17",
   "C_Cpp.default.cppStandard": "c++14",
   "C_Cpp.default.includePath": [
     "${workspaceFolder}/include",

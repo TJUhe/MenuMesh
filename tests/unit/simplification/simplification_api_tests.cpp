@@ -19,6 +19,7 @@
 #include <cmath>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <locale>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -32,6 +33,25 @@ using manumesh::test::simplifyWithReport;
 using namespace manumesh::test::simplification;
 
 namespace simplification = manumesh::simplification;
+
+namespace {
+
+class CommaDecimalPunct : public std::numpunct<char> {
+protected:
+    char do_decimal_point() const override { return ','; }
+};
+
+class GlobalLocaleRestore {
+public:
+    GlobalLocaleRestore()
+        : previous_(std::locale()) {}
+    ~GlobalLocaleRestore() { std::locale::global(previous_); }
+
+private:
+    std::locale previous_;
+};
+
+} // namespace
 
 TEST(ManuMesh, WeightModesRoundTripAndRejectUnknownValues) {
     EXPECT_EQ(manumesh::simplification::WeightMode::Uniform, manumesh::simplification::parseWeightMode("uniform"));
@@ -294,6 +314,19 @@ TEST(ManuMesh, LegacyMetricsApiForwardsToAnalysisDuringMigration) {
     );
     const std::string row = simplification::statsRowCsv("plane", legacy, &distance);
     EXPECT_EQ(15u, static_cast<std::size_t>(std::count(row.begin(), row.end(), ',') + 1));
+}
+
+TEST(ManuMesh, LegacyMetricsCsvUsesClassicLocaleAndEscapesLabels) {
+    GlobalLocaleRestore restore;
+    std::locale::global(std::locale(std::locale(), new CommaDecimalPunct()));
+
+    simplification::MeshStats stats;
+    stats.area = 1.5;
+    const std::string row = simplification::statsRowCsv("case, \"A\"", stats);
+
+    EXPECT_EQ(0u, row.find("\"case, \"\"A\"\"\""));
+    EXPECT_NE(std::string::npos, row.find(",1.5,"));
+    EXPECT_EQ(std::string::npos, row.find(",1,5,"));
 }
 
 TEST(ManuMesh, PlainMeshRoundTripsWithoutEigenInExchangeType) {

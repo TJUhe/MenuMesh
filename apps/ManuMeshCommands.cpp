@@ -26,10 +26,12 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <locale>
 #include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <unordered_set>
 #include <vector>
 
@@ -48,6 +50,7 @@ using manumesh::cli::pathFromUtf8;
 using manumesh::cli::pathToUtf8;
 using manumesh::cli::positionalArgs;
 using manumesh::cli::quoteCsv;
+using manumesh::cli::readCsvRecord;
 using manumesh::cli::readFirstCsvRow;
 using manumesh::cli::splitCsvLine;
 
@@ -61,6 +64,7 @@ int commandSummarizeMetrics(const Args& args);
 
 std::string sanitizeWeight(double value) {
     std::ostringstream out;
+    out.imbue(std::locale::classic());
     out << std::scientific << std::setprecision(0) << value;
     std::string text = out.str();
     for (char& ch : text) {
@@ -72,6 +76,7 @@ std::string sanitizeWeight(double value) {
 
 std::string sanitizeRatio(double value) {
     std::ostringstream out;
+    out.imbue(std::locale::classic());
     out << std::fixed << std::setprecision(2) << value;
     std::string text = out.str();
     while (text.size() > 1 && text.back() == '0') {
@@ -93,6 +98,32 @@ void printStats(const std::string& label, const manumesh::analysis::MeshStats& s
               << " edge_cv=" << stats.edgeLengthCv << "\n";
 }
 
+std::ofstream openOutputCsv(const fs::path& path) {
+    std::ofstream stream(path, std::ios::out | std::ios::trunc);
+    if (!stream) {
+        throw std::runtime_error("Cannot open CSV output: " + pathToUtf8(path));
+    }
+    stream.imbue(std::locale::classic());
+    return stream;
+}
+
+void finishOutputCsv(std::ofstream& stream, const fs::path& path) {
+    stream.flush();
+    if (!stream) {
+        throw std::runtime_error("Failed to write CSV output: " + pathToUtf8(path));
+    }
+    stream.close();
+    if (!stream) {
+        throw std::runtime_error("Failed to finalize CSV output: " + pathToUtf8(path));
+    }
+}
+
+bool pathsReferToSameExistingFile(const fs::path& first, const fs::path& second) {
+    std::error_code ec;
+    const bool equivalent = fs::equivalent(first, second, ec);
+    return !ec && equivalent;
+}
+
 void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
     std::vector<std::string> columns = {"case"};
     std::vector<std::map<std::string, std::string>> rows;
@@ -108,7 +139,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
 
         std::ifstream in(entry.path());
         std::string headerLine;
-        if (!std::getline(in, headerLine)) {
+        if (!readCsvRecord(in, headerLine)) {
             continue;
         }
         const std::vector<std::string> headers = splitCsvLine(headerLine);
@@ -120,7 +151,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
 
         std::string line;
         const std::string caseName = pathToUtf8(entry.path().parent_path().filename());
-        while (std::getline(in, line)) {
+        while (readCsvRecord(in, line)) {
             if (line.empty()) {
                 continue;
             }
@@ -137,7 +168,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
     if (summaryPath.has_parent_path()) {
         fs::create_directories(summaryPath.parent_path());
     }
-    std::ofstream out(summaryPath);
+    std::ofstream out = openOutputCsv(summaryPath);
     for (std::size_t i = 0; i < columns.size(); ++i) {
         if (i > 0)
             out << ",";
@@ -152,6 +183,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
         }
         out << "\n";
     }
+    finishOutputCsv(out, summaryPath);
     std::cout << "Wrote " << pathToUtf8(summaryPath) << " with " << rows.size() << " rows\n";
 }
 
@@ -213,6 +245,9 @@ int commandSimplify(const Args& args) {
     const int samples = getIntArg(args, "--samples", 3000);
     const std::string metricsCsv = getArg(args, "--metrics-csv");
     manumesh::simplification::SimplifyOptions options = parseSimplifyOptions(args);
+    if (pathsReferToSameExistingFile(pathFromUtf8(positional[0]), pathFromUtf8(positional[1]))) {
+        throw std::invalid_argument("simplify input and output must not refer to the same file.");
+    }
 
     manumesh::Mesh input;
     std::string error;
@@ -300,7 +335,7 @@ int commandSimplify(const Args& args) {
         if (metricsPath.has_parent_path()) {
             fs::create_directories(metricsPath.parent_path());
         }
-        std::ofstream csv(metricsPath);
+        std::ofstream csv = openOutputCsv(metricsPath);
         csv << manumesh::cli::statsHeaderCsv()
             << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
                "feature_loops,circular_feature_loops,feature_vertices,"
@@ -362,6 +397,7 @@ int commandSimplify(const Args& args) {
             << (report.qualityRefinementSkippedForTexture ? 1 : 0) << ","
             << manumesh::simplification::toString(report.terminationReason) << "," << report.minAppliedLineWeight << ","
             << report.maxAppliedLineWeight << "\n";
+        finishOutputCsv(csv, metricsPath);
     }
 
     std::cout << "Wrote " << positional[1] << "\n";
@@ -386,7 +422,8 @@ int commandSweep(const Args& args) {
     const std::vector<double> weights = parseWeights(getArg(args, "--weights", "0,1e-5,1e-4,1e-3,1e-2,1e-1"));
     manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
-    std::ofstream csv(outDir / "metrics.csv");
+    const fs::path metricsPath = outDir / "metrics.csv";
+    std::ofstream csv = openOutputCsv(metricsPath);
     csv << "method,line_weight,weight_mode," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
@@ -416,6 +453,7 @@ int commandSweep(const Args& args) {
         printStats(label, stats);
     }
 
+    finishOutputCsv(csv, metricsPath);
     std::cout << "Wrote sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
@@ -438,7 +476,8 @@ int commandRatioSweep(const Args& args) {
     const std::vector<double> ratios = parseWeights(getArg(args, "--ratios", "0.8,0.5,0.25,0.1,0.05"));
     manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
-    std::ofstream csv(outDir / "metrics.csv");
+    const fs::path metricsPath = outDir / "metrics.csv";
+    std::ofstream csv = openOutputCsv(metricsPath);
     csv << "method,line_weight,weight_mode,ratio," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
@@ -472,6 +511,7 @@ int commandRatioSweep(const Args& args) {
         printStats(label, stats);
     }
 
+    finishOutputCsv(csv, metricsPath);
     std::cout << "Wrote ratio-sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
@@ -495,7 +535,8 @@ int commandFaceSweep(const Args& args) {
         parseFaceCounts(getArg(args, "--faces", "1000,900,800,700,600,500,400,300,200,100"));
     manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
 
-    std::ofstream csv(outDir / "metrics.csv");
+    const fs::path metricsPath = outDir / "metrics.csv";
+    std::ofstream csv = openOutputCsv(metricsPath);
     csv << "method,line_weight,weight_mode,target_faces," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
@@ -529,6 +570,7 @@ int commandFaceSweep(const Args& args) {
         printStats(label, stats);
     }
 
+    finishOutputCsv(csv, metricsPath);
     std::cout << "Wrote face-sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }

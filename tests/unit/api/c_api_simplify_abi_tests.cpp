@@ -46,6 +46,32 @@ constexpr std::size_t kLegacyV1SimplifyOptionsSize = offsetof(ManuMeshSimplifyOp
 constexpr std::size_t kLegacyV1SimplifyReportSize = offsetof(ManuMeshSimplifyReport, traced_feature_edges);
 constexpr std::size_t kLegacyV1MeshStatsSize = sizeof(LegacyV1MeshStatsLayout);
 
+// Texture fields were appended after the previously published composed feature pointer/report tail.
+constexpr std::size_t kPreTextureSimplifyOptionsSize = offsetof(ManuMeshSimplifyOptions, preserve_texture);
+constexpr std::size_t kPreTextureSimplifyReportSize = offsetof(ManuMeshSimplifyReport, texture_rejected_collapses);
+static_assert(
+    kPreTextureSimplifyOptionsSize > offsetof(ManuMeshSimplifyOptions, feature_options),
+    "texture options must be appended after feature_options"
+);
+static_assert(
+    kPreTextureSimplifyReportSize > offsetof(ManuMeshSimplifyReport, quality_refinement_skipped_for_texture),
+    "texture report diagnostics must be appended after the existing report tail"
+);
+static_assert(
+    offsetof(ManuMeshSimplifyOptions, texture_weight) > offsetof(ManuMeshSimplifyOptions, preserve_texture) &&
+        offsetof(ManuMeshSimplifyOptions, texture_seam_tolerance) > offsetof(ManuMeshSimplifyOptions, texture_weight) &&
+        offsetof(ManuMeshSimplifyOptions, min_texture_area_ratio) >
+            offsetof(ManuMeshSimplifyOptions, texture_seam_tolerance),
+    "texture option field order changed"
+);
+static_assert(
+    offsetof(ManuMeshSimplifyReport, texture_protected_edges) >
+            offsetof(ManuMeshSimplifyReport, texture_rejected_collapses) &&
+        offsetof(ManuMeshSimplifyReport, texture_apply_failures) >
+            offsetof(ManuMeshSimplifyReport, texture_protected_edges),
+    "texture report field order changed"
+);
+
 template <typename T> struct GuardedAbiStorage {
     T object;
     std::array<unsigned char, 16> guard{};
@@ -299,12 +325,11 @@ bool featureFieldPresent(std::size_t structSize, std::size_t fieldOffset, std::s
 
 std::vector<std::size_t> featureOptionPrefixSizes(const ManuMeshFeatureOptions& options) {
     std::vector<std::size_t> sizes{minimumAbiStructSize<ManuMeshFeatureOptions>()};
-    sizes.reserve(kFeaturePayloadFieldCount + 2);
+    sizes.reserve(kFeaturePayloadFieldCount + 1);
 #define MANUMESH_ADD_FEATURE_PREFIX(cField, featureMember, legacyField, legacyMember, value)                           \
     sizes.push_back(offsetof(ManuMeshFeatureOptions, cField) + sizeof(options.cField));
     MANUMESH_C_ABI_FEATURE_FIELDS(MANUMESH_ADD_FEATURE_PREFIX, MANUMESH_ADD_FEATURE_PREFIX, MANUMESH_ADD_FEATURE_PREFIX)
 #undef MANUMESH_ADD_FEATURE_PREFIX
-    sizes.push_back(sizeof(ManuMeshFeatureOptions) + 16);
     return sizes;
 }
 
@@ -416,7 +441,7 @@ void expectSizeAwareInitializerRejectsInvalidCapacity(ManuMeshStatus (*initializ
 TEST(CApiFeatureOptionsConverter, MapsEveryPayloadFieldAcrossEverySizeAwarePrefix) {
     const ManuMeshFeatureOptions distinct = makeDistinctFeatureOptions();
     const std::vector<std::size_t> prefixSizes = featureOptionPrefixSizes(distinct);
-    ASSERT_EQ(kFeaturePayloadFieldCount + 2, prefixSizes.size());
+    ASSERT_EQ(kFeaturePayloadFieldCount + 1, prefixSizes.size());
     for (std::size_t index = 1; index < prefixSizes.size(); ++index) {
         ASSERT_GT(prefixSizes[index], prefixSizes[index - 1]);
     }
@@ -490,6 +515,90 @@ TEST(CApiFeatureOptionsConverter, CopiesBorrowedOverrideAndClearsItWhenTheTarget
     EXPECT_FALSE(actual.featureOptionsOverride.has_value());
     EXPECT_FALSE(actual.preserveTexture);
     EXPECT_DOUBLE_EQ(0.6, actual.targetRatio);
+}
+
+TEST(CApiSimplifyOptionsConverter, InitializesAndMapsTextureProtectionFields) {
+    ManuMeshSimplifyOptions source;
+    manumesh_simplify_options_init(&source);
+
+    EXPECT_EQ(0, source.preserve_texture);
+    EXPECT_DOUBLE_EQ(1.0, source.texture_weight);
+    EXPECT_DOUBLE_EQ(1e-8, source.texture_seam_tolerance);
+    EXPECT_DOUBLE_EQ(1e-8, source.min_texture_area_ratio);
+
+    source.preserve_texture = 1;
+    source.texture_weight = 2.75;
+    source.texture_seam_tolerance = 3.5e-7;
+    source.min_texture_area_ratio = 0.125;
+
+    manumesh::simplification::SimplifyOptions actual;
+    std::string error;
+    ASSERT_TRUE(manumesh::api::readSimplifyOptions(source, actual, error)) << error;
+    EXPECT_TRUE(actual.preserveTexture);
+    EXPECT_DOUBLE_EQ(2.75, actual.textureWeight);
+    EXPECT_DOUBLE_EQ(3.5e-7, actual.textureSeamTolerance);
+    EXPECT_DOUBLE_EQ(0.125, actual.minTextureAreaRatio);
+}
+
+TEST(CApiSimplifyOptionsConverter, RejectsNonFiniteTextureProtectionFields) {
+    const double invalidValues[] = {
+        std::numeric_limits<double>::quiet_NaN(),
+        std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity(),
+    };
+    for (const double invalid : invalidValues) {
+        for (int field = 0; field < 3; ++field) {
+            ManuMeshSimplifyOptions source;
+            manumesh_simplify_options_init(&source);
+            if (field == 0) {
+                source.texture_weight = invalid;
+            } else if (field == 1) {
+                source.texture_seam_tolerance = invalid;
+            } else {
+                source.min_texture_area_ratio = invalid;
+            }
+
+            manumesh::simplification::SimplifyOptions actual;
+            std::string error;
+            EXPECT_FALSE(manumesh::api::readSimplifyOptions(source, actual, error))
+                << "field=" << field << ", value=" << invalid;
+            EXPECT_FALSE(error.empty());
+        }
+    }
+}
+
+TEST(CApiSimplifyOptionsConverter, UsesCppDefaultsWhenTextureTailIsAbsent) {
+    ManuMeshSimplifyOptions source;
+    manumesh_simplify_options_init(&source);
+    source.preserve_texture = 1;
+    source.texture_weight = std::numeric_limits<double>::quiet_NaN();
+    source.texture_seam_tolerance = std::numeric_limits<double>::quiet_NaN();
+    source.min_texture_area_ratio = std::numeric_limits<double>::quiet_NaN();
+    source.struct_size = kPreTextureSimplifyOptionsSize;
+
+    manumesh::simplification::SimplifyOptions actual;
+    std::string error;
+    ASSERT_TRUE(manumesh::api::readSimplifyOptions(source, actual, error)) << error;
+    const manumesh::simplification::SimplifyOptions defaults{};
+    EXPECT_EQ(defaults.preserveTexture, actual.preserveTexture);
+    EXPECT_DOUBLE_EQ(defaults.textureWeight, actual.textureWeight);
+    EXPECT_DOUBLE_EQ(defaults.textureSeamTolerance, actual.textureSeamTolerance);
+    EXPECT_DOUBLE_EQ(defaults.minTextureAreaRatio, actual.minTextureAreaRatio);
+}
+
+TEST(CApiSimplifyReportConverter, MapsTextureProtectionDiagnostics) {
+    manumesh::simplification::SimplifyReport source;
+    source.qualityRefinementSkippedForTexture = true;
+    source.textureRejectedCollapses = 17;
+    source.textureProtectedEdges = 23;
+    source.textureApplyFailures = 2;
+
+    ManuMeshSimplifyReport output;
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh::api::fillSimplifyReport(source, &output, sizeof(ManuMeshSimplifyReport)));
+    EXPECT_EQ(1, output.quality_refinement_skipped_for_texture);
+    EXPECT_EQ(17, output.texture_rejected_collapses);
+    EXPECT_EQ(23, output.texture_protected_edges);
+    EXPECT_EQ(2, output.texture_apply_failures);
 }
 
 TEST_F(CApiTest, MapsInvalidSimplifyOptionsToInvalidArgumentStatus) {
@@ -931,6 +1040,35 @@ TEST_F(CApiTest, SizeAwareInitializersRejectTooSmallAndNullBuffersWithoutWriting
     expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_simplify_options_init_with_size);
     expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_simplify_report_init_with_size);
     expectSizeAwareInitializerRejectsInvalidCapacity(&manumesh_mesh_stats_init_with_size);
+}
+
+TEST_F(CApiTest, RejectsOversizedInputAbiDeclarationsWithoutReadingUnknownTail) {
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 4, input));
+
+    ManuMeshFeatureOptions featureOptions;
+    manumesh_feature_options_init(&featureOptions);
+    featureOptions.struct_size = sizeof(featureOptions) + 1;
+    std::size_t edgeCount = 123;
+    EXPECT_EQ(
+        MANUMESH_STATUS_INVALID_ARGUMENT,
+        manumesh_detect_feature_edges(context, input, &featureOptions, nullptr, 0, &edgeCount)
+    );
+    EXPECT_EQ(0u, edgeCount);
+
+    ManuMeshSimplifyOptions simplifyOptions;
+    manumesh_simplify_options_init(&simplifyOptions);
+    simplifyOptions.struct_size = sizeof(simplifyOptions) + 1;
+    EXPECT_EQ(
+        MANUMESH_STATUS_INVALID_ARGUMENT,
+        manumesh_simplify_mesh_with_report_size(context, input, &simplifyOptions, output, nullptr, 0)
+    );
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
 }
 
 TEST_F(CApiTest, InitializesPrimitiveFitOptions) {

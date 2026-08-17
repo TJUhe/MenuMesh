@@ -18,6 +18,7 @@
 #include <fstream>
 #include <initializer_list>
 #include <iostream>
+#include <locale>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -50,6 +51,26 @@ Args makeArgs(std::initializer_list<std::string> values) {
 }
 
 std::string pathString(const fs::path& path) { return pathToUtf8(path); }
+
+std::ofstream openWorkflowCsv(const fs::path& path) {
+    std::ofstream stream(path, std::ios::out | std::ios::trunc);
+    if (!stream) {
+        throw std::runtime_error("Cannot open CSV output: " + pathToUtf8(path));
+    }
+    stream.imbue(std::locale::classic());
+    return stream;
+}
+
+void finishWorkflowCsv(std::ofstream& stream, const fs::path& path) {
+    stream.flush();
+    if (!stream) {
+        throw std::runtime_error("Failed to write CSV output: " + pathToUtf8(path));
+    }
+    stream.close();
+    if (!stream) {
+        throw std::runtime_error("Failed to finalize CSV output: " + pathToUtf8(path));
+    }
+}
 
 void runGenerate(const fs::path& inputDir, const std::string& name, const std::string& type, int n) {
     runRegisteredCommand(
@@ -588,7 +609,7 @@ int validateExternal(const Args& args) {
     };
     fs::create_directories(outDir);
     const fs::path summaryPath = outDir / "external_summary.csv";
-    std::ofstream summary(summaryPath);
+    std::ofstream summary = openWorkflowCsv(summaryPath);
     summary << "model,notes,input_path,line_output,curve_output,input_faces,line_faces,"
                "curve_faces,line_matched,line_missing,curve_matched,curve_missing,"
                "line_rejected_collapses,curve_rejected_collapses\n";
@@ -733,10 +754,12 @@ int validateExternal(const Args& args) {
     }
 
     if (processed == 0) {
+        finishWorkflowCsv(summary, summaryPath);
         throw std::runtime_error(
             "No external OBJ files found. Place common-3d-test-models OBJ files in " + pathToUtf8(inputDir) + " first."
         );
     }
+    finishWorkflowCsv(summary, summaryPath);
     std::cout << "External validation outputs written to " << pathToUtf8(outDir) << "\n";
     return 0;
 }

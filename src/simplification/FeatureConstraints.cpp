@@ -89,6 +89,14 @@ bool isGenericFeature(const VertexState& vertex) {
     return vertex.isFeature && !isPrimitiveProtected(vertex, FeatureProtectionMode::PrimitiveCurves);
 }
 
+bool currentConstraintRoleBlocksCollapse(int vertex, const FeatureConstraintGraph& constraints) {
+    if (vertex < 0 || vertex >= static_cast<int>(constraints.vertices.size())) {
+        return false;
+    }
+    const FeatureConstraintVertex& state = constraints.vertices[static_cast<std::size_t>(vertex)];
+    return state.junction || state.shared || state.ambiguousJunction;
+}
+
 FeatureCollapseRejectKind featureCollapseRejectKind(
     const FeatureCollapseInput& input, const SimplifyOptions& options, int minFeatureLoopVertices
 ) {
@@ -100,8 +108,14 @@ FeatureCollapseRejectKind featureCollapseRejectKind(
     const int remove = input.edge.remove;
     const std::vector<VertexState>& vertices = input.vertices;
     const std::vector<int>& activeLoopCounts = input.activeLoopCounts;
+    if (keep < 0 || remove < 0 || keep == remove || keep >= static_cast<int>(vertices.size()) ||
+        remove >= static_cast<int>(vertices.size())) {
+        return FeatureCollapseRejectKind::Generic;
+    }
     const VertexState& a = vertices[keep];
     const VertexState& b = vertices[remove];
+    const bool currentRoleBlocksKeep = currentConstraintRoleBlocksCollapse(keep, input.constraints);
+    const bool currentRoleBlocksRemove = currentConstraintRoleBlocksCollapse(remove, input.constraints);
 
     if (mode == FeatureProtectionMode::AllFeatureEdges) {
         const bool aGraphFeature = input.constraints.hasProtectedIncidentEdge(keep);
@@ -116,7 +130,7 @@ FeatureCollapseRejectKind featureCollapseRejectKind(
         if (!aGraphFeature || !bGraphFeature || !input.constraints.isProtectedPathEdge(keep, remove)) {
             return rejectKind;
         }
-        if (a.featureJunction || b.featureJunction) {
+        if (a.featureJunction || b.featureJunction || currentRoleBlocksKeep || currentRoleBlocksRemove) {
             return rejectKind;
         }
         if (input.constraints.isOnlyProtectedEdgeInComponent(keep, remove)) {
@@ -128,19 +142,33 @@ FeatureCollapseRejectKind featureCollapseRejectKind(
             // Untraced evidence remains protected, but cannot be shortened without a curve budget.
             return rejectKind;
         }
-        const int minActiveComponentVertices =
+        const int minActiveLoopVertices =
             (a.circularFeature || b.circularFeature) ? options.minCircularFeatureLoopVertices : minFeatureLoopVertices;
         const bool hasCurveErrorBudget = options.maxFeatureCurveDeviationRatio > 0.0;
         const bool ellipseFeature =
             a.featurePrimitive == FeatureCurveKind::Ellipse || b.featurePrimitive == FeatureCurveKind::Ellipse;
         const int absoluteMinLoopVertices = (a.circularFeature || b.circularFeature || ellipseFeature) ? 4 : 3;
-        const int activeProtectedComponentVertices = input.constraints.protectedComponentVertexCount(keep, remove);
-        if (activeProtectedComponentVertices <= 0) {
+        const auto belowBudget = [&](int activeVertices) {
+            return activeVertices <= 0 || (activeVertices <= minActiveLoopVertices &&
+                                           (!hasCurveErrorBudget || activeVertices <= absoluteMinLoopVertices));
+        };
+        // Synthetic recovery edges can split one detector loop into several
+        // real protected path components. Preserve the old component-local
+        // floor as well as the per-loop floor below.
+        if (belowBudget(input.constraints.protectedComponentVertexCount(keep, remove))) {
             return rejectKind;
         }
-        if (activeProtectedComponentVertices <= minActiveComponentVertices &&
-            (!hasCurveErrorBudget || activeProtectedComponentVertices <= absoluteMinLoopVertices)) {
-            return rejectKind;
+        // A protected component can contain several loops joined at shared
+        // vertices. A large sibling loop must not hide that this contraction
+        // would take a smaller loop below its own budget.
+        for (int loopId : edge->loopIds) {
+            if (loopId < 0 || loopId >= static_cast<int>(activeLoopCounts.size())) {
+                return rejectKind;
+            }
+            const int activeLoopVertices = activeLoopCounts[static_cast<std::size_t>(loopId)];
+            if (belowBudget(activeLoopVertices)) {
+                return rejectKind;
+            }
         }
         return FeatureCollapseRejectKind::None;
     }
@@ -166,7 +194,7 @@ FeatureCollapseRejectKind featureCollapseRejectKind(
     if (a.featureLoopId < 0 || a.featureLoopId != b.featureLoopId) {
         return rejectKind;
     }
-    if (a.featureJunction || b.featureJunction) {
+    if (a.featureJunction || b.featureJunction || currentRoleBlocksKeep || currentRoleBlocksRemove) {
         return rejectKind;
     }
     if (a.featureLoopId >= static_cast<int>(activeLoopCounts.size())) {
@@ -195,6 +223,10 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
     const int remove = input.edge.remove;
     const std::vector<VertexState>& vertices = input.vertices;
     const std::vector<FeatureCurveConstraint>& curves = input.curves;
+    if (keep < 0 || remove < 0 || keep == remove || keep >= static_cast<int>(vertices.size()) ||
+        remove >= static_cast<int>(vertices.size())) {
+        return false;
+    }
     const VertexState& a = vertices[keep];
     const VertexState& b = vertices[remove];
     if (mode == FeatureProtectionMode::AllFeatureEdges) {
@@ -209,19 +241,19 @@ bool projectFeaturePlacement(const FeatureProjectionInput& input, const Simplify
             return false;
         }
     }
-    if (a.circularFeature) {
+    if (a.circularFeature || isCircularPrimitive(a.featurePrimitive)) {
         position = projectToCircle(position, a, primitiveFitOf(a, input.primitiveFits));
         return true;
     }
-    if (b.circularFeature) {
+    if (b.circularFeature || isCircularPrimitive(b.featurePrimitive)) {
         position = projectToCircle(position, b, primitiveFitOf(b, input.primitiveFits));
         return true;
     }
-    if (mode == FeatureProtectionMode::PrimitiveCurves && a.featurePrimitive == FeatureCurveKind::Ellipse) {
+    if (a.featurePrimitive == FeatureCurveKind::Ellipse) {
         position = projectToEllipse(position, a, primitiveFitOf(a, input.primitiveFits));
         return true;
     }
-    if (mode == FeatureProtectionMode::PrimitiveCurves && b.featurePrimitive == FeatureCurveKind::Ellipse) {
+    if (b.featurePrimitive == FeatureCurveKind::Ellipse) {
         position = projectToEllipse(position, b, primitiveFitOf(b, input.primitiveFits));
         return true;
     }
@@ -297,24 +329,113 @@ Vec3 projectToEllipse(const Vec3& p, const VertexState& feature, const FeaturePr
         fit.ellipseMinorRadius <= 1e-20) {
         return p;
     }
-    major.normalize();
-    minor.normalize();
     normal.normalize();
+    major -= normal * major.dot(normal);
+    if (major.norm() <= 1e-20) {
+        return p;
+    }
+    major.normalize();
+    const Vec3 originalMinor = minor;
+    minor -= normal * minor.dot(normal);
+    minor -= major * minor.dot(major);
+    if (minor.norm() <= 1e-20) {
+        minor = normal.cross(major);
+    }
+    if (minor.dot(originalMinor) < 0.0) {
+        minor = -minor;
+    }
+    minor.normalize();
 
     Vec3 delta = p - fit.ellipseCenter;
     delta -= normal * delta.dot(normal);
-    if (delta.norm() <= 1e-20) {
+    if (delta.norm() <= 1e-20 && fit.ellipseMajorRadius == fit.ellipseMinorRadius) {
         delta = feature.p - fit.ellipseCenter;
         delta -= normal * delta.dot(normal);
     }
     if (delta.norm() <= 1e-20) {
-        return fit.ellipseCenter + fit.ellipseMajorRadius * major;
+        return fit.ellipseMajorRadius <= fit.ellipseMinorRadius ? fit.ellipseCenter + fit.ellipseMajorRadius * major
+                                                                : fit.ellipseCenter + fit.ellipseMinorRadius * minor;
     }
 
-    const double theta =
-        std::atan2(delta.dot(minor) / fit.ellipseMinorRadius, delta.dot(major) / fit.ellipseMajorRadius);
-    return fit.ellipseCenter + fit.ellipseMajorRadius * std::cos(theta) * major +
-           fit.ellipseMinorRadius * std::sin(theta) * minor;
+    const double x = delta.dot(major);
+    const double y = delta.dot(minor);
+    const double absX = std::abs(x);
+    const double absY = std::abs(y);
+    const double majorRadius = fit.ellipseMajorRadius;
+    const double minorRadius = fit.ellipseMinorRadius;
+    const auto distanceSquaredAt = [&](double theta) {
+        const long double dx = static_cast<long double>(majorRadius) * std::cos(theta) - absX;
+        const long double dy = static_cast<long double>(minorRadius) * std::sin(theta) - absY;
+        return dx * dx + dy * dy;
+    };
+
+    // The radial parameter angle is not the Euclidean closest point for a
+    // non-circular ellipse. Locate the global minimum in the first quadrant,
+    // then refine its local bracket with a deterministic golden-section search.
+    constexpr int kSamples = 32;
+    const double halfPi = 0.5 * std::acos(-1.0);
+    const double step = halfPi / static_cast<double>(kSamples);
+    int bestIndex = 0;
+    long double bestDistance = distanceSquaredAt(0.0);
+    for (int sample = 1; sample <= kSamples; ++sample) {
+        const long double distance = distanceSquaredAt(step * static_cast<double>(sample));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = sample;
+        }
+    }
+    double left = step * static_cast<double>(std::max(0, bestIndex - 1));
+    double right = step * static_cast<double>(std::min(kSamples, bestIndex + 1));
+    constexpr double kGolden = 0.6180339887498948482;
+    double c = right - kGolden * (right - left);
+    double d = left + kGolden * (right - left);
+    long double fc = distanceSquaredAt(c);
+    long double fd = distanceSquaredAt(d);
+    for (int iteration = 0; iteration < 56; ++iteration) {
+        if (fc <= fd) {
+            right = d;
+            d = c;
+            fd = fc;
+            c = right - kGolden * (right - left);
+            fc = distanceSquaredAt(c);
+        } else {
+            left = c;
+            c = d;
+            fc = fd;
+            d = left + kGolden * (right - left);
+            fd = distanceSquaredAt(d);
+        }
+    }
+    double theta = 0.5 * (left + right);
+    // Function values become indistinguishable when the angular error reaches
+    // roughly sqrt(machine epsilon). Analytic Newton refinement restores the
+    // first-order closest-point condition without changing the global basin
+    // selected by the bounded search above.
+    for (int iteration = 0; iteration < 8; ++iteration) {
+        const long double angle = theta;
+        const long double cosine = std::cos(angle);
+        const long double sine = std::sin(angle);
+        const long double dx = static_cast<long double>(majorRadius) * cosine - absX;
+        const long double dy = static_cast<long double>(minorRadius) * sine - absY;
+        const long double dxFirst = -static_cast<long double>(majorRadius) * sine;
+        const long double dyFirst = static_cast<long double>(minorRadius) * cosine;
+        const long double first = 2.0L * (dx * dxFirst + dy * dyFirst);
+        const long double second = 2.0L * (dxFirst * dxFirst - dx * static_cast<long double>(majorRadius) * cosine +
+                                           dyFirst * dyFirst - dy * static_cast<long double>(minorRadius) * sine);
+        if (!std::isfinite(first) || !std::isfinite(second) || second <= 1e-30L) {
+            break;
+        }
+        const double refined =
+            manumesh::clampValue(static_cast<double>(static_cast<long double>(theta) - first / second), 0.0, halfPi);
+        if (refined == theta) {
+            break;
+        }
+        theta = refined;
+    }
+    const double xSign = x < 0.0 ? -1.0 : 1.0;
+    const double ySign = y < 0.0 ? -1.0 : 1.0;
+    return fit.ellipseCenter + fit.ellipseMajorRadius * std::cos(theta) * xSign * major +
+           fit.ellipseMinorRadius * std::sin(theta) * ySign * minor;
 }
 
 void refreshCircularTangent(VertexState& vertex, const FeaturePrimitiveFit& fit) {
@@ -368,37 +489,103 @@ bool featureCurveBudgetAllows(
     const std::vector<FeaturePrimitiveFit>& primitiveFits,
     const SimplifyOptions& options,
     double meshDiagonal,
-    const Vec3& position
+    const Vec3& position,
+    const FeatureConstraintGraph* constraints,
+    CollapseEdge edge
 ) {
     if (!options.preserveFeatureCurves || options.maxFeatureCurveDeviationRatio <= 0.0) {
         return true;
     }
-    if (!a.isFeature || !b.isFeature || a.featureLoopId < 0 || a.featureLoopId != b.featureLoopId ||
-        a.featureLoopId >= static_cast<int>(featureCurves.size())) {
-        return true;
-    }
-    const FeatureCurveConstraint& curve = featureCurves[a.featureLoopId];
-    if (!curve.valid) {
-        return true;
-    }
-    const double maxDistance = options.maxFeatureCurveDeviationRatio * std::max(1e-12, meshDiagonal);
-    if (a.circularFeature || b.circularFeature) {
-        const VertexState& circleVertex = a.circularFeature ? a : b;
-        const Vec3 projected = projectToCircle(position, circleVertex, primitiveFitOf(circleVertex, primitiveFits));
-        return (position - projected).squaredNorm() <= maxDistance * maxDistance;
-    }
-    if (a.featurePrimitive == FeatureCurveKind::Ellipse || b.featurePrimitive == FeatureCurveKind::Ellipse) {
-        const VertexState& ellipseVertex = a.featurePrimitive == FeatureCurveKind::Ellipse ? a : b;
-        const Vec3 projected = projectToEllipse(position, ellipseVertex, primitiveFitOf(ellipseVertex, primitiveFits));
-        return (position - projected).squaredNorm() <= maxDistance * maxDistance;
-    }
-    if (curve.primitive != FeatureCurveKind::PolygonalLoop) {
+    if (!a.isFeature || !b.isFeature) {
         return true;
     }
 
-    double bestDist2 = std::numeric_limits<double>::infinity();
-    closestPointOnFeatureCurve(curve, position, bestDist2);
-    return std::isfinite(bestDist2) && bestDist2 <= maxDistance * maxDistance;
+    std::vector<int> loopIds;
+    bool invalidLoopId = false;
+    const auto appendLoopId = [&](int loopId) {
+        if (loopId < 0) {
+            invalidLoopId = true;
+        } else if (std::find(loopIds.begin(), loopIds.end(), loopId) == loopIds.end()) {
+            loopIds.push_back(loopId);
+        }
+    };
+    bool graphOwnershipAvailable = false;
+    if (constraints != nullptr && edge.keep >= 0 && edge.remove >= 0) {
+        if (edge.keep == edge.remove && edge.keep < static_cast<int>(constraints->vertices.size())) {
+            // Quality refinement moves one existing vertex, so all loops
+            // currently attached to that graph vertex must share its budget.
+            for (int loopId : constraints->vertices[static_cast<std::size_t>(edge.keep)].loopIds) {
+                appendLoopId(loopId);
+            }
+            graphOwnershipAvailable = !loopIds.empty();
+        } else if (edge.keep != edge.remove) {
+            const FeatureConstraintEdge* constraintEdge = constraints->findEdge(edge.keep, edge.remove);
+            if (constraintEdge != nullptr) {
+                for (int loopId : constraintEdge->loopIds) {
+                    appendLoopId(loopId);
+                }
+                graphOwnershipAvailable = !loopIds.empty();
+            }
+        }
+    }
+    if (invalidLoopId) {
+        return false;
+    }
+    // When current graph ownership is unavailable, retain the original
+    // single-loop behavior for compatibility with untraced or legacy data.
+    if (!graphOwnershipAvailable) {
+        if (a.featureLoopId < 0 || a.featureLoopId != b.featureLoopId) {
+            return true;
+        }
+        appendLoopId(a.featureLoopId);
+    }
+
+    std::sort(loopIds.begin(), loopIds.end());
+
+    const double maxDistance = options.maxFeatureCurveDeviationRatio * std::max(1e-12, meshDiagonal);
+    const double maxDistanceSquared = maxDistance * maxDistance;
+    for (int loopId : loopIds) {
+        if (loopId < 0 || loopId >= static_cast<int>(featureCurves.size())) {
+            return false;
+        }
+        const FeatureCurveConstraint& curve = featureCurves[static_cast<std::size_t>(loopId)];
+        if (!curve.valid) {
+            continue;
+        }
+        if (curve.primitive == FeatureCurveKind::Circle || curve.primitive == FeatureCurveKind::NearCircle) {
+            const VertexState& circleVertex = a.circularFeature || isCircularPrimitive(a.featurePrimitive) ? a : b;
+            const FeaturePrimitiveFit& fit =
+                curve.primitiveFitId >= 0 && curve.primitiveFitId < static_cast<int>(primitiveFits.size())
+                    ? primitiveFits[static_cast<std::size_t>(curve.primitiveFitId)]
+                    : primitiveFitOf(circleVertex, primitiveFits);
+            const Vec3 projected = projectToCircle(position, circleVertex, fit);
+            if ((position - projected).squaredNorm() > maxDistanceSquared) {
+                return false;
+            }
+            continue;
+        }
+        if (curve.primitive == FeatureCurveKind::Ellipse) {
+            const VertexState& ellipseVertex = a.featurePrimitive == FeatureCurveKind::Ellipse ? a : b;
+            const FeaturePrimitiveFit& fit =
+                curve.primitiveFitId >= 0 && curve.primitiveFitId < static_cast<int>(primitiveFits.size())
+                    ? primitiveFits[static_cast<std::size_t>(curve.primitiveFitId)]
+                    : primitiveFitOf(ellipseVertex, primitiveFits);
+            const Vec3 projected = projectToEllipse(position, ellipseVertex, fit);
+            if ((position - projected).squaredNorm() > maxDistanceSquared) {
+                return false;
+            }
+            continue;
+        }
+        if (curve.primitive != FeatureCurveKind::PolygonalLoop) {
+            continue;
+        }
+        double bestDist2 = std::numeric_limits<double>::infinity();
+        closestPointOnFeatureCurve(curve, position, bestDist2);
+        if (!std::isfinite(bestDist2) || bestDist2 > maxDistanceSquared) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void buildPolylineSegmentIndex(FeatureCurveConstraint& curve) {
@@ -561,6 +748,10 @@ bool FeatureConstraintPolicy::isHardProtectedVertex(
 bool FeatureConstraintPolicy::isHardProtectedCollapse(
     CollapseEdge edge, const std::vector<VertexState>& vertices, const FeatureConstraintGraph& constraints
 ) const {
+    if (edge.keep < 0 || edge.remove < 0 || edge.keep == edge.remove ||
+        edge.keep >= static_cast<int>(vertices.size()) || edge.remove >= static_cast<int>(vertices.size())) {
+        return false;
+    }
     const FeatureProtectionMode mode = effectiveFeatureProtectionMode(options_);
     if (mode == FeatureProtectionMode::None) {
         return false;

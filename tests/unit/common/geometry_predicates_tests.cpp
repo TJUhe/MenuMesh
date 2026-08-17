@@ -29,6 +29,33 @@ TEST(ManuMesh, GeometryPredicatesMeasureTriangleQualityAndDistance) {
     EXPECT_NEAR(1.0, outsideDistance, 1e-12);
 }
 
+TEST(ManuMesh, GeometryPredicatesDistanceAndQualityRemainStableAtExtremeScales) {
+    for (const double scale : {1e-100, 1e+150}) {
+        SCOPED_TRACE(testing::Message() << "scale=" << scale);
+        const manumesh::Vec3 a(0.0, 0.0, 0.0);
+        const manumesh::Vec3 b(scale, 0.0, 0.0);
+        const manumesh::Vec3 c(0.0, scale, 0.0);
+        const manumesh::Vec3 p(0.25 * scale, 0.25 * scale, 0.2 * scale);
+        EXPECT_NEAR(std::sqrt(3.0) / 2.0, manumesh::common::triangleQuality(a, b, c), 1e-12);
+        const double distanceSquared = manumesh::common::pointTriangleDistanceSquared(p, a, b, c);
+        ASSERT_TRUE(std::isfinite(distanceSquared));
+        EXPECT_NEAR(1.0, distanceSquared / (0.04 * scale * scale), 1e-12);
+    }
+}
+
+TEST(ManuMesh, GeometryPredicatesDistanceUsesSegmentsForDegenerateTriangles) {
+    EXPECT_NEAR(
+        9.0,
+        manumesh::common::pointTriangleDistanceSquared(
+            manumesh::Vec3(1.0, 3.0, 0.0),
+            manumesh::Vec3(0.0, 0.0, 0.0),
+            manumesh::Vec3(2.0, 0.0, 0.0),
+            manumesh::Vec3(1.0, 0.0, 0.0)
+        ),
+        1e-12
+    );
+}
+
 TEST(ManuMesh, GeometryPredicatesMeasureAabbDistanceAndTriangleBounds) {
     const manumesh::Vec3 lo(0.0, 0.0, 0.0);
     const manumesh::Vec3 hi(1.0, 2.0, 3.0);
@@ -124,6 +151,29 @@ TEST(ManuMesh, GeometryPredicatesTriangleIntersectionIsScaleInvariant) {
         EXPECT_TRUE(manumesh::common::trianglesIntersect(scaledBase, scaleTriangle(piercing, scale), kRelativeEps));
         EXPECT_FALSE(manumesh::common::trianglesIntersect(scaledBase, scaleTriangle(hovering, scale), kRelativeEps));
     }
+}
+
+TEST(ManuMesh, GeometryPredicatesIntersectionRemainsFiniteForLargeTranslatedTriangles) {
+    const double offset = 1.0e150;
+    const double extent = 1.0e149;
+    const std::array<manumesh::Vec3, 3> base = {
+        manumesh::Vec3(offset, offset, offset),
+        manumesh::Vec3(offset + extent, offset, offset),
+        manumesh::Vec3(offset, offset + extent, offset),
+    };
+    const std::array<manumesh::Vec3, 3> piercing = {
+        manumesh::Vec3(offset + 0.25 * extent, offset + 0.25 * extent, offset - extent),
+        manumesh::Vec3(offset + 0.25 * extent, offset + 0.25 * extent, offset + extent),
+        manumesh::Vec3(offset + 0.75 * extent, offset + 0.25 * extent, offset),
+    };
+    const std::array<manumesh::Vec3, 3> separated = {
+        manumesh::Vec3(offset + 3.0 * extent, offset, offset),
+        manumesh::Vec3(offset + 4.0 * extent, offset, offset),
+        manumesh::Vec3(offset + 3.0 * extent, offset + extent, offset),
+    };
+
+    EXPECT_TRUE(manumesh::common::trianglesIntersect(base, piercing, 1e-9));
+    EXPECT_FALSE(manumesh::common::trianglesIntersect(base, separated, 1e-9));
 }
 
 // 共线重叠和点内判定在共面路径中同时涉及长度量纲与面积量纲的比较，
@@ -223,4 +273,29 @@ TEST(ManuMesh, GeometryPredicatesAllowOnlyDeclaredSharedTopologyContact) {
             baseIds, base, edgeNeighborIds, foldedNeighbor, kRelativeEps
         )
     );
+}
+
+TEST(ManuMesh, GeometryPredicatesTreatInvalidTopologyIdsAsGeometryOnly) {
+    const std::array<int, 3> validIds{{0, 1, 2}};
+    const std::array<int, 3> repeatedIds{{0, 0, 1}};
+    const std::array<manumesh::Vec3, 3> base = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+    };
+    const std::array<manumesh::Vec3, 3> overlapping = {
+        manumesh::Vec3(0.1, 0.1, 0.0),
+        manumesh::Vec3(0.8, 0.1, 0.0),
+        manumesh::Vec3(0.1, 0.8, 0.0),
+    };
+    const std::array<manumesh::Vec3, 3> disjoint = {
+        manumesh::Vec3(2.0, 2.0, 0.0),
+        manumesh::Vec3(3.0, 2.0, 0.0),
+        manumesh::Vec3(2.0, 3.0, 0.0),
+    };
+
+    EXPECT_TRUE(
+        manumesh::common::trianglesIntersectBeyondSharedTopology(validIds, base, repeatedIds, overlapping, 1e-9)
+    );
+    EXPECT_FALSE(manumesh::common::trianglesIntersectBeyondSharedTopology(validIds, base, repeatedIds, disjoint, 1e-9));
 }

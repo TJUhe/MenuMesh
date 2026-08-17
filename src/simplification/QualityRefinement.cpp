@@ -313,7 +313,9 @@ bool tryRefineVertex(int vertex, const Vec3& displacement, const QualityRefineme
                                  input.primitiveFits,
                                  input.options,
                                  input.meshDiagonal,
-                                 candidate
+                                 candidate,
+                                 &input.featureConstraints,
+                                 CollapseEdge{vertex, vertex}
                              )) {
             continue;
         }

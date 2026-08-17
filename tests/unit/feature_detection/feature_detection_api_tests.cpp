@@ -11,7 +11,9 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <limits>
+#include <locale>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -26,6 +28,21 @@ using FeaturePrimitiveType = feature::FeaturePrimitiveType;
 using Mesh = manumesh::Mesh;
 using Vec3 = manumesh::Vec3;
 using manumesh::test::feature_detection::discreteOnlyOptions;
+
+class CommaDecimalPunct : public std::numpunct<char> {
+protected:
+    char do_decimal_point() const override { return ','; }
+};
+
+class GlobalLocaleRestore {
+public:
+    GlobalLocaleRestore()
+        : previous_(std::locale()) {}
+    ~GlobalLocaleRestore() { std::locale::global(previous_); }
+
+private:
+    std::locale previous_;
+};
 
 FeatureAnalysis makeSingleEdgeAnalysis(const Mesh& mesh, int a, int b, bool withEvidence = true) {
     FeatureAnalysis analysis;
@@ -124,6 +141,20 @@ TEST(FeatureDetection, FeatureNamespaceApiIsProjectScoped) {
     EXPECT_EQ(direct.featureEdges, objectResult.featureEdges);
     EXPECT_EQ(direct.loops.size(), projectScoped.loops.size());
     EXPECT_EQ("circle", feature::toString(FeaturePrimitiveType::Circle));
+}
+
+TEST(FeatureDetection, FeatureLoopCsvRowsUseClassicNumericLocale) {
+    GlobalLocaleRestore restore;
+    std::locale::global(std::locale(std::locale(), new CommaDecimalPunct()));
+
+    feature::FeatureLoop loop;
+    loop.componentConfidence = 1.5;
+    loop.primitiveResidual = 0.25;
+    const std::string row = feature::featureLoopRowCsv(loop);
+
+    EXPECT_NE(std::string::npos, row.find(",1.5,"));
+    EXPECT_NE(std::string::npos, row.find(",0.25,"));
+    EXPECT_EQ(std::string::npos, row.find(",1,5,"));
 }
 
 TEST(FeatureDetection, FeatureDetectorObjectStoresOptions) {

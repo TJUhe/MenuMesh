@@ -240,7 +240,7 @@ Primitive fitting 的作用是把离散 feature loop 提升为更可消费的曲
 | triangle quality | `quality_rejected_collapses` | 新三角形质量是否低于 `minTriangleQuality`。 |
 | local error | `error_rejected_collapses` | 旧局部采样点到新局部三角形集合的最大距离。 |
 | local intersection | `self_intersection_rejected_collapses` | 新局部三角形是否和远处活动三角形相交；相交谓词使用无量纲相对容差 `kRelativeIntersectionEps = 1e-9`，网格均匀缩放不改变判定。 |
-| texture policy（opt-in） | `SimplifyReport::textureRejectedCollapses`、`textureProtectedEdges`（仅 C++ 报告，CLI metrics CSV 未包含） | 坍缩两端点的局部 UV chart 能否一一配对、存活 UV 三角形是否翻转定向或有符号面积低于 `minTextureAreaRatio`。仅在 `preserveTexture=true` 且输入带 UV 时生效。 |
+| texture policy（opt-in） | `SimplifyReport::textureRejectedCollapses`、`textureProtectedEdges`（C++ 与 C ABI 报告均提供，CLI metrics CSV 未包含） | 坍缩两端点的局部 UV chart 能否一一配对、存活 UV 三角形是否翻转定向或有符号面积低于 `minTextureAreaRatio`。仅在 `preserveTexture=true` 且输入带 UV 时生效。 |
 
 这也解释了为什么 `SimplifyReport` 的拒绝计数很重要。它不是“失败日志”，而是参数反馈：如果 `generic_feature_rejected_collapses` 很高，说明可能锁边过度；如果 `quality_rejected_collapses` 很高，说明目标比例、质量阈值或输入三角形状态冲突；如果 `error_rejected_collapses` 很高，说明局部误差预算比目标面数更强。
 
@@ -261,7 +261,7 @@ Garland-Heckbert 1998 的属性 QEM 把颜色/UV 追加进齐次向量，让 qua
 
 数据模型上，UV 存储为 `Mesh::faceTexCoords` 的“角拥有”逐面逐角坐标（一个几何顶点可属于多个 UV chart，接缝才可表达），OBJ 读取按逐角 `vt` 索引保留。整套检查是局部 O(k)（k 为 one-ring 规模），无全局参数化或属性空间矩阵分解，edge-collapse 渐近复杂度不变。
 
-`preserveTexture` 默认 `false`：关闭时几何输出与旧无纹理路径完全一致（bit-exact），UV 仍会传播但无失真/接缝保证。启用纹理保护时，可选的固定拓扑质量精修轮会被暂时跳过，因为该顶点重定位阶段尚未约束 UV 失真。实现上纹理工作分三段：`evaluate()` 只为排序/否决打分、不物化 UV 重写；被接受的 placement 由 `buildPlan()` 构建一次 `TextureUpdatePlan`（具体的逐面角 UV 重写），`apply()` 直接应用，避免 `applyCollapse` 内重建同一计划。诊断字段为 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）、`textureRejectedCollapses`（placement 评估后被纹理检查否决的队列候选数）和 `textureApplyFailures`（已接受坍缩的预建计划无法重放的内部一致性计数，应保持为零）。该能力当前通过 C++ `SimplifyConfig::texture` 暴露；`SimplifyOptions` 保留同名兼容字段，CLI `simplify` 未提供纹理选项。
+`preserveTexture` 默认 `false`：关闭时几何输出与旧无纹理路径完全一致（bit-exact），UV 仍会传播但无失真/接缝保证。启用纹理保护时，可选的固定拓扑质量精修轮会被暂时跳过，因为该顶点重定位阶段尚未约束 UV 失真。实现上纹理工作分三段：`evaluate()` 只为排序/否决打分、不物化 UV 重写；被接受的 placement 由 `buildPlan()` 构建一次 `TextureUpdatePlan`（具体的逐面角 UV 重写），`apply()` 直接应用，避免 `applyCollapse` 内重建同一计划。诊断字段为 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）、`textureRejectedCollapses`（placement 评估后被纹理检查否决的队列候选数）和 `textureApplyFailures`（已接受坍缩的预建计划无法重放的内部一致性计数，应保持为零）。该能力通过 C++ `SimplifyConfig::texture` 以及 C ABI `ManuMeshSimplifyOptions` 尾字段暴露；CLI `simplify` 未提供纹理选项。
 
 ## 当前算法和论文的对应关系
 

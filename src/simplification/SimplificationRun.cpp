@@ -15,6 +15,7 @@
 #include "detail/CollapseTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/FeatureGuidance.h"
+#include "detail/Placement.h"
 #include "detail/Quadrics.h"
 #include "detail/QualityRefinement.h"
 #include "mesh_edit/detail/MeshCompaction.h"
@@ -265,13 +266,37 @@ bool SimplificationRun::pushEdgeCandidate(int a, int b) {
     double textureCost = 0.0;
     bool midpointProtected = false;
     if (textureProtection_.active()) {
+        const CollapseEdge edge{first, second};
+        const BoundaryCollapseDecision boundaryDecision =
+            boundaryCollapseDecision({edge, faces_, vertices_, *topology_, options_});
         const Vec3 midpoint = 0.5 * (vertices_[first].p + vertices_[second].p);
         double bestCombinedCost = std::numeric_limits<double>::infinity();
         double bestMidpointDistance = std::numeric_limits<double>::infinity();
         for (const SolveResult& placement : placements) {
-            const TextureCollapseEvaluation textureEvaluation = textureProtection_.evaluate(
-                {first, second}, placement.position, faces_, vertices_, *topology_, faceTexCoords_
+            Vec3 evaluatedPosition = placement.position;
+            projectBoundaryPlacement({edge, boundaryDecision, vertices_, faces_, *topology_}, evaluatedPosition);
+            const bool projected = featurePolicy_.projectPlacement(
+                {edge, vertices_, featureGuidance_.curves, primitiveFits_, featureGuidance_.constraints},
+                evaluatedPosition
             );
+            if (projected && boundaryDecision.boundaryEdge) {
+                projectBoundaryPlacement({edge, boundaryDecision, vertices_, faces_, *topology_}, evaluatedPosition);
+            }
+            if (!featureCurveBudgetAllows(
+                    vertices_[first],
+                    vertices_[second],
+                    featureGuidance_.curves,
+                    primitiveFits_,
+                    options_,
+                    meshDiagonal_,
+                    evaluatedPosition,
+                    &featureGuidance_.constraints,
+                    edge
+                )) {
+                continue;
+            }
+            const TextureCollapseEvaluation textureEvaluation =
+                textureProtection_.evaluate(edge, evaluatedPosition, faces_, vertices_, *topology_, faceTexCoords_);
             // 候选列表始终包含中点（或与中点重合的端点），因此选取距离中点最近的放置，可以精确复现之前的中点保护统计。
             const double midpointDistance = (placement.position - midpoint).squaredNorm();
             if (midpointDistance < bestMidpointDistance) {
@@ -279,7 +304,10 @@ bool SimplificationRun::pushEdgeCandidate(int a, int b) {
                 midpointProtected = !textureEvaluation.allowed();
             }
             if (textureEvaluation.allowed()) {
-                bestCombinedCost = std::min(bestCombinedCost, placement.cost + textureEvaluation.cost);
+                const double projectedCost = evaluateQuadric(q, evaluatedPosition);
+                if (std::isfinite(projectedCost)) {
+                    bestCombinedCost = std::min(bestCombinedCost, projectedCost + textureEvaluation.cost);
+                }
             }
         }
         if (!std::isfinite(bestCombinedCost)) {
@@ -501,8 +529,6 @@ void SimplificationRun::applyCollapse(
     }
     featureGuidance_.constraints.contractVertex(keep, remove);
 
-    // 与边界顶点合并后的顶点会位于开放边界上；更新该标志以满足扩展链接条件。
-    vertices_[keep].isBoundary = vertices_[keep].isBoundary || vertices_[remove].isBoundary;
     vertices_[keep].p = position;
     vertices_[keep].q = mergedQ;
     // 队列优先级增益跟随保留下来的特征证据。
@@ -539,14 +565,22 @@ std::unordered_set<int> SimplificationRun::collectAffectedFacesForCollapse(int k
 }
 
 void SimplificationRun::rewriteIncidentFaces(int keep, int remove) {
-    const std::vector<int> removeIncidentFaces(
-        topology_->vertexFaces[remove].begin(), topology_->vertexFaces[remove].end()
+    std::vector<int> removeIncidentFaces(topology_->vertexFaces[remove].begin(), topology_->vertexFaces[remove].end());
+    std::sort(removeIncidentFaces.begin(), removeIncidentFaces.end());
+    removeIncidentFaces.erase(
+        std::unique(removeIncidentFaces.begin(), removeIncidentFaces.end()), removeIncidentFaces.end()
     );
+    std::vector<int> boundaryCandidates;
+    boundaryCandidates.push_back(keep);
     for (int faceId : removeIncidentFaces) {
+        if (faceId < 0 || faceId >= static_cast<int>(faces_.size())) {
+            continue;
+        }
         FaceState& face = faces_[faceId];
         if (!face.active || !containsVertex(face, remove)) {
             continue;
         }
+        boundaryCandidates.insert(boundaryCandidates.end(), face.v.begin(), face.v.end());
         topology_->removeFace(faceId, face);
         for (int& id : face.v) {
             if (id == remove) {
@@ -560,6 +594,34 @@ void SimplificationRun::rewriteIncidentFaces(int keep, int remove) {
         } else {
             topology_->addFace(faceId, face);
         }
+    }
+
+    std::sort(boundaryCandidates.begin(), boundaryCandidates.end());
+    boundaryCandidates.erase(
+        std::unique(boundaryCandidates.begin(), boundaryCandidates.end()), boundaryCandidates.end()
+    );
+    vertices_[remove].isBoundary = false;
+    for (int vertex : boundaryCandidates) {
+        if (vertex < 0 || vertex >= static_cast<int>(vertices_.size()) || !vertices_[vertex].active ||
+            vertex >= static_cast<int>(topology_->vertexFaces.size())) {
+            continue;
+        }
+        bool isBoundary = false;
+        for (int faceId : topology_->vertexFaces[vertex]) {
+            if (faceId < 0 || faceId >= static_cast<int>(faces_.size()) || !faces_[faceId].active) {
+                continue;
+            }
+            for (int neighbor : faces_[faceId].v) {
+                if (neighbor != vertex && activeIncidentFaceCountForEdge(vertex, neighbor, faces_, *topology_) == 1) {
+                    isBoundary = true;
+                    break;
+                }
+            }
+            if (isBoundary) {
+                break;
+            }
+        }
+        vertices_[vertex].isBoundary = isBoundary;
     }
 }
 

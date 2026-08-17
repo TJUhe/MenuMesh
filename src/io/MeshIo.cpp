@@ -13,10 +13,13 @@
 #include "io/MeshIo.h"
 
 #include "core/Filesystem.h"
+#include "core/Tolerances.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -25,13 +28,64 @@
 #include <iomanip>
 #include <limits>
 #include <locale.h>
+#include <locale>
+#include <new>
+#include <stdexcept>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace manumesh {
 namespace {
+
+// These limits keep untrusted mesh input from turning a nominal load operation
+// into an unbounded allocation.  They are deliberately well below the int
+// index limit used by Mesh and can be raised in a future, versioned API.
+constexpr std::uintmax_t kMaxInputFileBytes = 512ull * 1024ull * 1024ull;
+constexpr std::size_t kMaxStlTriangles = 10000000u;
+constexpr std::size_t kMaxObjVertices = 10000000u;
+constexpr std::size_t kMaxObjTexcoords = 10000000u;
+constexpr std::size_t kMaxObjTriangles = 10000000u;
+constexpr std::size_t kMaxObjFaceCorners = 4096u;
+// Parsing a large, valid industrial file may legitimately need hundreds of
+// megabytes of temporary storage.  Keep the budget high enough for that use
+// case while bounding adversarial STL/OBJ input before allocations grow
+// without limit.
+constexpr std::uintmax_t kMaxEstimatedLoadBytes = 1ull * 1024ull * 1024ull * 1024ull;
+constexpr std::uintmax_t kEstimatedStlBytesPerTriangle = 512u;
+constexpr std::uintmax_t kEstimatedObjFixedBytes = 64ull * 1024ull * 1024ull;
+constexpr std::uintmax_t kMaxObjTriangulationWork = 250000000ull;
+
+bool checkedAdd(std::uintmax_t lhs, std::uintmax_t rhs, std::uintmax_t& result) {
+    if (rhs > std::numeric_limits<std::uintmax_t>::max() - lhs) {
+        return false;
+    }
+    result = lhs + rhs;
+    return true;
+}
+
+bool checkedMultiply(std::uintmax_t lhs, std::uintmax_t rhs, std::uintmax_t& result) {
+    if (lhs != 0 && rhs > std::numeric_limits<std::uintmax_t>::max() / lhs) {
+        return false;
+    }
+    result = lhs * rhs;
+    return true;
+}
+
+bool estimatedStlBytesWithinBudget(std::size_t triangleCount) {
+    std::uintmax_t estimate = 0;
+    return checkedMultiply(static_cast<std::uintmax_t>(triangleCount), kEstimatedStlBytesPerTriangle, estimate) &&
+           estimate <= kMaxEstimatedLoadBytes;
+}
 
 manumesh::filesystem::path pathFromUtf8(const std::string& path) { return manumesh::filesystem::u8path(path); }
 
@@ -87,9 +141,9 @@ bool offsetQuantizedCoordinate(long long value, int offset, long long& result) {
 }
 
 uint32_t readUint32LE(const char* bytes) {
-    uint32_t value = 0;
-    std::memcpy(&value, bytes, sizeof(uint32_t));
-    return value;
+    const auto* data = reinterpret_cast<const unsigned char*>(bytes);
+    return static_cast<uint32_t>(data[0]) | (static_cast<uint32_t>(data[1]) << 8u) |
+           (static_cast<uint32_t>(data[2]) << 16u) | (static_cast<uint32_t>(data[3]) << 24u);
 }
 
 void writeUint32LE(char* bytes, uint32_t value) {
@@ -108,8 +162,11 @@ void writeFloatLE(char* bytes, float value) {
 }
 
 float readFloatLE(const char* bytes) {
+    const uint32_t bits = readUint32LE(bytes);
     float value = 0.0f;
-    std::memcpy(&value, bytes, sizeof(float));
+    static_assert(std::numeric_limits<float>::is_iec559, "Binary STL requires IEEE-754 floats.");
+    static_assert(sizeof(bits) == sizeof(value), "Binary STL requires 32-bit IEEE-754 floats.");
+    std::memcpy(&value, &bits, sizeof(value));
     return value;
 }
 
@@ -184,7 +241,12 @@ const char* parseDoubleAt(const char* p, const char* end, double& value) {
     errno = 0;
     char* parsedEnd = nullptr;
     const double parsed = _strtod_l(p, &parsedEnd, locale);
-    if (parsedEnd != tokenEnd || errno == ERANGE) {
+    // C libraries may report ERANGE for a non-zero subnormal even though the
+    // value is still representable.  Accept that case so saveObj/loadObj can
+    // round-trip every finite UV value, while continuing to reject values
+    // that underflow all the way to zero.  Overflow is rejected by each
+    // caller's finite-value check.
+    if (parsedEnd != tokenEnd || (errno == ERANGE && parsed == 0.0)) {
         return nullptr;
     }
     value = parsed;
@@ -194,28 +256,83 @@ const char* parseDoubleAt(const char* p, const char* end, double& value) {
 /**
  * @brief 将整个文件读入 `text`；无法打开或完整读取时返回 false。
  */
-bool readFileToString(const std::string& path, std::string& text) {
-    std::ifstream in(pathFromUtf8(path), std::ios::binary);
+bool readFileToString(const std::string& path, std::string& text, std::string* error) {
+    const manumesh::filesystem::path inputPath = pathFromUtf8(path);
+    std::error_code ec;
+    const std::uintmax_t size = manumesh::filesystem::file_size(inputPath, ec);
+    if (ec) {
+        if (error) {
+            *error = "Failed to determine input file size: " + ec.message();
+        }
+        return false;
+    }
+    if (size > kMaxInputFileBytes || size > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max())) {
+        if (error) {
+            *error = "Input file exceeds the supported 512 MiB size limit.";
+        }
+        return false;
+    }
+    std::ifstream in(inputPath, std::ios::binary);
     if (!in) {
+        if (error) {
+            *error = "Failed to open input file.";
+        }
         return false;
     }
-    in.seekg(0, std::ios::end);
-    const std::streamoff size = in.tellg();
-    if (size < 0) {
-        return false;
-    }
-    in.seekg(0, std::ios::beg);
     text.resize(static_cast<std::size_t>(size));
     if (size > 0) {
         in.read(&text[0], static_cast<std::streamsize>(size));
         if (in.gcount() != static_cast<std::streamsize>(size)) {
+            if (error) {
+                *error = "Failed to read the complete input file.";
+            }
             return false;
         }
     }
     return true;
 }
 
-enum class StlFormat { Binary, Ascii, Invalid };
+manumesh::filesystem::path temporaryOutputPath(const manumesh::filesystem::path& outputPath) {
+    static std::atomic<unsigned long long> sequence{0};
+    const auto tick =
+        static_cast<unsigned long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    const auto thread = static_cast<unsigned long long>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+    const auto ordinal = sequence.fetch_add(1, std::memory_order_relaxed);
+#if defined(_WIN32)
+    const auto process = static_cast<unsigned long long>(GetCurrentProcessId());
+#else
+    const auto process = 0ull;
+#endif
+    return outputPath.parent_path() /
+           (outputPath.filename().u8string() + ".manumesh-" + std::to_string(tick) + "-" + std::to_string(process) +
+            "-" + std::to_string(thread) + "-" + std::to_string(ordinal) + ".tmp");
+}
+
+bool replaceOutputFile(
+    const manumesh::filesystem::path& temporaryPath, const manumesh::filesystem::path& outputPath, std::string* error
+) {
+#if defined(_WIN32)
+    if (MoveFileExW(temporaryPath.c_str(), outputPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ==
+        0) {
+        if (error) {
+            *error = "Failed to atomically replace output file (Windows error " + std::to_string(GetLastError()) + ").";
+        }
+        return false;
+    }
+#else
+    std::error_code ec;
+    manumesh::filesystem::rename(temporaryPath, outputPath, ec);
+    if (ec) {
+        if (error) {
+            *error = "Failed to atomically replace output file: " + ec.message();
+        }
+        return false;
+    }
+#endif
+    return true;
+}
+
+enum class StlFormat { Binary, BinaryOrAscii, Ascii, Invalid };
 
 /**
  * @brief 判断 STL 文件是二进制格式还是 ASCII 格式。
@@ -276,17 +393,53 @@ StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::
             *error = "Failed to determine binary STL file size.";
         return StlFormat::Invalid;
     }
+    if (fileSize > kMaxInputFileBytes) {
+        if (error)
+            *error = "Input STL exceeds the supported 512 MiB size limit.";
+        return StlFormat::Invalid;
+    }
 
     const std::uintmax_t expectedSize =
         static_cast<std::uintmax_t>(84) + static_cast<std::uintmax_t>(triangleCount) * 50u;
     if (fileSize == expectedSize) {
+        if (triangleCount > kMaxStlTriangles) {
+            if (error)
+                *error = "STL declares more than the supported 10,000,000 triangles.";
+            return StlFormat::Invalid;
+        }
+        if (!estimatedStlBytesWithinBudget(triangleCount)) {
+            if (error)
+                *error = "STL exceeds the supported temporary-memory budget.";
+            return StlFormat::Invalid;
+        }
         return StlFormat::Binary;
+    }
+    // A valid binary STL may have a human-readable header beginning with
+    // "solid" and exporter-specific padding after its records.  Such a file
+    // is ambiguous with ASCII until the strict ASCII grammar is attempted.
+    if (fileSize > expectedSize && triangleCount > 0 && triangleCount <= kMaxStlTriangles) {
+        if (!estimatedStlBytesWithinBudget(triangleCount)) {
+            if (error)
+                *error = "STL exceeds the supported temporary-memory budget.";
+            return StlFormat::Invalid;
+        }
+        return startsWithSolid ? StlFormat::BinaryOrAscii : StlFormat::Binary;
     }
     if (startsWithSolid) {
         return StlFormat::Ascii;
     }
+    if (triangleCount > kMaxStlTriangles) {
+        if (error)
+            *error = "STL declares more than the supported 10,000,000 triangles.";
+        return StlFormat::Invalid;
+    }
     if (fileSize > expectedSize) {
         // 某些导出器会在最后一条记录后追加填充字节；忽略这些字节。
+        if (!estimatedStlBytesWithinBudget(triangleCount)) {
+            if (error)
+                *error = "STL exceeds the supported temporary-memory budget.";
+            return StlFormat::Invalid;
+        }
         return StlFormat::Binary;
     }
     if (error) {
@@ -299,6 +452,12 @@ StlFormat probeStlFormat(const std::string& path, uint32_t& triangleCount, std::
 bool readBinaryTriangles(
     const std::string& path, uint32_t triangleCount, std::vector<std::array<Vec3, 3>>& triangles, std::string* error
 ) {
+    if (triangleCount > kMaxStlTriangles || !estimatedStlBytesWithinBudget(triangleCount)) {
+        if (error) {
+            *error = "Binary STL exceeds the supported triangle or temporary-memory limit.";
+        }
+        return false;
+    }
     std::ifstream in(pathFromUtf8(path), std::ios::binary);
     if (!in) {
         if (error)
@@ -339,63 +498,162 @@ bool readBinaryTriangles(
     return true;
 }
 
+bool asciiTokenEquals(const char* begin, const char* end, const char* literal) {
+    const std::size_t length = std::strlen(literal);
+    if (static_cast<std::size_t>(end - begin) != length) {
+        return false;
+    }
+    for (std::size_t i = 0; i < length; ++i) {
+        const unsigned char value = static_cast<unsigned char>(begin[i]);
+        if (static_cast<char>(std::tolower(value)) != literal[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool parseAsciiStlVector(const char* p, const char* lineEnd, double (&coords)[3]) {
+    for (double& coord : coords) {
+        p = skipSpaces(p, lineEnd);
+        const char* next = parseDoubleAt(p, lineEnd, coord);
+        if (next == nullptr) {
+            return false;
+        }
+        p = next;
+    }
+    return skipSpaces(p, lineEnd) == lineEnd && std::isfinite(coords[0]) && std::isfinite(coords[1]) &&
+           std::isfinite(coords[2]);
+}
+
+std::string asciiStlLineError(int lineNumber, const char* message) {
+    return "ASCII STL line " + std::to_string(lineNumber) + ": " + message;
+}
+
 bool readAsciiTriangles(const std::string& path, std::vector<std::array<Vec3, 3>>& triangles, std::string* error) {
     std::string text;
-    if (!readFileToString(path, text)) {
+    if (!readFileToString(path, text, error)) {
         if (error)
-            *error = "Failed to open ASCII STL.";
+            *error = "Failed to read ASCII STL: " + *error;
         return false;
     }
 
-    triangles.clear();
+    enum class State { Solid, FacetOrEndSolid, OuterLoop, Vertex, EndLoop, EndFacet, Done };
+    State state = State::Solid;
     std::array<Vec3, 3> pending{};
     int pendingCount = 0;
+    triangles.clear();
 
-    const char* p = text.data();
-    const char* const end = p + text.size();
-    while (true) {
-        p = skipSpaces(p, end);
-        if (p == end) {
-            break;
+    const char* lineStart = text.data();
+    const char* const end = lineStart + text.size();
+    int lineNumber = 0;
+    bool firstLine = true;
+    while (lineStart != end) {
+        ++lineNumber;
+        const char* lineEnd = lineStart;
+        while (lineEnd != end && *lineEnd != '\r' && *lineEnd != '\n') {
+            ++lineEnd;
         }
-        const char* tokenEnd = findTokenEnd(p, end);
-        if (tokenEnd - p == 6 && std::memcmp(p, "vertex", 6) == 0) {
-            p = tokenEnd;
-            double coords[3] = {0.0, 0.0, 0.0};
-            for (double& coord : coords) {
-                p = skipSpaces(p, end);
-                const char* next = parseDoubleAt(p, end, coord);
-                if (next == nullptr) {
-                    if (error)
-                        *error = "Malformed ASCII STL vertex record.";
-                    return false;
+
+        const char* p = lineStart;
+        if (firstLine && lineEnd - p >= 3 && std::memcmp(p, "\xEF\xBB\xBF", 3) == 0) {
+            p += 3;
+        }
+        firstLine = false;
+        p = skipSpaces(p, lineEnd);
+        if (p != lineEnd) {
+            const char* const tokenEnd = findTokenEnd(p, lineEnd);
+            const auto fail = [&](const char* message) {
+                if (error) {
+                    *error = asciiStlLineError(lineNumber, message);
                 }
-                p = next;
-            }
-            if (!std::isfinite(coords[0]) || !std::isfinite(coords[1]) || !std::isfinite(coords[2])) {
-                if (error)
-                    *error = "ASCII STL contains a non-finite vertex coordinate.";
                 return false;
-            }
-            pending[static_cast<std::size_t>(pendingCount)] = Vec3(coords[0], coords[1], coords[2]);
-            ++pendingCount;
-            if (pendingCount == 3) {
-                triangles.push_back(pending);
+            };
+
+            if (state == State::Solid) {
+                if (!asciiTokenEquals(p, tokenEnd, "solid")) {
+                    return fail("expected solid header.");
+                }
+                state = State::FacetOrEndSolid;
+            } else if (state == State::FacetOrEndSolid) {
+                if (asciiTokenEquals(p, tokenEnd, "endsolid")) {
+                    state = State::Done;
+                } else if (asciiTokenEquals(p, tokenEnd, "facet")) {
+                    const char* q = skipSpaces(tokenEnd, lineEnd);
+                    const char* const normalEnd = findTokenEnd(q, lineEnd);
+                    if (!asciiTokenEquals(q, normalEnd, "normal")) {
+                        return fail("facet record must contain a normal.");
+                    }
+                    double normal[3] = {0.0, 0.0, 0.0};
+                    if (!parseAsciiStlVector(normalEnd, lineEnd, normal)) {
+                        return fail("facet normal must contain exactly three finite coordinates.");
+                    }
+                    state = State::OuterLoop;
+                } else {
+                    return fail("expected facet or endsolid.");
+                }
+            } else if (state == State::OuterLoop) {
+                const char* q = skipSpaces(tokenEnd, lineEnd);
+                const char* const loopEnd = findTokenEnd(q, lineEnd);
+                if (!asciiTokenEquals(p, tokenEnd, "outer") || !asciiTokenEquals(q, loopEnd, "loop") ||
+                    skipSpaces(loopEnd, lineEnd) != lineEnd) {
+                    return fail("expected outer loop.");
+                }
                 pendingCount = 0;
+                state = State::Vertex;
+            } else if (state == State::Vertex) {
+                if (!asciiTokenEquals(p, tokenEnd, "vertex")) {
+                    return fail("expected vertex.");
+                }
+                double coords[3] = {0.0, 0.0, 0.0};
+                if (!parseAsciiStlVector(tokenEnd, lineEnd, coords)) {
+                    return fail("vertex must contain exactly three finite coordinates.");
+                }
+                pending[static_cast<std::size_t>(pendingCount)] = Vec3(coords[0], coords[1], coords[2]);
+                ++pendingCount;
+                if (pendingCount == 3) {
+                    state = State::EndLoop;
+                }
+            } else if (state == State::EndLoop) {
+                if (!asciiTokenEquals(p, tokenEnd, "endloop") || skipSpaces(tokenEnd, lineEnd) != lineEnd) {
+                    return fail("expected endloop after exactly three vertices.");
+                }
+                state = State::EndFacet;
+            } else if (state == State::EndFacet) {
+                if (!asciiTokenEquals(p, tokenEnd, "endfacet") || skipSpaces(tokenEnd, lineEnd) != lineEnd) {
+                    return fail("expected endfacet.");
+                }
+                if (triangles.size() == kMaxStlTriangles || !estimatedStlBytesWithinBudget(triangles.size() + 1)) {
+                    return fail("exceeds the supported triangle or temporary-memory limit.");
+                }
+                triangles.push_back(pending);
+                state = State::FacetOrEndSolid;
+            } else {
+                // Some exporters concatenate separately named ASCII STL
+                // solids into one file. Accept a new solid header while
+                // retaining strict rejection of every other trailing token.
+                if (!asciiTokenEquals(p, tokenEnd, "solid")) {
+                    return fail("contains data after endsolid.");
+                }
+                state = State::FacetOrEndSolid;
             }
-        } else {
-            p = tokenEnd;
+        }
+
+        lineStart = lineEnd;
+        while (lineStart != end && (*lineStart == '\r' || *lineStart == '\n')) {
+            ++lineStart;
         }
     }
 
-    if (triangles.empty()) {
-        if (error)
-            *error = "No triangles found in ASCII STL.";
+    if (state != State::Done) {
+        if (error) {
+            *error = "ASCII STL ended before a complete endsolid record.";
+        }
         return false;
     }
-    if (pendingCount != 0) {
-        if (error)
-            *error = "ASCII STL ended with an incomplete triangle.";
+    if (triangles.empty()) {
+        if (error) {
+            *error = "No triangles found in ASCII STL.";
+        }
         return false;
     }
     return true;
@@ -525,17 +783,12 @@ bool parseObjIndexText(const char* begin, const char* end, int valueCount, int& 
         return false;
     }
 
-    int raw = 0;
-    if (negative) {
-        raw = magnitude == maxPositive + 1u ? std::numeric_limits<int>::min() : -static_cast<int>(magnitude);
-    } else {
-        raw = static_cast<int>(magnitude);
-    }
-    const int index = raw > 0 ? raw - 1 : valueCount + raw;
+    const long long raw = negative ? -static_cast<long long>(magnitude) : static_cast<long long>(magnitude);
+    const long long index = raw > 0 ? raw - 1 : static_cast<long long>(valueCount) + raw;
     if (index < 0 || index >= valueCount) {
         return false;
     }
-    indexOut = index;
+    indexOut = static_cast<int>(index);
     return true;
 }
 
@@ -546,6 +799,47 @@ struct ObjCorner {
 };
 
 using ObjTriangle = std::array<int, 3>;
+
+bool estimatedObjBytesWithinBudget(
+    std::size_t textBytes,
+    std::size_t vertexCount,
+    std::size_t texcoordCount,
+    std::size_t faceCount,
+    std::size_t faceTexcoordCount,
+    std::size_t scratchCornerCount
+) {
+    // Account for vector growth and removeUnusedVertices()'s compacted copy.
+    // The factors are deliberately conservative; they are a budget estimate,
+    // not an allocator-specific byte count.
+    std::uintmax_t estimate = kEstimatedObjFixedBytes;
+    std::uintmax_t term = 0;
+    if (!checkedAdd(estimate, static_cast<std::uintmax_t>(textBytes), estimate) ||
+        !checkedMultiply(static_cast<std::uintmax_t>(vertexCount), sizeof(Vec3) * 4u, term) ||
+        !checkedAdd(estimate, term, estimate) ||
+        !checkedMultiply(static_cast<std::uintmax_t>(texcoordCount), sizeof(Vec2) * 2u, term) ||
+        !checkedAdd(estimate, term, estimate) ||
+        !checkedMultiply(static_cast<std::uintmax_t>(faceCount), sizeof(Face) * 4u, term) ||
+        !checkedAdd(estimate, term, estimate) ||
+        !checkedMultiply(static_cast<std::uintmax_t>(faceTexcoordCount), sizeof(FaceTexCoords) * 4u, term) ||
+        !checkedAdd(estimate, term, estimate) ||
+        !checkedMultiply(static_cast<std::uintmax_t>(scratchCornerCount), sizeof(ObjCorner) * 4u, term) ||
+        !checkedAdd(estimate, term, estimate)) {
+        return false;
+    }
+    return estimate <= kMaxEstimatedLoadBytes;
+}
+
+struct ObjWorkBudget {
+    std::uintmax_t used = 0;
+
+    bool consume(std::uintmax_t amount = 1) {
+        if (used > kMaxObjTriangulationWork || amount > kMaxObjTriangulationWork - used) {
+            return false;
+        }
+        used += amount;
+        return true;
+    }
+};
 
 constexpr double kObjPolygonEpsilon = 1e-12;
 
@@ -594,7 +888,7 @@ bool segmentsIntersect2d(const Vec2& a, const Vec2& b, const Vec2& c, const Vec2
            (cda == 0 && pointOnSegment2d(a, c, d)) || (cdb == 0 && pointOnSegment2d(b, c, d));
 }
 
-bool polygonSelfIntersects(const std::vector<Vec2>& polygon) {
+bool polygonSelfIntersects(const std::vector<Vec2>& polygon, ObjWorkBudget& work, bool& budgetExhausted) {
     const int size = static_cast<int>(polygon.size());
     for (int first = 0; first < size; ++first) {
         const int firstNext = (first + 1) % size;
@@ -602,6 +896,10 @@ bool polygonSelfIntersects(const std::vector<Vec2>& polygon) {
             const int secondNext = (second + 1) % size;
             if (first == second || firstNext == second || secondNext == first) {
                 continue;
+            }
+            if (!work.consume()) {
+                budgetExhausted = true;
+                return false;
             }
             if (segmentsIntersect2d(
                     polygon[static_cast<std::size_t>(first)],
@@ -626,12 +924,29 @@ bool triangulateObjPolygon(
     const std::vector<ObjCorner>& corners,
     const std::vector<Vec3>& positions,
     std::vector<ObjTriangle>& triangles,
+    ObjWorkBudget& work,
     const char*& failureReason
 ) {
     triangles.clear();
     if (corners.size() < 3) {
         failureReason = "face has fewer than three corners.";
         return false;
+    }
+    if (corners.size() == 3) {
+        if (!work.consume()) {
+            failureReason = "cumulative triangulation work exceeds the supported limit.";
+            return false;
+        }
+        const Vec3& a = positions[static_cast<std::size_t>(corners[0].vertex)];
+        const Vec3& b = positions[static_cast<std::size_t>(corners[1].vertex)];
+        const Vec3& c = positions[static_cast<std::size_t>(corners[2].vertex)];
+        const double area = triangleArea(a, b, c);
+        if (!std::isfinite(area) || area <= kMinTriangleArea) {
+            failureReason = "face triangle is degenerate or exceeds the supported numeric range.";
+            return false;
+        }
+        triangles.push_back({0, 1, 2});
+        return true;
     }
 
     const Vec3 origin = positions[static_cast<std::size_t>(corners[0].vertex)];
@@ -652,6 +967,10 @@ bool triangulateObjPolygon(
     }
     for (std::size_t first = 0; first < normalized.size(); ++first) {
         for (std::size_t second = first + 1; second < normalized.size(); ++second) {
+            if (!work.consume()) {
+                failureReason = "cumulative triangulation work exceeds the supported limit.";
+                return false;
+            }
             if ((normalized[first] - normalized[second]).squaredNorm() <= kObjPolygonEpsilon * kObjPolygonEpsilon) {
                 failureReason = "face polygon repeats a corner position.";
                 return false;
@@ -666,6 +985,10 @@ bool triangulateObjPolygon(
     if (normal.squaredNorm() <= kObjPolygonEpsilon * kObjPolygonEpsilon) {
         for (std::size_t first = 1; first < normalized.size(); ++first) {
             for (std::size_t second = first + 1; second < normalized.size(); ++second) {
+                if (!work.consume()) {
+                    failureReason = "cumulative triangulation work exceeds the supported limit.";
+                    return false;
+                }
                 const Vec3 candidate = normalized[first].cross(normalized[second]);
                 if (candidate.squaredNorm() > normal.squaredNorm()) {
                     normal = candidate;
@@ -705,8 +1028,13 @@ bool triangulateObjPolygon(
         const Vec2& b = projected[(i + 1) % projected.size()];
         signedAreaTwice += a.x() * b.y() - a.y() * b.x();
     }
-    if (polygonSelfIntersects(projected)) {
+    bool budgetExhausted = false;
+    if (polygonSelfIntersects(projected, work, budgetExhausted)) {
         failureReason = "face polygon is self-intersecting.";
+        return false;
+    }
+    if (budgetExhausted) {
+        failureReason = "cumulative triangulation work exceeds the supported limit.";
         return false;
     }
     if (std::abs(signedAreaTwice) <= kObjPolygonEpsilon) {
@@ -717,6 +1045,10 @@ bool triangulateObjPolygon(
 
     bool strictlyConvex = true;
     for (std::size_t i = 0; i < projected.size(); ++i) {
+        if (!work.consume()) {
+            failureReason = "cumulative triangulation work exceeds the supported limit.";
+            return false;
+        }
         const Vec2& previous = projected[(i + projected.size() - 1) % projected.size()];
         const Vec2& current = projected[i];
         const Vec2& next = projected[(i + 1) % projected.size()];
@@ -742,6 +1074,10 @@ bool triangulateObjPolygon(
     while (remaining.size() > 3) {
         bool clippedEar = false;
         for (std::size_t i = 0; i < remaining.size(); ++i) {
+            if (!work.consume()) {
+                failureReason = "cumulative triangulation work exceeds the supported limit.";
+                return false;
+            }
             const int previous = remaining[(i + remaining.size() - 1) % remaining.size()];
             const int current = remaining[i];
             const int next = remaining[(i + 1) % remaining.size()];
@@ -756,6 +1092,10 @@ bool triangulateObjPolygon(
             for (int candidate : remaining) {
                 if (candidate == previous || candidate == current || candidate == next) {
                     continue;
+                }
+                if (!work.consume()) {
+                    failureReason = "cumulative triangulation work exceeds the supported limit.";
+                    return false;
                 }
                 if (pointInOrOnTriangle2d(projected[static_cast<std::size_t>(candidate)], a, b, c, orientation)) {
                     containsOtherCorner = true;
@@ -780,6 +1120,10 @@ bool triangulateObjPolygon(
     const int a = remaining[0];
     const int b = remaining[1];
     const int c = remaining[2];
+    if (!work.consume()) {
+        failureReason = "cumulative triangulation work exceeds the supported limit.";
+        return false;
+    }
     if (orientation * orient2d(
                           projected[static_cast<std::size_t>(a)],
                           projected[static_cast<std::size_t>(b)],
@@ -797,7 +1141,9 @@ bool triangulateObjPolygon(
  * @brief 解析一个 OBJ 面角点令牌：`v`、`v/vt`、`v//vn` 或 `v/vt/vn`。
  * 第二个斜杠后的法线索引会按设计忽略。
  */
-bool parseObjCorner(const char* begin, const char* end, int vertexCount, int texcoordCount, ObjCorner& corner) {
+bool parseObjCorner(
+    const char* begin, const char* end, int vertexCount, int texcoordCount, int normalCount, ObjCorner& corner
+) {
     const char* firstSlash = static_cast<const char*>(std::memchr(begin, '/', static_cast<std::size_t>(end - begin)));
     const char* vertexEnd = firstSlash == nullptr ? end : firstSlash;
     if (!parseObjIndexText(begin, vertexEnd, vertexCount, corner.vertex)) {
@@ -810,10 +1156,22 @@ bool parseObjCorner(const char* begin, const char* end, int vertexCount, int tex
     const char* secondSlash =
         static_cast<const char*>(std::memchr(texcoordBegin, '/', static_cast<std::size_t>(end - texcoordBegin)));
     const char* texcoordEnd = secondSlash == nullptr ? end : secondSlash;
-    if (texcoordBegin == texcoordEnd) {
-        return true;
+    if (secondSlash == nullptr) {
+        // OBJ does not permit a dangling "v/" token.
+        return texcoordBegin != texcoordEnd &&
+               parseObjIndexText(texcoordBegin, texcoordEnd, texcoordCount, corner.texcoord);
     }
-    return parseObjIndexText(texcoordBegin, texcoordEnd, texcoordCount, corner.texcoord);
+    if (std::memchr(secondSlash + 1, '/', static_cast<std::size_t>(end - (secondSlash + 1))) != nullptr) {
+        return false;
+    }
+    // v//vn is valid, but both the optional texture index and mandatory normal
+    // index must be complete, in-range integer tokens.
+    if (texcoordBegin != texcoordEnd &&
+        !parseObjIndexText(texcoordBegin, texcoordEnd, texcoordCount, corner.texcoord)) {
+        return false;
+    }
+    int ignoredNormal = -1;
+    return parseObjIndexText(secondSlash + 1, end, normalCount, ignoredNormal);
 }
 
 } // 命名空间
@@ -822,195 +1180,376 @@ bool loadStl(const std::string& path, Mesh& mesh, std::string* error, double mer
     if (error) {
         error->clear();
     }
-    if (!std::isfinite(mergeRelativeEpsilon) || mergeRelativeEpsilon < 0.0) {
-        if (error)
-            *error = "mergeRelativeEpsilon must be finite and non-negative.";
-        return false;
-    }
-    // STL 不携带纹理坐标；清除复用网格中的旧坐标，避免其与新面静默错位。
-    mesh.faceTexCoords.clear();
+    try {
+        if (!std::isfinite(mergeRelativeEpsilon) || mergeRelativeEpsilon < 0.0) {
+            if (error)
+                *error = "mergeRelativeEpsilon must be finite and non-negative.";
+            return false;
+        }
+        uint32_t triangleCount = 0;
+        std::string localError;
+        const StlFormat format = probeStlFormat(path, triangleCount, &localError);
 
-    uint32_t triangleCount = 0;
-    std::string localError;
-    const StlFormat format = probeStlFormat(path, triangleCount, &localError);
+        std::vector<std::array<Vec3, 3>> triangles;
+        bool loaded = false;
+        if (format == StlFormat::BinaryOrAscii) {
+            // Preserve a valid ASCII STL even when bytes 80..83 happen to form a
+            // plausible binary triangle count; a padded binary solid header will
+            // fail this grammar check and then use the binary records.
+            std::string asciiError;
+            loaded = readAsciiTriangles(path, triangles, &asciiError);
+            if (!loaded) {
+                loaded = readBinaryTriangles(path, triangleCount, triangles, &localError);
+            }
+        } else if (format == StlFormat::Binary) {
+            loaded = readBinaryTriangles(path, triangleCount, triangles, &localError);
+        } else if (format == StlFormat::Ascii) {
+            loaded = readAsciiTriangles(path, triangles, &localError);
+        }
+        if (!loaded) {
+            if (error)
+                *error = localError;
+            return false;
+        }
 
-    std::vector<std::array<Vec3, 3>> triangles;
-    bool loaded = false;
-    if (format == StlFormat::Binary) {
-        loaded = readBinaryTriangles(path, triangleCount, triangles, &localError);
-    } else if (format == StlFormat::Ascii) {
-        loaded = readAsciiTriangles(path, triangles, &localError);
-    }
-    if (!loaded) {
-        if (error)
-            *error = localError;
-        return false;
-    }
-
-    mergeDuplicateTriangleVertices(triangles, mesh, mergeRelativeEpsilon);
-    mesh.removeUnusedVertices();
-    if (mesh.empty()) {
+        Mesh parsed;
+        mergeDuplicateTriangleVertices(triangles, parsed, mergeRelativeEpsilon);
+        parsed.removeUnusedVertices();
+        if (parsed.empty()) {
+            if (error) {
+                *error = "STL contains no non-degenerate triangles after vertex merging.";
+            }
+            return false;
+        }
+        std::string validationError;
+        if (!validateMeshGeometry(parsed, &validationError)) {
+            if (error) {
+                *error = "STL produced an invalid mesh: " + validationError;
+            }
+            return false;
+        }
+        mesh = std::move(parsed);
+        return true;
+    } catch (const std::bad_alloc&) {
         if (error) {
-            *error = "STL contains no non-degenerate triangles after vertex merging.";
+            *error = "Mesh load ran out of memory.";
+        }
+        return false;
+    } catch (const std::length_error&) {
+        if (error) {
+            *error = "Mesh load exceeded a container size limit.";
         }
         return false;
     }
-    return true;
 }
 
 bool loadObj(const std::string& path, Mesh& mesh, std::string* error) {
     if (error) {
         error->clear();
     }
-    std::string text;
-    if (!readFileToString(path, text)) {
-        if (error)
-            *error = "Failed to open OBJ.";
-        return false;
-    }
-
-    std::vector<Vec3> positions;
-    std::vector<Vec2> texcoords;
-    mesh.vertices.clear();
-    mesh.faces.clear();
-    mesh.faceTexCoords.clear();
-    bool sawTextureReference = false;
-
-    std::vector<ObjCorner> corners;
-    std::vector<ObjTriangle> polygonTriangles;
-    const char* cursor = text.data();
-    const char* const textEnd = cursor + text.size();
-    int lineNumber = 0;
-    while (cursor < textEnd) {
-        ++lineNumber;
-        const char* lineEnd =
-            static_cast<const char*>(std::memchr(cursor, '\n', static_cast<std::size_t>(textEnd - cursor)));
-        const char* const nextLine = lineEnd == nullptr ? textEnd : lineEnd + 1;
-        if (lineEnd == nullptr) {
-            lineEnd = textEnd;
+    try {
+        std::string text;
+        if (!readFileToString(path, text, error)) {
+            if (error)
+                *error = "Failed to read OBJ: " + *error;
+            return false;
         }
 
-        const char* p = skipSpaces(cursor, lineEnd);
-        cursor = nextLine;
-        if (p == lineEnd) {
-            continue;
-        }
-        const char* tagEnd = findTokenEnd(p, lineEnd);
-        const std::size_t tagLength = static_cast<std::size_t>(tagEnd - p);
+        std::vector<Vec3> positions;
+        std::vector<Vec2> texcoords;
+        std::size_t normalCount = 0;
+        Mesh parsed;
 
-        if (tagLength == 1 && p[0] == 'v') {
-            double coords[3] = {0.0, 0.0, 0.0};
-            const char* q = tagEnd;
-            for (double& coord : coords) {
-                q = skipSpaces(q, lineEnd);
-                q = parseDoubleAt(q, lineEnd, coord);
-                if (q == nullptr) {
-                    break;
+        std::vector<ObjCorner> corners;
+        std::vector<ObjTriangle> polygonTriangles;
+        ObjWorkBudget work;
+        if (!estimatedObjBytesWithinBudget(text.size(), 0, 0, 0, 0, 0)) {
+            if (error) {
+                *error = "OBJ exceeds the supported temporary-memory budget.";
+            }
+            return false;
+        }
+        const char* cursor = text.data();
+        const char* const textEnd = cursor + text.size();
+        int lineNumber = 0;
+        while (cursor < textEnd) {
+            ++lineNumber;
+            const char* lineEnd =
+                static_cast<const char*>(std::memchr(cursor, '\n', static_cast<std::size_t>(textEnd - cursor)));
+            const char* const nextLine = lineEnd == nullptr ? textEnd : lineEnd + 1;
+            if (lineEnd == nullptr) {
+                lineEnd = textEnd;
+            }
+
+            const char* const comment =
+                static_cast<const char*>(std::memchr(cursor, '#', static_cast<std::size_t>(lineEnd - cursor)));
+            if (comment != nullptr) {
+                lineEnd = comment;
+            }
+
+            const char* p = skipSpaces(cursor, lineEnd);
+            cursor = nextLine;
+            if (p == lineEnd) {
+                continue;
+            }
+            const char* tagEnd = findTokenEnd(p, lineEnd);
+            const std::size_t tagLength = static_cast<std::size_t>(tagEnd - p);
+
+            if (tagLength == 1 && p[0] == 'v') {
+                double coords[3] = {0.0, 0.0, 0.0};
+                const char* q = tagEnd;
+                for (double& coord : coords) {
+                    q = skipSpaces(q, lineEnd);
+                    q = parseDoubleAt(q, lineEnd, coord);
+                    if (q == nullptr) {
+                        break;
+                    }
                 }
-            }
-            if (q == nullptr || !std::isfinite(coords[0]) || !std::isfinite(coords[1]) || !std::isfinite(coords[2])) {
-                if (error)
-                    *error = objLineError(lineNumber, "malformed or non-finite vertex coordinate.");
-                return false;
-            }
-            positions.emplace_back(coords[0], coords[1], coords[2]);
-        } else if (tagLength == 2 && p[0] == 'v' && p[1] == 't') {
-            double u = 0.0;
-            double v = 0.0;
-            const char* q = skipSpaces(tagEnd, lineEnd);
-            q = parseDoubleAt(q, lineEnd, u);
-            if (q == nullptr || !std::isfinite(u)) {
-                if (error)
-                    *error = objLineError(lineNumber, "malformed or non-finite texture coordinate.");
-                return false;
-            }
-            // 根据 OBJ 规范，第二个分量（"vt u"）可以省略并默认为零；第三个分量 w 会忽略。
-            q = skipSpaces(q, lineEnd);
-            if (q != lineEnd) {
-                q = parseDoubleAt(q, lineEnd, v);
-                if (q == nullptr || !std::isfinite(v)) {
+                if (q == nullptr || !std::isfinite(coords[0]) || !std::isfinite(coords[1]) ||
+                    !std::isfinite(coords[2])) {
+                    if (error)
+                        *error = objLineError(lineNumber, "malformed or non-finite vertex coordinate.");
+                    return false;
+                }
+                q = skipSpaces(q, lineEnd);
+                if (q != lineEnd) {
+                    double homogeneous = 1.0;
+                    q = parseDoubleAt(q, lineEnd, homogeneous);
+                    q = q == nullptr ? nullptr : skipSpaces(q, lineEnd);
+                    if (q == nullptr || q != lineEnd || !std::isfinite(homogeneous) || homogeneous == 0.0) {
+                        if (error)
+                            *error = objLineError(lineNumber, "vertex record has an invalid homogeneous coordinate.");
+                        return false;
+                    }
+                    coords[0] /= homogeneous;
+                    coords[1] /= homogeneous;
+                    coords[2] /= homogeneous;
+                    if (!std::isfinite(coords[0]) || !std::isfinite(coords[1]) || !std::isfinite(coords[2])) {
+                        if (error)
+                            *error = objLineError(lineNumber, "homogeneous vertex coordinate is not finite.");
+                        return false;
+                    }
+                }
+                if (positions.size() == kMaxObjVertices) {
+                    if (error)
+                        *error = "OBJ exceeds the supported 10,000,000 vertex limit.";
+                    return false;
+                }
+                if (!estimatedObjBytesWithinBudget(
+                        text.size(),
+                        positions.size() + 1,
+                        texcoords.size(),
+                        parsed.faces.size(),
+                        parsed.faceTexCoords.size(),
+                        corners.size()
+                    )) {
+                    if (error) {
+                        *error = "OBJ exceeds the supported temporary-memory budget.";
+                    }
+                    return false;
+                }
+                positions.emplace_back(coords[0], coords[1], coords[2]);
+            } else if (tagLength == 2 && p[0] == 'v' && p[1] == 't') {
+                double u = 0.0;
+                double v = 0.0;
+                const char* q = skipSpaces(tagEnd, lineEnd);
+                q = parseDoubleAt(q, lineEnd, u);
+                if (q == nullptr || !std::isfinite(u)) {
                     if (error)
                         *error = objLineError(lineNumber, "malformed or non-finite texture coordinate.");
                     return false;
                 }
-            }
-            texcoords.emplace_back(u, v);
-        } else if (tagLength == 1 && p[0] == 'f') {
-            corners.clear();
-            const char* q = tagEnd;
-            while (true) {
+                // 根据 OBJ 规范，第二个分量（"vt u"）可以省略并默认为零；第三个分量 w 会忽略。
                 q = skipSpaces(q, lineEnd);
-                if (q == lineEnd) {
-                    break;
-                }
-                const char* tokenEnd = findTokenEnd(q, lineEnd);
-                ObjCorner corner;
-                if (!parseObjCorner(
-                        q, tokenEnd, static_cast<int>(positions.size()), static_cast<int>(texcoords.size()), corner
-                    )) {
-                    if (error)
-                        *error =
-                            objLineError(lineNumber, "face references an invalid vertex or texture-coordinate index.");
-                    return false;
-                }
-                sawTextureReference = sawTextureReference || corner.texcoord >= 0;
-                corners.push_back(corner);
-                q = tokenEnd;
-            }
-            const bool allTextured = std::all_of(corners.begin(), corners.end(), [](const ObjCorner& corner) {
-                return corner.texcoord >= 0;
-            });
-            const bool noneTextured = std::all_of(corners.begin(), corners.end(), [](const ObjCorner& corner) {
-                return corner.texcoord < 0;
-            });
-            if (!allTextured && !noneTextured) {
-                if (error)
-                    *error = objLineError(lineNumber, "face mixes textured and untextured corners.");
-                return false;
-            }
-            const char* triangulationFailure = nullptr;
-            if (!triangulateObjPolygon(corners, positions, polygonTriangles, triangulationFailure)) {
-                if (error)
-                    *error = objLineError(lineNumber, triangulationFailure);
-                return false;
-            }
-            for (const ObjTriangle& triangle : polygonTriangles) {
-                Face face;
-                face.v = {
-                    corners[static_cast<std::size_t>(triangle[0])].vertex,
-                    corners[static_cast<std::size_t>(triangle[1])].vertex,
-                    corners[static_cast<std::size_t>(triangle[2])].vertex
-                };
-                mesh.faces.push_back(face);
-                FaceTexCoords faceUv;
-                for (Vec2& uv : faceUv.uv) {
-                    uv = Vec2::Zero();
-                }
-                faceUv.valid = allTextured;
-                if (allTextured) {
-                    for (int corner = 0; corner < 3; ++corner) {
-                        const int polygonCorner = triangle[static_cast<std::size_t>(corner)];
-                        const int textureId = corners[static_cast<std::size_t>(polygonCorner)].texcoord;
-                        faceUv.uv[static_cast<std::size_t>(corner)] = texcoords[static_cast<std::size_t>(textureId)];
+                if (q != lineEnd) {
+                    q = parseDoubleAt(q, lineEnd, v);
+                    if (q == nullptr || !std::isfinite(v)) {
+                        if (error)
+                            *error = objLineError(lineNumber, "malformed or non-finite texture coordinate.");
+                        return false;
+                    }
+                    q = skipSpaces(q, lineEnd);
+                    if (q != lineEnd) {
+                        double ignoredW = 0.0;
+                        q = parseDoubleAt(q, lineEnd, ignoredW);
+                        q = q == nullptr ? nullptr : skipSpaces(q, lineEnd);
+                        if (q == nullptr || q != lineEnd || !std::isfinite(ignoredW)) {
+                            if (error)
+                                *error = objLineError(lineNumber, "texture coordinate has invalid trailing data.");
+                            return false;
+                        }
                     }
                 }
-                mesh.faceTexCoords.push_back(faceUv);
+                if (texcoords.size() == kMaxObjTexcoords) {
+                    if (error)
+                        *error = "OBJ exceeds the supported 10,000,000 texture-coordinate limit.";
+                    return false;
+                }
+                if (!estimatedObjBytesWithinBudget(
+                        text.size(),
+                        positions.size(),
+                        texcoords.size() + 1,
+                        parsed.faces.size(),
+                        parsed.faceTexCoords.size(),
+                        corners.size()
+                    )) {
+                    if (error) {
+                        *error = "OBJ exceeds the supported temporary-memory budget.";
+                    }
+                    return false;
+                }
+                texcoords.emplace_back(u, v);
+            } else if (tagLength == 2 && p[0] == 'v' && p[1] == 'n') {
+                double coords[3] = {0.0, 0.0, 0.0};
+                const char* q = tagEnd;
+                for (double& coord : coords) {
+                    q = skipSpaces(q, lineEnd);
+                    q = parseDoubleAt(q, lineEnd, coord);
+                    if (q == nullptr) {
+                        break;
+                    }
+                }
+                q = q == nullptr ? nullptr : skipSpaces(q, lineEnd);
+                if (q == nullptr || q != lineEnd || !std::isfinite(coords[0]) || !std::isfinite(coords[1]) ||
+                    !std::isfinite(coords[2])) {
+                    if (error)
+                        *error = objLineError(lineNumber, "malformed or non-finite normal coordinate.");
+                    return false;
+                }
+                if (normalCount == kMaxObjVertices) {
+                    if (error)
+                        *error = "OBJ exceeds the supported 10,000,000 normal limit.";
+                    return false;
+                }
+                ++normalCount;
+            } else if (tagLength == 1 && p[0] == 'f') {
+                corners.clear();
+                const char* q = tagEnd;
+                while (true) {
+                    q = skipSpaces(q, lineEnd);
+                    if (q == lineEnd) {
+                        break;
+                    }
+                    const char* tokenEnd = findTokenEnd(q, lineEnd);
+                    ObjCorner corner;
+                    if (!parseObjCorner(
+                            q,
+                            tokenEnd,
+                            static_cast<int>(positions.size()),
+                            static_cast<int>(texcoords.size()),
+                            static_cast<int>(normalCount),
+                            corner
+                        )) {
+                        if (error)
+                            *error = objLineError(
+                                lineNumber, "face references an invalid vertex or texture-coordinate index."
+                            );
+                        return false;
+                    }
+                    corners.push_back(corner);
+                    if (corners.size() > kMaxObjFaceCorners) {
+                        if (error)
+                            *error = objLineError(lineNumber, "face exceeds the supported 4096-corner limit.");
+                        return false;
+                    }
+                    q = tokenEnd;
+                }
+                const bool allTextured = std::all_of(corners.begin(), corners.end(), [](const ObjCorner& corner) {
+                    return corner.texcoord >= 0;
+                });
+                const bool noneTextured = std::all_of(corners.begin(), corners.end(), [](const ObjCorner& corner) {
+                    return corner.texcoord < 0;
+                });
+                if (!allTextured && !noneTextured) {
+                    if (error)
+                        *error = objLineError(lineNumber, "face mixes textured and untextured corners.");
+                    return false;
+                }
+                const char* triangulationFailure = nullptr;
+                if (!triangulateObjPolygon(corners, positions, polygonTriangles, work, triangulationFailure)) {
+                    if (error)
+                        *error = objLineError(lineNumber, triangulationFailure);
+                    return false;
+                }
+                for (const ObjTriangle& triangle : polygonTriangles) {
+                    if (parsed.faces.size() == kMaxObjTriangles) {
+                        if (error)
+                            *error = "OBJ exceeds the supported 10,000,000 triangle limit after triangulation.";
+                        return false;
+                    }
+                    const bool trackTextureCoordinates = allTextured || !parsed.faceTexCoords.empty();
+                    const std::size_t proposedFaceTexcoords = trackTextureCoordinates ? parsed.faces.size() + 1 : 0;
+                    if (!estimatedObjBytesWithinBudget(
+                            text.size(),
+                            positions.size(),
+                            texcoords.size(),
+                            parsed.faces.size() + 1,
+                            proposedFaceTexcoords,
+                            corners.size()
+                        )) {
+                        if (error) {
+                            *error = "OBJ exceeds the supported temporary-memory budget.";
+                        }
+                        return false;
+                    }
+                    if (allTextured && parsed.faceTexCoords.empty()) {
+                        // Preserve face-to-UV alignment only once a textured face
+                        // is encountered.  Untextured OBJ files then avoid a
+                        // FaceTexCoords allocation proportional to every face.
+                        parsed.faceTexCoords.resize(parsed.faces.size());
+                    }
+                    Face face;
+                    face.v = {
+                        corners[static_cast<std::size_t>(triangle[0])].vertex,
+                        corners[static_cast<std::size_t>(triangle[1])].vertex,
+                        corners[static_cast<std::size_t>(triangle[2])].vertex
+                    };
+                    parsed.faces.push_back(face);
+                    if (trackTextureCoordinates) {
+                        FaceTexCoords faceUv;
+                        faceUv.valid = allTextured;
+                        if (allTextured) {
+                            for (int corner = 0; corner < 3; ++corner) {
+                                const int polygonCorner = triangle[static_cast<std::size_t>(corner)];
+                                const int textureId = corners[static_cast<std::size_t>(polygonCorner)].texcoord;
+                                faceUv.uv[static_cast<std::size_t>(corner)] =
+                                    texcoords[static_cast<std::size_t>(textureId)];
+                            }
+                        }
+                        parsed.faceTexCoords.push_back(faceUv);
+                    }
+                }
             }
+            // 其他指令（vn、g、o、s、usemtl、注释等）均忽略。
         }
-        // 其他指令（vn、g、o、s、usemtl、注释等）均忽略。
-    }
 
-    mesh.vertices = std::move(positions);
-    if (!sawTextureReference) {
-        mesh.faceTexCoords.clear();
-    }
-    mesh.removeUnusedVertices();
-    if (mesh.empty()) {
-        if (error)
-            *error = "No triangles found in OBJ.";
+        parsed.vertices = std::move(positions);
+        parsed.removeUnusedVertices();
+        if (parsed.empty()) {
+            if (error)
+                *error = "No triangles found in OBJ.";
+            return false;
+        }
+        std::string validationError;
+        if (!validateMeshGeometryLenient(parsed, &validationError)) {
+            if (error) {
+                *error = "OBJ produced an invalid mesh: " + validationError;
+            }
+            return false;
+        }
+        mesh = std::move(parsed);
+        return true;
+    } catch (const std::bad_alloc&) {
+        if (error) {
+            *error = "Mesh load ran out of memory.";
+        }
+        return false;
+    } catch (const std::length_error&) {
+        if (error) {
+            *error = "Mesh load exceeded a container size limit.";
+        }
         return false;
     }
-    return true;
 }
 
 bool loadMesh(const std::string& path, Mesh& mesh, std::string* error, double mergeRelativeEpsilon) {
@@ -1066,10 +1605,11 @@ bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error
             return false;
         }
     }
-    std::ofstream out(outputPath, std::ios::binary);
+    const manumesh::filesystem::path temporaryPath = temporaryOutputPath(outputPath);
+    std::ofstream out(temporaryPath, std::ios::binary | std::ios::trunc);
     if (!out) {
         if (error)
-            *error = "Failed to open output STL.";
+            *error = "Failed to open temporary output STL.";
         return false;
     }
 
@@ -1088,8 +1628,24 @@ bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error
         const Vec3& a = mesh.vertices[face.v[0]];
         const Vec3& b = mesh.vertices[face.v[1]];
         const Vec3& c = mesh.vertices[face.v[2]];
-        const Vec3 normal = triangleNormal(a, b, c);
-        const std::array<Vec3, 4> values = {normal, a, b, c};
+        const Vec3 quantizedA(static_cast<float>(a.x()), static_cast<float>(a.y()), static_cast<float>(a.z()));
+        const Vec3 quantizedB(static_cast<float>(b.x()), static_cast<float>(b.y()), static_cast<float>(b.z()));
+        const Vec3 quantizedC(static_cast<float>(c.x()), static_cast<float>(c.y()), static_cast<float>(c.z()));
+        const double quantizedArea = triangleArea(quantizedA, quantizedB, quantizedC);
+        if (!std::isfinite(quantizedArea) || quantizedArea <= kMinTriangleArea) {
+            out.close();
+            std::error_code cleanupError;
+            manumesh::filesystem::remove(temporaryPath, cleanupError);
+            if (error) {
+                *error = "Mesh face becomes degenerate after binary STL float32 conversion.";
+            }
+            return false;
+        }
+        // The serialized vertices are the float32-quantized values, so derive
+        // the advisory STL normal from that same geometry rather than from
+        // the higher-precision input triangle.
+        const Vec3 normal = triangleNormal(quantizedA, quantizedB, quantizedC);
+        const std::array<Vec3, 4> values = {normal, quantizedA, quantizedB, quantizedC};
         for (std::size_t valueIndex = 0; valueIndex < values.size(); ++valueIndex) {
             const Vec3& value = values[valueIndex];
             const std::size_t offset = valueIndex * 12;
@@ -1101,8 +1657,25 @@ bool saveBinaryStl(const std::string& path, const Mesh& mesh, std::string* error
     }
     out.flush();
     if (!out) {
+        out.close();
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
         if (error)
             *error = "Failed to write output STL: the stream reported an error (disk full or I/O failure).";
+        return false;
+    }
+    out.close();
+    if (!out) {
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
+        if (error) {
+            *error = "Failed to finalize temporary output STL.";
+        }
+        return false;
+    }
+    if (!replaceOutputFile(temporaryPath, outputPath, error)) {
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
         return false;
     }
     return true;
@@ -1122,15 +1695,32 @@ bool saveAsciiStl(const std::string& path, const Mesh& mesh, const std::string& 
             return false;
         }
     }
-    std::ofstream out(outputPath);
+    std::string sanitizedSolidName;
+    sanitizedSolidName.reserve(std::min<std::size_t>(solidName.size(), 256));
+    for (unsigned char ch : solidName) {
+        if (sanitizedSolidName.size() == 256) {
+            break;
+        }
+        sanitizedSolidName.push_back(std::iscntrl(ch) ? ' ' : static_cast<char>(ch));
+    }
+    if (sanitizedSolidName.empty()) {
+        sanitizedSolidName = "mesh";
+    }
+
+    const manumesh::filesystem::path temporaryPath = temporaryOutputPath(outputPath);
+    std::ofstream out(temporaryPath, std::ios::out | std::ios::trunc);
     if (!out) {
+        out.close();
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
         if (error)
-            *error = "Failed to open output STL.";
+            *error = "Failed to open temporary output STL.";
         return false;
     }
 
+    out.imbue(std::locale::classic());
     out << std::setprecision(17);
-    out << "solid " << solidName << "\n";
+    out << "solid " << sanitizedSolidName << "\n";
     for (const Face& face : mesh.faces) {
         const Vec3& a = mesh.vertices[face.v[0]];
         const Vec3& b = mesh.vertices[face.v[1]];
@@ -1144,11 +1734,113 @@ bool saveAsciiStl(const std::string& path, const Mesh& mesh, const std::string& 
         out << "    endloop\n";
         out << "  endfacet\n";
     }
-    out << "endsolid " << solidName << "\n";
+    out << "endsolid " << sanitizedSolidName << "\n";
     out.flush();
     if (!out) {
+        out.close();
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
         if (error)
             *error = "Failed to write output STL: the stream reported an error (disk full or I/O failure).";
+        return false;
+    }
+    out.close();
+    if (!out) {
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
+        if (error) {
+            *error = "Failed to finalize temporary output STL.";
+        }
+        return false;
+    }
+    if (!replaceOutputFile(temporaryPath, outputPath, error)) {
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
+        return false;
+    }
+    return true;
+}
+
+bool saveObj(const std::string& path, const Mesh& mesh, std::string* error) {
+    if (!validateMeshGeometry(mesh, error)) {
+        return false;
+    }
+    const manumesh::filesystem::path outputPath = pathFromUtf8(path);
+    if (outputPath.has_parent_path()) {
+        std::error_code ec;
+        manumesh::filesystem::create_directories(outputPath.parent_path(), ec);
+        if (ec) {
+            if (error) {
+                *error = "Failed to create output directory: " + ec.message();
+            }
+            return false;
+        }
+    }
+
+    const manumesh::filesystem::path temporaryPath = temporaryOutputPath(outputPath);
+    std::ofstream out(temporaryPath, std::ios::out | std::ios::trunc);
+    if (!out) {
+        out.close();
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
+        if (error) {
+            *error = "Failed to open temporary output OBJ.";
+        }
+        return false;
+    }
+
+    out.imbue(std::locale::classic());
+    out << std::setprecision(17);
+    for (const Vec3& vertex : mesh.vertices) {
+        out << "v " << vertex.x() << " " << vertex.y() << " " << vertex.z() << "\n";
+    }
+
+    bool hasTexcoords = false;
+    for (const FaceTexCoords& texcoords : mesh.faceTexCoords) {
+        if (texcoords.valid) {
+            hasTexcoords = true;
+            for (const Vec2& uv : texcoords.uv) {
+                out << "vt " << uv.x() << " " << uv.y() << "\n";
+            }
+        }
+    }
+
+    std::size_t nextTexcoord = 1;
+    for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
+        const Face& face = mesh.faces[faceIndex];
+        const bool faceHasTexcoords =
+            hasTexcoords && faceIndex < mesh.faceTexCoords.size() && mesh.faceTexCoords[faceIndex].valid;
+        if (faceHasTexcoords) {
+            out << "f " << face.v[0] + 1 << "/" << nextTexcoord << " " << face.v[1] + 1 << "/" << nextTexcoord + 1
+                << " " << face.v[2] + 1 << "/" << nextTexcoord + 2 << "\n";
+            nextTexcoord += 3;
+        } else {
+            out << "f " << face.v[0] + 1 << " " << face.v[1] + 1 << " " << face.v[2] + 1 << "\n";
+        }
+    }
+
+    out.flush();
+    if (!out) {
+        out.close();
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
+        if (error) {
+            *error = "Failed to write output OBJ: the stream reported an error (disk full or I/O failure).";
+        }
+        return false;
+    }
+    out.close();
+    if (!out) {
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
+        if (error) {
+            *error = "Failed to finalize temporary output OBJ.";
+        }
+        return false;
+    }
+    if (!replaceOutputFile(temporaryPath, outputPath, error)) {
+        std::error_code cleanupError;
+        manumesh::filesystem::remove(temporaryPath, cleanupError);
         return false;
     }
     return true;

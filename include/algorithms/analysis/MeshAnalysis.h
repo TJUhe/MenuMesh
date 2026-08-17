@@ -54,7 +54,8 @@ MANUMESH_API MeshStats computeMeshStats(const Mesh& mesh);
 /// 所有字段均为零。
 /// @param[in] original 第一个表面，通常是未简化的参考表面。
 /// @param[in] simplified 用于与参考表面比较的第二个表面。
-/// @param[in] maxSamples 每个方向抽取的最大确定性样本数。
+/// @param[in] maxSamples 每个方向抽取的最大确定性样本数；大于 1,000,000 时会安全截断为 1,000,000，
+/// 而非把不同网格误报为零距离。
 /// @return 双向平均及最大点到表面距离。
 /// @complexity O((F_o + F_s) log(F_o + F_s) + maxSamples log(F_o + F_s))。
 MANUMESH_API DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& simplified, int maxSamples);

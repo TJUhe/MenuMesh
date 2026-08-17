@@ -120,6 +120,20 @@ FeaturePrimitiveFit makePrimitiveFit(const feature::VertexFeature& source) {
     return fit;
 }
 
+FeaturePrimitiveFit makePrimitiveFit(const feature::FeatureLoop& source) {
+    FeaturePrimitiveFit fit;
+    fit.circleCenter = source.center;
+    fit.circleNormal = source.normal;
+    fit.circleRadius = source.radius;
+    fit.ellipseCenter = source.center;
+    fit.ellipseNormal = source.normal;
+    fit.ellipseMajorAxis = source.majorAxis;
+    fit.ellipseMinorAxis = source.minorAxis;
+    fit.ellipseMajorRadius = source.majorRadius;
+    fit.ellipseMinorRadius = source.minorRadius;
+    return fit;
+}
+
 int curveStorageSize(const feature::FeatureAnalysis& analysis) {
     int size = static_cast<int>(analysis.loops.size());
     for (const feature::FeatureLoop& loop : analysis.loops) {
@@ -215,6 +229,10 @@ FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature
             constraint.closed = loop.closed && static_cast<int>(constraint.segments.size()) == pairCount;
         } else {
             constraint.valid = constraint.valid && constraint.samples.size() >= 2;
+        }
+        if (constraint.valid && isAnalyticPrimitive(loop.primitive)) {
+            constraint.primitiveFitId = static_cast<int>(guidance.primitiveFits.size());
+            guidance.primitiveFits.push_back(makePrimitiveFit(loop));
         }
         // 对长折线只构建一次线段索引，使每次折叠的最近点查询从 O(L) 降为 O(log L)。
         if (constraint.valid && constraint.primitive == FeatureCurveKind::PolygonalLoop) {

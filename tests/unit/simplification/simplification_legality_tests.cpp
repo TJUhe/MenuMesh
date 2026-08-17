@@ -103,6 +103,47 @@ TEST(ManuMesh, CollapseLegalityRejectsNonFinitePlacementBeforeGeometryChecks) {
     EXPECT_EQ(simplification::CollapseRejectReason::Topology, simplification::collapsePlacementRejectReason(input));
 }
 
+TEST(ManuMesh, CollapseLegalityRejectsInvalidOrInactiveEndpointsBeforeTopologyLookup) {
+    std::vector<simplification::VertexState> vertices(4);
+    vertices[0].p = manumesh::Vec3(0.0, 0.0, 0.0);
+    vertices[1].p = manumesh::Vec3(1.0, 0.0, 0.0);
+    vertices[2].p = manumesh::Vec3(1.0, 1.0, 0.0);
+    vertices[3].p = manumesh::Vec3(0.0, 1.0, 0.0);
+    const std::vector<simplification::FaceState> faces = {
+        {{{0, 1, 2}}, true},
+        {{{0, 2, 3}}, true},
+    };
+    const simplification::DynamicTopology topology(faces, static_cast<int>(vertices.size()));
+    simplification::CollapseLegalityInput input{
+        {0, 1},
+        manumesh::Vec3(0.5, 0.0, 0.0),
+        {faces, vertices, topology},
+        1e-18,
+        0.0,
+        -1.0,
+        0.0,
+        false,
+        nullptr,
+        nullptr,
+    };
+
+    const std::array<simplification::CollapseEdge, 5> invalidEdges = {{
+        {-1, 1},
+        {0, -1},
+        {0, static_cast<int>(vertices.size())},
+        {static_cast<int>(vertices.size()), 0},
+        {1, 1},
+    }};
+    for (const simplification::CollapseEdge edge : invalidEdges) {
+        input.edge = edge;
+        EXPECT_EQ(simplification::CollapseRejectReason::Topology, simplification::collapsePlacementRejectReason(input));
+    }
+
+    input.edge = {0, 1};
+    vertices[1].active = false;
+    EXPECT_EQ(simplification::CollapseRejectReason::Topology, simplification::collapsePlacementRejectReason(input));
+}
+
 TEST(ManuMesh, StrictTriangleQualityRejectsPoorCollapsePlacements) {
     const manumesh::Mesh input = manumesh::generatePlaneGrid(4, 1.0, false);
 

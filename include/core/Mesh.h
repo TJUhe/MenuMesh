@@ -38,8 +38,8 @@ struct Face {
 /// 纹理坐标归属于面角而非顶点，因此同一个几何顶点可在相邻 UV 图表中
 /// 保留不同坐标。
 struct FaceTexCoords {
-    std::array<Vec2, 3> uv{}; ///< 每个面角对应的 UV 值。
-    bool valid = false;       ///< 此面是否拥有可用的 UV 坐标。
+    std::array<Vec2, 3> uv{{Vec2(0.0, 0.0), Vec2(0.0, 0.0), Vec2(0.0, 0.0)}}; ///< 每个面角对应的 UV 值。
+    bool valid = false;                                                       ///< 此面是否拥有可用的 UV 坐标。
 };
 
 /// 简化器和工具使用的最小三角网格容器。
@@ -103,9 +103,37 @@ MANUMESH_API double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c);
 /// @param[in] c 三角形第三个位置。
 /// @return 遵循 `(b-a) x (c-a)` 的单位法向量；退化时返回零向量。
 MANUMESH_API Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c);
+/// 为每个面计算无符号面积；不可用面对应 0。
+MANUMESH_API std::vector<double> computeFaceAreas(const Mesh& mesh);
+/// 计算所有可用三角面的总面积；有限面积之和溢出时返回正无穷。
+MANUMESH_API double computeSurfaceArea(const Mesh& mesh);
+/**
+ * @brief 计算封闭且一致定向网格的有符号体积。
+ *
+ * 每个共享边连通的面组件分别使用其包围盒中心作为参考点并按尺度归一化，以避免
+ * 大平移、相隔很远的组件或大坐标造成中间溢出与消减。
+ * 调用方应先校验网格为封闭二流形且绕序一致；对于开放或不一致的网格，结果没有体积语义。
+ * 不可用三角面会被跳过；结果无法表示为 double 时返回带符号无穷。
+ */
+MANUMESH_API double computeSignedVolume(const Mesh& mesh);
+/// 计算按面积加权的表面质心；没有可用面时返回零向量。
+MANUMESH_API Vec3 computeSurfaceCentroid(const Mesh& mesh);
+/// 为每个面计算单位法向；不可用面对应零向量。
+MANUMESH_API std::vector<Vec3> computeFaceNormals(const Mesh& mesh);
+/// 计算面积加权的逐顶点单位法向；孤立或相消顶点对应零向量。
+MANUMESH_API std::vector<Vec3> computeVertexNormals(const Mesh& mesh);
 /// @param[in] mesh 面索引有效的网格。
 /// @return 每条无向边仅出现一次，并按 `(a,b)` 字典序排列；每个端点对满足 `a < b`。
 /// @complexity 预期为 O(F)，其中 F 为面数量。
 MANUMESH_API std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh);
+
+/// 反转全部面绕序，并同步交换逐角 UV 的第二、第三个角。
+MANUMESH_API void reverseFaceWindings(Mesh& mesh);
+/// 删除索引无效、重复索引、非有限或零面积面，并可压缩未使用顶点。
+/// @return 删除面数量，结果限制为 INT_MAX。
+MANUMESH_API int removeDegenerateFaces(Mesh& mesh, bool compactVertices = true);
+/// 事务式追加 source，重写索引并保持逐面 UV 对齐；支持自追加。
+/// @return 成功时为 true；失败时 destination 保持不变。
+MANUMESH_API bool appendMesh(Mesh& destination, const Mesh& source, std::string* error = nullptr);
 
 } // 命名空间 manumesh

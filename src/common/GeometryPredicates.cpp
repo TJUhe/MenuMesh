@@ -183,67 +183,120 @@ bool coplanarTrianglesOverlap(
     return false;
 }
 
+double pointSegmentDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b) {
+    const Vec3 ab = b - a;
+    const double lengthSquared = ab.squaredNorm();
+    if (!std::isfinite(lengthSquared) || lengthSquared <= 0.0) {
+        return (p - a).squaredNorm();
+    }
+    const double t = std::max(0.0, std::min(1.0, (p - a).dot(ab) / lengthSquared));
+    return (p - (a + t * ab)).squaredNorm();
+}
+
 } // 命名空间
 
 double triangleQuality(const Vec3& a, const Vec3& b, const Vec3& c) {
-    const double l0 = (b - a).squaredNorm();
-    const double l1 = (c - b).squaredNorm();
-    const double l2 = (a - c).squaredNorm();
+    const Vec3 ab = b - a;
+    const Vec3 bc = c - b;
+    const Vec3 ca = a - c;
+    const double scale = std::max({ab.cwiseAbs().maxCoeff(), bc.cwiseAbs().maxCoeff(), ca.cwiseAbs().maxCoeff()});
+    if (!std::isfinite(scale) || scale <= 0.0) {
+        return 0.0;
+    }
+    const Vec3 scaledAb = ab / scale;
+    const Vec3 scaledBc = bc / scale;
+    const Vec3 scaledCa = ca / scale;
+    const double l0 = scaledAb.squaredNorm();
+    const double l1 = scaledBc.squaredNorm();
+    const double l2 = scaledCa.squaredNorm();
     const double denom = l0 + l1 + l2;
     if (denom <= kMinSquaredEdgeLengthSum) {
         return 0.0;
     }
-    return 4.0 * std::sqrt(3.0) * triangleArea(a, b, c) / denom;
+    const double twiceArea = scaledAb.cross(-scaledCa).norm();
+    const double quality = 2.0 * std::sqrt(3.0) * twiceArea / denom;
+    return std::isfinite(quality) ? std::max(0.0, std::min(1.0, quality)) : 0.0;
 }
 
 double pointTriangleDistanceSquared(const Vec3& p, const Vec3& a, const Vec3& b, const Vec3& c) {
-    const Vec3 ab = b - a;
-    const Vec3 ac = c - a;
-    const Vec3 ap = p - a;
+    const Vec3 originalAb = b - a;
+    const Vec3 originalAc = c - a;
+    const Vec3 originalAp = p - a;
+    const double scale = std::max(
+        {originalAb.cwiseAbs().maxCoeff(), originalAc.cwiseAbs().maxCoeff(), originalAp.cwiseAbs().maxCoeff()}
+    );
+    if (!std::isfinite(scale)) {
+        return std::numeric_limits<double>::infinity();
+    }
+    if (scale <= 0.0) {
+        return 0.0;
+    }
+
+    const Vec3 ab = originalAb / scale;
+    const Vec3 ac = originalAc / scale;
+    const Vec3 ap = originalAp / scale;
+    const auto restoreScale = [scale](double normalizedDistanceSquared) {
+        if (!std::isfinite(normalizedDistanceSquared) || normalizedDistanceSquared < 0.0) {
+            return std::numeric_limits<double>::infinity();
+        }
+        if (normalizedDistanceSquared == 0.0) {
+            return 0.0;
+        }
+        const double distance = std::sqrt(normalizedDistanceSquared) * scale;
+        const double maxRoot = std::sqrt(std::numeric_limits<double>::max());
+        return !std::isfinite(distance) || distance > maxRoot ? std::numeric_limits<double>::infinity()
+                                                              : distance * distance;
+    };
+
+    const Vec3 normal = ab.cross(ac);
+    const double maxEdgeSquared = std::max({ab.squaredNorm(), ac.squaredNorm(), (ac - ab).squaredNorm()});
+    const double normalSquared = normal.squaredNorm();
+    if (maxEdgeSquared <= 0.0 || normalSquared <= 1e-24 * maxEdgeSquared * maxEdgeSquared) {
+        return restoreScale(
+            std::min({
+                pointSegmentDistanceSquared(ap, Vec3::Zero(), ab),
+                pointSegmentDistanceSquared(ap, ab, ac),
+                pointSegmentDistanceSquared(ap, ac, Vec3::Zero()),
+            })
+        );
+    }
     const double d1 = ab.dot(ap);
     const double d2 = ac.dot(ap);
     if (d1 <= 0.0 && d2 <= 0.0)
-        return (p - a).squaredNorm();
+        return restoreScale(ap.squaredNorm());
 
-    const Vec3 bp = p - b;
+    const Vec3 bp = ap - ab;
     const double d3 = ab.dot(bp);
     const double d4 = ac.dot(bp);
     if (d3 >= 0.0 && d4 <= d3)
-        return (p - b).squaredNorm();
+        return restoreScale(bp.squaredNorm());
 
     const double vc = d1 * d4 - d3 * d2;
     if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0) {
         const double v = d1 / (d1 - d3);
-        return (p - (a + v * ab)).squaredNorm();
+        return restoreScale((ap - v * ab).squaredNorm());
     }
 
-    const Vec3 cp = p - c;
+    const Vec3 cp = ap - ac;
     const double d5 = ab.dot(cp);
     const double d6 = ac.dot(cp);
     if (d6 >= 0.0 && d5 <= d6)
-        return (p - c).squaredNorm();
+        return restoreScale(cp.squaredNorm());
 
     const double vb = d5 * d2 - d1 * d6;
     if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0) {
         const double w = d2 / (d2 - d6);
-        return (p - (a + w * ac)).squaredNorm();
+        return restoreScale((ap - w * ac).squaredNorm());
     }
 
     const double va = d3 * d6 - d5 * d4;
     if (va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0) {
         const double w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        return (p - (b + w * (c - b))).squaredNorm();
+        return restoreScale((bp - w * (ac - ab)).squaredNorm());
     }
 
-    const Vec3 n = ab.cross(ac);
-    const double nn = n.squaredNorm();
-    // 相对退化检查：|ab x ac|^2 <= tol * (|ab| |ac|)^2 表示夹角在数值上为零，
-    // 与绝对尺度无关。
-    if (nn <= 1e-24 * ab.squaredNorm() * ac.squaredNorm()) {
-        return std::min({(p - a).squaredNorm(), (p - b).squaredNorm(), (p - c).squaredNorm()});
-    }
-    const double distance = n.dot(ap);
-    return distance * distance / nn;
+    const double signedDistanceNumerator = normal.dot(ap);
+    return restoreScale(signedDistanceNumerator * signedDistanceNumerator / normalSquared);
 }
 
 double pointAabbDistanceSquared(const Vec3& p, const Vec3& lo, const Vec3& hi) {
@@ -268,7 +321,46 @@ std::pair<Vec3, Vec3> triangleAabb(const std::array<Vec3, 3>& tri, double paddin
     return {lo - pad, hi + pad};
 }
 
-bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3>& rhs, double eps) {
+static bool normalizeTrianglePair(
+    const std::array<Vec3, 3>& lhs,
+    const std::array<Vec3, 3>& rhs,
+    std::array<Vec3, 3>& normalizedLhs,
+    std::array<Vec3, 3>& normalizedRhs
+) {
+    double coordinateScale = 0.0;
+    for (const Vec3& point : lhs) {
+        if (!point.allFinite()) {
+            return false;
+        }
+        coordinateScale = std::max(coordinateScale, point.cwiseAbs().maxCoeff());
+    }
+    for (const Vec3& point : rhs) {
+        if (!point.allFinite()) {
+            return false;
+        }
+        coordinateScale = std::max(coordinateScale, point.cwiseAbs().maxCoeff());
+    }
+    if (!(coordinateScale > 0.0) || !std::isfinite(coordinateScale)) {
+        normalizedLhs = lhs;
+        normalizedRhs = rhs;
+        return coordinateScale == 0.0;
+    }
+
+    // Normalize before subtracting coordinates. This avoids overflow for a
+    // valid triangle translated near +/-DBL_MAX while retaining local geometry.
+    const Vec3 origin = lhs[0] / coordinateScale;
+    for (int i = 0; i < 3; ++i) {
+        normalizedLhs[static_cast<std::size_t>(i)] = lhs[static_cast<std::size_t>(i)] / coordinateScale - origin;
+        normalizedRhs[static_cast<std::size_t>(i)] = rhs[static_cast<std::size_t>(i)] / coordinateScale - origin;
+        if (!normalizedLhs[static_cast<std::size_t>(i)].allFinite() ||
+            !normalizedRhs[static_cast<std::size_t>(i)].allFinite()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool trianglesIntersectNormalized(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3>& rhs, double eps) {
     Vec3 lhsLo = lhs[0].cwiseMin(lhs[1]).cwiseMin(lhs[2]);
     Vec3 lhsHi = lhs[0].cwiseMax(lhs[1]).cwiseMax(lhs[2]);
     Vec3 rhsLo = rhs[0].cwiseMin(rhs[1]).cwiseMin(rhs[2]);
@@ -284,8 +376,8 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
 
     const Vec3 lhsNormal = (lhs[1] - lhs[0]).cross(lhs[2] - lhs[0]);
     const Vec3 rhsNormal = (rhs[1] - rhs[0]).cross(rhs[2] - rhs[0]);
-    const double lhsNorm = lhsNormal.norm();
-    const double rhsNorm = rhsNormal.norm();
+    const double lhsNorm = lhsNormal.stableNorm();
+    const double rhsNorm = rhsNormal.stableNorm();
     // 法向量模是三角形面积的两倍，因此应与面积量纲的容差比较。
     if (lhsNorm <= epsArea || rhsNorm <= epsArea) {
         return false;
@@ -312,6 +404,18 @@ bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3
     return false;
 }
 
+bool trianglesIntersect(const std::array<Vec3, 3>& lhs, const std::array<Vec3, 3>& rhs, double eps) {
+    if (!std::isfinite(eps) || eps < 0.0) {
+        return false;
+    }
+    std::array<Vec3, 3> normalizedLhs{};
+    std::array<Vec3, 3> normalizedRhs{};
+    if (!normalizeTrianglePair(lhs, rhs, normalizedLhs, normalizedRhs)) {
+        return false;
+    }
+    return trianglesIntersectNormalized(normalizedLhs, normalizedRhs, eps);
+}
+
 bool trianglesIntersectBeyondSharedTopology(
     const std::array<int, 3>& lhsIds,
     const std::array<Vec3, 3>& lhs,
@@ -319,6 +423,25 @@ bool trianglesIntersectBeyondSharedTopology(
     const std::array<Vec3, 3>& rhs,
     double eps
 ) {
+    if (!std::isfinite(eps) || eps < 0.0) {
+        return false;
+    }
+    std::array<Vec3, 3> normalizedLhs{};
+    std::array<Vec3, 3> normalizedRhs{};
+    if (!normalizeTrianglePair(lhs, rhs, normalizedLhs, normalizedRhs)) {
+        return false;
+    }
+
+    const auto validTriangleIds = [](const std::array<int, 3>& ids) {
+        return ids[0] >= 0 && ids[1] >= 0 && ids[2] >= 0 && ids[0] != ids[1] && ids[0] != ids[2] && ids[1] != ids[2];
+    };
+    if (!validTriangleIds(lhsIds) || !validTriangleIds(rhsIds)) {
+        // Invalid topology cannot define an allowed shared vertex or edge.
+        // Use geometry-only intersection instead of indexing a missing
+        // opposite corner in the shared-edge special case.
+        return trianglesIntersectNormalized(normalizedLhs, normalizedRhs, eps);
+    }
+
     std::array<int, 2> lhsShared{{-1, -1}};
     int sharedCount = 0;
     int lhsOpposite = -1;
@@ -353,23 +476,27 @@ bool trianglesIntersectBeyondSharedTopology(
     }
 
     if (sharedCount <= 1) {
-        return trianglesIntersect(lhs, rhs, eps);
+        return trianglesIntersectNormalized(normalizedLhs, normalizedRhs, eps);
     }
     if (sharedCount >= 3) {
         return true;
     }
 
-    const Vec3& s0 = lhs[static_cast<std::size_t>(lhsShared[0])];
-    const Vec3& s1 = lhs[static_cast<std::size_t>(lhsShared[1])];
-    const Vec3& lhsTip = lhs[static_cast<std::size_t>(lhsOpposite)];
-    const Vec3& rhsTip = rhs[static_cast<std::size_t>(rhsOpposite)];
-    const Vec3 lhsNormal = (lhs[1] - lhs[0]).cross(lhs[2] - lhs[0]);
-    const Vec3 rhsNormal = (rhs[1] - rhs[0]).cross(rhs[2] - rhs[0]);
-    const double lhsNorm = lhsNormal.norm();
-    const double rhsNorm = rhsNormal.norm();
+    const Vec3& s0 = normalizedLhs[static_cast<std::size_t>(lhsShared[0])];
+    const Vec3& s1 = normalizedLhs[static_cast<std::size_t>(lhsShared[1])];
+    const Vec3& lhsTip = normalizedLhs[static_cast<std::size_t>(lhsOpposite)];
+    const Vec3& rhsTip = normalizedRhs[static_cast<std::size_t>(rhsOpposite)];
+    const Vec3 lhsNormal = (normalizedLhs[1] - normalizedLhs[0]).cross(normalizedLhs[2] - normalizedLhs[0]);
+    const Vec3 rhsNormal = (normalizedRhs[1] - normalizedRhs[0]).cross(normalizedRhs[2] - normalizedRhs[0]);
+    const double lhsNorm = lhsNormal.stableNorm();
+    const double rhsNorm = rhsNormal.stableNorm();
     const double scale = std::max(
-        (lhs[0].cwiseMax(lhs[1]).cwiseMax(lhs[2]) - lhs[0].cwiseMin(lhs[1]).cwiseMin(lhs[2])).maxCoeff(),
-        (rhs[0].cwiseMax(rhs[1]).cwiseMax(rhs[2]) - rhs[0].cwiseMin(rhs[1]).cwiseMin(rhs[2])).maxCoeff()
+        (normalizedLhs[0].cwiseMax(normalizedLhs[1]).cwiseMax(normalizedLhs[2]) -
+         normalizedLhs[0].cwiseMin(normalizedLhs[1]).cwiseMin(normalizedLhs[2]))
+            .maxCoeff(),
+        (normalizedRhs[0].cwiseMax(normalizedRhs[1]).cwiseMax(normalizedRhs[2]) -
+         normalizedRhs[0].cwiseMin(normalizedRhs[1]).cwiseMin(normalizedRhs[2]))
+            .maxCoeff()
     );
     const double epsLen = eps * scale;
     const double epsArea = eps * scale * scale;

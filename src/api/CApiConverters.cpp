@@ -8,6 +8,7 @@
 
 #include "api/detail/CApiConverters.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstring>
@@ -43,8 +44,20 @@ void writeAbiField(T* value, std::size_t writeSize, std::size_t fieldOffset, con
     std::memcpy(reinterpret_cast<unsigned char*>(value) + fieldOffset, &fieldValue, sizeof(Field));
 }
 
+template <typename T> bool inputAbiFieldPresent(const T& value, std::size_t fieldOffset, std::size_t fieldSize) {
+    // Input structs do not carry a separate allocation-capacity argument.  A
+    // caller-declared size larger than the current layout therefore cannot be
+    // trusted: accepting it would make a short legacy allocation look like a
+    // full object and allow reads past its storage.  Newer layouts need a new
+    // ABI entry point (or an explicit capacity parameter).
+    if (value.struct_size > sizeof(T)) {
+        return false;
+    }
+    return abiFieldPresent(value.struct_size, fieldOffset, fieldSize);
+}
+
 template <typename T, typename Field> bool readAbiField(const T& value, std::size_t fieldOffset, Field& fieldValue) {
-    if (!abiFieldPresent(value.struct_size, fieldOffset, sizeof(Field))) {
+    if (!inputAbiFieldPresent(value, fieldOffset, sizeof(Field))) {
         return false;
     }
     std::memcpy(&fieldValue, reinterpret_cast<const unsigned char*>(&value) + fieldOffset, sizeof(Field));
@@ -67,7 +80,8 @@ template <typename T> ManuMeshStatus initializeAbiBuffer(T* value, std::size_t s
 
 template <typename T> bool abiStructLooksInitialized(const T& value) {
     constexpr std::size_t kMinimumInitializedSize = offsetof(T, abi_version) + sizeof(value.abi_version);
-    return value.struct_size >= kMinimumInitializedSize && value.abi_version == MANUMESH_ABI_VERSION;
+    return value.struct_size >= kMinimumInitializedSize && value.struct_size <= sizeof(T) &&
+           value.abi_version == MANUMESH_ABI_VERSION;
 }
 
 template <typename T>
@@ -91,7 +105,7 @@ bool validateOutputCapacity(
 }
 
 #define MANUMESH_SIMPLIFY_FIELD_PRESENT(options, field)                                                                \
-    abiFieldPresent((options).struct_size, offsetof(ManuMeshSimplifyOptions, field), sizeof((options).field))
+    inputAbiFieldPresent((options), offsetof(ManuMeshSimplifyOptions, field), sizeof((options).field))
 
 #define MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(options, field, hasOverride)                                             \
     (!(hasOverride) && MANUMESH_SIMPLIFY_FIELD_PRESENT(options, field))
@@ -369,6 +383,10 @@ ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::
     MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_gap_length_ratio, 3.0);
     MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_min_alignment, 0.75);
     MANUMESH_INITIALIZE_OPTION(feature_options, static_cast<const ManuMeshFeatureOptions*>(nullptr));
+    MANUMESH_INITIALIZE_OPTION(preserve_texture, 0);
+    MANUMESH_INITIALIZE_OPTION(texture_weight, 1.0);
+    MANUMESH_INITIALIZE_OPTION(texture_seam_tolerance, 1e-8);
+    MANUMESH_INITIALIZE_OPTION(min_texture_area_ratio, 1e-8);
 
 #undef MANUMESH_INITIALIZE_OPTION
 
@@ -729,6 +747,29 @@ bool readSimplifyQualityFields(
     return true;
 }
 
+bool readSimplifyTextureFields(
+    const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
+) {
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, preserve_texture)) {
+        target.preserveTexture = boolFromInt(source.preserve_texture);
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, texture_weight) &&
+        !readFiniteDouble(source.texture_weight, "texture_weight", target.textureWeight, error)) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, texture_seam_tolerance) &&
+        !readFiniteDouble(
+            source.texture_seam_tolerance, "texture_seam_tolerance", target.textureSeamTolerance, error
+        )) {
+        return false;
+    }
+    if (MANUMESH_SIMPLIFY_FIELD_PRESENT(source, min_texture_area_ratio) &&
+        !readFiniteDouble(source.min_texture_area_ratio, "min_texture_area_ratio", target.minTextureAreaRatio, error)) {
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 bool readSimplifyOptions(
@@ -754,7 +795,7 @@ bool readSimplifyOptions(
 
     return readSimplifyTargetAndCostOptions(source, target, error) &&
            readSimplifyFeatureFields(source, hasFeatureOptionsOverride, target, error) &&
-           readSimplifyQualityFields(source, target, error);
+           readSimplifyQualityFields(source, target, error) && readSimplifyTextureFields(source, target, error);
 }
 
 bool validateSimplifyReportOutput(
@@ -888,6 +929,9 @@ ManuMeshStatus fillSimplifyReport(
     MANUMESH_SET_REPORT_FIELD(
         target, writeSize, quality_refinement_skipped_for_texture, source.qualityRefinementSkippedForTexture ? 1 : 0
     );
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, texture_rejected_collapses, source.textureRejectedCollapses);
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, texture_protected_edges, source.textureProtectedEdges);
+    MANUMESH_SET_REPORT_FIELD(target, writeSize, texture_apply_failures, source.textureApplyFailures);
     return MANUMESH_STATUS_OK;
 }
 

@@ -49,15 +49,24 @@ std::uint32_t readUint32LE(const char* bytes) {
            (static_cast<std::uint32_t>(data[2]) << 16u) | (static_cast<std::uint32_t>(data[3]) << 24u);
 }
 
-void appendBytes(std::string& out, const void* data, std::size_t size) {
-    out.append(static_cast<const char*>(data), size);
+void appendUint32LE(std::string& out, std::uint32_t value) {
+    out.push_back(static_cast<char>(value & 0xffu));
+    out.push_back(static_cast<char>((value >> 8u) & 0xffu));
+    out.push_back(static_cast<char>((value >> 16u) & 0xffu));
+    out.push_back(static_cast<char>((value >> 24u) & 0xffu));
 }
 
-void appendUint32LE(std::string& out, std::uint32_t value) { appendBytes(out, &value, sizeof(value)); }
+void appendUint16LE(std::string& out, std::uint16_t value) {
+    out.push_back(static_cast<char>(value & 0xffu));
+    out.push_back(static_cast<char>((value >> 8u) & 0xffu));
+}
 
-void appendUint16LE(std::string& out, std::uint16_t value) { appendBytes(out, &value, sizeof(value)); }
-
-void appendFloatLE(std::string& out, float value) { appendBytes(out, &value, sizeof(value)); }
+void appendFloatLE(std::string& out, float value) {
+    std::uint32_t bits = 0;
+    static_assert(sizeof(bits) == sizeof(value), "Binary STL tests require 32-bit floats.");
+    std::memcpy(&bits, &value, sizeof(bits));
+    appendUint32LE(out, bits);
+}
 
 /// 构造二进制 STL 数据：包含全零头部（因此不会以 "solid" 开头）、声明的三角形数量、
 /// 实际三角形记录，以及可选的尾部填充字节。
@@ -107,6 +116,7 @@ TEST(MeshIo, SuccessfulLoadsClearStaleError) {
     std::string error = "stale error";
     EXPECT_TRUE(manumesh::loadObj(objPath.string(), mesh, &error));
     EXPECT_TRUE(error.empty());
+    EXPECT_TRUE(mesh.faceTexCoords.empty());
 
     error = "stale error";
     EXPECT_TRUE(manumesh::loadStl(stlPath.string(), mesh, &error));
@@ -118,6 +128,206 @@ TEST(MeshIo, SuccessfulLoadsClearStaleError) {
 
     manumesh::filesystem::remove(objPath);
     manumesh::filesystem::remove(stlPath);
+}
+
+TEST(MeshIo, FailedLoadsPreserveExistingMeshAndObjAcceptsInlineComments) {
+    const manumesh::filesystem::path validPath = writeTempFile(
+        "manumesh_io_inline_comment.obj",
+        "v 0 0 0 # origin\n"
+        "v 1 0 0\n"
+        "v 0 1 0\n"
+        "f 1 2 3 # triangle\n"
+    );
+    const manumesh::filesystem::path invalidPath = writeTempFile(
+        "manumesh_io_preserve_on_failure.obj",
+        "v 0 0 0\n"
+        "v 1 0 0\n"
+        "v 0 1 0\n"
+        "f 1/ 2 3\n"
+    );
+
+    manumesh::Mesh mesh;
+    mesh.vertices = {manumesh::Vec3(7.0, 8.0, 9.0), manumesh::Vec3(8.0, 8.0, 9.0), manumesh::Vec3(7.0, 9.0, 9.0)};
+    mesh.faces = {{{0, 1, 2}}};
+    const manumesh::Mesh original = mesh;
+    std::string error;
+    EXPECT_FALSE(manumesh::loadObj(invalidPath.string(), mesh, &error));
+    ASSERT_EQ(original.vertices.size(), mesh.vertices.size());
+    for (std::size_t i = 0; i < original.vertices.size(); ++i) {
+        EXPECT_DOUBLE_EQ(original.vertices[i].x(), mesh.vertices[i].x());
+        EXPECT_DOUBLE_EQ(original.vertices[i].y(), mesh.vertices[i].y());
+        EXPECT_DOUBLE_EQ(original.vertices[i].z(), mesh.vertices[i].z());
+    }
+    EXPECT_EQ(original.faces.size(), mesh.faces.size());
+    EXPECT_EQ(original.faces[0].v, mesh.faces[0].v);
+
+    ASSERT_TRUE(manumesh::loadObj(validPath.string(), mesh, &error)) << error;
+    EXPECT_EQ(3u, mesh.vertices.size());
+    EXPECT_EQ(1u, mesh.faces.size());
+    manumesh::filesystem::remove(validPath);
+    manumesh::filesystem::remove(invalidPath);
+}
+
+TEST(MeshIo, ObjRejectsMalformedNormalAndExtraSlashReferences) {
+    const std::vector<std::string> invalidFaces = {"f 1// 2//1 3//1\n", "f 1/1/1/1 2/1/1 3/1/1\n"};
+    for (std::size_t i = 0; i < invalidFaces.size(); ++i) {
+        const manumesh::filesystem::path path = writeTempFile(
+            "manumesh_io_bad_face_slashes_" + std::to_string(i) + ".obj",
+            "v 0 0 0\n"
+            "v 1 0 0\n"
+            "v 0 1 0\n"
+            "vt 0 0\n"
+            "vn 0 0 1\n" +
+                invalidFaces[i]
+        );
+        manumesh::Mesh mesh;
+        std::string error;
+        EXPECT_FALSE(manumesh::loadObj(path.string(), mesh, &error)) << invalidFaces[i];
+        EXPECT_NE(std::string::npos, error.find("line 6"));
+        manumesh::filesystem::remove(path);
+    }
+}
+
+TEST(MeshIo, AsciiStlRejectsVertexTrailingDataAndPreservesTarget) {
+    const manumesh::filesystem::path path = writeTempFile(
+        "manumesh_io_ascii_vertex_trailing_data.stl",
+        "solid bad\n"
+        "  facet normal 0 0 1\n"
+        "    outer loop\n"
+        "      vertex 0 0 0 unexpected\n"
+        "      vertex 1 0 0\n"
+        "      vertex 0 1 0\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid bad\n"
+    );
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(7.0, 8.0, 9.0),
+        manumesh::Vec3(8.0, 8.0, 9.0),
+        manumesh::Vec3(7.0, 9.0, 9.0),
+    };
+    mesh.faces = {{{0, 1, 2}}};
+    const manumesh::Mesh original = mesh;
+    std::string error;
+    EXPECT_FALSE(manumesh::loadStl(path.string(), mesh, &error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_EQ(original.vertices.size(), mesh.vertices.size());
+    EXPECT_EQ(original.faces.size(), mesh.faces.size());
+    EXPECT_EQ(original.faces[0].v, mesh.faces[0].v);
+    manumesh::filesystem::remove(path);
+}
+
+TEST(MeshIo, AsciiStlRejectsIncompleteFacetStructure) {
+    const manumesh::filesystem::path path = writeTempFile(
+        "manumesh_io_ascii_missing_endfacet.stl",
+        "solid malformed\n"
+        "  facet normal 0 0 1\n"
+        "    outer loop\n"
+        "      vertex 0 0 0\n"
+        "      vertex 1 0 0\n"
+        "      vertex 0 1 0\n"
+        "    endloop\n"
+        "endsolid malformed\n"
+    );
+
+    manumesh::Mesh mesh;
+    std::string error;
+    EXPECT_FALSE(manumesh::loadStl(path.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("endfacet")) << error;
+    manumesh::filesystem::remove(path);
+}
+
+TEST(MeshIo, AsciiStlAcceptsConcatenatedSolidBlocks) {
+    const manumesh::filesystem::path path = writeTempFile(
+        "manumesh_io_concatenated_solids.stl",
+        "solid lower\n"
+        "  facet normal 0 0 1\n"
+        "    outer loop\n"
+        "      vertex 0 0 0\n"
+        "      vertex 1 0 0\n"
+        "      vertex 0 1 0\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid lower\n"
+        "solid upper\n"
+        "  facet normal 0 0 1\n"
+        "    outer loop\n"
+        "      vertex 0 0 1\n"
+        "      vertex 1 0 1\n"
+        "      vertex 0 1 1\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid upper\n"
+    );
+
+    manumesh::Mesh mesh;
+    std::string error;
+    ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error)) << error;
+    EXPECT_EQ(2u, mesh.faces.size());
+    EXPECT_EQ(6u, mesh.vertices.size());
+    manumesh::filesystem::remove(path);
+}
+
+TEST(MeshIo, StlRejectsCollinearFacetAndPreservesTarget) {
+    const manumesh::filesystem::path path = writeTempFile(
+        "manumesh_io_collinear_facet.stl",
+        "solid collinear\n"
+        "  facet normal 0 0 1\n"
+        "    outer loop\n"
+        "      vertex 0 0 0\n"
+        "      vertex 1 0 0\n"
+        "      vertex 2 0 0\n"
+        "    endloop\n"
+        "  endfacet\n"
+        "endsolid collinear\n"
+    );
+    manumesh::Mesh mesh;
+    mesh.vertices = {manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(1.0, 0.0, 0.0), manumesh::Vec3(0.0, 1.0, 0.0)};
+    mesh.faces = {{{0, 1, 2}}};
+    const manumesh::Mesh original = mesh;
+
+    std::string error;
+    EXPECT_FALSE(manumesh::loadStl(path.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("zero area")) << error;
+    EXPECT_EQ(original.vertices.size(), mesh.vertices.size());
+    ASSERT_EQ(original.faces.size(), mesh.faces.size());
+    EXPECT_EQ(original.faces[0].v, mesh.faces[0].v);
+    manumesh::filesystem::remove(path);
+}
+
+TEST(MeshIo, BinaryStlWriteRejectsFloatQuantizationDegeneracyWithoutOverwritingOutput) {
+    const manumesh::filesystem::path path = writeTempFile("manumesh_io_existing_output.stl", "preserve me");
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(100000000.0, 0.0, 0.0),
+        manumesh::Vec3(100000001.0, 0.0, 0.0),
+        manumesh::Vec3(100000000.0, 1.0, 0.0),
+    };
+    mesh.faces = {{{0, 1, 2}}};
+    std::string error;
+    EXPECT_FALSE(manumesh::saveBinaryStl(path.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("float32"));
+    EXPECT_EQ("preserve me", readFileBytes(path));
+    manumesh::filesystem::remove(path);
+}
+
+TEST(MeshIo, BinaryStlWriteRejectsSubthresholdFloatQuantizationWithoutOverwritingOutput) {
+    const manumesh::filesystem::path path = writeTempFile("manumesh_io_subthreshold_output.stl", "preserve me");
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1e-10, 1e-10, 0.0),
+        manumesh::Vec3(2e-10, 2e-10 + 2.000001e-14, 0.0),
+    };
+    mesh.faces = {{{0, 1, 2}}};
+    ASSERT_GT(manumesh::triangleArea(mesh.vertices[0], mesh.vertices[1], mesh.vertices[2]), 1e-24);
+
+    std::string error;
+    EXPECT_FALSE(manumesh::saveBinaryStl(path.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("degenerate after binary STL float32 conversion")) << error;
+    EXPECT_EQ("preserve me", readFileBytes(path));
+    manumesh::filesystem::remove(path);
 }
 
 TEST(MeshIo, MalformedObjVertexLineIsAnErrorWithLineNumber) {
@@ -143,6 +353,7 @@ TEST(MeshIo, ObjRejectsNonDecimalOrPartiallyParsedCoordinates) {
         "-0x1p0",
         "1x",
         "1e9999",
+        "1e-9999",
     };
 
     for (std::size_t i = 0; i < invalidCoordinates.size(); ++i) {
@@ -157,6 +368,42 @@ TEST(MeshIo, ObjRejectsNonDecimalOrPartiallyParsedCoordinates) {
         EXPECT_NE(std::string::npos, error.find("line 1")) << error;
         manumesh::filesystem::remove(path);
     }
+}
+
+TEST(MeshIo, ObjAppliesHomogeneousVertexCoordinate) {
+    const manumesh::filesystem::path path = writeTempFile(
+        "manumesh_io_homogeneous_vertex.obj",
+        "v 2 0 0 2\n"
+        "v 0 2 0 2\n"
+        "v 0 0 0 2\n"
+        "f 1 2 3\n"
+    );
+
+    manumesh::Mesh mesh;
+    std::string error;
+    ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
+    manumesh::filesystem::remove(path);
+
+    ASSERT_EQ(3u, mesh.vertices.size());
+    EXPECT_DOUBLE_EQ(1.0, mesh.vertices[0].x());
+    EXPECT_DOUBLE_EQ(1.0, mesh.vertices[1].y());
+    EXPECT_DOUBLE_EQ(0.5, manumesh::triangleArea(mesh.vertices[0], mesh.vertices[1], mesh.vertices[2]));
+}
+
+TEST(MeshIo, ObjRejectsZeroHomogeneousCoordinate) {
+    const manumesh::filesystem::path path = writeTempFile(
+        "manumesh_io_zero_homogeneous_vertex.obj",
+        "v 1 0 0 0\n"
+        "v 0 1 0\n"
+        "v 0 0 0\n"
+        "f 1 2 3\n"
+    );
+
+    manumesh::Mesh mesh;
+    std::string error;
+    EXPECT_FALSE(manumesh::loadObj(path.string(), mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("homogeneous")) << error;
+    manumesh::filesystem::remove(path);
 }
 
 TEST(MeshIo, ObjAcceptsSingleComponentTextureCoordinate) {
@@ -394,6 +641,35 @@ TEST(MeshIo, ObjPreservesTextureCoordinatesThroughFanTriangulation) {
     EXPECT_DOUBLE_EQ(1.0, mesh.faceTexCoords[1].uv[2].y());
 }
 
+TEST(MeshIo, ObjKeepsTextureCoordinateAlignmentAfterLateTexturedFace) {
+    const manumesh::filesystem::path path = writeTempFile(
+        "manumesh_io_late_texture_coordinates.obj",
+        "v 0 0 0\n"
+        "v 1 0 0\n"
+        "v 0 1 0\n"
+        "v 2 0 0\n"
+        "v 3 0 0\n"
+        "v 2 1 0\n"
+        "vt 0 0\n"
+        "vt 1 0\n"
+        "vt 0 1\n"
+        "f 1 2 3\n"
+        "f 4/1 5/2 6/3\n"
+    );
+
+    manumesh::Mesh mesh;
+    std::string error;
+    ASSERT_TRUE(manumesh::loadObj(path.string(), mesh, &error)) << error;
+    manumesh::filesystem::remove(path);
+
+    ASSERT_EQ(2u, mesh.faces.size());
+    ASSERT_EQ(2u, mesh.faceTexCoords.size());
+    EXPECT_FALSE(mesh.faceTexCoords[0].valid);
+    EXPECT_TRUE(mesh.faceTexCoords[1].valid);
+    EXPECT_DOUBLE_EQ(1.0, mesh.faceTexCoords[1].uv[1].x());
+    EXPECT_DOUBLE_EQ(1.0, mesh.faceTexCoords[1].uv[2].y());
+}
+
 TEST(MeshIo, LoadStlClearsStaleTextureCoordinates) {
     const manumesh::filesystem::path path = writeTempFile("manumesh_io_stale_uv.stl", singleAsciiStlTriangle());
 
@@ -425,6 +701,22 @@ TEST(MeshIo, TruncatedBinaryStlReportsBinaryError) {
 TEST(MeshIo, BinaryStlWithTrailingPaddingLoads) {
     const std::vector<std::array<float, 9>> triangles = {{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}};
     const manumesh::filesystem::path path = writeTempFile("manumesh_io_padded.stl", makeBinaryStl(1, triangles, 6));
+
+    manumesh::Mesh mesh;
+    std::string error;
+    ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error)) << error;
+    manumesh::filesystem::remove(path);
+
+    EXPECT_EQ(1u, mesh.faces.size());
+    EXPECT_EQ(3u, mesh.vertices.size());
+}
+
+TEST(MeshIo, BinaryStlWithSolidHeaderAndTrailingPaddingLoads) {
+    const std::vector<std::array<float, 9>> triangles = {{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f}};
+    std::string bytes = makeBinaryStl(1, triangles, 6);
+    const char solidHeader[] = "solid padded binary";
+    std::memcpy(&bytes[0], solidHeader, sizeof(solidHeader) - 1);
+    const manumesh::filesystem::path path = writeTempFile("manumesh_io_solid_padded.stl", bytes);
 
     manumesh::Mesh mesh;
     std::string error;
@@ -541,7 +833,7 @@ TEST(MeshIo, LargeCoordinatesDoNotOverflowVertexMerging) {
     EXPECT_EQ(4u, mesh.vertices.size());
 }
 
-TEST(MeshIo, FiniteCoordinatesRemainDistinctWhenBoundingBoxNormOverflows) {
+TEST(MeshIo, CoordinatesOutsideSupportedNumericRangeAreRejectedTransactionally) {
     const manumesh::filesystem::path path = writeTempFile(
         "manumesh_io_overflowing_bbox_norm.stl",
         "solid huge\n"
@@ -556,12 +848,21 @@ TEST(MeshIo, FiniteCoordinatesRemainDistinctWhenBoundingBoxNormOverflows) {
     );
 
     manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+    };
+    mesh.faces = {{{0, 1, 2}}};
+    const manumesh::Mesh original = mesh;
     std::string error;
-    ASSERT_TRUE(manumesh::loadStl(path.string(), mesh, &error)) << error;
+    EXPECT_FALSE(manumesh::loadStl(path.string(), mesh, &error));
     manumesh::filesystem::remove(path);
 
-    EXPECT_EQ(1u, mesh.faces.size());
-    EXPECT_EQ(3u, mesh.vertices.size());
+    EXPECT_NE(std::string::npos, error.find("numeric coordinate range"));
+    EXPECT_EQ(original.faces.size(), mesh.faces.size());
+    EXPECT_EQ(original.vertices.size(), mesh.vertices.size());
+    EXPECT_TRUE(original.vertices[1].isApprox(mesh.vertices[1]));
 }
 
 TEST(MeshIo, StlVertexMergingSearchesAdjacentQuantizationBuckets) {
@@ -667,6 +968,72 @@ TEST(MeshIo, StlVertexMergingIsInvariantToLargeTranslation) {
 
     manumesh::filesystem::remove(originPath);
     manumesh::filesystem::remove(translatedPath);
+}
+
+TEST(MeshIo, SaveObjRoundTripsMixedPerFaceTextureCoordinates) {
+    manumesh::Mesh original;
+    original.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(1.0, 1.0, 0.0),
+    };
+    original.faces = {
+        manumesh::Face{{0, 1, 2}},
+        manumesh::Face{{1, 3, 2}},
+    };
+    original.faceTexCoords.resize(2);
+    original.faceTexCoords[0].valid = true;
+    original.faceTexCoords[0].uv = {
+        manumesh::Vec2(std::numeric_limits<double>::denorm_min(), -std::numeric_limits<double>::denorm_min()),
+        manumesh::Vec2(1.0, 0.0),
+        manumesh::Vec2(0.0, 1.0),
+    };
+
+    const manumesh::filesystem::path path =
+        manumesh::filesystem::temp_directory_path() / "manumesh_io_uv_export_roundtrip.obj";
+    manumesh::filesystem::remove(path);
+    std::string error;
+    ASSERT_TRUE(manumesh::saveObj(path.string(), original, &error)) << error;
+
+    manumesh::Mesh loaded;
+    ASSERT_TRUE(manumesh::loadObj(path.string(), loaded, &error)) << error;
+    manumesh::filesystem::remove(path);
+    EXPECT_EQ(original.vertices.size(), loaded.vertices.size());
+    ASSERT_EQ(original.faces.size(), loaded.faces.size());
+    EXPECT_EQ(original.faces[0].v, loaded.faces[0].v);
+    EXPECT_EQ(original.faces[1].v, loaded.faces[1].v);
+    ASSERT_EQ(2u, loaded.faceTexCoords.size());
+    EXPECT_TRUE(loaded.faceTexCoords[0].valid);
+    EXPECT_FALSE(loaded.faceTexCoords[1].valid);
+    EXPECT_DOUBLE_EQ(std::numeric_limits<double>::denorm_min(), loaded.faceTexCoords[0].uv[0].x());
+    EXPECT_DOUBLE_EQ(-std::numeric_limits<double>::denorm_min(), loaded.faceTexCoords[0].uv[0].y());
+    EXPECT_TRUE(loaded.faceTexCoords[0].uv[1].isApprox(manumesh::Vec2(1.0, 0.0), 1e-15));
+    EXPECT_TRUE(loaded.faceTexCoords[0].uv[2].isApprox(manumesh::Vec2(0.0, 1.0), 1e-15));
+}
+
+TEST(MeshIo, SaveObjRoundTripsExtremeFiniteTriangleAspectRatio) {
+    manumesh::Mesh original;
+    original.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1e100, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1e-100, 0.0),
+    };
+    original.faces = {manumesh::Face{{0, 1, 2}}};
+    ASSERT_DOUBLE_EQ(0.5, manumesh::triangleArea(original.vertices[0], original.vertices[1], original.vertices[2]));
+
+    const manumesh::filesystem::path path =
+        manumesh::filesystem::temp_directory_path() / "manumesh_io_extreme_aspect_roundtrip.obj";
+    manumesh::filesystem::remove(path);
+    std::string error;
+    ASSERT_TRUE(manumesh::saveObj(path.string(), original, &error)) << error;
+
+    manumesh::Mesh loaded;
+    ASSERT_TRUE(manumesh::loadObj(path.string(), loaded, &error)) << error;
+    manumesh::filesystem::remove(path);
+    ASSERT_EQ(1u, loaded.faces.size());
+    EXPECT_EQ(original.faces[0].v, loaded.faces[0].v);
+    EXPECT_DOUBLE_EQ(0.5, manumesh::triangleArea(loaded.vertices[0], loaded.vertices[1], loaded.vertices[2]));
 }
 
 TEST(ManuMesh, MeshUtilitiesRejectMalformedInputWithoutThrowing) {

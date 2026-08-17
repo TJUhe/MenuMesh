@@ -91,6 +91,15 @@ TEST(FeatureDetection, SmoothCurvatureEvidenceIsInvariantUnderUniformScaling) {
     const auto original = feature::computeSmoothCurvatureFeatures(bump, options, 0.008);
     const auto enlarged = feature::computeSmoothCurvatureFeatures(scaled, options, 0.008);
 
+    ASSERT_EQ(original.size(), enlarged.size());
+    for (std::size_t vertex = 0; vertex < original.size(); ++vertex) {
+        SCOPED_TRACE(vertex);
+        EXPECT_EQ(original[vertex].persistentScales, enlarged[vertex].persistentScales);
+        EXPECT_EQ(original[vertex].selectedScale, enlarged[vertex].selectedScale);
+        EXPECT_EQ(original[vertex].signedKind, enlarged[vertex].signedKind);
+        EXPECT_NEAR(original[vertex].featureScore, enlarged[vertex].featureScore, 1e-10);
+        EXPECT_NEAR(original[vertex].persistentFeatureScore, enlarged[vertex].persistentFeatureScore, 1e-10);
+    }
     EXPECT_EQ(persistentVertexCount(original, 2), persistentVertexCount(enlarged, 2));
     EXPECT_NEAR(maximumPersistentScore(original), maximumPersistentScore(enlarged), 1e-8);
 }

@@ -4,6 +4,8 @@
  * @ingroup manumesh_core
  *
  * @details 每个生成器产生参数可控的三角网格，用于复现边界、特征、噪声和采样密度场景。
+ * 分辨率必须在 `[1, 512]` 内，几何参数必须有限且处于可安全计算的范围；不满足
+ * 这些前置条件时直接生成器返回空网格，`generateMeshByName` 返回 false 并保留输出网格。
  */
 
 #pragma once

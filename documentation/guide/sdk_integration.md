@@ -122,7 +122,7 @@ manumesh::feature::LoopMatchReport loopReport =
 
 每个原始圆环被分类为 `Matched` / `WeakMatch` / `Missing`（三级中心距/半径/法向阈值，`referenceDiagonal` 用于归一化中心误差）。CLI 的 `feature-compare` 命令现在只是这个 API 的薄封装（load → detect → match → 格式化）。
 
-## 纹理网格与纹理感知简化（C++ API）
+## 纹理网格与纹理感知简化（C++ 与 C ABI）
 
 带纹理的网格在 SDK 边界使用逐面逐角 UV：
 
@@ -141,7 +141,7 @@ config.texture.seamTolerance = 1e-8;
 config.texture.minAreaRatio = 1e-8;
 ```
 
-启用后，几何 quadric 仍保持 4×4，placement 求解不变；纹理只作为局部 UV 失真标量加入候选排序，并通过局部 chart 配对、UV 定向和有符号面积检查硬性拒绝会破坏接缝或压扁 UV 三角形的坍缩。`SimplifyReport` 返回 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）和 `textureRejectedCollapses`（placement 评估后被纹理检查否决的候选数）。注意两点：`preserveTexture = false` 时几何输出与旧无纹理路径完全一致，UV 仍会传播但没有失真/接缝保证；纹理保护启用时可选的固定拓扑质量精修轮（`quality.refinementIterations`）会被暂时跳过。该能力当前只在 C++ API 提供，CLI `simplify` 与 C ABI 均未暴露纹理选项。设计细节见 [`../design/texture_aware_qem.md`](../design/texture_aware_qem.md)。
+启用后，几何 quadric 仍保持 4×4，placement 求解不变；纹理只作为局部 UV 失真标量加入候选排序，并通过局部 chart 配对、UV 定向和有符号面积检查硬性拒绝会破坏接缝或压扁 UV 三角形的坍缩。`SimplifyReport` 返回 `textureProtectedEdges`（初始即无合法中点纹理坍缩的边数）、`textureRejectedCollapses`（placement 评估后被纹理检查否决的候选数）和 `textureApplyFailures`（接受坍缩后无法应用 UV 更新计划的内部一致性诊断）。注意两点：`preserveTexture = false` 时几何输出与旧无纹理路径完全一致，UV 仍会传播但没有失真/接缝保证；纹理保护启用时可选的固定拓扑质量精修轮（`quality.refinementIterations`）会被暂时跳过。C++ API、C ABI 均可显式启用该能力；CLI `simplify` 仍使用默认关闭状态。设计细节见 [`../design/texture_aware_qem.md`](../design/texture_aware_qem.md)。
 
 独立特征检测入口：
 
@@ -234,15 +234,39 @@ surface patches 不进入 QEM collapse；它们是验证、后续 region process
 如果有人工或 CAD 导出的标签，可用兼容入口
 `benchmarkFeatureEdges()` 评估 edge/junction，或用 `benchmarkFeatureAnalysis(mesh, features, labels)` 同时评估 edge、junction、continuation branch pair 和 face-patch adjacency。
 
-## C ABI 最小流程
+## C ABI 网格与算法流程
 
 1. `manumesh_context_create()` 创建上下文。
 2. `manumesh_mesh_create()` 创建输入和输出 mesh handle。
-3. 用 `manumesh_load_mesh()` 或 `manumesh_mesh_set_data()` 填充输入。
+3. 用 `manumesh_load_mesh()`、`manumesh_mesh_set_data()` 或带逐角 UV 的 `manumesh_mesh_set_data_with_texcoords()` 填充输入。
 4. 调用 `manumesh_simplify_options_init()` 初始化 `ManuMeshSimplifyOptions`。当前头文件会把该调用透明转发到带容量的安全入口。
 5. 调用 `manumesh_simplify_mesh()`。
-6. 用 `manumesh_mesh_copy_vertices()` / `manumesh_mesh_copy_faces()` 取回数据，或用 `manumesh_save_binary_stl()` 保存二进制 STL。
+6. 用 `manumesh_mesh_copy_vertices()` / `manumesh_mesh_copy_faces()` 取回数据，或用 `manumesh_save_binary_stl()` / `manumesh_save_obj()` 保存。
 7. 销毁 mesh handle 和 context。
+
+所有公开 C 函数和 size-aware 内联别名固定使用 `__cdecl`，公共结构体在头文件中强制使用 pack-8；消费方可以在自己的编译单元启用 `/Gv` 或 `/Zp1`，无需改变 ABI。句柄内部带互斥锁，读写同一个 mesh handle 可以并发调用；`copy` / `append` 以无死锁方式同时锁定两个不同句柄，同句柄自拷贝、自追加和原地简化也受支持。销毁句柄不参与内部同步，调用方必须先等待全部使用该对象的在途调用结束；context 本身仍不是线程安全的，并发调用应传 null context 或为每个线程使用独立 context。
+
+基础几何入口包括：
+
+| 能力 | 入口 |
+| --- | --- |
+| 批量几何与 UV 输入 | `manumesh_mesh_set_data()`、`manumesh_mesh_set_data_with_texcoords()`；后者在同一事务内复制并校验逐角 UV |
+| 深拷贝、逐顶点/逐面读写 | `manumesh_mesh_copy()`、`manumesh_mesh_get_vertex()`、`manumesh_mesh_set_vertex()`、`manumesh_mesh_get_face()`、`manumesh_mesh_set_face()` |
+| 变换和包围盒 | `manumesh_mesh_get_bounds()`、`manumesh_mesh_translate()`、`manumesh_mesh_transform()` |
+| 压缩和校验 | `manumesh_mesh_compact()`、`manumesh_mesh_validate()`、`manumesh_mesh_remove_degenerate_faces()` |
+| 面积、质心、法向和体积 | `manumesh_mesh_copy_face_areas()`、`manumesh_mesh_get_surface_area()`、`manumesh_mesh_get_surface_centroid()`、`manumesh_mesh_copy_face_centroids()`、`manumesh_mesh_copy_face_normals()`、`manumesh_mesh_copy_vertex_normals()`、`manumesh_mesh_get_signed_volume()` |
+| 拓扑 | `manumesh_mesh_copy_unique_edges()` 返回端点、入射面数、边界和非流形标志；`manumesh_mesh_get_topology_summary()` 返回边计数、共享边连通分量、闭合性与绕序一致性 |
+| UV 与绕序 | `manumesh_mesh_get/set/copy_face_texcoords()`、`manumesh_mesh_has_texture_coordinates()`、`manumesh_mesh_reverse_winding()` |
+| 拼接 | `manumesh_mesh_append()`，支持索引偏移、自追加和 UV 对齐 |
+| 文件输出 | `manumesh_save_ascii_stl()`、`manumesh_save_binary_stl()`、`manumesh_save_obj()`；OBJ 会保留逐角 UV |
+
+所有 `copy_*` 批量接口都支持容量查询：先传 `capacity == 0`，读取 `*_written`，再分配足够数组重新调用。容量不足时返回 `MANUMESH_STATUS_BUFFER_TOO_SMALL`，不会写入任何元素；即使算法在计算后发现错误，也会先在临时数组中完成结果，调用方缓冲区不会得到半截输出。`*_written` 在成功时是写入数，在容量不足时是所需数。
+
+`manumesh_mesh_transform()` 接收行主序 16 元素齐次矩阵，按 `(x,y,z,1)` 计算并除以 `w`；矩阵、`w` 和结果必须有限。所有修改型入口都先在候选网格上校验，再一次性提交，失败时原句柄保持不变。
+
+逐角 UV 使用 `ManuMeshFaceTexCoords`。没有 UV 的面读取为 `valid == 0` 且坐标全零；设置 `valid == 0` 会存储同样的确定性零值。设置有效 UV 时三个角的分量都必须有限。`manumesh_mesh_set_data_with_texcoords()` 接收与输入面数组同长的可选 UV 数组，并在一次校验/提交中替换全部数据。反转面绕序会同步交换第二、第三角 UV；追加时只要任一输入有 UV，输出就会为所有面建立对齐数组，未纹理化的面标记为 invalid。`manumesh_save_obj()` 会写出每个有效面角的 UV，因此可与 `manumesh_load_mesh()` 完成几何和 UV 往返。
+
+`manumesh_mesh_get_signed_volume()` 只接受严格有效、非空、封闭二流形且共享边绕序相反的网格；外向绕序通常产生正体积，`manumesh_mesh_reverse_winding()` 会翻转其符号。对开放、非流形或绕序冲突网格，应先使用 `manumesh_mesh_get_topology_summary()` 获取诊断，而不是把三角形求和当作物理体积。
 
 `ManuMeshSimplifyOptions` 是输入结构体，调用前必须初始化；同一 `MANUMESH_ABI_VERSION` 内，库接受尾部较短的旧 `struct_size`，只读取实际存在的字段，缺失尾字段使用库默认值，未初始化或 ABI 版本不匹配会返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。`ManuMeshSimplifyReport` 和 `ManuMeshMeshStats` 是纯输出结构体：当前头文件会把普通调用转到显式容量入口，输出内存无需预初始化，库按调用方容量有界清零、写入 ABI 头和完整存在的字段。
 
@@ -259,6 +283,10 @@ ManuMeshSimplifyOptions options;
 manumesh_simplify_options_init(&options);
 options.preserve_feature_curves = 1;
 options.feature_options = &feature_options;
+options.preserve_texture = 1;
+options.texture_weight = 1.0;
+options.texture_seam_tolerance = 1e-8;
+options.min_texture_area_ratio = 1e-8;
 
 ManuMeshSimplifyReport report;
 ManuMeshStatus status = manumesh_simplify_mesh(
@@ -271,9 +299,9 @@ ManuMeshStatus status = manumesh_simplify_mesh(
 
 旧的无容量 init 符号以及旧 `manumesh_simplify_mesh` / `manumesh_compute_mesh_stats` 符号仍导出。它们不读取 report/stats 的原有字节，并始终只写首次发布的 v1 历史尺寸，因而兼容首发时允许未初始化 output 的调用方式，也不会覆盖旧调用方较小的栈对象。这个选择无法保留所有后加尾字段的语义：已经编译且依赖 `loop_trace_angle_deg`、cleanup、quality refinement 或新增 report 尾字段的中间版本客户端，换用新 DLL 后必须重新编译或迁移到 size-aware 入口，否则这些字段会按首发容量被忽略。新源码确实需要直接访问旧符号时，可在包含 `api/CApi.h` 前定义 `MANUMESH_DISABLE_SIZE_AWARE_ALIASES`；旧名称 `MANUMESH_DISABLE_SIZE_AWARE_INIT_MACROS` 仍作为兼容开关。库的 C API object target 使用 `MANUMESH_C_API_IMPLEMENTATION` 禁用 alias。
 
-normal-tensor、cleanup、smooth-curvature stable-scale、feature normal filter、graph consolidation 和对应 report 字段都位于 C ABI 结构体尾部；较早、较短的同版本调用方继续使用库默认行为。surface patch 结果是可变长 C++ 容器，当前没有加入 v1 C ABI；纹理保护同样仍只在 C++ API 提供。
+normal-tensor、cleanup、smooth-curvature stable-scale、feature normal filter、graph consolidation 和对应 report 字段都位于 C ABI 结构体尾部；纹理选项追加在 `feature_options` 指针之后，纹理报告追加在 `quality_refinement_skipped_for_texture` 之后。较早、较短的同版本调用方继续使用库默认行为（纹理保护关闭）。surface patch 结果是可变长 C++ 容器，当前没有加入 v1 C ABI。启用纹理保护时，可从 `ManuMeshSimplifyReport` 读取 `texture_rejected_collapses`、`texture_protected_edges` 和 `texture_apply_failures`。
 
-错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM 与参数错误作为可区分的状态处理。
+错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；网格索引/几何不满足操作契约时返回 `MANUMESH_STATUS_INVALID_MESH`；未知文件扩展名返回 `MANUMESH_STATUS_UNSUPPORTED_FORMAT`；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM、网格错误、格式错误与参数错误作为可区分的状态处理。
 
 ## C ABI 特征边识别
 

@@ -20,6 +20,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -34,6 +35,26 @@ namespace feature_commands {
 
 using manumesh::cli::pathFromUtf8;
 using manumesh::cli::pathToUtf8;
+
+static std::ofstream openOutputCsv(const fs::path& path) {
+    std::ofstream stream(path, std::ios::out | std::ios::trunc);
+    if (!stream) {
+        throw std::runtime_error("Cannot open CSV output: " + pathToUtf8(path));
+    }
+    stream.imbue(std::locale::classic());
+    return stream;
+}
+
+static void finishOutputCsv(std::ofstream& stream, const fs::path& path) {
+    stream.flush();
+    if (!stream) {
+        throw std::runtime_error("Failed to write CSV output: " + pathToUtf8(path));
+    }
+    stream.close();
+    if (!stream) {
+        throw std::runtime_error("Failed to finalize CSV output: " + pathToUtf8(path));
+    }
+}
 
 static int countCircularLoops(const manumesh::feature::FeatureAnalysis& analysis) {
     int count = 0;
@@ -131,7 +152,7 @@ int report(const Args& args) {
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv(output);
+        std::ofstream csv = openOutputCsv(output);
         csv << "feature_edges,traced_edges,untraced_edges,boundary_edges,"
                "dihedral_edges,normal_tensor_edges,smooth_curvature_edges,non_manifold_edges,"
                "feature_components,weak_feature_components,"
@@ -178,6 +199,7 @@ int report(const Args& args) {
         for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
             csv << manumesh::feature::featureLoopRowCsv(loop) << "\n";
         }
+        finishOutputCsv(csv, output);
     }
     return 0;
 }
@@ -205,7 +227,7 @@ readFeatureBenchmarkLabels(const fs::path& path, manumesh::feature::FeatureBench
 
     int skippedRows = 0;
     std::string line;
-    while (std::getline(in, line)) {
+    while (readCsvRecord(in, line)) {
         if (line.empty()) {
             continue;
         }
@@ -260,6 +282,9 @@ readFeatureBenchmarkLabels(const fs::path& path, manumesh::feature::FeatureBench
             ++skippedRows;
         }
     }
+    if (in.bad()) {
+        throw std::runtime_error("Failed to read feature label CSV: " + pathToUtf8(path));
+    }
     if (skippedRows > 0) {
         std::cout << "feature-benchmark: skipped " << skippedRows << " unparsable label row"
                   << (skippedRows == 1 ? "" : "s") << " in " << pathToUtf8(path) << "\n";
@@ -299,6 +324,7 @@ int benchmark(const Args& args) {
                                "branch_pair_recall,branch_pair_f1,labeled_face_adjacencies,"
                                "correct_face_adjacencies,patch_adjacency_accuracy";
     std::ostringstream row;
+    row.imbue(std::locale::classic());
     row << std::setprecision(12) << benchmark.groundTruthEdges << "," << benchmark.detectedEdges << ","
         << benchmark.truePositiveEdges << "," << benchmark.falsePositiveEdges << "," << benchmark.falseNegativeEdges
         << "," << benchmark.edgePrecision << "," << benchmark.edgeRecall << "," << benchmark.edgeF1 << ","
@@ -319,8 +345,9 @@ int benchmark(const Args& args) {
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv(output);
+        std::ofstream csv = openOutputCsv(output);
         csv << header << "\n" << row.str() << "\n";
+        finishOutputCsv(csv, output);
     }
     return 0;
 }
@@ -353,6 +380,7 @@ int compare(const Args& args) {
         manumesh::feature::matchCircularLoops(originalFeatures, simplifiedFeatures, simplified, matchOptions);
 
     std::ostringstream rows;
+    rows.imbue(std::locale::classic());
     rows << std::setprecision(12);
     for (const manumesh::feature::LoopMatch& match : matchReport.matches) {
         rows << match.originalLoopId << "," << match.simplifiedLoopIndex << "," << match.originalVertices << ","
@@ -376,11 +404,12 @@ int compare(const Args& args) {
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv(output);
+        std::ofstream csv = openOutputCsv(output);
         csv << "original_circular_loops,simplified_circular_loops,matched,missing\n";
         csv << matchReport.originalCircularLoops << "," << matchReport.simplifiedCircularLoops << ","
             << matchReport.matchedLoops << "," << matchReport.missingLoops << "\n\n";
         csv << header << "\n" << rows.str();
+        finishOutputCsv(csv, output);
     }
     return 0;
 }

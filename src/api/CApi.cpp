@@ -12,16 +12,22 @@
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "api/detail/CApiConverters.h"
+#include "core/Filesystem.h"
 #include "core/MeshGenerators.h"
+#include "core/MeshTopology.h"
+#include "core/Tolerances.h"
 #include "io/MeshIo.h"
 
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <exception>
 #include <limits>
+#include <mutex>
 #include <new>
 #include <stdexcept>
 #include <string>
@@ -40,10 +46,20 @@ struct ManuMeshContext {
 
 /** @brief 持有一个可变 C++ Mesh 值的不透明 C API 句柄。*/
 struct ManuMeshMeshHandle {
+    mutable std::mutex mutex;
     manumesh::Mesh mesh;
 };
 
 namespace {
+
+bool hasSupportedMeshExtension(const char* path) {
+    std::string extension = manumesh::filesystem::u8path(path).extension().u8string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return extension == ".stl" || extension == ".obj";
+}
+
 /** @brief 独立特征选项无容量初始化符号首次发布时的完整 ABI-v1 布局。 */
 struct LegacyV1FeatureOptionsLayout {
     std::size_t struct_size;
@@ -280,6 +296,19 @@ static_assert(
     "ManuMeshFeatureEdge v1 array element size changed"
 );
 static_assert(sizeof(FeatureEdgeV2Layout) == sizeof(ManuMeshFeatureEdgeV2), "ManuMeshFeatureEdgeV2 layout changed");
+static_assert(sizeof(ManuMeshVec2) == 16, "ManuMeshVec2 ABI size changed");
+static_assert(sizeof(ManuMeshVec3) == 24, "ManuMeshVec3 ABI size changed");
+static_assert(sizeof(ManuMeshFace) == 12, "ManuMeshFace ABI size changed");
+static_assert(sizeof(ManuMeshFaceTexCoords) == 56, "ManuMeshFaceTexCoords ABI size changed");
+static_assert(offsetof(ManuMeshFaceTexCoords, valid) == 48, "ManuMeshFaceTexCoords layout changed");
+static_assert(sizeof(ManuMeshEdge) == 24, "ManuMeshEdge ABI size changed");
+static_assert(offsetof(ManuMeshEdge, face_count) == 8, "ManuMeshEdge layout changed");
+static_assert(sizeof(ManuMeshBounds) == 56, "ManuMeshBounds ABI size changed");
+static_assert(offsetof(ManuMeshBounds, valid) == 48, "ManuMeshBounds layout changed");
+static_assert(sizeof(ManuMeshTopologySummary) == 40, "ManuMeshTopologySummary ABI size changed");
+static_assert(
+    offsetof(ManuMeshTopologySummary, closed_manifold) == 32, "ManuMeshTopologySummary closed_manifold layout changed"
+);
 #define MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(field)                                                            \
     static_assert(                                                                                                     \
         offsetof(ManuMeshFeatureEdgeV2, field) == offsetof(ManuMeshFeatureEdge, field),                                \
@@ -308,7 +337,7 @@ static_assert(
 #define MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(field)                                                               \
     static_assert(                                                                                                     \
         offsetof(LegacyV1SimplifyOptionsLayout, field) == offsetof(ManuMeshSimplifyOptions, field),                    \
-        "ManuMeshSimplifyOptions v1 field layout changed: " #field                                                    \
+        "ManuMeshSimplifyOptions v1 field layout changed: " #field                                                     \
     )
 MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(struct_size);
 MANUMESH_ASSERT_SIMPLIFY_OPTIONS_V1_FIELD(abi_version);
@@ -350,15 +379,16 @@ static_assert(
     "ManuMeshSimplifyOptions v1 prefix layout changed"
 );
 static_assert(
-    offsetof(ManuMeshSimplifyOptions, feature_options) + sizeof(((ManuMeshSimplifyOptions*)nullptr)->feature_options) ==
+    offsetof(ManuMeshSimplifyOptions, min_texture_area_ratio) +
+            sizeof(((ManuMeshSimplifyOptions*)nullptr)->min_texture_area_ratio) ==
         sizeof(ManuMeshSimplifyOptions),
-    "ManuMeshSimplifyOptions feature_options must remain the final ABI field"
+    "ManuMeshSimplifyOptions min_texture_area_ratio must remain the final ABI field"
 );
 
 #define MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(field)                                                                \
     static_assert(                                                                                                     \
         offsetof(LegacyV1SimplifyReportLayout, field) == offsetof(ManuMeshSimplifyReport, field),                      \
-        "ManuMeshSimplifyReport v1 field layout changed: " #field                                                     \
+        "ManuMeshSimplifyReport v1 field layout changed: " #field                                                      \
     )
 MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(struct_size);
 MANUMESH_ASSERT_SIMPLIFY_REPORT_V1_FIELD(abi_version);
@@ -398,7 +428,7 @@ static_assert(
 #define MANUMESH_ASSERT_MESH_STATS_V1_FIELD(field)                                                                     \
     static_assert(                                                                                                     \
         offsetof(LegacyV1MeshStatsLayout, field) == offsetof(ManuMeshMeshStats, field),                                \
-        "ManuMeshMeshStats v1 field layout changed: " #field                                                          \
+        "ManuMeshMeshStats v1 field layout changed: " #field                                                           \
     )
 MANUMESH_ASSERT_MESH_STATS_V1_FIELD(struct_size);
 MANUMESH_ASSERT_MESH_STATS_V1_FIELD(abi_version);
@@ -553,6 +583,235 @@ ManuMeshStatus translateUnknownException(ManuMeshContext* context) noexcept {
     return fail(context, MANUMESH_STATUS_ALGORITHM_ERROR, "Unknown C++ exception.");
 }
 
+template <typename Handle, typename Function>
+ManuMeshStatus withMeshLock(ManuMeshContext* context, Handle* handle, Function&& function) noexcept {
+    try {
+        std::lock_guard<std::mutex> lock(handle->mutex);
+        return function(handle->mesh);
+    } catch (const std::exception& ex) {
+        return translateException(context, ex);
+    } catch (...) {
+        return translateUnknownException(context);
+    }
+}
+
+template <typename Function>
+ManuMeshStatus withTwoMeshLocks(
+    ManuMeshContext* context, const ManuMeshMeshHandle* source, ManuMeshMeshHandle* destination, Function&& function
+) noexcept {
+    try {
+        std::unique_lock<std::mutex> sourceLock(source->mutex, std::defer_lock);
+        std::unique_lock<std::mutex> destinationLock(destination->mutex, std::defer_lock);
+        std::lock(sourceLock, destinationLock);
+        return function(source->mesh, destination->mesh);
+    } catch (const std::exception& ex) {
+        return translateException(context, ex);
+    } catch (...) {
+        return translateUnknownException(context);
+    }
+}
+
+ManuMeshStatus
+snapshotMesh(ManuMeshContext* context, const ManuMeshMeshHandle* handle, manumesh::Mesh& snapshot) noexcept {
+    if (!handle) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    return withMeshLock(context, handle, [&](const manumesh::Mesh& mesh) {
+        snapshot = mesh;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus commitMesh(ManuMeshContext* context, ManuMeshMeshHandle* handle, manumesh::Mesh&& candidate) noexcept {
+    if (!handle) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    return withMeshLock(context, handle, [&](manumesh::Mesh& mesh) {
+        mesh = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+bool finiteVec3(const manumesh::Vec3& value) {
+    return std::isfinite(value.x()) && std::isfinite(value.y()) && std::isfinite(value.z());
+}
+
+bool finiteCVec3(const ManuMeshVec3& value) {
+    return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
+}
+
+bool finiteTexcoords(const ManuMeshFaceTexCoords& texcoords) {
+    if (!texcoords.valid) {
+        return true;
+    }
+    for (const ManuMeshVec2& uv : texcoords.uv) {
+        if (!std::isfinite(uv.u) || !std::isfinite(uv.v)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isBinaryStlRepresentabilityError(const std::string& error) {
+    return error == "Binary STL supports at most UINT32_MAX triangles." ||
+           error == "Mesh face becomes degenerate after binary STL float32 conversion." ||
+           error.find("outside the binary STL float32 range.") != std::string::npos;
+}
+
+ManuMeshVec3 toCVec3(const manumesh::Vec3& value) { return ManuMeshVec3{value.x(), value.y(), value.z()}; }
+
+ManuMeshFaceTexCoords zeroTexcoords() {
+    ManuMeshFaceTexCoords result{};
+    result.valid = 0;
+    return result;
+}
+
+ManuMeshFaceTexCoords toCTexcoords(const manumesh::FaceTexCoords& value) {
+    ManuMeshFaceTexCoords result{};
+    result.valid = value.valid ? 1 : 0;
+    if (!value.valid) {
+        return result;
+    }
+    for (int corner = 0; corner < 3; ++corner) {
+        result.uv[corner].u = value.uv[corner].x();
+        result.uv[corner].v = value.uv[corner].y();
+    }
+    return result;
+}
+
+manumesh::FaceTexCoords toCppTexcoords(const ManuMeshFaceTexCoords& value) {
+    manumesh::FaceTexCoords result;
+    for (manumesh::Vec2& uv : result.uv) {
+        uv.setZero();
+    }
+    result.valid = value.valid != 0;
+    if (!result.valid) {
+        return result;
+    }
+    for (int corner = 0; corner < 3; ++corner) {
+        result.uv[corner] = manumesh::Vec2(value.uv[corner].u, value.uv[corner].v);
+    }
+    return result;
+}
+
+manumesh::FaceTexCoords zeroCppTexcoords() {
+    manumesh::FaceTexCoords result;
+    result.valid = false;
+    for (manumesh::Vec2& uv : result.uv) {
+        uv.setZero();
+    }
+    return result;
+}
+
+template <typename T>
+ManuMeshStatus preflightOutputBuffer(
+    ManuMeshContext* context,
+    T* output,
+    std::size_t capacity,
+    std::size_t required,
+    std::size_t* written,
+    const char* tooSmallMessage,
+    const char* nullMessage
+) {
+    if (capacity < required) {
+        *written = required;
+        return fail(context, MANUMESH_STATUS_BUFFER_TOO_SMALL, tooSmallMessage);
+    }
+    if (required > 0 && !output) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, nullMessage);
+    }
+    return MANUMESH_STATUS_OK;
+}
+
+template <typename T>
+ManuMeshStatus copyOutputVector(
+    ManuMeshContext* context,
+    const std::vector<T>& values,
+    T* output,
+    std::size_t capacity,
+    std::size_t* written,
+    const char* tooSmallMessage,
+    const char* nullMessage
+) {
+    const ManuMeshStatus preflightStatus =
+        preflightOutputBuffer(context, output, capacity, values.size(), written, tooSmallMessage, nullMessage);
+    if (preflightStatus != MANUMESH_STATUS_OK) {
+        return preflightStatus;
+    }
+    if (!values.empty()) {
+        std::copy(values.begin(), values.end(), output);
+    }
+    *written = values.size();
+    return MANUMESH_STATUS_OK;
+}
+
+ManuMeshStatus
+validateReadableMesh(ManuMeshContext* context, const manumesh::Mesh& mesh, bool strict, std::string& error) {
+    const bool valid =
+        strict ? manumesh::validateMeshGeometry(mesh, &error) : manumesh::validateMeshGeometryLenient(mesh, &error);
+    if (!valid) {
+        return fail(context, MANUMESH_STATUS_INVALID_MESH, error.empty() ? "Mesh geometry is invalid." : error.c_str());
+    }
+    return MANUMESH_STATUS_OK;
+}
+
+bool faceIsDegenerate(const manumesh::Mesh& mesh, const manumesh::Face& face) {
+    if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
+        return true;
+    }
+    return manumesh::triangleArea(mesh.vertices[face.v[0]], mesh.vertices[face.v[1]], mesh.vertices[face.v[2]]) <=
+           manumesh::kMinTriangleArea;
+}
+
+bool appendMeshValue(const manumesh::Mesh& source, manumesh::Mesh& destination, std::string& error) {
+    if (!manumesh::validateMeshGeometryLenient(destination, &error)) {
+        error = "Destination mesh is invalid: " + error;
+        return false;
+    }
+    if (!manumesh::validateMeshGeometryLenient(source, &error)) {
+        error = "Source mesh is invalid: " + error;
+        return false;
+    }
+    const std::size_t maxInt = static_cast<std::size_t>(std::numeric_limits<int>::max());
+    if (source.vertices.size() > maxInt || destination.vertices.size() > maxInt ||
+        destination.vertices.size() > maxInt - source.vertices.size()) {
+        error = "Combined vertex count exceeds the supported int-index range.";
+        return false;
+    }
+    if (source.faces.size() > maxInt || destination.faces.size() > maxInt ||
+        destination.faces.size() > maxInt - source.faces.size()) {
+        error = "Combined face count exceeds the supported int range.";
+        return false;
+    }
+
+    const int vertexOffset = static_cast<int>(destination.vertices.size());
+    const std::size_t originalFaceCount = destination.faces.size();
+    destination.vertices.insert(destination.vertices.end(), source.vertices.begin(), source.vertices.end());
+    destination.faces.reserve(originalFaceCount + source.faces.size());
+    for (const manumesh::Face& sourceFace : source.faces) {
+        manumesh::Face face = sourceFace;
+        for (int& id : face.v) {
+            id += vertexOffset;
+        }
+        destination.faces.push_back(face);
+    }
+
+    if (!destination.faceTexCoords.empty() || !source.faceTexCoords.empty()) {
+        if (destination.faceTexCoords.empty()) {
+            destination.faceTexCoords.resize(originalFaceCount, zeroCppTexcoords());
+        }
+        if (source.faceTexCoords.empty()) {
+            destination.faceTexCoords.resize(destination.faces.size(), zeroCppTexcoords());
+        } else {
+            destination.faceTexCoords.reserve(destination.faces.size());
+            for (const manumesh::FaceTexCoords& sourceTexcoords : source.faceTexCoords) {
+                destination.faceTexCoords.push_back(sourceTexcoords.valid ? sourceTexcoords : zeroCppTexcoords());
+            }
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 extern "C" {
@@ -573,6 +832,10 @@ const char* manumesh_status_message(ManuMeshStatus status) {
         return "algorithm error";
     case MANUMESH_STATUS_OUT_OF_MEMORY:
         return "out of memory";
+    case MANUMESH_STATUS_INVALID_MESH:
+        return "invalid mesh";
+    case MANUMESH_STATUS_UNSUPPORTED_FORMAT:
+        return "unsupported format";
     }
     return "unknown status";
 }
@@ -617,10 +880,10 @@ ManuMeshStatus manumesh_mesh_clear(ManuMeshContext* context, ManuMeshMeshHandle*
     if (!mesh) {
         return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
     }
-    mesh->mesh.vertices.clear();
-    mesh->mesh.faces.clear();
-    mesh->mesh.faceTexCoords.clear();
-    return MANUMESH_STATUS_OK;
+    return withMeshLock(context, mesh, [](manumesh::Mesh& value) {
+        value = manumesh::Mesh{};
+        return MANUMESH_STATUS_OK;
+    });
 }
 
 ManuMeshStatus manumesh_mesh_set_data(
@@ -669,8 +932,73 @@ ManuMeshStatus manumesh_mesh_set_data(
                 context, MANUMESH_STATUS_INVALID_ARGUMENT, error.empty() ? "Mesh geometry is invalid." : error.c_str()
             );
         }
-        mesh->mesh = std::move(next);
-        return MANUMESH_STATUS_OK;
+        return commitMesh(context, mesh, std::move(next));
+    } catch (const std::exception& ex) {
+        return translateException(context, ex);
+    } catch (...) {
+        return translateUnknownException(context);
+    }
+}
+
+ManuMeshStatus manumesh_mesh_set_data_with_texcoords(
+    ManuMeshContext* context,
+    ManuMeshMeshHandle* mesh,
+    const ManuMeshVec3* vertices,
+    size_t vertex_count,
+    const ManuMeshFace* faces,
+    size_t face_count,
+    const ManuMeshFaceTexCoords* face_texcoords
+) {
+    clearError(context);
+    if (!mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    if ((vertex_count > 0 && !vertices) || (face_count > 0 && !faces)) {
+        return fail(
+            context,
+            MANUMESH_STATUS_INVALID_ARGUMENT,
+            "Vertex and face pointers must be valid when counts are non-zero."
+        );
+    }
+    if (vertex_count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Vertex count exceeds the supported int-index range.");
+    }
+    if (face_count > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Face count exceeds the supported int-index range.");
+    }
+
+    try {
+        manumesh::Mesh next;
+        next.vertices.reserve(vertex_count);
+        next.faces.reserve(face_count);
+        if (face_texcoords) {
+            next.faceTexCoords.reserve(face_count);
+        }
+        for (size_t i = 0; i < vertex_count; ++i) {
+            next.vertices.emplace_back(vertices[i].x, vertices[i].y, vertices[i].z);
+        }
+        for (size_t i = 0; i < face_count; ++i) {
+            manumesh::Face face;
+            face.v = {faces[i].v[0], faces[i].v[1], faces[i].v[2]};
+            next.faces.push_back(face);
+            if (face_texcoords) {
+                if (!finiteTexcoords(face_texcoords[i])) {
+                    return fail(
+                        context,
+                        MANUMESH_STATUS_INVALID_ARGUMENT,
+                        "Texture coordinate arrays must contain only finite values."
+                    );
+                }
+                next.faceTexCoords.push_back(toCppTexcoords(face_texcoords[i]));
+            }
+        }
+        std::string error;
+        if (!manumesh::validateMeshGeometryLenient(next, &error)) {
+            return fail(
+                context, MANUMESH_STATUS_INVALID_ARGUMENT, error.empty() ? "Mesh geometry is invalid." : error.c_str()
+            );
+        }
+        return commitMesh(context, mesh, std::move(next));
     } catch (const std::exception& ex) {
         return translateException(context, ex);
     } catch (...) {
@@ -691,13 +1019,15 @@ ManuMeshStatus manumesh_mesh_get_counts(
             context, MANUMESH_STATUS_INVALID_ARGUMENT, "At least one of vertex_count or face_count must be valid."
         );
     }
-    if (vertex_count) {
-        *vertex_count = mesh->mesh.vertices.size();
-    }
-    if (face_count) {
-        *face_count = mesh->mesh.faces.size();
-    }
-    return MANUMESH_STATUS_OK;
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        if (vertex_count) {
+            *vertex_count = value.vertices.size();
+        }
+        if (face_count) {
+            *face_count = value.faces.size();
+        }
+        return MANUMESH_STATUS_OK;
+    });
 }
 
 ManuMeshStatus manumesh_mesh_copy_vertices(
@@ -711,20 +1041,22 @@ ManuMeshStatus manumesh_mesh_copy_vertices(
     if (!mesh || !vertices_written) {
         return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and vertices_written pointers must be valid.");
     }
-    const size_t required = mesh->mesh.vertices.size();
-    *vertices_written = required;
-    if (vertex_capacity < required) {
-        return fail(context, MANUMESH_STATUS_BUFFER_TOO_SMALL, "Vertex buffer is smaller than the mesh vertex count.");
-    }
-    if (required > 0 && !vertices) {
-        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Vertex buffer is null.");
-    }
-    for (size_t i = 0; i < required; ++i) {
-        vertices[i].x = mesh->mesh.vertices[i].x();
-        vertices[i].y = mesh->mesh.vertices[i].y();
-        vertices[i].z = mesh->mesh.vertices[i].z();
-    }
-    return MANUMESH_STATUS_OK;
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        const size_t required = value.vertices.size();
+        *vertices_written = required;
+        if (vertex_capacity < required) {
+            return fail(
+                context, MANUMESH_STATUS_BUFFER_TOO_SMALL, "Vertex buffer is smaller than the mesh vertex count."
+            );
+        }
+        if (required > 0 && !vertices) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Vertex buffer is null.");
+        }
+        for (size_t i = 0; i < required; ++i) {
+            vertices[i] = toCVec3(value.vertices[i]);
+        }
+        return MANUMESH_STATUS_OK;
+    });
 }
 
 ManuMeshStatus manumesh_mesh_copy_faces(
@@ -738,20 +1070,835 @@ ManuMeshStatus manumesh_mesh_copy_faces(
     if (!mesh || !faces_written) {
         return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and faces_written pointers must be valid.");
     }
-    const size_t required = mesh->mesh.faces.size();
-    *faces_written = required;
-    if (face_capacity < required) {
-        return fail(context, MANUMESH_STATUS_BUFFER_TOO_SMALL, "Face buffer is smaller than the mesh face count.");
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        const size_t required = value.faces.size();
+        *faces_written = required;
+        if (face_capacity < required) {
+            return fail(context, MANUMESH_STATUS_BUFFER_TOO_SMALL, "Face buffer is smaller than the mesh face count.");
+        }
+        if (required > 0 && !faces) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Face buffer is null.");
+        }
+        for (size_t i = 0; i < required; ++i) {
+            faces[i].v[0] = value.faces[i].v[0];
+            faces[i].v[1] = value.faces[i].v[1];
+            faces[i].v[2] = value.faces[i].v[2];
+        }
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_copy(ManuMeshContext* context, const ManuMeshMeshHandle* source, ManuMeshMeshHandle* destination) {
+    clearError(context);
+    if (!source || !destination) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Source and destination mesh handles must be valid.");
     }
-    if (required > 0 && !faces) {
-        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Face buffer is null.");
+    if (source == destination) {
+        return withMeshLock(context, destination, [](manumesh::Mesh&) {
+            return MANUMESH_STATUS_OK;
+        });
     }
-    for (size_t i = 0; i < required; ++i) {
-        faces[i].v[0] = mesh->mesh.faces[i].v[0];
-        faces[i].v[1] = mesh->mesh.faces[i].v[1];
-        faces[i].v[2] = mesh->mesh.faces[i].v[2];
+    return withTwoMeshLocks(
+        context, source, destination, [](const manumesh::Mesh& sourceValue, manumesh::Mesh& destinationValue) {
+            manumesh::Mesh candidate = sourceValue;
+            destinationValue = std::move(candidate);
+            return MANUMESH_STATUS_OK;
+        }
+    );
+}
+
+ManuMeshStatus manumesh_mesh_get_vertex(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, size_t vertex_index, ManuMeshVec3* vertex
+) {
+    clearError(context);
+    if (!mesh || !vertex) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and vertex output pointers must be valid.");
     }
-    return MANUMESH_STATUS_OK;
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        if (vertex_index >= value.vertices.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Vertex index is out of range.");
+        }
+        *vertex = toCVec3(value.vertices[vertex_index]);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_set_vertex(ManuMeshContext* context, ManuMeshMeshHandle* mesh, size_t vertex_index, ManuMeshVec3 vertex) {
+    clearError(context);
+    if (!mesh || !finiteCVec3(vertex)) {
+        return fail(
+            context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh must be valid and vertex coordinates must be finite."
+        );
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        if (vertex_index >= value.vertices.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Vertex index is out of range.");
+        }
+        manumesh::Mesh candidate = value;
+        candidate.vertices[vertex_index] = manumesh::Vec3(vertex.x, vertex.y, vertex.z);
+        std::string error;
+        if (!manumesh::validateMeshGeometryLenient(candidate, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        value = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_get_face(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, size_t face_index, ManuMeshFace* face
+) {
+    clearError(context);
+    if (!mesh || !face) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and face output pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        if (face_index >= value.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Face index is out of range.");
+        }
+        const manumesh::Face& source = value.faces[face_index];
+        ManuMeshFace result = {{source.v[0], source.v[1], source.v[2]}};
+        *face = result;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_set_face(ManuMeshContext* context, ManuMeshMeshHandle* mesh, size_t face_index, ManuMeshFace face) {
+    clearError(context);
+    if (!mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        if (face_index >= value.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Face index is out of range.");
+        }
+        manumesh::Mesh candidate = value;
+        candidate.faces[face_index].v = {face.v[0], face.v[1], face.v[2]};
+        std::string error;
+        if (!manumesh::validateMeshGeometryLenient(candidate, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        value = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_get_bounds(ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshBounds* bounds) {
+    clearError(context);
+    if (!mesh || !bounds) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and bounds output pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        ManuMeshBounds result{};
+        if (!value.vertices.empty()) {
+            for (const manumesh::Vec3& vertex : value.vertices) {
+                if (!finiteVec3(vertex)) {
+                    return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh contains a non-finite vertex coordinate.");
+                }
+            }
+            result.min = toCVec3(value.bboxMin());
+            result.max = toCVec3(value.bboxMax());
+            result.valid = 1;
+        }
+        *bounds = result;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_translate(ManuMeshContext* context, ManuMeshMeshHandle* mesh, ManuMeshVec3 offset) {
+    clearError(context);
+    if (!mesh || !finiteCVec3(offset)) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh must be valid and translation must be finite.");
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        manumesh::Mesh candidate = value;
+        const manumesh::Vec3 delta(offset.x, offset.y, offset.z);
+        for (manumesh::Vec3& vertex : candidate.vertices) {
+            vertex += delta;
+            if (!finiteVec3(vertex)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Translation produced a non-finite vertex.");
+            }
+        }
+        std::string error;
+        if (!manumesh::validateMeshGeometryLenient(candidate, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        value = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_transform(ManuMeshContext* context, ManuMeshMeshHandle* mesh, const double matrix_row_major[16]) {
+    clearError(context);
+    if (!mesh || !matrix_row_major) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and transform matrix must be valid.");
+    }
+    std::array<double, 16> matrix{};
+    for (std::size_t i = 0; i < matrix.size(); ++i) {
+        if (!std::isfinite(matrix_row_major[i])) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Transform matrix must contain finite values.");
+        }
+        matrix[i] = matrix_row_major[i];
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        manumesh::Mesh candidate = value;
+        for (manumesh::Vec3& vertex : candidate.vertices) {
+            const double x = vertex.x();
+            const double y = vertex.y();
+            const double z = vertex.z();
+            const double w = matrix[12] * x + matrix[13] * y + matrix[14] * z + matrix[15];
+            if (!std::isfinite(w) || w == 0.0) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Transform produced an invalid homogeneous w.");
+            }
+            const manumesh::Vec3 transformed(
+                (matrix[0] * x + matrix[1] * y + matrix[2] * z + matrix[3]) / w,
+                (matrix[4] * x + matrix[5] * y + matrix[6] * z + matrix[7]) / w,
+                (matrix[8] * x + matrix[9] * y + matrix[10] * z + matrix[11]) / w
+            );
+            if (!finiteVec3(transformed)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Transform produced a non-finite vertex.");
+            }
+            vertex = transformed;
+        }
+        std::string error;
+        if (!manumesh::validateMeshGeometryLenient(candidate, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        value = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_compact(ManuMeshContext* context, ManuMeshMeshHandle* mesh) {
+    clearError(context);
+    if (!mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        manumesh::Mesh candidate = value;
+        candidate.removeUnusedVertices();
+        std::string error;
+        if (!manumesh::validateMeshGeometryLenient(candidate, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        value = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_validate(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, int strict, size_t* degenerate_face_count
+) {
+    clearError(context);
+    if (degenerate_face_count) {
+        *degenerate_face_count = 0;
+    }
+    if (!mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        if (!manumesh::validateMeshIndices(value, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        if (degenerate_face_count) {
+            *degenerate_face_count = static_cast<size_t>(manumesh::countDegenerateFaces(value));
+        }
+        return validateReadableMesh(context, value, strict != 0, error);
+    });
+}
+
+ManuMeshStatus manumesh_mesh_copy_face_areas(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, double* areas, size_t area_capacity, size_t* areas_written
+) {
+    clearError(context);
+    if (areas_written) {
+        *areas_written = 0;
+    }
+    if (!mesh || !areas_written) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and areas_written pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus status = validateReadableMesh(context, value, false, error);
+        if (status != MANUMESH_STATUS_OK) {
+            return status;
+        }
+        const ManuMeshStatus preflightStatus = preflightOutputBuffer(
+            context,
+            areas,
+            area_capacity,
+            value.faces.size(),
+            areas_written,
+            "Face area buffer is too small.",
+            "Face area buffer is null."
+        );
+        if (preflightStatus != MANUMESH_STATUS_OK) {
+            return preflightStatus;
+        }
+        const std::vector<double> result = manumesh::computeFaceAreas(value);
+        for (const double area : result) {
+            if (!std::isfinite(area)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Face area computation is not finite.");
+            }
+        }
+        return copyOutputVector(
+            context,
+            result,
+            areas,
+            area_capacity,
+            areas_written,
+            "Face area buffer is too small.",
+            "Face area buffer is null."
+        );
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_get_surface_area(ManuMeshContext* context, const ManuMeshMeshHandle* mesh, double* surface_area) {
+    clearError(context);
+    if (!mesh || !surface_area) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and surface_area pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus status = validateReadableMesh(context, value, false, error);
+        if (status != MANUMESH_STATUS_OK) {
+            return status;
+        }
+        const double result = manumesh::computeSurfaceArea(value);
+        if (!std::isfinite(result)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh surface area is not finite.");
+        }
+        *surface_area = result;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_get_signed_volume(ManuMeshContext* context, const ManuMeshMeshHandle* mesh, double* signed_volume) {
+    clearError(context);
+    if (!mesh || !signed_volume) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and signed_volume pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus validationStatus = validateReadableMesh(context, value, true, error);
+        if (validationStatus != MANUMESH_STATUS_OK) {
+            return validationStatus;
+        }
+        const manumesh::Result<manumesh::MeshTopologySummary> topologyResult = manumesh::summarizeMeshTopology(value);
+        if (!topologyResult.ok()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, topologyResult.status().message().c_str());
+        }
+        const manumesh::MeshTopologySummary& topology = topologyResult.value();
+        if (!topology.closedManifold) {
+            return fail(
+                context, MANUMESH_STATUS_INVALID_MESH, "Signed volume requires a non-empty closed manifold mesh."
+            );
+        }
+        if (!topology.consistentlyOriented) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Signed volume requires consistently oriented faces.");
+        }
+        const double volume = manumesh::computeSignedVolume(value);
+        if (!std::isfinite(volume)) {
+            return fail(
+                context, MANUMESH_STATUS_INVALID_MESH, "Mesh signed volume is not representable as a finite double."
+            );
+        }
+        *signed_volume = volume;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_get_surface_centroid(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshVec3* surface_centroid
+) {
+    clearError(context);
+    if (!mesh || !surface_centroid) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and surface_centroid pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus status = validateReadableMesh(context, value, false, error);
+        if (status != MANUMESH_STATUS_OK) {
+            return status;
+        }
+        const manumesh::Vec3 result = manumesh::computeSurfaceCentroid(value);
+        if (!finiteVec3(result)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh surface centroid is not finite.");
+        }
+        *surface_centroid = toCVec3(result);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_copy_face_centroids(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    ManuMeshVec3* centroids,
+    size_t centroid_capacity,
+    size_t* centroids_written
+) {
+    clearError(context);
+    if (centroids_written) {
+        *centroids_written = 0;
+    }
+    if (!mesh || !centroids_written) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and centroids_written pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus status = validateReadableMesh(context, value, false, error);
+        if (status != MANUMESH_STATUS_OK) {
+            return status;
+        }
+        const ManuMeshStatus preflightStatus = preflightOutputBuffer(
+            context,
+            centroids,
+            centroid_capacity,
+            value.faces.size(),
+            centroids_written,
+            "Face centroid buffer is too small.",
+            "Face centroid buffer is null."
+        );
+        if (preflightStatus != MANUMESH_STATUS_OK) {
+            return preflightStatus;
+        }
+        std::vector<ManuMeshVec3> result;
+        result.reserve(value.faces.size());
+        for (const manumesh::Face& face : value.faces) {
+            const manumesh::Vec3 centroid =
+                (value.vertices[face.v[0]] + value.vertices[face.v[1]] + value.vertices[face.v[2]]) / 3.0;
+            if (!finiteVec3(centroid)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Face centroid computation is not finite.");
+            }
+            result.push_back(toCVec3(centroid));
+        }
+        return copyOutputVector(
+            context,
+            result,
+            centroids,
+            centroid_capacity,
+            centroids_written,
+            "Face centroid buffer is too small.",
+            "Face centroid buffer is null."
+        );
+    });
+}
+
+ManuMeshStatus manumesh_mesh_copy_face_normals(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    ManuMeshVec3* normals,
+    size_t normal_capacity,
+    size_t* normals_written
+) {
+    clearError(context);
+    if (normals_written) {
+        *normals_written = 0;
+    }
+    if (!mesh || !normals_written) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and normals_written pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus status = validateReadableMesh(context, value, false, error);
+        if (status != MANUMESH_STATUS_OK) {
+            return status;
+        }
+        const ManuMeshStatus preflightStatus = preflightOutputBuffer(
+            context,
+            normals,
+            normal_capacity,
+            value.faces.size(),
+            normals_written,
+            "Face normal buffer is too small.",
+            "Face normal buffer is null."
+        );
+        if (preflightStatus != MANUMESH_STATUS_OK) {
+            return preflightStatus;
+        }
+        const std::vector<manumesh::Vec3> cppNormals = manumesh::computeFaceNormals(value);
+        std::vector<ManuMeshVec3> result(cppNormals.size());
+        for (std::size_t i = 0; i < cppNormals.size(); ++i) {
+            if (!finiteVec3(cppNormals[i])) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Face normal computation is not finite.");
+            }
+            result[i] = toCVec3(cppNormals[i]);
+        }
+        return copyOutputVector(
+            context,
+            result,
+            normals,
+            normal_capacity,
+            normals_written,
+            "Face normal buffer is too small.",
+            "Face normal buffer is null."
+        );
+    });
+}
+
+ManuMeshStatus manumesh_mesh_copy_vertex_normals(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    ManuMeshVec3* normals,
+    size_t normal_capacity,
+    size_t* normals_written
+) {
+    clearError(context);
+    if (normals_written) {
+        *normals_written = 0;
+    }
+    if (!mesh || !normals_written) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and normals_written pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus status = validateReadableMesh(context, value, false, error);
+        if (status != MANUMESH_STATUS_OK) {
+            return status;
+        }
+        const ManuMeshStatus preflightStatus = preflightOutputBuffer(
+            context,
+            normals,
+            normal_capacity,
+            value.vertices.size(),
+            normals_written,
+            "Vertex normal buffer is too small.",
+            "Vertex normal buffer is null."
+        );
+        if (preflightStatus != MANUMESH_STATUS_OK) {
+            return preflightStatus;
+        }
+        const std::vector<manumesh::Vec3> cppNormals = manumesh::computeVertexNormals(value);
+        std::vector<ManuMeshVec3> result(cppNormals.size());
+        for (std::size_t i = 0; i < cppNormals.size(); ++i) {
+            if (!finiteVec3(cppNormals[i])) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Vertex normal computation is not finite.");
+            }
+            result[i] = toCVec3(cppNormals[i]);
+        }
+        return copyOutputVector(
+            context,
+            result,
+            normals,
+            normal_capacity,
+            normals_written,
+            "Vertex normal buffer is too small.",
+            "Vertex normal buffer is null."
+        );
+    });
+}
+
+ManuMeshStatus manumesh_mesh_copy_unique_edges(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    ManuMeshEdge* edges,
+    size_t edge_capacity,
+    size_t* edges_written
+) {
+    clearError(context);
+    if (edges_written) {
+        *edges_written = 0;
+    }
+    if (!mesh || !edges_written) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and edges_written pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        std::string error;
+        const ManuMeshStatus status = validateReadableMesh(context, value, false, error);
+        if (status != MANUMESH_STATUS_OK) {
+            return status;
+        }
+        const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(value);
+        if (!topologyResult.ok()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, topologyResult.status().message().c_str());
+        }
+        const std::vector<manumesh::TopologyEdge>& topologyEdges = topologyResult.value().edges();
+        const ManuMeshStatus preflightStatus = preflightOutputBuffer(
+            context,
+            edges,
+            edge_capacity,
+            topologyEdges.size(),
+            edges_written,
+            "Unique edge buffer is too small.",
+            "Unique edge buffer is null."
+        );
+        if (preflightStatus != MANUMESH_STATUS_OK) {
+            return preflightStatus;
+        }
+        std::vector<ManuMeshEdge> result;
+        result.reserve(topologyEdges.size());
+        for (const manumesh::TopologyEdge& edge : topologyEdges) {
+            result.push_back(
+                ManuMeshEdge{
+                    edge.vertices[0],
+                    edge.vertices[1],
+                    edge.faces.size(),
+                    edge.boundary() ? 1 : 0,
+                    edge.nonManifold() ? 1 : 0,
+                }
+            );
+        }
+        std::sort(result.begin(), result.end(), [](const ManuMeshEdge& lhs, const ManuMeshEdge& rhs) {
+            return std::tie(lhs.a, lhs.b) < std::tie(rhs.a, rhs.b);
+        });
+        return copyOutputVector(
+            context,
+            result,
+            edges,
+            edge_capacity,
+            edges_written,
+            "Unique edge buffer is too small.",
+            "Unique edge buffer is null."
+        );
+    });
+}
+
+ManuMeshStatus manumesh_mesh_get_topology_summary(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, ManuMeshTopologySummary* summary
+) {
+    clearError(context);
+    if (!mesh || !summary) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and topology summary pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        const manumesh::Result<manumesh::MeshTopologySummary> topologyResult = manumesh::summarizeMeshTopology(value);
+        if (!topologyResult.ok()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, topologyResult.status().message().c_str());
+        }
+        const manumesh::MeshTopologySummary& source = topologyResult.value();
+        const ManuMeshTopologySummary result{
+            source.connectedFaceComponents,
+            source.uniqueEdges,
+            source.boundaryEdges,
+            source.nonManifoldEdges,
+            source.closedManifold ? 1 : 0,
+            source.consistentlyOriented ? 1 : 0,
+        };
+        *summary = result;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_has_texture_coordinates(ManuMeshContext* context, const ManuMeshMeshHandle* mesh, int* has_texcoords) {
+    clearError(context);
+    if (!mesh || !has_texcoords) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and has_texcoords pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        *has_texcoords = value.hasTextureCoordinates() ? 1 : 0;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_get_face_texcoords(
+    ManuMeshContext* context, const ManuMeshMeshHandle* mesh, size_t face_index, ManuMeshFaceTexCoords* texcoords
+) {
+    clearError(context);
+    if (!mesh || !texcoords) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and texcoords output pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        if (face_index >= value.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Face index is out of range.");
+        }
+        ManuMeshFaceTexCoords result = zeroTexcoords();
+        if (value.faceTexCoords.size() == value.faces.size()) {
+            result = toCTexcoords(value.faceTexCoords[face_index]);
+        } else if (!value.faceTexCoords.empty()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Texture coordinates are not aligned with mesh faces.");
+        }
+        *texcoords = result;
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_set_face_texcoords(
+    ManuMeshContext* context, ManuMeshMeshHandle* mesh, size_t face_index, const ManuMeshFaceTexCoords* texcoords
+) {
+    clearError(context);
+    if (!mesh || !texcoords || !finiteTexcoords(*texcoords)) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and finite texture coordinates must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        if (face_index >= value.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Face index is out of range.");
+        }
+        manumesh::Mesh candidate = value;
+        if (candidate.faceTexCoords.empty()) {
+            candidate.faceTexCoords.resize(candidate.faces.size());
+        } else if (candidate.faceTexCoords.size() != candidate.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Texture coordinates are not aligned with mesh faces.");
+        }
+        candidate.faceTexCoords[face_index] = toCppTexcoords(*texcoords);
+        std::string error;
+        if (!manumesh::validateMeshGeometryLenient(candidate, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        value = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus manumesh_mesh_copy_face_texcoords(
+    ManuMeshContext* context,
+    const ManuMeshMeshHandle* mesh,
+    ManuMeshFaceTexCoords* texcoords,
+    size_t texcoord_capacity,
+    size_t* texcoords_written
+) {
+    clearError(context);
+    if (texcoords_written) {
+        *texcoords_written = 0;
+    }
+    if (!mesh || !texcoords_written) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh and texcoords_written pointers must be valid.");
+    }
+    return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
+        if (!value.faceTexCoords.empty() && value.faceTexCoords.size() != value.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Texture coordinates are not aligned with mesh faces.");
+        }
+        for (const manumesh::FaceTexCoords& source : value.faceTexCoords) {
+            if (source.valid) {
+                for (const manumesh::Vec2& uv : source.uv) {
+                    if (!std::isfinite(uv.x()) || !std::isfinite(uv.y())) {
+                        return fail(context, MANUMESH_STATUS_INVALID_MESH, "Texture coordinates are not finite.");
+                    }
+                }
+            }
+        }
+        const ManuMeshStatus preflightStatus = preflightOutputBuffer(
+            context,
+            texcoords,
+            texcoord_capacity,
+            value.faces.size(),
+            texcoords_written,
+            "Texture coordinate buffer is too small.",
+            "Texture coordinate buffer is null."
+        );
+        if (preflightStatus != MANUMESH_STATUS_OK) {
+            return preflightStatus;
+        }
+        std::vector<ManuMeshFaceTexCoords> result(value.faces.size(), zeroTexcoords());
+        for (std::size_t i = 0; i < value.faceTexCoords.size(); ++i) {
+            result[i] = toCTexcoords(value.faceTexCoords[i]);
+        }
+        return copyOutputVector(
+            context,
+            result,
+            texcoords,
+            texcoord_capacity,
+            texcoords_written,
+            "Texture coordinate buffer is too small.",
+            "Texture coordinate buffer is null."
+        );
+    });
+}
+
+ManuMeshStatus manumesh_mesh_reverse_winding(ManuMeshContext* context, ManuMeshMeshHandle* mesh) {
+    clearError(context);
+    if (!mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        if (!value.faceTexCoords.empty() && value.faceTexCoords.size() != value.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Texture coordinates are not aligned with mesh faces.");
+        }
+        manumesh::Mesh candidate = value;
+        manumesh::reverseFaceWindings(candidate);
+        value = std::move(candidate);
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_remove_degenerate_faces(ManuMeshContext* context, ManuMeshMeshHandle* mesh, size_t* removed_face_count) {
+    clearError(context);
+    if (removed_face_count) {
+        *removed_face_count = 0;
+    }
+    if (!mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Mesh handle is null.");
+    }
+    return withMeshLock(context, mesh, [&](manumesh::Mesh& value) {
+        std::string error;
+        if (!manumesh::validateMeshIndices(value, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        for (const manumesh::Vec3& vertex : value.vertices) {
+            if (!finiteVec3(vertex)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh contains a non-finite vertex coordinate.");
+            }
+        }
+        if (!value.faceTexCoords.empty() && value.faceTexCoords.size() != value.faces.size()) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Texture coordinates are not aligned with mesh faces.");
+        }
+        manumesh::Mesh candidate;
+        candidate.vertices = value.vertices;
+        candidate.faces.reserve(value.faces.size());
+        if (!value.faceTexCoords.empty()) {
+            candidate.faceTexCoords.reserve(value.faceTexCoords.size());
+        }
+        std::size_t removed = 0;
+        for (std::size_t i = 0; i < value.faces.size(); ++i) {
+            if (faceIsDegenerate(value, value.faces[i])) {
+                ++removed;
+                continue;
+            }
+            candidate.faces.push_back(value.faces[i]);
+            if (!value.faceTexCoords.empty()) {
+                candidate.faceTexCoords.push_back(value.faceTexCoords[i]);
+            }
+        }
+        candidate.removeUnusedVertices();
+        if (!manumesh::validateMeshGeometryLenient(candidate, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        value = std::move(candidate);
+        if (removed_face_count) {
+            *removed_face_count = removed;
+        }
+        return MANUMESH_STATUS_OK;
+    });
+}
+
+ManuMeshStatus
+manumesh_mesh_append(ManuMeshContext* context, ManuMeshMeshHandle* destination, const ManuMeshMeshHandle* source) {
+    clearError(context);
+    if (!destination || !source) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Destination and source mesh handles must be valid.");
+    }
+    if (destination == source) {
+        return withMeshLock(context, destination, [&](manumesh::Mesh& value) {
+            manumesh::Mesh sourceCopy = value;
+            manumesh::Mesh candidate = value;
+            std::string error;
+            if (!appendMeshValue(sourceCopy, candidate, error)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+            }
+            value = std::move(candidate);
+            return MANUMESH_STATUS_OK;
+        });
+    }
+    return withTwoMeshLocks(
+        context, source, destination, [&](const manumesh::Mesh& sourceValue, manumesh::Mesh& destinationValue) {
+            manumesh::Mesh candidate = destinationValue;
+            std::string error;
+            if (!appendMeshValue(sourceValue, candidate, error)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+            }
+            destinationValue = std::move(candidate);
+            return MANUMESH_STATUS_OK;
+        }
+    );
 }
 
 ManuMeshStatus manumesh_load_mesh(
@@ -768,12 +1915,16 @@ ManuMeshStatus manumesh_load_mesh(
     }
     std::string error;
     try {
+        if (!hasSupportedMeshExtension(path)) {
+            return fail(context, MANUMESH_STATUS_UNSUPPORTED_FORMAT, "Unsupported mesh extension. Use .stl or .obj.");
+        }
         manumesh::Mesh loaded;
         if (!manumesh::loadMesh(path, loaded, &error, merge_relative_epsilon)) {
-            return fail(context, MANUMESH_STATUS_IO_ERROR, error.c_str());
+            const ManuMeshStatus status =
+                error == "Mesh load ran out of memory." ? MANUMESH_STATUS_OUT_OF_MEMORY : MANUMESH_STATUS_IO_ERROR;
+            return fail(context, status, error.c_str());
         }
-        mesh->mesh = std::move(loaded);
-        return MANUMESH_STATUS_OK;
+        return commitMesh(context, mesh, std::move(loaded));
     } catch (const std::exception& ex) {
         return translateException(context, ex);
     } catch (...) {
@@ -790,8 +1941,16 @@ ManuMeshStatus manumesh_save_ascii_stl(
     }
     std::string error;
     try {
+        manumesh::Mesh snapshot;
+        const ManuMeshStatus snapshotStatus = snapshotMesh(context, mesh, snapshot);
+        if (snapshotStatus != MANUMESH_STATUS_OK) {
+            return snapshotStatus;
+        }
+        if (!manumesh::validateMeshGeometry(snapshot, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
         const char* name = solid_name ? solid_name : "mesh";
-        if (!manumesh::saveAsciiStl(path, mesh->mesh, name, &error)) {
+        if (!manumesh::saveAsciiStl(path, snapshot, name, &error)) {
             return fail(context, MANUMESH_STATUS_IO_ERROR, error.c_str());
         }
         return MANUMESH_STATUS_OK;
@@ -809,7 +1968,43 @@ ManuMeshStatus manumesh_save_binary_stl(ManuMeshContext* context, const char* pa
     }
     std::string error;
     try {
-        if (!manumesh::saveBinaryStl(path, mesh->mesh, &error)) {
+        manumesh::Mesh snapshot;
+        const ManuMeshStatus snapshotStatus = snapshotMesh(context, mesh, snapshot);
+        if (snapshotStatus != MANUMESH_STATUS_OK) {
+            return snapshotStatus;
+        }
+        if (!manumesh::validateMeshGeometry(snapshot, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        if (!manumesh::saveBinaryStl(path, snapshot, &error)) {
+            const ManuMeshStatus status =
+                isBinaryStlRepresentabilityError(error) ? MANUMESH_STATUS_INVALID_MESH : MANUMESH_STATUS_IO_ERROR;
+            return fail(context, status, error.c_str());
+        }
+        return MANUMESH_STATUS_OK;
+    } catch (const std::exception& ex) {
+        return translateException(context, ex);
+    } catch (...) {
+        return translateUnknownException(context);
+    }
+}
+
+ManuMeshStatus manumesh_save_obj(ManuMeshContext* context, const char* path, const ManuMeshMeshHandle* mesh) {
+    clearError(context);
+    if (!path || !mesh) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Path and mesh handle must be valid.");
+    }
+    std::string error;
+    try {
+        manumesh::Mesh snapshot;
+        const ManuMeshStatus snapshotStatus = snapshotMesh(context, mesh, snapshot);
+        if (snapshotStatus != MANUMESH_STATUS_OK) {
+            return snapshotStatus;
+        }
+        if (!manumesh::validateMeshGeometry(snapshot, &error)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
+        }
+        if (!manumesh::saveObj(path, snapshot, &error)) {
             return fail(context, MANUMESH_STATUS_IO_ERROR, error.c_str());
         }
         return MANUMESH_STATUS_OK;
@@ -831,8 +2026,7 @@ ManuMeshStatus manumesh_generate_mesh(ManuMeshContext* context, const char* name
         if (!manumesh::generateMeshByName(name, n, generated, &error)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, error.c_str());
         }
-        mesh->mesh = std::move(generated);
-        return MANUMESH_STATUS_OK;
+        return commitMesh(context, mesh, std::move(generated));
     } catch (const std::exception& ex) {
         return translateException(context, ex);
     } catch (...) {
@@ -841,7 +2035,13 @@ ManuMeshStatus manumesh_generate_mesh(ManuMeshContext* context, const char* name
 }
 
 ManuMeshStatus manumesh_feature_options_init_with_size(ManuMeshFeatureOptions* options, size_t struct_capacity) {
-    return manumesh::api::initializeFeatureOptions(options, struct_capacity);
+    try {
+        return manumesh::api::initializeFeatureOptions(options, struct_capacity);
+    } catch (const std::exception& ex) {
+        return translateException(nullptr, ex);
+    } catch (...) {
+        return translateUnknownException(nullptr);
+    }
 }
 
 void manumesh_feature_options_init(ManuMeshFeatureOptions* options) {
@@ -868,19 +2068,24 @@ ManuMeshStatus manumesh_detect_feature_edges(
         return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Edge buffer is null for a non-zero capacity.");
     }
     try {
+        manumesh::Mesh snapshot;
+        const ManuMeshStatus snapshotStatus = snapshotMesh(context, mesh, snapshot);
+        if (snapshotStatus != MANUMESH_STATUS_OK) {
+            return snapshotStatus;
+        }
         manumesh::feature::FeatureOptions cppOptions;
         std::string conversionError;
         if (!manumesh::api::readFeatureOptions(options, cppOptions, conversionError)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, conversionError.c_str());
         }
         const manumesh::feature::FeatureAnalysis analysis =
-            manumesh::feature::detectFeatureCurves(mesh->mesh, cppOptions);
+            manumesh::feature::detectFeatureCurves(snapshot, cppOptions);
 
         // Filter first, then copy directly into the caller's buffer. This keeps the
         // two-call API allocation-free on the successful copy path.
         size_t required = 0;
         for (const manumesh::feature::FeatureGraphEdge& source : analysis.graph.edges) {
-            if (!isExportableFeatureEdge(source, mesh->mesh.vertices.size())) {
+            if (!isExportableFeatureEdge(source, snapshot.vertices.size())) {
                 continue;
             }
             ++required;
@@ -892,7 +2097,7 @@ ManuMeshStatus manumesh_detect_feature_edges(
         }
         size_t outputIndex = 0;
         for (const manumesh::feature::FeatureGraphEdge& source : analysis.graph.edges) {
-            if (!isExportableFeatureEdge(source, mesh->mesh.vertices.size())) {
+            if (!isExportableFeatureEdge(source, snapshot.vertices.size())) {
                 continue;
             }
             copyFeatureEdge(source, edges[outputIndex++]);
@@ -925,22 +2130,36 @@ ManuMeshStatus manumesh_detect_feature_edges_v2(
         return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Edge buffer is null for a non-zero capacity.");
     }
     try {
+        manumesh::Mesh snapshot;
+        const ManuMeshStatus snapshotStatus = snapshotMesh(context, mesh, snapshot);
+        if (snapshotStatus != MANUMESH_STATUS_OK) {
+            return snapshotStatus;
+        }
         manumesh::feature::FeatureOptions cppOptions;
         std::string conversionError;
         if (!manumesh::api::readFeatureOptions(options, cppOptions, conversionError)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, conversionError.c_str());
         }
         const manumesh::feature::FeatureAnalysis analysis =
-            manumesh::feature::detectFeatureCurves(mesh->mesh, cppOptions);
-        const std::vector<IndexedFeatureEdge> indexed = buildIndexedFeatureEdges(mesh->mesh, analysis);
-
-        *edges_written = indexed.size();
-        if (edge_capacity < indexed.size()) {
+            manumesh::feature::detectFeatureCurves(snapshot, cppOptions);
+        std::size_t required = 0;
+        for (const manumesh::feature::FeatureGraphEdge& source : analysis.graph.edges) {
+            if (isExportableFeatureEdge(source, snapshot.vertices.size())) {
+                ++required;
+            }
+        }
+        if (edge_capacity < required) {
+            *edges_written = required;
             return fail(context, MANUMESH_STATUS_BUFFER_TOO_SMALL, "Feature edge buffer is too small.");
+        }
+        const std::vector<IndexedFeatureEdge> indexed = buildIndexedFeatureEdges(snapshot, analysis);
+        if (indexed.size() != required) {
+            return fail(context, MANUMESH_STATUS_ALGORITHM_ERROR, "Feature edge export count changed during indexing.");
         }
         for (std::size_t i = 0; i < indexed.size(); ++i) {
             copyFeatureEdgeV2(indexed[i], static_cast<std::uint64_t>(i), edges[i]);
         }
+        *edges_written = indexed.size();
         return MANUMESH_STATUS_OK;
     } catch (const std::exception& ex) {
         return translateException(context, ex);
@@ -950,15 +2169,33 @@ ManuMeshStatus manumesh_detect_feature_edges_v2(
 }
 
 ManuMeshStatus manumesh_simplify_options_init_with_size(ManuMeshSimplifyOptions* options, size_t struct_capacity) {
-    return manumesh::api::initializeSimplifyOptions(options, struct_capacity);
+    try {
+        return manumesh::api::initializeSimplifyOptions(options, struct_capacity);
+    } catch (const std::exception& ex) {
+        return translateException(nullptr, ex);
+    } catch (...) {
+        return translateUnknownException(nullptr);
+    }
 }
 
 ManuMeshStatus manumesh_simplify_report_init_with_size(ManuMeshSimplifyReport* report, size_t struct_capacity) {
-    return manumesh::api::initializeSimplifyReport(report, struct_capacity);
+    try {
+        return manumesh::api::initializeSimplifyReport(report, struct_capacity);
+    } catch (const std::exception& ex) {
+        return translateException(nullptr, ex);
+    } catch (...) {
+        return translateUnknownException(nullptr);
+    }
 }
 
 ManuMeshStatus manumesh_mesh_stats_init_with_size(ManuMeshMeshStats* stats, size_t struct_capacity) {
-    return manumesh::api::initializeMeshStats(stats, struct_capacity);
+    try {
+        return manumesh::api::initializeMeshStats(stats, struct_capacity);
+    } catch (const std::exception& ex) {
+        return translateException(nullptr, ex);
+    } catch (...) {
+        return translateUnknownException(nullptr);
+    }
 }
 
 void manumesh_simplify_options_init(ManuMeshSimplifyOptions* options) {
@@ -1000,16 +2237,32 @@ ManuMeshStatus manumesh_simplify_mesh_with_report_size(
             }
         }
 
-        manumesh::simplification::SimplifyReport cppReport;
-        manumesh::simplification::QEMSimplifier simplifier(cppOptions);
-        output->mesh = simplifier.simplify(input->mesh, &cppReport);
-        if (report) {
-            const ManuMeshStatus reportStatus = manumesh::api::fillSimplifyReport(cppReport, report, report_capacity);
-            if (reportStatus != MANUMESH_STATUS_OK) {
-                return fail(context, reportStatus, "Failed to initialize the simplify report output buffer.");
+        const auto simplifyAndCommit = [&](const manumesh::Mesh& source, manumesh::Mesh& destination) {
+            manumesh::simplification::SimplifyReport cppReport;
+            manumesh::simplification::QEMSimplifier simplifier(cppOptions);
+            manumesh::Mesh simplified = simplifier.simplify(source, &cppReport);
+            if (report) {
+                const ManuMeshStatus reportStatus =
+                    manumesh::api::fillSimplifyReport(cppReport, report, report_capacity);
+                if (reportStatus != MANUMESH_STATUS_OK) {
+                    return fail(context, reportStatus, "Failed to initialize the simplify report output buffer.");
+                }
             }
+            destination = std::move(simplified);
+            return MANUMESH_STATUS_OK;
+        };
+
+        // Keep the source snapshot and output commit in one critical section. Otherwise a
+        // concurrent writer can successfully update the output while simplification runs,
+        // only to have that update silently overwritten by the later commit.
+        if (input == output) {
+            return withMeshLock(context, output, [&](manumesh::Mesh& mesh) {
+                return simplifyAndCommit(mesh, mesh);
+            });
         }
-        return MANUMESH_STATUS_OK;
+        return withTwoMeshLocks(context, input, output, [&](const manumesh::Mesh& source, manumesh::Mesh& destination) {
+            return simplifyAndCommit(source, destination);
+        });
     } catch (const std::exception& ex) {
         return translateException(context, ex);
     } catch (...) {
@@ -1040,7 +2293,18 @@ ManuMeshStatus manumesh_compute_mesh_stats_with_size(
         if (!manumesh::api::validateMeshStatsOutput(stats, stats_capacity, outputError)) {
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, outputError.c_str());
         }
-        return manumesh::api::fillMeshStats(manumesh::analysis::computeMeshStats(mesh->mesh), stats, stats_capacity);
+        manumesh::Mesh snapshot;
+        const ManuMeshStatus snapshotStatus = snapshotMesh(context, mesh, snapshot);
+        if (snapshotStatus != MANUMESH_STATUS_OK) {
+            return snapshotStatus;
+        }
+        const manumesh::analysis::MeshStats result = manumesh::analysis::computeMeshStats(snapshot);
+        if (!std::isfinite(result.area) || !std::isfinite(result.meanTriangleQuality) ||
+            !std::isfinite(result.minTriangleQuality) || !std::isfinite(result.meanEdgeLength) ||
+            !std::isfinite(result.edgeLengthCv)) {
+            return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh statistics contain a non-finite value.");
+        }
+        return manumesh::api::fillMeshStats(result, stats, stats_capacity);
     } catch (const std::exception& ex) {
         return translateException(context, ex);
     } catch (...) {

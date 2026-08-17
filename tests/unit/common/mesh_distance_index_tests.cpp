@@ -6,10 +6,13 @@
 
 #include "../../../src/common/detail/MeshDistanceIndex.h"
 
+#include "algorithms/analysis/MeshAnalysis.h"
 #include "core/MeshGenerators.h"
 
 #include <cmath>
 #include <gtest/gtest.h>
+#include <limits>
+#include <string>
 namespace {
 
 manumesh::Mesh twoTriangleMesh() {
@@ -68,4 +71,86 @@ TEST(ManuMesh, MeshDistanceIndexBuildsLargeTreesWithoutInvalidatingParentNodes) 
             }
         }
     }
+}
+
+TEST(ManuMesh, MeshDistanceIndexSkipsNonFiniteTrianglesAndQueries) {
+    manumesh::Mesh mesh = twoTriangleMesh();
+    mesh.vertices.push_back(manumesh::Vec3(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0));
+    mesh.faces.push_back(manumesh::Face{{0, 1, 6}});
+
+    const manumesh::common::MeshDistanceIndex index(mesh);
+
+    ASSERT_FALSE(index.empty());
+    EXPECT_EQ(1, index.skippedFaceCount());
+    EXPECT_TRUE(std::isinf(index.distanceSquared(manumesh::Vec3(std::numeric_limits<double>::infinity(), 0.0, 0.0))));
+}
+
+TEST(ManuMesh, BuiltInGeneratorsRejectInvalidNumericAndResourceParameters) {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+    EXPECT_TRUE(manumesh::generatePlaneGrid(std::numeric_limits<int>::max(), 1.0, false).empty());
+    EXPECT_TRUE(manumesh::generatePlaneGrid(8, nan, false).empty());
+    EXPECT_TRUE(manumesh::generateRidgeGrid(8, 0.0, 1.0).empty());
+    EXPECT_TRUE(manumesh::generateNoisyPlaneGrid(8, 1.0, -1.0).empty());
+    EXPECT_TRUE(manumesh::generateCylinderGrid(16, 4, infinity, 1.0).empty());
+    EXPECT_TRUE(manumesh::generateTorusGrid(16, std::numeric_limits<int>::max(), 2.0, 0.5).empty());
+    EXPECT_TRUE(manumesh::generateClosedCubeGrid(std::numeric_limits<int>::max(), 1.0).empty());
+
+    manumesh::Mesh output = twoTriangleMesh();
+    const std::size_t originalVertices = output.vertices.size();
+    const std::size_t originalFaces = output.faces.size();
+    std::string error = "stale";
+    EXPECT_FALSE(manumesh::generateMeshByName("plane", std::numeric_limits<int>::max(), output, &error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_EQ(originalVertices, output.vertices.size());
+    EXPECT_EQ(originalFaces, output.faces.size());
+
+    ASSERT_TRUE(manumesh::generateMeshByName("plane", 8, output, &error)) << error;
+    EXPECT_TRUE(error.empty());
+}
+
+TEST(ManuMesh, RidgeGeneratorKeepsPositiveSubnormalSizeFinite) {
+    const manumesh::Mesh ridge = manumesh::generateRidgeGrid(4, std::numeric_limits<double>::denorm_min(), 1.0);
+    ASSERT_FALSE(ridge.empty());
+    for (const manumesh::Vec3& vertex : ridge.vertices) {
+        EXPECT_TRUE(vertex.allFinite());
+    }
+    std::string error;
+    EXPECT_TRUE(manumesh::validateMeshGeometryLenient(ridge, &error)) << error;
+}
+
+TEST(ManuMesh, SampledDistanceCoversSmallDisconnectedComponents) {
+    manumesh::Mesh original;
+    original.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(10.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 10.0, 0.0),
+        manumesh::Vec3(0.0, 0.0, 10.0),
+        manumesh::Vec3(0.01, 0.0, 10.0),
+        manumesh::Vec3(0.0, 0.01, 10.0),
+    };
+    original.faces = {manumesh::Face{{0, 1, 2}}, manumesh::Face{{3, 4, 5}}};
+    manumesh::Mesh simplified;
+    simplified.vertices.assign(original.vertices.begin(), original.vertices.begin() + 3);
+    simplified.faces = {manumesh::Face{{0, 1, 2}}};
+
+    const manumesh::analysis::DistanceStats stats =
+        manumesh::analysis::compareMeshesBySampledDistance(original, simplified, 2);
+
+    EXPECT_GT(stats.maxOriginalToSimplified, 9.9);
+    EXPECT_NEAR(0.0, stats.maxSimplifiedToOriginal, 1e-12);
+}
+
+TEST(ManuMesh, SampledDistanceClampsOversizedWorkBudgets) {
+    const manumesh::Mesh mesh = manumesh::generatePlaneGrid(2, 1.0, false);
+    manumesh::Mesh offset = mesh;
+    for (manumesh::Vec3& vertex : offset.vertices) {
+        vertex.z() += 1.0;
+    }
+    const manumesh::analysis::DistanceStats stats =
+        manumesh::analysis::compareMeshesBySampledDistance(mesh, offset, std::numeric_limits<int>::max());
+    EXPECT_NEAR(1.0, stats.meanOriginalToSimplified, 1e-12);
+    EXPECT_NEAR(1.0, stats.maxOriginalToSimplified, 1e-12);
+    EXPECT_NEAR(1.0, stats.meanSimplifiedToOriginal, 1e-12);
+    EXPECT_NEAR(1.0, stats.maxSimplifiedToOriginal, 1e-12);
 }

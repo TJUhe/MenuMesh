@@ -9,10 +9,33 @@
 #include "algorithms/simplification/Metrics.h"
 
 #include <iomanip>
+#include <locale>
 #include <sstream>
+#include <string>
 
 namespace manumesh {
 namespace simplification {
+namespace {
+
+std::string quoteCsv(const std::string& value) {
+    bool needsQuotes = false;
+    std::string escaped;
+    escaped.reserve(value.size());
+    for (char ch : value) {
+        if (ch == '"') {
+            escaped += "\"\"";
+            needsQuotes = true;
+        } else {
+            if (ch == ',' || ch == '\n' || ch == '\r') {
+                needsQuotes = true;
+            }
+            escaped.push_back(ch);
+        }
+    }
+    return needsQuotes ? '"' + escaped + '"' : escaped;
+}
+
+} // namespace
 
 MeshStats computeMeshStats(const Mesh& mesh) { return manumesh::analysis::computeMeshStats(mesh); }
 
@@ -29,10 +52,11 @@ std::string statsHeaderCsv() {
 
 std::string statsRowCsv(const std::string& label, const MeshStats& stats, const DistanceStats* distance) {
     std::ostringstream out;
+    out.imbue(std::locale::classic());
     out << std::setprecision(12);
-    out << label << "," << stats.vertices << "," << stats.faces << "," << stats.edges << "," << stats.boundaryEdges
-        << "," << stats.nonManifoldEdges << "," << stats.area << "," << stats.meanTriangleQuality << ","
-        << stats.minTriangleQuality << "," << stats.meanEdgeLength << "," << stats.edgeLengthCv;
+    out << quoteCsv(label) << "," << stats.vertices << "," << stats.faces << "," << stats.edges << ","
+        << stats.boundaryEdges << "," << stats.nonManifoldEdges << "," << stats.area << "," << stats.meanTriangleQuality
+        << "," << stats.minTriangleQuality << "," << stats.meanEdgeLength << "," << stats.edgeLengthCv;
     if (distance) {
         out << "," << distance->meanOriginalToSimplified << "," << distance->maxOriginalToSimplified << ","
             << distance->meanSimplifiedToOriginal << "," << distance->maxSimplifiedToOriginal;

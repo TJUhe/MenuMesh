@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <gtest/gtest.h>
+#include <limits>
 #include <vector>
 namespace {
 
@@ -76,4 +77,35 @@ TEST(ManuMesh, UniformAabbCandidateGridIgnoresOperationsWhenDisabled) {
 
     grid.insert(1, manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(1.0, 1.0, 1.0));
     EXPECT_TRUE(grid.queryCandidates(manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(1.0, 1.0, 1.0)).empty());
+}
+
+TEST(ManuMesh, UniformAabbCandidateGridFallsBackForExtremeFiniteCoordinates) {
+    manumesh::common::UniformAabbCandidateGrid grid;
+    grid.reset(manumesh::Vec3::Zero(), manumesh::Vec3::Ones(), 64);
+    ASSERT_TRUE(grid.enabled());
+
+    const double extreme = std::numeric_limits<double>::max() / 4.0;
+    grid.insert(9, manumesh::Vec3(extreme, extreme, extreme), manumesh::Vec3(extreme, extreme, extreme));
+    grid.insert(3, manumesh::Vec3(0.1, 0.1, 0.1), manumesh::Vec3(0.2, 0.2, 0.2));
+
+    const std::vector<int> candidates =
+        grid.queryCandidates(manumesh::Vec3(extreme, extreme, extreme), manumesh::Vec3(extreme, extreme, extreme));
+    EXPECT_TRUE(containsItem(candidates, 9));
+    EXPECT_EQ(
+        std::vector<int>({3, 9}),
+        grid.queryCandidates(manumesh::Vec3(-extreme, -extreme, -extreme), manumesh::Vec3(extreme, extreme, extreme))
+    );
+}
+
+TEST(ManuMesh, UniformAabbCandidateGridKeepsConservativeFallbackForExtremeDomain) {
+    const double extreme = std::numeric_limits<double>::max() / 4.0;
+    manumesh::common::UniformAabbCandidateGrid grid;
+    grid.reset(manumesh::Vec3(-extreme, -extreme, -extreme), manumesh::Vec3(extreme, extreme, extreme), 64);
+    ASSERT_TRUE(grid.enabled());
+
+    grid.insert(11, manumesh::Vec3(-1.0, -1.0, -1.0), manumesh::Vec3(1.0, 1.0, 1.0));
+    grid.insert(12, manumesh::Vec3(extreme, extreme, extreme), manumesh::Vec3(extreme, extreme, extreme));
+    const std::vector<int> candidates =
+        grid.queryCandidates(manumesh::Vec3(-extreme, -extreme, -extreme), manumesh::Vec3(extreme, extreme, extreme));
+    EXPECT_EQ(std::vector<int>({11, 12}), candidates);
 }

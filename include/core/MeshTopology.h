@@ -14,6 +14,7 @@
 #include "core/Status.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -24,7 +25,7 @@ namespace manumesh {
 struct TopologyEdge {
     std::array<int, 2> vertices{{-1, -1}}; ///< 升序端点索引。
     std::vector<int> faces;                ///< 入射面索引。
-    std::vector<int> faceCorners;          ///< 与此边相对的局部面角。
+    std::vector<int> faceCorners;          ///< 面内此边起点对应的局部角索引（0、1 或 2）。
 
     /// @return 当恰有一个入射面时返回 true。
     MANUMESH_API bool boundary() const;
@@ -38,6 +39,16 @@ struct TopologyEdge {
 struct VertexTopology {
     std::vector<int> edges; ///< 按确定性顺序排列的入射边索引。
     std::vector<int> faces; ///< 按确定性顺序排列的入射面索引。
+};
+
+/** @brief 面向查询的网格连接性、边界和绕序摘要。 */
+struct MeshTopologySummary {
+    std::size_t connectedFaceComponents = 0; ///< 通过共享边连通的面组件数量。
+    std::size_t uniqueEdges = 0;             ///< 唯一无向边数量。
+    std::size_t boundaryEdges = 0;           ///< 恰有一个入射面的边数量。
+    std::size_t nonManifoldEdges = 0;        ///< 多于两个入射面的边数量。
+    bool closedManifold = false;             ///< 非空且每条边恰有两个入射面。
+    bool consistentlyOriented = false;       ///< 不含非流形边，且每个内部共享边绕序相反。
 };
 
 /// 三角网格的不可变拓扑缓存。
@@ -84,6 +95,14 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
+
+/**
+ * @brief 基于一次验证后的拓扑构建返回连接性、闭合性和绕序摘要。
+ *
+ * `connectedFaceComponents` 按共享完整边计算，因此仅在一个顶点接触的两个面属于不同组件。
+ * 空网格的闭合性与绕序标志均为 false。
+ */
+MANUMESH_API Result<MeshTopologySummary> summarizeMeshTopology(const Mesh& mesh);
 
 /// 将无向顶点对打包为稳定的 64 位键。
 /// @param[in] a 第一个从零开始的顶点索引。

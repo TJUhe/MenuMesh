@@ -81,14 +81,15 @@ public:
     bool enabled() const { return enabled_; }
 
 private:
-    /** @brief 将点映射到其所在的整数网格单元。 */
-    CellCoord coordFor(const Vec3& p) const;
+    /** @brief 尝试将点映射到整数网格单元；坐标超出 int 范围时返回 false。 */
+    bool coordFor(const Vec3& p, CellCoord& outCoord) const;
     /** @brief 将与 AABB 重叠的单元枚举到新向量中。 */
     std::vector<CellCoord> cellsForAabb(const Vec3& lo, const Vec3& hi) const;
     /** @brief 将与 AABB 重叠的单元枚举到可复用存储中。 */
     void cellsForAabb(const Vec3& lo, const Vec3& hi, std::vector<CellCoord>& outCells) const;
 
     bool enabled_ = false;
+    bool conservativeFallback_ = false;
     Vec3 origin_ = Vec3::Zero();
     double cellSize_ = 0.0;
     std::unordered_map<CellCoord, std::unordered_set<int>, CellCoordHash> cells_;

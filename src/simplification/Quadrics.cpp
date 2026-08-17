@@ -17,6 +17,7 @@
 #include <Eigen/Eigenvalues>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 namespace manumesh {
@@ -71,9 +72,14 @@ void addBoundaryQuadrics(const Mesh& mesh, double boundaryWeight, std::vector<Ma
     const std::vector<Vec3> faceNormals = common::computeFaceNormals(mesh);
 
     const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
+    std::vector<std::uint64_t> edgeKeys;
+    edgeKeys.reserve(edgeInfo.size());
     for (const auto& pairEntry : edgeInfo) {
-        const auto& key = pairEntry.first;
-        const auto& info = pairEntry.second;
+        edgeKeys.push_back(pairEntry.first);
+    }
+    std::sort(edgeKeys.begin(), edgeKeys.end());
+    for (std::uint64_t key : edgeKeys) {
+        const auto& info = edgeInfo.at(key);
         if (info.faces.size() != 1) {
             continue;
         }

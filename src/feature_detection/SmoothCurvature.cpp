@@ -506,7 +506,12 @@ ScaleCandidate classifyScaleCandidate(
             }
             // 子顶点归属（Ohtake 逆插值）：零交叉点更接近 |e| 较小的端点，
             // 因此只允许该顶点认领候选，将检测带限制为单顶点宽度而非两个顶点。
-            if (std::abs(centerExtremality) > std::abs(neighborExtremality)) {
+            const double centerMagnitude = std::abs(centerExtremality);
+            const double neighborMagnitude = std::abs(neighborExtremality);
+            const double ownershipTolerance =
+                64.0 * std::numeric_limits<double>::epsilon() * std::max({1.0, centerMagnitude, neighborMagnitude});
+            if (centerMagnitude > neighborMagnitude + ownershipTolerance ||
+                (std::abs(centerMagnitude - neighborMagnitude) <= ownershipTolerance && vertex > nb)) {
                 continue;
             }
             const Vec3 delta = mesh.vertices[nb] - mesh.vertices[vertex];

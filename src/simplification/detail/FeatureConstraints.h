@@ -61,7 +61,9 @@ bool featureCurveBudgetAllows(
     const std::vector<FeaturePrimitiveFit>& primitiveFits,
     const SimplifyOptions& options,
     double meshDiagonal,
-    const Vec3& position
+    const Vec3& position,
+    const FeatureConstraintGraph* constraints = nullptr,
+    CollapseEdge edge = CollapseEdge{}
 );
 
 /**

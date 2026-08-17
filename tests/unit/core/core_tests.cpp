@@ -12,6 +12,7 @@
 #include "core/MeshTopology.h"
 #include "core/Optional.h"
 #include "core/Status.h"
+#include "core/Tolerances.h"
 
 #include <algorithm>
 #include <cmath>
@@ -170,6 +171,132 @@ TEST(ManuMesh, GenerateClosedCubeGridIsClosedManifold) {
     EXPECT_EQ(2, eulerCharacteristic);
 }
 
+TEST(ManuMesh, TopologySummaryAndSignedVolumeDescribeClosedOrientedComponents) {
+    manumesh::Mesh tetrahedron;
+    tetrahedron.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(0.0, 0.0, 1.0),
+    };
+    tetrahedron.faces = {
+        manumesh::Face{{0, 2, 1}},
+        manumesh::Face{{0, 1, 3}},
+        manumesh::Face{{0, 3, 2}},
+        manumesh::Face{{1, 2, 3}},
+    };
+
+    const manumesh::Result<manumesh::MeshTopologySummary> summaryResult = manumesh::summarizeMeshTopology(tetrahedron);
+    ASSERT_TRUE(summaryResult.ok()) << summaryResult.status().message();
+    const manumesh::MeshTopologySummary& summary = summaryResult.value();
+    EXPECT_EQ(1u, summary.connectedFaceComponents);
+    EXPECT_EQ(6u, summary.uniqueEdges);
+    EXPECT_EQ(0u, summary.boundaryEdges);
+    EXPECT_EQ(0u, summary.nonManifoldEdges);
+    EXPECT_TRUE(summary.closedManifold);
+    EXPECT_TRUE(summary.consistentlyOriented);
+    EXPECT_NEAR(1.0 / 6.0, manumesh::computeSignedVolume(tetrahedron), 1e-15);
+
+    manumesh::Mesh translated = tetrahedron;
+    for (manumesh::Vec3& vertex : translated.vertices) {
+        vertex += manumesh::Vec3(1e12, -1e12, 1e12);
+    }
+    EXPECT_NEAR(1.0 / 6.0, manumesh::computeSignedVolume(translated), 1e-15);
+
+    // Isolated vertices must not widen the normalization frame used by the
+    // volume calculation.  Otherwise the active tetrahedron's normalized
+    // triple products can underflow to zero.
+    translated.vertices.emplace_back(1e150, -1e150, 1e150);
+    EXPECT_NEAR(1.0 / 6.0, manumesh::computeSignedVolume(translated), 1e-15);
+
+    manumesh::Mesh distant = tetrahedron;
+    for (manumesh::Vec3& vertex : distant.vertices) {
+        vertex += manumesh::Vec3(1e9, 1e9, 1e9);
+    }
+    manumesh::Mesh separated = tetrahedron;
+    std::string appendError;
+    ASSERT_TRUE(manumesh::appendMesh(separated, distant, &appendError)) << appendError;
+    const manumesh::Result<manumesh::MeshTopologySummary> separatedSummary = manumesh::summarizeMeshTopology(separated);
+    ASSERT_TRUE(separatedSummary.ok());
+    EXPECT_EQ(2u, separatedSummary.value().connectedFaceComponents);
+    EXPECT_NEAR(1.0 / 3.0, manumesh::computeSignedVolume(separated), 1e-15);
+
+    manumesh::reverseFaceWindings(tetrahedron);
+    const manumesh::Result<manumesh::MeshTopologySummary> reversedSummary =
+        manumesh::summarizeMeshTopology(tetrahedron);
+    ASSERT_TRUE(reversedSummary.ok());
+    EXPECT_TRUE(reversedSummary.value().consistentlyOriented);
+    EXPECT_NEAR(-1.0 / 6.0, manumesh::computeSignedVolume(tetrahedron), 1e-15);
+
+    tetrahedron.faces[0] = manumesh::Face{{0, 2, 1}};
+    const manumesh::Result<manumesh::MeshTopologySummary> inconsistentSummary =
+        manumesh::summarizeMeshTopology(tetrahedron);
+    ASSERT_TRUE(inconsistentSummary.ok());
+    EXPECT_TRUE(inconsistentSummary.value().closedManifold);
+    EXPECT_FALSE(inconsistentSummary.value().consistentlyOriented);
+}
+
+TEST(ManuMesh, TopologySummaryClassifiesEmptyOpenNonManifoldAndVertexTouchingMeshes) {
+    const manumesh::Result<manumesh::MeshTopologySummary> emptySummary =
+        manumesh::summarizeMeshTopology(manumesh::Mesh{});
+    ASSERT_TRUE(emptySummary.ok());
+    EXPECT_EQ(0u, emptySummary.value().connectedFaceComponents);
+    EXPECT_FALSE(emptySummary.value().closedManifold);
+    EXPECT_FALSE(emptySummary.value().consistentlyOriented);
+
+    manumesh::Mesh open;
+    open.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(1.0, 1.0, 0.0),
+    };
+    open.faces = {manumesh::Face{{0, 1, 2}}, manumesh::Face{{1, 3, 2}}};
+    const manumesh::Result<manumesh::MeshTopologySummary> openSummary = manumesh::summarizeMeshTopology(open);
+    ASSERT_TRUE(openSummary.ok());
+    EXPECT_EQ(1u, openSummary.value().connectedFaceComponents);
+    EXPECT_EQ(5u, openSummary.value().uniqueEdges);
+    EXPECT_EQ(4u, openSummary.value().boundaryEdges);
+    EXPECT_EQ(0u, openSummary.value().nonManifoldEdges);
+    EXPECT_FALSE(openSummary.value().closedManifold);
+    EXPECT_TRUE(openSummary.value().consistentlyOriented);
+
+    manumesh::Mesh nonManifold;
+    nonManifold.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(0.0, 0.0, 1.0),
+        manumesh::Vec3(0.0, 0.0, -1.0),
+    };
+    nonManifold.faces = {
+        manumesh::Face{{0, 1, 2}},
+        manumesh::Face{{1, 0, 3}},
+        manumesh::Face{{0, 1, 4}},
+    };
+    const manumesh::Result<manumesh::MeshTopologySummary> nonManifoldSummary =
+        manumesh::summarizeMeshTopology(nonManifold);
+    ASSERT_TRUE(nonManifoldSummary.ok());
+    EXPECT_EQ(1u, nonManifoldSummary.value().connectedFaceComponents);
+    EXPECT_EQ(1u, nonManifoldSummary.value().nonManifoldEdges);
+    EXPECT_FALSE(nonManifoldSummary.value().closedManifold);
+    EXPECT_FALSE(nonManifoldSummary.value().consistentlyOriented);
+
+    manumesh::Mesh vertexTouching;
+    vertexTouching.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(-1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, -1.0, 0.0),
+    };
+    vertexTouching.faces = {manumesh::Face{{0, 1, 2}}, manumesh::Face{{0, 3, 4}}};
+    const manumesh::Result<manumesh::MeshTopologySummary> vertexTouchingSummary =
+        manumesh::summarizeMeshTopology(vertexTouching);
+    ASSERT_TRUE(vertexTouchingSummary.ok());
+    EXPECT_EQ(2u, vertexTouchingSummary.value().connectedFaceComponents);
+}
+
 TEST(ManuMesh, BuildVertexNeighborsReturnsAscendingLists) {
     const manumesh::Mesh mesh = manumesh::generateClosedCubeGrid(3, 2.0);
     const std::vector<std::vector<int>> neighbors = manumesh::common::buildVertexNeighbors(mesh);
@@ -213,6 +340,133 @@ TEST(ManuMesh, ResultDoesNotRequireDefaultConstructibleValues) {
     EXPECT_FALSE(failure.hasValue());
     EXPECT_EQ(manumesh::StatusCode::InvalidArgument, failure.status().code());
     EXPECT_THROW(failure.value(), std::logic_error);
+}
+
+TEST(ManuMesh, BasicMeshGeometryQueriesReturnAlignedAreasCentroidAndNormals) {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(1.0, 1.0, 0.0),
+        manumesh::Vec3(5.0, 5.0, 5.0),
+    };
+    mesh.faces = {
+        manumesh::Face{{0, 1, 2}},
+        manumesh::Face{{1, 3, 2}},
+        manumesh::Face{{0, 1, 99}},
+    };
+    const std::vector<double> areas = manumesh::computeFaceAreas(mesh);
+    ASSERT_EQ(3u, areas.size());
+    EXPECT_DOUBLE_EQ(0.5, areas[0]);
+    EXPECT_DOUBLE_EQ(0.5, areas[1]);
+    EXPECT_DOUBLE_EQ(0.0, areas[2]);
+    EXPECT_DOUBLE_EQ(1.0, manumesh::computeSurfaceArea(mesh));
+    EXPECT_TRUE(manumesh::computeSurfaceCentroid(mesh).isApprox(manumesh::Vec3(0.5, 0.5, 0.0), 1e-12));
+
+    const std::vector<manumesh::Vec3> faceNormals = manumesh::computeFaceNormals(mesh);
+    ASSERT_EQ(3u, faceNormals.size());
+    EXPECT_TRUE(faceNormals[0].isApprox(manumesh::Vec3::UnitZ(), 1e-12));
+    EXPECT_TRUE(faceNormals[2].isZero());
+    const std::vector<manumesh::Vec3> vertexNormals = manumesh::computeVertexNormals(mesh);
+    ASSERT_EQ(mesh.vertices.size(), vertexNormals.size());
+    EXPECT_TRUE(vertexNormals[0].isApprox(manumesh::Vec3::UnitZ(), 1e-12));
+    EXPECT_TRUE(vertexNormals[4].isZero());
+}
+
+TEST(ManuMesh, TriangleNormalUsesTheSharedAbsoluteDegeneracyThreshold) {
+    const manumesh::Vec3 a(0.0, 0.0, 0.0);
+    const manumesh::Vec3 b(1e-13, 0.0, 0.0);
+    const manumesh::Vec3 c(0.0, 1e-13, 0.0);
+
+    EXPECT_GT(manumesh::triangleArea(a, b, c), 0.0);
+    EXPECT_LE(manumesh::triangleArea(a, b, c), manumesh::kMinTriangleArea);
+    EXPECT_TRUE(manumesh::triangleNormal(a, b, c).isZero());
+}
+
+TEST(ManuMesh, TriangleAreaAndNormalHandleExtremeFiniteAspectRatios) {
+    const manumesh::Vec3 a(0.0, 0.0, 0.0);
+    const manumesh::Vec3 b(1e100, 0.0, 0.0);
+    const manumesh::Vec3 c(0.0, 1e-100, 0.0);
+    EXPECT_DOUBLE_EQ(0.5, manumesh::triangleArea(a, b, c));
+    EXPECT_TRUE(manumesh::triangleNormal(a, b, c).isApprox(manumesh::Vec3::UnitZ(), 1e-12));
+
+    manumesh::Mesh mesh;
+    mesh.vertices = {a, b, c};
+    mesh.faces = {manumesh::Face{{0, 1, 2}}};
+    std::string error;
+    EXPECT_TRUE(manumesh::validateMeshGeometry(mesh, &error)) << error;
+    EXPECT_DOUBLE_EQ(0.5, manumesh::computeSurfaceArea(mesh));
+}
+
+TEST(ManuMesh, BasicMeshEditsPreserveTextureAlignmentAndSupportSelfAppend) {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(9.0, 9.0, 9.0),
+    };
+    mesh.faces = {manumesh::Face{{0, 1, 2}}, manumesh::Face{{0, 0, 1}}};
+    mesh.faceTexCoords.resize(2);
+    mesh.faceTexCoords[0].valid = true;
+    mesh.faceTexCoords[0].uv[1] = manumesh::Vec2(0.25, 0.75);
+    EXPECT_EQ(1, manumesh::removeDegenerateFaces(mesh));
+    ASSERT_EQ(1u, mesh.faces.size());
+    ASSERT_EQ(3u, mesh.vertices.size());
+    ASSERT_EQ(1u, mesh.faceTexCoords.size());
+
+    manumesh::reverseFaceWindings(mesh);
+    EXPECT_EQ((std::array<int, 3>{{0, 2, 1}}), mesh.faces[0].v);
+    EXPECT_TRUE(mesh.faceTexCoords[0].uv[2].isApprox(manumesh::Vec2(0.25, 0.75)));
+
+    std::string error;
+    ASSERT_TRUE(manumesh::appendMesh(mesh, mesh, &error)) << error;
+    ASSERT_EQ(6u, mesh.vertices.size());
+    ASSERT_EQ(2u, mesh.faces.size());
+    EXPECT_EQ((std::array<int, 3>{{3, 5, 4}}), mesh.faces[1].v);
+    ASSERT_EQ(2u, mesh.faceTexCoords.size());
+    EXPECT_TRUE(mesh.faceTexCoords[1].valid);
+}
+
+TEST(ManuMesh, InvalidTextureEntriesAreDeterministicallyZeroedByBasicEdits) {
+    manumesh::FaceTexCoords defaults;
+    for (const manumesh::Vec2& uv : defaults.uv) {
+        EXPECT_TRUE(uv.isZero());
+    }
+
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+    };
+    mesh.faces = {manumesh::Face{{0, 1, 2}}};
+    mesh.faceTexCoords.resize(1);
+    mesh.faceTexCoords[0].uv = {manumesh::Vec2(1.0, 2.0), manumesh::Vec2(3.0, 4.0), manumesh::Vec2(5.0, 6.0)};
+
+    manumesh::reverseFaceWindings(mesh);
+    ASSERT_FALSE(mesh.faceTexCoords[0].valid);
+    for (const manumesh::Vec2& uv : mesh.faceTexCoords[0].uv) {
+        EXPECT_TRUE(uv.isZero());
+    }
+}
+
+TEST(ManuMesh, MeshValidationRejectsCoordinatesOutsideSupportedNumericRange) {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1e308, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1e308, 0.0),
+    };
+    mesh.faces = {manumesh::Face{{0, 1, 2}}};
+    std::string error;
+    EXPECT_FALSE(manumesh::validateMeshGeometryLenient(mesh, &error));
+    EXPECT_NE(std::string::npos, error.find("numeric coordinate range"));
+}
+
+TEST(ManuMesh, ResultRejectsSuccessWithoutAValue) {
+    EXPECT_THROW((manumesh::Result<NoDefaultValue>(manumesh::Status::success())), std::invalid_argument);
 }
 
 TEST(ManuMesh, OptionalSupportsCxx14ValueAndLifetimeOperations) {
@@ -484,6 +738,50 @@ TEST(ManuMesh, SampledDistanceReturnsZerosForUnusableSurface) {
     EXPECT_DOUBLE_EQ(0.0, stats.maxOriginalToSimplified);
     EXPECT_DOUBLE_EQ(0.0, stats.meanSimplifiedToOriginal);
     EXPECT_DOUBLE_EQ(0.0, stats.maxSimplifiedToOriginal);
+}
+
+TEST(ManuMesh, SampledDistanceCoversSmallDisconnectedComponents) {
+    manumesh::Mesh original;
+    original.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(100.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 100.0, 0.0),
+        manumesh::Vec3(1000.0, 0.0, 0.0),
+        manumesh::Vec3(1000.01, 0.0, 0.0),
+        manumesh::Vec3(1000.0, 0.01, 0.0),
+    };
+    original.faces = {{{0, 1, 2}}, {{3, 4, 5}}};
+
+    manumesh::Mesh simplified;
+    simplified.vertices.assign(original.vertices.begin(), original.vertices.begin() + 3);
+    simplified.faces = {{{0, 1, 2}}};
+
+    const manumesh::analysis::DistanceStats stats =
+        manumesh::analysis::compareMeshesBySampledDistance(original, simplified, 2);
+    EXPECT_GT(stats.maxOriginalToSimplified, 800.0);
+    EXPECT_GT(stats.meanOriginalToSimplified, 400.0);
+    EXPECT_NEAR(0.0, stats.maxSimplifiedToOriginal, 1e-12);
+}
+
+TEST(ManuMesh, MeshAnalysisHandlesFiniteSurfaceAreaOverflowWithoutDroppingSamples) {
+    manumesh::Mesh mesh;
+    const double scale = 5e152;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(scale, 0.0, 0.0),
+        manumesh::Vec3(0.0, scale, 0.0),
+    };
+    mesh.faces.assign(4096, manumesh::Face{{0, 1, 2}});
+
+    const manumesh::analysis::MeshStats meshStats = manumesh::analysis::computeMeshStats(mesh);
+    EXPECT_TRUE(std::isinf(meshStats.area));
+
+    const manumesh::analysis::DistanceStats distanceStats =
+        manumesh::analysis::compareMeshesBySampledDistance(mesh, mesh, 64);
+    EXPECT_NEAR(0.0, distanceStats.meanOriginalToSimplified, 1e-12);
+    EXPECT_NEAR(0.0, distanceStats.maxOriginalToSimplified, 1e-12);
+    EXPECT_NEAR(0.0, distanceStats.meanSimplifiedToOriginal, 1e-12);
+    EXPECT_NEAR(0.0, distanceStats.maxSimplifiedToOriginal, 1e-12);
 }
 
 TEST(ManuMesh, MeshTopologyCachesBoundaryAndNonManifoldEdges) {

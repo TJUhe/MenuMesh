@@ -198,6 +198,8 @@ struct FeatureCurveConstraint {
     bool valid = false;
     bool closed = false;
     FeatureCurveKind primitive = FeatureCurveKind::Unknown;
+    /** @brief 该 loop 自身的圆/椭圆拟合旁表索引；折线或无解析拟合时为 -1。 */
+    int primitiveFitId = -1;
     std::vector<Vec3> samples;
     /** Explicit detector-evidence segments. Recovery bridges are never stored here. */
     std::vector<std::array<Vec3, 2>> segments;

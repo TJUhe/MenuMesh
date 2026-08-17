@@ -285,6 +285,90 @@ TEST(FeatureCurves, SegmentIndexMatchesLinearScan) {
     }
 }
 
+TEST(FeatureCurves, EllipseProjectionSatisfiesGlobalClosestPointConditions) {
+    manumesh::simplification::FeaturePrimitiveFit fit;
+    fit.ellipseCenter = Vec3(0.25, -0.5, 0.75);
+    fit.ellipseNormal = Vec3(0.0, 0.0, 2.0);
+    fit.ellipseMajorAxis = Vec3(3.0, 0.0, 0.0);
+    fit.ellipseMinorAxis = Vec3(0.0, -4.0, 0.0);
+    fit.ellipseMajorRadius = 3.0;
+    fit.ellipseMinorRadius = 0.8;
+    VertexState feature;
+    feature.p = fit.ellipseCenter + fit.ellipseMajorRadius * Vec3(1.0, 0.0, 0.0);
+
+    const Vec3 major = fit.ellipseMajorAxis.normalized();
+    const Vec3 minor = fit.ellipseMinorAxis.normalized();
+    const Vec3 normal = fit.ellipseNormal.normalized();
+    const std::array<Vec3, 5> queries = {{
+        fit.ellipseCenter + Vec3(4.1, -1.3, 2.0),
+        fit.ellipseCenter + Vec3(-2.2, 0.45, -1.0),
+        fit.ellipseCenter + Vec3(0.55, -0.2, 0.3),
+        fit.ellipseCenter + Vec3(-0.4, -0.1, 0.0),
+        fit.ellipseCenter,
+    }};
+    const double pi = std::acos(-1.0);
+    constexpr int kReferenceSamples = 16384;
+
+    for (const Vec3& query : queries) {
+        const Vec3 projected = manumesh::simplification::projectToEllipse(query, feature, fit);
+        const Vec3 local = projected - fit.ellipseCenter;
+        const double ellipseX = local.dot(major) / fit.ellipseMajorRadius;
+        const double ellipseY = local.dot(minor) / fit.ellipseMinorRadius;
+        EXPECT_NEAR(1.0, ellipseX * ellipseX + ellipseY * ellipseY, 1e-12);
+        EXPECT_NEAR(0.0, local.dot(normal), 1e-12);
+
+        const Vec3 tangent = -fit.ellipseMajorRadius * ellipseY * major + fit.ellipseMinorRadius * ellipseX * minor;
+        const double orthogonalityScale = std::max(1.0, (query - projected).norm() * tangent.norm());
+        EXPECT_NEAR(0.0, (query - projected).dot(tangent), 1e-10 * orthogonalityScale);
+
+        double sampledDistanceSquared = std::numeric_limits<double>::infinity();
+        for (int sample = 0; sample < kReferenceSamples; ++sample) {
+            const double theta = 2.0 * pi * static_cast<double>(sample) / static_cast<double>(kReferenceSamples);
+            const Vec3 candidate = fit.ellipseCenter + fit.ellipseMajorRadius * std::cos(theta) * major +
+                                   fit.ellipseMinorRadius * std::sin(theta) * minor;
+            sampledDistanceSquared = std::min(sampledDistanceSquared, (query - candidate).squaredNorm());
+        }
+        EXPECT_LE((query - projected).squaredNorm(), sampledDistanceSquared + 1e-11);
+    }
+}
+
+TEST(InitialQuadrics, BoundaryAccumulationIsStableAcrossFaceOrder) {
+    Mesh input;
+    input.vertices.push_back(Vec3::Zero());
+    constexpr int kTriangleCount = 12;
+    const double pi = std::acos(-1.0);
+    for (int triangle = 0; triangle < kTriangleCount; ++triangle) {
+        const double angle = 2.0 * pi * static_cast<double>(triangle) / static_cast<double>(kTriangleCount);
+        const double nextAngle = angle + 0.19;
+        input.vertices.push_back(Vec3(std::cos(angle), std::sin(angle), 0.0));
+        input.vertices.push_back(Vec3(1.7 * std::cos(nextAngle), 1.7 * std::sin(nextAngle), 0.0));
+        input.faces.push_back(manumesh::Face{{0, 2 * triangle + 1, 2 * triangle + 2}});
+    }
+    Mesh reversed = input;
+    std::reverse(reversed.faces.begin(), reversed.faces.end());
+
+    manumesh::simplification::SimplifyOptions options;
+    options.boundaryWeight = 0.37;
+    manumesh::simplification::FeatureGuidance guidance;
+    manumesh::simplification::InitialQuadrics forwardQuadrics;
+    manumesh::simplification::InitialQuadrics reversedQuadrics;
+    manumesh::simplification::SimplifyReport forwardReport;
+    manumesh::simplification::SimplifyReport reversedReport;
+    manumesh::simplification::computeInitialQuadrics(input, options, guidance, forwardQuadrics, forwardReport);
+    manumesh::simplification::computeInitialQuadrics(reversed, options, guidance, reversedQuadrics, reversedReport);
+
+    ASSERT_EQ(forwardQuadrics.quadrics.size(), reversedQuadrics.quadrics.size());
+    manumesh::Mat4 forwardBoundaryTerms = forwardQuadrics.quadrics.front();
+    manumesh::Mat4 reversedBoundaryTerms = reversedQuadrics.quadrics.front();
+    // Coplanar face quadrics only contribute to the z-z entry. Removing that
+    // entry isolates the many boundary terms accumulated at the shared vertex.
+    forwardBoundaryTerms.row(2).setZero();
+    forwardBoundaryTerms.col(2).setZero();
+    reversedBoundaryTerms.row(2).setZero();
+    reversedBoundaryTerms.col(2).setZero();
+    EXPECT_TRUE(forwardBoundaryTerms.isApprox(reversedBoundaryTerms, 0.0));
+}
+
 TEST(FeatureBoost, AdaptiveScaleKeepsQuadricsCleanAndFillsPriorityScales) {
     const Mesh input = manumesh::generateRidgeGrid(16, 2.0, 0.6);
     manumesh::simplification::SimplifyOptions boosted;

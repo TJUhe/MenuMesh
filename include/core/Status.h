@@ -70,12 +70,17 @@ public:
         : value_(std::move(value)),
           status_(Status::success()) {}
     /// 构造不包含值的结果。
-    /// @param[in] status 失败状态；调用方不应传入 success()。
+    /// @param[in] status 失败状态。
+    /// @throws std::invalid_argument 传入 success() 时抛出，避免成功状态缺少值。
     Result(Status status)
-        : status_(std::move(status)) {}
+        : status_(std::move(status)) {
+        if (status_.ok()) {
+            throw std::invalid_argument("A successful Result must contain a value.");
+        }
+    }
 
     /// @return 存储的状态成功时返回 true。
-    bool ok() const { return status_.ok(); }
+    bool ok() const { return status_.ok() && value_.has_value(); }
     /// @return 存在值时返回 true。
     bool hasValue() const { return value_.has_value(); }
     /// @return 以引用形式返回存储的状态。

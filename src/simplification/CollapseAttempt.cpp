@@ -29,7 +29,9 @@ bool curveBudgetAllows(const CollapseAttemptInput& input, const Vec3& position) 
         input.primitiveFits,
         input.options,
         input.meshDiagonal,
-        position
+        position,
+        &input.featureConstraints,
+        input.edge
     );
 }
 
@@ -37,6 +39,17 @@ bool curveBudgetAllows(const CollapseAttemptInput& input, const Vec3& position) 
 
 CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input) {
     CollapseAttemptResult result;
+    if (input.edge.keep < 0 || input.edge.remove < 0 || input.edge.keep == input.edge.remove ||
+        input.edge.keep >= static_cast<int>(input.vertices.size()) ||
+        input.edge.remove >= static_cast<int>(input.vertices.size()) ||
+        input.edge.keep >= static_cast<int>(input.topology.vertexFaces.size()) ||
+        input.edge.remove >= static_cast<int>(input.topology.vertexFaces.size()) ||
+        !input.vertices[static_cast<std::size_t>(input.edge.keep)].active ||
+        !input.vertices[static_cast<std::size_t>(input.edge.remove)].active) {
+        result.status = CollapseAttemptStatus::LegalityRejected;
+        result.legalityReason = CollapseRejectReason::Topology;
+        return result;
+    }
 
     const FeatureCollapseRejectKind featureRejectKind = input.featurePolicy.collapseRejectKind(
         {input.edge, input.vertices, input.activeLoopCounts, input.featureConstraints}
@@ -60,13 +73,10 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         return result;
     }
 
-    const bool featureCurveCollapse =
-        input.featurePolicy.isHardProtectedCollapse(input.edge, input.vertices, input.featureConstraints);
-    const bool tryFallbackPlacements =
-        !featureCurveCollapse &&
-        (input.policies.legality.minTriangleQuality > 0.0 || input.maxLocalError > 0.0 || input.minNormalDot > -1.0 ||
-         input.policies.legality.preventLocalIntersections || input.textureProtection.active());
-    const int placementCount = tryFallbackPlacements ? input.placementCount : 1;
+    // Every cached placement is bounded (currently at most four). Trying all
+    // of them is required for hard feature curves too: projection can map the
+    // lowest-QEM candidate to an illegal point while an endpoint remains legal.
+    const int placementCount = input.placementCount;
     const bool preservesTopology = collapseWouldPreserveLinkCondition(
         input.edge.keep, input.edge.remove, input.faces, input.vertices, input.topology
     );
@@ -78,13 +88,6 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         projectBoundaryPlacement(
             {input.edge, boundaryDecision, input.vertices, input.faces, input.topology}, collapsePosition
         );
-        if (!curveBudgetAllows(input, collapsePosition)) {
-            if (firstRejectStatus == CollapseAttemptStatus::Accepted) {
-                firstRejectStatus = CollapseAttemptStatus::CurveBudgetRejected;
-            }
-            continue;
-        }
-
         const bool projected = input.featurePolicy.projectPlacement(
             {input.edge, input.vertices, input.featureCurves, input.primitiveFits, input.featureConstraints},
             collapsePosition
@@ -94,6 +97,15 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
             projectBoundaryPlacement(
                 {input.edge, boundaryDecision, input.vertices, input.faces, input.topology}, collapsePosition
             );
+        }
+        // The budget applies to the position that will actually be committed.
+        // Checking before feature/boundary projection can both reject a legal
+        // projected point and accept a final point that has left the curve.
+        if (!curveBudgetAllows(input, collapsePosition)) {
+            if (firstRejectStatus == CollapseAttemptStatus::Accepted) {
+                firstRejectStatus = CollapseAttemptStatus::CurveBudgetRejected;
+            }
+            continue;
         }
         TextureUpdatePlan texturePlan = input.textureProtection.buildPlan(
             input.edge, collapsePosition, input.faces, input.vertices, input.topology, input.faceTexCoords

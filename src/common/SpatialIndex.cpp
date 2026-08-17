@@ -21,6 +21,7 @@ namespace common {
 
 void UniformAabbCandidateGrid::clear() {
     enabled_ = false;
+    conservativeFallback_ = false;
     origin_ = Vec3::Zero();
     cellSize_ = 0.0;
     cells_.clear();
@@ -37,9 +38,24 @@ void UniformAabbCandidateGrid::reset(const Vec3& lo, const Vec3& hi, int expecte
     if (expectedItems <= 0 || !lo.allFinite() || !hi.allFinite()) {
         return;
     }
+    for (int axis = 0; axis < 3; ++axis) {
+        if (hi[axis] < lo[axis]) {
+            return;
+        }
+    }
 
     origin_ = lo;
-    const double diag = std::max(1e-12, (hi - lo).norm());
+    const double rawDiag = (hi - lo).stableNorm();
+    if (!std::isfinite(rawDiag)) {
+        // The domain is valid but too wide to map safely to integer cells.
+        // Keep the index active in an all-items fallback mode so broad-phase
+        // acceleration can never turn into a false negative.
+        enabled_ = true;
+        conservativeFallback_ = true;
+        cellSize_ = 1.0;
+        return;
+    }
+    const double diag = std::max(1e-12, rawDiag);
     cellSize_ = std::max(diag / std::max(1.0, std::cbrt(static_cast<double>(expectedItems))), diag * 1e-6);
     enabled_ = std::isfinite(cellSize_) && cellSize_ > 0.0;
 }
@@ -50,7 +66,7 @@ void UniformAabbCandidateGrid::insert(int itemId, const Vec3& lo, const Vec3& hi
     }
     // 幂等重新插入：先删除任何过期注册，确保没有单元或溢出集合保留此项目的旧条目。
     remove(itemId);
-    if (itemId >= static_cast<int>(itemCells_.size())) {
+    if (static_cast<std::size_t>(itemId) >= itemCells_.size()) {
         itemCells_.resize(static_cast<std::size_t>(itemId) + 1u);
     }
 
@@ -68,7 +84,7 @@ void UniformAabbCandidateGrid::insert(int itemId, const Vec3& lo, const Vec3& hi
 }
 
 void UniformAabbCandidateGrid::remove(int itemId) {
-    if (!enabled_ || itemId < 0 || itemId >= static_cast<int>(itemCells_.size())) {
+    if (!enabled_ || itemId < 0 || static_cast<std::size_t>(itemId) >= itemCells_.size()) {
         return;
     }
 
@@ -107,6 +123,7 @@ void UniformAabbCandidateGrid::queryCandidates(const Vec3& lo, const Vec3& hi, s
     cellsForAabb(lo, hi, queryCellsScratch_);
     if (queryCellsScratch_.empty()) {
         outCandidates.assign(activeItems_.begin(), activeItems_.end());
+        std::sort(outCandidates.begin(), outCandidates.end());
         return;
     }
 
@@ -123,7 +140,7 @@ void UniformAabbCandidateGrid::queryCandidates(const Vec3& lo, const Vec3& hi, s
         if (itemId < 0) {
             return;
         }
-        if (itemId >= static_cast<int>(candidateStamps_.size())) {
+        if (static_cast<std::size_t>(itemId) >= candidateStamps_.size()) {
             candidateStamps_.resize(static_cast<std::size_t>(itemId) + 1u, 0u);
         }
         if (candidateStamps_[itemId] == queryStamp_) {
@@ -145,14 +162,29 @@ void UniformAabbCandidateGrid::queryCandidates(const Vec3& lo, const Vec3& hi, s
     for (int itemId : overflowItems_) {
         pushUnique(itemId);
     }
+    std::sort(outCandidates.begin(), outCandidates.end());
 }
 
-CellCoord UniformAabbCandidateGrid::coordFor(const Vec3& p) const {
-    return {
-        static_cast<int>(std::floor((p.x() - origin_.x()) / cellSize_)),
-        static_cast<int>(std::floor((p.y() - origin_.y()) / cellSize_)),
-        static_cast<int>(std::floor((p.z() - origin_.z()) / cellSize_))
-    };
+bool UniformAabbCandidateGrid::coordFor(const Vec3& p, CellCoord& outCoord) const {
+    if (!p.allFinite() || !origin_.allFinite() || !std::isfinite(cellSize_) || cellSize_ <= 0.0) {
+        return false;
+    }
+    int coordinates[3] = {};
+    const double minInt = static_cast<double>(std::numeric_limits<int>::min());
+    const double maxInt = static_cast<double>(std::numeric_limits<int>::max());
+    for (int axis = 0; axis < 3; ++axis) {
+        const double scaled = (p[axis] - origin_[axis]) / cellSize_;
+        if (!std::isfinite(scaled)) {
+            return false;
+        }
+        const double floored = std::floor(scaled);
+        if (floored < minInt || floored > maxInt) {
+            return false;
+        }
+        coordinates[axis] = static_cast<int>(floored);
+    }
+    outCoord = CellCoord{coordinates[0], coordinates[1], coordinates[2]};
+    return true;
 }
 
 std::vector<CellCoord> UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, const Vec3& hi) const {
@@ -163,30 +195,39 @@ std::vector<CellCoord> UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, co
 
 void UniformAabbCandidateGrid::cellsForAabb(const Vec3& lo, const Vec3& hi, std::vector<CellCoord>& outCells) const {
     outCells.clear();
-    if (!enabled_ || !lo.allFinite() || !hi.allFinite()) {
+    if (!enabled_ || conservativeFallback_ || !lo.allFinite() || !hi.allFinite()) {
         return;
     }
 
-    const CellCoord c0 = coordFor(lo);
-    const CellCoord c1 = coordFor(hi);
+    CellCoord c0;
+    CellCoord c1;
+    if (!coordFor(lo, c0) || !coordFor(hi, c1)) {
+        return;
+    }
     const int minX = std::min(c0.x, c1.x);
     const int maxX = std::max(c0.x, c1.x);
     const int minY = std::min(c0.y, c1.y);
     const int maxY = std::max(c0.y, c1.y);
     const int minZ = std::min(c0.z, c1.z);
     const int maxZ = std::max(c0.z, c1.z);
-    const long long count = static_cast<long long>(maxX - minX + 1) * static_cast<long long>(maxY - minY + 1) *
-                            static_cast<long long>(maxZ - minZ + 1);
     constexpr long long kMaxCellsPerItem = 512;
-    if (count <= 0 || count > kMaxCellsPerItem) {
+    const long long countX = static_cast<long long>(maxX) - static_cast<long long>(minX) + 1;
+    const long long countY = static_cast<long long>(maxY) - static_cast<long long>(minY) + 1;
+    const long long countZ = static_cast<long long>(maxZ) - static_cast<long long>(minZ) + 1;
+    if (countX <= 0 || countY <= 0 || countZ <= 0 || countX > kMaxCellsPerItem || countY > kMaxCellsPerItem ||
+        countZ > kMaxCellsPerItem) {
+        return;
+    }
+    const long long count = countX * countY * countZ;
+    if (count > kMaxCellsPerItem) {
         return;
     }
 
     outCells.reserve(static_cast<std::size_t>(count));
-    for (int x = minX; x <= maxX; ++x) {
-        for (int y = minY; y <= maxY; ++y) {
-            for (int z = minZ; z <= maxZ; ++z) {
-                outCells.push_back(CellCoord{x, y, z});
+    for (long long x = minX; x <= static_cast<long long>(maxX); ++x) {
+        for (long long y = minY; y <= static_cast<long long>(maxY); ++y) {
+            for (long long z = minZ; z <= static_cast<long long>(maxZ); ++z) {
+                outCells.push_back(CellCoord{static_cast<int>(x), static_cast<int>(y), static_cast<int>(z)});
             }
         }
     }

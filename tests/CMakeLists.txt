@@ -111,6 +111,7 @@ endif()
 
 set(MANUMESH_UNIT_TEST_SOURCES
   "${PROJECT_SOURCE_DIR}/apps/CliArguments.cpp"
+  "${PROJECT_SOURCE_DIR}/apps/CliCsv.cpp"
   "${PROJECT_SOURCE_DIR}/apps/CliOptionBinding.cpp"
   support/AnalyticFixtures.cpp
   support/TestSupport.cpp
@@ -228,6 +229,97 @@ set_tests_properties(ownership_lifetime_stress PROPERTIES
   TIMEOUT 300
 )
 
+# Compile pure C and C++ consumers with non-default MSVC calling-convention
+# and packing flags. Link the public target so the checks cross the DLL/import
+# library boundary in shared builds.
+function(manumesh_extract_c_api_symbols content pattern output_variable)
+  string(REGEX MATCHALL "${pattern}" manumesh_c_api_symbol_matches "${content}")
+  set(manumesh_c_api_symbols)
+  foreach(manumesh_c_api_symbol_match IN LISTS manumesh_c_api_symbol_matches)
+    string(REGEX MATCH "manumesh_[A-Za-z0-9_]+"
+      manumesh_c_api_symbol
+      "${manumesh_c_api_symbol_match}"
+    )
+    list(APPEND manumesh_c_api_symbols "${manumesh_c_api_symbol}")
+  endforeach()
+  list(REMOVE_DUPLICATES manumesh_c_api_symbols)
+  list(SORT manumesh_c_api_symbols)
+  set(${output_variable} "${manumesh_c_api_symbols}" PARENT_SCOPE)
+endfunction()
+
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${PROJECT_SOURCE_DIR}/include/api/CApi.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/support/c_api_abi_exports.inc"
+)
+file(READ "${PROJECT_SOURCE_DIR}/include/api/CApi.h" manumesh_c_api_header)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/support/c_api_abi_exports.inc"
+  manumesh_c_api_test_export_list
+)
+manumesh_extract_c_api_symbols(
+  "${manumesh_c_api_header}"
+  "MANUMESH_API[^;]*manumesh_[A-Za-z0-9_]+[ \t\r\n]*\\("
+  manumesh_c_api_header_symbols
+)
+manumesh_extract_c_api_symbols(
+  "${manumesh_c_api_test_export_list}"
+  "MANUMESH_C_API_SYMBOL\\([ \t\r\n]*manumesh_[A-Za-z0-9_]+"
+  manumesh_c_api_test_symbols
+)
+if(NOT manumesh_c_api_header_symbols OR
+   NOT manumesh_c_api_test_symbols OR
+   NOT "${manumesh_c_api_header_symbols}" STREQUAL "${manumesh_c_api_test_symbols}")
+  message(FATAL_ERROR
+    "C API ABI consumer coverage is stale. Header symbols: "
+    "${manumesh_c_api_header_symbols}; test symbols: ${manumesh_c_api_test_symbols}"
+  )
+endif()
+
+add_executable(manumesh_c_api_abi_stress
+  support/c_api_abi_stress.c
+)
+add_executable(manumesh_cpp_c_api_abi_stress
+  support/cpp_c_api_abi_stress.cpp
+)
+set_source_files_properties(
+  support/c_api_abi_stress.c
+  support/cpp_c_api_abi_stress.cpp
+  PROPERTIES COMPILE_OPTIONS "/Gv;/Zp1"
+)
+set_target_properties(manumesh_c_api_abi_stress PROPERTIES
+  LINKER_LANGUAGE CXX
+  FOLDER "testing/abi"
+)
+set_target_properties(manumesh_cpp_c_api_abi_stress PROPERTIES
+  FOLDER "testing/abi"
+)
+foreach(manumesh_c_api_abi_target IN ITEMS
+    manumesh_c_api_abi_stress
+    manumesh_cpp_c_api_abi_stress)
+  target_link_libraries(${manumesh_c_api_abi_target}
+    PRIVATE ManuMesh::c_api
+  )
+  target_compile_options(${manumesh_c_api_abi_target} PRIVATE /WX)
+  if(MANUMESH_BUILD_SHARED_LIBRARY)
+    target_compile_definitions(${manumesh_c_api_abi_target}
+      PRIVATE MANUMESH_EXPECT_DLL_IMPORT
+    )
+  else()
+    target_compile_definitions(${manumesh_c_api_abi_target}
+      PRIVATE MANUMESH_EXPECT_STATIC_API
+    )
+  endif()
+  manumesh_apply_warnings(${manumesh_c_api_abi_target})
+endforeach()
+add_dependencies(
+  manumesh_tests
+  manumesh_c_api_abi_stress
+  manumesh_cpp_c_api_abi_stress
+)
+add_test(NAME c_api_abi_stress COMMAND manumesh_c_api_abi_stress)
+add_test(NAME cpp_c_api_abi_stress COMMAND manumesh_cpp_c_api_abi_stress)
+set_tests_properties(c_api_abi_stress PROPERTIES LABELS "abi;unit" TIMEOUT 120)
+set_tests_properties(cpp_c_api_abi_stress PROPERTIES LABELS "abi;unit" TIMEOUT 120)
+
 add_library(manumesh_options_header_compile_check OBJECT
   support/feature_options_header_compile.cpp
   support/simplification_options_header_compile.cpp
@@ -282,6 +374,15 @@ gtest_discover_tests(manumesh_external_tests
   PROPERTIES LABELS external
 )
 
+if(MANUMESH_ENABLE_ADDRESS_SANITIZER)
+  # PRE_TEST discovers the individual tests when CTest runs. Append a CTest
+  # script after both discovery includes so it can disable only the two wall-
+  # clock guards whose thresholds intentionally target non-instrumented builds.
+  set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/disable_asan_pipeline_perf_guards.cmake"
+  )
+endif()
+
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
   add_test(NAME include_boundaries
@@ -312,6 +413,8 @@ endif()
 set(MANUMESH_UNIT_TEST_DEPENDS
   manumesh_tests
   manumesh_ownership_lifetime_stress
+  manumesh_c_api_abi_stress
+  manumesh_cpp_c_api_abi_stress
   manumesh_options_header_compile_check
   manumesh_feature_detection_link_check
   manumesh_simplification_link_check

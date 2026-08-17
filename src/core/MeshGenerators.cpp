@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <unordered_map>
 #include <utility>
@@ -20,6 +21,28 @@
 
 namespace manumesh {
 namespace {
+
+constexpr int kMaxGeneratorResolution = 512;
+const double kMaxGeneratorMagnitude = std::sqrt(std::numeric_limits<double>::max()) / 64.0;
+
+bool validResolution(int value) { return value > 0 && value <= kMaxGeneratorResolution; }
+
+bool finitePositive(double value) { return std::isfinite(value) && value > 0.0 && value <= kMaxGeneratorMagnitude; }
+
+bool finiteNonNegative(double value) { return std::isfinite(value) && value >= 0.0 && value <= kMaxGeneratorMagnitude; }
+
+bool finiteBounded(double value) { return std::isfinite(value) && std::abs(value) <= kMaxGeneratorMagnitude; }
+
+double boundedNoiseSample(std::normal_distribution<double>& distribution, std::mt19937& generator) {
+    const double sample = distribution(generator);
+    if (!std::isfinite(sample)) {
+        return 0.0;
+    }
+    if (std::abs(sample) > kMaxGeneratorMagnitude) {
+        return std::copysign(kMaxGeneratorMagnitude, sample);
+    }
+    return sample;
+}
 
 /** @brief 网格生成器输出的一个带索引四边形单元。 */
 struct GridCell {
@@ -136,7 +159,7 @@ Mesh generateLatheProfile(const std::vector<std::pair<double, double>>& rz, int 
         return mesh;
     }
 
-    segments = std::max(16, segments);
+    segments = std::max(16, std::min(kMaxGeneratorResolution, segments));
     std::vector<std::vector<int>> index(rz.size(), std::vector<int>(static_cast<std::size_t>(segments), -1));
     for (int j = 0; j < static_cast<int>(rz.size()); ++j) {
         const double r = rz[j].first;
@@ -161,9 +184,12 @@ Mesh generateLatheProfile(const std::vector<std::pair<double, double>>& rz, int 
 } // 命名空间
 
 Mesh generatePlaneGrid(int n, double size, bool clustered) {
+    if (!validResolution(n) || !finitePositive(size)) {
+        return {};
+    }
     n = std::max(2, n);
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
+    mesh.vertices.reserve((static_cast<std::size_t>(n) + 1u) * (static_cast<std::size_t>(n) + 1u));
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
@@ -177,9 +203,12 @@ Mesh generatePlaneGrid(int n, double size, bool clustered) {
 }
 
 Mesh generateHolePlaneGrid(int n, double size, double radius) {
+    if (!validResolution(n) || !finitePositive(size) || !finiteNonNegative(radius)) {
+        return {};
+    }
     n = std::max(4, n);
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
+    mesh.vertices.reserve((static_cast<std::size_t>(n) + 1u) * (static_cast<std::size_t>(n) + 1u));
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
@@ -204,15 +233,22 @@ Mesh generateHolePlaneGrid(int n, double size, double radius) {
 }
 
 Mesh generateRidgeGrid(int n, double size, double height) {
+    if (!validResolution(n) || !finitePositive(size) || !finiteBounded(height)) {
+        return {};
+    }
     n = std::max(2, n);
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
+    mesh.vertices.reserve((static_cast<std::size_t>(n) + 1u) * (static_cast<std::size_t>(n) + 1u));
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
-            const double px = (static_cast<double>(x) / n - 0.5) * size;
-            const double py = (static_cast<double>(y) / n - 0.5) * size;
-            const double z = height * (1.0 - std::abs(px) / (size * 0.5));
+            const double normalizedX = static_cast<double>(x) / n - 0.5;
+            const double normalizedY = static_cast<double>(y) / n - 0.5;
+            const double px = normalizedX * size;
+            const double py = normalizedY * size;
+            // Work in normalized grid space so a positive subnormal size cannot
+            // underflow in `size * 0.5` and turn the centre ridge into 0 / 0.
+            const double z = height * (1.0 - 2.0 * std::abs(normalizedX));
             mesh.vertices.emplace_back(px, py, z);
         }
     }
@@ -221,18 +257,23 @@ Mesh generateRidgeGrid(int n, double size, double height) {
 }
 
 Mesh generateNoisyPlaneGrid(int n, double size, double noiseAmplitude) {
+    if (!validResolution(n) || !finitePositive(size) || !finiteNonNegative(noiseAmplitude)) {
+        return {};
+    }
     n = std::max(2, n);
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
+    mesh.vertices.reserve((static_cast<std::size_t>(n) + 1u) * (static_cast<std::size_t>(n) + 1u));
     std::mt19937 rng(42);
-    std::normal_distribution<double> noise(0.0, noiseAmplitude);
+    std::normal_distribution<double> noise(0.0, noiseAmplitude > 0.0 ? noiseAmplitude : 1.0);
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
             const double px = (static_cast<double>(x) / n - 0.5) * size;
             const double py = (static_cast<double>(y) / n - 0.5) * size;
             const bool boundary = x == 0 || y == 0 || x == n || y == n;
-            mesh.vertices.emplace_back(px, py, boundary ? 0.0 : noise(rng));
+            mesh.vertices.emplace_back(
+                px, py, boundary || noiseAmplitude == 0.0 ? 0.0 : boundedNoiseSample(noise, rng)
+            );
         }
     }
     addGridFaces(n, 0, mesh);
@@ -240,9 +281,12 @@ Mesh generateNoisyPlaneGrid(int n, double size, double noiseAmplitude) {
 }
 
 Mesh generateSineTerrainGrid(int n, double size) {
+    if (!validResolution(n) || !finitePositive(size)) {
+        return {};
+    }
     n = std::max(4, n);
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
+    mesh.vertices.reserve((static_cast<std::size_t>(n) + 1u) * (static_cast<std::size_t>(n) + 1u));
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
@@ -259,9 +303,12 @@ Mesh generateSineTerrainGrid(int n, double size) {
 }
 
 Mesh generateTerraceGrid(int n, double size) {
+    if (!validResolution(n) || !finitePositive(size)) {
+        return {};
+    }
     n = std::max(4, n);
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
+    mesh.vertices.reserve((static_cast<std::size_t>(n) + 1u) * (static_cast<std::size_t>(n) + 1u));
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
@@ -277,9 +324,12 @@ Mesh generateTerraceGrid(int n, double size) {
 }
 
 Mesh generateBumpGrid(int n, double size) {
+    if (!validResolution(n) || !finitePositive(size)) {
+        return {};
+    }
     n = std::max(4, n);
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>((n + 1) * (n + 1)));
+    mesh.vertices.reserve((static_cast<std::size_t>(n) + 1u) * (static_cast<std::size_t>(n) + 1u));
 
     for (int y = 0; y <= n; ++y) {
         for (int x = 0; x <= n; ++x) {
@@ -296,6 +346,10 @@ Mesh generateBumpGrid(int n, double size) {
 }
 
 Mesh generateCylinderGrid(int radialSegments, int heightSegments, double radius, double height) {
+    if (!validResolution(radialSegments) || !validResolution(heightSegments) || !finitePositive(radius) ||
+        !finitePositive(height)) {
+        return {};
+    }
     radialSegments = std::max(8, radialSegments);
     heightSegments = std::max(2, heightSegments);
     Mesh mesh;
@@ -333,6 +387,10 @@ Mesh generateCylinderGrid(int radialSegments, int heightSegments, double radius,
 }
 
 Mesh generateTorusGrid(int majorSegments, int minorSegments, double majorRadius, double minorRadius) {
+    if (!validResolution(majorSegments) || !validResolution(minorSegments) || !finitePositive(majorRadius) ||
+        !finitePositive(minorRadius) || majorRadius > kMaxGeneratorMagnitude - minorRadius) {
+        return {};
+    }
     majorSegments = std::max(8, majorSegments);
     minorSegments = std::max(6, minorSegments);
     Mesh mesh;
@@ -362,6 +420,9 @@ Mesh generateTorusGrid(int majorSegments, int minorSegments, double majorRadius,
 }
 
 Mesh generateCubeGrid(int n, double size) {
+    if (!validResolution(n) || !finitePositive(size)) {
+        return {};
+    }
     n = std::max(1, n);
     Mesh mesh;
     const double half = 0.5 * size;
@@ -375,6 +436,9 @@ Mesh generateCubeGrid(int n, double size) {
 }
 
 Mesh generateClosedCubeGrid(int n, double size) {
+    if (!validResolution(n) || !finitePositive(size)) {
+        return {};
+    }
     n = std::max(1, n);
     Mesh patchMesh = generateCubeGrid(n, size);
 
@@ -402,15 +466,17 @@ Mesh generateClosedCubeGrid(int n, double size) {
     // 按网格单元尺寸的四分之一进行量化：重合的块边界顶点会合并，
     // 而不同网格顶点之间至少相隔四个量化单位。
     const double extent = std::abs(size) > 0.0 ? std::abs(size) : 1.0;
-    const double invQuantum = 4.0 * static_cast<double>(n) / extent;
+    const double quantizedExtent = 4.0 * static_cast<double>(n);
     auto quantize = [&](const Vec3& p) {
         return QuantizedPoint{
-            std::llround(p.x() * invQuantum), std::llround(p.y() * invQuantum), std::llround(p.z() * invQuantum)
+            std::llround((p.x() / extent) * quantizedExtent),
+            std::llround((p.y() / extent) * quantizedExtent),
+            std::llround((p.z() / extent) * quantizedExtent)
         };
     };
 
     Mesh mesh;
-    mesh.vertices.reserve(static_cast<std::size_t>(6 * n * n + 2));
+    mesh.vertices.reserve(6u * static_cast<std::size_t>(n) * static_cast<std::size_t>(n) + 2u);
     mesh.faces.reserve(patchMesh.faces.size());
     std::unordered_map<QuantizedPoint, int, QuantizedPointHash> indexByPoint;
     indexByPoint.reserve(patchMesh.vertices.size());
@@ -435,6 +501,9 @@ Mesh generateClosedCubeGrid(int n, double size) {
 }
 
 Mesh generateThinFinGrid(int n, double size) {
+    if (!validResolution(n) || !finitePositive(size)) {
+        return {};
+    }
     n = std::max(4, n);
     Mesh mesh = generatePlaneGrid(n, size, false);
 
@@ -486,6 +555,9 @@ Mesh generateThinFinGrid(int n, double size) {
 }
 
 Mesh generateSteppedShaftGrid(int n) {
+    if (!validResolution(n)) {
+        return {};
+    }
     const int segments = std::max(64, n);
     const std::vector<std::pair<double, double>> profile = {
         {0.32, -1.15},
@@ -503,6 +575,9 @@ Mesh generateSteppedShaftGrid(int n) {
 }
 
 Mesh generatePipeCouplingGrid(int n) {
+    if (!validResolution(n)) {
+        return {};
+    }
     const int segments = std::max(72, n);
     const std::vector<std::pair<double, double>> profile = {
         {0.38, -1.00},
@@ -519,6 +594,9 @@ Mesh generatePipeCouplingGrid(int n) {
 }
 
 Mesh generatePulleyGrid(int n) {
+    if (!validResolution(n)) {
+        return {};
+    }
     const int segments = std::max(72, n);
     const std::vector<std::pair<double, double>> profile = {
         {0.26, -0.58},
@@ -534,36 +612,46 @@ Mesh generatePulleyGrid(int n) {
 }
 
 bool generateMeshByName(const std::string& type, int n, Mesh& mesh, std::string* error) {
+    if (error) {
+        error->clear();
+    }
+    if (!validResolution(n)) {
+        if (error) {
+            *error = "Generator resolution must be in the range [1, 512].";
+        }
+        return false;
+    }
+    Mesh generated;
     if (type == "plane") {
-        mesh = generatePlaneGrid(n, 2.0, false);
+        generated = generatePlaneGrid(n, 2.0, false);
     } else if (type == "clustered-plane") {
-        mesh = generatePlaneGrid(n, 2.0, true);
+        generated = generatePlaneGrid(n, 2.0, true);
     } else if (type == "hole-plane") {
-        mesh = generateHolePlaneGrid(n, 2.0, 0.34);
+        generated = generateHolePlaneGrid(n, 2.0, 0.34);
     } else if (type == "ridge") {
-        mesh = generateRidgeGrid(n, 2.0, 0.5);
+        generated = generateRidgeGrid(n, 2.0, 0.5);
     } else if (type == "noisy-plane") {
-        mesh = generateNoisyPlaneGrid(n, 2.0, 0.035);
+        generated = generateNoisyPlaneGrid(n, 2.0, 0.035);
     } else if (type == "sine-terrain") {
-        mesh = generateSineTerrainGrid(n, 2.0);
+        generated = generateSineTerrainGrid(n, 2.0);
     } else if (type == "terrace") {
-        mesh = generateTerraceGrid(n, 2.0);
+        generated = generateTerraceGrid(n, 2.0);
     } else if (type == "bump") {
-        mesh = generateBumpGrid(n, 2.0);
+        generated = generateBumpGrid(n, 2.0);
     } else if (type == "cylinder") {
-        mesh = generateCylinderGrid(std::max(16, n), std::max(4, n / 3), 0.65, 1.7);
+        generated = generateCylinderGrid(std::max(16, n), std::max(4, n / 3), 0.65, 1.7);
     } else if (type == "torus") {
-        mesh = generateTorusGrid(std::max(16, n), std::max(8, n / 3), 0.7, 0.23);
+        generated = generateTorusGrid(std::max(16, n), std::max(8, n / 3), 0.7, 0.23);
     } else if (type == "cube") {
-        mesh = generateCubeGrid(std::max(1, n / 3), 2.0);
+        generated = generateCubeGrid(std::max(1, n / 3), 2.0);
     } else if (type == "thin-fin") {
-        mesh = generateThinFinGrid(n, 2.0);
+        generated = generateThinFinGrid(n, 2.0);
     } else if (type == "stepped-shaft") {
-        mesh = generateSteppedShaftGrid(std::max(64, n));
+        generated = generateSteppedShaftGrid(std::max(64, n));
     } else if (type == "pipe-coupling") {
-        mesh = generatePipeCouplingGrid(std::max(72, n));
+        generated = generatePipeCouplingGrid(std::max(72, n));
     } else if (type == "pulley") {
-        mesh = generatePulleyGrid(std::max(72, n));
+        generated = generatePulleyGrid(std::max(72, n));
     } else {
         if (error) {
             *error = "Unknown generator type. Use plane, clustered-plane, hole-plane, "
@@ -572,6 +660,13 @@ bool generateMeshByName(const std::string& type, int n, Mesh& mesh, std::string*
         }
         return false;
     }
+    if (generated.empty()) {
+        if (error) {
+            *error = "Generator parameters produced no usable mesh.";
+        }
+        return false;
+    }
+    mesh = std::move(generated);
     return true;
 }
 

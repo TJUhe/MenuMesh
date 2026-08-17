@@ -26,7 +26,7 @@ ManuMesh 的简化器应按四层阅读：
 | 法线域预处理 | `FeatureNormalFilter.cpp` 提供 opt-in、面积加权、feature-aware 的面法向 relaxation。它协调 face winding，跨超过 `preserveAngleDeg` 的边停止平滑，不改顶点/拓扑，并输出迭代、变化面、保留边和角度变化诊断。 |
 | graph consolidation / junction | cleanup 的 endpoint 与 close-junction bridge 共用方向、source、signed-kind 兼容规则；新增 opt-in 跨 component endpoint consolidation。junction 保存逐分支切向、continuation pair，并报告 ambiguous junction。 |
 | surface patches | opt-in 地以活动真实 mesh feature edge 为 barrier 分割 faces，输出 `facePatchIds`、patch area/normal/boundary、patch adjacency；非 mesh-edge recovery bridge 不切分面片。 |
-| 纹理感知简化 | 已以 opt-in 落地（`SimplifyConfig::texture.preserveTexture`，默认 `false`，仅 C++ API，CLI 未暴露；`SimplifyOptions` 保留兼容字段）：几何 quadric 保持 4×4，纹理只作为局部标量排序代价（`textureWeight`）加 UV chart 配对与有符号面积硬过滤（`textureSeamTolerance`、`minTextureAreaRatio`）；关闭时几何输出与旧路径 bit-exact。设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。 |
+| 纹理感知简化 | 已以 opt-in 落地（`SimplifyConfig::texture.preserveTexture` 和 C ABI `ManuMeshSimplifyOptions` 的对应尾字段，默认 `false`；CLI 未暴露）：几何 quadric 保持 4×4，纹理只作为局部标量排序代价（`textureWeight`）加 UV chart 配对与有符号面积硬过滤（`textureSeamTolerance`、`minTextureAreaRatio`）；关闭时几何输出与旧路径 bit-exact。设计见 [`texture_aware_qem.md`](texture_aware_qem.md)。 |
 | UV 数据模型与 IO | `Mesh::faceTexCoords` / `PlainMesh::faceTexCoords`（`PlainVec2`、`PlainFaceTexCoords`）存储角拥有的逐面逐角 UV；OBJ 严格凸 polygon 保持 fan 顺序，凹 polygon 使用主轴投影 ear clipping，逐角保留 `vt`，重复/退化/自交 polygon 明确拒绝。 |
 | feature component | 已实现 component-level confidence，统计强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual，并把 confidence 写入 loop/vertex/QEM soft feature quadric。 |
 | primitive 拟合 | 支持圆、近圆、椭圆、折线 loop 的报告和保护策略；圆用 Taubin 代数拟合（一阶无偏，Kåsa 保留为确定性回退），椭圆用 Halíř-Flusser 直接最小二乘拟合（保证椭圆输出，轴向来自 conic 而非 PCA）。 |
@@ -46,7 +46,6 @@ ManuMesh 的简化器应按四层阅读：
 - 通用 CAD/B-Rep 特征识别。
 - 布尔运算、offset/thickening、孔洞修复和全自动 manifold repair。
 - 学习式显著特征评分、时间序列一致性简化或神经 QEM 表示。
-- C ABI 层的纹理字段与纹理选项（纹理保护当前只在 C++ `SimplifyConfig::texture` 暴露，旧 `SimplifyOptions` 字段仅作兼容）。
 
 ## 主要技术风险
 

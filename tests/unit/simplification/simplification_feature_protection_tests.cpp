@@ -228,6 +228,279 @@ TEST(ManuMesh, FeatureConstraintPolicyUsesComposedMinimumLoopSize) {
     );
 }
 
+TEST(ManuMesh, SharedProtectedEdgeAppliesMinimumBudgetToEveryLoop) {
+    const manumesh::Mesh mesh = makeRingConstraintGraphMesh(6);
+    const manumesh::feature::FeatureAnalysis analysis =
+        makeLoopAnalysis({0, 1, 2, 3, 4, 5}, -1, -1, static_cast<int>(mesh.vertices.size()));
+    simplification::FeatureDetectionPolicy detectionPolicy;
+    detectionPolicy.enabled = true;
+    const simplification::FeatureGuidance guidance =
+        simplification::buildFeatureGuidance(mesh, detectionPolicy, &analysis);
+    simplification::FeatureConstraintGraph constraints = guidance.constraints;
+    simplification::FeatureConstraintEdge* sharedEdge = constraints.findMutableEdge(0, 1);
+    ASSERT_NE(nullptr, sharedEdge);
+    sharedEdge->loopIds = {0, 1};
+
+    simplification::SimplifyOptions options;
+    options.preserveFeatureCurves = true;
+    options.featureProtectionMode = simplification::FeatureProtectionMode::AllFeatureEdges;
+    options.maxFeatureCurveDeviationRatio = 0.01;
+    manumesh::feature::FeatureOptions featureOptions;
+    featureOptions.minFeatureLoopVertices = 3;
+    options.featureOptionsOverride = featureOptions;
+    const simplification::FeatureConstraintPolicy policy(options);
+    const std::vector<simplification::VertexState> vertices = policyVertices(guidance);
+
+    EXPECT_EQ(
+        simplification::FeatureCollapseRejectKind::Generic,
+        policy.collapseRejectKind({{0, 1}, vertices, {12, 3}, constraints})
+    );
+    EXPECT_EQ(
+        simplification::FeatureCollapseRejectKind::None,
+        policy.collapseRejectKind({{0, 1}, vertices, {12, 4}, constraints})
+    );
+}
+
+TEST(ManuMesh, DynamicConstraintRolesBlockCollapseEvenWhenVertexSnapshotIsStale) {
+    const manumesh::Mesh mesh = makeConstraintGraphMesh();
+    const manumesh::feature::FeatureAnalysis analysis = makeLoopAnalysis({0, 1, 2, 3});
+    simplification::FeatureDetectionPolicy detectionPolicy;
+    detectionPolicy.enabled = true;
+    const simplification::FeatureGuidance guidance =
+        simplification::buildFeatureGuidance(mesh, detectionPolicy, &analysis);
+    const std::vector<simplification::VertexState> vertices = policyVertices(guidance);
+
+    simplification::SimplifyOptions options;
+    options.preserveFeatureCurves = true;
+    options.featureProtectionMode = simplification::FeatureProtectionMode::AllFeatureEdges;
+    options.maxFeatureCurveDeviationRatio = 0.01;
+    manumesh::feature::FeatureOptions featureOptions;
+    featureOptions.minFeatureLoopVertices = 3;
+    options.featureOptionsOverride = featureOptions;
+    const simplification::FeatureConstraintPolicy policy(options);
+    const std::vector<int> activeLoopCounts = {8};
+
+    simplification::FeatureConstraintGraph constraints = guidance.constraints;
+    ASSERT_FALSE(vertices[1].featureJunction);
+    ASSERT_FALSE(constraints.vertices[1].junction);
+    constraints.vertices[1].shared = true;
+    EXPECT_EQ(
+        simplification::FeatureCollapseRejectKind::Generic,
+        policy.collapseRejectKind({{1, 2}, vertices, activeLoopCounts, constraints})
+    );
+
+    constraints.vertices[1].shared = false;
+    constraints.vertices[1].junction = true;
+    EXPECT_EQ(
+        simplification::FeatureCollapseRejectKind::Generic,
+        policy.collapseRejectKind({{1, 2}, vertices, activeLoopCounts, constraints})
+    );
+
+    constraints.vertices[1].junction = false;
+    constraints.vertices[1].ambiguousJunction = true;
+    EXPECT_EQ(
+        simplification::FeatureCollapseRejectKind::Generic,
+        policy.collapseRejectKind({{1, 2}, vertices, activeLoopCounts, constraints})
+    );
+}
+
+TEST(ManuMesh, FeatureCurveBudgetChecksEveryLoopOwnedByCollapseEdge) {
+    std::vector<simplification::VertexState> vertices(2);
+    for (simplification::VertexState& vertex : vertices) {
+        vertex.isFeature = true;
+        vertex.featureLoopId = 0;
+    }
+
+    simplification::FeatureCurveConstraint firstCurve;
+    firstCurve.valid = true;
+    firstCurve.primitive = simplification::FeatureCurveKind::PolygonalLoop;
+    firstCurve.samples = {manumesh::Vec3(0.0, 0.0, 0.0), manumesh::Vec3(1.0, 0.0, 0.0)};
+    simplification::FeatureCurveConstraint secondCurve;
+    secondCurve.valid = true;
+    secondCurve.primitive = simplification::FeatureCurveKind::PolygonalLoop;
+    secondCurve.samples = {manumesh::Vec3(10.0, 0.0, 0.0), manumesh::Vec3(11.0, 0.0, 0.0)};
+    const std::vector<simplification::FeatureCurveConstraint> curves = {firstCurve, secondCurve};
+    const std::vector<simplification::FeaturePrimitiveFit> primitiveFits;
+
+    simplification::FeatureConstraintGraph constraints;
+    constraints.vertices.resize(2);
+    simplification::FeatureConstraintEdge edge;
+    edge.a = 0;
+    edge.b = 1;
+    edge.loopIds = {0, 1};
+    constraints.edges.push_back(edge);
+    constraints.rebuildIndex();
+
+    simplification::SimplifyOptions options;
+    options.preserveFeatureCurves = true;
+    options.maxFeatureCurveDeviationRatio = 0.1;
+    const manumesh::Vec3 position(0.5, 0.0, 0.0);
+    EXPECT_FALSE(
+        simplification::featureCurveBudgetAllows(
+            vertices[0],
+            vertices[1],
+            curves,
+            primitiveFits,
+            options,
+            1.0,
+            position,
+            &constraints,
+            simplification::CollapseEdge{0, 1}
+        )
+    );
+
+    constraints.edges[0].loopIds = {0};
+    EXPECT_TRUE(
+        simplification::featureCurveBudgetAllows(
+            vertices[0],
+            vertices[1],
+            curves,
+            primitiveFits,
+            options,
+            1.0,
+            position,
+            &constraints,
+            simplification::CollapseEdge{0, 1}
+        )
+    );
+
+    constraints.vertices[0].loopIds = {0, 1};
+    EXPECT_FALSE(
+        simplification::featureCurveBudgetAllows(
+            vertices[0],
+            vertices[0],
+            curves,
+            primitiveFits,
+            options,
+            1.0,
+            position,
+            &constraints,
+            simplification::CollapseEdge{0, 0}
+        )
+    );
+    constraints.vertices[0].loopIds = {0};
+    EXPECT_TRUE(
+        simplification::featureCurveBudgetAllows(
+            vertices[0],
+            vertices[0],
+            curves,
+            primitiveFits,
+            options,
+            1.0,
+            position,
+            &constraints,
+            simplification::CollapseEdge{0, 0}
+        )
+    );
+}
+
+TEST(ManuMesh, FeatureCurveBudgetUsesThePrimitiveFitOwnedByEachLoop) {
+    std::vector<simplification::VertexState> vertices(2);
+    for (simplification::VertexState& vertex : vertices) {
+        vertex.isFeature = true;
+        vertex.circularFeature = true;
+        vertex.featurePrimitive = simplification::FeatureCurveKind::Circle;
+        vertex.featureLoopId = 0;
+        vertex.primitiveFitId = 0;
+        vertex.p = manumesh::Vec3(1.0, 0.0, 0.0);
+    }
+
+    std::vector<simplification::FeaturePrimitiveFit> primitiveFits(2);
+    primitiveFits[0].circleCenter = manumesh::Vec3::Zero();
+    primitiveFits[0].circleRadius = 1.0;
+    primitiveFits[1].circleCenter = manumesh::Vec3(10.0, 0.0, 0.0);
+    primitiveFits[1].circleRadius = 1.0;
+
+    std::vector<simplification::FeatureCurveConstraint> curves(2);
+    for (simplification::FeatureCurveConstraint& curve : curves) {
+        curve.valid = true;
+        curve.closed = true;
+        curve.primitive = simplification::FeatureCurveKind::Circle;
+    }
+    curves[0].primitiveFitId = 0;
+    curves[1].primitiveFitId = 1;
+
+    simplification::FeatureConstraintGraph constraints;
+    constraints.vertices.resize(2);
+    simplification::FeatureConstraintEdge edge;
+    edge.a = 0;
+    edge.b = 1;
+    edge.loopIds = {0, 1};
+    constraints.edges.push_back(edge);
+    constraints.rebuildIndex();
+
+    simplification::SimplifyOptions options;
+    options.preserveFeatureCurves = true;
+    options.maxFeatureCurveDeviationRatio = 0.01;
+    EXPECT_FALSE(
+        simplification::featureCurveBudgetAllows(
+            vertices[0],
+            vertices[1],
+            curves,
+            primitiveFits,
+            options,
+            1.0,
+            manumesh::Vec3(1.0, 0.0, 0.0),
+            &constraints,
+            simplification::CollapseEdge{0, 1}
+        )
+    );
+
+    constraints.edges[0].loopIds = {0};
+    EXPECT_TRUE(
+        simplification::featureCurveBudgetAllows(
+            vertices[0],
+            vertices[1],
+            curves,
+            primitiveFits,
+            options,
+            1.0,
+            manumesh::Vec3(1.0, 0.0, 0.0),
+            &constraints,
+            simplification::CollapseEdge{0, 1}
+        )
+    );
+}
+
+TEST(ManuMesh, FeatureGuidanceStoresAnIndependentPrimitiveFitForEachAnalyticLoop) {
+    const manumesh::Mesh mesh = makeRingConstraintGraphMesh(6);
+    manumesh::feature::FeatureAnalysis analysis =
+        makeLoopAnalysis({0, 1, 2, 3, 4, 5}, -1, -1, static_cast<int>(mesh.vertices.size()));
+    manumesh::feature::FeatureLoop& loop = analysis.loops[0];
+    loop.circular = true;
+    loop.primitive = manumesh::feature::FeaturePrimitiveType::Circle;
+    loop.center = manumesh::Vec3::Zero();
+    loop.normal = manumesh::Vec3(0.0, 0.0, 1.0);
+    loop.radius = 1.0;
+    for (int vertexId : loop.vertices) {
+        manumesh::feature::VertexFeature& vertex = analysis.vertices[static_cast<std::size_t>(vertexId)];
+        vertex.circular = true;
+        vertex.primitive = manumesh::feature::FeaturePrimitiveType::Circle;
+        vertex.circleCenter = loop.center;
+        vertex.circleNormal = loop.normal;
+        vertex.circleRadius = loop.radius;
+    }
+
+    simplification::FeatureDetectionPolicy detectionPolicy;
+    detectionPolicy.enabled = true;
+    const simplification::FeatureGuidance guidance =
+        simplification::buildFeatureGuidance(mesh, detectionPolicy, &analysis);
+
+    ASSERT_EQ(1u, guidance.curves.size());
+    const simplification::FeatureCurveConstraint& curve = guidance.curves[0];
+    ASSERT_GE(curve.primitiveFitId, 0);
+    ASSERT_LT(curve.primitiveFitId, static_cast<int>(guidance.primitiveFits.size()));
+    const simplification::FeaturePrimitiveFit& fit =
+        guidance.primitiveFits[static_cast<std::size_t>(curve.primitiveFitId)];
+    EXPECT_EQ(simplification::FeatureCurveKind::Circle, curve.primitive);
+    EXPECT_NEAR(0.0, (fit.circleCenter - loop.center).norm(), 1e-12);
+    EXPECT_NEAR(0.0, (fit.circleNormal - loop.normal).norm(), 1e-12);
+    EXPECT_DOUBLE_EQ(loop.radius, fit.circleRadius);
+    for (int vertexId : loop.vertices) {
+        EXPECT_NE(curve.primitiveFitId, guidance.vertices[static_cast<std::size_t>(vertexId)].primitiveFitId);
+    }
+}
+
 TEST(ManuMesh, CanonicalFeatureConstraintGraphRejectsChordAndAllowsEvidenceEdge) {
     const manumesh::Mesh mesh = makeConstraintGraphMesh();
     manumesh::feature::FeatureAnalysis analysis = makeLoopAnalysis({0, 1, 2, 3});

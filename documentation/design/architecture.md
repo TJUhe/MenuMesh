@@ -131,7 +131,7 @@ pre-1.0 C++ SDK 只保证有明确的源码迁移路径，不承诺跨 SDK 版�
 `PlainMesh` 是 Eigen-free C++ 交换类型，提供对应的 `PlainVec2`、`PlainFaceTexCoords` 和
 `PlainMesh::faceTexCoords` 字段，与 `Mesh` 的双向转换、compaction/validation/remap 都会保留逐角 UV；`PlainSimplifier.h` 提供
 `simplifyPlainMesh()`，内部转换为 `Mesh` 后复用同一套简化实现。真正跨语言或
-严格或跨版本 ABI 边界使用 `api/CApi.h`（当前 C ABI 尚未暴露纹理字段和纹理选项）。
+严格或跨版本 ABI 边界使用 `api/CApi.h`；纹理保护通过 `ManuMeshSimplifyOptions` 的尾部字段和 `ManuMeshSimplifyReport` 的尾部诊断字段提供，并保持较短旧结构前缀兼容。
 
 当前 `mesh_edit` 仍是稳定索引的最小编辑层。未来升级为可编辑半边拓扑时，应使用 `VertexId`、`EdgeId`、`HalfedgeId`、`FaceId` 等 typed handle，配合 generation-aware free list 和显式 compaction。属性不要塞进基础顶点结构，应以类型化数组挂在拓扑旁边，方便重映射、导出和 ABI 隔离。
 

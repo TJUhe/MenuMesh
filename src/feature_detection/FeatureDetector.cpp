@@ -28,6 +28,7 @@
 
 #include <cmath>
 #include <iomanip>
+#include <locale>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -76,8 +77,7 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
     if (!std::isfinite(options.featureAngleDeg) || options.featureAngleDeg < 0.0 || options.featureAngleDeg > 180.0) {
         throw std::invalid_argument("featureAngleDeg must be finite and in [0, 180].");
     }
-    if (!std::isfinite(options.loopTraceAngleDeg) ||
-        (options.loopTraceAngleDeg >= 0.0 && options.loopTraceAngleDeg > 180.0)) {
+    if (!std::isfinite(options.loopTraceAngleDeg) || options.loopTraceAngleDeg > 180.0) {
         throw std::invalid_argument("loopTraceAngleDeg must be negative or finite and in [0, 180].");
     }
     requireFiniteNonNegative(options.circleFitRelativeThreshold, "circleFitRelativeThreshold");
@@ -242,9 +242,7 @@ FeatureAnalysis runFeatureDetection(const Mesh& mesh, const FeatureOptions& opti
     detector_detail::initializeFeatureGraph(context.featureEdges, context.analysis());
     context.trace =
         detector_detail::buildTraceGraph(context.mesh, context.options, context.featureEdges, context.analysis());
-    detector_detail::cleanupTraceGraph(
-        context.mesh, context.options, context.cache, context.trace, context.analysis()
-    );
+    detector_detail::cleanupTraceGraph(context.mesh, context.options, context.cache, context.trace, context.analysis());
     detector_detail::consolidateFeatureGraph(
         context.mesh, context.options, context.cache, context.trace, context.analysis()
     );
@@ -332,6 +330,7 @@ std::string featureReportHeaderCsv() {
 
 std::string featureLoopRowCsv(const FeatureLoop& loop) {
     std::ostringstream out;
+    out.imbue(std::locale::classic());
     out << std::setprecision(12);
     out << loop.id << "," << loop.componentId << "," << loop.componentConfidence << "," << (loop.weakFeature ? 1 : 0)
         << "," << loop.primitiveResidual << "," << loop.vertices.size() << "," << loop.edgeCount << ","

@@ -35,10 +35,12 @@ struct OldTriangle {
     std::array<Vec3, 3> p{};
 };
 
-std::unordered_set<int> collectTouchedFaces(const CollapseLegalityInput& input) {
-    std::unordered_set<int> touchedFaces = input.mesh.topology.vertexFaces[input.edge.keep];
+std::vector<int> collectTouchedFaces(const CollapseLegalityInput& input) {
+    std::unordered_set<int> touchedFaceSet = input.mesh.topology.vertexFaces[input.edge.keep];
     const auto& removeFaces = input.mesh.topology.vertexFaces[input.edge.remove];
-    touchedFaces.insert(removeFaces.begin(), removeFaces.end());
+    touchedFaceSet.insert(removeFaces.begin(), removeFaces.end());
+    std::vector<int> touchedFaces(touchedFaceSet.begin(), touchedFaceSet.end());
+    std::sort(touchedFaces.begin(), touchedFaces.end());
     return touchedFaces;
 }
 
@@ -93,7 +95,7 @@ std::array<Vec3, 3> mappedTrianglePositions(
 
 CollapseRejectReason collectNewTriangles(
     const CollapseLegalityInput& input,
-    const std::unordered_set<int>& touchedFaces,
+    const std::vector<int>& touchedFaces,
     std::vector<OldTriangle>& oldTriangles,
     std::vector<NewTriangle>& newTriangles,
     std::vector<Vec3>& localReferencePoints
@@ -105,9 +107,17 @@ CollapseRejectReason collectNewTriangles(
     const bool measureLocalError = input.maxLocalError > 0.0;
 
     for (int faceId : touchedFaces) {
+        if (faceId < 0 || faceId >= static_cast<int>(faces.size())) {
+            return CollapseRejectReason::Topology;
+        }
         const FaceState& face = faces[faceId];
         if (!face.active) {
             continue;
+        }
+        for (int vertexId : face.v) {
+            if (vertexId < 0 || vertexId >= static_cast<int>(vertices.size()) || !vertices[vertexId].active) {
+                return CollapseRejectReason::Topology;
+            }
         }
         if (measureLocalError) {
             const std::array<Vec3, 3> oldTriangle = {
@@ -133,11 +143,14 @@ CollapseRejectReason collectNewTriangles(
         const Vec3& b = p[1];
         const Vec3& c = p[2];
         const double area = triangleArea(a, b, c);
-        if (area <= input.areaEps) {
+        if (!std::isfinite(area) || area <= input.areaEps) {
             return CollapseRejectReason::Topology;
         }
-        if (input.minTriangleQuality > 0.0 && manumesh::common::triangleQuality(a, b, c) < input.minTriangleQuality) {
-            return CollapseRejectReason::TriangleQuality;
+        if (input.minTriangleQuality > 0.0) {
+            const double quality = manumesh::common::triangleQuality(a, b, c);
+            if (!std::isfinite(quality) || quality < input.minTriangleQuality) {
+                return CollapseRejectReason::TriangleQuality;
+            }
         }
         if (input.minNormalDot > -1.0 && oldNormal.norm() > 1e-20) {
             const Vec3 newNormal = triangleNormal(a, b, c);
@@ -203,7 +216,7 @@ CollapseRejectReason checkLocalError(
 
 CollapseRejectReason checkLocalIntersections(
     const CollapseLegalityInput& input,
-    const std::unordered_set<int>& touchedFaces,
+    const std::vector<int>& touchedFaces,
     const std::vector<NewTriangle>& newTriangles
 ) {
     if (!input.preventLocalIntersections) {
@@ -241,14 +254,22 @@ CollapseRejectReason checkLocalIntersections(
         triHi += Vec3::Constant(pad);
         const std::vector<int> spatialCandidates =
             useSpatialCandidates ? input.spatialIndex->query(triLo, triHi) : std::vector<int>();
-        const int candidateCount =
-            useSpatialCandidates ? static_cast<int>(spatialCandidates.size()) : static_cast<int>(faces.size());
-        for (int candidateIndex = 0; candidateIndex < candidateCount; ++candidateIndex) {
-            const int faceId = useSpatialCandidates ? spatialCandidates[candidateIndex] : candidateIndex;
-            if (!faces[faceId].active || touchedFaces.find(faceId) != touchedFaces.end()) {
+        const std::size_t candidateCount = useSpatialCandidates ? spatialCandidates.size() : faces.size();
+        for (std::size_t candidateIndex = 0; candidateIndex < candidateCount; ++candidateIndex) {
+            const int faceId =
+                useSpatialCandidates ? spatialCandidates[candidateIndex] : static_cast<int>(candidateIndex);
+            if (faceId < 0 || faceId >= static_cast<int>(faces.size())) {
+                return CollapseRejectReason::Topology;
+            }
+            if (!faces[faceId].active || std::binary_search(touchedFaces.begin(), touchedFaces.end(), faceId)) {
                 continue;
             }
             const FaceState& face = faces[faceId];
+            for (int vertexId : face.v) {
+                if (vertexId < 0 || vertexId >= static_cast<int>(vertices.size()) || !vertices[vertexId].active) {
+                    return CollapseRejectReason::Topology;
+                }
+            }
             const std::array<Vec3, 3> other = {
                 vertices[face.v[0]].p,
                 vertices[face.v[1]].p,
@@ -270,16 +291,25 @@ CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& 
     if (!input.newPosition.allFinite()) {
         return CollapseRejectReason::Topology;
     }
+    const int keep = input.edge.keep;
+    const int remove = input.edge.remove;
+    if (keep < 0 || remove < 0 || keep == remove || keep >= static_cast<int>(input.mesh.vertices.size()) ||
+        remove >= static_cast<int>(input.mesh.vertices.size()) ||
+        keep >= static_cast<int>(input.mesh.topology.vertexFaces.size()) ||
+        remove >= static_cast<int>(input.mesh.topology.vertexFaces.size()) || !input.mesh.vertices[keep].active ||
+        !input.mesh.vertices[remove].active) {
+        return CollapseRejectReason::Topology;
+    }
 
     std::vector<NewTriangle> newTriangles;
     std::vector<OldTriangle> oldTriangles;
     std::vector<Vec3> localReferencePoints;
     if (input.maxLocalError > 0.0) {
-        localReferencePoints.push_back(input.mesh.vertices[input.edge.keep].p);
-        localReferencePoints.push_back(input.mesh.vertices[input.edge.remove].p);
+        localReferencePoints.push_back(input.mesh.vertices[keep].p);
+        localReferencePoints.push_back(input.mesh.vertices[remove].p);
     }
 
-    const std::unordered_set<int> touchedFaces = collectTouchedFaces(input);
+    const std::vector<int> touchedFaces = collectTouchedFaces(input);
     CollapseRejectReason reason =
         collectNewTriangles(input, touchedFaces, oldTriangles, newTriangles, localReferencePoints);
     if (reason != CollapseRejectReason::None) {

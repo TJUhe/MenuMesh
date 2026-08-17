@@ -15,6 +15,7 @@
 #include "core/Tolerances.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace manumesh {
@@ -22,6 +23,14 @@ namespace common {
 
 MeshDistanceIndex::MeshDistanceIndex(const Mesh& mesh)
     : mesh_(mesh) {
+    const std::size_t maxInt = static_cast<std::size_t>(std::numeric_limits<int>::max());
+    // Face ids, triangle ids, BVH node ids and ranges are stored as int. A
+    // binary BVH can require almost two nodes per triangle, so reject a size
+    // that cannot be represented before any narrowing conversion occurs.
+    if (mesh.vertices.size() > maxInt || mesh.faces.size() > maxInt / 2u) {
+        skippedFaceCount_ = std::numeric_limits<int>::max();
+        return;
+    }
     const int vertexCount = static_cast<int>(mesh.vertices.size());
     triangles_.reserve(mesh.faces.size());
     for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
@@ -29,14 +38,19 @@ MeshDistanceIndex::MeshDistanceIndex(const Mesh& mesh)
         const bool validIndices = face.v[0] >= 0 && face.v[0] < vertexCount && face.v[1] >= 0 &&
                                   face.v[1] < vertexCount && face.v[2] >= 0 && face.v[2] < vertexCount;
         if (!validIndices) {
-            ++skippedFaceCount_;
+            if (skippedFaceCount_ < std::numeric_limits<int>::max()) {
+                ++skippedFaceCount_;
+            }
             continue;
         }
         const Vec3& a = mesh.vertices[face.v[0]];
         const Vec3& b = mesh.vertices[face.v[1]];
         const Vec3& c = mesh.vertices[face.v[2]];
-        if (triangleArea(a, b, c) <= kMinTriangleArea) {
-            ++skippedFaceCount_;
+        const double area = triangleArea(a, b, c);
+        if (!a.allFinite() || !b.allFinite() || !c.allFinite() || !std::isfinite(area) || area <= kMinTriangleArea) {
+            if (skippedFaceCount_ < std::numeric_limits<int>::max()) {
+                ++skippedFaceCount_;
+            }
             continue;
         }
 
@@ -44,7 +58,13 @@ MeshDistanceIndex::MeshDistanceIndex(const Mesh& mesh)
         ref.face = fi;
         ref.lo = a.cwiseMin(b).cwiseMin(c);
         ref.hi = a.cwiseMax(b).cwiseMax(c);
-        ref.centroid = (a + b + c) / 3.0;
+        ref.centroid = a / 3.0 + b / 3.0 + c / 3.0;
+        if (!ref.centroid.allFinite()) {
+            if (skippedFaceCount_ < std::numeric_limits<int>::max()) {
+                ++skippedFaceCount_;
+            }
+            continue;
+        }
         order_.push_back(static_cast<int>(triangles_.size()));
         triangles_.push_back(ref);
     }
@@ -57,7 +77,7 @@ MeshDistanceIndex::MeshDistanceIndex(const Mesh& mesh)
 bool MeshDistanceIndex::empty() const { return nodes_.empty(); }
 
 double MeshDistanceIndex::distanceSquared(const Vec3& point) const {
-    if (nodes_.empty()) {
+    if (nodes_.empty() || !point.allFinite()) {
         return std::numeric_limits<double>::infinity();
     }
 
@@ -102,7 +122,10 @@ int MeshDistanceIndex::buildRecursive(int begin, int end) {
 
     const int mid = begin + (end - begin) / 2;
     std::nth_element(order_.begin() + begin, order_.begin() + mid, order_.begin() + end, [&](int lhs, int rhs) {
-        return triangles_[lhs].centroid[axis] < triangles_[rhs].centroid[axis];
+        const double lhsCoordinate = triangles_[lhs].centroid[axis];
+        const double rhsCoordinate = triangles_[rhs].centroid[axis];
+        return lhsCoordinate < rhsCoordinate ||
+               (lhsCoordinate == rhsCoordinate && triangles_[lhs].face < triangles_[rhs].face);
     });
     // C++14 does not sequence assignment operands. Finish recursive growth
     // before indexing nodes_, because push_back may reallocate its storage.

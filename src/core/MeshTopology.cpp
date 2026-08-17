@@ -4,8 +4,8 @@
  * @ingroup manumesh_core
  *
  * @details 构建不可变的无向边和逐顶点入射缓存。
- * @algorithm 每个三角形贡献三个规范边键；随后对稠密边记录和顶点入射关系排序，
- * 使遍历具有确定性。
+ * @algorithm 每个三角形贡献三个规范边键；边按输入面/角顺序建立，顶点入射边按
+ * 稠密边 ID 追加，面按输入面顺序追加，因此遍历具有确定性。
  * @invariants 面角数组始终与入射面数组保持对齐。
  */
 
@@ -13,7 +13,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <memory>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -24,6 +26,47 @@ namespace {
 /** @brief 为一条边累积的临时入射和绕序数据。 */
 struct EdgeBuildRecord {
     int edgeId = -1;
+};
+
+class FaceComponents {
+public:
+    explicit FaceComponents(int count)
+        : parent_(static_cast<std::size_t>(count)),
+          rank_(static_cast<std::size_t>(count), 0) {
+        std::iota(parent_.begin(), parent_.end(), 0);
+    }
+
+    int find(int value) {
+        int root = value;
+        while (parent_[static_cast<std::size_t>(root)] != root) {
+            root = parent_[static_cast<std::size_t>(root)];
+        }
+        while (value != root) {
+            const int next = parent_[static_cast<std::size_t>(value)];
+            parent_[static_cast<std::size_t>(value)] = root;
+            value = next;
+        }
+        return root;
+    }
+
+    void join(int lhs, int rhs) {
+        int lhsRoot = find(lhs);
+        int rhsRoot = find(rhs);
+        if (lhsRoot == rhsRoot) {
+            return;
+        }
+        if (rank_[static_cast<std::size_t>(lhsRoot)] < rank_[static_cast<std::size_t>(rhsRoot)]) {
+            std::swap(lhsRoot, rhsRoot);
+        }
+        parent_[static_cast<std::size_t>(rhsRoot)] = lhsRoot;
+        if (rank_[static_cast<std::size_t>(lhsRoot)] == rank_[static_cast<std::size_t>(rhsRoot)]) {
+            ++rank_[static_cast<std::size_t>(lhsRoot)];
+        }
+    }
+
+private:
+    std::vector<int> parent_;
+    std::vector<unsigned char> rank_;
 };
 
 } // 命名空间
@@ -76,6 +119,10 @@ std::uint64_t topologyEdgeKey(int a, int b) {
 }
 
 Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
+    if (mesh.vertices.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+        mesh.faces.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        return Status::invalidArgument("Mesh vertex/face count exceeds the supported int-index range.");
+    }
     if (validate) {
         std::string error;
         if (!validateMeshIndices(mesh, &error)) {
@@ -95,10 +142,15 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
     topology.impl_->vertexCount = static_cast<int>(mesh.vertices.size());
     topology.impl_->faceCount = static_cast<int>(mesh.faces.size());
     topology.impl_->vertices.resize(mesh.vertices.size());
-    topology.impl_->edges.reserve(mesh.faces.size() * 3 / 2);
+    const std::size_t edgeReserve = mesh.faces.size() <= std::numeric_limits<std::size_t>::max() / 3
+                                        ? mesh.faces.size() * 3 / 2
+                                        : mesh.faces.size();
+    topology.impl_->edges.reserve(edgeReserve);
 
     std::unordered_map<std::uint64_t, EdgeBuildRecord> edgeByKey;
-    edgeByKey.reserve(mesh.faces.size() * 3);
+    edgeByKey.reserve(
+        mesh.faces.size() <= std::numeric_limits<std::size_t>::max() / 3 ? mesh.faces.size() * 3 : mesh.faces.size()
+    );
 
     for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
         const Face& face = mesh.faces[fi];
@@ -116,11 +168,13 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
             const int a = face.v[corner];
             const int b = face.v[(corner + 1) % 3];
             const std::uint64_t key = topologyEdgeKey(a, b);
-            const auto insertResult =
-                edgeByKey.emplace(key, EdgeBuildRecord{static_cast<int>(topology.impl_->edges.size())});
-            auto it = insertResult.first;
-            const bool inserted = insertResult.second;
-            if (inserted) {
+            auto it = edgeByKey.find(key);
+            if (it == edgeByKey.end()) {
+                if (topology.impl_->edges.size() >= static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+                    return Status::invalidArgument("Mesh unique edge count exceeds the supported int-id range.");
+                }
+                const int edgeId = static_cast<int>(topology.impl_->edges.size());
+                it = edgeByKey.emplace(key, EdgeBuildRecord{edgeId}).first;
                 TopologyEdge edge;
                 edge.vertices = {std::min(a, b), std::max(a, b)};
                 topology.impl_->edges.push_back(std::move(edge));
@@ -147,6 +201,60 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
     }
 
     return topology;
+}
+
+Result<MeshTopologySummary> summarizeMeshTopology(const Mesh& mesh) {
+    const Result<MeshTopology> topologyResult = MeshTopology::build(mesh);
+    if (!topologyResult.ok()) {
+        return topologyResult.status();
+    }
+
+    const MeshTopology& topology = topologyResult.value();
+    MeshTopologySummary summary;
+    summary.uniqueEdges = topology.edges().size();
+    summary.boundaryEdges = static_cast<std::size_t>(topology.boundaryEdgeCount());
+    summary.nonManifoldEdges = static_cast<std::size_t>(topology.nonManifoldEdgeCount());
+    if (topology.faceCount() == 0) {
+        return summary;
+    }
+
+    summary.closedManifold = true;
+    summary.consistentlyOriented = true;
+    FaceComponents components(topology.faceCount());
+    for (const TopologyEdge& edge : topology.edges()) {
+        if (edge.faces.empty() || edge.faces.size() != edge.faceCorners.size()) {
+            return Status::topologyError("Mesh topology edge incidence is inconsistent.");
+        }
+        for (std::size_t index = 1; index < edge.faces.size(); ++index) {
+            components.join(edge.faces[0], edge.faces[index]);
+        }
+        if (edge.faces.size() != 2) {
+            summary.closedManifold = false;
+            if (edge.faces.size() > 2) {
+                summary.consistentlyOriented = false;
+            }
+            continue;
+        }
+
+        const Face& firstFace = mesh.faces[static_cast<std::size_t>(edge.faces[0])];
+        const Face& secondFace = mesh.faces[static_cast<std::size_t>(edge.faces[1])];
+        const int firstCorner = edge.faceCorners[0];
+        const int secondCorner = edge.faceCorners[1];
+        const int firstStart = firstFace.v[static_cast<std::size_t>(firstCorner)];
+        const int firstEnd = firstFace.v[static_cast<std::size_t>((firstCorner + 1) % 3)];
+        const int secondStart = secondFace.v[static_cast<std::size_t>(secondCorner)];
+        const int secondEnd = secondFace.v[static_cast<std::size_t>((secondCorner + 1) % 3)];
+        if (firstStart != secondEnd || firstEnd != secondStart) {
+            summary.consistentlyOriented = false;
+        }
+    }
+
+    for (int face = 0; face < topology.faceCount(); ++face) {
+        if (components.find(face) == face) {
+            ++summary.connectedFaceComponents;
+        }
+    }
+    return summary;
 }
 
 int MeshTopology::vertexCount() const { return impl_ ? impl_->vertexCount : 0; }

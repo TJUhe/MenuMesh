@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <numeric>
 #include <vector>
@@ -22,6 +23,8 @@
 namespace manumesh {
 namespace analysis {
 namespace {
+
+constexpr int kMaxDistanceSamples = 1000000;
 
 bool finitePoint(const Vec3& point) {
     return std::isfinite(point.x()) && std::isfinite(point.y()) && std::isfinite(point.z());
@@ -58,6 +61,10 @@ bool usableFace(const Mesh& mesh, const Face& face) {
 
 Mesh usableSurface(const Mesh& mesh) {
     Mesh surface;
+    const std::size_t maxInt = static_cast<std::size_t>(std::numeric_limits<int>::max());
+    if (mesh.vertices.size() > maxInt || mesh.faces.size() > maxInt) {
+        return surface;
+    }
     std::vector<int> remap(mesh.vertices.size(), -1);
     surface.faces.reserve(mesh.faces.size());
 
@@ -71,6 +78,9 @@ Mesh usableSurface(const Mesh& mesh) {
             const int originalVertex = face.v[corner];
             int& remappedVertex = remap[static_cast<std::size_t>(originalVertex)];
             if (remappedVertex < 0) {
+                if (surface.vertices.size() >= maxInt) {
+                    return Mesh{};
+                }
                 remappedVertex = static_cast<int>(surface.vertices.size());
                 surface.vertices.push_back(mesh.vertices[originalVertex]);
             }
@@ -87,27 +97,92 @@ int clampedCount(std::size_t count) {
 }
 
 std::vector<Vec3> sampleSurfacePoints(const Mesh& mesh, int maxSamples) {
-    std::vector<double> cumulative;
-    cumulative.reserve(mesh.faces.size());
-    double totalArea = 0.0;
-    for (const Face& face : mesh.faces) {
-        const double area = triangleArea(mesh.vertices[face.v[0]], mesh.vertices[face.v[1]], mesh.vertices[face.v[2]]);
-        const double nextArea = totalArea + area;
-        if (!std::isfinite(area) || area <= kMinTriangleArea || !std::isfinite(nextArea)) {
-            return {};
-        }
-        totalArea = nextArea;
-        cumulative.push_back(totalArea);
-    }
-    if (totalArea <= kMinTriangleArea || maxSamples <= 0) {
+    if (maxSamples <= 0 || mesh.faces.empty()) {
         return {};
     }
 
-    const int samples = maxSamples;
+    const int samples = std::min(maxSamples, kMaxDistanceSamples);
+    std::vector<double> areas;
+    areas.reserve(mesh.faces.size());
+    double areaScale = 0.0;
+    for (const Face& face : mesh.faces) {
+        const double area = triangleArea(mesh.vertices[face.v[0]], mesh.vertices[face.v[1]], mesh.vertices[face.v[2]]);
+        if (!std::isfinite(area) || area <= kMinTriangleArea) {
+            return {};
+        }
+        areas.push_back(area);
+        areaScale = std::max(areaScale, area);
+    }
+    if (!(areaScale > 0.0) || !std::isfinite(areaScale)) {
+        return {};
+    }
+
+    std::vector<double> cumulative;
+    cumulative.reserve(mesh.faces.size());
+    double scaledTotalArea = 0.0;
+    for (double area : areas) {
+        scaledTotalArea += area / areaScale;
+        cumulative.push_back(scaledTotalArea);
+    }
+    if (!(scaledTotalArea > 0.0) || !std::isfinite(scaledTotalArea)) {
+        return {};
+    }
+
     std::vector<Vec3> points;
     points.reserve(samples);
-    for (int i = 0; i < samples; ++i) {
-        const double target = (static_cast<double>(i) + 0.5) * totalArea / static_cast<double>(samples);
+
+    // Find connected surface components by uniting triangle vertices. When
+    // the sample budget permits it, seed one deterministic point per
+    // component so a small disconnected feature is not hidden by area ratios.
+    std::vector<int> parent(mesh.vertices.size());
+    std::iota(parent.begin(), parent.end(), 0);
+    const auto findRoot = [&](int vertex) {
+        int root = vertex;
+        while (parent[static_cast<std::size_t>(root)] != root) {
+            root = parent[static_cast<std::size_t>(root)];
+        }
+        while (parent[static_cast<std::size_t>(vertex)] != vertex) {
+            const int next = parent[static_cast<std::size_t>(vertex)];
+            parent[static_cast<std::size_t>(vertex)] = root;
+            vertex = next;
+        }
+        return root;
+    };
+    const auto unite = [&](int lhs, int rhs) {
+        const int lhsRoot = findRoot(lhs);
+        const int rhsRoot = findRoot(rhs);
+        if (lhsRoot != rhsRoot) {
+            parent[static_cast<std::size_t>(rhsRoot)] = lhsRoot;
+        }
+    };
+    for (const Face& face : mesh.faces) {
+        unite(face.v[0], face.v[1]);
+        unite(face.v[0], face.v[2]);
+    }
+    std::vector<int> componentByRoot(mesh.vertices.size(), -1);
+    std::vector<int> firstFaceByComponent;
+    for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
+        const int root = findRoot(mesh.faces[faceIndex].v[0]);
+        int& component = componentByRoot[static_cast<std::size_t>(root)];
+        if (component < 0) {
+            component = static_cast<int>(firstFaceByComponent.size());
+            firstFaceByComponent.push_back(static_cast<int>(faceIndex));
+        }
+    }
+    if (samples >= static_cast<int>(firstFaceByComponent.size())) {
+        for (int faceId : firstFaceByComponent) {
+            const Face& face = mesh.faces[static_cast<std::size_t>(faceId)];
+            const Vec3 point =
+                mesh.vertices[face.v[0]] / 3.0 + mesh.vertices[face.v[1]] / 3.0 + mesh.vertices[face.v[2]] / 3.0;
+            if (finitePoint(point)) {
+                points.push_back(point);
+            }
+        }
+    }
+
+    const int remainingSamples = samples - static_cast<int>(points.size());
+    for (int i = 0; i < remainingSamples; ++i) {
+        const double target = (static_cast<double>(i) + 0.5) * scaledTotalArea / static_cast<double>(remainingSamples);
         auto it = std::lower_bound(cumulative.begin(), cumulative.end(), target);
         int faceId = static_cast<int>(std::distance(cumulative.begin(), it));
         faceId = std::min(faceId, static_cast<int>(mesh.faces.size()) - 1);
@@ -119,11 +194,10 @@ std::vector<Vec3> sampleSurfacePoints(const Mesh& mesh, int maxSamples) {
         const double uSeed = std::fmod((static_cast<double>(i) + 0.5) * 0.7548776662, 1.0);
         const double vSeed = std::fmod((static_cast<double>(i) + 0.5) * 0.5698402967, 1.0);
         const double su = std::sqrt(uSeed);
-        const double b0 = 1.0 - su;
         const double b1 = su * (1.0 - vSeed);
         const double b2 = su * vSeed;
-        const Vec3 point =
-            b0 * mesh.vertices[face.v[0]] + b1 * mesh.vertices[face.v[1]] + b2 * mesh.vertices[face.v[2]];
+        const Vec3& a = mesh.vertices[face.v[0]];
+        const Vec3 point = a + b1 * (mesh.vertices[face.v[1]] - a) + b2 * (mesh.vertices[face.v[2]] - a);
         if (finitePoint(point)) {
             points.push_back(point);
         }
@@ -149,7 +223,6 @@ MeshStats computeMeshStats(const Mesh& mesh) {
     std::vector<double> edgeLengths;
     edgeLengths.reserve(topology.edges().size());
 
-    long double areaSum = 0.0L;
     long double qualitySum = 0.0L;
     stats.minTriangleQuality = surface.faces.empty() ? 0.0 : std::numeric_limits<double>::infinity();
 
@@ -157,7 +230,6 @@ MeshStats computeMeshStats(const Mesh& mesh) {
         const Vec3& a = surface.vertices[face.v[0]];
         const Vec3& b = surface.vertices[face.v[1]];
         const Vec3& c = surface.vertices[face.v[2]];
-        areaSum += static_cast<long double>(triangleArea(a, b, c));
         const double q = manumesh::common::triangleQuality(a, b, c);
         qualitySum += static_cast<long double>(q);
         stats.minTriangleQuality = std::min(stats.minTriangleQuality, q);
@@ -166,7 +238,7 @@ MeshStats computeMeshStats(const Mesh& mesh) {
     for (const TopologyEdge& edge : topology.edges()) {
         const int a = edge.vertices[0];
         const int b = edge.vertices[1];
-        const double length = (surface.vertices[a] - surface.vertices[b]).norm();
+        const double length = (surface.vertices[a] - surface.vertices[b]).stableNorm();
         if (std::isfinite(length)) {
             edgeLengths.push_back(length);
         }
@@ -175,8 +247,7 @@ MeshStats computeMeshStats(const Mesh& mesh) {
     stats.edges = topology.edgeCount();
     stats.boundaryEdges = topology.boundaryEdgeCount();
     stats.nonManifoldEdges = topology.nonManifoldEdgeCount();
-    const double area = static_cast<double>(areaSum);
-    stats.area = std::isfinite(area) ? area : 0.0;
+    stats.area = computeSurfaceArea(surface);
     if (!surface.faces.empty()) {
         const double meanQuality = static_cast<double>(qualitySum / static_cast<long double>(surface.faces.size()));
         stats.meanTriangleQuality = std::isfinite(meanQuality) ? meanQuality : 0.0;
@@ -185,17 +256,20 @@ MeshStats computeMeshStats(const Mesh& mesh) {
     }
 
     if (!edgeLengths.empty()) {
-        const long double lengthSum = std::accumulate(edgeLengths.begin(), edgeLengths.end(), 0.0L);
-        const double meanLength = static_cast<double>(lengthSum / static_cast<long double>(edgeLengths.size()));
-        stats.meanEdgeLength = std::isfinite(meanLength) ? meanLength : 0.0;
-        long double variance = 0.0L;
+        const double lengthScale = *std::max_element(edgeLengths.begin(), edgeLengths.end());
+        double scaledMean = 0.0;
         for (double value : edgeLengths) {
-            const long double d = static_cast<long double>(value) - static_cast<long double>(stats.meanEdgeLength);
-            variance += d * d;
+            scaledMean += value / lengthScale;
         }
-        variance /= static_cast<long double>(edgeLengths.size());
-        const double cv =
-            stats.meanEdgeLength > 1e-30 ? static_cast<double>(std::sqrt(variance) / stats.meanEdgeLength) : 0.0;
+        scaledMean /= static_cast<double>(edgeLengths.size());
+        stats.meanEdgeLength = scaledMean * lengthScale;
+        double scaledVariance = 0.0;
+        for (double value : edgeLengths) {
+            const double difference = value / lengthScale - scaledMean;
+            scaledVariance += difference * difference;
+        }
+        scaledVariance /= static_cast<double>(edgeLengths.size());
+        const double cv = scaledMean > 0.0 ? std::sqrt(scaledVariance) / scaledMean : 0.0;
         stats.edgeLengthCv = std::isfinite(cv) ? cv : 0.0;
     }
 
@@ -208,6 +282,7 @@ DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& s
         return stats;
     }
 
+    const int boundedSamples = std::min(maxSamples, kMaxDistanceSamples);
     const Mesh originalSurface = usableSurface(original);
     const Mesh simplifiedSurface = usableSurface(simplified);
     if (originalSurface.empty() || simplifiedSurface.empty()) {
@@ -215,14 +290,14 @@ DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& s
     }
 
     auto accumulate = [&](const Mesh& from, const Mesh& to, double& mean, double& maxValue) {
-        const std::vector<Vec3> points = sampleSurfacePoints(from, maxSamples);
+        const std::vector<Vec3> points = sampleSurfacePoints(from, boundedSamples);
         const manumesh::common::MeshDistanceIndex index(to);
         if (points.empty() || index.empty()) {
             mean = 0.0;
             maxValue = 0.0;
             return;
         }
-        double sum = 0.0;
+        double runningMean = 0.0;
         double maxSq = 0.0;
         std::size_t finiteSampleCount = 0;
         for (const Vec3& point : points) {
@@ -231,20 +306,19 @@ DistanceStats compareMeshesBySampledDistance(const Mesh& original, const Mesh& s
                 continue;
             }
             const double distance = std::sqrt(d2);
-            const double nextSum = sum + distance;
-            if (!std::isfinite(distance) || !std::isfinite(nextSum)) {
+            if (!std::isfinite(distance)) {
                 continue;
             }
-            sum = nextSum;
             maxSq = std::max(maxSq, d2);
             ++finiteSampleCount;
+            runningMean += (distance - runningMean) / static_cast<double>(finiteSampleCount);
         }
         if (finiteSampleCount == 0) {
             mean = 0.0;
             maxValue = 0.0;
             return;
         }
-        mean = sum / static_cast<double>(finiteSampleCount);
+        mean = runningMean;
         maxValue = std::sqrt(maxSq);
     };
 

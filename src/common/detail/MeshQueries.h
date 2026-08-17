@@ -117,6 +117,9 @@ std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh);
  */
 std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh);
 
+/// 使用调用方已经构建的边表计算每顶点平均边长，避免重复哈希建表。
+std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh, const MeshEdgeInfoMap& edgeInfo);
+
 /**
  * @brief 标记与边界边相接的顶点。
  */

@@ -138,6 +138,12 @@ private:
     int maxAttemptsWithoutCollapse_ = 0;
     int attemptsWithoutCollapse_ = 0;
     int stalePops_ = 0;
+    /**
+     * @brief 当前拓扑无折叠进展时允许的一次候选堆重建。
+     *
+     * 同一拓扑下候选和拒绝结果不变，第二次耗尽后继续全量重建只会重复工作。
+     */
+    int noProgressQueueRebuilds_ = 0;
     bool queueBuiltOnce_ = false;
 };
 

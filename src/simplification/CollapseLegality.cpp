@@ -16,7 +16,6 @@
 #include <array>
 #include <cmath>
 #include <limits>
-#include <unordered_set>
 #include <vector>
 
 namespace manumesh {
@@ -34,15 +33,6 @@ struct NewTriangle {
 struct OldTriangle {
     std::array<Vec3, 3> p{};
 };
-
-std::vector<int> collectTouchedFaces(const CollapseLegalityInput& input) {
-    std::unordered_set<int> touchedFaceSet = input.mesh.topology.vertexFaces[input.edge.keep];
-    const auto& removeFaces = input.mesh.topology.vertexFaces[input.edge.remove];
-    touchedFaceSet.insert(removeFaces.begin(), removeFaces.end());
-    std::vector<int> touchedFaces(touchedFaceSet.begin(), touchedFaceSet.end());
-    std::sort(touchedFaces.begin(), touchedFaces.end());
-    return touchedFaces;
-}
 
 void addTriangleSamples(const std::array<Vec3, 3>& triangle, std::vector<Vec3>& samples) {
     const Vec3& a = triangle[0];
@@ -287,7 +277,21 @@ CollapseRejectReason checkLocalIntersections(
 
 } // namespace
 
-CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input) {
+std::vector<int> collectCollapseTouchedFaces(const CollapseLegalityInput& input) {
+    // 两个关联面列表直接合并，避免每个 placement 都构造哈希表。
+    const auto& keepFaces = input.mesh.topology.vertexFaces[input.edge.keep];
+    const auto& removeFaces = input.mesh.topology.vertexFaces[input.edge.remove];
+    std::vector<int> touchedFaces;
+    touchedFaces.reserve(keepFaces.size() + removeFaces.size());
+    touchedFaces.insert(touchedFaces.end(), keepFaces.begin(), keepFaces.end());
+    touchedFaces.insert(touchedFaces.end(), removeFaces.begin(), removeFaces.end());
+    std::sort(touchedFaces.begin(), touchedFaces.end());
+    touchedFaces.erase(std::unique(touchedFaces.begin(), touchedFaces.end()), touchedFaces.end());
+    return touchedFaces;
+}
+
+CollapseRejectReason
+collapsePlacementRejectReason(const CollapseLegalityInput& input, const std::vector<int>* cachedTouchedFaces) {
     if (!input.newPosition.allFinite()) {
         return CollapseRejectReason::Topology;
     }
@@ -309,9 +313,13 @@ CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& 
         localReferencePoints.push_back(input.mesh.vertices[remove].p);
     }
 
-    const std::vector<int> touchedFaces = collectTouchedFaces(input);
+    std::vector<int> ownedTouchedFaces;
+    if (cachedTouchedFaces == nullptr) {
+        ownedTouchedFaces = collectCollapseTouchedFaces(input);
+        cachedTouchedFaces = &ownedTouchedFaces;
+    }
     CollapseRejectReason reason =
-        collectNewTriangles(input, touchedFaces, oldTriangles, newTriangles, localReferencePoints);
+        collectNewTriangles(input, *cachedTouchedFaces, oldTriangles, newTriangles, localReferencePoints);
     if (reason != CollapseRejectReason::None) {
         return reason;
     }
@@ -321,7 +329,7 @@ CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& 
         return reason;
     }
 
-    reason = checkLocalIntersections(input, touchedFaces, newTriangles);
+    reason = checkLocalIntersections(input, *cachedTouchedFaces, newTriangles);
     if (reason != CollapseRejectReason::None) {
         return reason;
     }

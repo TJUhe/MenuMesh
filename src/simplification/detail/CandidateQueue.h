@@ -30,6 +30,12 @@ public:
      */
     bool empty() const;
     /**
+     * @brief 返回当前堆中候选条目数（包括尚未弹出的过期条目）。
+     *
+     * 该数量只用于调度压缩阈值，不参与候选排序或合法性判断。
+     */
+    std::size_t size() const;
+    /**
      * @brief 移除并返回代价最低的候选。
      * @pre empty() 必须为 false。
      */

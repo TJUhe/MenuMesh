@@ -64,8 +64,8 @@ private:
 
     /** @brief 在 `[begin,end)` 上构建一个 BVH 子树并返回其节点 id。 */
     int buildRecursive(int begin, int end);
-    /** @brief 遍历 BVH 子树时更新 `best`。 */
-    void queryRecursive(int nodeId, const Vec3& point, double& best) const;
+    /** @brief 遍历 BVH 子树时更新 `best`；调用方传入已算好的节点盒距离。 */
+    void queryRecursive(int nodeId, const Vec3& point, double nodeDistance, double& best) const;
 
     const Mesh& mesh_;
     std::vector<TriangleRef> triangles_;

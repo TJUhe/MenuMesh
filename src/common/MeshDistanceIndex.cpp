@@ -82,7 +82,8 @@ double MeshDistanceIndex::distanceSquared(const Vec3& point) const {
     }
 
     double best = std::numeric_limits<double>::infinity();
-    queryRecursive(0, point, best);
+    const BvhNode& root = nodes_.front();
+    queryRecursive(0, point, pointAabbDistanceSquared(point, root.lo, root.hi), best);
     return best;
 }
 
@@ -137,9 +138,9 @@ int MeshDistanceIndex::buildRecursive(int begin, int end) {
     return nodeId;
 }
 
-void MeshDistanceIndex::queryRecursive(int nodeId, const Vec3& point, double& best) const {
+void MeshDistanceIndex::queryRecursive(int nodeId, const Vec3& point, double nodeDistance, double& best) const {
     const BvhNode& node = nodes_[nodeId];
-    if (pointAabbDistanceSquared(point, node.lo, node.hi) >= best) {
+    if (nodeDistance >= best) {
         return;
     }
 
@@ -161,11 +162,11 @@ void MeshDistanceIndex::queryRecursive(int nodeId, const Vec3& point, double& be
     const double leftDistance = pointAabbDistanceSquared(point, nodes_[first].lo, nodes_[first].hi);
     const double rightDistance = pointAabbDistanceSquared(point, nodes_[second].lo, nodes_[second].hi);
     if (leftDistance < rightDistance) {
-        queryRecursive(first, point, best);
-        queryRecursive(second, point, best);
+        queryRecursive(first, point, leftDistance, best);
+        queryRecursive(second, point, rightDistance, best);
     } else {
-        queryRecursive(second, point, best);
-        queryRecursive(first, point, best);
+        queryRecursive(second, point, rightDistance, best);
+        queryRecursive(first, point, leftDistance, best);
     }
 }
 

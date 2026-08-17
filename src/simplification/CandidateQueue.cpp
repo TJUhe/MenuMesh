@@ -20,6 +20,8 @@ void CandidateQueue::clear() { queue_ = std::priority_queue<Candidate>(); }
 
 bool CandidateQueue::empty() const { return queue_.empty(); }
 
+std::size_t CandidateQueue::size() const { return queue_.size(); }
+
 Candidate CandidateQueue::pop() {
     Candidate candidate = queue_.top();
     queue_.pop();

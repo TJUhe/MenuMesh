@@ -229,6 +229,7 @@ void SimplificationRun::initializeBudget() {
     maxAttemptsWithoutCollapse_ = std::max(1000, std::max(1, initialActiveEdgeCount) * 6);
     attemptsWithoutCollapse_ = 0;
     stalePops_ = 0;
+    noProgressQueueRebuilds_ = 0;
 }
 
 void SimplificationRun::rebuildQueue() {
@@ -329,7 +330,9 @@ void SimplificationRun::collapseUntilTarget() {
 
     while (activeFaceCount_ > targetFaces_) {
         if (!ensureQueueHasCandidates()) {
-            report_.terminationReason = SimplifyTerminationReason::NoCandidates;
+            // 有候选但整轮均被拒绝时，不再对同一拓扑重复扫描；保留原有的拒绝终止分类。
+            report_.terminationReason = attemptsWithoutCollapse_ > 0 ? SimplifyTerminationReason::RejectionLimit
+                                                                     : SimplifyTerminationReason::NoCandidates;
             break;
         }
 
@@ -366,7 +369,11 @@ bool SimplificationRun::ensureQueueHasCandidates() {
     if (!queue_.empty()) {
         return true;
     }
+    if (noProgressQueueRebuilds_ >= 1) {
+        return false;
+    }
     rebuildQueue();
+    ++noProgressQueueRebuilds_;
     return !queue_.empty();
 }
 
@@ -379,7 +386,11 @@ bool SimplificationRun::isCurrentCandidate(const Candidate& candidate) const {
 }
 
 void SimplificationRun::handleStaleCandidate() {
-    if (++stalePops_ > 10000) {
+    ++stalePops_;
+    // 堆中的过期条目只会增加比较和内存开销。达到固定上限，或堆规模明显超过当前面数时，
+    // 直接按当前活动拓扑重建，避免 stale 条目长期累积。重建不改变候选排序和结果。
+    const std::size_t faceScaledLimit = static_cast<std::size_t>(std::max(1024, std::max(1, activeFaceCount_) * 4));
+    if (stalePops_ > 10000 || queue_.size() > faceScaledLimit) {
         rebuildQueue();
         stalePops_ = 0;
     }
@@ -547,6 +558,8 @@ void SimplificationRun::applyCollapse(
         }
     }
     ++report_.collapsedEdges;
+    // 折叠改变了版本戳和拓扑，下一次队列耗尽时允许重新做一次完整兜底扫描。
+    noProgressQueueRebuilds_ = 0;
 
     for (int neighbor : activeNeighborsOf(keep, faces_, vertices_, *topology_)) {
         pushEdgeCandidate(keep, neighbor);

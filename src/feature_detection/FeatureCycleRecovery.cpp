@@ -16,7 +16,9 @@
 #include "detail/FeatureLoopBuilder.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <queue>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace manumesh {
@@ -138,18 +140,38 @@ void recoverCircularCyclesThroughJunctions(
 ) {
     const std::vector<FeatureChain> chains = traceJunctionChains(trace.adjacency);
     CycleSignatureSet seenCycles;
-    for (int i = 0; i < static_cast<int>(chains.size()); ++i) {
-        for (int j = i + 1; j < static_cast<int>(chains.size()); ++j) {
-            if (chains[i].loEndpoint != chains[j].loEndpoint || chains[i].hiEndpoint != chains[j].hiEndpoint) {
-                continue;
+    // 只有端点完全相同的链才可能组成候选环，先按端点分桶，避免在无关链之间做 O(C^2) 比较。
+    std::unordered_map<std::uint64_t, std::size_t> bucketByEndpoints;
+    bucketByEndpoints.reserve(chains.size());
+    std::vector<std::vector<int>> matchingBuckets;
+    matchingBuckets.reserve(chains.size());
+    for (int index = 0; index < static_cast<int>(chains.size()); ++index) {
+        const FeatureChain& chain = chains[index];
+        const std::uint64_t key = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(chain.loEndpoint)) << 32u) |
+                                  static_cast<std::uint32_t>(chain.hiEndpoint);
+        const auto bucket = bucketByEndpoints.find(key);
+        if (bucket == bucketByEndpoints.end()) {
+            const std::size_t bucketIndex = matchingBuckets.size();
+            bucketByEndpoints.emplace(key, bucketIndex);
+            matchingBuckets.push_back({index});
+        } else {
+            matchingBuckets[bucket->second].push_back(index);
+        }
+    }
+    // 按链第一次出现的顺序遍历分桶，避免哈希表迭代顺序改变 loop ID。
+    for (const std::vector<int>& matchingChains : matchingBuckets) {
+        for (std::size_t first = 0; first < matchingChains.size(); ++first) {
+            for (std::size_t second = first + 1; second < matchingChains.size(); ++second) {
+                const FeatureChain& lhs = chains[matchingChains[first]];
+                const FeatureChain& rhs = chains[matchingChains[second]];
+                std::vector<int> cycle = lhs.vertices;
+                for (int k = static_cast<int>(rhs.vertices.size()) - 2; k > 0; --k) {
+                    cycle.push_back(rhs.vertices[k]);
+                }
+                addRecoveredCycle(
+                    RecoveredCycleKind::Circular, std::move(cycle), seenCycles, mesh, options, trace, analysis, loopId
+                );
             }
-            std::vector<int> cycle = chains[i].vertices;
-            for (int k = static_cast<int>(chains[j].vertices.size()) - 2; k > 0; --k) {
-                cycle.push_back(chains[j].vertices[k]);
-            }
-            addRecoveredCycle(
-                RecoveredCycleKind::Circular, std::move(cycle), seenCycles, mesh, options, trace, analysis, loopId
-            );
         }
     }
 }

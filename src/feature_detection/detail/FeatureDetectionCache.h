@@ -64,7 +64,8 @@ public:
     /** @brief 返回缓存的每顶点采样密度估计（平均边长）。 */
     const std::vector<double>& vertexAverageEdgeLength() {
         if (!hasVertexAverageEdgeLength_) {
-            vertexAverageEdgeLength_ = manumesh::common::computeVertexAverageEdgeLength(*mesh_);
+            // 复用已经缓存的 edgeInfo，避免再次构建和哈希遍历整张边表。
+            vertexAverageEdgeLength_ = manumesh::common::computeVertexAverageEdgeLength(*mesh_, edgeInfo());
             hasVertexAverageEdgeLength_ = true;
         }
         return vertexAverageEdgeLength_;

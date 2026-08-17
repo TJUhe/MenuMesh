@@ -81,6 +81,22 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
         input.edge.keep, input.edge.remove, input.faces, input.vertices, input.topology
     );
 
+    // 多个放置共享同一局部拓扑；先收集一次关联面，避免每个放置都重复分配和排序。
+    const CollapseLegalityInput legalityBase{
+        input.edge,
+        Vec3::Zero(),
+        {input.faces, input.vertices, input.topology},
+        input.areaEps,
+        input.policies.legality.minTriangleQuality,
+        input.minNormalDot,
+        input.maxLocalError,
+        input.policies.legality.preventLocalIntersections,
+        input.spatialIndex,
+        input.referenceSurface
+    };
+    const std::vector<int> touchedFaces =
+        preservesTopology ? collectCollapseTouchedFaces(legalityBase) : std::vector<int>();
+
     // 拒绝报告将整个尝试归因于第一个被硬过滤器拒绝的放置候选对应的首个过滤器。
     CollapseAttemptStatus firstRejectStatus = CollapseAttemptStatus::Accepted;
     for (int placementIndex = 0; placementIndex < placementCount; ++placementIndex) {
@@ -117,19 +133,10 @@ CollapseAttemptResult evaluateCollapseAttempt(const CollapseAttemptInput& input)
             }
             continue;
         }
+        CollapseLegalityInput legalityInput = legalityBase;
+        legalityInput.newPosition = collapsePosition;
         const CollapseRejectReason rejectReason = preservesTopology
-                                                      ? collapsePlacementRejectReason(
-                                                            {input.edge,
-                                                             collapsePosition,
-                                                             {input.faces, input.vertices, input.topology},
-                                                             input.areaEps,
-                                                             input.policies.legality.minTriangleQuality,
-                                                             input.minNormalDot,
-                                                             input.maxLocalError,
-                                                             input.policies.legality.preventLocalIntersections,
-                                                             input.spatialIndex,
-                                                             input.referenceSurface}
-                                                        )
+                                                      ? collapsePlacementRejectReason(legalityInput, &touchedFaces)
                                                       : CollapseRejectReason::Topology;
         if (rejectReason == CollapseRejectReason::None) {
             result.status = CollapseAttemptStatus::Accepted;

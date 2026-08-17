@@ -658,6 +658,12 @@ bool isBinaryStlRepresentabilityError(const std::string& error) {
            error.find("outside the binary STL float32 range.") != std::string::npos;
 }
 
+// MeshIo 在写文件前会执行严格校验；C API 只需根据诊断前缀恢复原有状态码。
+bool isMeshValidationError(const std::string& error) {
+    return error.rfind("Mesh ", 0) == 0 || error.rfind("Per-corner ", 0) == 0 || error.rfind("Vertex count ", 0) == 0 ||
+           error.rfind("Face count ", 0) == 0;
+}
+
 ManuMeshVec3 toCVec3(const manumesh::Vec3& value) { return ManuMeshVec3{value.x(), value.y(), value.z()}; }
 
 ManuMeshFaceTexCoords zeroTexcoords() {
@@ -1195,13 +1201,17 @@ manumesh_mesh_get_bounds(ManuMeshContext* context, const ManuMeshMeshHandle* mes
     return withMeshLock(context, mesh, [&](const manumesh::Mesh& value) {
         ManuMeshBounds result{};
         if (!value.vertices.empty()) {
+            manumesh::Vec3 minimum = value.vertices.front();
+            manumesh::Vec3 maximum = minimum;
             for (const manumesh::Vec3& vertex : value.vertices) {
                 if (!finiteVec3(vertex)) {
                     return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh contains a non-finite vertex coordinate.");
                 }
+                minimum = minimum.cwiseMin(vertex);
+                maximum = maximum.cwiseMax(vertex);
             }
-            result.min = toCVec3(value.bboxMin());
-            result.max = toCVec3(value.bboxMax());
+            result.min = toCVec3(minimum);
+            result.max = toCVec3(maximum);
             result.valid = 1;
         }
         *bounds = result;
@@ -1341,21 +1351,18 @@ ManuMeshStatus manumesh_mesh_copy_face_areas(
         if (preflightStatus != MANUMESH_STATUS_OK) {
             return preflightStatus;
         }
-        const std::vector<double> result = manumesh::computeFaceAreas(value);
-        for (const double area : result) {
+        for (std::size_t faceIndex = 0; faceIndex < value.faces.size(); ++faceIndex) {
+            const manumesh::Face& face = value.faces[faceIndex];
+            const double area =
+                manumesh::triangleArea(value.vertices[face.v[0]], value.vertices[face.v[1]], value.vertices[face.v[2]]);
             if (!std::isfinite(area)) {
                 return fail(context, MANUMESH_STATUS_INVALID_MESH, "Face area computation is not finite.");
             }
+            // 与 computeFaceAreas 保持一致：低于公共退化阈值的面返回零面积。
+            areas[faceIndex] = area > manumesh::kMinTriangleArea ? area : 0.0;
         }
-        return copyOutputVector(
-            context,
-            result,
-            areas,
-            area_capacity,
-            areas_written,
-            "Face area buffer is too small.",
-            "Face area buffer is null."
-        );
+        *areas_written = value.faces.size();
+        return MANUMESH_STATUS_OK;
     });
 }
 
@@ -1371,7 +1378,19 @@ manumesh_mesh_get_surface_area(ManuMeshContext* context, const ManuMeshMeshHandl
         if (status != MANUMESH_STATUS_OK) {
             return status;
         }
-        const double result = manumesh::computeSurfaceArea(value);
+        // 直接累加，避免 computeSurfaceArea 为了返回逐面结果而分配临时数组。
+        long double sum = 0.0L;
+        for (const manumesh::Face& face : value.faces) {
+            const double area =
+                manumesh::triangleArea(value.vertices[face.v[0]], value.vertices[face.v[1]], value.vertices[face.v[2]]);
+            if (!std::isfinite(area)) {
+                return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh surface area is not finite.");
+            }
+            if (area > manumesh::kMinTriangleArea) {
+                sum += static_cast<long double>(area);
+            }
+        }
+        const double result = static_cast<double>(sum);
         if (!std::isfinite(result)) {
             return fail(context, MANUMESH_STATUS_INVALID_MESH, "Mesh surface area is not finite.");
         }
@@ -1470,25 +1489,17 @@ ManuMeshStatus manumesh_mesh_copy_face_centroids(
         if (preflightStatus != MANUMESH_STATUS_OK) {
             return preflightStatus;
         }
-        std::vector<ManuMeshVec3> result;
-        result.reserve(value.faces.size());
-        for (const manumesh::Face& face : value.faces) {
+        for (std::size_t faceIndex = 0; faceIndex < value.faces.size(); ++faceIndex) {
+            const manumesh::Face& face = value.faces[faceIndex];
             const manumesh::Vec3 centroid =
                 (value.vertices[face.v[0]] + value.vertices[face.v[1]] + value.vertices[face.v[2]]) / 3.0;
             if (!finiteVec3(centroid)) {
                 return fail(context, MANUMESH_STATUS_INVALID_MESH, "Face centroid computation is not finite.");
             }
-            result.push_back(toCVec3(centroid));
+            centroids[faceIndex] = toCVec3(centroid);
         }
-        return copyOutputVector(
-            context,
-            result,
-            centroids,
-            centroid_capacity,
-            centroids_written,
-            "Face centroid buffer is too small.",
-            "Face centroid buffer is null."
-        );
+        *centroids_written = value.faces.size();
+        return MANUMESH_STATUS_OK;
     });
 }
 
@@ -1524,23 +1535,18 @@ ManuMeshStatus manumesh_mesh_copy_face_normals(
         if (preflightStatus != MANUMESH_STATUS_OK) {
             return preflightStatus;
         }
-        const std::vector<manumesh::Vec3> cppNormals = manumesh::computeFaceNormals(value);
-        std::vector<ManuMeshVec3> result(cppNormals.size());
-        for (std::size_t i = 0; i < cppNormals.size(); ++i) {
-            if (!finiteVec3(cppNormals[i])) {
+        for (std::size_t faceIndex = 0; faceIndex < value.faces.size(); ++faceIndex) {
+            const manumesh::Face& face = value.faces[faceIndex];
+            const manumesh::Vec3 normal = manumesh::triangleNormal(
+                value.vertices[face.v[0]], value.vertices[face.v[1]], value.vertices[face.v[2]]
+            );
+            if (!finiteVec3(normal)) {
                 return fail(context, MANUMESH_STATUS_INVALID_MESH, "Face normal computation is not finite.");
             }
-            result[i] = toCVec3(cppNormals[i]);
+            normals[faceIndex] = toCVec3(normal);
         }
-        return copyOutputVector(
-            context,
-            result,
-            normals,
-            normal_capacity,
-            normals_written,
-            "Face normal buffer is too small.",
-            "Face normal buffer is null."
-        );
+        *normals_written = value.faces.size();
+        return MANUMESH_STATUS_OK;
     });
 }
 
@@ -1577,22 +1583,14 @@ ManuMeshStatus manumesh_mesh_copy_vertex_normals(
             return preflightStatus;
         }
         const std::vector<manumesh::Vec3> cppNormals = manumesh::computeVertexNormals(value);
-        std::vector<ManuMeshVec3> result(cppNormals.size());
         for (std::size_t i = 0; i < cppNormals.size(); ++i) {
             if (!finiteVec3(cppNormals[i])) {
                 return fail(context, MANUMESH_STATUS_INVALID_MESH, "Vertex normal computation is not finite.");
             }
-            result[i] = toCVec3(cppNormals[i]);
+            normals[i] = toCVec3(cppNormals[i]);
         }
-        return copyOutputVector(
-            context,
-            result,
-            normals,
-            normal_capacity,
-            normals_written,
-            "Vertex normal buffer is too small.",
-            "Vertex normal buffer is null."
-        );
+        *normals_written = cppNormals.size();
+        return MANUMESH_STATUS_OK;
     });
 }
 
@@ -1946,12 +1944,11 @@ ManuMeshStatus manumesh_save_ascii_stl(
         if (snapshotStatus != MANUMESH_STATUS_OK) {
             return snapshotStatus;
         }
-        if (!manumesh::validateMeshGeometry(snapshot, &error)) {
-            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
-        }
         const char* name = solid_name ? solid_name : "mesh";
         if (!manumesh::saveAsciiStl(path, snapshot, name, &error)) {
-            return fail(context, MANUMESH_STATUS_IO_ERROR, error.c_str());
+            const ManuMeshStatus status =
+                isMeshValidationError(error) ? MANUMESH_STATUS_INVALID_MESH : MANUMESH_STATUS_IO_ERROR;
+            return fail(context, status, error.c_str());
         }
         return MANUMESH_STATUS_OK;
     } catch (const std::exception& ex) {
@@ -1973,12 +1970,10 @@ ManuMeshStatus manumesh_save_binary_stl(ManuMeshContext* context, const char* pa
         if (snapshotStatus != MANUMESH_STATUS_OK) {
             return snapshotStatus;
         }
-        if (!manumesh::validateMeshGeometry(snapshot, &error)) {
-            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
-        }
         if (!manumesh::saveBinaryStl(path, snapshot, &error)) {
-            const ManuMeshStatus status =
-                isBinaryStlRepresentabilityError(error) ? MANUMESH_STATUS_INVALID_MESH : MANUMESH_STATUS_IO_ERROR;
+            const ManuMeshStatus status = isBinaryStlRepresentabilityError(error) || isMeshValidationError(error)
+                                              ? MANUMESH_STATUS_INVALID_MESH
+                                              : MANUMESH_STATUS_IO_ERROR;
             return fail(context, status, error.c_str());
         }
         return MANUMESH_STATUS_OK;
@@ -2001,11 +1996,10 @@ ManuMeshStatus manumesh_save_obj(ManuMeshContext* context, const char* path, con
         if (snapshotStatus != MANUMESH_STATUS_OK) {
             return snapshotStatus;
         }
-        if (!manumesh::validateMeshGeometry(snapshot, &error)) {
-            return fail(context, MANUMESH_STATUS_INVALID_MESH, error.c_str());
-        }
         if (!manumesh::saveObj(path, snapshot, &error)) {
-            return fail(context, MANUMESH_STATUS_IO_ERROR, error.c_str());
+            const ManuMeshStatus status =
+                isMeshValidationError(error) ? MANUMESH_STATUS_INVALID_MESH : MANUMESH_STATUS_IO_ERROR;
+            return fail(context, status, error.c_str());
         }
         return MANUMESH_STATUS_OK;
     } catch (const std::exception& ex) {

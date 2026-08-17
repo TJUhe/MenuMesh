@@ -190,12 +190,11 @@ std::vector<std::vector<int>> buildVertexNeighbors(const Mesh& mesh) {
     return neighbors;
 }
 
-std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
+std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh, const MeshEdgeInfoMap& edgeInfo) {
     std::vector<double> sums(mesh.vertices.size(), 0.0);
     std::vector<int> counts(mesh.vertices.size(), 0);
 
     // 按升序边键累积，使浮点归约顺序在不同平台和哈希表实现之间保持稳定。
-    const MeshEdgeInfoMap edgeInfo = buildMeshEdgeInfo(mesh);
     std::vector<std::uint64_t> edgeKeys;
     edgeKeys.reserve(edgeInfo.size());
     for (const auto& pairEntry : edgeInfo) {
@@ -237,6 +236,10 @@ std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
         }
     }
     return localScale;
+}
+
+std::vector<double> computeVertexAverageEdgeLength(const Mesh& mesh) {
+    return computeVertexAverageEdgeLength(mesh, buildMeshEdgeInfo(mesh));
 }
 
 std::vector<char> computeBoundaryVertices(const Mesh& mesh) {

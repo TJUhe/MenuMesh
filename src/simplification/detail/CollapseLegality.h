@@ -44,11 +44,19 @@ struct CollapseLegalityInput {
 };
 
 /**
+ * @brief 收集一次边折叠涉及的全部活动面编号。
+ *
+ * 同一候选的多个放置只改变新顶点位置，涉及面集合不变，因此调用方可以缓存该结果。
+ */
+std::vector<int> collectCollapseTouchedFaces(const CollapseLegalityInput& input);
+
+/**
  * @brief 在边拓扑已通过 collapseWouldPreserveLinkCondition() 后，评估依赖放置位置的合法性。
  * 依次检查拓扑、退化、法向、质量、误差和相交门控条件。
  * @return 所有启用的硬检查均通过时返回 None，否则返回首个拒绝原因。
  */
-CollapseRejectReason collapsePlacementRejectReason(const CollapseLegalityInput& input);
+CollapseRejectReason
+collapsePlacementRejectReason(const CollapseLegalityInput& input, const std::vector<int>* cachedTouchedFaces = nullptr);
 
 } // namespace simplification
 } // namespace manumesh

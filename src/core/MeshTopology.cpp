@@ -10,6 +10,7 @@
  */
 
 #include "core/MeshTopology.h"
+#include "core/detail/MeshValidation.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -133,7 +134,8 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
                 return Status::topologyError("Mesh contains a degenerate face.");
             }
         }
-        if (!validateMeshGeometryLenient(mesh, &error)) {
+        // 索引已在上面检查过，几何校验跳过重复的索引扫描。
+        if (!detail::validateMeshGeometryLenientAfterIndices(mesh, &error)) {
             return Status::invalidArgument(error.empty() ? "Mesh geometry is invalid." : error);
         }
     }
@@ -142,6 +144,22 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
     topology.impl_->vertexCount = static_cast<int>(mesh.vertices.size());
     topology.impl_->faceCount = static_cast<int>(mesh.faces.size());
     topology.impl_->vertices.resize(mesh.vertices.size());
+
+    // 先按面角统计每个顶点的入射数量，给面和边邻接列表一次性预留容量。
+    // 对三角网格而言，入射边数不会超过入射面角数，可复用同一上界。
+    std::vector<std::size_t> vertexIncidenceReserve(mesh.vertices.size(), 0);
+    for (const Face& face : mesh.faces) {
+        for (int id : face.v) {
+            if (id >= 0 && id < static_cast<int>(vertexIncidenceReserve.size())) {
+                ++vertexIncidenceReserve[static_cast<std::size_t>(id)];
+            }
+        }
+    }
+    for (std::size_t vertex = 0; vertex < vertexIncidenceReserve.size(); ++vertex) {
+        topology.impl_->vertices[vertex].faces.reserve(vertexIncidenceReserve[vertex]);
+        topology.impl_->vertices[vertex].edges.reserve(vertexIncidenceReserve[vertex]);
+    }
+
     const std::size_t edgeReserve = mesh.faces.size() <= std::numeric_limits<std::size_t>::max() / 3
                                         ? mesh.faces.size() * 3 / 2
                                         : mesh.faces.size();
@@ -177,6 +195,8 @@ Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
                 it = edgeByKey.emplace(key, EdgeBuildRecord{edgeId}).first;
                 TopologyEdge edge;
                 edge.vertices = {std::min(a, b), std::max(a, b)};
+                edge.faces.reserve(2);
+                edge.faceCorners.reserve(2);
                 topology.impl_->edges.push_back(std::move(edge));
             }
 

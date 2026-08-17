@@ -12,6 +12,7 @@
 
 #include "core/MeshTopology.h"
 #include "core/Tolerances.h"
+#include "core/detail/MeshValidation.h"
 
 #include <algorithm>
 #include <cmath>
@@ -51,6 +52,55 @@ double robustTriangleArea(const Vec3& a, const Vec3& b, const Vec3& c) {
         return std::numeric_limits<double>::infinity();
     }
     return (factor * scale) * scale;
+}
+
+/**
+ * @brief 一次计算三角形面积和单位法向，避免重复构造缩放后的叉积。
+ *
+ * 面积和法向都沿用 robustTriangleArea/triangleNormal 的数值路径；当面
+ * 不可用时，法向保持零向量，调用方可只读取面积。
+ */
+struct TriangleGeometry {
+    double area = 0.0;
+    Vec3 normal = Vec3::Zero();
+};
+
+TriangleGeometry computeTriangleGeometry(const Vec3& a, const Vec3& b, const Vec3& c) {
+    TriangleGeometry result;
+    const Vec3 ab = b - a;
+    const Vec3 ac = c - a;
+    const double scale = std::max(ab.cwiseAbs().maxCoeff(), ac.cwiseAbs().maxCoeff());
+    if (!std::isfinite(scale)) {
+        result.area = std::numeric_limits<double>::infinity();
+        return result;
+    }
+    if (scale <= 0.0) {
+        return result;
+    }
+
+    const Vec3 scaledCross = (ab / scale).cross(ac / scale);
+    const double crossLength = scaledCross.stableNorm();
+    const double factor = 0.5 * crossLength;
+    if (!std::isfinite(factor)) {
+        result.area = std::numeric_limits<double>::infinity();
+        return result;
+    }
+    if (factor <= 0.0) {
+        return result;
+    }
+    if (scale > std::sqrt(std::numeric_limits<double>::max() / factor)) {
+        result.area = std::numeric_limits<double>::infinity();
+        return result;
+    }
+
+    result.area = (factor * scale) * scale;
+    if (!std::isfinite(result.area) || result.area <= kMinTriangleArea) {
+        return result;
+    }
+    if (std::isfinite(crossLength) && crossLength > 0.0) {
+        result.normal = scaledCross / crossLength;
+    }
+    return result;
 }
 
 bool validFaceIndices(const Mesh& mesh, const Face& face) {
@@ -214,8 +264,8 @@ bool validateMeshIndices(const Mesh& mesh, std::string* error) {
 }
 
 namespace {
-bool validateMeshGeometryImpl(const Mesh& mesh, std::string* error, bool rejectZeroAreaFaces) {
-    if (!validateMeshIndices(mesh, error)) {
+bool validateMeshGeometryImpl(const Mesh& mesh, std::string* error, bool rejectZeroAreaFaces, bool validateIndices) {
+    if (validateIndices && !validateMeshIndices(mesh, error)) {
         return false;
     }
     for (std::size_t vertexIndex = 0; vertexIndex < mesh.vertices.size(); ++vertexIndex) {
@@ -282,12 +332,20 @@ bool validateMeshGeometryImpl(const Mesh& mesh, std::string* error, bool rejectZ
 
 } // 命名空间
 
+namespace detail {
+
+bool validateMeshGeometryLenientAfterIndices(const Mesh& mesh, std::string* error) {
+    return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/false, /*validateIndices=*/false);
+}
+
+} // namespace detail
+
 bool validateMeshGeometry(const Mesh& mesh, std::string* error) {
-    return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/true);
+    return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/true, /*validateIndices=*/true);
 }
 
 bool validateMeshGeometryLenient(const Mesh& mesh, std::string* error) {
-    return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/false);
+    return validateMeshGeometryImpl(mesh, error, /*rejectZeroAreaFaces=*/false, /*validateIndices=*/true);
 }
 
 int countDegenerateFaces(const Mesh& mesh) {
@@ -313,31 +371,23 @@ int countDegenerateFaces(const Mesh& mesh) {
 
 double triangleArea(const Vec3& a, const Vec3& b, const Vec3& c) { return robustTriangleArea(a, b, c); }
 
-Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c) {
-    const double area = robustTriangleArea(a, b, c);
-    if (!std::isfinite(area) || area <= kMinTriangleArea) {
-        return Vec3::Zero();
-    }
-    const Vec3 ab = b - a;
-    const Vec3 ac = c - a;
-    const double scale = std::max(ab.cwiseAbs().maxCoeff(), ac.cwiseAbs().maxCoeff());
-    if (!std::isfinite(scale) || scale <= 0.0) {
-        return Vec3::Zero();
-    }
-    Vec3 n = (ab / scale).cross(ac / scale);
-    const double len = n.stableNorm();
-    if (!std::isfinite(len) || len <= 0.0)
-        return Vec3::Zero();
-    return n / len;
-}
+Vec3 triangleNormal(const Vec3& a, const Vec3& b, const Vec3& c) { return computeTriangleGeometry(a, b, c).normal; }
 
 std::vector<double> computeFaceAreas(const Mesh& mesh) {
     std::vector<double> areas(mesh.faces.size(), 0.0);
     for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
         const Face& face = mesh.faces[faceIndex];
-        if (usableFace(mesh, face)) {
-            areas[faceIndex] =
-                triangleArea(mesh.vertices[face.v[0]], mesh.vertices[face.v[1]], mesh.vertices[face.v[2]]);
+        if (validFaceIndices(mesh, face) && face.v[0] != face.v[1] && face.v[1] != face.v[2] &&
+            face.v[0] != face.v[2]) {
+            const Vec3& a = mesh.vertices[face.v[0]];
+            const Vec3& b = mesh.vertices[face.v[1]];
+            const Vec3& c = mesh.vertices[face.v[2]];
+            if (finitePoint(a) && finitePoint(b) && finitePoint(c)) {
+                const TriangleGeometry geometry = computeTriangleGeometry(a, b, c);
+                if (std::isfinite(geometry.area) && geometry.area > kMinTriangleArea) {
+                    areas[faceIndex] = geometry.area;
+                }
+            }
         }
     }
     return areas;
@@ -345,8 +395,21 @@ std::vector<double> computeFaceAreas(const Mesh& mesh) {
 
 double computeSurfaceArea(const Mesh& mesh) {
     long double sum = 0.0L;
-    for (double area : computeFaceAreas(mesh)) {
-        sum += static_cast<long double>(area);
+    for (const Face& face : mesh.faces) {
+        if (!validFaceIndices(mesh, face) || face.v[0] == face.v[1] || face.v[1] == face.v[2] ||
+            face.v[0] == face.v[2]) {
+            continue;
+        }
+        const Vec3& a = mesh.vertices[face.v[0]];
+        const Vec3& b = mesh.vertices[face.v[1]];
+        const Vec3& c = mesh.vertices[face.v[2]];
+        if (!finitePoint(a) || !finitePoint(b) || !finitePoint(c)) {
+            continue;
+        }
+        const double area = computeTriangleGeometry(a, b, c).area;
+        if (std::isfinite(area) && area > kMinTriangleArea) {
+            sum += static_cast<long double>(area);
+        }
     }
     const double result = static_cast<double>(sum);
     return std::isfinite(result) ? result : std::numeric_limits<double>::infinity();
@@ -546,9 +609,14 @@ std::vector<Vec3> computeFaceNormals(const Mesh& mesh) {
     std::vector<Vec3> normals(mesh.faces.size(), Vec3::Zero());
     for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
         const Face& face = mesh.faces[faceIndex];
-        if (usableFace(mesh, face)) {
-            normals[faceIndex] =
-                triangleNormal(mesh.vertices[face.v[0]], mesh.vertices[face.v[1]], mesh.vertices[face.v[2]]);
+        if (validFaceIndices(mesh, face) && face.v[0] != face.v[1] && face.v[1] != face.v[2] &&
+            face.v[0] != face.v[2]) {
+            const Vec3& a = mesh.vertices[face.v[0]];
+            const Vec3& b = mesh.vertices[face.v[1]];
+            const Vec3& c = mesh.vertices[face.v[2]];
+            if (finitePoint(a) && finitePoint(b) && finitePoint(c)) {
+                normals[faceIndex] = computeTriangleGeometry(a, b, c).normal;
+            }
         }
     }
     return normals;
@@ -556,7 +624,26 @@ std::vector<Vec3> computeFaceNormals(const Mesh& mesh) {
 
 std::vector<Vec3> computeVertexNormals(const Mesh& mesh) {
     std::vector<Vec3> normals(mesh.vertices.size(), Vec3::Zero());
-    const std::vector<double> areas = computeFaceAreas(mesh);
+    std::vector<double> areas(mesh.faces.size(), 0.0);
+    std::vector<Vec3> faceNormals(mesh.faces.size(), Vec3::Zero());
+    for (std::size_t faceIndex = 0; faceIndex < mesh.faces.size(); ++faceIndex) {
+        const Face& face = mesh.faces[faceIndex];
+        if (!validFaceIndices(mesh, face) || face.v[0] == face.v[1] || face.v[1] == face.v[2] ||
+            face.v[0] == face.v[2]) {
+            continue;
+        }
+        const Vec3& a = mesh.vertices[face.v[0]];
+        const Vec3& b = mesh.vertices[face.v[1]];
+        const Vec3& c = mesh.vertices[face.v[2]];
+        if (!finitePoint(a) || !finitePoint(b) || !finitePoint(c)) {
+            continue;
+        }
+        const TriangleGeometry geometry = computeTriangleGeometry(a, b, c);
+        if (std::isfinite(geometry.area) && geometry.area > kMinTriangleArea) {
+            areas[faceIndex] = geometry.area;
+            faceNormals[faceIndex] = geometry.normal;
+        }
+    }
     const double maximumArea = areas.empty() ? 0.0 : *std::max_element(areas.begin(), areas.end());
     if (!(maximumArea > 0.0) || !std::isfinite(maximumArea)) {
         return normals;
@@ -566,11 +653,9 @@ std::vector<Vec3> computeVertexNormals(const Mesh& mesh) {
             continue;
         }
         const Face& face = mesh.faces[faceIndex];
-        const Vec3 normal =
-            triangleNormal(mesh.vertices[face.v[0]], mesh.vertices[face.v[1]], mesh.vertices[face.v[2]]);
         const double weight = areas[faceIndex] / maximumArea;
         for (int id : face.v) {
-            normals[static_cast<std::size_t>(id)] += weight * normal;
+            normals[static_cast<std::size_t>(id)] += weight * faceNormals[faceIndex];
         }
     }
     for (Vec3& normal : normals) {
@@ -596,6 +681,8 @@ std::vector<std::pair<int, int>> uniqueEdges(const Mesh& mesh) {
     const std::size_t reserveCount = mesh.faces.size() <= std::numeric_limits<std::size_t>::max() / 3
                                          ? mesh.faces.size() * 3 / 2
                                          : mesh.faces.size();
+    // 哈希表和结果数组使用同一数量级的预留，减少大网格插入时的多次重哈希。
+    seen.reserve(reserveCount);
     edges.reserve(reserveCount);
 
     for (const Face& face : mesh.faces) {

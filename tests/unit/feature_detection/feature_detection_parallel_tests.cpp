@@ -7,6 +7,7 @@
 #include "FeatureDetectionTestSupport.h"
 #include "TestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
+#include "common/detail/MeshQueries.h"
 #include "core/MeshGenerators.h"
 
 #include <gtest/gtest.h>
@@ -47,6 +48,13 @@ Mesh makeNoisyIrregularFixture() {
             0.16 * std::exp(-8.0 * x * x) + 0.012 * std::sin(4.5 * x + 1.9 * y) + 0.008 * std::cos(3.2 * y - 1.1 * x);
     }
     return manumesh::test::analytic::withDeterministicNoise(mesh, 0.0015, 0x7f4a7c159e3779b9ULL);
+}
+
+Mesh makeReversedWindingFilterFixture() {
+    Mesh mesh = makeNoisyIrregularFixture();
+    const std::size_t faceId = mesh.faces.size() / 2;
+    std::swap(mesh.faces[faceId].v[1], mesh.faces[faceId].v[2]);
+    return mesh;
 }
 
 Mesh makeHighValenceSmoothFixture() {
@@ -433,4 +441,29 @@ TEST(FeatureDetectionParallel, CompleteFeatureGraphMatchesSerialResultsExactly) 
     EXPECT_GT(serial.smoothCurvatureScoredVertices, 0);
     EXPECT_GT(serial.normalTensorFeatureEdges, 0);
     EXPECT_GT(serial.smoothCurvatureFeatureEdges, 0);
+}
+
+TEST(FeatureDetectionParallel, ReversedWindingWithNormalFilteringMatchesSerialAtAllWorkerCounts) {
+    const Mesh mesh = makeReversedWindingFilterFixture();
+    const manumesh::common::MeshEdgeInfoMap edgeInfo = manumesh::common::buildMeshEdgeInfo(mesh);
+    const std::vector<char> windingFlips = manumesh::common::harmonizeFaceWindings(mesh, edgeInfo);
+    EXPECT_GT(std::count(windingFlips.begin(), windingFlips.end(), static_cast<char>(1)), 0);
+
+    feature::FeatureOptions options;
+    options.useNormalTensorFeatures = false;
+    options.normalFilter = feature::FeatureNormalFilterOptions{true, 3, 25.0, 120.0, 0.45};
+    const feature::FeatureDetector detector(options);
+    const feature::FeatureAnalysis serial = detector.analyze(mesh);
+
+    for (const int maxConcurrency : {0, 1, 2, 4, 8}) {
+        ExecutionOptions parallel;
+        parallel.mode = ExecutionMode::Parallel;
+        parallel.maxConcurrency = maxConcurrency;
+        parallel.minItemsPerTask = 1;
+
+        const feature::FeatureAnalysis parallelResult = detector.analyze(mesh, parallel);
+        expectFeatureAnalysisEquivalent(serial, parallelResult);
+        EXPECT_EQ(0, parallelResult.inconsistentWindingEdges);
+        EXPECT_EQ(3, parallelResult.normalFilter.iterationsCompleted);
+    }
 }

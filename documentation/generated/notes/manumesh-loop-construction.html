@@ -262,19 +262,16 @@ footer {
         </tr>
         <tr>
           <td>cleanup 只删除 normal-tensor spur。</td>
-          <td><code>isWeakCleanupSpurEdge</code> 接受 normal-tensor 或 smooth-curvature 弱边，并要求该边没有 boundary、dihedral、non-manifold 或 cleanup-bridge 强/修复标记。</td>
           <td><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp:53-97</a></td>
-          <td>打开 smooth-curvature 后，<code>graphCleanupRemovedSpurs</code> 也可能来自曲率通道，不能按 tensor 独占计数解释。</td>
         </tr>
         <tr>
           <td>endpoint gap、close-junction 和 component consolidation 使用同一兼容性基础。</td>
-          <td>连接段必须延续双端 branch；evidence source 与已知 ridge/valley sign 必须兼容。endpoint cleanup 另保留 Yoshizawa 双端角度规则。</td>
+          <td>连接段必须延续双端 branch；evidence source 与已知 signed kind 必须兼容。endpoint cleanup 另保留双端角度规则。</td>
           <td><a href="../../../src/feature_detection/FeatureGraphCompatibility.cpp">FeatureGraphCompatibility.cpp</a>；<a href="../../../src/feature_detection/FeatureGraphCleanup.cpp">FeatureGraphCleanup.cpp</a></td>
           <td>若 cleanup/consolidation bridge 异常偏高，仍需排查局部一对一贪心把相邻独立网络误连。</td>
         </tr>
         <tr>
           <td>所有 fallback 都可以处理弱证据闭环。</td>
-          <td>small cycle basis 与 circular vertex cluster fallback 都跳过含任意 normal-tensor 或 smooth-curvature 边的整个 component；普通 trace 仍可报告这些弱曲线。</td>
           <td><a href="../../../src/feature_detection/FeatureCycleRecovery.cpp">FeatureCycleRecovery.cpp:105-117, 195-203</a>；<a href="../../../src/feature_detection/FeatureCircularRecovery.cpp">FeatureCircularRecovery.cpp:170-210</a></td>
           <td>弱证据有 edge/chain 但没有闭合 primitive，可能是保守门控的预期结果，不一定是检测失败。</td>
         </tr>
@@ -338,15 +335,12 @@ footer {
   <section id="inputs">
     <h2>3. 进入 loop 构造前已经有什么</h2>
     <p>
-      loop recovery 接收的不是原始网格边，而是 `TraceGraph`。这个图来自候选特征边 `CandidateEdge`，每条边带着 boundary、dihedral、normalTensor、smoothCurvature（opt-in 的确定性光滑曲率弱证据，本轮新增）、nonManifold、cleanupBridge、signedKind 以及 tensor/curvature persistence 等证据。<span class="ref">C10</span>
     </p>
     <div class="diagram-wrap">
       <pre class="mermaid">
 flowchart TD
-  A["CandidateEdge 候选边<br/>boundary / dihedral / tensor /<br/>smooth curvature / non-manifold"] --> B["initializeFeatureGraph<br/>完整记录所有 feature evidence"]
   A --> C["buildTraceGraph<br/>筛出可以参与 loop trace 的边"]
   C --> D{"traceEdge?"}
-  D -->|"boundary / nonManifold /<br/>normalTensor / smoothCurvature"| E["加入 TraceGraph"]
   D -->|"dihedral 且 angle >= loopTraceAngle"| E
   D -->|"dihedral 但角度不够"| F["untracedFeatureEdges++"]
   E --> G["cleanupTraceGraph<br/>删弱 spur / 兼容近 junction / 兼容 endpoint gap"]
@@ -356,11 +350,8 @@ flowchart TD
     </div>
     <h3>TraceGraph 的过滤规则</h3>
     <p>
-      `buildTraceGraph` 里有一个关键选择：所有 boundary、non-manifold、normal tensor 和 smooth curvature 边都直接可追踪；dihedral 边必须满足 `angleRad >= loopTraceAngle`。如果 `loopTraceAngleDeg < 0`，就复用 `featureAngleDeg`；否则用更严格或更宽松的单独追踪阈值。没有进入 `TraceGraph` 的候选边仍然算 feature evidence，但不会构造 loop ownership。<span class="ref">C02</span>
     </p>
     <div class="note">
-      <strong>smoothCurvature 是新的弱证据来源（opt-in）。</strong>
-      打开 `FeatureOptions::useSmoothCurvatureFeatures`（CLI 为 `--smooth-curvature-features`，默认关闭）后，确定性多尺度 quadric 曲率检测会把光滑 ridge/valley 的顶点证据转成 `smoothCurvature` 标记的候选边。它与 boundary/dihedral/nonManifold/normalTensor 并列进入 feature graph；一旦进图，就与其他来源在 loop 追踪与 cleanup 中同等参与——只在“弱证据”相关的保守规则（删短 spur、跳过弱证据分量的闭合 fallback）里与 normalTensor 受到相同对待。设计细节见 <code>documentation/design/smooth_curvature_feature_detection_2026_07_11.md</code>。
     </div>
     <div class="decision">
       <strong>这就是为什么同样检测到了 dihedral feature edge，却可能没有 loop。</strong>
@@ -368,7 +359,7 @@ flowchart TD
     </div>
     <h3>cleanup 对 loop 的影响</h3>
     <p>
-      loop recovery 之前，`cleanupTraceGraph` 会按固定顺序删弱证据 spur、桥接近 junction、桥接 endpoint gap。bridge 共享 `FeatureGraphCompatibility`：双端 continuation、evidence source 与 ridge/valley signed kind 必须兼容；endpoint cleanup 继续要求 Yoshizawa 双端角度规则。端点超过 512 个或 junction 超过 256 个时，相应 pass 跳过并计入 cap。随后 opt-in `consolidateFeatureGraph` 只连接不同 component 的 degree-1 endpoint，按 normalized distance + alignment penalty 确定性排序。两类 bridge 分别标为 `cleanupBridge` 和 `consolidationBridge`，不会伪装成 raw evidence。<span class="ref">C03</span>
+      loop recovery 之前，`cleanupTraceGraph` 会按固定顺序删弱证据 spur、桥接近 junction、桥接 endpoint gap。bridge 共享 `FeatureGraphCompatibility`：双端 continuation、evidence source 与 signed kind 必须兼容；endpoint cleanup 继续要求双端角度规则。端点超过 512 个或 junction 超过 256 个时，相应 pass 跳过并计入 cap。随后 opt-in `consolidateFeatureGraph` 只连接不同 component 的 degree-1 endpoint，按 normalized distance + alignment penalty 确定性排序。两类 bridge 分别标为 `cleanupBridge` 和 `consolidationBridge`，不会伪装成 raw evidence。<span class="ref">C03</span>
     </p>
     <div class="callout warn">
       <strong>已知风险：bridge 仍是局部一对一贪心。</strong>
@@ -529,7 +520,6 @@ flowchart LR
   <section id="stage2">
     <h2>7. 阶段二：small cycle basis 恢复多边形环</h2>
     <p>
-      第二阶段处理的是小型、没有 weak-evidence edge 的多边形 cycle。这里“没有弱证据”同时要求 component 内不存在 normal-tensor 与 smooth-curvature edge，并不只是“非 tensor”。它不是枚举所有简单环，而是在每个连通分量上做 BFS 树；每条非树边和树路径组成一个 fundamental cycle，再交给 `addRecoveredCycle(Polygonal)` 验证。<span class="ref">C09</span>
     </p>
     <div class="diagram-wrap">
       <pre class="mermaid">
@@ -537,7 +527,6 @@ flowchart TD
   A["TraceGraph component"] --> B["BFS 建 spanning tree"]
   B --> C["edgeCount / vertexCount / cycleRank"]
   C --> D{"是否跳过"}
-  D -->|"有 normal tensor /<br/>smooth curvature 弱证据边"| X["跳过：避免弱特征误闭合"]
   D -->|"太小 / 太大 / cycleRank 异常"| X
   D -->|"通过"| E["枚举非树边"]
   E --> F["treePathCycle(u, v)"]
@@ -558,7 +547,6 @@ flowchart TD
     </table>
     <h3>为什么跳过弱证据分量</h3>
     <p>
-      normal tensor 与 smooth curvature 边代表弱特征/软特征证据，可能来自局部法向变化或光滑曲率极值，而不是硬边界。这个阶段要从图论上“补闭合多边形环”，如果把弱 ridge 也拿来闭合，容易把噪声或浅 ridge 误当成分割边界。所以 `componentHasWeakEvidenceEdge`（覆盖 normalTensor 和 smoothCurvature 两种来源）为真时直接跳过。<span class="ref">C09</span><span class="ref paper">P05</span>
     </p>
     <h3>Polygonal 的接受条件</h3>
     <p>
@@ -605,7 +593,6 @@ flowchart TD
     </table>
     <h3>trace 过程中会累计哪些统计</h3>
     <p>
-      每走过一条边，`accumulateTraceEdgeStats` 会累计 edgeCount、boundary、dihedral、normalTensor、smoothCurvature、nonManifold、cleanupBridge，以及 convex/concave/unknown signed edge。这些统计进入 `FeatureLoop`，也帮助后续报告解释这个 loop 是由什么证据支撑的。<span class="ref">C04</span><span class="ref">C06</span>
     </p>
     <div class="callout warn">
       <strong>这一步不是“只要闭合才生成”。</strong>
@@ -658,7 +645,6 @@ flowchart TD
       <pre class="mermaid">
 flowchart TD
   A["collectTraceComponents"] --> B{"component 可尝试?"}
-  B -->|"有 normal tensor /<br/>smooth curvature 弱证据边"| X["跳过"]
   B -->|"已有 circular loop"| X
   B -->|"太小或 >120 顶点"| X
   B -->|"通过"| C["枚举 trace 图长度 2 路径<br/>a - b - c 两条边都存在"]
@@ -678,7 +664,6 @@ flowchart TD
     </div>
     <h3>为什么这个阶段放最后</h3>
     <p>
-      三点圆搜索比普通追踪更像“猜一个圆”。为了减少误判，它有几层保险：跳过含弱证据边（normal tensor 或 smooth curvature）的分量、跳过已有 circular loop 的分量、component 顶点数必须在合理范围内、种子路径扫描最多 32768 次、cluster 至少覆盖 270 度、cluster 必须由 trace 图特征边基本连通、最终还要 `fitPrimitive` 分类为 circular。<span class="ref">C13</span>
     </p>
     <p>
       种子枚举本身也经过一次关键收紧：早期实现盲目枚举 component 内所有顶点三元组（O(n³)），既会把互不相连、只是恰好共圆的顶点（例如倒角棱柱不同竖直折痕上的同排角点）缝合成假圆，也会在只有 58 个顶点的网格上烧掉数秒。现在种子只来自 trace 图的长度 2 路径（复杂度 O(Σdeg²)），任何有证据的 ≥3 顶点圆弧必然包含这样的路径，所以不会漏掉真实圆；配合证据连通性门控，chamfer box 上的 detect 从 1735 ms 降到约 7 ms，恢复出的 loop 从 116 个降到 31 个，junction precision 从 0.29 恢复到 1.0（见 <code>FeatureDetectionAnalytic.ChamferBoxJunctionPrecisionIsNotFloodedByCircularRecovery</code>）。<span class="ref">C13</span>
@@ -828,8 +813,6 @@ flowchart TD
           <td><span class="ref">C02</span><span class="ref">T04</span></td>
         </tr>
         <tr>
-          <td>normal tensor / smooth curvature 弱特征分量看起来有 cycle</td>
-          <td>small cycle basis 和 circular cluster fallback 都跳过含弱证据边（normalTensor 或 smoothCurvature）的 component。</td>
           <td>避免把弱 ridge/noise 强行补成闭合 CAD 边界；普通 trace 仍可记录曲线。</td>
           <td><span class="ref">C09</span><span class="ref">C13</span><span class="ref paper">P05</span></td>
         </tr>
@@ -913,7 +896,6 @@ flowchart TD
         </tr>
         <tr>
           <td><code>LegacySpurRemovalPrunesByEdgeCountOnly</code></td>
-          <td>弱 spur 的旧式按边数裁决，fixture 使用 smooth-curvature 弱边。</td>
           <td>长弱链保留；短而强的两边 branch 仍按长度被删除，<code>graphCleanupRemovedSpurs == 2</code>。</td>
           <td><a href="../../../tests/unit/feature_detection/feature_detection_cleanup_tests.cpp">feature_detection_cleanup_tests.cpp:159-174</a></td>
         </tr>
@@ -934,14 +916,13 @@ flowchart TD
     <div class="callout warn">
       <strong>当前测试空白也要明确记录。</strong>
       现有 suite 没有一个专门命名的测试直接断言“<code>minFeatureLoopVertices</code> 很大时，短 traced chain 仍然报告但不做 primitive fit”；该行为目前由
-      <a href="../../../src/feature_detection/FeatureLoopBuilder.cpp">FeatureLoopBuilder.cpp:158-177</a> 直接保证。类似地，small-cycle 与 circular-cluster 对 smooth-curvature component 的跳过主要由源码条件保证，现有 loop 测试只显式构造了 tensor 场景。后续若修改这两处门控，应补专门回归，而不能只依赖本文。
     </div>
   </section>
 
   <section id="papers">
     <h2>15. 论文路线对照</h2>
     <p>
-      从文献路线看，当前实现属于“CAD/STL 特征边检测 + 图追踪 + 闭合边界恢复”的工程化路径，而不是纯 curvature ridge/valley 或神经 wireframe。文献索引里的决策建议也明确：CAD/STL hard boundary 通常先检测二面角/边界/patch transition，再 trace continuous edges into loops，并用 loop closure 验证分割边界。<span class="ref paper">P00</span><span class="ref paper">P01</span>
+      从文献路线看，当前实现属于“CAD/STL 特征边检测 + 图追踪 + 闭合边界恢复”的工程化路径，而不是神经 wireframe。文献索引里的决策建议也明确：CAD/STL hard boundary 通常先检测二面角/边界/patch transition，再 trace continuous edges into loops，并用 loop closure 验证分割边界。<span class="ref paper">P00</span><span class="ref paper">P01</span>
     </p>
     <table>
       <thead><tr><th>程序设计点</th><th>对应文献路线</th><th>当前实现选择</th><th>论文位置</th></tr></thead>
@@ -959,9 +940,7 @@ flowchart TD
           <td><span class="ref paper">P03</span></td>
         </tr>
         <tr>
-          <td>normal tensor / smooth curvature 作为弱特征证据，但不强行补闭合</td>
-          <td>normal voting/tensor 方法适合 noisy crease 和 weak feature，确定性曲率 ridge/valley 方法适合光滑表面，但尺度和邻域都会影响结果。</td>
-          <td>tensor 与 smooth-curvature 边都可进 trace graph；small cycle/circular fallback 跳过弱证据 component，避免假闭环。</td>
+          <td>normal voting/tensor 方法适合 noisy crease 和 weak feature；尺度和邻域都会影响结果。</td>
           <td><span class="ref paper">P04</span><span class="ref paper">P05</span></td>
         </tr>
         <tr>

@@ -46,9 +46,6 @@ void accumulateTraceEdgeStats(const TraceGraph& trace, int a, int b, TraceLoopSt
     if (attrs->normalTensor) {
         ++stats.normalTensorEdges;
     }
-    if (attrs->smoothCurvature) {
-        ++stats.smoothCurvatureEdges;
-    }
     if (attrs->nonManifold) {
         ++stats.nonManifoldEdges;
     }

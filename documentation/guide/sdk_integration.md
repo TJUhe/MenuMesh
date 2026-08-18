@@ -175,29 +175,6 @@ for (const auto& loop : curves.loops()) {
 
 这些视图不复制数据、不能修改分析结果，也不拥有生命周期；因此必须在对应 `FeatureAnalysis` 存活且不被并发修改期间使用。
 
-需要检测光滑表面上的 ridge/valley（例如 fillet 中心线、扫描件平缓折痕）时，可以启用确定性 smooth-curvature 弱证据路径（默认关闭）：
-
-```cpp
-featureOptions.useSmoothCurvatureFeatures = true;          // 默认 false
-featureOptions.smoothCurvatureFeatureThreshold = 0.015;    // 尺度归一化分数阈值
-featureOptions.smoothCurvatureMinEdgeAlignment = 0.55;
-featureOptions.smoothCurvatureMinTangentConsistency = 0.65;
-featureOptions.smoothCurvatureBaseNeighborhoodRings = 2;   // one-ring 拟合对噪声过敏
-featureOptions.smoothCurvatureScaleCount = 3;
-featureOptions.smoothCurvatureMinPersistentScales = 2;
-featureOptions.smoothCurvatureRobustFitIterations = 2;
-featureOptions.smoothCurvatureUseStableScaleSelection = true;
-featureOptions.smoothCurvatureMinScaleStability = 0.4;
-```
-
-分数无量纲，网格均匀缩放后不需要重新调阈值。`FeatureAnalysis` 对应返回
-`smoothCurvatureFeatureEdges`、`smoothCurvatureScoredVertices`、
-`maxSmoothCurvatureFeatureScore`、`maxSmoothCurvaturePersistentScore`、
-`meanSmoothCurvatureLocalScale`、`meanSmoothCurvaturePersistence` 和
-`meanSmoothCurvatureScaleStability`；逐顶点结果带 `selectedScale` / `scaleStability`，graph edge 带
-`smoothCurvature` 来源标记，component 带 `smoothCurvatureEdges` 和
-`meanCurvaturePersistence`。该路径 opt-in 的原因是 CAD/STL 硬边与扫描/自由曲面场景需要不同阈值与验证集；不启用时既有硬特征检测和简化行为完全不变。
-
 简化侧可直接启用同一检测器：
 
 ```cpp
@@ -206,7 +183,7 @@ simplifyConfig.features.enabled = true;
 simplifyConfig.features.detection = featureOptions;
 ```
 
-`SimplifyReport` 会返回 smooth score/local scale/persistence/stability、normal-filter iterations/changed faces/preserved edges/angular change、consolidation bridge/cap，以及既有 winding/cleanup/recovery 诊断。需要让多个流程共享同一分析时，先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。当 `weightMode=NormalTensor` 时，预计算分析中的 `normalTensorVertexWeights` 是按检测时阈值和尺度解析好的规范证据；验证通过后直接复用，即使当前 options 带有不同的 Normal Tensor 参数也不会重新阈值化。显式传入的分析若未启用 Normal Tensor、因而权重数组为空，该调用会抛出 `std::invalid_argument`；应改用包含该证据的分析，或改走不传预计算分析的普通入口以按当前有效配置计算。
+`SimplifyReport` 会返回 normal-tensor、normal-filter iterations/changed faces/preserved edges/angular change、consolidation bridge/cap，以及既有 winding/cleanup/recovery 诊断。需要让多个流程共享同一分析时，先计算 `FeatureAnalysis`，再调用 `QEMSimplifier::simplify(input, features, &report)`。当 `weightMode=NormalTensor` 时，预计算分析中的 `normalTensorVertexWeights` 是按检测时阈值和尺度解析好的规范证据；验证通过后直接复用，即使当前 options 带有不同的 Normal Tensor 参数也不会重新阈值化。显式传入的分析若未启用 Normal Tensor、因而权重数组为空，该调用会抛出 `std::invalid_argument`；应改用包含该证据的分析，或改走不传预计算分析的普通入口以按当前有效配置计算。
 
 独立计算 Normal Tensor 时，`smoothingIterations` 控制逐顶点张量场的邻域平滑，`normalFilter` 则在构建张量前预处理面法向，二者互相独立。该入口与完整特征检测、`filterFeatureNormals()` 共享 normal-filter 参数校验：
 
@@ -299,7 +276,7 @@ ManuMeshStatus status = manumesh_simplify_mesh(
 
 旧的无容量 init 符号以及旧 `manumesh_simplify_mesh` / `manumesh_compute_mesh_stats` 符号仍导出。它们不读取 report/stats 的原有字节，并始终只写首次发布的 v1 历史尺寸，因而兼容首发时允许未初始化 output 的调用方式，也不会覆盖旧调用方较小的栈对象。这个选择无法保留所有后加尾字段的语义：已经编译且依赖 `loop_trace_angle_deg`、cleanup、quality refinement 或新增 report 尾字段的中间版本客户端，换用新 DLL 后必须重新编译或迁移到 size-aware 入口，否则这些字段会按首发容量被忽略。新源码确实需要直接访问旧符号时，可在包含 `api/CApi.h` 前定义 `MANUMESH_DISABLE_SIZE_AWARE_ALIASES`；旧名称 `MANUMESH_DISABLE_SIZE_AWARE_INIT_MACROS` 仍作为兼容开关。库的 C API object target 使用 `MANUMESH_C_API_IMPLEMENTATION` 禁用 alias。
 
-normal-tensor、cleanup、smooth-curvature stable-scale、feature normal filter、graph consolidation 和对应 report 字段都位于 C ABI 结构体尾部；纹理选项追加在 `feature_options` 指针之后，纹理报告追加在 `quality_refinement_skipped_for_texture` 之后。较早、较短的同版本调用方继续使用库默认行为（纹理保护关闭）。surface patch 结果是可变长 C++ 容器，当前没有加入 v1 C ABI。启用纹理保护时，可从 `ManuMeshSimplifyReport` 读取 `texture_rejected_collapses`、`texture_protected_edges` 和 `texture_apply_failures`。
+normal-tensor、cleanup、feature normal filter、graph consolidation 和对应 report 字段都位于 C ABI 结构体尾部；纹理选项追加在 `feature_options` 指针之后，纹理报告追加在 `quality_refinement_skipped_for_texture` 之后。较早、较短的同版本调用方继续使用库默认行为（纹理保护关闭）。surface patch 结果是可变长 C++ 容器，当前没有加入 v1 C ABI。启用纹理保护时，可从 `ManuMeshSimplifyReport` 读取 `texture_rejected_collapses`、`texture_protected_edges` 和 `texture_apply_failures`。
 
 错误路径本轮加固：异常映射新增 `std::bad_alloc` → `MANUMESH_STATUS_OUT_OF_MEMORY`（内存耗尽不再归入通用错误码）；网格索引/几何不满足操作契约时返回 `MANUMESH_STATUS_INVALID_MESH`；未知文件扩展名返回 `MANUMESH_STATUS_UNSUPPORTED_FORMAT`；数值参数会做 finite 校验，例如 `merge_relative_epsilon` 必须有限且非负，否则返回 `MANUMESH_STATUS_INVALID_ARGUMENT`。C 客户端应把 OOM、网格错误、格式错误与参数错误作为可区分的状态处理。
 
@@ -383,7 +360,7 @@ featureEdges.resize(written);
 `feature_edge_index` 是当前 v2 结果按端点和来源确定性排序后的特征边序号；
 `input_edge_index` 是输入网格唯一边按 `(a,b)` 字典序排列后的稳定序号。
 `boundary`、
-`dihedral`、`normal_tensor`、`smooth_curvature`、`non_manifold` 表示证据来源，
+`dihedral`、`normal_tensor`、`non_manifold` 表示证据来源，
 可能同时为 1；`signed_kind` 大于 0 表示凸，小于 0 表示凹，0 表示无可靠符号。
 `cleanup_bridge` 和 `consolidation_bridge` 是图恢复阶段补出的桥接边。
 非拓扑桥返回 `input_edge_index == MANUMESH_INVALID_EDGE_INDEX`、`synthetic != 0`

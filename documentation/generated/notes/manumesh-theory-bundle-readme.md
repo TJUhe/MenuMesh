@@ -4,7 +4,7 @@
 
 ## 主笔记
 
-- `manumesh-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 ManuMesh 程序如何把这些项解释为候选折叠的能量。PDF 为历史导出，未随 2026-07-15 的算法/API 更新重写；同名 HTML 已同步九阶段特征 pipeline、normal filter、stable scale、component consolidation、junction branches、surface patches 和当前 QEM/IO 边界。以 HTML/当前 Markdown 为准。
+- `manumesh-theory-explained.pdf`：解释 QEM、line quadrics、矩阵秩与条件数、边界 quadric、特征曲线 quadric，以及 ManuMesh 程序如何把这些项解释为候选折叠的能量。PDF 为历史导出，未随 2026-07-15 的算法/API 更新重写；同名 HTML 已同步九阶段特征 pipeline、normal filter、component consolidation、junction branches、surface patches 和当前 QEM/IO 边界。以 HTML/当前 Markdown 为准。
 
 ## 随包论文
 

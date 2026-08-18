@@ -48,7 +48,7 @@ public:
     /// @throws std::invalid_argument 当选项范围不一致时抛出。
     void setOptions(FeatureOptions options);
 
-    /// 检测硬证据、可选的张量/曲率证据以及拟合曲线。
+    /// 检测硬证据、可选张量证据以及拟合曲线。
     /// @param[in] mesh 三角表面网格；允许零面积面，并在结果中报告。
     /// @return 完整的特征图、曲线、组件、诊断信息和可选分区。
     /// @throws std::invalid_argument 当索引无效、坐标非有限或面顶点重复时抛出。
@@ -110,48 +110,15 @@ MANUMESH_API std::vector<NormalTensorVertex> computeNormalTensorFeatures(
     const ExecutionOptions& executionOptions
 );
 
-/// 根据稳健局部 quadric 拟合、主曲率、方向极值和尺度持久性计算确定性的平滑脊/谷证据。
-/// 不使用学习模型或训练数据。
-/// @param[in] mesh 输入三角表面。
-/// @param[in] options 邻域半径、稳健迭代次数和稳定性策略。
-/// @return 每个顶点一个带符号曲率证据记录。
-/// @algorithm 收集确定性的 k-ring 邻域，按局部采样尺度归一化，拟合稳健 Monge quadric，
-/// 恢复主曲率和方向，测试双侧方向极值，然后要求跨尺度的符号和切向持久性。
-/// @complexity O(V * S * N)，其中 S 为尺度数量，N 为每次局部最小二乘拟合使用的有界邻域大小。
-/// @failuremodes 秩亏或单侧邻域、不稳定主方向框架以及不一致极值均报告为零证据。
-MANUMESH_API std::vector<SmoothCurvatureVertex>
-computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options = {});
-
-/// 使用显式执行约束计算稳健多尺度平滑曲率证据。
-MANUMESH_API std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
-    const Mesh& mesh, const SmoothCurvatureOptions& options, const ExecutionOptions& executionOptions
-);
-
-/// 仅当尺度归一化分数达到给定阈值时，才将该尺度计为持久证据。
-/// @param[in] mesh 输入三角表面。
-/// @param[in] options 邻域和稳健拟合计划。
-/// @param[in] persistenceThreshold 支持尺度上的最小归一化分数。
-/// @return 每个顶点一个带符号曲率证据记录。
-MANUMESH_API std::vector<SmoothCurvatureVertex>
-computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options, double persistenceThreshold);
-
-/// 使用显式执行约束和持久性阈值计算平滑曲率证据。
-MANUMESH_API std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
-    const Mesh& mesh,
-    const SmoothCurvatureOptions& options,
-    double persistenceThreshold,
-    const ExecutionOptions& executionOptions
-);
-
 /// 校验每个特征检测选项及跨字段范围。
 /// @param[in] options 待校验的选项。
 /// @throws std::invalid_argument 当值非有限、范围无效或持久尺度数量大于尺度总数时抛出。
 MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 
-/// 检测边界、非流形、二面角、张量、可选平滑曲率以及拟合的几何基元曲线。
+/// 检测边界、非流形、二面角、张量以及拟合的几何基元曲线。
 ///
-/// 实现首先追踪图支持的环，然后为稀疏圆环应用有界的 CAD 修复回退。它不是针对含噪扫描的一般曲率脊提取器；
-/// 对此类输入应启用张量特征并调节尺度/阈值参数。
+/// 实现首先追踪图支持的环，然后为稀疏圆环应用有界的 CAD 修复回退。对含噪扫描输入，
+/// 应启用法向滤波和张量特征并调节尺度/阈值参数。
 /// @param[in] mesh 三角表面网格。
 /// @param[in] options 检测、恢复、清理和分区策略。
 /// @return 完整的确定性特征分析。

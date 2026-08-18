@@ -34,7 +34,6 @@ public:
     int boundaryFeatureEdgeCount() const noexcept { return analysis_->boundaryFeatureEdges; }
     int dihedralFeatureEdgeCount() const noexcept { return analysis_->dihedralFeatureEdges; }
     int normalTensorFeatureEdgeCount() const noexcept { return analysis_->normalTensorFeatureEdges; }
-    int smoothCurvatureFeatureEdgeCount() const noexcept { return analysis_->smoothCurvatureFeatureEdges; }
     int nonManifoldFeatureEdgeCount() const noexcept { return analysis_->nonManifoldFeatureEdges; }
 
 private:
@@ -104,7 +103,6 @@ public:
     int degenerateFaceCount() const noexcept { return analysis_->degenerateFaces; }
 
     int normalTensorScoredVertexCount() const noexcept { return analysis_->normalTensorScoredVertices; }
-    int smoothCurvatureScoredVertexCount() const noexcept { return analysis_->smoothCurvatureScoredVertices; }
     int convexFeatureEdgeCount() const noexcept { return analysis_->convexFeatureEdges; }
     int concaveFeatureEdgeCount() const noexcept { return analysis_->concaveFeatureEdges; }
     int unknownSignedFeatureEdgeCount() const noexcept { return analysis_->unknownSignedFeatureEdges; }
@@ -118,11 +116,6 @@ public:
     double maxNormalTensorPersistentScore() const noexcept { return analysis_->maxNormalTensorPersistentScore; }
     double meanNormalTensorLocalScale() const noexcept { return analysis_->meanNormalTensorLocalScale; }
     double meanNormalTensorPersistence() const noexcept { return analysis_->meanNormalTensorPersistence; }
-    double maxSmoothCurvatureFeatureScore() const noexcept { return analysis_->maxSmoothCurvatureFeatureScore; }
-    double maxSmoothCurvaturePersistentScore() const noexcept { return analysis_->maxSmoothCurvaturePersistentScore; }
-    double meanSmoothCurvatureLocalScale() const noexcept { return analysis_->meanSmoothCurvatureLocalScale; }
-    double meanSmoothCurvaturePersistence() const noexcept { return analysis_->meanSmoothCurvaturePersistence; }
-    double meanSmoothCurvatureScaleStability() const noexcept { return analysis_->meanSmoothCurvatureScaleStability; }
 
     const FeatureNormalFilterReport& normalFilter() const noexcept { return analysis_->normalFilter; }
     int junctionBranchPairCount() const noexcept { return analysis_->junctionBranchPairs; }

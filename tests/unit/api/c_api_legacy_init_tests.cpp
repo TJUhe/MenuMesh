@@ -30,16 +30,7 @@ struct LegacyV1FeatureOptionsLayout {
     int normal_tensor_smoothing_iterations;
     int normal_tensor_scale_count;
     int normal_tensor_min_persistent_scales;
-    int use_smooth_curvature_features;
-    double smooth_curvature_feature_threshold;
-    double smooth_curvature_min_edge_alignment;
-    double smooth_curvature_min_tangent_consistency;
-    int smooth_curvature_base_neighborhood_rings;
-    int smooth_curvature_scale_count;
-    int smooth_curvature_min_persistent_scales;
-    int smooth_curvature_robust_fit_iterations;
-    int smooth_curvature_use_stable_scale_selection;
-    double smooth_curvature_min_scale_stability;
+    unsigned char reserved_feature_evidence[60];
     int cleanup_feature_graph;
     double feature_graph_gap_length_ratio;
     int feature_graph_max_weak_spur_edges;

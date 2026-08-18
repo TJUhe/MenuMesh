@@ -2,7 +2,7 @@
 
 本文记录 2026-07-09 针对特征识别、QEM 特征保护和 common 几何查询的联动改动。目标是先把 CAD/STL 三角网格上的确定性 feature graph、弱特征 tensor 证据和简化器可消费诊断做稳，再推进 neural/wireframe 或更重的全局优化路线。
 
-> 后续进展：2026-07-11 已在此基础上以 opt-in 形式落地确定性光滑曲率特征检测；2026-07-12 又完成有向二面角、三次 Monge/Ohtake、Taubin/Halíř-Flusser、Yoshizawa 弱 spur 与 `FeatureDetectionCache` 强化。2026-07-15 进一步加入法线域预处理、稳定尺度选择、兼容性复核、跨 component consolidation、junction branch pairing、surface patch segmentation 和扩展 benchmark。当前完整契约见 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md)。
+> 后续进展：2026-07-12 又完成有向二面角、Taubin/Halíř-Flusser、Yoshizawa 弱 spur 与 `FeatureDetectionCache` 强化。2026-07-15 进一步加入法线域预处理、兼容性复核、跨 component consolidation、junction branch pairing、surface patch segmentation 和扩展 benchmark。当前完整契约见 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md)。
 
 ## 已完成改动
 
@@ -31,9 +31,9 @@
 
 ## 继续完成的算法改进
 
-- Feature graph cleanup 已接入：`cleanupFeatureGraph` 默认开启，在 loop recovery 前删除仅由 normal-tensor 或 smooth-curvature 支持的短弱 spur，并按局部平均边长桥接短 endpoint gap 和近 junction gap。endpoint 与 close-junction bridge 现在都复核双端 continuation、evidence source 和 signed kind；共享规则位于 `FeatureGraphCompatibility.cpp`。
+- Feature graph cleanup 已接入：`cleanupFeatureGraph` 默认开启，在 loop recovery 前删除仅由 normal-tensor 支持的短弱 spur，并按局部平均边长桥接短 endpoint gap 和近 junction gap。endpoint 与 close-junction bridge 现在都复核双端 continuation、evidence source 和 signed kind；共享规则位于 `FeatureGraphCompatibility.cpp`。
 - Component consolidation 已以 opt-in 接入：只连接不同 component 的 degree-1 endpoint，候选要求双端 alignment 与 source/sign 兼容，并通过 `consolidationBridge` 和独立计数报告。
-- 法线域过滤、smooth-curvature stable-scale、junction branch pairing 和 feature-induced surface patches 已接入；默认均保持兼容性策略，不改变既有 CAD/STL 默认结果。
+- 法线域过滤、junction branch pairing 和 feature-induced surface patches 已接入；默认均保持兼容性策略，不改变既有 CAD/STL 默认结果。
 - Component-level confidence 已接入：`FeatureComponent` 汇总强/弱证据比例、闭合率、junction/endpoint、cycle rank、tensor persistence、primitive residual 和 confidence；loop/vertex 记录 component id、confidence 和 weak-feature 标记。
 - QEM 联动已接入：feature-curve soft quadric 使用 `0.35 + 0.65 * confidence` 做温和缩放，强 CAD loop 接近原权重，弱证据 component 先作为软 support 消费。
 - 定量 benchmark 已扩展：`benchmarkFeatureAnalysis()` 支持 edge/junction/branch-pair precision、recall、F1，以及 face-patch adjacency accuracy、loop closure rate 和 mean component confidence；旧 `benchmarkFeatureEdges()` 保留兼容入口。
@@ -56,4 +56,4 @@
 2. Benchmark 后续：edge/junction/branch/face-patch 真值已落地；下一步加入 weak feature group、loop id、简化前后 feature drift 和全局 Hausdorff 指标。
 3. QEM 二阶段优化：固定拓扑质量 refinement 已落地；下一步扩展到 high-confidence primitive/component 的受约束 feature relocation。
 4. Edge dihedral plane quadrics 与 line weight 调度：比较 component confidence、dihedral plane quadrics、line quadrics 在浅特征/平面漂移上的收益。
-5. Learned saliency / neural QEM：只在 deterministic baseline 对弱、浅、非均匀采样特征失效时作为对比项接入，且不得替代拓扑、法向、局部误差和 feature drift 硬过滤。2026-07-11 的 smooth-curvature 通道把 deterministic baseline 又推进了一步（多尺度曲率极值 + persistence），进一步压缩了需要学习方法介入的空间。
+5. Learned saliency / neural QEM：只在 deterministic baseline 对弱、浅、非均匀采样特征失效时作为对比项接入，且不得替代拓扑、法向、局部误差和 feature drift 硬过滤。

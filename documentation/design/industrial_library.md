@@ -20,7 +20,7 @@ ManuMesh 当前是一个面向增材制造三角网格处理的 C++/C SDK 原型
 | --- | --- |
 | 网格交换 | `Mesh`、`PlainMesh`、STL/OBJ 读写；OBJ 读取支持多边形三角化并保留逐角 `vt`，`faceTexCoords` 携带角拥有的逐面 UV。 |
 | 拓扑分析 | boundary、non-manifold、edge/face/vertex 统计。 |
-| 特征检测 | boundary、dihedral、normal-tensor、opt-in smooth-curvature、loop、circle/ellipse fitting。 |
+| 特征检测 | boundary、dihedral、normal-tensor、loop、circle/ellipse fitting。 |
 | 简化 | standard QEM、line quadrics、ratio/face target、sweep；opt-in 纹理感知排序与 UV chart 保护（C++ 与 C ABI，CLI 未暴露）。 |
 | 保护 | boundary、feature curves、topology link condition、triangle quality、normal deviation、local error、local intersections；opt-in UV chart/有符号 UV 面积保护。 |
 | 集成 | Eigen-backed C++ API、Eigen-free `PlainMesh` C++ 入口、C ABI、SDK 安装、示例工程。 |

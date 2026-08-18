@@ -110,42 +110,6 @@ void validateFeatureOptionsImpl(const FeatureOptions& options) {
         options.normalTensorMinPersistentScales > options.normalTensorScaleCount) {
         throw std::invalid_argument("normalTensorMinPersistentScales must be in [1, normalTensorScaleCount].");
     }
-    requireFiniteNonNegative(options.smoothCurvatureFeatureThreshold, "smoothCurvatureFeatureThreshold");
-    if (!std::isfinite(options.smoothCurvatureMinEdgeAlignment) || options.smoothCurvatureMinEdgeAlignment < 0.0 ||
-        options.smoothCurvatureMinEdgeAlignment > 1.0) {
-        throw std::invalid_argument("smoothCurvatureMinEdgeAlignment must be finite and in [0, 1].");
-    }
-    if (!std::isfinite(options.smoothCurvatureMinTangentConsistency) ||
-        options.smoothCurvatureMinTangentConsistency < 0.0 || options.smoothCurvatureMinTangentConsistency > 1.0) {
-        throw std::invalid_argument("smoothCurvatureMinTangentConsistency must be finite and in [0, 1].");
-    }
-    if (options.smoothCurvatureBaseNeighborhoodRings < 1 ||
-        options.smoothCurvatureBaseNeighborhoodRings > kMaxSmoothCurvatureBaseNeighborhoodRings) {
-        throw std::invalid_argument(
-            "smoothCurvatureBaseNeighborhoodRings must be in [1, " +
-            std::to_string(kMaxSmoothCurvatureBaseNeighborhoodRings) + "]."
-        );
-    }
-    if (options.smoothCurvatureScaleCount < 1 || options.smoothCurvatureScaleCount > kMaxSmoothCurvatureScaleCount) {
-        throw std::invalid_argument(
-            "smoothCurvatureScaleCount must be in [1, " + std::to_string(kMaxSmoothCurvatureScaleCount) + "]."
-        );
-    }
-    if (options.smoothCurvatureMinPersistentScales < 1 ||
-        options.smoothCurvatureMinPersistentScales > options.smoothCurvatureScaleCount) {
-        throw std::invalid_argument("smoothCurvatureMinPersistentScales must be in [1, smoothCurvatureScaleCount].");
-    }
-    if (options.smoothCurvatureRobustFitIterations < 0 ||
-        options.smoothCurvatureRobustFitIterations > kMaxSmoothCurvatureRobustFitIterations) {
-        throw std::invalid_argument(
-            "smoothCurvatureRobustFitIterations must be in [0, " +
-            std::to_string(kMaxSmoothCurvatureRobustFitIterations) + "]."
-        );
-    }
-    if (!std::isfinite(options.smoothCurvatureMinScaleStability) || options.smoothCurvatureMinScaleStability < 0.0 ||
-        options.smoothCurvatureMinScaleStability > 1.0) {
-        throw std::invalid_argument("smoothCurvatureMinScaleStability must be finite and in [0, 1].");
-    }
     requireFiniteNonNegative(options.featureGraphGapLengthRatio, "featureGraphGapLengthRatio");
     if (options.featureGraphMaxWeakSpurEdges < 0) {
         throw std::invalid_argument("featureGraphMaxWeakSpurEdges must be non-negative.");
@@ -171,7 +135,7 @@ void validateFeatureInput(const Mesh& mesh) { detector_detail::validateFeatureMe
  * 宽松输入校验允许零面积三角形存在，但其法向量为零，无法用于二面角计算；
  * 若直接参与点积，会被误判为 90 度的伪折痕。本阶段移除所有与退化面相邻
  * 内部边的二面角证据，并删除失去其他证据的候选边，同时保持分析计数一致。
- * 法向张量和光顺曲率在累加时已跳过退化面；边界与非流形证据只依赖拓扑，
+ * 法向张量在累加时已跳过退化面；边界与非流形证据只依赖拓扑，
  * 因此仅需降级二面角通道。被容忍的退化面数量仍记录在
  * FeatureAnalysis::degenerateFaces 中。
  */
@@ -218,7 +182,7 @@ void removeDegenerateDihedralEvidence(FeatureDetectionContext& context) {
                 edge.angleRad = 0.0;
             }
         }
-        if (edge.boundary || edge.dihedral || edge.normalTensor || edge.smoothCurvature || edge.nonManifold) {
+        if (edge.boundary || edge.dihedral || edge.normalTensor || edge.nonManifold) {
             kept.push_back(edge);
         } else {
             --analysis.featureEdges;

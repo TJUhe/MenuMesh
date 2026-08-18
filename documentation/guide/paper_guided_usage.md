@@ -19,7 +19,6 @@ $exe = "$buildDir/bin/Release/manumesh.exe"
 | `default` | 现有脚本、一般 STL | 使用 FeatureOptions/profile 的检测默认（最小环 8） | 不自动开启特征曲线保护 |
 | `cad` | 干净 CAD/STL、孔和棱边 | 二面角排序，关闭弱 tensor 证据 | 保护圆、近圆、椭圆等几何基元 |
 | `scan` | 有中轻度法向噪声的扫描网格 | 法线滤波、3 个 tensor 尺度、2 个持久尺度 | tensor 候选参与软成本；仅硬保护已拟合的几何基元 |
-| `smooth` | fillet、自由曲面 ridge/valley | 多尺度平滑曲率证据，关闭 tensor 证据 | ridge/valley 候选参与软成本；仅硬保护已拟合的几何基元 |
 
 最短的实用起点：
 
@@ -31,15 +30,13 @@ $exe = "$buildDir/bin/Release/manumesh.exe"
 & $exe feature-report scan.stl --profile scan --print-resolved-config
 & $exe simplify scan.stl scan_simplified.stl --profile scan --ratio 0.5
 
-# 光滑过渡、ridge 和 valley
-& $exe simplify smooth.stl smooth_simplified.stl --profile smooth --ratio 0.5
 ```
 
 显式参数总会覆盖档案值。例如 CAD 档案上需要 tensor 证据时，可写
 `--profile cad --normal-tensor-features --normal-tensor-scales 3`；需要把所有已检测边严格锁定时，
-可写 `--feature-protection-mode all-feature-edges`。`scan` 和 `smooth` 默认不这样做：张量和曲率候选
-会继续参与曲线 quadric 的软排序，避免密集或含噪候选让简化在达到目标面数前停滞。`--no-smooth-curvature-features`、
-`--no-feature-normal-filter` 和 `--no-preserve-feature-curves` 用于明确关闭由档案或旧兼容行为启用的通道。
+可写 `--feature-protection-mode all-feature-edges`。`scan` 默认不这样做：张量候选会继续参与曲线 quadric
+的软排序，避免含噪候选让简化在达到目标面数前停滞。`--no-feature-normal-filter` 和
+`--no-preserve-feature-curves` 用于明确关闭由档案或旧兼容行为启用的通道。
 
 在第一次运行或复现结果时加入 `--print-resolved-config`。它会输出各组有效值，而不是只回显命令行；
 特别适合确认 profile 和显式覆盖后的最终状态。
@@ -66,8 +63,6 @@ CLI 会在以下情况向 stderr 给出提示：`--target-faces` 与 `--ratio` �
 | 开边界被吃掉或合并 | boundary weight 只作为软成本，不足以阻止拓扑改变。当前扩展 link condition 已始终拒绝"边界弦"折叠（两端点均为边界顶点的内部边），防止非流形 pinch 点；边界边自身的折叠仍需硬策略控制。 | `--preserve-boundary`，以及 `boundary_rejected_collapses`、`topology_rejected_collapses`。 |
 | 达不到目标面数，提前停止 | 目标比例和硬过滤器冲突，候选被大量拒绝。 | `termination_reason`、最高的 `*_rejected_collapses`。 |
 | normal tensor 结果不稳定 | 张量特征受邻域、尺度、噪声和采样影响。 | 轻中度法向噪声先试 `--feature-normal-filter` 并观察 angular-change 诊断，再调 tensor threshold/alignment/scales。 |
-| 光滑 fillet 中心线或平缓 ridge/valley 不出现在特征报告/简化保护中 | 二面角和 normal tensor 依赖离散法向差异，对光滑微分事件响应弱。 | 先在 `feature-report` 启用 `--smooth-curvature-features` 校准，再把同组选项用于 `simplify`；检查 feature report 的 `smooth_curvature_edges` 与 simplify 的 `smooth_curvature_feature_edges`。 |
-| ridge/valley 在相邻尺度间跳变 | peak-score 参考尺度对局部采样敏感。 | 试 `--smooth-curvature-stable-scale` 和 `--smooth-curvature-min-scale-stability`，检查 mean scale stability。 |
 | 特征图碎成多个相邻 component | local cleanup 不跨 component。 | 试 `--feature-graph-consolidation`，同时限制 gap/alignment 并检查 bridge count 与 branch-pair precision。 |
 | patch 分区泄漏或过分割 | feature barrier 漏检或误检。 | 用 `--surface-patches`；必要时用 `--surface-patches-strong-only` 排除弱 evidence barrier，并看 patch adjacency accuracy。 |
 
@@ -129,17 +124,11 @@ line quadrics 对照：
 - `--weight-mode normal-tensor`：用带局部尺度和多尺度 persistence 的 normal tensor 给弱特征提供附加证据，是软成本。
 - `--preserve-feature-curves`：启用特征环检测、曲线 quadric、placement 投影和硬保护策略。
 
-特征分析和简化命令共享一条 opt-in 的确定性光滑曲率证据路径（2026-07-11 落地，无任何学习成分）：
+特征分析和简化命令共享法线滤波、Normal Tensor 与图整合配置：
 
 ```powershell
 & $exe feature-report input.stl `
   --feature-normal-filter `
-  --smooth-curvature-features `
-  --smooth-curvature-stable-scale `
-  --smooth-curvature-threshold 0.015 `
-  --smooth-curvature-base-rings 2 `
-  --smooth-curvature-scales 3 `
-  --smooth-curvature-min-persistent-scales 2 `
   --feature-graph-consolidation `
   --surface-patches `
   --csv features.csv
@@ -148,17 +137,13 @@ line quadrics 对照：
 直接保护简化：
 
 ```powershell
-& $exe simplify input.stl output_smooth.stl `
-  --ratio 0.5 --smooth-curvature-features `
-  --smooth-curvature-threshold 0.015 `
-  --smooth-curvature-base-rings 2 `
-  --smooth-curvature-scales 3 `
-  --smooth-curvature-min-persistent-scales 2 `
+& $exe simplify input.stl output_scan.stl `
+  --ratio 0.5 --feature-normal-filter `
   --feature-graph-min-weak-spur-strength 0.0 `
-  --metrics-csv smooth_metrics.csv
+  --metrics-csv scan_metrics.csv
 ```
 
-在 `simplify` 中，`--smooth-curvature-features`、`--feature-normal-filter` 和 `--feature-graph-consolidation` 会沿用 0.x 的自动特征保护行为，等价于同时启用 `--preserve-feature-curves`。`feature-report` 可以单独使用这些检测选项。默认保护模式仍是 `primitive-curves`。normal filter 只改检测法向，surface patches 只属于 feature analysis。报告除 scored vertices、persistence 外，还包含 scale stability、normal-filter、consolidation、junction pair 和 patch 诊断。纹理感知简化通过 C++ `SimplifyConfig::texture` 显式开启，CLI `simplify` 没有对应选项。
+在 `simplify` 中，`--feature-normal-filter` 和 `--feature-graph-consolidation` 会沿用 0.x 的自动特征保护行为，等价于同时启用 `--preserve-feature-curves`。`feature-report` 可以单独使用这些检测选项。默认保护模式仍是 `primitive-curves`。normal filter 只改检测法向，surface patches 只属于 feature analysis。报告包含 normal-filter、consolidation、junction pair 和 patch 诊断。纹理感知简化通过 C++ `SimplifyConfig::texture` 显式开启，CLI `simplify` 没有对应选项。
 
 曲线特征保护的推荐起点：
 
@@ -216,7 +201,6 @@ line quadrics 和 normal tensor 都不是去噪器。ManuMesh 的 opt-in normal 
 | 圆拟合（Taubin，一阶无偏；Kåsa 保留为回退）与椭圆拟合（Halíř-Flusser 直接最小二乘，保证椭圆输出） | Taubin 1991、Halíř-Flusser 1998；实现在 `src/feature_detection/PrimitiveFit.cpp` |
 | point-to-line quadrics | Liu-Rahimzadeh-Zordan 2025，`documentation/papers/line_quadrics/liu_rahimzadeh_zordan_2025_line_quadrics.pdf` |
 | 纹理感知简化（`preserveTexture`，C++/C API） | Garland-Heckbert 1998 属性 QEM（M003，`documentation/papers/qem/garland_heckbert_1998_color_texture_qem.pdf`）为历史参照；当前实现按现代 edge-collapse 管线文献（M033）的工程拆分：4×4 几何 quadric 排序固定 3D placement，UV chart/面积合法性为显式局部策略，实现在 `src/simplification/TextureProtection.cpp`，设计见 `documentation/design/texture_aware_qem.md` |
-| smooth-curvature 特征证据（`--smooth-curvature-features`） | 2017–2025 确定性文献：Yamakawa-Shimada 2017/2018、Lu 2019（M044）、Romanengo 2020、Xu 2024 CWF（M026）、Cai 2025，索引见 `documentation/papers/recent_deterministic_feature_detection_2026-07-11.md`；实现在 `src/feature_detection/SmoothCurvature.cpp`，设计见 `documentation/design/smooth_curvature_feature_detection_2026_07_11.md` |
 | edge-collapse 工程细节 | Hoppe 1996、Lindstrom-Turk 1998、Rose 2025，位于 `documentation/papers/edge_collapse/` |
 | CAD/STL 特征线 | Vidal-Wolf-Dupont 2011、Jiao-Bayyana 2008，位于 `documentation/papers/feature_detection/` |
 | normal tensor 特征评分 | Tsuchie-Higashi 2014，`documentation/papers/feature_detection/tsuchie_higashi_2014_normal_tensor_surface_feature_lines.pdf` |

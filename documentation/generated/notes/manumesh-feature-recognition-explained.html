@@ -329,7 +329,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
       <li><a href="#hard-evidence">拓扑与有向二面角硬证据</a></li>
       <li><a href="#normal-filter">法线过滤及其真实作用范围</a></li>
       <li><a href="#normal-tensor">Normal tensor 多尺度弱证据</a></li>
-      <li><a href="#smooth-curvature">三次 Monge 光滑曲率证据</a></li>
       <li><a href="#edge-materialization">顶点证据如何变成特征边</a></li>
       <li><a href="#graph-recovery">Feature graph 清理与恢复</a></li>
       <li><a href="#loops-primitives">Loop 恢复与几何基元拟合</a></li>
@@ -341,7 +340,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
   <div class="lead">
     <p><strong>一句话结论：</strong>ManuMesh 的特征识别不是“把二面角大于 40° 的边涂出来”，而是一个分层的确定性图恢复系统。</p>
-    <p>它先把 <strong>boundary / non-manifold / signed dihedral</strong> 视为强证据，把 <strong>normal tensor / smooth curvature</strong> 视为弱证据；再用图清理、缺口兼容、环路恢复、圆/椭圆拟合、连通分量置信度和 junction 分支语义，把局部响应提升为下游可以使用的结构。</p>
   </div>
 
   <section id="scope">
@@ -393,7 +391,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
     <figure class="figure">
       <svg viewBox="0 0 820 250" role="img" aria-labelledby="cache-title cache-desc">
         <title id="cache-title">共享缓存与证据通道数据流</title>
-        <desc id="cache-desc">过滤法向直接进入二面角和光滑曲率；normal tensor 从原始三角法向重建张量。</desc>
         <defs>
           <marker id="arrow-cache" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#55715f"/></marker>
         </defs>
@@ -413,7 +410,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
         <text x="571" y="44" text-anchor="middle" font-size="13" fill="#294332">dihedral</text>
         <text x="571" y="63" text-anchor="middle" font-size="11" fill="#555">direct</text>
         <rect x="660" y="18" width="128" height="58" rx="6" fill="#f8fbf1" stroke="#8ba28f"/>
-        <text x="724" y="44" text-anchor="middle" font-size="13" fill="#294332">smooth curvature</text>
         <text x="724" y="63" text-anchor="middle" font-size="11" fill="#555">direct</text>
         <rect x="507" y="102" width="128" height="58" rx="6" fill="#f8fbf1" stroke="#8ba28f"/>
         <text x="571" y="128" text-anchor="middle" font-size="13" fill="#294332">normal tensor</text>
@@ -429,7 +425,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
         <path d="M415 126 L507 130" fill="none" stroke="#55715f" stroke-width="1.6" marker-end="url(#arrow-cache)"/>
         <path d="M415 200 L660 201" fill="none" stroke="#55715f" stroke-width="1.6" marker-end="url(#arrow-cache)"/>
       </svg>
-      <figcaption>最容易误读的一点：normal filter 会直接改变二面角与 smooth-curvature 的法向输入；normal tensor 仍从原始三角面重算外积张量，只会被硬边排除掩码间接影响。</figcaption>
     </figure>
 
     <pre><code>validateFeatureOptions(options)
@@ -460,7 +455,6 @@ segmentPatchesIfEnabled()</code></pre>
       <span class="equation-line">\(m(e)=2\Rightarrow manifold\ interior\ edge\)</span>
       <span class="equation-line">\(m(e)>2\Rightarrow non\text{-}manifold\)</span>
     </div>
-    <p>Boundary 与 non-manifold 是纯拓扑强证据。它们不依赖法向质量，也不会经过 normal tensor 或 smooth curvature 的阈值。</p>
 
     <h3>3.2 程序先协调绕向，再计算角度和凸凹符号</h3>
     <p><code>harmonizeFaceWindings()</code> 对每个可定向 manifold component 做 BFS，得到每个 face 的虚拟翻转符号 \(s_f\in\{-1,+1\}\)，但不修改输入 mesh。对共享边 \((a,b)\) 的两个面：</p>
@@ -530,7 +524,6 @@ segmentPatchesIfEnabled()</code></pre>
       <thead><tr><th>通道</th><th>是否直接使用 filtered normals</th><th>实际路径</th></tr></thead>
       <tbody>
         <tr><td>有向二面角</td><td><strong>是</strong></td><td><code>EdgeEvidenceContext::normals = cache.faceNormals()</code></td></tr>
-        <tr><td>Smooth curvature</td><td><strong>是</strong></td><td>filtered face normals 累加为 area-weighted vertex normals</td></tr>
         <tr><td>Normal tensor</td><td><strong>否</strong></td><td>逐 face 从顶点坐标重新计算 raw <code>triangleNormal()</code></td></tr>
         <tr><td>Graph cleanup</td><td>不使用法向</td><td>使用邻接、局部平均边长、证据来源和切向</td></tr>
       </tbody>
@@ -614,93 +607,8 @@ segmentPatchesIfEnabled()</code></pre>
 
     <p class="source">张量计算：<a href="../../../src/feature_detection/NormalTensor.cpp"><code>src/feature_detection/NormalTensor.cpp</code></a>；edge gate：<a href="../../../src/feature_detection/FeatureEvidence.cpp"><code>normalTensorEdgeCandidate()</code></a>。</p>
   </section>
-
-  <section id="smooth-curvature">
-    <h2><span class="num">6</span>Smooth curvature：九参数三次 Monge patch</h2>
-    <p>这个通道默认关闭，用来寻找没有法向跳变的光滑 ridge / valley。程序不是简单做“五参数二次曲面 + 曲率大于阈值”；它实际拟合带三阶项的九参数 Monge patch，并从三阶项解析曲率沿主方向的 extremality。</p>
-
-    <h3>6.1 局部坐标先按采样尺度归一化</h3>
-    <p>对顶点 \(p_0\) 和尺度 ring count \(R\)，半径取 \(r=\bar\ell(p_0)R\)。局部基为 \((\mathbf u,\mathbf v,\mathbf n)\)：</p>
-    <div class="formula">
-      <span class="label">(9)</span>
-      <span class="equation-line">\(u=\frac{(p-p_0)^\mathsf T\mathbf u}{r},\quad v=\frac{(p-p_0)^\mathsf T\mathbf v}{r},\quad w=\frac{(p-p_0)^\mathsf T\mathbf n}{r}\)</span>
-      <span class="equation-line">\(w=a u^2+buv+cv^2+du+ev+c_0u^3+c_1u^2v+c_2uv^2+c_3v^3\)</span>
-    </div>
-    <p>常数项为零，因为 seed 就是局部原点。坐标除以 \(r\) 后，条件数和阈值对统一缩放更稳定。每个顶点一次性 BFS 收集最大 ring，再对 <code>baseRings + scale</code> 的子邻域分别拟合。</p>
-
-    <h3>6.2 空间权重 + 确定性鲁棒重加权</h3>
-    <div class="formula">
-      <span class="label">(10)</span>
-      <span class="equation-line">\(\min_{\beta\in\mathbb R^9}\sum_i \omega_i^{space}\omega_i^{robust}(\mathbf x_i^\mathsf T\beta-w_i)^2\)</span>
-      <span class="equation-line">\(\omega_i^{space}=\exp[-\tfrac12(u_i^2+v_i^2)]\)</span>
-      <span class="equation-line">\(\sigma=1.4826\operatorname{median}(|r_i|),\quad c=1.5\sigma\)</span>
-      <span class="equation-line">\(\omega_i^{robust}=1\ (|r_i|\le c),\quad c/|r_i|\ (|r_i|>c)\)</span>
-      <div class="note">至少需要 9 个有效邻点；LDLT pivot spread 不足时直接返回零证据。设置 2 次 robust iterations，代码实际进行 3 次求解、2 次重加权。</div>
-    </div>
-
-    <h3>6.3 一、二基本形式给出主曲率与方向</h3>
-    <div class="formula">
-      <span class="label">(11)</span>
-      <span class="equation-line">\(I=\begin{bmatrix}1+d^2&amp;de\\de&amp;1+e^2\end{bmatrix}\)</span>
-      <span class="equation-line">\(II=\frac1{\sqrt{1+d^2+e^2}}\begin{bmatrix}2a&amp;b\\b&amp;2c\end{bmatrix}\)</span>
-      <span class="equation-line">\(II\,\mathbf t_i=\kappa_i I\,\mathbf t_i\)</span>
-    </div>
-    <p>广义自伴特征问题产生两条主方向和有符号主曲率。三阶项沿主方向的三次方向形式就是程序使用的 extremality：</p>
-    <div class="formula">
-      <span class="label">(12)</span>
-      <span class="equation-line">\(e_i=6(c_0t_1^3+c_1t_1^2t_2+c_2t_1t_2^2+c_3t_2^3)\)</span>
-      <div class="note">它近似 \(\nabla\kappa_i\cdot\mathbf t_i\)：曲率沿自己的主方向在 crest 上应发生极值，所以 extremality 应穿过零。</div>
-    </div>
-
-    <figure class="figure">
-      <svg viewBox="0 0 820 285" role="img" aria-labelledby="ridge-title ridge-desc">
-        <title id="ridge-title">Ridge 的曲率和 extremality 零交叉</title>
-        <desc id="ridge-desc">曲率在中心达到极大，方向导数在中心从正变负；恒曲率曲面没有稳定的非零两侧证据。</desc>
-        <line x1="58" y1="238" x2="780" y2="238" stroke="#73877a"/>
-        <line x1="410" y1="35" x2="410" y2="252" stroke="#a9b8aa" stroke-dasharray="5 5"/>
-        <path d="M72 218 C200 215 275 190 342 92 C372 49 397 38 410 38 C423 38 448 49 478 92 C545 190 620 215 748 218" fill="none" stroke="#207f4c" stroke-width="4"/>
-        <path d="M72 167 C180 154 275 112 365 70 C389 58 402 85 410 139 C418 193 431 220 455 208 C545 166 640 124 748 112" fill="none" stroke="#b34047" stroke-width="3"/>
-        <circle cx="410" cy="139" r="5" fill="#b34047"/>
-        <text x="86" y="54" fill="#207f4c" font-size="13">κ：crest 中心达到极大</text>
-        <text x="86" y="80" fill="#b34047" font-size="13">e = ∂κ/∂t：中心零交叉</text>
-        <text x="420" y="267" fill="#555" font-size="12">候选 ridge 所有权落在 |e| 更小的端点</text>
-      </svg>
-      <figcaption>“曲率大”本身不足以构成 ridge。程序还要求主曲率占优、extremality 跨边变号、双端一阶极大条件和 cyclideness 门。</figcaption>
-    </figure>
-
-    <h3>6.4 边零交叉不是简单的符号翻转</h3>
-    <p>对中心点与一个邻点，程序先同步主方向线场的正负，并把邻点 extremality 换算到中心尺度单位。随后要求：</p>
-    <div class="formula">
-      <span class="label">(13)</span>
-      <span class="equation-line">\(ridge:\ \kappa_{max}>|\kappa_{min}|,\qquad valley:\ \kappa_{min}<-|\kappa_{max}|\)</span>
-      <span class="equation-line">\(e_c e_n<0,\qquad |e_c|\le |e_n|\)</span>
-      <span class="equation-line">\(s\,e_c\,\Delta p^\mathsf T\mathbf t_c>0,\qquad s\,e_n\,(-\Delta p)^\mathsf T\mathbf t_n>0\)</span>
-      <span class="equation-line">\(\tfrac12(|e_c|+|e_n|)\ge0.15\kappa^2\)</span>
-      <div class="note">\(s=+1\) 表示 ridge，\(s=-1\) 表示 valley。最后一条无量纲门用来抑制 sphere、cylinder、cone、torus 这类 cyclide 上由离散误差制造的伪零交叉。</div>
-    </div>
-
-    <h3>6.5 单尺度分数与跨尺度稳定性</h3>
-    <div class="formula">
-      <span class="label">(14)</span>
-      <span class="equation-line">\(A=\operatorname{clamp}\frac{|\kappa-\kappa'|}{|\kappa|+|\kappa'|+0.025}\)</span>
-      <span class="equation-line">\(E=\operatorname{clamp}\frac{extremum}{|\kappa|+0.025},\qquad Q=\frac1{1+25\,fitResidual}\)</span>
-      <span class="equation-line">\(S=\min(|\kappa|,4)\sqrt{AE}\,Q\)</span>
-    </div>
-    <p>参考尺度默认取 raw score 最大者。启用 stable-scale 后，也不是“只取稳定性最高者”，而是：</p>
-    <div class="formula">
-      <span class="label">(15)</span>
-      <span class="equation-line">\(stability=supportRatio\cdot meanAlignment\cdot Q\)</span>
-      <span class="equation-line">\(objective=S_{ref}(0.5+0.5\,stability)\)</span>
-      <span class="equation-line">\(S_{persistent}=(0.65S_{ref}+0.35\overline S_{supported})\frac{K_{support}}K\,meanAlignment\)</span>
-    </div>
-    <p>所有尺度独立投票，不要求相邻尺度连续，也没有“最粗尺度一票否决”。这一点保证小尺度真实 ridge 不会仅因最粗邻域吞掉它而消失。</p>
-
-    <p class="source">完整实现：<a href="../../../src/feature_detection/SmoothCurvature.cpp"><code>src/feature_detection/SmoothCurvature.cpp</code></a>；解析曲面回归：<a href="../../../tests/unit/feature_detection/feature_detection_analytic_tests.cpp"><code>feature_detection_analytic_tests.cpp</code></a>。</p>
-  </section>
-
   <section id="edge-materialization">
     <h2><span class="num">7</span>顶点证据如何变成特征边</h2>
-    <p>程序的 evidence strategy 顺序是 boundary → dihedral → non-manifold → normal tensor → smooth curvature。弱策略看到当前边已经是任意强证据时直接返回；此外，只要任一端点属于 <code>discreteFeatureVertex</code>，弱边也会被拒绝。这相当于在强离散特征周围留出一个顶点宽的排除区。</p>
 
     <table>
       <thead><tr><th>证据</th><th>边接受条件</th><th>默认状态</th></tr></thead>
@@ -709,20 +617,11 @@ segmentPatchesIfEnabled()</code></pre>
         <tr><td>Non-manifold</td><td>incident face count &gt; 2</td><td>开启，强证据</td></tr>
         <tr><td>Dihedral</td><td>两面边，winding-aware angle ≥ <code>featureAngleDeg</code></td><td>40°，强证据</td></tr>
         <tr><td>Normal tensor</td><td>两端 persistence / score / crease dominance 达标，且至少一端切向对齐</td><td>开启，阈值 0.16</td></tr>
-        <tr><td>Smooth curvature</td><td>两端 persistence / score 达标，同 ridge/valley 符号，双端边对齐且切向一致</td><td>关闭，阈值 0.015</td></tr>
       </tbody>
     </table>
 
-    <div class="formula">
-      <span class="label">(16)</span>
-      <span class="equation-line">\(curvature\ edge:\ \min(|\mathbf d^\mathsf T\mathbf t_a|,|\mathbf d^\mathsf T\mathbf t_b|)\ge\alpha_C\)</span>
-      <span class="equation-line">\(|\mathbf t_a^\mathsf T\mathbf t_b|\ge\gamma,\quad kind_a=kind_b\ne0\)</span>
-      <div class="note">默认 \(\alpha_C=0.55\)，\(\gamma=0.65\)。它比 tensor 的“取两端最大 alignment”更严格。</div>
-    </div>
-
     <div class="callout">
       <div class="callout-title">来源计数不是互斥分区</div>
-      <p>同一条非强边可以同时带 <code>normalTensor=true</code> 和 <code>smoothCurvature=true</code>。因此 <code>normalTensorFeatureEdges + smoothCurvatureFeatureEdges</code> 可能大于弱特征唯一边数；component 的 weak evidence count 也按通道累加，不是 disjoint edge count。</p>
     </div>
 
     <h3>FeatureGraph 与 TraceGraph 的分工</h3>
@@ -741,7 +640,6 @@ segmentPatchesIfEnabled()</code></pre>
     <p>局部 evidence 往往会产生短刺、断口和紧邻 junction。程序先在同一 trace graph 内做 cleanup，再可选地跨 component consolidation；所有新增边都明确标为 recovery bridge，不会伪装成 raw evidence。</p>
 
     <h3>8.1 弱 spur 删除</h3>
-    <p>只有纯 normal-tensor / smooth-curvature、且不带 boundary / dihedral / non-manifold / recovery 支持的 degree-1 链可被删除。默认按边数删除不超过 2 条边的 spur。设置正的强度阈值后，改用 Yoshizawa-style 无量纲强度：</p>
     <div class="formula">
       <span class="label">(18)</span>
       <span class="equation-line">\(ds_e=\frac{|e|}{\tfrac12(\bar\ell_a+\bar\ell_b)}\)</span>
@@ -806,7 +704,6 @@ segmentPatchesIfEnabled()</code></pre>
     <ul>
       <li>两条已知 signed kinds 相反时拒绝。</li>
       <li>任一侧含强证据时，两侧必须共享至少一个 strong source：boundary、dihedral 或 non-manifold。</li>
-      <li>两侧都是弱证据时，normal tensor 与 smooth curvature 可以跨通道兼容。</li>
       <li>恢复边的属性保持 <code>cleanupBridge</code> 或 <code>consolidationBridge</code>，不增加 <code>featureEdges</code> 原始证据计数。</li>
     </ul>
 
@@ -920,7 +817,6 @@ segmentPatchesIfEnabled()</code></pre>
     <p>候选按 alignment 降序、索引确定性打破平局，每条 branch 最多进入一个 pair。未配对 branch 超过 1 条时标为 ambiguous。注意另一个公共类型 <code>VertexFeature::junction</code> 还用于下游保护共享 loop 顶点；它与严格的 <code>FeatureGraphVertex::junction</code> 语义不同。</p>
 
     <h3>10.3 Surface patch 是 barrier 上的 flood fill</h3>
-    <p>该阶段默认关闭。启用后，boundary / dihedral / non-manifold 总是 strong barriers；normal tensor / smooth curvature 是否作 barrier 由 <code>includeWeakEvidence</code> 决定。Face adjacency 只跨 incident face count=2 且不在 barrier set 的边，复杂度期望为 O(F+E)。</p>
     <div class="formula">
       <span class="label">(25)</span>
       <span class="equation-line">\(f_i\sim f_j\Longleftrightarrow f_i,f_j\text{ share a manifold edge }e\notin B_{feature}\)</span>
@@ -940,8 +836,6 @@ manumesh::feature::FeatureOptions options;
 options.featureAngleDeg = 35.0;
 options.normalTensorScaleCount = 3;
 options.normalTensorMinPersistentScales = 2;
-options.useSmoothCurvatureFeatures = true;
-options.smoothCurvatureScaleCount = 4;
 options.graphConsolidation.enabled = true;
 options.surfacePatches.enabled = true;
 
@@ -965,10 +859,6 @@ manumesh feature-report part.stl --feature-angle-deg 40 --csv feature-report.csv
 manumesh feature-report scan.obj --feature-normal-filter \
   --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2
 
-# 光滑 ridge / valley：显式打开 curvature 通道
-manumesh feature-report freeform.obj --smooth-curvature-features \
-  --smooth-curvature-scales 4 --smooth-curvature-min-persistent-scales 2 \
-  --smooth-curvature-stable-scale --feature-graph-consolidation
 
 # 观察由真实 feature mesh edges 诱导的 face partition
 manumesh feature-report part.stl --surface-patches --surface-patches-strong-only</code></pre>
@@ -998,7 +888,6 @@ manumesh feature-report part.stl --surface-patches --surface-patches-strong-only
       <thead><tr><th>测试族</th><th>覆盖的算法契约</th></tr></thead>
       <tbody>
         <tr><td>discrete / robustness</td><td>boundary、non-manifold、阈值、凸凹、&gt;90° knife edge、绕向、退化面、确定性</td></tr>
-        <tr><td>normal tensor / smooth curvature</td><td>平面抑制、scale invariance、persistence、Gaussian ridge、sphere/cylinder/torus 负例</td></tr>
         <tr><td>cleanup / pipeline upgrade</td><td>弱 spur、长弱线、compatible consolidation、相反 signed kind、junction branch pairs、patches</td></tr>
         <tr><td>loop / primitive fit</td><td>branched cycle、polygon cycle、Taubin 对 Kasa、旋转椭圆与非均匀采样</td></tr>
         <tr><td>fixture / benchmark</td><td>同轴/倾斜/偏心孔、ellipse/near-circle、boss/pocket、edge/junction/branch/patch labels</td></tr>
@@ -1017,7 +906,6 @@ manumesh feature-report part.stl --surface-patches --surface-patches-strong-only
         <tr><td>硬边</td><td>feature angle 40°；trace angle=-1</td><td>检测与 tracing 默认共用同一阈值。</td></tr>
         <tr><td>Loop</td><td>standalone min vertices=8</td><td>简化器自己的默认是 16；两条入口不要混用默认假设。</td></tr>
         <tr><td>Tensor</td><td>enabled；threshold 0.16；1 scale；min persistence 1</td><td>默认弱通道接近单尺度基线。</td></tr>
-        <tr><td>Curvature</td><td>disabled；threshold 0.015；2 base rings；3 scales；min persistence 2</td><td>光滑特征必须显式启用。</td></tr>
         <tr><td>Cleanup</td><td>enabled；gap 1.25；max weak spur 2</td><td>局部保守修复默认开启。</td></tr>
         <tr><td>增强</td><td>normal filter / consolidation / patches 全部 disabled</td><td>不会静默改变既有 CAD/STL 行为。</td></tr>
       </tbody>
@@ -1025,7 +913,6 @@ manumesh feature-report part.stl --surface-patches --surface-patches-strong-only
 
     <h3>12.2 从程序读出的主要失败模式</h3>
     <ul>
-      <li><strong>阈值依赖网格来源：</strong>二面角适合干净 CAD/STL 硬边，不能替代光滑 ridge/valley；smooth curvature 又不应默认覆盖离散硬边。</li>
       <li><strong>弱通道受采样方向影响：</strong>特征曲线若与 mesh edges 不对齐，顶点证据可能很强但边 gate 仍拒绝，图会碎裂。</li>
       <li><strong>Normal tensor 是累计平滑：</strong>尺度之间不是独立统计；过多尺度可能把窄特征稀释。</li>
       <li><strong>Local recovery 不是全局证明：</strong>endpoint、close junction、consolidation 都是一对一局部贪心；密集近邻曲线仍可能误连或漏连。</li>
@@ -1036,7 +923,6 @@ manumesh feature-report part.stl --surface-patches --surface-patches-strong-only
     <h3>12.3 当前源码中的注释与实现偏差</h3>
     <ol class="audit-list">
       <li><strong>Tensor tangent：</strong>注释写 middle eigendirection；代码使用最小特征值方向，后者才是本文采用的程序事实。</li>
-      <li><strong>Smooth fit：</strong>文件头仍写 five-coefficient quadric；实现是 9 unknown cubic Monge fit。</li>
       <li><strong>Options validation：</strong>头文件声称 constructor / setOptions 立即校验；实现延迟到 analyze。</li>
       <li><strong>Junction 语义：</strong>public comment 混入 shared-loop；实际 graph junction 严格是 active valence &gt; 2，shared 单独保存。</li>
       <li><strong>Normal report：</strong><code>preservedEdges</code> 是最终 indicator≤0.05 的计数，不严格等于 preserve-angle gate 命中数。</li>
@@ -1050,7 +936,6 @@ manumesh feature-report part.stl --surface-patches --surface-patches-strong-only
         <li>先确认输入拓扑与绕向诊断，再调 <code>featureAngleDeg</code>。</li>
         <li>分开看 evidence 与 traced edges，避免把“检测到”误认为“已有 loop ownership”。</li>
         <li>弱 crease 先调 tensor threshold / scale / persistence；轻噪声再打开 normal filter。</li>
-        <li>只有明确需要光滑 ridge/valley 时才打开 smooth curvature，并先观察 scored vertices、edge alignment 和 component fragmentation。</li>
         <li>最后再用 cleanup gap、strength 与 consolidation 修连续性；bridge 数上升必须与 benchmark / 可视化一起审查。</li>
       </ol>
     </div>
@@ -1059,7 +944,6 @@ manumesh feature-report part.stl --surface-patches --surface-patches-strong-only
     <div class="source-map">
       <div class="source-item"><strong>入口与契约</strong><a href="../../../include/algorithms/feature_detection/FeatureTypes.h"><code>FeatureTypes.h</code></a><br><a href="../../../src/feature_detection/FeatureDetector.cpp"><code>FeatureDetector.cpp</code></a></div>
       <div class="source-item"><strong>五类 evidence</strong><a href="../../../src/feature_detection/FeatureEvidence.cpp"><code>FeatureEvidence.cpp</code></a><br><a href="../../../src/common/MeshQueries.cpp"><code>MeshQueries.cpp</code></a></div>
-      <div class="source-item"><strong>弱特征数学</strong><a href="../../../src/feature_detection/NormalTensor.cpp"><code>NormalTensor.cpp</code></a><br><a href="../../../src/feature_detection/SmoothCurvature.cpp"><code>SmoothCurvature.cpp</code></a></div>
       <div class="source-item"><strong>图恢复</strong><a href="../../../src/feature_detection/FeatureGraphCleanup.cpp"><code>FeatureGraphCleanup.cpp</code></a><br><a href="../../../src/feature_detection/FeatureGraphConsolidation.cpp"><code>FeatureGraphConsolidation.cpp</code></a></div>
       <div class="source-item"><strong>Loop 与 primitive</strong><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp"><code>FeatureLoopRecovery.cpp</code></a><br><a href="../../../src/feature_detection/PrimitiveFit.cpp"><code>PrimitiveFit.cpp</code></a></div>
       <div class="source-item"><strong>验证</strong><a href="../../../tests/unit/feature_detection/"><code>tests/unit/feature_detection/</code></a><br><a href="../../../tests/data/feature_labels/"><code>tests/data/feature_labels/</code></a></div>

@@ -60,7 +60,7 @@ auto output = simplifier.simplify(input, &report);
 
 ### 2. CLI 兼容性
 
-CLI 的默认入口先使用 `--profile default|cad|scan|smooth` 构造 `FeatureOptions` 或
+CLI 的默认入口先使用 `--profile default|cad|scan|noisy-scan` 构造 `FeatureOptions` 或
 `SimplifyConfig`，再只应用命令行中显式提供的字段。这样 profile 与 SDK 使用相同的配置契约，
 同时仍允许高级用户精确覆盖任意公开阈值。`--print-resolved-config` 必须显示转换后的有效配置，
 不能只回显原始 token。
@@ -68,7 +68,7 @@ CLI 的默认入口先使用 `--profile default|cad|scan|smooth` 构造 `Feature
 profile/CLI 的检测默认采用 `FeatureOptions` 的 8 顶点环阈值；直接构造的旧平面
 `SimplifyOptions{}`、`SimplifyConfig{}` 和 C ABI 初始化继续保留 16，以避免 0.x SDK 的结果静默漂移。
 
-0.x 保持已有 CLI 语义：`--smooth-curvature-features`、`--feature-normal-filter` 和
+0.x 保持已有 CLI 语义：`--feature-normal-filter` 和
 `--feature-graph-consolidation` 会自动开启 `--preserve-feature-curves` 对应的简化保护；
 `--no-preserve-feature-curves` 是新的显式退出方式。单独给出这些通道的数值调节参数仍不新增
 硬错误，但 CLI 必须警告未启用通道的子参数、目标/误差单位冲突、失效的 line-quadric 权重和仅用于
@@ -123,7 +123,7 @@ v1 ABI 保持二进制兼容，不删除旧符号，也不改变已发布结构�
 
 1. 全局 ID 与 32 位 local index 的明确分工；
 2. edge-key 全局归并、vertex-star、边界/非流形和绕序 parity；
-3. halo-aware 法向、Normal Tensor、Smooth Curvature 和全局 FeatureGraph；
+3. halo-aware 法向、Normal Tensor 和全局 FeatureGraph；
 4. `reference-exact` 的全局协调 out-of-core QEM；
 5. 满足拓扑/几何/特征预算的 `bounded-valid` 并行 QEM。
 

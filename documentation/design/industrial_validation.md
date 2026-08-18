@@ -46,7 +46,6 @@ VS Code 中对应常用任务：
 | `surface_patches` / `closed_surface_patches` / `segmentation_ignored_recovery_edges` | feature-induced face partition 的规模、闭合 patch 数，以及因 bridge 不是原 mesh edge 而忽略的 barrier 数。 |
 | `mean_feature_component_confidence` / `min_feature_component_confidence` | component-level confidence，综合强/弱证据比例、闭合率、junction、primitive residual 和 tensor persistence；QEM 的特征曲线软成本会消费该置信度。 |
 | `mean_normal_tensor_local_scale` / `mean_normal_tensor_persistence` | normal-tensor 弱特征的局部尺度与多尺度 persistence 诊断，适合和 `feature-benchmark` 的 precision/recall 一起看。 |
-| `mean_smooth_curvature_scale_stability` | stable-scale 模式下参考尺度的一致性；低值提示证据对邻域尺度敏感。 |
 | `boundary_rejected_collapses` | 边界保护拒绝。 |
 | `quality_rejected_collapses` | 三角形质量过滤拒绝。 |
 | `normal_flip_rejected_collapses` | 法线偏转过滤拒绝。 |

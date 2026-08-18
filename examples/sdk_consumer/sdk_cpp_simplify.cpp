@@ -73,13 +73,5 @@ int main() {
         return 6;
     }
 
-    const manumesh::Mesh bump = manumesh::generateBumpGrid(24, 2.0);
-    const auto curvature = manumesh::feature::computeSmoothCurvatureFeatures(
-        bump, manumesh::feature::SmoothCurvatureOptions{2, 3, 2, 0.65}, 0.01
-    );
-    const bool hasPersistentFeature =
-        std::any_of(curvature.begin(), curvature.end(), [](const manumesh::feature::SmoothCurvatureVertex& vertex) {
-            return vertex.persistentScales >= 2 && vertex.persistentFeatureScore > 0.01;
-        });
-    return hasPersistentFeature ? 0 : 7;
+    return 0;
 }

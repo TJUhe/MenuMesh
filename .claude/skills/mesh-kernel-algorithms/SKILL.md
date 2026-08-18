@@ -12,15 +12,15 @@ description: ManuMesh 网格内核算法工程经验库——从 M001-M044 论�
 
 | 文件 | 覆盖内容 | 什么时候读 |
 | --- | --- | --- |
-| [references/feature-detection.md](references/feature-detection.md) | 曲率/曲率导数估计、二面角与 normal voting 硬证据、crest line 与多尺度弱特征、特征曲线网络、圆/椭圆拟合（Taubin/Halíř-Flusser）、性能模式 | 改 `src/feature_detection/**`、调特征阈值、加新证据通道 |
+| [references/feature-detection.md](references/feature-detection.md) | 二面角与 Normal Tensor 证据、特征曲线网络、圆/椭圆拟合（Taubin/Halíř-Flusser）、性能模式 | 改 `src/feature_detection/**`、调特征阈值、加新证据通道 |
 | [references/simplification-remeshing.md](references/simplification-remeshing.md) | placement 策略族（GH/Lindstrom-Turk/line quadrics）、link condition 与边界拓扑、误差度量量纲、队列效率、弱特征保护（CWF）、remeshing 对编辑层的约束 | 改 `src/simplification/**`、`src/mesh_edit/**`、设计新算子 |
 
 ## 全局工程原则（两份参考的公约数）
 
 1. **量纲一致性**：所有代价项统一到 length⁴（面积加权 QEM 的量纲）；所有阈值无量纲化
    （除以局部尺度的合适幂次），网格均匀缩放不得改变任何离散决策。
-2. **硬/弱证据分离**：离散不连续（boundary/non-manifold/dihedral）与微分事件（curvature）
-   走独立通道、独立阈值，只在显式图结构汇合；弱证据需要 consolidation + confidence 才能升级为约束。
+2. **硬/弱证据分离**：离散不连续（boundary/non-manifold/dihedral）与 Normal Tensor
+   弱证据走独立通道、独立阈值，只在显式图结构汇合；弱证据需要 consolidation + confidence 才能升级为约束。
 3. **拒绝规则优于代价惩罚**：拓扑合法性（link condition 含边界扩展）、翻转、自交、chart 归属
    是硬过滤器，不进代价函数；代价函数只负责排序。
 4. **确定性三件套**：unordered 容器出口处排序、比较器带字典序 tiebreak、浮点归约按固定序——

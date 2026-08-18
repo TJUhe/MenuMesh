@@ -44,7 +44,7 @@ stepped-shaft, pipe-coupling, pulley
 
 ## 当前测试覆盖
 
-本文成文时（2026-07-02）的历史快照显示 CTest 共 80 个；2026-07-15 复核为启用的非性能 CTest 共 267 个（快速套件 256 个 + external 大网格 11 个），另有 1 个 disabled 手工计时用例。当前使用 `ctest --preset vs2019-release-full -N` 枚举 Visual Studio 16 2019 / v142 Release 套件。新增覆盖包括 normal filter、stable scale、component consolidation、junction branches、surface patches 和扩展 benchmark；分层说明见 [`testing_strategy.md`](testing_strategy.md)。覆盖：
+本文成文时（2026-07-02）的历史快照显示 CTest 共 80 个；2026-07-15 复核为启用的非性能 CTest 共 267 个（快速套件 256 个 + external 大网格 11 个），另有 1 个 disabled 手工计时用例。当前使用 `ctest --preset vs2019-release-full -N` 枚举 Visual Studio 16 2019 / v142 Release 套件。新增覆盖包括 normal filter、component consolidation、junction branches、surface patches 和扩展 benchmark；分层说明见 [`testing_strategy.md`](testing_strategy.md)。覆盖：
 
 - CLI 基本行为和错误拒绝。
 - 示例程序构建/运行。

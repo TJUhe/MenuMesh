@@ -76,7 +76,7 @@ footer { padding: 22px 44px 34px; border-top: 1px solid var(--border); color: va
     <ol>
       <li><a href="#method">学习方法与完成标准</a></li>
       <li><a href="#setup">Debug 构建与 VS Code 启动</a></li>
-      <li><a href="#plan">10 个调试学习单元</a></li>
+      <li><a href="#plan">9 个调试学习单元</a></li>
       <li><a href="#breakpoints">固定断点和观察变量</a></li>
       <li><a href="#debugutil">debugUtil 开启与使用</a></li>
       <li><a href="#troubleshooting">常见问题</a></li>
@@ -124,7 +124,7 @@ cmake --build --preset vs2019-debug-tests --parallel</code></pre>
   </section>
 
   <section id="plan">
-    <h2>3. 10 个调试学习单元</h2>
+    <h2>3. 9 个调试学习单元</h2>
     <table>
       <thead><tr><th>单元</th><th>建议时间</th><th>主题</th><th>阶段结果</th></tr></thead>
       <tbody>
@@ -135,7 +135,6 @@ cmake --build --preset vs2019-debug-tests --parallel</code></pre>
         <tr><td>4</td><td>4 小时</td><td>chain / cycle / loop</td><td>理解五段 loop recovery</td></tr>
         <tr><td>5</td><td>2 小时</td><td>圆和椭圆 primitive</td><td>理解拟合、残差和分类</td></tr>
         <tr><td>6</td><td>3 小时</td><td>normal tensor</td><td>理解弱 crease、切向和 persistence</td></tr>
-        <tr><td>7</td><td>5-6 小时</td><td>smooth curvature</td><td>理解 Monge、主曲率、extremality 和多尺度</td></tr>
         <tr><td>8</td><td>3-4 小时</td><td>cleanup / consolidation / patch</td><td>理解图级工程恢复与分区</td></tr>
         <tr><td>9</td><td>3 小时</td><td>benchmark 与 QEM 消费</td><td>理解精度验证及下游保护</td></tr>
       </tbody>
@@ -216,19 +215,7 @@ cmake --build --preset vs2019-debug-tests --parallel</code></pre>
     </article>
 
     <article class="unit">
-      <h3>单元 7：smooth-curvature ridge / valley</h3>
-      <span class="test-name">FeatureDetection.SmoothCurvatureRejectsExactPlaneAndFindsSmoothBump</span>
-      <span class="test-name">FeatureDetection.SmoothCurvatureGraphRecoversLabeledGaussianRidge</span>
-      <span class="test-name">FeatureDetectionAnalytic.SphereAndCylinderProduceNoSmoothCurvatureFeatures</span>
-      <span class="test-name">FeatureDetectionAnalytic.TorusInnerSideProducesNoSmoothCurvatureFeatures</span>
-      <p><span class="status">学习目标</span>理解 k-ring、局部尺度归一化、三次 Monge patch、基本形式、主曲率、extremality 零交叉、cyclideness 和跨尺度投票。</p>
-      <p><span class="status">阅读顺序</span>先看 <code>computeSmoothCurvatureFeaturesCached</code> 总循环，再看 <code>fitScale</code>，最后看 <code>classifyScaleCandidate</code>；不要从文件第一行顺读。</p>
-      <p><span class="status">观察</span><code>ScaleEstimate</code>、<code>ScaleCandidate</code>、<code>selectedScale</code>、<code>persistentScales</code>、<code>signedKind</code>、<code>scaleStability</code>。</p>
-      <p><span class="status">完成标准</span>能解释为何“曲率大”不等于“存在 ridge/valley 特征线”，以及 sphere/cylinder/torus 为什么是重要负样本。</p>
-    </article>
-
-    <article class="unit">
-      <h3>单元 8：图级工程恢复与 surface patch</h3>
+      <h3>单元 7：图级工程恢复与 surface patch</h3>
       <span class="test-name">FeatureDetectionCleanup.StrengthFilterKeepsLongWeakLinesAndStrongBranches</span>
       <span class="test-name">FeatureDetectionUpgrade.ConsolidationBridgesOnlyCompatibleComponents</span>
       <span class="test-name">FeatureDetectionUpgrade.JunctionsExposeBranchContinuationPairs</span>
@@ -239,7 +226,7 @@ cmake --build --preset vs2019-debug-tests --parallel</code></pre>
     </article>
 
     <article class="unit">
-      <h3>单元 9：真值 benchmark 与 QEM 消费</h3>
+      <h3>单元 8：真值 benchmark 与 QEM 消费</h3>
       <span class="test-name">FeatureDetection.FixtureBenchmarkUsesCoaxialHoleGroundTruthLabels</span>
       <span class="test-name">ManuMesh.QEMSimplifierConsumesPrecomputedFeatureAnalysis</span>
       <span class="test-name">SimplificationAnalytic.DetectAndSimplifyPipelineIsByteStableAcrossRuns</span>
@@ -330,7 +317,6 @@ MANUMESH_DEBUG_UTIL_FEATURES("06_loops", mesh, context.analysis());</code></pre>
       <tbody>
         <tr><td><span class="swatch gray"></span>灰色</td><td><code>Mesh</code></td><td>基础线框</td></tr>
         <tr><td><span class="swatch blue"></span>蓝色</td><td><code>Boundary</code></td><td>开放边界</td></tr>
-        <tr><td><span class="swatch orange"></span>橙色</td><td><code>Feature</code></td><td>普通强特征；当前 smooth-curvature 也可能落入此色</td></tr>
         <tr><td><span class="swatch purple"></span>紫色</td><td><code>WeakFeature</code></td><td>normal-tensor-only 弱特征</td></tr>
         <tr><td><span class="swatch green"></span>绿色</td><td><code>FeatureLoop</code></td><td>恢复后的可见 loop</td></tr>
         <tr><td><span class="swatch cyan"></span>青色</td><td><code>Candidate</code></td><td>候选或 cleanup bridge</td></tr>
@@ -338,7 +324,6 @@ MANUMESH_DEBUG_UTIL_FEATURES("06_loops", mesh, context.analysis());</code></pre>
         <tr><td><span class="swatch red"></span>红色</td><td><code>Error / Rejected</code></td><td>非流形错误或被拒绝的候选</td></tr>
       </tbody>
     </table>
-    <div class="callout warn"><strong>不要只凭颜色判断 evidence source：</strong>当前 <code>useCaseForFeatureEdge()</code> 没有给 smooth-curvature 独立配色。需要同时检查 <code>FeatureGraphEdge::smoothCurvature</code>、<code>normalTensor</code> 和 <code>dihedral</code> 标志。</div>
 
     <h3>5.6 debugUtil 与 gtest 的职责边界</h3>
     <ul>
@@ -360,7 +345,6 @@ MANUMESH_DEBUG_UTIL_FEATURES("06_loops", mesh, context.analysis());</code></pre>
         <tr><td>一次打开很多页面</td><td><code>MANUMESH_DEBUG_UTIL_OPEN</code></td><td>设置为 <code>0</code></td></tr>
         <tr><td>输出 HTML 太大或卡顿</td><td>边数是否超过默认上限</td><td>调低 <code>MANUMESH_DEBUG_UTIL_MAX_EDGES</code> 或只画局部 overlay</td></tr>
         <tr><td>看到 feature edge 却没有 loop</td><td><code>loopTraceAngleDeg</code>、<code>untracedFeatureEdges</code></td><td>区分 evidence graph 与 active trace graph</td></tr>
-        <tr><td>smooth 顶点有分数但图中无边</td><td>端点 persistence、符号、切向和 edge alignment</td><td>在 <code>smoothCurvatureEdgeCandidate</code> 逐门检查</td></tr>
         <tr><td>cleanup 后图像仍显示被删除边</td><td><code>removedByCleanup</code> 标志</td><td>黄色表示公共诊断记录仍保留，不代表边仍在活动 TraceGraph</td></tr>
       </tbody>
     </table>
@@ -377,7 +361,6 @@ MANUMESH_DEBUG_UTIL_FEATURES("06_loops", mesh, context.analysis());</code></pre>
         <tr><td><a href="../../../src/feature_detection/FeatureGraph.cpp">FeatureGraph.cpp</a></td><td>公共图、TraceGraph、endpoint/junction/branch pair</td></tr>
         <tr><td><a href="../../../src/feature_detection/FeatureLoopRecovery.cpp">FeatureLoopRecovery.cpp</a></td><td>五段 loop recovery 调度</td></tr>
         <tr><td><a href="../../../src/feature_detection/NormalTensor.cpp">NormalTensor.cpp</a></td><td>normal tensor 多尺度评分</td></tr>
-        <tr><td><a href="../../../src/feature_detection/SmoothCurvature.cpp">SmoothCurvature.cpp</a></td><td>Monge、ridge/valley、persistence</td></tr>
         <tr><td><a href="../../../src/debugUtil/debugUtil.h">debugUtil.h</a></td><td>Debug-only 可视化宏和 UseCase</td></tr>
         <tr><td><a href="../../../src/debugUtil/debugUtil.cpp">debugUtil.cpp</a></td><td>HTML 生成、配色、输出路径和自动打开</td></tr>
         <tr><td><a href="../../guide/debug_util_usage.md">debug_util_usage.md</a></td><td>debugUtil 专项使用说明</td></tr>

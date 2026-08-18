@@ -55,6 +55,27 @@ function(expect_success_with_output expected_text)
   endif()
 endfunction()
 
+function(expect_success_without_output forbidden_text)
+  execute_process(
+    COMMAND "${MANUMESH_EXECUTABLE}" ${ARGN}
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE stdout
+    ERROR_VARIABLE stderr
+  )
+
+  if(NOT "${result}" STREQUAL "0")
+    message(FATAL_ERROR "Expected success for: ${ARGN}\nstdout:\n${stdout}\nstderr:\n${stderr}")
+  endif()
+
+  set(transcript "${stdout}\n${stderr}")
+  string(FIND "${transcript}" "${forbidden_text}" forbidden_index)
+  if(NOT forbidden_index EQUAL -1)
+    message(FATAL_ERROR
+      "Output contains removed contract text: ${forbidden_text}\n"
+      "command: ${ARGN}\nstdout:\n${stdout}\nstderr:\n${stderr}"
+    )
+  endif()
+endfunction()
 expect_failure(
   "ratio-sweep derives each target from --ratios"
   ratio-sweep "${INPUT_MESH}" "${OUTPUT_DIR}/ratio_conflict" --ratio 0.5
@@ -152,8 +173,8 @@ expect_failure(
   feature-report "${OUTPUT_DIR}/missing_profile_input.obj" --profile unsupported
 )
 expect_failure(
-  "smoothCurvatureScaleCount must be in"
-  feature-report "${OUTPUT_DIR}/missing_range_input.obj" --smooth-curvature-scales 0
+  "Unknown --profile"
+  feature-report "${INPUT_MESH}" --profile smooth
 )
 expect_failure(
   "Unknown --profile"
@@ -162,6 +183,10 @@ expect_failure(
 expect_failure(
   "Unknown --profile"
   feature-compare "${OUTPUT_DIR}/missing_profile_original.stl" "${OUTPUT_DIR}/missing_profile_simplified.stl" --profile unsupported
+)
+expect_success_without_output(
+  "--profile smooth"
+  --help
 )
 
 expect_success_with_output(

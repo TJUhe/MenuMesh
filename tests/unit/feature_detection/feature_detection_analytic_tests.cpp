@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_analytic_tests.cpp
- * @brief 在解析曲面上验证曲率特征、硬边恢复和尺度不变性。
+ * @brief 在解析曲面上验证硬边恢复和尺度不变性。
  * @ingroup manumesh_tests
  */
 
@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
 #include <utility>
 #include <vector>
 
@@ -30,34 +29,6 @@ namespace feature_detection {
 namespace {
 
 namespace analytic = manumesh::test::analytic;
-
-double maximumPersistentScore(const std::vector<feature::SmoothCurvatureVertex>& values) {
-    double maximum = 0.0;
-    for (const auto& value : values) {
-        maximum = std::max(maximum, value.persistentFeatureScore);
-    }
-    return maximum;
-}
-
-double median(std::vector<double> values) {
-    if (values.empty()) {
-        return 0.0;
-    }
-    const std::size_t middle = values.size() / 2;
-    std::nth_element(values.begin(), values.begin() + static_cast<std::ptrdiff_t>(middle), values.end());
-    return values[middle];
-}
-
-FeatureOptions smoothChannelOptions() {
-    FeatureOptions options = discreteOnlyOptions();
-    options.featureAngleDeg = 180.0;
-    options.loopTraceAngleDeg = 180.0;
-    options.useSmoothCurvatureFeatures = true;
-    options.smoothCurvatureFeatureThreshold = 0.008;
-    options.smoothCurvatureMinEdgeAlignment = 0.45;
-    options.smoothCurvatureMinTangentConsistency = 0.55;
-    return options;
-}
 
 FeatureOptions rimDetectionOptions(double circleFitRelativeThreshold = 0.05) {
     FeatureOptions options = discreteOnlyOptions();
@@ -101,85 +72,7 @@ std::vector<std::pair<int, int>> activeGraphEdges(const FeatureAnalysis& analysi
     return edges;
 }
 
-double crestPersistentRecall(
-    const std::vector<feature::SmoothCurvatureVertex>& values,
-    const std::vector<int>& crestVertices,
-    int minScales,
-    double threshold
-) {
-    if (crestVertices.empty()) {
-        return 0.0;
-    }
-    int detected = 0;
-    for (int vertex : crestVertices) {
-        const feature::SmoothCurvatureVertex& value = values[vertex];
-        if (value.persistentScales >= minScales && value.persistentFeatureScore > threshold) {
-            ++detected;
-        }
-    }
-    return static_cast<double>(detected) / static_cast<double>(crestVertices.size());
-}
-
 } // namespace
-
-TEST(FeatureDetectionAnalytic, SphereAndCylinderProduceNoSmoothCurvatureFeatures) {
-    const analytic::SphereFixture sphere = analytic::makeUvSphere(24, 48, 1.0);
-    const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 12, 1.0, 2.0, false);
-
-    const feature::SmoothCurvatureOptions curvatureOptions{2, 3, 2, 0.55};
-    const FeatureOptions graphOptions = smoothChannelOptions();
-    struct Case {
-        const char* name;
-        const Mesh* mesh;
-    };
-    const Case cases[] = {
-        {"sphere", &sphere.mesh},
-        {"cylinder", &cylinder.mesh},
-    };
-    for (const Case& item : cases) {
-        SCOPED_TRACE(item.name);
-        const auto values = feature::computeSmoothCurvatureFeatures(*item.mesh, curvatureOptions, 0.008);
-        EXPECT_LT(maximumPersistentScore(values), 8e-4);
-
-        const FeatureAnalysis analysis = feature::detectFeatureCurves(*item.mesh, graphOptions);
-        EXPECT_EQ(0, analysis.smoothCurvatureFeatureEdges);
-    }
-}
-
-TEST(FeatureDetectionAnalytic, TorusInnerSideProducesNoSmoothCurvatureFeatures) {
-    const analytic::TorusFixture torus = analytic::makeTorus(48, 24, 1.0, 0.3);
-    const feature::SmoothCurvatureOptions curvatureOptions{2, 3, 2, 0.55};
-    const auto values = feature::computeSmoothCurvatureFeatures(torus.mesh, curvatureOptions, 0.008);
-    EXPECT_LT(maximumPersistentScore(values), 8e-4);
-
-    const FeatureAnalysis analysis = feature::detectFeatureCurves(torus.mesh, smoothChannelOptions());
-    EXPECT_EQ(0, analysis.smoothCurvatureFeatureEdges);
-}
-
-TEST(FeatureDetectionAnalytic, GaussianRidgeCrestCurvatureMatchesAnalyticProfile) {
-    const analytic::GaussianRidgeSheetFixture ridge = analytic::makeGaussianRidgeSheet(48, 2.0, 0.35, 6.0);
-    const double crestCurvature = ridge.analyticCrestCurvature();
-    ASSERT_GT(crestCurvature, 0.0);
-
-    const auto values =
-        feature::computeSmoothCurvatureFeatures(ridge.mesh, feature::SmoothCurvatureOptions{2, 1, 0, 0.55}, 1e-6);
-
-    std::vector<double> relativeErrors;
-    std::vector<double> tangentAlignments;
-    for (int vertex : ridge.interiorCrestVertices()) {
-        const feature::SmoothCurvatureVertex& value = values[vertex];
-        if (value.signedKind == 0 || value.localScale <= 0.0) {
-            continue;
-        }
-        const double estimated = std::abs(value.principalCurvature) / value.localScale;
-        relativeErrors.push_back(std::abs(estimated - crestCurvature) / crestCurvature);
-        tangentAlignments.push_back(std::abs(value.curveTangent.dot(ridge.crestTangent())));
-    }
-
-    EXPECT_GT(static_cast<int>(relativeErrors.size()), static_cast<int>(ridge.interiorCrestVertices().size()) / 2);
-    EXPECT_LT(median(relativeErrors), 0.15);
-    EXPECT_GT(median(tangentAlignments), 0.9);
-}
 
 TEST(FeatureDetectionAnalytic, CappedCylinderRimsRecoverAsTwoExactCircles) {
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(64, 6, 1.0, 2.0, true);
@@ -260,42 +153,6 @@ TEST(FeatureDetectionAnalytic, NoisyCappedCylinderStillRecoversBothRimCircles) {
     }
 }
 
-//
-//   该实现需保持边界条件，并保证结果具有确定性。
-//   该实现需保持边界条件，并保证结果具有确定性。
-//   该实现需保持边界条件，并保证结果具有确定性。
-TEST(FeatureDetectionAnalytic, GradedDensityGaussianRidgeCrestSurvivesDensityTransition) {
-    const feature::SmoothCurvatureOptions options{2, 3, 2, 0.55};
-
-    const analytic::GradedGaussianRidgeSheetFixture ridge =
-        analytic::makeGradedGaussianRidgeSheet(48, 2.0, 0.50, 14.0, 3);
-    const auto values = feature::computeSmoothCurvatureFeatures(ridge.mesh, options, 0.008);
-    std::vector<int> crest;
-    for (int row = 1; row < ridge.rows; ++row) {
-        crest.push_back(ridge.vertexAt(row, ridge.crestColumn()));
-    }
-    const double gradedRecall = crestPersistentRecall(values, crest, 2, 0.008);
-
-    const analytic::GaussianRidgeSheetFixture uniform = analytic::makeGaussianRidgeSheet(64, 2.0, 0.50, 14.0);
-    const auto uniformValues = feature::computeSmoothCurvatureFeatures(uniform.mesh, options, 0.008);
-    const double uniformRecall = crestPersistentRecall(uniformValues, uniform.interiorCrestVertices(), 2, 0.008);
-
-    EXPECT_GT(uniformRecall, 0.90);
-    EXPECT_GE(gradedRecall, uniformRecall - 0.10);
-}
-
-//
-//   该实现需保持边界条件，并保证结果具有确定性。
-//   该实现需保持边界条件，并保证结果具有确定性。
-TEST(FeatureDetectionAnalytic, NarrowRidgeOnDenseSheetSurvivesCoarsestScale) {
-    const analytic::GaussianRidgeSheetFixture ridge = analytic::makeGaussianRidgeSheet(64, 2.0, 0.05, 400.0);
-    const feature::SmoothCurvatureOptions options{2, 5, 2, 0.55};
-    const auto values = feature::computeSmoothCurvatureFeatures(ridge.mesh, options, 0.008);
-
-    const double recall = crestPersistentRecall(values, ridge.interiorCrestVertices(), 2, 0.008);
-    EXPECT_GT(recall, 0.90);
-}
-
 TEST(FeatureDetectionAnalytic, FeatureEdgeSetIsExactlyScaleInvariant) {
     const analytic::ChamferBoxFixture box = analytic::makeChamferBox(2.0, 0.3, 6);
     const analytic::CylinderFixture cylinder = analytic::makeCylinder(48, 6, 1.0, 2.0, true);
@@ -304,7 +161,6 @@ TEST(FeatureDetectionAnalytic, FeatureEdgeSetIsExactlyScaleInvariant) {
     options.featureAngleDeg = 30.0;
     options.minFeatureLoopVertices = 12;
     options.useNormalTensorFeatures = true;
-    options.useSmoothCurvatureFeatures = true;
 
     const Mesh* meshes[] = {&box.mesh, &cylinder.mesh};
     const char* names[] = {"chamfer-box", "capped-cylinder"};

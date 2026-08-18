@@ -147,7 +147,7 @@ oneTBB 2021.12.0 后端，并行结果等价、C ABI、模块边界和安装后 
 
 | 模块/阶段 | 执行方式 | 约束 |
 | --- | --- | --- |
-| 特征检测：面面积、法向和独立逐顶点证据（normal filter、Normal Tensor、Smooth Curvature） | oneTBB 范围并行 | 每个任务只写自己的输出区间；邻接和只读缓存在任务开始前完成 |
+| 特征检测：面面积、法向和独立逐顶点证据（normal filter、Normal Tensor） | oneTBB 范围并行 | 每个任务只写自己的输出区间；邻接和只读缓存在任务开始前完成 |
 | 特征检测：edge incidence、诊断归约、FeatureGraph 排序、cleanup/consolidation、环恢复、patch segmentation | 确定性串行 | 保持输入顺序、稳定 tie-break 和固定浮点归约；分区切口不能被当作真实边界 |
 | QEM：面/顶点 quadric 初始化，独立边 placement/cost 求解 | oneTBB 范围并行 | 只读拓扑快照；结果按 edge ID 回填，priority queue 仍由单线程建立 |
 | QEM：候选失效、动态 edge-collapse、版本检查、拓扑提交、compaction | 协调串行 | 写集、邻接和全局候选顺序有共享可变状态，不能直接交给范围线程 |
@@ -198,7 +198,7 @@ binary STL -> PartitionedMeshDataset -> global IDs / owner-ghost / edge incidenc
 ```
 
 后续分区层使用 global vertex/edge/face ID 和 32 位 local index。owner 负责发布实体和属性，ghost 只读；
-边界、非流形和绕序只能在完整 edge incidence 全局归并后判定。法向、Normal Tensor 和 Smooth Curvature
+边界、非流形和绕序只能在完整 edge incidence 全局归并后判定。法向和 Normal Tensor
 可以按配置交换 halo 后局部计算，FeatureGraph 的 component/junction/loop/patch 和 QEM 的全局候选顺序
 仍需全局协调。详细数据模型、`reference-exact`/`bounded-valid` 合同、Thingi10K 实测和阶段路线见
 [`large_mesh_architecture_2026_08_18.md`](large_mesh_architecture_2026_08_18.md)。

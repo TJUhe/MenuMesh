@@ -369,7 +369,6 @@ TEST(ManuMesh, NormalTensorSoftChainCanTerminateAtHardBoundaryJunction) {
     options.normalTensorSmoothingIterations = 1;
     options.normalTensorScaleCount = 4;
     options.normalTensorMinPersistentScales = 2;
-    options.useSmoothCurvatureFeatures = false;
     options.cleanupFeatureGraph = false;
 
     const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, options);

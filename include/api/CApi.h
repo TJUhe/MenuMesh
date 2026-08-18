@@ -195,16 +195,7 @@ typedef struct ManuMeshFeatureOptions {
     int normal_tensor_smoothing_iterations;
     int normal_tensor_scale_count;
     int normal_tensor_min_persistent_scales;
-    int use_smooth_curvature_features;
-    double smooth_curvature_feature_threshold;
-    double smooth_curvature_min_edge_alignment;
-    double smooth_curvature_min_tangent_consistency;
-    int smooth_curvature_base_neighborhood_rings;
-    int smooth_curvature_scale_count;
-    int smooth_curvature_min_persistent_scales;
-    int smooth_curvature_robust_fit_iterations;
-    int smooth_curvature_use_stable_scale_selection;
-    double smooth_curvature_min_scale_stability;
+    unsigned char reserved_feature_evidence[60];
     int cleanup_feature_graph;
     double feature_graph_gap_length_ratio;
     int feature_graph_max_weak_spur_edges;
@@ -223,7 +214,8 @@ typedef struct ManuMeshFeatureOptions {
 /**
  * @brief 一条活动特征图无向边及其证据来源。
  *
- * `a` 和 `b` 是输入网格的零基顶点索引；来源标志可以同时为真。
+ * `a` 和 `b` 是输入网格的零基顶点索引；`boundary`、`dihedral` 和 `normal_tensor` 来源标志可以同时为真。
+ * `reserved_source` 仅用于保留 ABI-v1 偏移，始终为零且没有语义。
  * 端点顺序不保证升序；需要稳定键时由调用方规范化为 `(min(a,b), max(a,b))`。
  * `signed_kind` 大于零表示凸，小于零表示凹，零表示未知或无符号。
  * C ABI 输入没有独立的边数组或全局边编号，因此一条输入边由无向端点对唯一标识。
@@ -235,7 +227,7 @@ typedef struct ManuMeshFeatureEdge {
     int boundary;
     int dihedral;
     int normal_tensor;
-    int smooth_curvature;
+    int reserved_source;
     int non_manifold;
     int cleanup_bridge;
     int consolidation_bridge;
@@ -249,7 +241,7 @@ typedef struct ManuMeshFeatureEdge {
 /**
  * @brief 带稳定序号和几何约束语义的特征边 ABI-v2 数组元素。
  *
- * 前 11 个字段与 `ManuMeshFeatureEdge` 完全相同，但这是独立的固定步长结构，
+ * 前 11 个字段（含无语义的 `reserved_source`）与 `ManuMeshFeatureEdge` 完全相同，但这是独立的固定步长结构，
  * 调用方不得把两种数组相互转换。`feature_edge_index` 是 v2 结果按规范端点和
  * 来源排序后的零基序号；`input_edge_index` 是 `uniqueEdges` 语义下按 `(a,b)`
  * 字典序排列的输入网格边序号。
@@ -264,7 +256,7 @@ typedef struct ManuMeshFeatureEdgeV2 {
     int boundary;
     int dihedral;
     int normal_tensor;
-    int smooth_curvature;
+    int reserved_source;
     int non_manifold;
     int cleanup_bridge;
     int consolidation_bridge;
@@ -332,15 +324,8 @@ typedef struct ManuMeshSimplifyOptions {
     double feature_component_min_confidence;
     /** 简化后的可选固定拓扑质量改进轮次。 */
     int quality_refinement_iterations;
-    /** 可选的确定性平滑脊/谷证据。尾部扩展字段。 */
-    int use_smooth_curvature_features;
-    double smooth_curvature_feature_threshold;
-    double smooth_curvature_min_edge_alignment;
-    double smooth_curvature_min_tangent_consistency;
-    int smooth_curvature_base_neighborhood_rings;
-    int smooth_curvature_scale_count;
-    int smooth_curvature_min_persistent_scales;
-    int smooth_curvature_robust_fit_iterations;
+    /** 保留 ABI-v1 的无语义字段偏移槽位。 */
+    unsigned char reserved_feature_evidence[44];
     /** 积分弱 spur 强度阈值；零值保持按边数清理。 */
     double feature_graph_min_weak_spur_strength;
     /** 可选的含噪输入预处理和图恢复。尾部扩展字段。 */
@@ -349,8 +334,7 @@ typedef struct ManuMeshSimplifyOptions {
     double feature_normal_filter_angle_sigma_deg;
     double feature_normal_filter_preserve_angle_deg;
     double feature_normal_filter_relaxation;
-    int smooth_curvature_use_stable_scale_selection;
-    double smooth_curvature_min_scale_stability;
+    unsigned char reserved_scale_selection[16];
     int consolidate_feature_graph;
     double feature_graph_consolidation_gap_length_ratio;
     double feature_graph_consolidation_min_alignment;
@@ -428,12 +412,8 @@ typedef struct ManuMeshSimplifyReport {
     int quality_refinement_accepted_moves;
     /** 被容忍为退化的输入面（面积为零或顶点重复）。追加在尾部以保持旧字段偏移。 */
     int degenerate_input_faces;
-    /** 平滑曲率和特征恢复诊断。尾部扩展字段。 */
-    int smooth_curvature_feature_edges;
-    int smooth_curvature_scored_vertices;
-    double max_smooth_curvature_persistent_score;
-    double mean_smooth_curvature_local_scale;
-    double mean_smooth_curvature_persistence;
+    /** 保留 ABI-v1 的无语义诊断字段偏移槽位。 */
+    unsigned char reserved_feature_diagnostics[32];
     int inconsistent_winding_edges;
     int graph_cleanup_skipped_by_cap;
     int circular_recovery_truncated;
@@ -444,7 +424,7 @@ typedef struct ManuMeshSimplifyReport {
     double mean_feature_normal_filter_angular_change_deg;
     double max_feature_normal_filter_angular_change_deg;
     double mean_feature_normal_filter_edge_indicator;
-    double mean_smooth_curvature_scale_stability;
+    unsigned char reserved_scale_diagnostic[8];
     int graph_consolidation_bridges;
     int graph_consolidation_skipped_by_cap;
     int junction_branch_pairs;

@@ -224,9 +224,6 @@ bool addRecoveredCycle(
         if (attrs->normalTensor) {
             ++stats.normalTensorEdges;
         }
-        if (attrs->smoothCurvature) {
-            ++stats.smoothCurvatureEdges;
-        }
         if (attrs->nonManifold) {
             ++stats.nonManifoldEdges;
         }

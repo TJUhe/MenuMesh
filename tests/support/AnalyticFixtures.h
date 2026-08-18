@@ -114,52 +114,6 @@ struct ChamferBoxFixture {
 };
 ChamferBoxFixture makeChamferBox(double size, double chamfer, int divisions);
 
-/// 在 [-size/2, size/2]^2 上构造开口曲面 z = height * exp(-sharpness * x^2)，
-/// y 轴方向有一条平滑脊线。脊顶处的剖面曲率为 f''(0) = -2 * height * sharpness，
-/// 因此穿过脊线的主曲率幅值由 analyticCrestCurvature() 给出，脊线切向为 y 轴。
-struct GaussianRidgeSheetFixture {
-    Mesh mesh;
-    int subdivisions = 0;
-    double size = 2.0;
-    double height = 0.25;
-    double sharpness = 8.0;
-
-    /// 位于脊线 x == 0 上、排除两条边界行的顶点。
-    std::vector<int> interiorCrestVertices() const;
-    /// |f''(0)| = 2 * height * sharpness（f'(0) = 0，因此这是脊顶处横跨脊线的精确
-    /// 主曲率幅值）。
-    double analyticCrestCurvature() const;
-    Vec3 crestTangent() const { return Vec3(0.0, 1.0, 0.0); }
-};
-GaussianRidgeSheetFixture makeGaussianRidgeSheet(int subdivisions, double size, double height, double sharpness);
-
-/// 与 GaussianRidgeSheetFixture 具有相同解析剖面（z = h * exp(-s * x^2)，脊线沿 y 轴、
-/// 位于 x = 0），但列密度分级：x < 0 一侧的列密度是 x > 0 一侧的 `densityRatio` 倍，
-/// 且有一列恰好位于脊线 x = 0。这样脊线位于密度过渡带中：每个顶点的拟合半径（相邻
-/// 边长平均值）在每条穿过脊线的边的两端最多相差 `densityRatio` 倍，正是跨顶点极值
-/// 比较必须进行单位换算的配置。
-struct GradedGaussianRidgeSheetFixture {
-    Mesh mesh;
-    int fineColumns = 0;   ///< 覆盖 x ∈ [-size/2, 0] 的列间隔数。
-    int coarseColumns = 0; ///< 覆盖 x ∈ [0, size/2] 的列间隔数。
-    int rows = 0;          ///< 覆盖 y ∈ [-size/2, size/2] 的行间隔数。
-    double size = 2.0;
-    double height = 0.25;
-    double sharpness = 8.0;
-
-    double fineSpacing() const { return 0.5 * size / fineColumns; }
-    double coarseSpacing() const { return 0.5 * size / coarseColumns; }
-    /// 返回行主序布局中 (row, col) 对应的顶点索引。
-    int vertexAt(int row, int col) const { return row * (fineColumns + coarseColumns + 1) + col; }
-    /// 返回 x = 0 的脊线列索引。
-    int crestColumn() const { return fineColumns; }
-    /// |f''(0)| = 2 * height * sharpness。
-    double analyticCrestCurvature() const { return 2.0 * height * sharpness; }
-    Vec3 crestTangent() const { return Vec3(0.0, 1.0, 0.0); }
-};
-GradedGaussianRidgeSheetFixture
-makeGradedGaussianRidgeSheet(int fineColumns, double size, double height, double sharpness, int densityRatio);
-
 /// 返回网格副本：每个顶点都由固定种子的 64 位 LCG 生成的可复现伪随机偏移
 /// （范围 [-amplitude, amplitude]^3）扰动。不使用 std::random_device 或时间；相同的
 /// (mesh, amplitude, seed) 三元组始终产生逐位相同的结果。

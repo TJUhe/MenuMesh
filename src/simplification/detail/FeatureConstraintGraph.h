@@ -32,7 +32,6 @@ struct FeatureConstraintEdge {
     bool boundary = false;
     bool dihedral = false;
     bool normalTensor = false;
-    bool smoothCurvature = false;
     bool nonManifold = false;
     bool cleanupBridge = false;
     bool consolidationBridge = false;

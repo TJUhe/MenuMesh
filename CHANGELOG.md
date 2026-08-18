@@ -70,7 +70,7 @@
 - 移除依赖完整 Visual Studio 2019 安装的固定任务和重复的自定义 MSVC 任务；统一的 `msvc selected` 任务可在执行时选择 v143（MSVC 2022）或 v142（MSVC 2019），并使用隔离构建目录。
 - MinGW configure 任务显式设置 `CMAKE_MAKE_PROGRAM=ninja`，可覆盖旧构建缓存中指向已删除 `thirdParty/packages` 工具目录的 Ninja 路径，不新增第三方文件。
 - `.vscode/launch.json` 收敛为 6 个 MinGW/MSVC 调试入口；MSVC 程序路径随 v143/v142 选择切换。
-- MSVC Debug 为 `PrimitiveFit.cpp` 和 `SmoothCurvature.cpp` 启用 `/bigobj`，修复特征检测对象库超过 COFF 节数限制的 `C1128`。
+- MSVC Debug 为 `PrimitiveFit.cpp` 启用 `/bigobj`，修复特征检测对象库超过 COFF 节数限制的 `C1128`。
 - MSVC 任务使用仓库已有的 GoogleTest 源码在构建目录中生成测试库，避免预编译 Debug 库缺失 PDB 导致的 `LNK4099`，不向 `thirdParty` 新增文件。
 - 本机使用 VS2022 generator + v142 实际通过普通/性能 configure、Debug/Release build、Debug/Release CTest 与两个 MSVC launch 默认入口；非性能测试均为 267/267，性能测试均为 4/4。
 - `feature-benchmark` 识别现有标签 fixture 的 `a,b` 表头，不再把合法表头报告为无法解析的标签行；CLI CTest 增加对应防回归检查。
@@ -83,8 +83,7 @@
 ### 特征识别系统增强
 
 - 新增 opt-in 法线域特征保持过滤：只稳定检测缓存中的面法向，不改输入顶点或拓扑；输出迭代数、变化面、保留边、角度变化和 edge-indicator 诊断。
-- smooth-curvature 新增稳定尺度选择与 `selectedScale` / `scaleStability` 诊断，保留旧 peak-score 路径作为默认行为。
-- graph cleanup 的 endpoint/close-junction bridge 统一使用方向、evidence source 和 ridge/valley 符号兼容规则；新增 opt-in component consolidation，恢复不同弱 component 之间的兼容短缺口。
+- graph cleanup 的 endpoint/close-junction bridge 统一使用方向、evidence source 和 signed-kind 兼容规则；新增 opt-in component consolidation，恢复不同弱 component 之间的兼容短缺口。
 - junction 现在保存逐分支切向和 continuation pair，并报告 ambiguous junction；continuation 只接受从 junction 向相反方向延续的分支，不把同侧近平行分支误配。
 - 新增 feature-induced surface patch segmentation，输出 `facePatchIds`、patch 和 patch adjacency；非 mesh-edge recovery bridge 不作为分区 barrier。
 - benchmark 从 edge/junction 扩展到 branch pair 和 face-patch adjacency；标签支持 `edge`、`junction`、`branch`、`face_patch` 四类记录，缺失 patch prediction 计为错误。
@@ -92,9 +91,8 @@
 
 ### 特征识别文档源码校准
 
-- 按当前 `src/feature_detection/` 逐函数复核特征识别文档，修正 smooth-curvature persistence 的旧描述：实现按最佳尺度统计所有请求尺度的支持票数，不要求支持尺度相邻，也不要求最粗尺度必须支持。
 - 扩写 `manumesh-feature-recognition-pipeline.html`、`manumesh-loop-construction.html` 和交付开发者指南；本轮进一步校准为 9 阶段 pipeline，并补入法线预处理、component consolidation、junction branch pairing、patch segmentation 与扩展 benchmark。
-- 修正公共 `FeatureOptions` 与 CLI 帮助中的文档语义：`minFeatureLoopVertices` 是 recovered-cycle/primitive-fit 门槛，普通 traced chain 仍会报告；weak spur cleanup 同时覆盖 normal-tensor 与 smooth-curvature 证据。
+- 修正公共 `FeatureOptions` 与 CLI 帮助中的文档语义：`minFeatureLoopVertices` 是 recovered-cycle/primitive-fit 门槛，普通 traced chain 仍会报告；weak spur cleanup 覆盖 normal-tensor 证据。
 
 ### 拓扑与算法
 
@@ -170,13 +168,12 @@
 ### 测试体系重构
 
 - 新增解析真值 fixture 库 `tests/support/AnalyticFixtures.{h,cpp}`：
-  `makeUvSphere` / `makeCylinder`（可带盖）/ `makeTorus` / `makeChamferBox` /
-  `makeGaussianRidgeSheet`，全部携带解析曲率、真值特征边、真值圆访问器；
+  `makeUvSphere` / `makeCylinder`（可带盖）/ `makeTorus` / `makeChamferBox`，
+  携带解析几何、真值特征边和真值圆访问器；
   `withDeterministicNoise` 用 Knuth MMIX 线性同余发生器加有界扰动，同一 seed
   跨平台可复现。设计理念是"断言界由被测几何的闭式解推导，而不是抄录历史输出"。
-- 新增测试文件：`feature_detection_analytic_tests.cpp`（8 个，含 Dupin cyclide
-  光滑曲率精确沉默、高斯脊 crest 曲率界、倒角盒硬边 precision/recall 与 junction
-  precision）、`simplification_analytic_tests.cpp`（5 个：球弦高误差界、柱面 rim 圆
+- 新增测试文件：`feature_detection_analytic_tests.cpp`（含圆柱 rim 圆恢复、倒角盒硬边
+  precision/recall 与 junction precision）、`simplification_analytic_tests.cpp`（5 个：球弦高误差界、柱面 rim 圆
   1e-6 保真、带 UV 圆柱解析参数化偏差界、环面双向 Hausdorff、detect+simplify
   字节级确定性）、`tests/unit/perf/pipeline_perf_guard_tests.cpp`（2 个墙钟性能
   护栏，注释含机器基准与 3×/10× 上限设计依据）。
@@ -197,12 +194,6 @@
 
 ### 算法修复：解析测试暴露的两个缺陷
 
-- 环面内侧伪 valley：`SmoothCurvature.cpp` 增加 Yoshizawa M021 Eq.5-6
-  cyclideness 门控——零交叉处插值 cyclideness `0.5(|e_center|+|e_neighbor|)`
-  必须 ≥ `kMinCrossingCyclidenessRatio·κ²`（阈值 0.15，无量纲、均匀缩放不变）。
-  Dupin cyclide（球/柱/锥/环面）上 extremality 恒为零，符号变化只是离散化噪声。
-  真 crest 比值 p10 ≥ 0.38、环面伪交叉最大 0.06（阈值两侧各留约 2.5 倍裕量）；
-  环面 24-48 段 max persistent 从 0.097 降到 0.0，高斯脊响应逐位不变。
 - 圆恢复编造圆 + junction 洪泛：`FeatureCircularRecovery.cpp` 三点圆种子从
   O(n³) 顶点三元组盲扫改为 trace 图长度-2 路径（O(Σdeg²)），并增加证据连通性
   门控（相邻候选对无特征边支撑的角跨度累计 ≤ 整圈 25%，纯几何共圆不算证据）；
@@ -256,11 +247,6 @@
   二阶矩轴长升级为 Halíř-Flusser 数值稳定的直接最小二乘拟合（Fitzgibbon 约束
   `4ac - b^2 = 1`，3x3 缩减系统，保证输出为椭圆，轴向来自 conic 而非 PCA）
   （`src/feature_detection/PrimitiveFit.cpp`）。
-- 光滑曲率路径升级为三次 Monge patch 拟合（9 系数：二次块给主曲率，三次块给
-  曲率导数），逐顶点解析求出 extremality `e_i = grad(kappa_i) . t_i`；边证据判据
-  从"邻居法曲率对比"替换为 Ohtake 边零交叉极值判据（主方向与 extremality 符号
-  同步翻转后检测符号变化，含 ridge/valley 支配性测试与子顶点反比插值归属）
-  （`src/feature_detection/SmoothCurvature.cpp`）。
 - 弱毛刺清理增加 Yoshizawa 组件级无量纲强度过滤：新增
   `FeatureOptions::featureGraphMinWeakSpurStrength`（默认 0.0 = 完全保留旧的
   按边数剪枝行为）；为正时按曲线强度 `T = (∫ds) * (∫strength ds)`（ds 以局部
@@ -354,17 +340,6 @@
 - 增加矩阵维度、标量权重、UV 尺度不变性、接缝兼容性、UV 退化、OBJ 面角所有权、
   输出传播以及禁用保护时精确保持旧几何结果的专项测试。
 
-### 确定性光滑特征检测
-
-- 增加可选的多尺度光滑 ridge/valley 证据，基于稳健局部 quadric 拟合、广义主曲率估计、
-  有符号方向极值、切向一致性和尺度 persistence。
-- 在 `FeatureGraph`、组件置信度、清理、诊断、CSV 输出和特征 CLI 的整个流程中，保持
-  smooth-curvature 边与 boundary、dihedral、non-manifold 及 normal-tensor 证据相互独立。
-- 增加精确平面拒绝、光滑特征响应、尺度不变性、persistence 过滤、图所有权和无效选项
-  的专项测试。
-- 增加 2017-2025 年确定性文献笔记，以及对 OpenMesh、CGAL PMP、pmp-library、libigl
-  和 geometry-central 的源码级映射。AI 和学习式特征评分明确不属于当前实现范围。
-
 ### 可复用网格编辑基础层
 
 - 新增内部 `mesh_edit` 层，将活动面、增量 vertex-face incidence、邻接/重复面查询和
@@ -406,7 +381,7 @@
 
 - 新增 `docs/papers/remeshing/`，归档局部参数化、split/collapse/flip/smooth、
   metric-dependent Voronoi、自适应实时和 field-aligned 表面重网格化论文 M037-M041。
-- 为 `feature_detection/` 补充光滑特征线、polygonal-surface ridge/ravine 和 quadric
+- 为 `feature_detection/` 补充 surface feature line、polygonal-surface ridge/ravine 和 quadric
   surface fitting 特征曲线网络论文 M042-M044。
 - 新增 2026-07-11 OpenAlex 补充索引、公开下载来源与 SHA-256 记录，以及 OpenMesh、CGAL、
   pmp-library、libigl、geometry-central、Geogram、VCGlib、MMG 和 Instant Meshes 的表面网格

@@ -62,7 +62,6 @@ int runCApiCycle() {
     ManuMeshFeatureOptions featureOptions;
     manumesh_feature_options_init(&featureOptions);
     featureOptions.use_normal_tensor_features = 0;
-    featureOptions.use_smooth_curvature_features = 0;
     featureOptions.cleanup_feature_graph = 0;
     featureOptions.graph_consolidation_enabled = 0;
 
@@ -157,7 +156,6 @@ int runCppOwnershipCycle() {
 
     manumesh::feature::FeatureOptions featureOptions;
     featureOptions.useNormalTensorFeatures = false;
-    featureOptions.useSmoothCurvatureFeatures = false;
     featureOptions.cleanupFeatureGraph = false;
     featureOptions.graphConsolidation.enabled = false;
 

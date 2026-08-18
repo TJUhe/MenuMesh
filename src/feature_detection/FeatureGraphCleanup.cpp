@@ -78,7 +78,7 @@ bool isWeakCleanupSpurEdge(const TraceGraph& trace, int a, int b) {
     if (attrs == nullptr) {
         return false;
     }
-    return (attrs->normalTensor || attrs->smoothCurvature) && !attrs->boundary && !attrs->dihedral &&
+    return attrs->normalTensor && !attrs->boundary && !attrs->dihedral &&
            !attrs->nonManifold && !attrs->cleanupBridge;
 }
 
@@ -135,7 +135,6 @@ double weakSpurStrength(
     double fallbackScale
 ) {
     const double tensorThreshold = std::max(1e-12, options.normalTensorFeatureThreshold);
-    const double curvatureThreshold = std::max(1e-12, options.smoothCurvatureFeatureThreshold);
     double lengthSum = 0.0;
     double strengthSum = 0.0;
     for (const auto& pairEntry : path) {
@@ -152,8 +151,7 @@ double weakSpurStrength(
         const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
         double strength = 0.0;
         if (attrs != nullptr) {
-            strength =
-                std::max(attrs->tensorPersistence / tensorThreshold, attrs->curvaturePersistence / curvatureThreshold);
+            strength = attrs->tensorPersistence / tensorThreshold;
         }
         lengthSum += lengthNorm;
         strengthSum += strength * lengthNorm;
@@ -503,10 +501,7 @@ double computeConfidence(const FeatureComponent& component, const FeatureOptions
     const double tensorScore = manumesh::clampValue(
         component.meanTensorPersistence / std::max(1e-12, options.normalTensorFeatureThreshold), 0.0, 1.0
     );
-    const double curvatureScore = manumesh::clampValue(
-        component.meanCurvaturePersistence / std::max(1e-12, options.smoothCurvatureFeatureThreshold), 0.0, 1.0
-    );
-    const double weakSupportScore = std::max(tensorScore, curvatureScore);
+    const double weakSupportScore = tensorScore;
     const double evidenceScore = std::max(component.strongEvidenceRatio, 0.80 * weakSupportScore);
     const double residualScore =
         hasPrimitiveResidual ? manumesh::clampValue(1.0 - component.meanPrimitiveResidual / 0.12, 0.0, 1.0) : 0.5;
@@ -598,7 +593,6 @@ void summarizeFeatureComponents(
         FeatureComponent component;
         component.id = static_cast<int>(analysis.components.size());
         double tensorPersistenceSum = 0.0;
-        double curvaturePersistenceSum = 0.0;
         std::queue<int> queue;
         queue.push(seed);
         visited[seed] = 1;
@@ -626,10 +620,6 @@ void summarizeFeatureComponents(
                             ++component.normalTensorEdges;
                             tensorPersistenceSum += attrs->tensorPersistence;
                         }
-                        if (attrs->smoothCurvature) {
-                            ++component.smoothCurvatureEdges;
-                            curvaturePersistenceSum += attrs->curvaturePersistence;
-                        }
                         if (attrs->nonManifold)
                             ++component.nonManifoldEdges;
                         if (attrs->cleanupBridge)
@@ -646,8 +636,8 @@ void summarizeFeatureComponents(
         }
 
         component.strongEvidenceEdges = component.boundaryEdges + component.dihedralEdges + component.nonManifoldEdges;
-        component.weakEvidenceEdges = component.normalTensorEdges + component.smoothCurvatureEdges +
-                                      component.cleanupBridgeEdges + component.consolidationBridgeEdges;
+        component.weakEvidenceEdges = component.normalTensorEdges + component.cleanupBridgeEdges +
+                                      component.consolidationBridgeEdges;
         component.cycleRank = component.edgeCount - static_cast<int>(component.vertices.size()) + 1;
         component.closed = component.endpointVertices == 0 && component.edgeCount > 0 && component.cycleRank >= 0;
         component.closureRate = computeClosureRate(component.endpointVertices, component.cycleRank);
@@ -657,10 +647,6 @@ void summarizeFeatureComponents(
         component.meanTensorPersistence = component.normalTensorEdges > 0
                                               ? tensorPersistenceSum / static_cast<double>(component.normalTensorEdges)
                                               : 0.0;
-        component.meanCurvaturePersistence =
-            component.smoothCurvatureEdges > 0
-                ? curvaturePersistenceSum / static_cast<double>(component.smoothCurvatureEdges)
-                : 0.0;
         analysis.components.push_back(std::move(component));
     }
 

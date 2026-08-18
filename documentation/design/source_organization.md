@@ -95,9 +95,8 @@ src/mesh_edit/detail/DynamicTopology.h        动态拓扑私有接口
 
 ```text
 src/feature_detection/FeatureDetector.cpp          FeatureDetector pimpl、公开入口、参数/输入校验和九阶段 pipeline 编排
-src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor/smooth-curvature 边证据策略组合；复用 common 绕向感知二面角并汇总 inconsistentWindingEdges
+src/feature_detection/FeatureEvidence.cpp          boundary/dihedral/non-manifold/normal-tensor 边证据策略组合；复用 common 绕向感知二面角并汇总 inconsistentWindingEdges
 src/feature_detection/FeatureNormalFilter.cpp      opt-in 面法向域稳定；不修改顶点/拓扑，输出过滤诊断
-src/feature_detection/SmoothCurvature.cpp          opt-in 确定性光滑曲率证据：多尺度鲁棒三次 Monge 拟合、带符号主曲率、解析 extremality 和 Ohtake 边零交叉判据
 src/feature_detection/FeatureGraph.cpp             FeatureGraph 初始化、trace graph、junction branches/continuation pairing 和 shared 标记
 src/feature_detection/FeatureGraphCompatibility.cpp cleanup/consolidation 共用的方向、source 和 signed-kind 兼容规则
 src/feature_detection/FeatureGraphCleanup.cpp      gap 桥接、弱毛刺剪除（含 Yoshizawa 组件强度过滤）和近 junction 合并

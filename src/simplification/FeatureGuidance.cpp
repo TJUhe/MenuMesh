@@ -384,8 +384,6 @@ void applyFeatureAnalysisReport(
     report.untracedFeatureEdges = analysis.untracedFeatureEdges;
     report.normalTensorFeatureEdges = analysis.normalTensorFeatureEdges;
     report.normalTensorScoredVertices = analysis.normalTensorScoredVertices;
-    report.smoothCurvatureFeatureEdges = analysis.smoothCurvatureFeatureEdges;
-    report.smoothCurvatureScoredVertices = analysis.smoothCurvatureScoredVertices;
     report.featureComponents = static_cast<int>(analysis.components.size());
     report.weakFeatureComponents = analysis.weakFeatureComponents;
     report.highConfidenceFeatureComponents = analysis.highConfidenceFeatureComponents;
@@ -395,10 +393,6 @@ void applyFeatureAnalysisReport(
     report.maxNormalTensorPersistentScore = analysis.maxNormalTensorPersistentScore;
     report.meanNormalTensorLocalScale = analysis.meanNormalTensorLocalScale;
     report.meanNormalTensorPersistence = analysis.meanNormalTensorPersistence;
-    report.maxSmoothCurvaturePersistentScore = analysis.maxSmoothCurvaturePersistentScore;
-    report.meanSmoothCurvatureLocalScale = analysis.meanSmoothCurvatureLocalScale;
-    report.meanSmoothCurvaturePersistence = analysis.meanSmoothCurvaturePersistence;
-    report.meanSmoothCurvatureScaleStability = analysis.meanSmoothCurvatureScaleStability;
     report.meanFeatureComponentConfidence = analysis.meanFeatureComponentConfidence;
     report.minFeatureComponentConfidence = analysis.minFeatureComponentConfidence;
     report.inconsistentWindingEdges = analysis.inconsistentWindingEdges;

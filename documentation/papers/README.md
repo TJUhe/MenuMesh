@@ -46,7 +46,7 @@ M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照�
 | M008 | PC2WF: 3D Wireframe Reconstruction from Raw Point Clouds (OpenAlex citations: 3) | `feature_detection/liu_2021_pc2wf_wireframe_reconstruction_raw_point_clouds.pdf` | `10.48550/arxiv.2103.02766` | 原始点云到线框重建参考，用于 feature graph 目标设计。 |
 | M009 | Multi-Scale Creases Detection on Noisy Meshes (OpenAlex citations: 1) | `feature_detection/luo_zha_2008_multiscale_creases_detection_noisy_meshes.pdf` | `10.1109/ICIP.2008.4712166` | 噪声网格多尺度 crease 检测参考。 |
 | M010 | DEF: Deep Estimation of Sharp Geometric Features in 3D Shapes (OpenAlex citations: 41) | `feature_detection/matveev_2022_def_deep_estimation_sharp_geometric_features.pdf` | `10.1145/3528223.3530140` | 尖锐几何特征估计和基准参考，当前不作为核心依赖。 |
-| M011 | Ridge-Valley Lines on Meshes via Implicit Surface Fitting (OpenAlex citations: 382) | `feature_detection/ohtake_2004_ridge_valley_lines_implicit_surface_fitting.pdf` | `10.1145/1015706.1015768` | smooth ridge/valley 特征线参考；其边零交叉极值判据、一阶极大测试和反比插值归属已在 `SmoothCurvature.cpp` 落地（2026-07-12）。 |
+| M011 | Ridge-Valley Lines on Meshes via Implicit Surface Fitting (OpenAlex citations: 382) | `feature_detection/ohtake_2004_ridge_valley_lines_implicit_surface_fitting.pdf` | `10.1145/1015706.1015768` | ridge/valley 特征线的经典参考，保留用于后续算法研究。 |
 | M012 | Robust Crease Detection and Curvature Estimation of Piecewise Smooth Surfaces from Triangle Mesh Approximations Using Normal Voting (OpenAlex citations: 60) | `feature_detection/page_koschan_sun_paik_abidi_2001_robust_crease_detection_normal_voting.pdf` | `10.1109/CVPR.2001.990471` | piecewise-smooth 三角网格 normal voting crease 检测参考。 |
 | M013 | Normal Vector Voting: Crease Detection and Curvature Estimation on Large, Noisy Meshes (OpenAlex citations: 121) | `feature_detection/page_sun_koschan_paik_abidi_2002_normal_vector_voting_crease_detection_curvature_estimation.pdf` | `10.1006/gmod.2002.0574` | 大型噪声网格 normal vector voting 参考。 |
 | M014 | Estimating Curvatures and Their Derivatives on Triangle Meshes (OpenAlex citations: 294) | `feature_detection/rusinkiewicz_2004_estimating_curvatures_derivatives_triangle_meshes.pdf` | `10.1109/TDPVT.2004.1335277` | 曲率和曲率导数估计基线，用于 ridge/valley 和 soft feature 路线。 |
@@ -56,7 +56,7 @@ M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照�
 | M018 | Polygon Crawling: Feature-Edge Extraction from a General Polygonal Surface for Mesh Generation (OpenAlex citations: 12) | `feature_detection/yamakawa_2005_polygon_crawling_feature_edge_extraction.pdf` | `10.1007/3-540-29090-7_15` | CAD/STL polygon crawling 特征边提取参考。 |
 | M019 | Polygon Crawling: Feature Edge Extraction from a General Polygonal Surface for Mesh Generation (OpenAlex citations: 7) | `feature_detection/yamakawa_shimada_2009_polygon_crawling_feature_edge_extraction.pdf` | `10.1007/s00366-009-0165-y` | polygon crawling 期刊扩展，适合非均匀 CAD facet surface。 |
 | M020 | NEF: Neural Edge Fields for 3D Parametric Curve Reconstruction from Multi-View Images (OpenAlex citations: 26) | `feature_detection/ye_2023_nef_neural_edge_fields_curve_reconstruction.pdf` | `10.1109/CVPR52729.2023.00820` | 多视图神经边场曲线重建参考，当前不作为核心依赖。 |
-| M021 | Fast and Robust Detection of Crest Lines on Meshes (OpenAlex citations: 5) | `feature_detection/yoshizawa_2005_fast_robust_detection_crest_lines.pdf` | `10.1145/1060244.1060270` | crest-line 提取参考；其三次拟合解析 extremality、组件级曲线强度 T = (∫ds)·(∫strength ds) 过滤和 gap 桥接角度规则已分别在 `SmoothCurvature.cpp` 与 `FeatureGraphCleanup.cpp` 落地（2026-07-12）；其 Eq.5-6 cyclideness 已进一步落地为零交叉门控 `kMinCrossingCyclidenessRatio = 0.15`（无量纲 mean|e|/κ² 比值，消除环面等 Dupin cyclide 上的伪 ridge/valley，2026-07-13）。 |
+| M021 | Fast and Robust Detection of Crest Lines on Meshes (OpenAlex citations: 5) | `feature_detection/yoshizawa_2005_fast_robust_detection_crest_lines.pdf` | `10.1145/1060244.1060270` | crest-line 提取和弱曲线清理的参考，保留用于后续算法研究。 |
 | M022 | EC-Net: An Edge-Aware Point Set Consolidation Network (OpenAlex citations: 302) | `feature_detection/yu_2018_ecnet_edge_aware_point_set_consolidation.pdf` | `10.1007/978-3-030-01234-2_24` | 边感知点集 consolidation 参考，用于扫描件预处理和去噪路线。 |
 | M023 | NerVE: Neural Volumetric Edges for Parametric Curve Extraction from Point Cloud (OpenAlex citations: 31) | `feature_detection/zhu_2023_nerve_neural_volumetric_edges.pdf` | `10.1109/CVPR52729.2023.01307` | 点云参数曲线连续性和 junction 参考，当前不作为核心依赖。 |
 
@@ -117,13 +117,13 @@ M001-M036 的引用数量来自 2026-07-09 的 OpenAlex `cited_by_count` 快照�
 
 | ID | 论文标题与引用数量 | 本地 PDF | DOI / ID | 在 ManuMesh 中的作用 |
 | --- | --- | --- | --- | --- |
-| M042 | Smooth Feature Lines on Surface Meshes (OpenAlex citations: 122) | `feature_detection/hildebrandt_2005_smooth_feature_lines_surface_meshes.pdf` | `10.2312/SGP.SGP05.085-090` | 光滑曲率特征线参考，用于补足二面角之外的 ridge/valley/crest 路线。 |
+| M042 | Smooth Feature Lines on Surface Meshes (OpenAlex citations: 122) | `feature_detection/hildebrandt_2005_smooth_feature_lines_surface_meshes.pdf` | `10.2312/SGP.SGP05.085-090` | 曲率特征线研究参考；当前不属于运行时证据通道。 |
 | M043 | An Image Processing Approach to Detection of Ridges and Ravines on Polygonal Surfaces (OpenAlex citations: 15) | `feature_detection/belyaev_ohtake_2000_ridges_ravines_polygonal_surfaces.pdf` | `10.2312/egs.20001016` | 直接面向 polygonal surface 的 ridge/ravine 检测参考。 |
 | M044 | Feature Curve Network Extraction via Quadric Surface Fitting (OpenAlex citations: 14) | `feature_detection/lu_2019_feature_curve_network_quadric_surface_fitting.pdf` | `10.2312/pg.20191338` | quadric surface fitting、曲线连续性和 junction/network 组织参考。 |
 
 ## 与当前实现的关系
 
-ManuMesh 当前实现已经落地：QEM、line quadrics、有向二面角、normal-tensor、opt-in smooth-curvature 与 stable-scale、独立 loop trace、法线域 evidence stabilization、cleanup + compatible component consolidation、逐 junction branch pairing、圆/近圆/椭圆 loop、component confidence、feature-induced surface patches，以及边界/拓扑/质量/局部误差/自交过滤。关键算法落点包括 `FeatureNormalFilter.cpp`、`SmoothCurvature.cpp`、`FeatureGraphCompatibility.cpp`、`FeatureGraphConsolidation.cpp`、`FeatureSegmentation.cpp` 和 `FeatureBenchmark.cpp`。完整 2026-07-15 对照见 [`../design/feature_recognition_system_upgrade_2026_07_15.md`](../design/feature_recognition_system_upgrade_2026_07_15.md)。
+ManuMesh 当前实现已经落地：QEM、line quadrics、有向二面角、normal-tensor、独立 loop trace、法线域 evidence stabilization、cleanup + compatible component consolidation、逐 junction branch pairing、圆/近圆/椭圆 loop、component confidence、feature-induced surface patches，以及边界/拓扑/质量/局部误差/自交过滤。关键算法落点包括 `FeatureNormalFilter.cpp`、`FeatureGraphCompatibility.cpp`、`FeatureGraphConsolidation.cpp`、`FeatureSegmentation.cpp` 和 `FeatureBenchmark.cpp`。完整 2026-07-15 对照见 [`../design/feature_recognition_system_upgrade_2026_07_15.md`](../design/feature_recognition_system_upgrade_2026_07_15.md)。
 
 当前没有落地：完整 edge dihedral plane quadrics、Rusinkiewicz per-face 张量曲率估计器、Page 全投票场与三路相对分类、Vidal graph-cut 链化、会移动顶点的 variational/L0/non-local 扫描去噪、analytic surface fitting/patch merge、全局 Hough/winding-number recovery、学习式特征评分、时间一致性简化、神经 QEM 和完整 remeshing。ManuMesh 的目标是三角表面网格处理，不把 B-Rep/CAD feature-tree 重建作为本库范围。
 
@@ -150,7 +150,7 @@ ManuMesh 当前实现已经落地：QEM、line quadrics、有向二面角、norm
 | 弱 component 为什么以及如何连接？ | M026、M044。 | `FeatureGraphCompatibility.cpp`、`FeatureGraphConsolidation.cpp` |
 | feature edge 如何变成 surface patches？ | M024、M025。 | `FeatureSegmentation.cpp`；当前只做 connectivity partition |
 | 圆/椭圆 loop 为什么要拟合 primitive？ | M016、M024、M025，配合当前 feature fixture；拟合核的出处是 Taubin 1991 与 Halíř-Flusser 1998（经典文献，无本地 PDF）。 | `PrimitiveFit.cpp` |
-| 如果要补 ridge/valley/crest line 应看什么？ | M005、M011、M014、M021、M042。 | `src/feature_detection/SmoothCurvature.cpp`（三次拟合 + 零交叉已落地；M014 张量估计器仍是路线图） |
+| 如果未来补 ridge/valley/crest line 应看什么？ | M005、M011、M014、M021、M042。 | 作为独立的后续特征检测模块评估，不属于当前运行时管线 |
 | 为什么需要 topology/quality/error/self-intersection filters？ | M031、M032、M033。 | `CollapseLegality.cpp`、`src/common/GeometryPredicates.cpp`、`src/common/SpatialIndex.cpp` |
 | 下一步如果做全局误差 envelope 应看什么？ | M030、M033、M026。 | 未来 `validation` 或 `simplification/detail` 中独立 envelope filter |
 | remesh 的局部编辑循环如何组织？ | M038、M040，然后对照 OpenMesh 和 pmp-library。 | `src/mesh_edit/` 与未来 `src/remeshing/` |

@@ -90,13 +90,11 @@ set(MANUMESH_FEATURE_DETECTION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/NormalTensor.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureNormalFilter.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/FeatureSegmentation.cpp"
 )
 
 set_source_files_properties(
   "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/PrimitiveFit.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/feature_detection/SmoothCurvature.cpp"
   PROPERTIES COMPILE_OPTIONS "/bigobj"
 )
 

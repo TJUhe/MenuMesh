@@ -125,7 +125,7 @@ bool componentHasWeakEvidenceEdge(const std::vector<int>& component, const Trace
                 continue;
             }
             const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, v, nb);
-            if (attrs != nullptr && (attrs->normalTensor || attrs->smoothCurvature)) {
+            if (attrs != nullptr && attrs->normalTensor) {
                 return true;
             }
         }

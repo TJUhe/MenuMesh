@@ -70,8 +70,6 @@ void expectReportsEquivalent(const SimplifyReport& first, const SimplifyReport& 
     EXPECT_EQ(first.untracedFeatureEdges, second.untracedFeatureEdges);
     EXPECT_EQ(first.normalTensorFeatureEdges, second.normalTensorFeatureEdges);
     EXPECT_EQ(first.normalTensorScoredVertices, second.normalTensorScoredVertices);
-    EXPECT_EQ(first.smoothCurvatureFeatureEdges, second.smoothCurvatureFeatureEdges);
-    EXPECT_EQ(first.smoothCurvatureScoredVertices, second.smoothCurvatureScoredVertices);
     EXPECT_DOUBLE_EQ(first.minAppliedLineWeight, second.minAppliedLineWeight);
     EXPECT_DOUBLE_EQ(first.maxAppliedLineWeight, second.maxAppliedLineWeight);
     EXPECT_EQ(first.qualityRefinementIterationsCompleted, second.qualityRefinementIterationsCompleted);

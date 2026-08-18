@@ -116,7 +116,7 @@ int main() {
         }
         std::cout << "edge " << edge.a << " - " << edge.b << " boundary=" << edge.boundary
                   << " dihedral=" << edge.dihedral << " normal_tensor=" << edge.normal_tensor
-                  << " smooth_curvature=" << edge.smooth_curvature << " non_manifold=" << edge.non_manifold
+                  << " non_manifold=" << edge.non_manifold
                   << " cleanup_bridge=" << edge.cleanup_bridge << " consolidation_bridge=" << edge.consolidation_bridge
                   << " removed_by_cleanup=" << edge.removed_by_cleanup << " signed_kind=" << edge.signed_kind
                   << " feature_edge_index=" << edge.feature_edge_index << " input_edge_index=";

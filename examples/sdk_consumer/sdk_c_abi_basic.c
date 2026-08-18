@@ -56,7 +56,6 @@ int main(void) {
     }
     feature_options.feature_angle_deg = 35.0;
     feature_options.use_normal_tensor_features = 0;
-    feature_options.use_smooth_curvature_features = 0;
     feature_options.cleanup_feature_graph = 0;
     options.feature_options = &feature_options;
 

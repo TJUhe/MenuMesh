@@ -40,14 +40,10 @@ VS2019 preset 和 CI 将 `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` 显式设为 `ON
   （周向 1/r、轴向 0），capped 版本带精确 90° 折痕；`groundTruthCircles()` 给出两个
   rim 圆的中心/法向/半径，`groundTruthFeatureEdges()` 给出真值特征边集。
 - `makeTorus(majorSegments, minorSegments, R, r)`：环面；逐顶点解析主曲率
-  {1/r, cosθ/(R + r·cosθ)}。环面是 Dupin cyclide，extremality 场恒为零，
-  是光滑曲率通道"必须沉默"的判定基准。
+  {1/r, cosθ/(R + r·cosθ)}，用于简化后的双向采样 Hausdorff 验证。
 - `makeChamferBox(size, chamfer, divisions)`：倒角盒；`groundTruthHardEdges()`
   给出精确硬边集（24 条倒角折痕 + 两圈八边形 rim），16 个八边形角点是
   feature-graph valence 3 的真值 junction。
-- `makeGaussianRidgeSheet(subdivisions, size, height, sharpness)`：高斯脊薄板
-  z = h·exp(−s·x²)；crest 处解析曲率 |f''(0)| = 2hs，带 crest 顶点/切向访问器，
-  是光滑 ridge 检测的定量精度基准。
 - `withDeterministicNoise(mesh, amplitude, seed)`：Knuth MMIX 线性同余发生器
   （乘子 6364136223846793005、增量 1442695040888963407，取高 53 位映射到
   [−1, 1]），逐坐标加有界扰动。同一 seed 在任何平台产生相同网格，噪声鲁棒性
@@ -66,9 +62,8 @@ VS2019 preset 和 CI 将 `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` 显式设为 `ON
 - 带 UV 圆柱的纹理保真：每个存活角点的 UV 相对其 3D 位置的解析参数化
   （u = θ/2π, v = z/h + 1/2）偏差不得超过所在面最长边对应的参数增量，
   且 UV 三角形不得翻转（`TexturedCylinderKeepsUvAlignedWithAnalyticParametrization`）。
-- 高斯脊 crest 曲率中位相对偏差 ≤ 15%：主导误差是邻域平均对曲率剖面的偏置，
-  按 κ(x)/κ(0) 剖面与高斯拟合权推导出期望偏置约 7-10%，15% 上界留出余量
-  又不掩盖回归（`GaussianRidgeCrestCurvatureMatchesAnalyticProfile`）。
+- 解析曲面 fixture 的几何量和采样密度必须固定，避免把采样变化误判为算法改进；
+  同时保留足够的 Hausdorff/primitive residual 余量来暴露回归。
 
 ## 确定性测试
 
@@ -76,7 +71,7 @@ VS2019 preset 和 CI 将 `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` 显式设为 `ON
   detect + 特征保护 simplify 在同一 fixture 上重复三次，输出必须逐字节一致——
   无序容器遍历、浮点归约和优先队列 tie-break 都被设计要求确定性。
 - `FeatureDetectionAnalytic.FeatureEdgeSetIsExactlyScaleInvariant`：网格均匀缩放后
-  特征边集必须精确不变（光滑曲率打分是无量纲的）。
+  特征边集必须精确不变。
 - 所有噪声用例经 `withDeterministicNoise` 固定 seed，不存在"偶发红"的随机源。
 
 ## 套件命令与预期规模
@@ -122,14 +117,11 @@ Ninja Multi-Config 前端，不是另一套编译器支持面。两种生成器�
 O(n²) 回归会超过 10 倍，必然被拦截。历史依据：`SimplificationRun::tryCollapse`
 曾在每次 collapse 尝试里重算输入包围盒对角线（O(V) 扫描），16k 面球的 simplify
 因此从约 2 秒劣化到约 15 秒——正是该护栏针对的缺陷类别；现在对角线在
-`initializeBudget` 缓存为 `meshDiagonal_` 一次性计算。护栏刻意不包含光滑曲率
-通道（16k 面约 6 秒，会撑爆快速套件预算），其功能行为由更小 fixture 上的
-`feature_detection_analytic_tests.cpp` 覆盖。
+`initializeBudget` 缓存为 `meshDiagonal_` 一次性计算。
 
 2026-07-15 新增的
 `tests/unit/feature_detection/feature_detection_pipeline_upgrade_tests.cpp`
-专门保护法线域过滤、stable-scale、兼容 component consolidation、相反
-ridge/valley 符号拒绝、junction branch pairing、三 patch 分区和新 options
+专门保护法线域过滤、兼容 component consolidation、junction branch pairing、三 patch 分区和新 options
 校验。benchmark 标签格式同时覆盖 `edge`、`junction`、`branch`、`face_patch`；
 patch 指标比较相邻 faces 的同/异 patch 关系，避免依赖任意 patch id 编号。
 

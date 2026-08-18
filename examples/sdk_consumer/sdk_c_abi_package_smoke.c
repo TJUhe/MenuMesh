@@ -32,7 +32,6 @@ int main(void) {
     }
 
     feature_options.use_normal_tensor_features = 0;
-    feature_options.use_smooth_curvature_features = 0;
     feature_options.cleanup_feature_graph = 0;
     size_t feature_edge_count = 0;
     const ManuMeshStatus status =

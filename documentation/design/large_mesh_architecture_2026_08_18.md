@@ -10,7 +10,7 @@
 
 ## 结论
 
-当前版本已经能够在受控内存预算下把二进制 STL 流式写入分区数据集，并逐分区读取、校验数量、边界框、校验和、面积和退化面计数。这些完整校验现在由 `src/io/PartitionedMeshValidation.cpp` 实现，CLI 只负责解析参数和格式化报告；库用户可复用同一份 `PartitionedMeshValidationReport` 契约。当前版本还不能在分区数据集上直接运行完整拓扑、FeatureGraph、Normal Tensor、Smooth Curvature 或 QEM 简化。
+当前版本已经能够在受控内存预算下把二进制 STL 流式写入分区数据集，并逐分区读取、校验数量、边界框、校验和、面积和退化面计数。这些完整校验现在由 `src/io/PartitionedMeshValidation.cpp` 实现，CLI 只负责解析参数和格式化报告；库用户可复用同一份 `PartitionedMeshValidationReport` 契约。当前版本还不能在分区数据集上直接运行完整拓扑、FeatureGraph、Normal Tensor 或 QEM 简化。
 
 因此，`PartitionedMeshDataset` 是超大网格的 **I/O 基础层**，不是已经完成的分布式网格算法层。后续实现必须先建立全局实体 ID、owner/ghost 和完整 edge incidence，再把局部计算和全局归并接起来。不能把各分区独立简化后直接拼接，也不能把分区切口的局部单面边误报成真实边界。
 
@@ -88,7 +88,7 @@ manumesh large-validate output.mmpd \
 
 - 没有证明 100M 面的全局共享顶点拓扑可以在单机内存中建立；
 - 没有证明分区切口的边界、非流形边和绕序能够被局部结果正确判断；
-- 没有运行分区版 Normal Tensor、Smooth Curvature、FeatureGraph 或 QEM；
+- 没有运行分区版 Normal Tensor、FeatureGraph 或 QEM；
 - 没有给出 OS 级 peak RSS、全局自交认证、Hausdorff 认证或简化质量结论；
 - 三个样本都是二进制 STL，不能代表 ASCII STL、OBJ、纹理、属性通道或所有扫描数据分布。
 
@@ -151,7 +151,6 @@ LocalIndex      = uint32
 | 二面角、边界、非流形 | edge 的全部入射面和局部角 | 全局 edge-key merge 后计算 |
 | 法向滤波 | 配置的 manifold face-dual 邻域 | 按迭代次数交换 dual halo |
 | Normal Tensor | 多尺度 vertex rings 加最外层完整 face-star | 当前配置可能需要约 16 个 vertex rings；由实际 `smoothing/scales` 配置计算 |
-| Smooth Curvature | 拟合邻域、跨尺度 estimate 邻域和完整外层 star | 当前配置最多约 11 个坐标 rings；由 `base-rings/scales` 计算 |
 | FeatureGraph component/junction/loop | 全局图连通、junction 分支、环签名 | 不承诺固定 halo，必须全局归并 |
 | 局部相交和近距离 bridge | 拓扑写集外的空间邻近三角形 | 单独的空间 halo 或分区 AABB/BVH 索引 |
 
@@ -200,7 +199,7 @@ LocalIndex      = uint32
 ### 阶段 C：halo 驱动的局部分析
 
 1. 先完成 owner-only 面法向、顶点法向和边 evidence。
-2. 按配置交换法向 filter、Normal Tensor、Smooth Curvature 所需 halo。
+2. 按配置交换法向 filter、Normal Tensor 所需 halo。
 3. 每个局部结果携带 completeness、source owner 和版本；缺 halo 时返回 deferred。
 4. 按 global ID 排序归约浮点结果，保证 reference-exact 模式可复现。
 
@@ -233,7 +232,7 @@ LocalIndex      = uint32
 
 - edge-key incidence、boundary、non-manifold、component 和绕序计数完全一致；
 - seam 假边界数为 0，shared global ID 的 owner/ghost 字段一致；
-- Normal Tensor/Smooth Curvature 的 valid mask、selected scale、signed kind 和 evidence key 集一致；
+- Normal Tensor 的 valid mask、selected scale 和 evidence key 集一致；
 - FeatureGraph 的活动边、junction、component、loop signature 和 patch barrier 一致；
 - reference-exact QEM 的 collapse trace 和最终 active face 集一致；
 - bounded-valid QEM 无新增裂缝、非流形、自交、退化面，且 Hausdorff、法向、特征漂移在预算内；
@@ -245,7 +244,7 @@ LocalIndex      = uint32
 
 1. 全局顶点去重和 `GlobalVertexId` 持久化；
 2. 全局 edge side index、完整 incidence 和 owner/ghost 交换；
-3. 分区 Normal Tensor、Smooth Curvature 和 FeatureGraph 合并；
+3. 分区 Normal Tensor 和 FeatureGraph 合并；
 4. reference-exact out-of-core QEM；
 5. bounded-valid 并行 QEM、LOD 层次和可恢复任务；
 6. ASCII STL/OBJ、纹理和通用属性通道的流式导入。

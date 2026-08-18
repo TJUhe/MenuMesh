@@ -87,7 +87,7 @@ build/vs2019-debug/bin/Debug/manumesh_tests.exe
 | `apps/CliOptionBinding.cpp::parseFeatureOptions` | `feature-report` 如何形成独立 `FeatureOptions`。 |
 | `src/feature_detection/FeatureDetector.cpp::validateFeatureOptions` | 角度、阈值、尺度和图恢复参数的范围检查。 |
 | `src/feature_detection/FeatureDetector.cpp::detectFeatureCurves` | 完整特征分析编排和输出聚合。 |
-| `src/feature_detection/FeatureEvidence.cpp` | boundary、dihedral、non-manifold、Normal Tensor 和 smooth-curvature 证据。 |
+| `src/feature_detection/FeatureEvidence.cpp` | boundary、dihedral、non-manifold 和 Normal Tensor 证据。 |
 | `src/feature_detection/NormalTensor.cpp::computeNormalTensorFeatures` | 张量累积、多尺度和平滑结果。 |
 | `src/feature_detection/FeatureGraph.cpp` | 特征边如何形成图。 |
 | `src/feature_detection/FeatureLoopRecovery.cpp` | loop、trace 和 junction 恢复。 |
@@ -128,7 +128,6 @@ DebugUtil 的实现和私有头文件仍保留，但当前所有生产调用点�
 | `--feature-graph-gap-ratio R` | 特征图小间隙连接尺度。 | graph 分支、component 和 loop 连通性。 |
 | `--feature-graph-max-weak-spur-edges N` | 弱短刺清理预算。 | 弱分支数量与 untraced edge。 |
 | `--feature-component-min-confidence C` | component 可信度下限。 | 被保留 component、loop 和 primitive。 |
-| `--smooth-curvature-features` | 启用光滑 ridge/valley 证据。 | `smooth_curvature_edges`。 |
 | `--no-normal-tensor-features` | 禁用张量弱特征证据。 | `normal_tensor_edges` 应为 0。 |
 
 ## Normal Tensor 参数
@@ -182,7 +181,7 @@ Normal Tensor 常见对照：
 `feature-report` 的关键字段：
 
 - `feature_edges`：所有证据合并后的边数。
-- `boundary_edges`、`dihedral_edges`、`normal_tensor_edges`、`smooth_curvature_edges`、`non_manifold_edges`：各证据来源。
+- `boundary_edges`、`dihedral_edges`、`normal_tensor_edges`、`non_manifold_edges`：各证据来源。
 - `traced_edges`、`untraced_edges`：进入或未进入可恢复曲线的边。
 - `loops`、primitive 分类和拟合误差：图恢复后的几何结构。
 - `normal_tensor_scored_vertices`、`max_normal_tensor_score`、`max_normal_tensor_persistent_score`、`mean_normal_tensor_local_scale`、`mean_normal_tensor_persistence`：张量证据强度与稳定性。

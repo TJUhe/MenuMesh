@@ -332,7 +332,6 @@ flowchart TD
         <tr>
           <td><code>simplify</code></td>
           <td>要求 <code>input output</code>；解析 <code>SimplifyOptions</code>；读取 mesh；执行 <code>QEMSimplifier::simplify</code>；保存 STL；计算输入/输出 stats 和采样距离；可写 metrics CSV。</td>
-          <td>输入读取失败、简化参数非法、输入几何非法、输出保存失败都会抛出并由 CLI 顶层返回 1。<code>--smooth-curvature-*</code> 与 <code>--feature-graph-min-weak-spur-strength</code> 已进入 simplify 选项表；启用 <code>--smooth-curvature-features</code> 时 CLI 自动开启 feature-curve policy。拼错或真正跨命令的选项仍由统一校验返回 1。</td>
           <td>简化后 STL；可选 metrics CSV；stdout 打印 report 计数器。</td>
         </tr>
         <tr>
@@ -343,7 +342,6 @@ flowchart TD
         </tr>
         <tr>
           <td><code>feature-report</code></td>
-          <td>要求输入 mesh；解析 smooth/stable-scale、normal-filter、consolidation、surface-patch 等 <code>FeatureOptions</code>；执行 <code>detectFeatureCurves</code>；打印 graph/loop/component/patch counters 和 CSV。</td>
           <td>可选 <code>--csv</code> 时先创建父目录；检测参数非法会抛异常。</td>
           <td>stdout 报告；可选 CSV。</td>
         </tr>
@@ -520,9 +518,7 @@ flowchart TD
   B --> C{useNormalTensorFeatures?}
   C -- 是 --> T["computeNormalTensorFeatures<br/>统计 tensor score / persistence"]
   C -- 否 --> NT["tensor 为空"]
-  T --> SC{useSmoothCurvatureFeatures?}
   NT --> SC
-  SC -- 是 --> SCV["computeSmoothCurvatureFeatures<br/>多尺度 quadric 拟合 + 方向极值 + persistence"]
   SC -- 否 --> SCE["curvature 为空"]
   SCV --> D["markDiscreteFeatureVertices"]
   SCE --> D
@@ -531,7 +527,6 @@ flowchart TD
   F --> G["DihedralEvidence:<br/>faces.size == 2 且 angle >= threshold"]
   G --> H["NonManifoldEvidence:<br/>faces.size > 2"]
   H --> I["NormalTensorEvidence:<br/>仅非 boundary/dihedral/non-manifold 边"]
-  I --> I2["SmoothCurvatureEvidence (opt-in):<br/>仅非离散特征边，且两端非离散特征顶点"]
   I2 --> J{任一证据成立?}
   J -- 是 --> K["push CandidateEdge<br/>record counters"]
   J -- 否 --> L["忽略该边"]
@@ -547,7 +542,6 @@ flowchart TD
         <tr><td>Non-manifold</td><td>一条边属于超过 2 个 face。</td><td>标记 <code>nonManifold=true</code>，后续 trace graph 会直接纳入。</td></tr>
         <tr><td>Dihedral</td><td>两个相邻 face 法向夹角达到 <code>featureAngleDeg</code>；角度由 <code>common::computeOrientedDihedralAngle</code> 计算——绕向一致时保留完整法向夹角（能识别 &gt;90° 的反折边），绕向不一致时回退无符号角并计入诊断 <code>inconsistentWindingEdges</code>。</td><td>标记 <code>dihedral=true</code>，并尝试判断 convex/concave/unknown；同一函数也供 <code>WeightMode::Dihedral</code> 使用。</td></tr>
         <tr><td>Normal tensor</td><td>不是已有离散特征边；两端 persistent score 达阈值；crease saliency 不弱于 corner；边方向与 crease tangent 对齐。</td><td>作为弱特征候选，计入 normal tensor counters。</td></tr>
-        <tr><td>Smooth curvature（opt-in）</td><td>需 <code>useSmoothCurvatureFeatures=true</code>（默认关闭）；不是已有离散特征边且两端非离散特征顶点；两端 persistent score 与 persistent scales 达标（<code>smoothCurvatureFeatureThreshold</code>、<code>smoothCurvatureMinPersistentScales</code>）；两端 ridge/valley 符号一致；边方向与曲线切向对齐（<code>smoothCurvatureMinEdgeAlignment</code>）且两端切向一致（<code>smoothCurvatureMinTangentConsistency</code>）。</td><td>作为第二类弱特征候选，标记 <code>smoothCurvature=true</code>，计入 smooth curvature counters。</td></tr>
       </tbody>
     </table>
 
@@ -557,12 +551,10 @@ flowchart TD
       <tbody>
         <tr>
           <td>buildTraceGraph</td>
-          <td>boundary、non-manifold、normal-tensor、smooth-curvature 边直接进入 trace graph；dihedral 边还必须满足 <code>loopTraceAngleDeg</code>，若该参数为负则复用 <code>featureAngleDeg</code>。</td>
           <td>进入的边计 <code>tracedFeatureEdges</code>；未进入的 dihedral 证据计 <code>untracedFeatureEdges</code>。</td>
         </tr>
         <tr>
           <td>removeWeakSpurs</td>
-          <td>如果 <code>cleanupFeatureGraph=false</code> 或 <code>featureGraphMaxWeakSpurEdges<=0</code>，跳过；否则最多 8 轮删除短的、仅含弱证据（normal tensor 或 smooth curvature）的端点 spur。<code>featureGraphMinWeakSpurStrength</code>（默认 0.0 = 旧的按边数剪枝行为）为正时按 Yoshizawa 组件强度 T=(∫ds)·(∫strength ds) 裁决是否删除；该参数已贯通 <code>FeatureOptions</code>、<code>SimplifyOptions</code>、CLI 与 size-aware C ABI。</td>
           <td>被删边在 graph edge 上标 <code>removedByCleanup</code>，计 <code>graphCleanupRemovedSpurs</code>。</td>
         </tr>
         <tr>
@@ -583,7 +575,6 @@ flowchart TD
       <pre class="mermaid">
 flowchart TD
   A["recoverFeatureLoops"] --> B["junction 间双链组合<br/>尝试恢复 circular cycles"]
-  B --> C["small cycle basis<br/>仅小组件、无弱证据边(tensor/smooth curvature)、cycle rank 合理"]
   C --> D["traceRemainingFeatureLoops"]
   D --> D1{从 junction/endpoint 出发?}
   D1 -- 是 --> D2["traceOpenChain"]
@@ -926,7 +917,6 @@ flowchart TD
         <tr><td>CLI 参数层</td><td>未知命令、未知选项、缺少必需值、数值解析失败。</td><td>抛 <code>invalid_argument</code>；<code>run()</code> catch。</td><td>stderr 显示 <code>error: ...</code> 和 usage，进程返回 1。</td></tr>
         <tr><td>CLI 文件层</td><td>输入文件打不开、格式错误、输出目录创建失败、输出 STL 打不开。</td><td>I/O 函数返回 false + error；handler 转 <code>runtime_error</code>。</td><td>stderr 显示具体 error，返回 1。</td></tr>
         <tr><td>mesh 校验</td><td>索引越界、非有限顶点、退化 face、零面积 face。</td><td><code>validateMeshGeometry</code> false 或 simplifier 抛 <code>invalid_argument</code>。</td><td>CLI 返回 1；C API 返回 <code>INVALID_ARGUMENT</code>。</td></tr>
-        <tr><td>特征检测</td><td>阈值非法、min loop vertices 过小、tensor 参数非法、smooth-curvature 参数非法（对齐/一致性不在 [0,1]、rings/scales/persistent scales 小于 1、robust iterations 为负）。</td><td><code>validateFeatureOptions</code> 抛异常。</td><td>CLI 返回 1；简化入口中也会拒绝非法 feature 相关选项。</td></tr>
         <tr><td>简化初始化</td><td>targetFace/ratio 非法、质量/误差/法向参数非法、拓扑构建失败。</td><td><code>validateSimplifyOptions</code> 或 <code>validateSimplifierInput</code> 抛异常。</td><td>CLI 返回 1；C API 返回 <code>INVALID_ARGUMENT</code>。</td></tr>
         <tr><td>简化运行</td><td>候选全部耗尽。</td><td>不抛异常；report.terminationReason = <code>NoCandidates</code>。</td><td>输出当前可达简化结果和 report。</td></tr>
         <tr><td>简化运行</td><td>连续候选被硬约束拒绝太多。</td><td>不抛异常；report.terminationReason = <code>RejectionLimit</code>。</td><td>输出当前结果；report 中有各类 rejected counter。</td></tr>

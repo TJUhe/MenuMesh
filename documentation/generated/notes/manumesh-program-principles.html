@@ -249,9 +249,7 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Consolidation / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code>、<code>FeatureGraphCompatibility.cpp</code>、<code>FeatureGraphConsolidation.cpp</code> 做弱 spur、兼容 bridge 和跨 component recovery。</p><p><strong>引用：</strong>M016/M044 graph continuity，M024/M025 segmentation，M026 consolidation。</p></article>
     <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">documentation/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">documentation/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureAnalysis()</code> 输出 edge/junction/branch-pair F1、patch adjacency accuracy、loop closure 与 component confidence。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 curve-network 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
-    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>确定性曲率 ridge/valley 已于 2026-07 落地为 opt-in 的 smooth-curvature 弱证据路径（<code>SmoothCurvature.cpp</code>，默认关闭）；wireframe/neural edge、learned QEM 仍作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">documentation/papers/feature_detection/</span><span class="doc-path">documentation/papers/neural_and_temporal_qem/</span><span class="doc-path">documentation/papers/mesh_generation/</span></article>
   </div>
-  <p>一句话总览：默认路线仍是 <strong>CAD/STL evidence + normal-tensor + cleanup/confidence + QEM/line-quadrics + hard guards</strong>；normal filter、stable scale、component consolidation 和 surface patches 为 opt-in。</p>
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
 <section class="feature-recognition-brief qem-quadrics-expansion">
   <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
@@ -853,13 +851,9 @@ $$\theta=\arccos(|n_1^\top n_2|),\qquad \theta\ge\theta_0$$
 <tr><td>后续过滤</td><td>tensor edge 还要进入 graph cleanup 和 component confidence。</td><td>弱证据必须先 consolidated，再决定软保护还是硬保护。</td><td>M026 CWF。</td></tr>
 </table>
 
-<h3>8.2b smooth curvature 弱特征来源（2026-07 新增，opt-in）</h3>
 
-<p>normal tensor 看的是局部法向<strong>分布</strong>的分裂，对完全光滑、二面角处处很小的 ridge/valley（扫描件、自由曲面）仍然不敏感。<code>SmoothCurvature.cpp</code> 因此提供第三条证据通道，理念是双路径：boundary/dihedral/non-manifold 是离散网格上的不连续（硬证据），normal tensor 与 multiscale quadric curvature 是光滑表面上的微分事件（弱证据）；两路只在显式 <code>FeatureGraph</code> 汇合，component 置信度把两种弱证据当作相互独立的弱支持，硬证据始终占主导。整条路径是确定性数值计算，无任何学习成分。</p>
 
-<p>算法逐顶点、逐拓扑尺度做归一化三次 Monge 拟合、带符号曲率/extremality 与 Ohtake 零交叉判断。默认仍以最高分尺度为参照；opt-in stable-scale 模式按跨尺度 sign/tangent/score 一致性选择，并输出 <code>selectedScale</code> / <code>scaleStability</code>。支持尺度独立投票，不要求相邻，最粗尺度没有 veto；mesh-edge 门控仍要求两端符号、切向、尺度支持和边对齐一致。</p>
 
-<p><code>FeatureOptions</code> 新字段（默认值）：<code>useSmoothCurvatureFeatures=false</code>、<code>smoothCurvatureFeatureThreshold=0.015</code>、<code>smoothCurvatureMinEdgeAlignment=0.55</code>、<code>smoothCurvatureMinTangentConsistency=0.65</code>、<code>smoothCurvatureBaseNeighborhoodRings=2</code>、<code>smoothCurvatureScaleCount=3</code>、<code>smoothCurvatureMinPersistentScales=2</code>、<code>smoothCurvatureRobustFitIterations=2</code>。graph edge 来源标记新增 <code>smoothCurvature</code>（与 boundary/dihedral/nonManifold/normalTensor 并列）；CLI 的 <code>feature-report</code> / <code>feature-benchmark</code> / <code>feature-compare</code> / <code>simplify</code> 都提供 <code>--smooth-curvature-*</code> 系列选项。<code>simplify --smooth-curvature-features</code> 自动开启 feature-curve policy，报告/CSV 同步输出 smooth-curvature 与 bounded-recovery 诊断。设计文档：<code>documentation/design/smooth_curvature_feature_detection_2026_07_11.md</code>。</p>
 
 <h3>8.3 featureAngleDeg 与 loopTraceAngleDeg 的分工</h3>
 
@@ -891,7 +885,6 @@ $$\theta=\arccos(|n_1^\top n_2|),\qquad \theta\ge\theta_0$$
 <tr><th>component 统计</th><th>含义</th><th>QEM 侧用途</th></tr>
 <tr><td><code>strongEvidenceRatio</code></td><td>boundary / dihedral / non-manifold 等强证据比例。</td><td>强 CAD loop 可以获得更高保护 confidence。</td></tr>
 <tr><td><code>normalTensorEdges</code></td><td>弱特征边数量。</td><td>弱 ridge 通常先给软成本，不宜一开始全部硬锁。</td></tr>
-<tr><td><code>smoothCurvatureEdges</code> / <code>meanCurvaturePersistence</code></td><td>opt-in 光滑曲率证据边数量及其平均跨尺度 persistence。</td><td>与 normal-tensor 一样按独立弱支持进入 component confidence，硬证据仍占主导。</td></tr>
 <tr><td><code>closureRate</code></td><td>端点、cycle rank 和闭合程度。</td><td>闭合 loop 更适合 primitive fitting 和 hard budget。</td></tr>
 <tr><td><code>junctionVertices</code></td><td>度数不为 2 的图节点数量。</td><td>junction 多时，普通 loop confidence 应降低。</td></tr>
 <tr><td><code>primitive residual</code></td><td>圆/椭圆/平面拟合误差。</td><td>残差低的 primitive 才适合曲线偏移预算。</td></tr>
@@ -1055,7 +1048,6 @@ $$F_{target}=
 <tr><td><code>detectFeatureCurves</code></td><td>检测边界、折痕、非流形、圆形 loop</td><td>公式 (38)-(45)</td></tr>
 <tr><td><code>featureCollapseAllowed</code></td><td>特征保护硬约束</td><td>同 loop、junction、最小顶点数规则</td></tr>
 <tr><td><code>projectFeaturePlacement</code></td><td>圆形特征投影</td><td>公式 (46)</td></tr>
-<tr><td><code>src/feature_detection/SmoothCurvature.cpp</code></td><td>opt-in 光滑曲率弱证据（Monge patch 拟合、方向极值、persistence）</td><td>见 8.2b</td></tr>
 <tr><td><code>src/simplification/TextureProtection.cpp</code></td><td>opt-in 纹理保护（chart 配对、UV 合法性、标量失真项）</td><td>见 11.1</td></tr>
 </tbody>
 </table>
@@ -1075,7 +1067,6 @@ $$F_{target}=
 <tr><td><code>--feature-curve-weight E</code></td><td>公式 (37) 中的 $\eta$。</td></tr>
 <tr><td><code>--circle-fit-threshold R</code></td><td>公式 (45) 的相对圆拟合阈值。</td></tr>
 <tr><td><code>--min-feature-loop-vertices N</code></td><td>特征 loop 保护的最小活动顶点数。</td></tr>
-<tr><td>feature pipeline opt-in controls</td><td>feature-analysis 接受 smooth/stable-scale、normal-filter、consolidation、surface-patches；simplify 接入前三类并自动打开 feature-curve policy。</td></tr>
 </tbody>
 </table>
 

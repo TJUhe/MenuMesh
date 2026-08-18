@@ -15,9 +15,7 @@
 //   detectFeatureCurves（二面角 + 法向张量）约 0.18 秒 -> 限制 2 秒
 //   简化至 0.2 比例（默认选项）约 2.0 秒          -> 限制 8 秒
 // 两个限制均至少是实测时间的 3 倍，因此较慢的 CI 机器也能通过；但该规模下
-// 超过 10 倍的二次复杂度回归无法通过。平滑曲率通道在 1.6 万面上约需 6 秒，
-// 会超出快速套件预算，故有意排除；其功能由较小夹具上的
-// feature_detection_analytic_tests.cpp 覆盖。
+// 超过 10 倍的二次复杂度回归无法通过；复杂特征选项的专项测量由独立性能基准负责。
 #include "AnalyticFixtures.h"
 
 #include "algorithms/feature_detection/FeatureDetector.h"
@@ -44,7 +42,6 @@ TEST(PipelinePerfGuard, FeatureDetectionOnSixteenThousandFaceSphereStaysBounded)
     feature::FeatureOptions options;
     options.featureAngleDeg = 40.0;
     options.useNormalTensorFeatures = true;
-    options.useSmoothCurvatureFeatures = false;
 
     const auto start = std::chrono::steady_clock::now();
     const feature::FeatureAnalysis analysis = feature::detectFeatureCurves(sphere.mesh, options);

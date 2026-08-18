@@ -97,11 +97,6 @@ public:
         return vertexAverageEdgeLength_;
     }
 
-    /**
-     * @brief 返回供光顺曲率阶段共享的面积加权顶点法向。
-     */
-    const std::vector<Vec3>& areaWeightedVertexNormals();
-
 private:
     const Mesh* mesh_ = nullptr;
     std::vector<Vec3> faceNormals_;
@@ -109,7 +104,6 @@ private:
     std::vector<char> faceWindingFlips_;
     std::vector<std::vector<int>> vertexNeighbors_;
     std::vector<double> vertexAverageEdgeLength_;
-    std::vector<Vec3> areaWeightedVertexNormals_;
     FeatureNormalFilterOptions normalFilterOptions_;
     ExecutionOptions executionOptions_;
     FeatureNormalFilterReport normalFilterReport_;
@@ -118,7 +112,6 @@ private:
     bool hasFaceWindingFlips_ = false;
     bool hasVertexNeighbors_ = false;
     bool hasVertexAverageEdgeLength_ = false;
-    bool hasAreaWeightedVertexNormals_ = false;
 };
 
 /**
@@ -127,10 +120,6 @@ private:
  */
 std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
     const Mesh& mesh, FeatureDetectionCache& cache, const NormalTensorOptions& options, double persistenceThreshold
-);
-
-std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
-    const Mesh& mesh, FeatureDetectionCache& cache, const SmoothCurvatureOptions& options, double persistenceThreshold
 );
 
 } // namespace detector_detail

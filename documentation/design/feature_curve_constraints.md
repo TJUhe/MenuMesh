@@ -12,7 +12,6 @@ ManuMesh 当前特征曲线保护由独立 `FeatureDetector`/`detectFeatureCurve
 - 非流形边。
 - 有向二面角超过 `featureAngleDeg` 的硬边（绕向感知：绕向一致时用带符号法向点积，可识别 >90° 的反折边；绕向不一致的边回退无符号角并计入 `inconsistentWindingEdges` 诊断）。
 - normal-tensor 弱特征证据。
-- opt-in 的 smooth-curvature 弱特征证据（`useSmoothCurvatureFeatures`，默认关闭）：多尺度三次 Monge 拟合 + 解析 extremality + Ohtake 边零交叉判据产生的确定性 ridge/valley 证据，2026-07-11 落地、2026-07-12 升级，设计见 [`smooth_curvature_feature_detection_2026_07_11.md`](smooth_curvature_feature_detection_2026_07_11.md)。
 - opt-in 的 normal-domain 预处理（`normalFilter.enabled`）：只稳定 evidence 使用的面法向，不改输入顶点或拓扑；硬折边由 `preserveAngleDeg` 阻断跨边平滑。
 - opt-in component consolidation（`graphConsolidation.enabled`）：在 cleanup 后、loop recovery 前连接方向/source/sign 兼容的不同 endpoint component。
 - `loopTraceAngleDeg` 控制哪些已识别 edge 进入 loop tracing；默认 `-1` 表示复用 `featureAngleDeg`。
@@ -57,9 +56,8 @@ simplifyConfig.features.detection = featureOptions;
 | 硬保护策略 | `featureProtectionMode` | 决定哪些 loop/边可以触发硬拒绝。 |
 | trace 诊断 | `tracedFeatureEdges`、`untracedFeatureEdges` | 区分 feature evidence 和可被 loop ownership 消费的边。 |
 | tensor 尺度诊断 | `normalTensorScoredVertices`、`maxNormalTensorPersistentScore`、`meanNormalTensorLocalScale`、`meanNormalTensorPersistence` | 判断弱特征证据是否有稳定多尺度支持。 |
-| curvature 稳定尺度 | `selectedScale`、`scaleStability`、`meanSmoothCurvatureScaleStability` | 解释 smooth-curvature 参考尺度是否稳定；stable-scale 模式默认关闭。 |
 | normal filter | `normalFilter` report、`featureNormalFilter*` simplify diagnostics | 解释法向预处理修改了多少面、保留了多少大角度边。 |
-| graph cleanup | `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupMergedJunctions` | 在 primitive fitting 前修复短断裂、去掉 normal-tensor/smooth-curvature 弱 spur，并记录 cleanup 影响。 |
+| graph cleanup | `graphCleanupBridgedGaps`、`graphCleanupRemovedSpurs`、`graphCleanupMergedJunctions` | 在 primitive fitting 前修复短断裂、去掉 normal-tensor 弱 spur，并记录 cleanup 影响。 |
 | graph consolidation | `graphConsolidationBridges`、`graphConsolidationSkippedByCap` | 单独报告跨 component recovery，不把它混进 raw evidence 或 cleanup 计数。 |
 | junction branches | `FeatureGraphVertex::branches` / `branchPairs`、`junctionBranchPairs`、`ambiguousJunctions` | 区分“找到了 junction”和“continuation 关系正确”。 |
 | component confidence | `FeatureComponent`、`meanFeatureComponentConfidence`、`weakFeatureComponents` | 把强/弱证据比例、闭合率、junction、tensor persistence 和 primitive residual 汇总成可被 QEM 消费的 support 置信度。 |
@@ -82,9 +80,9 @@ small cycle basis 和 circular fallback 现在按 trace connected component 运�
 
 ### component confidence 与 graph cleanup
 
-`FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/smooth-curvature/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、curvature persistence、primitive residual 和 confidence。component confidence 把 normal-tensor 与 smooth-curvature 视为相互独立的弱支持，硬证据（boundary/dihedral/non-manifold）始终占主导。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
+`FeatureAnalysis::components` 是 raw edge evidence 与 QEM 之间的中间层。每个 component 记录 edge count、boundary/dihedral/tensor/non-manifold/cleanup bridge 来源、endpoint 数、junction 数、cycle rank、closure rate、tensor persistence、primitive residual 和 confidence。component confidence 将 normal-tensor 作为弱支持，硬证据（boundary/dihedral/non-manifold）始终占主导。`FeatureLoop` 与 `VertexFeature` 会记录 `componentId`、`confidence` 和 `weakFeature`。
 
-Graph cleanup 默认开启，使用局部平均边长归一化阈值。endpoint gap 与 close junction 现在都要求双端 continuation，并复核 evidence source 与 ridge/valley signed kind；这比纯距离判断更保守，但局部一对一贪心仍不是全局曲线同一性证明。短 weak-evidence spur 覆盖 normal-tensor 与 smooth-curvature 两通道，并要求没有 boundary/dihedral/non-manifold/recovery-bridge 支持。除按边数剪枝外，`featureGraphMinWeakSpurStrength` 为正时按 Yoshizawa 组件级无量纲强度 `T = (∫ds)·(∫strength ds)` 裁决。cleanup 之后可 opt-in `graphConsolidation`，只连接不同 component 的 degree-1 endpoint；bridge 用 `cleanupBridge` / `consolidationBridge` 与独立诊断区分，不伪装成 raw evidence。实现分别位于 `FeatureGraphCleanup.cpp`、`FeatureGraphCompatibility.cpp` 和 `FeatureGraphConsolidation.cpp`。
+Graph cleanup 默认开启，使用局部平均边长归一化阈值。endpoint gap 与 close junction 现在都要求双端 continuation，并复核 evidence source 与 signed kind；这比纯距离判断更保守，但局部一对一贪心仍不是全局曲线同一性证明。短 weak-evidence spur 由 normal-tensor 通道支持时才参与清理，并要求没有 boundary/dihedral/non-manifold/recovery-bridge 支持。除按边数剪枝外，`featureGraphMinWeakSpurStrength` 为正时按组件级无量纲强度裁决。cleanup 之后可 opt-in `graphConsolidation`，只连接不同 component 的 degree-1 endpoint；bridge 用 `cleanupBridge` / `consolidationBridge` 与独立诊断区分，不伪装成 raw evidence。实现分别位于 `FeatureGraphCleanup.cpp`、`FeatureGraphCompatibility.cpp` 和 `FeatureGraphConsolidation.cpp`。
 
 QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。强 CAD loop 接近原始 `featureCurveWeight`，弱 tensor support 会先作为较软成本进入排序；是否硬保护仍由 `featureProtectionMode` 决定。
 
@@ -130,7 +128,6 @@ QEM 的 feature-curve soft quadric 会按 component confidence 温和缩放。�
 - 浅二面角需要进入 loop：降低 `--feature-angle-deg`，并让 `--loop-trace-angle-deg -1` 复用同一阈值。
 - 只想观察浅边但暂不让它保护简化：把 `--loop-trace-angle-deg` 设得高于 `--feature-angle-deg`，再检查 `untraced_edges`。
 - 弱特征不明显：尝试 `--weight-mode normal-tensor --normal-tensor-threshold 0.06 --normal-tensor-edge-alignment 0.2 --normal-tensor-scales 3 --normal-tensor-min-persistent-scales 2`。
-- 光滑 fillet 中心线或平缓 ridge/valley 完全不出现在 feature graph：先用 `feature-report --smooth-curvature-features` 校准阈值；在 `simplify` 中使用同一组选项时，`--smooth-curvature-features` 会沿用 0.x 语义自动打开 feature-curve policy。C++ 新代码应设置 `SimplifyConfig::features.enabled` 与 `features.detection.useSmoothCurvatureFeatures`；旧代码仍需同时设置 `preserveFeatureCurves` 与 `useSmoothCurvatureFeatures`，也可继续传入预计算 `FeatureAnalysis`。
 - 输出偏离曲线：增大 `featureCurveWeight` 或减小 `maxFeatureCurveDeviationRatio`，同时检查拒绝计数是否过高。
 
 ## 相关算法出处

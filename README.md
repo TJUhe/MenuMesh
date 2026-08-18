@@ -10,8 +10,8 @@ QEM/line quadrics 候选排序、三角网格特征图和硬合法性过滤共�
 
 - **网格基础类型**：提供 Eigen-backed `Mesh`、Eigen-free `PlainMesh`、拓扑查询、
   typed handles、校验和紧凑化能力。
-- **特征检测**：组合 boundary、non-manifold、oriented dihedral、normal tensor 与可选
-  smooth-curvature 证据，生成 feature graph、loop、junction、primitive、component 和
+- **特征检测**：组合 boundary、non-manifold、oriented dihedral 与 normal tensor 证据，生成
+  feature graph、loop、junction、primitive、component 和
   surface patch 结果。
 - **网格简化**：支持标准 QEM、line quadrics、目标比例/面数、候选 placement fallback
   和固定拓扑质量精修。
@@ -216,7 +216,6 @@ $exe = "build/vs2019-release/bin/Release/manumesh.exe"
 ```powershell
 & $exe feature-report input.obj `
   --feature-angle-deg 25 `
-  --smooth-curvature-features `
   --surface-patches `
   --csv output/features.csv
 ```

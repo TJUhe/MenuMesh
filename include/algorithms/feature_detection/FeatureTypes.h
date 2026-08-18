@@ -70,31 +70,6 @@ struct NormalTensorVertex {
     double effectiveRadius = 0.0;
 };
 
-/// 通过多尺度 quadric 拟合得到的每个顶点平滑脊/谷证据。
-///
-/// 曲率和分数按拟合邻域半径归一化，因此在网格统一缩放时阈值保持稳定。
-struct SmoothCurvatureVertex {
-    Vec3 normal = Vec3(0.0, 0.0, 1.0);            ///< 拟合 Monge 框架的曲面法向。
-    Vec3 curveTangent = Vec3(1.0, 0.0, 0.0);      ///< 沿脊/谷曲线的方向。
-    Vec3 extremumDirection = Vec3(0.0, 1.0, 0.0); ///< 跨曲线的主方向。
-    double principalCurvature = 0.0;              ///< 用于极值测试的带符号曲率。
-    double secondaryCurvature = 0.0;              ///< 带符号的正交主曲率。
-    double anisotropy = 0.0;                      ///< 无量纲主曲率分离度。
-    double extremumStrength = 0.0;                ///< 双侧方向极值强度。
-    double featureScore = 0.0;                    ///< 接受的最大尺度归一化分数。
-    /// 仅对支持获胜候选的尺度（符号持久且切线一致）取分数平均值；不支持尺度贡献为零。
-    /// 这有意区别于对每个尺度无条件取平均的 NormalTensorVertex::averageFeatureScore。
-    double averageFeatureScore = 0.0;
-    double persistentFeatureScore = 0.0; ///< 符号/切线持久性门限后的分数。
-    double fitResidual = 0.0;            ///< 归一化稳健 quadric 残差。
-    double localScale = 0.0;             ///< 选定拟合半径，单位为模型单位。
-    int persistentScales = 0;            ///< 提供支持的尺度数量。
-    int selectedScale = -1;              ///< 从零开始的参考尺度；无效时为 -1。
-    double scaleStability = 0.0;         ///< 相邻尺度拟合的一致性，范围为 [0,1]。
-    /// 正值表示脊，负值表示谷，零表示未分类。
-    int signedKind = 0;
-};
-
 /// 网格中检测到的一条连通特征曲线或环。
 struct FeatureLoop {
     /// @name 恢复的拓扑和归属
@@ -179,7 +154,6 @@ struct FeatureGraphEdge {
     bool boundary = false;
     bool dihedral = false;
     bool normalTensor = false;
-    bool smoothCurvature = false;
     bool nonManifold = false;
     bool cleanupBridge = false;
     bool consolidationBridge = false;
@@ -187,8 +161,6 @@ struct FeatureGraphEdge {
     int signedKind = 0;
     double tensorPersistence = 0.0;
     int tensorPersistentScales = 0;
-    double curvaturePersistence = 0.0;
-    int curvaturePersistentScales = 0;
 
     /// @return 此边是否仅由图恢复阶段合成，而不是原始局部证据直接产生。
     bool synthetic() const { return cleanupBridge || consolidationBridge; }
@@ -238,7 +210,7 @@ struct FeatureGraph {
 /// 追踪清理后的一个连通特征图组件。
 ///
 /// 这些诊断信息显式表达弱特征决策：即使两者都产生特征顶点，下游简化仍可区分闭合且有强支持的 CAD 环
-/// 与稀疏的弱证据脊片段。
+/// 与稀疏的弱证据片段。
 struct FeatureComponent {
     int id = -1;
     std::vector<int> vertices;
@@ -246,7 +218,6 @@ struct FeatureComponent {
     int boundaryEdges = 0;
     int dihedralEdges = 0;
     int normalTensorEdges = 0;
-    int smoothCurvatureEdges = 0;
     int nonManifoldEdges = 0;
     int cleanupBridgeEdges = 0;
     int consolidationBridgeEdges = 0;
@@ -259,7 +230,6 @@ struct FeatureComponent {
     double closureRate = 0.0;
     double strongEvidenceRatio = 0.0;
     double meanTensorPersistence = 0.0;
-    double meanCurvaturePersistence = 0.0;
     double meanPrimitiveResidual = 0.0;
     double confidence = 0.0;
 };
@@ -321,10 +291,8 @@ struct FeatureAnalysis {
     int boundaryFeatureEdges = 0;
     int dihedralFeatureEdges = 0;
     int normalTensorFeatureEdges = 0;
-    int smoothCurvatureFeatureEdges = 0;
     int nonManifoldFeatureEdges = 0;
     int normalTensorScoredVertices = 0;
-    int smoothCurvatureScoredVertices = 0;
     int convexFeatureEdges = 0;
     int concaveFeatureEdges = 0;
     int unknownSignedFeatureEdges = 0;
@@ -334,11 +302,6 @@ struct FeatureAnalysis {
     double maxNormalTensorPersistentScore = 0.0;
     double meanNormalTensorLocalScale = 0.0;
     double meanNormalTensorPersistence = 0.0;
-    double maxSmoothCurvatureFeatureScore = 0.0;
-    double maxSmoothCurvaturePersistentScore = 0.0;
-    double meanSmoothCurvatureLocalScale = 0.0;
-    double meanSmoothCurvaturePersistence = 0.0;
-    double meanSmoothCurvatureScaleStability = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
     /// 两个面绕序不一致的内部边；对这些边，二面角评分回退到无符号法向夹角。

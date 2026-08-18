@@ -246,9 +246,7 @@ img, svg, canvas, video {
     <article class="algorithm-ref-card"><h3>Feature Graph Cleanup / Consolidation / Confidence</h3><p><strong>代码：</strong><code>FeatureGraphCleanup.cpp</code>、<code>FeatureGraphCompatibility.cpp</code>、<code>FeatureGraphConsolidation.cpp</code> 做弱 spur、兼容 bridge 和跨 component recovery。</p><p><strong>引用：</strong>M016/M021/M044 graph/gap，M024/M025 segmentation，M026 consolidation。</p></article>
     <article class="algorithm-ref-card"><h3>Primitive Loop Fitting</h3><p><strong>代码：</strong><code>FeatureLoopBuilder.cpp</code>、<code>PrimitiveFit.cpp</code>、<code>FeaturePrimitiveRecovery.cpp</code> 拟合 circle / near-circle / ellipse / polygonal loop（圆用 Taubin 1991 代数拟合、Kåsa 为确定性回退；椭圆用 Halíř-Flusser 直接最小二乘）；<code>Quadrics.cpp</code> 按 component confidence 缩放 feature-curve soft quadric。</p><p><strong>引用：</strong>M007/M016/M026，简化保护参考 M028/M029。</p><span class="doc-path">documentation/papers/feature_preserving_simplification/hussain_2008_feature_preserving_mesh_simplification_vertex_cover.pdf</span><span class="doc-path">documentation/papers/feature_preserving_simplification/wang_2008_feature_sensitive_metric.pdf</span></article>
     <article class="algorithm-ref-card"><h3>Benchmark / Metrics</h3><p><strong>代码：</strong><code>feature-benchmark</code> 与 <code>benchmarkFeatureAnalysis()</code> 输出 edge/junction/branch-pair F1、patch adjacency accuracy、loop closure 与 component confidence。</p><p><strong>引用：</strong>验证口径来自 feature detection、segmentation 和 curve-network 文献共识。</p><span class="doc-path">tests/data/feature_labels/</span></article>
-    <article class="algorithm-ref-card"><h3>暂不作为默认核心</h3><p>确定性曲率 ridge/valley 已于 2026-07 落地为 opt-in 的 smooth-curvature 弱证据路径（<code>SmoothCurvature.cpp</code>，默认关闭）；wireframe/neural edge、learned QEM 仍作为后续 benchmark、离线标签或对照路线，不替代确定性 CAD/STL pipeline。</p><p><strong>引用：</strong>M005/M011/M014/M021 curvature；M006/M008/M010/M017/M020/M022/M023 wireframe/neural；M034-M036 neural/QEM。</p><span class="doc-path">documentation/papers/feature_detection/</span><span class="doc-path">documentation/papers/neural_and_temporal_qem/</span><span class="doc-path">documentation/papers/mesh_generation/</span></article>
   </div>
-  <p>一句话总览：默认路线仍是 <strong>CAD/STL evidence + normal-tensor + cleanup/confidence + QEM/line-quadrics + hard guards</strong>；normal filter、stable scale、component consolidation 和 surface patches 为 opt-in。</p>
 <!-- MANUMESH_QEM_QUADRIC_EXPANSION_BEGIN -->
 <section class="feature-recognition-brief qem-quadrics-expansion">
   <h2>QEM 二次型展开速查：当前到底加了哪些项</h2>
@@ -327,7 +325,6 @@ img, svg, canvas, video {
 <li><a href="#s8">权重项的数学意义</a></li>
 <li><a href="#s9">边界与特征曲线的二次型解释</a></li>
 <li><a href="#s10">圆形特征拟合的最小二乘推导</a></li>
-<li><a href="#s10b">光滑曲率特征检测的数学</a></li>
 <li><a href="#s11">还有没有更强的理论路线</a></li>
 <li><a href="#s12">从能量函数看当前程序</a></li>
 </ol>
@@ -825,53 +822,8 @@ $$x_{proj}=center+r\frac{(I-n_cn_c^\top)(x-center)}{\|(I-n_cn_c^\top)(x-center)\
 </table>
 </section>
 
-<h2 id="s10b"><span class="num">10B</span>光滑曲率特征检测的数学</h2>
 
-<p>前面几节讨论的特征证据都来自离散网格上的不连续：开边界、非流形边、超过阈值的二面角。这些是"硬证据"，因为不连续在网格上有明确定义。但很多设计曲线并不表现为不连续——扫描件或自由曲面上的光滑 ridge/valley 处，网格局部完全光滑，二面角处处很小。要检测它们，必须回到微分几何：ridge/valley 是<strong>光滑表面上主曲率沿自身主方向取极值的位置</strong>，是一个微分事件而不是拓扑事件。这就是 2026-07 新增的 opt-in 光滑曲率证据路径（<code>SmoothCurvature.cpp</code>，设计文档 <code>documentation/design/smooth_curvature_feature_detection_2026_07_11.md</code>）背后的数学：多尺度局部<strong>三次</strong> Monge patch 拟合 + 解析 extremality + 边零交叉极值。整条路径是确定性的最小二乘与特征值计算，没有任何学习成分。</p>
 
-<h3>10B.1 局部三次 Monge patch 拟合</h3>
-
-<p>在顶点 $v$ 处建立局部坐标系：以面积加权的局部法线 $n$ 为 $w$ 轴，切平面内取正交基 $(u,v)$。把 k-ring 邻域顶点变换到这个坐标系后，表面在原点附近可以写成高度场（Monge patch）。2026-07-12 起拟合升级为<strong>三次</strong>基（Yoshizawa 路线）：</p>
-
-<div class="formula">
-$$w(u,v)=a\,u^2+b\,uv+c\,v^2+d\,u+e\,v+g_0\,u^3+g_1\,u^2v+g_2\,uv^2+g_3\,v^3$$
-<span class="label">(C1)</span>
-</div>
-
-<p>九个系数用带距离权重的最小二乘拟合：二次块 $(a,b,c)$ 给出主曲率，三次块 $(g_0..g_3)$ 携带曲率的方向导数，可解析算出 extremality $e_i=\nabla\kappa_i\cdot t_i$（见 10B.4）。为什么保留一次项 $d,e$：初始估计的局部法线不一定精确，$d,e$ 吸收了法线的小偏差，等价于允许拟合过程自行校正切平面方向。拟合再叠加确定性 Huber 重加权（迭代次数由 <code>smoothCurvatureRobustFitIterations</code> 控制，默认 2）：残差大的邻域点权重按 Huber 函数衰减后重解，这样个别噪声点不会把曲面拉歪，而整个过程仍是确定性的——同一输入永远得到同一输出。数值实现上，9×9 加权正规方程按上三角增量累加后 LDLT 求解（坐标已按邻域半径预归一化，条件数可控），取代了每轮鲁棒迭代一次的稠密 QR；邻域点数不足 9 时判定为欠定并放弃该尺度。</p>
-
-<h3>10B.2 尺度归一化：为什么分数无量纲</h3>
-
-<p>拟合前，所有局部坐标先除以归一化尺度 $h$（局部平均边长 × ring 数）。曲率的量纲是 $1/\text{长度}$；在缩放后的坐标系里解出的曲率相当于 $\hat{\kappa}=\kappa\,h$，长度量纲互相抵消，是一个无量纲数。这一步的直接后果是：把网格整体放大 1000 倍（比如单位从 m 换成 mm），$\kappa$ 缩小 1000 倍而 $h$ 放大 1000 倍，$\hat{\kappa}$ 不变，因此 <code>smoothCurvatureFeatureThreshold</code>（默认 0.015）不需要随模型尺度重新调参。这与 normal tensor 路径用局部边长归一化的动机一致。</p>
-
-<h3>10B.3 第一/第二基本形式与广义自伴特征问题</h3>
-
-<p>对高度场 $r(u,v)=(u,v,w(u,v))$，在原点处 $w_u=d$，$w_v=e$，$w_{uu}=2a$，$w_{uv}=b$，$w_{vv}=2c$，第一、第二基本形式为：</p>
-
-<div class="formula">
-$$
-I=\begin{bmatrix}1+d^2 & de\\ de & 1+e^2\end{bmatrix},\qquad
-I\!I=\frac{1}{\sqrt{1+d^2+e^2}}\begin{bmatrix}2a & b\\ b & 2c\end{bmatrix}
-$$
-<span class="label">(C2)</span>
-</div>
-
-<p>主曲率与主方向由广义特征问题给出：</p>
-
-<div class="formula">
-$$I\!I\,t=\kappa\,I\,t$$
-<span class="label">(C3)</span>
-</div>
-
-<p>因为 $I$ 对称正定、$I\!I$ 对称，这是一个广义<strong>自伴</strong>特征问题：两个特征值 $\kappa_1,\kappa_2$ 保证为实数（带符号的主曲率），两个特征向量在 $I$ 度量下正交（主方向）。等价的说法是求 shape operator $S=I^{-1}I\!I$ 的特征分解，但直接解自伴形式在数值上更稳。保留符号很重要：$\kappa>0$ 与 $\kappa<0$ 区分了 ridge（凸脊）和 valley（凹谷），后续 persistence 检查也要求符号跨尺度一致。</p>
-
-<h3>10B.4 边零交叉极值判据：曲率大不等于特征</h3>
-
-<p>只看曲率幅值会把圆柱侧壁、球面这类均匀弯曲区域全部误判成特征。经典 ridge/crest line 理论的定义是：ridge 点是主曲率 $\kappa_1$ 沿自己的主方向 $t_1$ 取<strong>方向极值</strong>的点，即 extremality $e=\nabla\kappa_1\cdot t_1$ 的零点。三次拟合让 $e$ 可以从三次块解析算出（10B.1），离散判据因此升级为 Ohtake 的<strong>边零交叉</strong>形式：主方向只是一个 line field（$t$ 与 $-t$ 等价），所以先把邻居的切向与 extremality 做符号同步；边两端都要通过曲率支配性测试（ridge 要求 $\kappa_{max}&gt;|\kappa_{min}|$，valley 对偶）；$e$ 必须沿一条近似跟随主方向的边变号，并且两端通过一阶极大测试（极值点须落在各自切向的前方——用一阶条件替代不可行的二阶导数测试）；最后零交叉按 $|e|$ 反比插值归属 $|e|$ 较小的端点，使检测带保持<strong>一个顶点宽</strong>而不是两个。圆柱侧壁上沿环向走曲率处处相同，$e$ 不变号，因此被正确排除；真正的脊线横跨方向上曲率先升后降，$e$ 过零，被保留。候选分数再融合四个量：尺度归一化曲率幅值、各向异性（$|\kappa_1|$ 与 $|\kappa_2|$ 的分离度，曲线状特征要求单方向弯曲）、极值对比度、拟合残差质量（残差大说明局部不像光滑曲面，证据不可信）。</p>
-
-<h3>10B.5 persistence：跨尺度存活才算数</h3>
-
-<p>单一邻域尺度上的响应无法区分“真实设计曲线”和“一格噪声”，因此检测会在多个拓扑尺度重复拟合。默认仍以最高分尺度为参照；opt-in stable-scale 模式改按跨尺度 sign/tangent/score 一致性选择，并输出 <code>selectedScale</code> / <code>scaleStability</code>。支持尺度独立投票，不要求相邻，也没有最粗尺度 veto；最后 mesh-edge 门控仍要求两端分数、票数、signed kind、边方向与切向一致。精确实现见 <a href="manumesh-feature-recognition-pipeline.html#smooth-curvature">特征识别全链路</a>。</p>
 
 <h2 id="s11"><span class="num">11</span>还有没有更强的理论路线</h2>
 

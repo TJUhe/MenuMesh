@@ -1,6 +1,6 @@
 # 2026-07-06 开发计划
 
-本计划保留 2026-07-06 的阶段目标。当前构建基线已经统一为 Visual Studio 16 2019 / MSVC v142，旧工具链目标不再适用。2026-07-15 已增长到 267 个启用的非性能 CTest（快速套件 256 个、external 11 个，另有 1 个 disabled 手工性能测试），并完成九阶段特征识别、normal filter、stable scale、component consolidation、junction branches 和 surface patches。当前路线以 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md) 为准。
+本计划保留 2026-07-06 的阶段目标。当前构建基线已经统一为 Visual Studio 16 2019 / MSVC v142，旧工具链目标不再适用。2026-07-15 已增长到 267 个启用的非性能 CTest（快速套件 256 个、external 11 个，另有 1 个 disabled 手工性能测试），并完成九阶段特征识别、normal filter、component consolidation、junction branches 和 surface patches。当前路线以 [`feature_recognition_system_upgrade_2026_07_15.md`](feature_recognition_system_upgrade_2026_07_15.md) 为准。
 
 ## 第一周：稳定性和文档一致性
 

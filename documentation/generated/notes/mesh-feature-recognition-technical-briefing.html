@@ -447,7 +447,7 @@
     <header class="title-page">
       <p class="document-type">技术汇报稿 · 源码复核版</p>
       <h1>三角表面网格特征识别</h1>
-      <p class="subtitle">从离散边证据、多尺度微分证据到特征图、闭环、几何基元与表面分片的完整实现原理</p>
+      <p class="subtitle">从离散边证据、多尺度法向张量到特征图、闭环、几何基元与表面分片的完整实现原理</p>
       <div class="meta" aria-label="文档信息">
         <div><strong>适用对象</strong>工程管理、算法评审、技术决策</div>
         <div><strong>分析范围</strong>三角形表面网格，不含实体与特征树</div>
@@ -457,10 +457,9 @@
 
     <section class="executive" aria-labelledby="executive-title">
       <h2 id="executive-title">汇报结论</h2>
-      <p>该实现不是单一“角度阈值”检测器，而是一条确定性的分层流水线。它先以边界、非流形和有向二面角建立高可信离散证据，再以法向张量和三次 Monge 曲面拟合补充弱折痕、光滑脊线与谷线；随后把局部响应组织成可追踪的图，执行去毛刺、断点桥接、闭环恢复、圆/椭圆拟合、组件置信度计算，并可把特征边作为屏障进行面片分割。</p>
+      <p>该实现不是单一“角度阈值”检测器，而是一条确定性的分层流水线。它先以边界、非流形和有向二面角建立高可信离散证据，再以法向张量补充弱折痕；随后把局部响应组织成可追踪的图，执行去毛刺、断点桥接、闭环恢复、圆/椭圆拟合、组件置信度计算，并可把特征边作为屏障进行面片分割。</p>
       <ul class="key-points">
         <li><strong>核心目标：</strong>输出可供简化、保护、分片和质量评估直接消费的显式特征图，而非仅输出逐点分数。</li>
-        <li><strong>主路径：</strong>边界、非流形、二面角是默认强证据；法向张量默认启用，光滑曲率通道默认关闭。</li>
         <li><strong>稳定机制：</strong>局部尺度归一化、多尺度持久性、符号一致性、切向一致性和图级连续性共同抑制噪声。</li>
         <li><strong>工程边界：</strong>结果受三角剖分方向、局部采样密度、绕序一致性与阈值配置影响；不等同于 CAD 实体特征恢复。</li>
       </ul>
@@ -474,7 +473,6 @@
         <li><a href="#discrete">离散强特征证据</a></li>
         <li><a href="#normal-filter">可选法向预处理</a></li>
         <li><a href="#tensor">多尺度法向张量</a></li>
-        <li><a href="#curvature">光滑曲率特征</a></li>
         <li><a href="#graph">特征图清理与整合</a></li>
         <li><a href="#loops">曲线追踪与闭环恢复</a></li>
         <li><a href="#primitive">圆、椭圆与多边形拟合</a></li>
@@ -490,7 +488,7 @@
     <main>
       <section id="scope">
         <h2><span class="number">01</span>对象、输入与输出</h2>
-        <p class="lead">算法处理的是带顶点坐标与三角面片索引的二维流形或近似流形表面。它识别的是网格上的几何不连续、微分极值和可组织的曲线结构，不推断孔、倒角、口袋等制造语义。</p>
+        <p class="lead">算法处理的是带顶点坐标与三角面片索引的二维流形或近似流形表面。它识别的是网格上的几何不连续、法向张量弱证据和可组织的曲线结构，不推断孔、倒角、口袋等制造语义。</p>
 
         <div class="equation">
           M = (V, F), &nbsp; V = {p<sub>i</sub> ∈ ℝ³}, &nbsp; F = {(i, j, k)}
@@ -503,10 +501,9 @@
               <tr><th>层次</th><th>主要对象</th><th>面向下游的意义</th></tr>
             </thead>
             <tbody>
-              <tr><td>局部证据</td><td>边界、二面角、非流形、法向张量、光滑曲率</td><td>回答“哪条网格边可能是特征，以及证据来自哪里”</td></tr>
               <tr><td>显式图</td><td>特征顶点、带类型的特征边、端点、交汇点、分支配对</td><td>提供连续性、拓扑角色和保护关系</td></tr>
               <tr><td>曲线与闭环</td><td>开放链、闭合环、恢复环、圆/近圆/椭圆/多边形环</td><td>支持投影、约束和几何语义弱化表达</td></tr>
-              <tr><td>组件诊断</td><td>闭合率、证据比例、持久分数、拟合残差、置信度</td><td>让下游按可信度区分强 CAD 边与弱曲率片段</td></tr>
+              <tr><td>组件诊断</td><td>闭合率、证据比例、持久分数、拟合残差、置信度</td><td>让下游按可信度区分强 CAD 边与弱特征片段</td></tr>
               <tr><td>表面分片</td><td>面片编号、面积、法向、边界类别和相邻面片</td><td>把特征图转为可用于区域处理的拓扑分区</td></tr>
             </tbody>
           </table>
@@ -524,7 +521,6 @@
               <tr><th>阶段</th><th>执行内容</th><th>关键产物或约束</th></tr>
             </thead>
             <tbody>
-              <tr><td>1</td><td>汇集边证据</td><td>五类来源：边界、二面角、非流形、法向张量、光滑曲率</td></tr>
               <tr><td>2</td><td>退化证据降级</td><td>移除零面积面邻边上无意义的二面角证据</td></tr>
               <tr><td>3</td><td>初始化特征图</td><td>把候选边变为带来源标签的图边并建立邻接</td></tr>
               <tr><td>4</td><td>局部图清理</td><td>删除弱毛刺，桥接短缺口，合并过近交汇点</td></tr>
@@ -640,8 +636,6 @@
           <span class="where">ρ ∈ [0,1] 为松弛系数，默认 0.8；默认执行 4 轮，但整个预处理默认关闭。</span>
         </div>
 
-        <div class="definition"><strong>作用范围：</strong>过滤后的面法向直接影响二面角计算，并通过面积加权顶点法向影响光滑曲率拟合的局部坐标系；法向张量通道在当前实现中重新由原始三角形几何计算法向，因此不受该过滤器影响。</div>
-        <p class="source-note">源码依据：<code>src/feature_detection/FeatureNormalFilter.cpp:38-195</code>；<code>src/feature_detection/NormalTensor.cpp:62-78</code>；<code>src/feature_detection/SmoothCurvature.cpp:108-130, 610-640</code>。</p>
       </section>
 
       <section id="tensor" class="page-break">
@@ -696,118 +690,7 @@
         <p class="source-note">源码依据：<code>src/feature_detection/NormalTensor.cpp:27-151</code>；<code>src/feature_detection/FeatureEvidence.cpp:183-233</code>。</p>
       </section>
 
-      <section id="curvature" class="page-break">
-        <h2><span class="number">06</span>光滑曲率特征</h2>
-        <p class="lead">该通道面向没有明显折角、但存在脊线或谷线的光滑表面。它在多个 k-ring 邻域中拟合带三次项的局部 Monge 曲面，由二次项求主曲率，由三次项求曲率沿主方向的变化，再通过零交叉、主曲率占优、显著性与跨尺度一致性完成筛选。该通道默认关闭。</p>
-
-        <h3>6.1 局部尺度与 Monge 坐标</h3>
-        <p>对顶点 v 和当前 ring 数 h，先取局部半径：</p>
-        <div class="equation">
-          r = max(ℓ̄<sub>v</sub> · h, 10<sup>−12</sup>)
-          <br>
-          u = Δp·e<sub>u</sub>/r, &nbsp; v = Δp·e<sub>v</sub>/r, &nbsp; z = Δp·n/r
-          <span class="label">式 6-1</span>
-          <span class="where">ℓ̄<sub>v</sub> 是局部平均边长；坐标和高度都除以 r，使曲率分数在网格整体等比缩放后保持稳定。</span>
-        </div>
-
-        <h3>6.2 九未知量三次拟合</h3>
-        <div class="equation">
-          z(u,v) ≈ a u² + b uv + c v² + d u + e v
-          + f u³ + g u²v + h uv² + i v³
-          <span class="label">式 6-2</span>
-          <span class="where">未知量 β=(a,b,c,d,e,f,g,h,i)<sup>T</sup> 共 9 个，因此有效邻点少于 9 个时直接判定拟合无效。</span>
-        </div>
-
-        <p>空间权重为 ω<sub>s</sub>=exp[−½(u²+v²)]。求解加权正规方程：</p>
-        <div class="equation">
-          (X<sup>T</sup>WX)β = X<sup>T</sup>Wz
-          <span class="label">式 6-3</span>
-          <span class="where">使用 9×9 LDLT 分解；若分解失败、系数非有限，或最小绝对主元不大于 10<sup>−13</sup>·max(1, 最大主元)，则拒绝该尺度。</span>
-        </div>
-
-        <h3>6.3 确定性稳健重加权</h3>
-        <p>初次求解后，令残差 ε<sub>j</sub>=x<sub>j</sub><sup>T</sup>β−z<sub>j</sub>，以零中心绝对中位数估计尺度：</p>
-        <div class="equation">
-          σ̂ = max(10<sup>−8</sup>, 1.4826 · median(|ε|)), &nbsp; c = 1.5σ̂
-          <br>
-          ω<sub>r,j</sub> = {1, |ε<sub>j</sub>|≤c; &nbsp; c/|ε<sub>j</sub>|, |ε<sub>j</sub>|&gt;c}
-          <br>
-          W<sub>jj</sub> = max(10<sup>−16</sup>, ω<sub>s,j</sub>ω<sub>r,j</sub>)
-          <span class="label">式 6-4</span>
-          <span class="where">配置值表示重加权轮数；默认 2 轮意味着一次初始求解加两次重加权求解。</span>
-        </div>
-
-        <h3>6.4 第一、第二基本形式与主曲率</h3>
-        <p>由于拟合保留了线性项，不能直接把 Hessian 特征值当作主曲率。实现构造：</p>
-        <div class="equation">
-          I = [[1+d², de], [de, 1+e²]]
-          <br>
-          n<sub>z</sub> = 1/√(1+d²+e²)
-          <br>
-          II = [[2a n<sub>z</sub>, b n<sub>z</sub>], [b n<sub>z</sub>, 2c n<sub>z</sub>]]
-          <br>
-          II q = κ I q
-          <span class="label">式 6-5</span>
-          <span class="where">广义对称特征问题给出两个主曲率 κ<sub>0</sub>≤κ<sub>1</sub> 及其局部主方向。</span>
-        </div>
-
-        <h3>6.5 曲率极值与脊/谷判定</h3>
-        <p>沿归一化主方向 q=(t<sub>1</sub>,t<sub>2</sub>)，三次项给出曲率沿该方向的一阶变化代理：</p>
-        <div class="equation">
-          e(q) = 6[f t<sub>1</sub>³ + g t<sub>1</sub>²t<sub>2</sub> + h t<sub>1</sub>t<sub>2</sub>² + i t<sub>2</sub>³]
-          <span class="label">式 6-6</span>
-        </div>
-
-        <p>候选必须先满足主曲率占优：</p>
-        <div class="equation">
-          ridge: κ<sub>1</sub> &gt; |κ<sub>0</sub>|,
-          &nbsp;&nbsp; valley: κ<sub>0</sub> &lt; −|κ<sub>1</sub>|
-          <span class="label">式 6-7</span>
-        </div>
-
-        <p>然后在近似沿该主方向的邻边上寻找 e 的符号翻转。相邻顶点的线场方向先同步正负，邻点 extremality 再按 (r<sub>center</sub>/r<sub>neighbor</sub>)² 变换到中心尺度。只有以下条件同时满足才接受：</p>
-        <ol>
-          <li>中心与邻点的 e 异号，表示边上存在零交叉；</li>
-          <li>中心 |e| 不大于邻点 |e|，由中心顶点单侧认领交叉，避免生成双顶点宽带；</li>
-          <li>脊/谷的一阶最大值方向测试在交叉两端均为正；</li>
-          <li>交叉显著性不小于 0.15κ²，以排除球、柱、锥、环面等 Dupin cyclide 上由离散误差制造的伪极值。</li>
-        </ol>
-
-        <h3>6.6 单尺度分数</h3>
-        <div class="equation">
-          A = clamp(|κ−κ′|/(|κ|+|κ′|+0.025), 0, 1)
-          <br>
-          E = clamp(extremum/(|κ|+0.025), 0, 1)
-          <br>
-          Q = 1/(1+25R<sub>fit</sub>)
-          <br>
-          S<sub>C</sub> = min(|κ|,4) · √(A E) · Q
-          <span class="label">式 6-8</span>
-          <span class="where">κ′ 为另一个主曲率，R<sub>fit</sub> 为加权 RMS 拟合残差。特征曲线切向取与极值方向正交的另一主方向。</span>
-        </div>
-
-        <h3>6.7 跨尺度选择与持久性</h3>
-        <p>一个尺度支持参考候选，当且仅当符号相同、分数不低于 max(τ<sub>C</sub>,0.3S<sub>ref</sub>)，且切向绝对点积不低于配置阈值。设支持尺度数为 m、平均切向一致性为 ā、支持尺度平均分数为 S̄<sub>support</sub>：</p>
-        <div class="equation">
-          stability = (m/K) · ā · 1/(1+R<sub>fit</sub>)
-          <br>
-          P<sub>C</sub> = (0.65S<sub>ref</sub> + 0.35S̄<sub>support</sub>) · (m/K) · ā
-          <span class="label">式 6-9</span>
-        </div>
-        <p>默认按原始分数选择参考尺度；启用稳定尺度选择后，目标值变为 <em>S<sub>ref</sub>(0.5+0.5·stability)</em>。</p>
-
-        <h3>6.8 从顶点候选到曲率边</h3>
-        <div class="logic">1. 两端均未落在离散强特征顶点掩码上；
-2. min(mₐ, mᵦ) ≥ 配置的最少持久尺度数；
-3. min(Pc,ₐ, Pc,ᵦ) ≥ τc；
-4. 两端均有非零且相同的 ridge/valley 符号；
-5. min(|ê·tₐ|, |ê·tᵦ|) ≥ αc；
-6. |tₐ·tᵦ| ≥ βc。</div>
-        <p>与法向张量通道不同，这里要求<strong>两端</strong>都与网格边充分对齐。默认 α<sub>C</sub>=0.55，β<sub>C</sub>=0.65。</p>
-        <p class="source-note">源码依据：<code>src/feature_detection/SmoothCurvature.cpp:182-230, 233-603, 618-725</code>；<code>src/feature_detection/FeatureEvidence.cpp:235-284</code>。</p>
-      </section>
-
-      <section id="graph" class="page-break">
+<section id="graph" class="page-break">
         <h2><span class="number">07</span>特征图清理与整合</h2>
         <p class="lead">局部检测给出的是离散边集合。图阶段把它们变成顶点—边拓扑，并以证据类型、符号、距离、切向和局部尺度为约束进行去噪与连续性修复。</p>
 
@@ -816,13 +699,12 @@
         <div class="equation">
           θ<sub>trace</sub> = {θ<sub>feature</sub>, 配置值&lt;0; &nbsp; 配置值, 其他}
           <br>
-          trace(e) ⇔ boundary ∨ nonManifold ∨ tensor ∨ curvature ∨ [dihedral ∧ θ<sub>e</sub>≥θ<sub>trace</sub>]
+          trace(e) ⇔ boundary ∨ nonManifold ∨ tensor ∨ [dihedral ∧ θ<sub>e</sub>≥θ<sub>trace</sub>]
           <span class="label">式 7-0</span>
         </div>
         <p>因此“已检测证据边数”和“被追踪边数”是两个诊断量。追踪角只能从已经通过硬特征角的二面角边中继续筛选；把它设得低于硬特征角，不能补回此前未进入候选集的边。</p>
 
         <h3>7.1 弱毛刺删除</h3>
-        <p>只有“纯法向张量或纯光滑曲率”且不含边界、二面角、非流形和恢复桥标签的悬垂链，才属于可删除弱毛刺。默认策略删除边数不超过 2 的弱链。若启用强度阈值，则计算：</p>
         <div class="equation">
           Δs<sub>e</sub> = length(e) / [½(ℓ<sub>a</sub>+ℓ<sub>b</sub>)]
           <br>
@@ -1027,7 +909,6 @@
 
       <section id="defaults">
         <h2><span class="number">12</span>默认策略与参数含义</h2>
-        <p class="lead">默认值明显偏向干净的工程三角网格：强离散证据优先，张量弱折痕作为补充，光滑曲率、法向预处理、组件整合和表面分片均需显式开启。</p>
 
         <div class="table-wrap">
           <table class="compact">
@@ -1038,9 +919,6 @@
               <tr><td>最小特征环顶点数</td><td>8</td><td>恢复周期接受与闭环基元拟合下限</td></tr>
               <tr><td>张量通道</td><td>开启</td><td>检测弱折痕；阈值 0.16，对齐阈值 0.45</td></tr>
               <tr><td>张量尺度</td><td>1</td><td>默认没有跨多个尺度的额外投票；最少支持尺度为 1</td></tr>
-              <tr><td>光滑曲率通道</td><td>关闭</td><td>开启后默认 2-ring 起步、3 个尺度、最少支持 2 个尺度</td></tr>
-              <tr><td>曲率分数/边对齐/切向一致</td><td>0.015 / 0.55 / 0.65</td><td>顶点持久分数、网格边对齐和两端切向一致门控</td></tr>
-              <tr><td>稳健拟合重加权</td><td>2 轮</td><td>三次 Monge 拟合中降低大残差样本权重</td></tr>
               <tr><td>图清理</td><td>开启</td><td>短缺口比例 1.25；默认删除最多 2 边的纯弱毛刺</td></tr>
               <tr><td>弱毛刺积分强度</td><td>0</td><td>0 表示沿用边数规则；正值启用式 7-1</td></tr>
               <tr><td>组件高置信阈值</td><td>0.35</td><td>只影响统计分类，不改变候选边本身</td></tr>
@@ -1051,7 +929,6 @@
           </table>
         </div>
 
-        <p>参数不是彼此独立：例如提高张量尺度数但保持最少支持尺度为 1，会增加“任一尺度命中”的机会；光滑曲率阈值、最少支持尺度、切向一致阈值和边对齐阈值共同决定输出密度，不能只调一个阈值评估结果。</p>
         <p class="source-note">源码依据：<code>include/algorithms/feature_detection/FeatureTypes.h:18-158</code>；<code>src/feature_detection/FeatureDetector.cpp:67-175</code>。</p>
       </section>
 
@@ -1142,8 +1019,8 @@
         <ol class="references">
           <li>Jiao, X.; Bayyana, N. <em>Identification of C1 and C2 Discontinuities for Surface Meshes in CAD</em>, 2008. <a href="https://doi.org/10.1016/j.cad.2007.10.005">doi:10.1016/j.cad.2007.10.005</a>。对应有向二面角符号与分支点判据的工程化实现。</li>
           <li>Tsuchie, S.; Higashi, M. <em>Extraction of Surface-Feature Lines on Meshes Using Normal Tensor Framework</em>, 2014. <a href="https://doi.org/10.1080/16864360.2014.846088">doi:10.1080/16864360.2014.846088</a>。对应法向张量谱；当前实现另加局部高斯平滑与多尺度持久性。</li>
-          <li>Ohtake, Y. et al. <em>Ridge-Valley Lines on Meshes via Implicit Surface Fitting</em>, 2004. <a href="https://doi.org/10.1145/1015706.1015768">doi:10.1145/1015706.1015768</a>。对应主曲率占优、extremality 零交叉与单侧归属。</li>
-          <li>Yoshizawa, S. et al. <em>Fast and Robust Detection of Crest Lines on Meshes</em>, 2005. <a href="https://doi.org/10.1145/1060244.1060270">doi:10.1145/1060244.1060270</a>。对应三次 Monge 极值、cyclideness、曲线强度与缺口方向规则。</li>
+          <li>Ohtake, Y. et al. <em>Ridge-Valley Lines on Meshes via Implicit Surface Fitting</em>, 2004. <a href="https://doi.org/10.1145/1015706.1015768">doi:10.1145/1015706.1015768</a>。保留为历史文献索引，不对应当前运行时路径。</li>
+          <li>Yoshizawa, S. et al. <em>Fast and Robust Detection of Crest Lines on Meshes</em>, 2005. <a href="https://doi.org/10.1145/1060244.1060270">doi:10.1145/1060244.1060270</a>。保留为历史文献索引，不对应当前运行时路径。</li>
           <li>Luo, T.; Zha, H. <em>Multi-Scale Creases Detection on Noisy Meshes</em>, 2008. <a href="https://doi.org/10.1109/ICIP.2008.4712166">doi:10.1109/ICIP.2008.4712166</a>。这里只对应“跨尺度支持票数”的思想，不代表复现其完整流程。</li>
           <li>Taubin, G. <em>Estimation of Planar Curves, Surfaces, and Nonplanar Space Curves Defined by Implicit Equations</em>, 1991. <a href="https://doi.org/10.1109/34.103273">doi:10.1109/34.103273</a>；Chernov, N. <em>Circular and Linear Regression</em>, 2010. <a href="https://doi.org/10.1201/b10436">doi:10.1201/b10436</a>。对应圆拟合主路径与 Newton 形式。</li>
           <li>Kåsa, I. <em>A Curve Fitting Procedure and Its Error Analysis</em>, 1976. <a href="https://doi.org/10.1109/TIM.1976.6312298">doi:10.1109/TIM.1976.6312298</a>。对应圆拟合退化时的线性回退。</li>
@@ -1174,7 +1051,6 @@
               <tr><td>绕序与有向二面角</td><td><code>src/common/MeshQueries.cpp:73-163</code></td></tr>
               <tr><td>法向预处理</td><td><code>src/feature_detection/FeatureNormalFilter.cpp:38-195</code></td></tr>
               <tr><td>法向张量</td><td><code>src/feature_detection/NormalTensor.cpp:27-151</code></td></tr>
-              <tr><td>光滑曲率</td><td><code>src/feature_detection/SmoothCurvature.cpp:182-725</code></td></tr>
               <tr><td>图清理与组件置信度</td><td><code>src/feature_detection/FeatureGraphCleanup.cpp:72-703</code></td></tr>
               <tr><td>跨组件整合</td><td><code>src/feature_detection/FeatureGraphConsolidation.cpp:42-175</code></td></tr>
               <tr><td>曲线恢复顺序</td><td><code>src/feature_detection/FeatureLoopRecovery.cpp:18-25</code></td></tr>

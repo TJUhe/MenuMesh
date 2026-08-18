@@ -209,26 +209,6 @@ ManuMeshStatus initializeFeatureOptions(ManuMeshFeatureOptions* options, std::si
     MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_smoothing_iterations, defaults.normalTensorSmoothingIterations);
     MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_scale_count, defaults.normalTensorScaleCount);
     MANUMESH_INITIALIZE_FEATURE_OPTION(normal_tensor_min_persistent_scales, defaults.normalTensorMinPersistentScales);
-    MANUMESH_INITIALIZE_FEATURE_OPTION(use_smooth_curvature_features, defaults.useSmoothCurvatureFeatures ? 1 : 0);
-    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_feature_threshold, defaults.smoothCurvatureFeatureThreshold);
-    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_min_edge_alignment, defaults.smoothCurvatureMinEdgeAlignment);
-    MANUMESH_INITIALIZE_FEATURE_OPTION(
-        smooth_curvature_min_tangent_consistency, defaults.smoothCurvatureMinTangentConsistency
-    );
-    MANUMESH_INITIALIZE_FEATURE_OPTION(
-        smooth_curvature_base_neighborhood_rings, defaults.smoothCurvatureBaseNeighborhoodRings
-    );
-    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_scale_count, defaults.smoothCurvatureScaleCount);
-    MANUMESH_INITIALIZE_FEATURE_OPTION(
-        smooth_curvature_min_persistent_scales, defaults.smoothCurvatureMinPersistentScales
-    );
-    MANUMESH_INITIALIZE_FEATURE_OPTION(
-        smooth_curvature_robust_fit_iterations, defaults.smoothCurvatureRobustFitIterations
-    );
-    MANUMESH_INITIALIZE_FEATURE_OPTION(
-        smooth_curvature_use_stable_scale_selection, defaults.smoothCurvatureUseStableScaleSelection ? 1 : 0
-    );
-    MANUMESH_INITIALIZE_FEATURE_OPTION(smooth_curvature_min_scale_stability, defaults.smoothCurvatureMinScaleStability);
     MANUMESH_INITIALIZE_FEATURE_OPTION(cleanup_feature_graph, defaults.cleanupFeatureGraph ? 1 : 0);
     MANUMESH_INITIALIZE_FEATURE_OPTION(feature_graph_gap_length_ratio, defaults.featureGraphGapLengthRatio);
     MANUMESH_INITIALIZE_FEATURE_OPTION(feature_graph_max_weak_spur_edges, defaults.featureGraphMaxWeakSpurEdges);
@@ -336,16 +316,6 @@ bool readFeatureOptions(const ManuMeshFeatureOptions* source, feature::FeatureOp
     MANUMESH_READ_FEATURE_OPTION(normal_tensor_smoothing_iterations, normalTensorSmoothingIterations);
     MANUMESH_READ_FEATURE_OPTION(normal_tensor_scale_count, normalTensorScaleCount);
     MANUMESH_READ_FEATURE_OPTION(normal_tensor_min_persistent_scales, normalTensorMinPersistentScales);
-    MANUMESH_READ_FEATURE_BOOL(use_smooth_curvature_features, useSmoothCurvatureFeatures);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_feature_threshold, smoothCurvatureFeatureThreshold);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_edge_alignment, smoothCurvatureMinEdgeAlignment);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_tangent_consistency, smoothCurvatureMinTangentConsistency);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_base_neighborhood_rings, smoothCurvatureBaseNeighborhoodRings);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_scale_count, smoothCurvatureScaleCount);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_persistent_scales, smoothCurvatureMinPersistentScales);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_robust_fit_iterations, smoothCurvatureRobustFitIterations);
-    MANUMESH_READ_FEATURE_BOOL(smooth_curvature_use_stable_scale_selection, smoothCurvatureUseStableScaleSelection);
-    MANUMESH_READ_FEATURE_OPTION(smooth_curvature_min_scale_stability, smoothCurvatureMinScaleStability);
     MANUMESH_READ_FEATURE_BOOL(cleanup_feature_graph, cleanupFeatureGraph);
     MANUMESH_READ_FEATURE_OPTION(feature_graph_gap_length_ratio, featureGraphGapLengthRatio);
     MANUMESH_READ_FEATURE_OPTION(feature_graph_max_weak_spur_edges, featureGraphMaxWeakSpurEdges);
@@ -414,22 +384,12 @@ ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::
     MANUMESH_INITIALIZE_OPTION(feature_graph_max_weak_spur_edges, 2);
     MANUMESH_INITIALIZE_OPTION(feature_component_min_confidence, 0.35);
     MANUMESH_INITIALIZE_OPTION(quality_refinement_iterations, 0);
-    MANUMESH_INITIALIZE_OPTION(use_smooth_curvature_features, 0);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_feature_threshold, 0.015);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_edge_alignment, 0.55);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_tangent_consistency, 0.65);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_base_neighborhood_rings, 2);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_scale_count, 3);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_persistent_scales, 2);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_robust_fit_iterations, 2);
     MANUMESH_INITIALIZE_OPTION(feature_graph_min_weak_spur_strength, 0.0);
     MANUMESH_INITIALIZE_OPTION(use_feature_normal_filter, 0);
     MANUMESH_INITIALIZE_OPTION(feature_normal_filter_iterations, 4);
     MANUMESH_INITIALIZE_OPTION(feature_normal_filter_angle_sigma_deg, 20.0);
     MANUMESH_INITIALIZE_OPTION(feature_normal_filter_preserve_angle_deg, 50.0);
     MANUMESH_INITIALIZE_OPTION(feature_normal_filter_relaxation, 0.8);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_use_stable_scale_selection, 0);
-    MANUMESH_INITIALIZE_OPTION(smooth_curvature_min_scale_stability, 0.0);
     MANUMESH_INITIALIZE_OPTION(consolidate_feature_graph, 0);
     MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_gap_length_ratio, 3.0);
     MANUMESH_INITIALIZE_OPTION(feature_graph_consolidation_min_alignment, 0.75);
@@ -596,56 +556,6 @@ bool readSimplifyFeatureFields(
     if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, normal_tensor_min_persistent_scales, hasFeatureOptionsOverride)) {
         target.normalTensorMinPersistentScales = source.normal_tensor_min_persistent_scales;
     }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, use_smooth_curvature_features, hasFeatureOptionsOverride)) {
-        target.useSmoothCurvatureFeatures = boolFromInt(source.use_smooth_curvature_features);
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, smooth_curvature_feature_threshold, hasFeatureOptionsOverride) &&
-        !readFiniteDouble(
-            source.smooth_curvature_feature_threshold,
-            "smooth_curvature_feature_threshold",
-            target.smoothCurvatureFeatureThreshold,
-            error
-        )) {
-        return false;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, smooth_curvature_min_edge_alignment, hasFeatureOptionsOverride) &&
-        !readFiniteDouble(
-            source.smooth_curvature_min_edge_alignment,
-            "smooth_curvature_min_edge_alignment",
-            target.smoothCurvatureMinEdgeAlignment,
-            error
-        )) {
-        return false;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
-            source, smooth_curvature_min_tangent_consistency, hasFeatureOptionsOverride
-        ) &&
-        !readFiniteDouble(
-            source.smooth_curvature_min_tangent_consistency,
-            "smooth_curvature_min_tangent_consistency",
-            target.smoothCurvatureMinTangentConsistency,
-            error
-        )) {
-        return false;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
-            source, smooth_curvature_base_neighborhood_rings, hasFeatureOptionsOverride
-        )) {
-        target.smoothCurvatureBaseNeighborhoodRings = source.smooth_curvature_base_neighborhood_rings;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, smooth_curvature_scale_count, hasFeatureOptionsOverride)) {
-        target.smoothCurvatureScaleCount = source.smooth_curvature_scale_count;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
-            source, smooth_curvature_min_persistent_scales, hasFeatureOptionsOverride
-        )) {
-        target.smoothCurvatureMinPersistentScales = source.smooth_curvature_min_persistent_scales;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
-            source, smooth_curvature_robust_fit_iterations, hasFeatureOptionsOverride
-        )) {
-        target.smoothCurvatureRobustFitIterations = source.smooth_curvature_robust_fit_iterations;
-    }
     if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(source, cleanup_feature_graph, hasFeatureOptionsOverride)) {
         target.cleanupFeatureGraph = boolFromInt(source.cleanup_feature_graph);
     }
@@ -714,22 +624,6 @@ bool readSimplifyFeatureFields(
             source.feature_normal_filter_relaxation,
             "feature_normal_filter_relaxation",
             target.featureNormalFilterRelaxation,
-            error
-        )) {
-        return false;
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
-            source, smooth_curvature_use_stable_scale_selection, hasFeatureOptionsOverride
-        )) {
-        target.smoothCurvatureUseStableScaleSelection = boolFromInt(source.smooth_curvature_use_stable_scale_selection);
-    }
-    if (MANUMESH_LEGACY_FEATURE_FIELD_PRESENT(
-            source, smooth_curvature_min_scale_stability, hasFeatureOptionsOverride
-        ) &&
-        !readFiniteDouble(
-            source.smooth_curvature_min_scale_stability,
-            "smooth_curvature_min_scale_stability",
-            target.smoothCurvatureMinScaleStability,
             error
         )) {
         return false;
@@ -934,19 +828,6 @@ ManuMeshStatus fillSimplifyReport(
         target, writeSize, quality_refinement_accepted_moves, source.qualityRefinementAcceptedMoves
     );
     MANUMESH_SET_REPORT_FIELD(target, writeSize, degenerate_input_faces, source.degenerateInputFaces);
-    MANUMESH_SET_REPORT_FIELD(target, writeSize, smooth_curvature_feature_edges, source.smoothCurvatureFeatureEdges);
-    MANUMESH_SET_REPORT_FIELD(
-        target, writeSize, smooth_curvature_scored_vertices, source.smoothCurvatureScoredVertices
-    );
-    MANUMESH_SET_REPORT_FIELD(
-        target, writeSize, max_smooth_curvature_persistent_score, source.maxSmoothCurvaturePersistentScore
-    );
-    MANUMESH_SET_REPORT_FIELD(
-        target, writeSize, mean_smooth_curvature_local_scale, source.meanSmoothCurvatureLocalScale
-    );
-    MANUMESH_SET_REPORT_FIELD(
-        target, writeSize, mean_smooth_curvature_persistence, source.meanSmoothCurvaturePersistence
-    );
     MANUMESH_SET_REPORT_FIELD(target, writeSize, inconsistent_winding_edges, source.inconsistentWindingEdges);
     MANUMESH_SET_REPORT_FIELD(target, writeSize, graph_cleanup_skipped_by_cap, source.graphCleanupSkippedByCap);
     MANUMESH_SET_REPORT_FIELD(target, writeSize, circular_recovery_truncated, source.circularRecoveryTruncated);
@@ -967,9 +848,6 @@ ManuMeshStatus fillSimplifyReport(
     );
     MANUMESH_SET_REPORT_FIELD(
         target, writeSize, mean_feature_normal_filter_edge_indicator, source.meanFeatureNormalFilterEdgeIndicator
-    );
-    MANUMESH_SET_REPORT_FIELD(
-        target, writeSize, mean_smooth_curvature_scale_stability, source.meanSmoothCurvatureScaleStability
     );
     MANUMESH_SET_REPORT_FIELD(target, writeSize, graph_consolidation_bridges, source.graphConsolidationBridges);
     MANUMESH_SET_REPORT_FIELD(

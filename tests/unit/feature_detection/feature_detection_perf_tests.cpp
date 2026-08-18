@@ -97,9 +97,6 @@ TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
     weakOptions.useNormalTensorFeatures = true;
     weakOptions.normalTensorScaleCount = 3;
     weakOptions.normalTensorSmoothingIterations = 1;
-    weakOptions.useSmoothCurvatureFeatures = true;
-    weakOptions.smoothCurvatureScaleCount = 3;
-    weakOptions.smoothCurvatureRobustFitIterations = 2;
 
     feature::FeatureOptions hardOptions;
     hardOptions.featureAngleDeg = 25.0;
@@ -122,31 +119,6 @@ TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
             item.mesh.vertices.size(),
             item.mesh.faces.size(),
             ms
-        );
-    }
-
-    {
-        const Mesh& mesh = cases.front().mesh;
-        const auto t0 = std::chrono::steady_clock::now();
-        const auto curvature =
-            feature::computeSmoothCurvatureFeatures(mesh, feature::SmoothCurvatureOptions{2, 3, 2, 0.65}, 0.015);
-        const auto t1 = std::chrono::steady_clock::now();
-        const auto tensor = feature::computeNormalTensorFeatures(mesh, feature::NormalTensorOptions{1, 3, {}}, 0.16);
-        const auto t2 = std::chrono::steady_clock::now();
-        const auto curvatureFast =
-            feature::computeSmoothCurvatureFeatures(mesh, feature::SmoothCurvatureOptions{2, 1, 0, 0.65}, 0.015);
-        const auto t3 = std::chrono::steady_clock::now();
-        std::printf(
-            "[perf] stage smoothCurvature(scale1,robust0)=%.2f ms (size %zu)\n",
-            std::chrono::duration<double, std::milli>(t3 - t2).count(),
-            curvatureFast.size()
-        );
-        std::printf(
-            "[perf] stage smoothCurvature=%.2f ms normalTensor=%.2f ms (sizes %zu/%zu)\n",
-            std::chrono::duration<double, std::milli>(t1 - t0).count(),
-            std::chrono::duration<double, std::milli>(t2 - t1).count(),
-            curvature.size(),
-            tensor.size()
         );
     }
     SUCCEED();

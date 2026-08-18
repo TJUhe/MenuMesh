@@ -47,13 +47,12 @@ $exe = "build/vs2019-release/bin/Release/manumesh.exe"
 ```powershell
 & $exe feature-report input_noisy.stl `
   --feature-normal-filter `
-  --smooth-curvature-features --smooth-curvature-stable-scale `
   --feature-graph-consolidation `
   --surface-patches `
   --csv output/vscode_demo/noisy_feature_patches.csv
 ```
 
-这组开关均为 opt-in。实验要分别比较开关前后 normal angular change、smooth scale stability、consolidation bridge、junction branch pair、surface patch/adjacency 和 ignored recovery edge；不能只比较总 feature edge 数。patch leakage 可先用 `--surface-patches-strong-only` 排除 weak barrier，再判断问题来自弱 evidence 还是硬边漏检。
+这组开关均为 opt-in。实验要分别比较开关前后 normal angular change、consolidation bridge、junction branch pair、surface patch/adjacency 和 ignored recovery edge；不能只比较总 feature edge 数。patch leakage 可先用 `--surface-patches-strong-only` 排除 weak barrier，再判断问题来自弱 evidence 还是硬边漏检。
 
 ## 判断标准
 

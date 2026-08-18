@@ -15,10 +15,6 @@ static_assert(
     std::is_default_constructible<manumesh::feature::NormalTensorOptions>::value,
     "NormalTensorOptions must be default constructible"
 );
-static_assert(
-    std::is_default_constructible<manumesh::feature::SmoothCurvatureOptions>::value,
-    "SmoothCurvatureOptions must be default constructible"
-);
 static_assert(manumesh::feature::kMaxNormalTensorScaleCount == 8, "normal tensor scale cap changed");
 
 void featureOptionsHeaderCompileCheck() {

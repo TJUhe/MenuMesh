@@ -6,12 +6,15 @@
 
 #include "FeatureDetectionTestSupport.h"
 
+#include "common/detail/ParallelExecution.h"
 #include "core/MeshGenerators.h"
+#include "feature_detection/detail/FeaturePrimitiveRecovery.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <vector>
 
@@ -34,6 +37,54 @@ double timeAnalysisMs(const Mesh& mesh, const feature::FeatureOptions& options, 
         best = std::min(best, std::chrono::duration<double, std::milli>(stop - start).count());
     }
     return best;
+}
+
+struct PrimitiveRecoveryBenchmarkFixture {
+    Mesh mesh;
+    feature::detector_detail::TraceGraph trace;
+    int componentCount = 0;
+};
+
+PrimitiveRecoveryBenchmarkFixture makePrimitiveRecoveryBenchmarkFixture(int componentCount, int samplesPerComponent) {
+    PrimitiveRecoveryBenchmarkFixture fixture;
+    fixture.componentCount = componentCount;
+    fixture.mesh.vertices.reserve(static_cast<std::size_t>(componentCount * samplesPerComponent));
+    constexpr double twoPi = 6.28318530717958647692;
+    for (int component = 0; component < componentCount; ++component) {
+        const int first = static_cast<int>(fixture.mesh.vertices.size());
+        const double centerX = 4.0 * static_cast<double>(component);
+        for (int sample = 0; sample < samplesPerComponent; ++sample) {
+            const double angle = twoPi * static_cast<double>(sample) / static_cast<double>(samplesPerComponent);
+            fixture.mesh.vertices.emplace_back(centerX + std::cos(angle), std::sin(angle), 0.0);
+        }
+        for (int sample = 0; sample < samplesPerComponent; ++sample) {
+            const int a = first + sample;
+            const int b = first + (sample + 1) % samplesPerComponent;
+            fixture.trace.adjacency.resize(fixture.mesh.vertices.size());
+            fixture.trace.adjacency[a].push_back(b);
+            fixture.trace.adjacency[b].push_back(a);
+        }
+    }
+    fixture.trace.adjacency.resize(fixture.mesh.vertices.size());
+    return fixture;
+}
+
+double timePrimitiveRecovery(
+    const PrimitiveRecoveryBenchmarkFixture& fixture,
+    const feature::FeatureOptions& options,
+    const manumesh::common::parallel::RangeExecutionOptions& executionOptions
+) {
+    const auto start = std::chrono::steady_clock::now();
+    feature::FeatureAnalysis analysis;
+    analysis.vertices.assign(fixture.mesh.vertices.size(), feature::VertexFeature{});
+    analysis.graph.vertices.assign(fixture.mesh.vertices.size(), feature::FeatureGraphVertex{});
+    int loopId = 0;
+    feature::detector_detail::recoverPrimitiveComponents(
+        fixture.mesh, options, fixture.trace, analysis, loopId, executionOptions
+    );
+    const auto stop = std::chrono::steady_clock::now();
+    EXPECT_EQ(analysis.loops.size(), static_cast<std::size_t>(fixture.componentCount));
+    return std::chrono::duration<double, std::milli>(stop - start).count();
 }
 
 } // namespace
@@ -99,6 +150,35 @@ TEST(FeatureDetectionPerf, DISABLED_AnalyzeTiming) {
         );
     }
     SUCCEED();
+}
+
+TEST(FeatureDetectionPerf, DISABLED_PrimitiveRecoveryTiming) {
+    const PrimitiveRecoveryBenchmarkFixture fixture = makePrimitiveRecoveryBenchmarkFixture(1024, 128);
+    feature::FeatureOptions options;
+    options.minFeatureLoopVertices = 16;
+    options.circleFitRelativeThreshold = 0.01;
+
+    manumesh::common::parallel::RangeExecutionOptions serial;
+    serial.enabled = false;
+    serial.grainSize = 1;
+    manumesh::common::parallel::RangeExecutionOptions parallel;
+    parallel.enabled = true;
+    parallel.maxConcurrency = 8;
+    parallel.grainSize = 4096;
+
+    // Warm up oneTBB and the Eigen code path before recording the comparison.
+    EXPECT_GT(timePrimitiveRecovery(fixture, options, serial), 0.0);
+    EXPECT_GT(timePrimitiveRecovery(fixture, options, parallel), 0.0);
+    const double serialMs = timePrimitiveRecovery(fixture, options, serial);
+    const double parallelMs = timePrimitiveRecovery(fixture, options, parallel);
+    std::printf(
+        "[perf] primitiveRecovery components=%d vertices=%zu serial=%.2f ms parallel8=%.2f ms speedup=%.2fx\n",
+        fixture.componentCount,
+        fixture.mesh.vertices.size(),
+        serialMs,
+        parallelMs,
+        parallelMs > 0.0 ? serialMs / parallelMs : 0.0
+    );
 }
 
 } // namespace feature_detection

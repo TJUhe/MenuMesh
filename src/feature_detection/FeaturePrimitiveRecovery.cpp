@@ -10,11 +10,16 @@
 
 #include "detail/FeaturePrimitiveRecovery.h"
 
+#include "common/detail/ParallelExecution.h"
 #include "detail/FeatureGraph.h"
 #include "detail/FeatureLoopBuilder.h"
 #include "detail/PrimitiveFit.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <queue>
+#include <utility>
+#include <vector>
 
 namespace manumesh {
 namespace feature {
@@ -22,12 +27,76 @@ namespace detector_detail {
 
 using primitive_fit_detail::applyPrimitiveFit;
 using primitive_fit_detail::fitPrimitive;
+using primitive_fit_detail::PrimitiveFit;
+
+namespace {
+
+/**
+ * @brief 保存一个待拟合组件及其并行计算结果。
+ *
+ * 组件收集顺序是恢复阶段的确定性契约；拟合只写入自己的槽位，
+ * 因而可以并行计算而不触碰共享的分析归属和 loop ID。
+ */
+struct PrimitiveComponentWork {
+    FeatureLoop loop;
+    PrimitiveFit fit;
+};
+
+bool isAcceptedPrimitive(const FeatureLoop& loop) {
+    return loop.primitive == FeaturePrimitiveType::Circle || loop.primitive == FeaturePrimitiveType::NearCircle ||
+           loop.primitive == FeaturePrimitiveType::Ellipse;
+}
+
+common::parallel::RangeExecutionOptions makePrimitiveFitExecutionOptions(
+    const common::parallel::RangeExecutionOptions& requested, const std::vector<PrimitiveComponentWork>& components
+) {
+    if (!requested.enabled || requested.maxConcurrency == 1 || components.size() < 4) {
+        return requested;
+    }
+
+    std::size_t totalVertices = 0;
+    for (const PrimitiveComponentWork& component : components) {
+        totalVertices += component.loop.vertices.size();
+    }
+    const std::size_t averageVertices =
+        std::max<std::size_t>(1, (totalVertices + components.size() - 1) / components.size());
+    // ExecutionOptions::minItemsPerTask is expressed in the dominant vertex/face
+    // ranges.  Convert that work estimate to component units so a few hundred
+    // expensive fits do not collapse into one task merely because the default
+    // range grain is 4096 vertices.
+    const std::size_t requestedWork = requested.grainSize == 0 ? 256 : requested.grainSize;
+    std::size_t componentGrain = std::max<std::size_t>(1, requestedWork / averageVertices);
+
+    // Leave enough independent chunks for the backend without creating one task
+    // per tiny component.  maxConcurrency==0 delegates the worker count to TBB;
+    // eight is a conservative scheduling hint for that unbounded case.
+    const std::size_t workerHint = requested.maxConcurrency > 1
+                                       ? static_cast<std::size_t>(requested.maxConcurrency)
+                                       : static_cast<std::size_t>(8);
+    const std::size_t targetTaskCount = std::max<std::size_t>(1, workerHint * 2);
+    const std::size_t taskLimitedGrain =
+        std::max<std::size_t>(1, (components.size() + targetTaskCount - 1) / targetTaskCount);
+    componentGrain = std::min(componentGrain, taskLimitedGrain);
+
+    common::parallel::RangeExecutionOptions result = requested;
+    result.grainSize = componentGrain;
+    return result;
+}
+
+} // namespace
 
 void recoverPrimitiveComponents(
-    const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    const TraceGraph& trace,
+    FeatureAnalysis& analysis,
+    int& loopId,
+    const common::parallel::RangeExecutionOptions& executionOptions
 ) {
     const std::vector<std::vector<int>>& adjacency = trace.adjacency;
     std::vector<char> componentVisited(mesh.vertices.size(), 0);
+    std::vector<PrimitiveComponentWork> components;
+    components.reserve(adjacency.size() / static_cast<std::size_t>(std::max(1, options.minFeatureLoopVertices)));
     for (int seed = 0; seed < static_cast<int>(adjacency.size()); ++seed) {
         if (componentVisited[seed] || adjacency[seed].empty()) {
             continue;
@@ -82,24 +151,44 @@ void recoverPrimitiveComponents(
             continue;
         }
 
-        FeatureLoop loop;
-        loop.id = loopId;
-        loop.vertices = std::move(component);
-        loop.edgeCount = edgeCount;
-        loop.closed = true;
-        loop.mostlyBoundary =
-            loop.edgeCount > 0 && boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(loop.edgeCount));
-        loop.convexEdges = convexEdges;
-        loop.concaveEdges = concaveEdges;
-        loop.unknownSignedEdges = unknownSignedEdges;
-        applyPrimitiveFit(fitPrimitive(mesh, loop, options), loop);
-        if (loop.primitive != FeaturePrimitiveType::Circle && loop.primitive != FeaturePrimitiveType::NearCircle &&
-            loop.primitive != FeaturePrimitiveType::Ellipse) {
+        PrimitiveComponentWork work;
+        work.loop.vertices = std::move(component);
+        work.loop.edgeCount = edgeCount;
+        work.loop.closed = true;
+        work.loop.mostlyBoundary =
+            work.loop.edgeCount > 0 && boundaryEdges >= static_cast<int>(0.6 * static_cast<double>(work.loop.edgeCount));
+        work.loop.convexEdges = convexEdges;
+        work.loop.concaveEdges = concaveEdges;
+        work.loop.unknownSignedEdges = unknownSignedEdges;
+        components.push_back(std::move(work));
+    }
+
+    // The fit is read-only with respect to the mesh and independent for each
+    // component.  Keep all publication and ownership updates below in the
+    // original component order so loop IDs and primary vertex ownership stay
+    // byte-for-byte deterministic.
+    const common::parallel::RangeExecutionOptions fitExecutionOptions =
+        makePrimitiveFitExecutionOptions(executionOptions, components);
+    common::parallel::forEachRange(
+        0,
+        components.size(),
+        fitExecutionOptions,
+        [&](std::size_t begin, std::size_t end) {
+            for (std::size_t index = begin; index < end; ++index) {
+                PrimitiveComponentWork& work = components[index];
+                work.fit = fitPrimitive(mesh, work.loop, options);
+                applyPrimitiveFit(work.fit, work.loop);
+            }
+        }
+    );
+
+    for (PrimitiveComponentWork& work : components) {
+        if (!isAcceptedPrimitive(work.loop)) {
             continue;
         }
-        ++loopId;
-        assignLoopToVertices(loop, mesh, adjacency, analysis);
-        analysis.loops.push_back(std::move(loop));
+        work.loop.id = loopId++;
+        assignLoopToVertices(work.loop, mesh, adjacency, analysis);
+        analysis.loops.push_back(std::move(work.loop));
     }
 }
 

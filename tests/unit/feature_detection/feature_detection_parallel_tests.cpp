@@ -8,7 +8,9 @@
 #include "TestSupport.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
+#include "common/detail/ParallelExecution.h"
 #include "core/MeshGenerators.h"
+#include "feature_detection/detail/FeaturePrimitiveRecovery.h"
 
 #include <gtest/gtest.h>
 
@@ -24,6 +26,11 @@ using manumesh::ExecutionMode;
 using manumesh::ExecutionOptions;
 using manumesh::Mesh;
 using manumesh::Vec3;
+
+struct PrimitiveComponentFixture {
+    Mesh mesh;
+    feature::detector_detail::TraceGraph trace;
+};
 
 ExecutionOptions parallelOptions() {
     ExecutionOptions options;
@@ -77,6 +84,29 @@ Mesh makeHighValenceSmoothFixture() {
         mesh.faces.push_back(face);
     }
     return mesh;
+}
+
+PrimitiveComponentFixture makePrimitiveComponentFixture(int componentCount, int samplesPerComponent) {
+    PrimitiveComponentFixture fixture;
+    fixture.mesh.vertices.reserve(static_cast<std::size_t>(componentCount * samplesPerComponent));
+    constexpr double twoPi = 6.28318530717958647692;
+    for (int component = 0; component < componentCount; ++component) {
+        const int first = static_cast<int>(fixture.mesh.vertices.size());
+        const Vec3 center(4.0 * static_cast<double>(component), 0.0, 0.0);
+        for (int sample = 0; sample < samplesPerComponent; ++sample) {
+            const double angle = twoPi * static_cast<double>(sample) / static_cast<double>(samplesPerComponent);
+            fixture.mesh.vertices.emplace_back(center.x() + std::cos(angle), center.y() + std::sin(angle), center.z());
+        }
+        for (int sample = 0; sample < samplesPerComponent; ++sample) {
+            const int a = first + sample;
+            const int b = first + (sample + 1) % samplesPerComponent;
+            fixture.trace.adjacency.resize(fixture.mesh.vertices.size());
+            fixture.trace.adjacency[a].push_back(b);
+            fixture.trace.adjacency[b].push_back(a);
+        }
+    }
+    fixture.trace.adjacency.resize(fixture.mesh.vertices.size());
+    return fixture;
 }
 
 void expectNormalTensorEqual(
@@ -465,5 +495,52 @@ TEST(FeatureDetectionParallel, ReversedWindingWithNormalFilteringMatchesSerialAt
         expectFeatureAnalysisEquivalent(serial, parallelResult);
         EXPECT_EQ(0, parallelResult.inconsistentWindingEdges);
         EXPECT_EQ(3, parallelResult.normalFilter.iterationsCompleted);
+    }
+}
+
+TEST(FeatureDetectionParallel, PrimitiveComponentFitsCommitInStableOrder) {
+    const PrimitiveComponentFixture fixture = makePrimitiveComponentFixture(24, 32);
+    feature::FeatureOptions options;
+    options.minFeatureLoopVertices = 12;
+    options.circleFitRelativeThreshold = 0.01;
+
+    feature::FeatureAnalysis serial;
+    serial.vertices.assign(fixture.mesh.vertices.size(), feature::VertexFeature{});
+    serial.graph.vertices.assign(fixture.mesh.vertices.size(), feature::FeatureGraphVertex{});
+    // The first component has already been claimed by an earlier recovery
+    // stage and must remain excluded from primitive recovery.
+    serial.vertices.front().circular = true;
+
+    int serialLoopId = 11;
+    manumesh::common::parallel::RangeExecutionOptions serialExecution;
+    serialExecution.enabled = false;
+    serialExecution.grainSize = 1;
+    feature::detector_detail::recoverPrimitiveComponents(
+        fixture.mesh, options, fixture.trace, serial, serialLoopId, serialExecution
+    );
+    ASSERT_EQ(23u, serial.loops.size());
+    for (std::size_t index = 0; index < serial.loops.size(); ++index) {
+        EXPECT_EQ(11 + static_cast<int>(index), serial.loops[index].id);
+        EXPECT_EQ(32u, serial.loops[index].vertices.size());
+        EXPECT_EQ(feature::FeaturePrimitiveType::Circle, serial.loops[index].primitive);
+        EXPECT_NEAR(serial.loops[index].center.x(), 4.0 * static_cast<double>(index + 1), 1e-10);
+    }
+
+    for (const int maxConcurrency : {0, 1, 2, 4, 8}) {
+        feature::FeatureAnalysis parallelResult;
+        parallelResult.vertices.assign(fixture.mesh.vertices.size(), feature::VertexFeature{});
+        parallelResult.graph.vertices.assign(fixture.mesh.vertices.size(), feature::FeatureGraphVertex{});
+        parallelResult.vertices.front().circular = true;
+        int parallelLoopId = 11;
+        manumesh::common::parallel::RangeExecutionOptions parallelExecution;
+        parallelExecution.enabled = true;
+        parallelExecution.maxConcurrency = maxConcurrency;
+        parallelExecution.grainSize = 1;
+
+        feature::detector_detail::recoverPrimitiveComponents(
+            fixture.mesh, options, fixture.trace, parallelResult, parallelLoopId, parallelExecution
+        );
+        expectFeatureAnalysisEquivalent(serial, parallelResult);
+        EXPECT_EQ(serialLoopId, parallelLoopId);
     }
 }

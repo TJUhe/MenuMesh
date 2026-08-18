@@ -12,6 +12,7 @@
 #include "algorithms/feature_detection/FeatureDetector.h"
 
 #include "common/detail/MeshQueries.h"
+#include "common/detail/ParallelExecution.h"
 // DebugUtil instrumentation is temporarily disabled.
 // #include "detail/FeatureDebugInstrumentation.h"
 #include "detail/FeatureDetectionCache.h"
@@ -252,7 +253,12 @@ FeatureAnalysis runFeatureDetection(
         context.mesh, context.options, context.cache, context.trace, context.analysis()
     );
     detector_detail::recoverFeatureLoops(
-        context.mesh, context.options, context.trace, context.analysis(), context.builder.nextLoopId()
+        context.mesh,
+        context.options,
+        context.trace,
+        context.analysis(),
+        context.builder.nextLoopId(),
+        common::parallel::makeRangeExecutionOptions(executionOptions)
     );
     detector_detail::summarizeFeatureComponents(context.mesh, context.options, context.trace, context.analysis());
     detector_detail::finalizeFeatureGraphMarkers(context.mesh, context.analysis());

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "common/detail/ParallelExecution.h"
 #include "FeatureDetectionTypes.h"
 #include "algorithms/feature_detection/FeatureTypes.h"
 
@@ -15,9 +16,15 @@ namespace detector_detail {
 
 /**
  * @brief 为尚未归属的连通分量拟合并生成几何基元特征环。
+ * @param[in] executionOptions 仅约束独立基元拟合；结果提交仍按组件顺序串行完成。
  */
 void recoverPrimitiveComponents(
-    const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    const TraceGraph& trace,
+    FeatureAnalysis& analysis,
+    int& loopId,
+    const common::parallel::RangeExecutionOptions& executionOptions
 );
 
 } // namespace detector_detail

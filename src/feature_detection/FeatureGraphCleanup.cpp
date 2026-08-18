@@ -521,26 +521,43 @@ double computeConfidence(const FeatureComponent& component, const FeatureOptions
     );
 }
 
-int dominantComponentForLoop(const FeatureLoop& loop, const std::vector<int>& vertexToComponent, int componentCount) {
+int dominantComponentForLoop(
+    const FeatureLoop& loop,
+    const std::vector<int>& vertexToComponent,
+    int componentCount,
+    std::vector<int>& votes,
+    std::vector<int>& touchedComponents
+) {
     if (componentCount <= 0) {
         return -1;
     }
-    std::vector<int> votes(componentCount, 0);
+    // A loop normally touches only a small subset of the graph components. Reuse
+    // one vote buffer across loops and reset only the component IDs touched by
+    // this loop instead of allocating/clearing a dense array for every loop.
+    touchedComponents.clear();
+    int bestComponent = -1;
+    int bestVotes = 0;
     for (int id : loop.vertices) {
         if (id >= 0 && id < static_cast<int>(vertexToComponent.size())) {
             const int component = vertexToComponent[id];
             if (component >= 0 && component < componentCount) {
-                ++votes[component];
+                if (votes[component] == 0) {
+                    touchedComponents.push_back(component);
+                }
+                const int componentVotes = ++votes[component];
+                // Keep the legacy deterministic tie break: the lowest component
+                // ID wins when multiple components have the same vote count.
+                if (componentVotes > bestVotes ||
+                    (componentVotes == bestVotes &&
+                     (bestComponent < 0 || component < bestComponent))) {
+                    bestVotes = componentVotes;
+                    bestComponent = component;
+                }
             }
         }
     }
-    int bestComponent = -1;
-    int bestVotes = 0;
-    for (int i = 0; i < componentCount; ++i) {
-        if (votes[i] > bestVotes) {
-            bestVotes = votes[i];
-            bestComponent = i;
-        }
+    for (int component : touchedComponents) {
+        votes[component] = 0;
     }
     return bestComponent;
 }
@@ -649,9 +666,16 @@ void summarizeFeatureComponents(
 
     std::vector<double> residualSums(analysis.components.size(), 0.0);
     std::vector<int> residualCounts(analysis.components.size(), 0);
+    std::vector<int> componentVotes(analysis.components.size(), 0);
+    std::vector<int> touchedComponents;
     for (FeatureLoop& loop : analysis.loops) {
-        const int componentId =
-            dominantComponentForLoop(loop, vertexToComponent, static_cast<int>(analysis.components.size()));
+        const int componentId = dominantComponentForLoop(
+            loop,
+            vertexToComponent,
+            static_cast<int>(analysis.components.size()),
+            componentVotes,
+            touchedComponents
+        );
         loop.componentId = componentId;
         loop.primitiveResidual = primitiveResidual(mesh, loop);
         if (componentId >= 0) {

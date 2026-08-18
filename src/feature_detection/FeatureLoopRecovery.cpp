@@ -19,12 +19,17 @@ namespace feature {
 namespace detector_detail {
 
 void recoverFeatureLoops(
-    const Mesh& mesh, const FeatureOptions& options, const TraceGraph& trace, FeatureAnalysis& analysis, int& loopId
+    const Mesh& mesh,
+    const FeatureOptions& options,
+    const TraceGraph& trace,
+    FeatureAnalysis& analysis,
+    int& loopId,
+    const common::parallel::RangeExecutionOptions& executionOptions
 ) {
     recoverCircularCyclesThroughJunctions(mesh, options, trace, analysis, loopId);
     recoverSmallCycleBasis(mesh, options, trace, analysis, loopId);
     traceRemainingFeatureLoops(mesh, options, trace, analysis, loopId);
-    recoverPrimitiveComponents(mesh, options, trace, analysis, loopId);
+    recoverPrimitiveComponents(mesh, options, trace, analysis, loopId, executionOptions);
     recoverCircularVertexClusters(mesh, options, trace, analysis, loopId);
 }
 

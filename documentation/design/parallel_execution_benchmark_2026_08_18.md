@@ -15,9 +15,21 @@ v142、Release、oneTBB 2021.12.0 shared 构建。
 - 未启用 oneTBB 或请求单线程时，回调使用相同的串行语义。
 
 特征检测仅对不重叠写入的面积、法向滤波、Normal Tensor、Smooth Curvature 顶点范围并行。
-诊断归约、边/图排序、环恢复、分区和图整理保持确定性串行顺序。QEM 仅并行初始顶点/面状态、
+诊断归约、边/图排序、环恢复的拓扑遍历与提交、分区和图整理保持确定性串行顺序；独立环候选的
+纯几何拟合可在固定槽位中并行。QEM 仅并行初始顶点/面状态、
 边 placement/cost 的只读求解，再串行批量建立 priority queue；动态 edge-collapse、版本失效和
 拓扑提交仍串行。这是结果等价优先的边界，不是把共享可变拓扑交给线程池。
+
+恢复阶段会把公共的 `minItemsPerTask`（按顶点/面计）按候选组件平均顶点数换算成组件粒度，
+并限制为每个 worker 的少量任务；候选少于四个时直接保持调用方的串行/单任务策略。这样
+默认粒度不会让真实模型的数百个拟合候选意外合并成一个范围，也不会为小模型制造调度开销。
+
+环恢复也遵循同一边界。五个恢复阶段保持固定调用顺序，因为后续阶段会读取前序阶段写入的
+`analysis.vertices`、`analysis.loops` 和圆环归属。`FeaturePrimitiveRecovery` 现在先按原 seed/BFS
+顺序收集独立图组件，再用 oneTBB 对每个组件执行只读 `fitPrimitive`，最后按组件顺序串行提交
+拟合结果、分配连续 loop ID、更新顶点归属和 `analysis.loops`。因此并行区没有共享拓扑写入，
+串行和 0/1/2/4/8 worker 的输出仍保持逐位一致；组件候选的临时内存上界为候选顶点总数加上
+每组件一个拟合槽位，最多覆盖当前图中的候选顶点，不复制整张网格。
 
 ## 合成 pipeline
 
@@ -54,6 +66,11 @@ Smooth Curvature 多尺度三次 Monge 拟合。`max_planck.stl`（约 100,000 �
 `18100338586985329564`。`ParallelPipelineBenchmark.ReportsSmoothCurvatureScalingWithoutFixedSpeedupAssertion`
 会持续报告 0、1、2、4、8 worker 的耗时并验证该指纹，而不会把这一台机器的耗时设成 CI 门槛。
 
+本轮新增的基元恢复基准位于 `FeatureDetectionPerf.DISABLED_PrimitiveRecoveryTiming`，使用
+1,024 个互不相交圆组件（131,072 个顶点）验证候选级并行和有序提交。5 次独立 Release 诊断
+得到 5 次进程中位数串行 26.28 ms、8 worker 21.19 ms（约 1.24x）；该用例保持 disabled，只用于本机/发布前
+性能采样，不把固定加速比写入测试断言。
+
 当前机器上，同一真实 STL 的 7 次独立进程中位数为：scan `401.17 ms`（串行）、`324.21 ms`
 （8 worker）；smooth `2,204.07 ms`（串行）、`995.06 ms`（8 worker）。smooth 仍然明显慢于
 scan 是预期的算法成本差异，不应通过降低默认质量或改变候选/图恢复语义来伪造加速；需要更低
@@ -81,6 +98,13 @@ manumesh simplify tests/data/external/large/max_planck.stl output/simplified.stl
 
 上表的真实 STL 数据为 2026-08-18 当前机器的三次独立进程中位数；输出文件的完整
 SHA-256 在 serial/4 worker 之间一致。这是实测记录，不是性能门槛或对其他 CPU 的固定承诺。
+
+最终工作树的 3 次独立进程测量（`--profile smooth`，`max_planck.stl`）为：串行
+`2179.72 ms` 中位数，8 worker `1039.23 ms` 中位数，约 `2.10x`；该结果包含完整的曲率证据、
+图清理、恢复和汇总阶段；两份 CSV 的 SHA-256 均为
+`6A4C30B8BF12C7F147F248E70BDBBB25EAFA064BAE985038A72FD8A0841D0B2E`。
+机器负载、运行时缓存和 oneTBB 调度会影响
+绝对时间，因此这里只记录为当前机器的诊断数据。
 
 ## 超大网格边界
 

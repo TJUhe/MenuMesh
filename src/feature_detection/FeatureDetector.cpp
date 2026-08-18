@@ -48,10 +48,12 @@ using detector_detail::TraceGraph;
 /** @brief 一次流水线运行所需的共享输入、缓存和中间结果。 */
 struct FeatureDetectionContext {
     /** @brief 绑定网格和选项，并初始化检测缓存与分析构建器。 */
-    FeatureDetectionContext(const Mesh& inputMesh, const FeatureOptions& inputOptions)
+    FeatureDetectionContext(
+        const Mesh& inputMesh, const FeatureOptions& inputOptions, const ExecutionOptions& executionOptions
+    )
         : mesh(inputMesh),
           options(inputOptions),
-          cache(inputMesh, inputOptions.normalFilter),
+          cache(inputMesh, inputOptions.normalFilter, executionOptions),
           builder(static_cast<int>(inputMesh.vertices.size())) {
         builder.analysis().source = featureAnalysisSource(inputMesh);
     }
@@ -224,11 +226,14 @@ void removeDegenerateDihedralEvidence(FeatureDetectionContext& context) {
     context.featureEdges = std::move(kept);
 }
 
-FeatureAnalysis runFeatureDetection(const Mesh& mesh, const FeatureOptions& options) {
+FeatureAnalysis runFeatureDetection(
+    const Mesh& mesh, const FeatureOptions& options, const ExecutionOptions& executionOptions
+) {
     validateFeatureOptionsImpl(options);
+    validateExecutionOptions(executionOptions);
     validateFeatureInput(mesh);
 
-    FeatureDetectionContext context(mesh, options);
+    FeatureDetectionContext context(mesh, options, executionOptions);
     // 宽松校验允许零面积面存在；其法向不可用，证据阶段会跳过这些面。
     // 将退化面数量公开给调用方，以便识别覆盖范围受限的分析结果。
     context.analysis().degenerateFaces = countDegenerateFaces(mesh);
@@ -309,8 +314,18 @@ void FeatureDetector::setOptions(FeatureOptions options) {
 
 FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh) const { return detectFeatureCurves(mesh, options()); }
 
+FeatureAnalysis FeatureDetector::analyze(const Mesh& mesh, const ExecutionOptions& executionOptions) const {
+    return detectFeatureCurves(mesh, options(), executionOptions);
+}
+
 FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options) {
-    return runFeatureDetection(mesh, options);
+    return runFeatureDetection(mesh, options, ExecutionOptions{});
+}
+
+FeatureAnalysis detectFeatureCurves(
+    const Mesh& mesh, const FeatureOptions& options, const ExecutionOptions& executionOptions
+) {
+    return runFeatureDetection(mesh, options, executionOptions);
 }
 
 DirectionalCurveError measureLoopAgainstCircle(

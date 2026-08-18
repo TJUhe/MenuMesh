@@ -8,6 +8,7 @@
 
 #include "algorithms/feature_detection/FeatureTypes.h"
 #include "common/detail/MeshQueries.h"
+#include "core/ExecutionOptions.h"
 
 #include <utility>
 #include <vector>
@@ -29,10 +30,18 @@ public:
      * @brief 将惰性缓存绑定到一份不可变网格和法向滤波策略。
      * @param[in] mesh 缓存所引用的网格；其生命周期必须长于缓存。
      * @param[in] normalFilterOptions 可选的面法向平滑策略。
+     * @param[in] executionOptions 本次流水线使用的并发和任务粒度约束。
      */
-    explicit FeatureDetectionCache(const Mesh& mesh, FeatureNormalFilterOptions normalFilterOptions = {})
+    explicit FeatureDetectionCache(
+        const Mesh& mesh,
+        FeatureNormalFilterOptions normalFilterOptions = {},
+        ExecutionOptions executionOptions = {}
+    )
         : mesh_(&mesh),
-          normalFilterOptions_(normalFilterOptions) {}
+          normalFilterOptions_(normalFilterOptions),
+          executionOptions_(executionOptions) {
+        validateExecutionOptions(executionOptions_);
+    }
 
     FeatureDetectionCache(const FeatureDetectionCache&) = delete;
     FeatureDetectionCache& operator=(const FeatureDetectionCache&) = delete;
@@ -42,6 +51,9 @@ public:
 
     /** @brief 返回惰性执行的法向滤波诊断信息。 */
     const FeatureNormalFilterReport& normalFilterReport();
+
+    /** @brief 返回本次流水线统一使用的公共执行约束。 */
+    const ExecutionOptions& executionOptions() const { return executionOptions_; }
 
     /** @brief 返回缓存的无向边到相邻面的关联关系。 */
     const manumesh::common::MeshEdgeInfoMap& edgeInfo() {
@@ -84,6 +96,7 @@ private:
     std::vector<double> vertexAverageEdgeLength_;
     std::vector<Vec3> areaWeightedVertexNormals_;
     FeatureNormalFilterOptions normalFilterOptions_;
+    ExecutionOptions executionOptions_;
     FeatureNormalFilterReport normalFilterReport_;
     bool hasFaceNormals_ = false;
     bool hasEdgeInfo_ = false;

@@ -469,7 +469,8 @@ double computeSignedVolume(const Mesh& mesh) {
             ++rank[static_cast<std::size_t>(lhsRoot)];
         }
     };
-    for (const TopologyEdge& edge : topology.edges()) {
+    for (int edgeId = 0; edgeId < topology.edgeCount(); ++edgeId) {
+        const TopologyEdgeView edge = topology.edgeView(EdgeId{edgeId});
         int firstUsableFace = -1;
         for (int face : edge.faces) {
             if (face < 0 || static_cast<std::size_t>(face) >= usable.size() ||

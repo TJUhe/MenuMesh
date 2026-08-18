@@ -248,6 +248,55 @@ ManuMeshStatus initializeFeatureOptions(ManuMeshFeatureOptions* options, std::si
     return MANUMESH_STATUS_OK;
 }
 
+ManuMeshStatus initializeExecutionOptions(ManuMeshExecutionOptions* options, std::size_t structCapacity) {
+    std::size_t writeSize = 0;
+    const ManuMeshStatus status = initializeAbiBuffer(options, structCapacity, writeSize);
+    if (status != MANUMESH_STATUS_OK) {
+        return status;
+    }
+
+    const ExecutionOptions defaults;
+    const ManuMeshExecutionMode mode = MANUMESH_EXECUTION_MODE_SERIAL;
+    writeAbiField(options, writeSize, offsetof(ManuMeshExecutionOptions, mode), mode);
+    writeAbiField(
+        options, writeSize, offsetof(ManuMeshExecutionOptions, max_concurrency), defaults.maxConcurrency
+    );
+    writeAbiField(
+        options, writeSize, offsetof(ManuMeshExecutionOptions, min_items_per_task), defaults.minItemsPerTask
+    );
+    return MANUMESH_STATUS_OK;
+}
+
+bool readExecutionOptions(const ManuMeshExecutionOptions& source, ExecutionOptions& target, std::string& error) {
+    if (!abiStructLooksInitialized(source)) {
+        error = "ManuMeshExecutionOptions must be initialized and use the current ABI version.";
+        return false;
+    }
+
+    ManuMeshExecutionMode mode = MANUMESH_EXECUTION_MODE_SERIAL;
+    int maxConcurrency = target.maxConcurrency;
+    std::size_t minItemsPerTask = target.minItemsPerTask;
+    (void)readAbiField(source, offsetof(ManuMeshExecutionOptions, mode), mode);
+    (void)readAbiField(source, offsetof(ManuMeshExecutionOptions, max_concurrency), maxConcurrency);
+    (void)readAbiField(source, offsetof(ManuMeshExecutionOptions, min_items_per_task), minItemsPerTask);
+    if (mode != MANUMESH_EXECUTION_MODE_SERIAL && mode != MANUMESH_EXECUTION_MODE_PARALLEL) {
+        error = "ManuMeshExecutionOptions.mode is invalid.";
+        return false;
+    }
+    if (maxConcurrency < 0) {
+        error = "ManuMeshExecutionOptions.max_concurrency must be non-negative.";
+        return false;
+    }
+    if (minItemsPerTask == 0) {
+        error = "ManuMeshExecutionOptions.min_items_per_task must be positive.";
+        return false;
+    }
+    target.mode = mode == MANUMESH_EXECUTION_MODE_PARALLEL ? ExecutionMode::Parallel : ExecutionMode::Serial;
+    target.maxConcurrency = maxConcurrency;
+    target.minItemsPerTask = minItemsPerTask;
+    return true;
+}
+
 bool readFeatureOptions(const ManuMeshFeatureOptions* source, feature::FeatureOptions& target, std::string& error) {
     target = feature::FeatureOptions{};
     error.clear();

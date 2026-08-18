@@ -14,6 +14,7 @@
 
 #include "common/detail/MathConstants.h"
 #include "common/detail/MeshQueries.h"
+#include "common/detail/ParallelExecution.h"
 #include "detail/FeatureDetectionCache.h"
 #include "detail/FeatureInputValidation.h"
 #include "detail/FeatureNormalFilter.h"
@@ -54,14 +55,16 @@ double edgeIndicator(const Vec3& lhs, const Vec3& rhs, double sigmaRad, double p
     return std::exp(-0.5 * normalized * normalized);
 }
 
-std::vector<double> faceAreas(const Mesh& mesh) {
+std::vector<double> faceAreas(const Mesh& mesh, const common::parallel::RangeExecutionOptions& executionOptions) {
     std::vector<double> result(mesh.faces.size(), 0.0);
-    for (int faceId = 0; faceId < static_cast<int>(mesh.faces.size()); ++faceId) {
-        const Face& face = mesh.faces[faceId];
-        result[faceId] = 0.5 * (mesh.vertices[face.v[1]] - mesh.vertices[face.v[0]])
-                                   .cross(mesh.vertices[face.v[2]] - mesh.vertices[face.v[0]])
-                                   .norm();
-    }
+    common::parallel::forEachRange(0, mesh.faces.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+        for (std::size_t faceId = begin; faceId < end; ++faceId) {
+            const Face& face = mesh.faces[faceId];
+            result[faceId] = 0.5 * (mesh.vertices[face.v[1]] - mesh.vertices[face.v[0]])
+                                       .cross(mesh.vertices[face.v[2]] - mesh.vertices[face.v[0]])
+                                       .norm();
+        }
+    });
     return result;
 }
 
@@ -115,7 +118,10 @@ void validateFeatureNormalFilterOptions(const FeatureNormalFilterOptions& option
 }
 
 FeatureNormalFilterResult filterFeatureNormalsImpl(
-    const Mesh& mesh, const common::MeshEdgeInfoMap& edgeInfo, const FeatureNormalFilterOptions& options
+    const Mesh& mesh,
+    const common::MeshEdgeInfoMap& edgeInfo,
+    const FeatureNormalFilterOptions& options,
+    const common::parallel::RangeExecutionOptions& executionOptions
 ) {
     FeatureNormalFilterResult result;
     result.faceNormals = common::computeFaceNormals(mesh);
@@ -125,13 +131,15 @@ FeatureNormalFilterResult filterFeatureNormalsImpl(
 
     const std::vector<char> windingFlip = common::harmonizeFaceWindings(mesh, edgeInfo);
     std::vector<Vec3> harmonized = result.faceNormals;
-    for (int faceId = 0; faceId < static_cast<int>(harmonized.size()); ++faceId) {
-        if (faceId < static_cast<int>(windingFlip.size()) && windingFlip[faceId]) {
-            harmonized[faceId] = -harmonized[faceId];
+    common::parallel::forEachRange(0, harmonized.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+        for (std::size_t faceId = begin; faceId < end; ++faceId) {
+            if (faceId < windingFlip.size() && windingFlip[faceId]) {
+                harmonized[faceId] = -harmonized[faceId];
+            }
         }
-    }
+    });
 
-    const std::vector<double> areas = faceAreas(mesh);
+    const std::vector<double> areas = faceAreas(mesh, executionOptions);
     const std::vector<FacePair> pairs = manifoldFacePairs(edgeInfo);
     std::vector<std::vector<int>> facePairs(mesh.faces.size());
     for (int pairId = 0; pairId < static_cast<int>(pairs.size()); ++pairId) {
@@ -143,36 +151,39 @@ FeatureNormalFilterResult filterFeatureNormalsImpl(
     const double preserveRad = options.preserveAngleDeg * common::kPi / 180.0;
     std::vector<Vec3> next = harmonized;
     for (int iteration = 0; iteration < options.iterations; ++iteration) {
-        for (int faceId = 0; faceId < static_cast<int>(harmonized.size()); ++faceId) {
-            if (harmonized[faceId].squaredNorm() <= 1e-30) {
-                next[faceId] = Vec3::Zero();
-                continue;
-            }
-
-            const double selfWeight = std::max(areas[faceId], 1e-12);
-            Vec3 weighted = selfWeight * harmonized[faceId];
-            double weightSum = selfWeight;
-            for (int pairId : facePairs[faceId]) {
-                const FacePair& pair = pairs[pairId];
-                const int neighbor = pair.first == faceId ? pair.second : pair.first;
-                const double indicator = edgeIndicator(harmonized[faceId], harmonized[neighbor], sigmaRad, preserveRad);
-                if (indicator <= 1e-12) {
+        common::parallel::forEachRange(0, harmonized.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+            for (std::size_t faceId = begin; faceId < end; ++faceId) {
+                if (harmonized[faceId].squaredNorm() <= 1e-30) {
+                    next[faceId] = Vec3::Zero();
                     continue;
                 }
-                const double weight = indicator * std::sqrt(std::max(areas[faceId] * areas[neighbor], 1e-24));
-                weighted += weight * harmonized[neighbor];
-                weightSum += weight;
-            }
 
-            Vec3 target = weightSum > 0.0 ? weighted / weightSum : harmonized[faceId];
-            if (target.squaredNorm() <= 1e-30) {
-                next[faceId] = harmonized[faceId];
-                continue;
+                const double selfWeight = std::max(areas[faceId], 1e-12);
+                Vec3 weighted = selfWeight * harmonized[faceId];
+                double weightSum = selfWeight;
+                for (int pairId : facePairs[faceId]) {
+                    const FacePair& pair = pairs[pairId];
+                    const int neighbor = pair.first == static_cast<int>(faceId) ? pair.second : pair.first;
+                    const double indicator =
+                        edgeIndicator(harmonized[faceId], harmonized[neighbor], sigmaRad, preserveRad);
+                    if (indicator <= 1e-12) {
+                        continue;
+                    }
+                    const double weight = indicator * std::sqrt(std::max(areas[faceId] * areas[neighbor], 1e-24));
+                    weighted += weight * harmonized[neighbor];
+                    weightSum += weight;
+                }
+
+                Vec3 target = weightSum > 0.0 ? weighted / weightSum : harmonized[faceId];
+                if (target.squaredNorm() <= 1e-30) {
+                    next[faceId] = harmonized[faceId];
+                    continue;
+                }
+                target.normalize();
+                Vec3 blended = (1.0 - options.relaxation) * harmonized[faceId] + options.relaxation * target;
+                next[faceId] = blended.squaredNorm() > 1e-30 ? blended.normalized() : harmonized[faceId];
             }
-            target.normalize();
-            Vec3 blended = (1.0 - options.relaxation) * harmonized[faceId] + options.relaxation * target;
-            next[faceId] = blended.squaredNorm() > 1e-30 ? blended.normalized() : harmonized[faceId];
-        }
+        });
         harmonized.swap(next);
         ++result.report.iterationsCompleted;
     }
@@ -218,7 +229,10 @@ FeatureNormalFilterResult filterFeatureNormalsImpl(
 
 const std::vector<Vec3>& FeatureDetectionCache::faceNormals() {
     if (!hasFaceNormals_) {
-        const FeatureNormalFilterResult filtered = filterFeatureNormalsImpl(*mesh_, edgeInfo(), normalFilterOptions_);
+        const common::parallel::RangeExecutionOptions rangeOptions =
+            common::parallel::makeRangeExecutionOptions(executionOptions_);
+        const FeatureNormalFilterResult filtered =
+            filterFeatureNormalsImpl(*mesh_, edgeInfo(), normalFilterOptions_, rangeOptions);
         faceNormals_ = filtered.faceNormals;
         normalFilterReport_ = filtered.report;
         hasFaceNormals_ = true;
@@ -234,10 +248,19 @@ const FeatureNormalFilterReport& FeatureDetectionCache::normalFilterReport() {
 } // namespace detector_detail
 
 FeatureNormalFilterResult filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options) {
+    return filterFeatureNormals(mesh, options, ExecutionOptions{});
+}
+
+FeatureNormalFilterResult filterFeatureNormals(
+    const Mesh& mesh, const FeatureNormalFilterOptions& options, const ExecutionOptions& executionOptions
+) {
     detector_detail::validateFeatureMeshInput(mesh);
     detector_detail::validateFeatureNormalFilterOptions(options);
+    validateExecutionOptions(executionOptions);
     const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
-    return detector_detail::filterFeatureNormalsImpl(mesh, edgeInfo, options);
+    return detector_detail::filterFeatureNormalsImpl(
+        mesh, edgeInfo, options, common::parallel::makeRangeExecutionOptions(executionOptions)
+    );
 }
 
 } // namespace feature

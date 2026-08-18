@@ -12,6 +12,7 @@
 #include "algorithms/feature_detection/FeatureOptions.h"
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "api/CApi.h"
+#include "core/ExecutionOptions.h"
 
 #include <cstddef>
 #include <string>
@@ -20,11 +21,13 @@ namespace manumesh {
 namespace api {
 
 ManuMeshStatus initializeFeatureOptions(ManuMeshFeatureOptions* options, std::size_t structCapacity);
+ManuMeshStatus initializeExecutionOptions(ManuMeshExecutionOptions* options, std::size_t structCapacity);
 ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::size_t structCapacity);
 ManuMeshStatus initializeSimplifyReport(ManuMeshSimplifyReport* report, std::size_t structCapacity);
 ManuMeshStatus initializeMeshStats(ManuMeshMeshStats* stats, std::size_t structCapacity);
 
 bool readFeatureOptions(const ManuMeshFeatureOptions* source, feature::FeatureOptions& target, std::string& error);
+bool readExecutionOptions(const ManuMeshExecutionOptions& source, ExecutionOptions& target, std::string& error);
 bool readSimplifyOptions(
     const ManuMeshSimplifyOptions& source, simplification::SimplifyOptions& target, std::string& error
 );

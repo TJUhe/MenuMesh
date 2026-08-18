@@ -97,6 +97,13 @@ std::vector<int> sorted(std::vector<int> items) {
     return items;
 }
 
+std::vector<int> copiedIndices(manumesh::TopologyIndexView view) {
+    if (view.empty()) {
+        return {};
+    }
+    return std::vector<int>(view.begin(), view.end());
+}
+
 TEST(ManuMesh, EmptyMeshBoundsAreZero) {
     const manumesh::Mesh mesh;
     EXPECT_TRUE(mesh.bboxMin().isZero());
@@ -815,6 +822,153 @@ TEST(ManuMesh, MeshTopologyCachesBoundaryAndNonManifoldEdges) {
     EXPECT_EQ(stats.nonManifoldEdges, topology.nonManifoldEdgeCount());
 }
 
+TEST(ManuMesh, MeshTopologyCompactViewsMatchLegacyTopologyExactly) {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(0.0, 0.0, 1.0),
+        manumesh::Vec3(0.0, 0.0, -1.0),
+        manumesh::Vec3(3.0, 3.0, 3.0), // isolated vertex exercises an empty CSR row
+    };
+    mesh.faces = {
+        {{0, 1, 2}},
+        {{1, 0, 3}},
+        {{4, 0, 1}},
+    };
+
+    const manumesh::Result<manumesh::MeshTopology> result = manumesh::MeshTopology::build(mesh);
+    ASSERT_TRUE(result.ok()) << result.status().message();
+    const manumesh::MeshTopology& topology = result.value();
+    const std::vector<manumesh::TopologyEdge>& legacyEdges = topology.edges();
+    ASSERT_EQ(static_cast<std::size_t>(topology.edgeCount()), legacyEdges.size());
+    ASSERT_GT(topology.edgeCount(), 0);
+    EXPECT_EQ(&legacyEdges[0], &topology.edge(manumesh::EdgeId{0}));
+
+    for (int edgeId = 0; edgeId < topology.edgeCount(); ++edgeId) {
+        const manumesh::TopologyEdgeView compact = topology.edgeView(manumesh::EdgeId{edgeId});
+        const manumesh::TopologyEdge& legacy = legacyEdges[static_cast<std::size_t>(edgeId)];
+        EXPECT_EQ(legacy.vertices, compact.vertices);
+        EXPECT_EQ(legacy.faces, copiedIndices(compact.faces));
+        ASSERT_EQ(legacy.faceCorners.size(), compact.faceCornerCount());
+        for (std::size_t incidence = 0; incidence < legacy.faceCorners.size(); ++incidence) {
+            EXPECT_EQ(legacy.faceCorners[incidence], compact.faceCorner(incidence));
+        }
+        EXPECT_EQ(legacy.boundary(), compact.boundary());
+        EXPECT_EQ(legacy.manifoldInterior(), compact.manifoldInterior());
+        EXPECT_EQ(legacy.nonManifold(), compact.nonManifold());
+    }
+
+    for (int vertexId = 0; vertexId < topology.vertexCount(); ++vertexId) {
+        const manumesh::VertexTopologyView compact = topology.vertexView(manumesh::VertexId{vertexId});
+        const manumesh::VertexTopology& legacy = topology.vertex(manumesh::VertexId{vertexId});
+        EXPECT_EQ(legacy.edges, copiedIndices(compact.edges));
+        EXPECT_EQ(legacy.faces, copiedIndices(compact.faces));
+    }
+    EXPECT_TRUE(topology.vertexView(manumesh::VertexId{5}).edges.empty());
+    EXPECT_TRUE(topology.vertexView(manumesh::VertexId{5}).faces.empty());
+}
+
+TEST(ManuMesh, MeshTopologyCompactViewsPreserveNonManifoldIncidenceAndCorners) {
+    manumesh::Mesh mesh;
+    mesh.vertices = {
+        manumesh::Vec3(0.0, 0.0, 0.0),
+        manumesh::Vec3(1.0, 0.0, 0.0),
+        manumesh::Vec3(0.0, 1.0, 0.0),
+        manumesh::Vec3(0.0, 0.0, 1.0),
+        manumesh::Vec3(0.0, 0.0, -1.0),
+    };
+    mesh.faces = {{{2, 0, 1}}, {{3, 1, 0}}, {{0, 1, 4}}};
+
+    const manumesh::Result<manumesh::MeshTopology> result = manumesh::MeshTopology::build(mesh);
+    ASSERT_TRUE(result.ok()) << result.status().message();
+    const manumesh::MeshTopology& topology = result.value();
+
+    int sharedEdgeId = -1;
+    for (int edgeId = 0; edgeId < topology.edgeCount(); ++edgeId) {
+        const manumesh::TopologyEdgeView edge = topology.edgeView(manumesh::EdgeId{edgeId});
+        if (edge.vertices == std::array<int, 2>{{0, 1}}) {
+            sharedEdgeId = edgeId;
+            break;
+        }
+    }
+    ASSERT_GE(sharedEdgeId, 0);
+    const manumesh::TopologyEdgeView shared = topology.edgeView(manumesh::EdgeId{sharedEdgeId});
+    EXPECT_TRUE(shared.nonManifold());
+    EXPECT_EQ((std::vector<int>{0, 1, 2}), copiedIndices(shared.faces));
+    ASSERT_EQ(3u, shared.faceCornerCount());
+    EXPECT_EQ(1, shared.faceCorner(0));
+    EXPECT_EQ(1, shared.faceCorner(1));
+    EXPECT_EQ(0, shared.faceCorner(2));
+    EXPECT_EQ(6, topology.boundaryEdgeCount());
+    EXPECT_EQ(1, topology.nonManifoldEdgeCount());
+}
+
+TEST(ManuMesh, MeshTopologyUsesContiguousIncidenceStorageForLargeGrid) {
+    constexpr int resolution = 256;
+    const manumesh::Mesh mesh = manumesh::generatePlaneGrid(resolution, 1.0, false);
+    const manumesh::Result<manumesh::MeshTopology> result = manumesh::MeshTopology::build(mesh);
+    ASSERT_TRUE(result.ok()) << result.status().message();
+    const manumesh::MeshTopology& topology = result.value();
+
+    const std::size_t expectedVertices = static_cast<std::size_t>(resolution + 1) * (resolution + 1);
+    const std::size_t expectedFaces = 2u * resolution * resolution;
+    const std::size_t expectedEdges = 3u * resolution * resolution + 2u * resolution;
+    ASSERT_EQ(expectedVertices, static_cast<std::size_t>(topology.vertexCount()));
+    ASSERT_EQ(expectedFaces, static_cast<std::size_t>(topology.faceCount()));
+    ASSERT_EQ(expectedEdges, static_cast<std::size_t>(topology.edgeCount()));
+    EXPECT_EQ(4 * resolution, topology.boundaryEdgeCount());
+
+    std::size_t edgeFaceIncidences = 0;
+    const int* previousEdgeEnd = nullptr;
+    for (int edgeId = 0; edgeId < topology.edgeCount(); ++edgeId) {
+        const manumesh::TopologyEdgeView edge = topology.edgeView(manumesh::EdgeId{edgeId});
+        ASSERT_FALSE(edge.faces.empty());
+        if (previousEdgeEnd) {
+            EXPECT_EQ(previousEdgeEnd, edge.faces.data());
+        }
+        previousEdgeEnd = edge.faces.end();
+        edgeFaceIncidences += edge.faces.size();
+    }
+    EXPECT_EQ(3u * expectedFaces, edgeFaceIncidences);
+
+    std::size_t vertexFaceIncidences = 0;
+    std::size_t vertexEdgeIncidences = 0;
+    const int* previousVertexFaceEnd = nullptr;
+    const int* previousVertexEdgeEnd = nullptr;
+    for (int vertexId = 0; vertexId < topology.vertexCount(); ++vertexId) {
+        const manumesh::VertexTopologyView vertex = topology.vertexView(manumesh::VertexId{vertexId});
+        ASSERT_FALSE(vertex.faces.empty());
+        ASSERT_FALSE(vertex.edges.empty());
+        if (previousVertexFaceEnd) {
+            EXPECT_EQ(previousVertexFaceEnd, vertex.faces.data());
+            EXPECT_EQ(previousVertexEdgeEnd, vertex.edges.data());
+        }
+        previousVertexFaceEnd = vertex.faces.end();
+        previousVertexEdgeEnd = vertex.edges.end();
+        vertexFaceIncidences += vertex.faces.size();
+        vertexEdgeIncidences += vertex.edges.size();
+    }
+    EXPECT_EQ(3u * expectedFaces, vertexFaceIncidences);
+    EXPECT_EQ(2u * expectedEdges, vertexEdgeIncidences);
+
+    // Regression guard for the structural payload: one CSR payload must remain
+    // materially smaller than per-edge/per-vertex vector objects plus incidences.
+    const std::size_t compactPayload =
+        expectedEdges * sizeof(std::array<int, 2>) +
+        (expectedEdges + 1) * sizeof(std::size_t) +
+        3u * expectedFaces * (sizeof(int) + sizeof(std::uint8_t)) +
+        2u * (expectedVertices + 1) * sizeof(std::size_t) +
+        3u * expectedFaces * sizeof(int) +
+        2u * expectedEdges * sizeof(int);
+    const std::size_t vectorBackedPayload =
+        expectedEdges * sizeof(manumesh::TopologyEdge) +
+        expectedVertices * sizeof(manumesh::VertexTopology) +
+        (9u * expectedFaces + 2u * expectedEdges) * sizeof(int);
+    EXPECT_LT(compactPayload, vectorBackedPayload * 3u / 4u);
+}
+
 TEST(ManuMesh, MeshTopologyRejectsOutOfRangeHandles) {
     const manumesh::Mesh mesh = manumesh::generatePlaneGrid(4, 1.0, false);
     const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(mesh);
@@ -827,6 +981,8 @@ TEST(ManuMesh, MeshTopologyRejectsOutOfRangeHandles) {
     EXPECT_FALSE(topology.hasVertex(manumesh::VertexId{topology.vertexCount()}));
     EXPECT_THROW(topology.edge(manumesh::EdgeId{topology.edgeCount()}), std::out_of_range);
     EXPECT_THROW(topology.vertex(manumesh::VertexId{topology.vertexCount()}), std::out_of_range);
+    EXPECT_THROW(topology.edgeView(manumesh::EdgeId{topology.edgeCount()}), std::out_of_range);
+    EXPECT_THROW(topology.vertexView(manumesh::VertexId{topology.vertexCount()}), std::out_of_range);
 }
 
 TEST(ManuMesh, MeshTopologyCopiesAndMovesPimplCache) {
@@ -843,15 +999,36 @@ TEST(ManuMesh, MeshTopologyCopiesAndMovesPimplCache) {
     const manumesh::Result<manumesh::MeshTopology> topologyResult = manumesh::MeshTopology::build(mesh);
     ASSERT_TRUE(topologyResult.ok()) << topologyResult.status().message();
 
+    const manumesh::TopologyEdge& sourceLegacyEdge = topologyResult.value().edge(manumesh::EdgeId{0});
+    const manumesh::VertexTopology& sourceLegacyVertex = topologyResult.value().vertex(manumesh::VertexId{0});
+
     manumesh::MeshTopology copied = topologyResult.value();
     EXPECT_EQ(topologyResult.value().vertexCount(), copied.vertexCount());
     EXPECT_EQ(topologyResult.value().edgeCount(), copied.edgeCount());
     EXPECT_EQ(topologyResult.value().boundaryEdgeCount(), copied.boundaryEdgeCount());
+    EXPECT_EQ(
+        copiedIndices(topologyResult.value().edgeView(manumesh::EdgeId{0}).faces),
+        copiedIndices(copied.edgeView(manumesh::EdgeId{0}).faces)
+    );
+    EXPECT_EQ(
+        copiedIndices(topologyResult.value().vertexView(manumesh::VertexId{0}).edges),
+        copiedIndices(copied.vertexView(manumesh::VertexId{0}).edges)
+    );
+    const manumesh::TopologyEdge* copiedLegacyEdge = &copied.edge(manumesh::EdgeId{0});
+    const manumesh::VertexTopology* copiedLegacyVertex = &copied.vertex(manumesh::VertexId{0});
+    EXPECT_EQ(sourceLegacyEdge.faces, copiedLegacyEdge->faces);
+    EXPECT_EQ(sourceLegacyVertex.edges, copiedLegacyVertex->edges);
+    EXPECT_NE(&sourceLegacyEdge, copiedLegacyEdge);
+    EXPECT_NE(&sourceLegacyVertex, copiedLegacyVertex);
 
     manumesh::MeshTopology moved = std::move(copied);
     EXPECT_EQ(static_cast<int>(mesh.vertices.size()), moved.vertexCount());
     EXPECT_GT(moved.edgeCount(), 0);
     EXPECT_GT(moved.boundaryEdgeCount(), 0);
+    EXPECT_FALSE(moved.edgeView(manumesh::EdgeId{0}).faces.empty());
+    EXPECT_FALSE(moved.vertexView(manumesh::VertexId{0}).edges.empty());
+    EXPECT_EQ(copiedLegacyEdge, &moved.edge(manumesh::EdgeId{0}));
+    EXPECT_EQ(copiedLegacyVertex, &moved.vertex(manumesh::VertexId{0}));
     EXPECT_EQ(0, copied.vertexCount());
     EXPECT_EQ(0, copied.faceCount());
     EXPECT_TRUE(copied.edges().empty());

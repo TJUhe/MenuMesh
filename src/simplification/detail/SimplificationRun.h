@@ -11,6 +11,7 @@
 #include "algorithms/simplification/SimplificationTypes.h"
 #include "common/detail/MeshDistanceIndex.h"
 #include "core/Mesh.h"
+#include "core/ExecutionOptions.h"
 #include "detail/CandidateQueue.h"
 #include "detail/CollapseAttempt.h"
 #include "detail/CollapseTopology.h"
@@ -45,6 +46,8 @@ public:
      * @param[in] options 不可变策略，其生命周期必须覆盖整个运行。
      */
     SimplificationRun(const Mesh& input, const SimplifyOptions& options);
+    /** @brief 创建使用显式执行约束的运行。 */
+    SimplificationRun(const Mesh& input, const SimplifyOptions& options, const ExecutionOptions& executionOptions);
     /**
      * @brief 创建一个可以复用调用方特征分析的运行。
      * @param[in] input 不可变源网格，其生命周期必须覆盖整个运行。
@@ -52,6 +55,13 @@ public:
      * @param[in] features 可选分析结果，其网格必须与 input 匹配。
      */
     SimplificationRun(const Mesh& input, const SimplifyOptions& options, const feature::FeatureAnalysis* features);
+    /** @brief 创建复用特征分析并使用显式执行约束的运行。 */
+    SimplificationRun(
+        const Mesh& input,
+        const SimplifyOptions& options,
+        const feature::FeatureAnalysis* features,
+        const ExecutionOptions& executionOptions
+    );
 
     /**
      * @brief 执行初始化、折叠、可选细化和压缩。
@@ -59,6 +69,11 @@ public:
     Mesh execute(SimplifyReport* outReport);
 
 private:
+    struct PreparedEdgeCandidate {
+        Candidate candidate;
+        bool midpointProtected = false;
+    };
+
     /** @brief 重置所有报告字段并记录输入网格尺寸。*/
     void initializeReport();
     /** @brief 复用或计算特征分析并构建引导表。*/
@@ -77,6 +92,8 @@ private:
      * @brief 只求解一次边的放置，使用同一求解结果计算纹理保护代价，并将带缓存放置的候选压入队列。当（近似）中点放置被纹理拒绝时返回 true，用于初始构建阶段的 textureProtectedEdges 诊断。
      */
     bool pushEdgeCandidate(int a, int b);
+    /** @brief 只读求解候选及纹理代价，不修改队列或报告。 */
+    PreparedEdgeCandidate prepareEdgeCandidate(int a, int b) const;
     /** @brief 弹出并评估候选，直到达到配置的停止条件。*/
     void collapseUntilTarget();
     /** @brief 执行可选的固定拓扑质量细化。*/
@@ -104,6 +121,7 @@ private:
 
     const Mesh& input_;
     const SimplifyOptions& options_;
+    ExecutionOptions executionOptions_;
     const feature::FeatureAnalysis* precomputedFeatures_ = nullptr;
     std::unique_ptr<feature::FeatureAnalysis> ownedFeatureAnalysis_;
     const feature::FeatureAnalysis* featureAnalysis_ = nullptr;

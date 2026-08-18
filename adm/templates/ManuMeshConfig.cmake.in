@@ -2,6 +2,14 @@
 
 include(CMakeFindDependencyMacro)
 
+# A static ManuMesh build stores oneTBB behind the implementation boundary,
+# but the archive still has unresolved oneTBB symbols. Resolve the target
+# before importing ManuMeshTargets so C and C++ SDK consumers see a complete
+# link interface without any public header dependency.
+if(@MANUMESH_ONETBB_STATIC_SDK_DEPENDENCY@)
+  find_dependency(TBB 2021.12 CONFIG)
+endif()
+
 set(_manumesh_compiler_id "${CMAKE_CXX_COMPILER_ID}")
 if(NOT _manumesh_compiler_id)
   set(_manumesh_compiler_id "${CMAKE_C_COMPILER_ID}")

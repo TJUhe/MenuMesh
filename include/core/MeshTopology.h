@@ -41,6 +41,55 @@ struct VertexTopology {
     std::vector<int> faces; ///< 按确定性顺序排列的入射面索引。
 };
 
+/**
+ * @brief 指向 MeshTopology 连续索引存储的只读轻量视图。
+ *
+ * 视图不拥有数据，其生命周期不得超过创建它的 MeshTopology，且在该拓扑对象被
+ * 移动或销毁后失效。空视图的 begin()/end() 均可安全用于范围遍历。
+ */
+class TopologyIndexView {
+public:
+    TopologyIndexView() noexcept = default;
+    TopologyIndexView(const int* data, std::size_t size) noexcept
+        : data_(data), size_(size) {}
+
+    const int* data() const noexcept { return data_; }
+    std::size_t size() const noexcept { return size_; }
+    bool empty() const noexcept { return size_ == 0; }
+    const int& operator[](std::size_t index) const noexcept { return data_[index]; }
+    const int* begin() const noexcept { return data_; }
+    const int* end() const noexcept { return data_ ? data_ + size_ : data_; }
+
+private:
+    const int* data_ = nullptr;
+    std::size_t size_ = 0;
+};
+
+/** @brief 不分配内存的边端点、入射面和局部面角视图。 */
+struct TopologyEdgeView {
+    std::array<int, 2> vertices{{-1, -1}}; ///< 升序端点索引。
+    TopologyIndexView faces;               ///< 按输入面/角顺序排列的入射面。
+
+    /// 返回与 faces[index] 对齐的局部面角（0、1 或 2）。
+    int faceCorner(std::size_t index) const noexcept {
+        return static_cast<int>(faceCorners_[index]);
+    }
+    std::size_t faceCornerCount() const noexcept { return faces.size(); }
+    bool boundary() const noexcept { return faces.size() == 1; }
+    bool manifoldInterior() const noexcept { return faces.size() == 2; }
+    bool nonManifold() const noexcept { return faces.size() > 2; }
+
+private:
+    friend class MeshTopology;
+    const std::uint8_t* faceCorners_ = nullptr;
+};
+
+/** @brief 不分配内存的逐顶点入射边/面视图。 */
+struct VertexTopologyView {
+    TopologyIndexView edges; ///< 按稠密边 ID 排列的入射边。
+    TopologyIndexView faces; ///< 按输入面顺序排列的入射面。
+};
+
 /** @brief 面向查询的网格连接性、边界和绕序摘要。 */
 struct MeshTopologySummary {
     std::size_t connectedFaceComponents = 0; ///< 通过共享边连通的面组件数量。
@@ -90,6 +139,11 @@ public:
     MANUMESH_API const TopologyEdge& edge(EdgeId id) const;
     /// 返回请求的顶点拓扑；id 无效时抛出 std::out_of_range。
     MANUMESH_API const VertexTopology& vertex(VertexId id) const;
+
+    /// 返回直接引用紧凑连续存储的边视图；id 无效时抛出 std::out_of_range。
+    MANUMESH_API TopologyEdgeView edgeView(EdgeId id) const;
+    /// 返回直接引用紧凑连续存储的顶点视图；id 无效时抛出 std::out_of_range。
+    MANUMESH_API VertexTopologyView vertexView(VertexId id) const;
 
 private:
     struct Impl;

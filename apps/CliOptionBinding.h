@@ -11,6 +11,7 @@
 #include "CliArguments.h"
 #include "algorithms/feature_detection/FeatureOptions.h"
 #include "algorithms/simplification/SimplificationTypes.h"
+#include "core/ExecutionOptions.h"
 
 #include <iosfwd>
 #include <string>
@@ -31,6 +32,8 @@ simplification::SimplifyConfig parseSimplifyConfig(const Args& args);
 simplification::SimplifyOptions parseSimplifyOptions(const Args& args);
 /// 将已校验的参数绑定到独立的特征检测选项结构。
 feature::FeatureOptions parseFeatureOptions(const Args& args);
+/// 将 --threads 绑定到公共执行约束；未提供时保持串行。
+ExecutionOptions parseExecutionOptions(const Args& args);
 /// 输出易于复制的有效特征配置摘要。
 std::string formatResolvedFeatureOptions(const Args& args, const feature::FeatureOptions& options);
 /// 输出易于复制的有效简化配置摘要。

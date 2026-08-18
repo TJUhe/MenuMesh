@@ -28,6 +28,8 @@
 | [`design/smooth_curvature_feature_detection_2026_07_11.md`](design/smooth_curvature_feature_detection_2026_07_11.md) | 确定性光滑曲率特征检测的权威设计文档：双证据路径理念、多尺度 quadric 拟合算法八步、`FeatureOptions` 新参数与默认值、诊断字段和开源/文献对照。 |
 | [`design/architecture_v2_2026_07_12.md`](design/architecture_v2_2026_07_12.md) | 架构升级蓝图 v2：R1-R7 改进项与实施状态（第一至三批已落地），包含 `manumesh::analysis` 模块、CLI 选项表、C ABI 加固等本轮架构改动的立项论证。 |
 | [`design/long_term_library_roadmap_2026_08_16.md`](design/long_term_library_roadmap_2026_08_16.md) | 面向大型网格库的长期路线：参数分组、validation/repair、类型化属性、大网格索引、remeshing 与 C ABI v2 的实施顺序和验收门槛。 |
+| [`design/large_mesh_architecture_2026_08_18.md`](design/large_mesh_architecture_2026_08_18.md) | 超大网格当前实现和边界：CSR `MeshTopology`、PartitionedMeshDataset、`large-import/large-validate`、三份 Thingi10K 实测，以及 global ID、owner/ghost、halo、FeatureGraph 和 out-of-core QEM 后续路线。 |
+| [`design/parallel_execution_benchmark_2026_08_18.md`](design/parallel_execution_benchmark_2026_08_18.md) | oneTBB 执行后端的架构边界、特征/QEM 并行阶段、结果等价约束，以及合成和真实 STL 的可复现实测。 |
 | [`design/error_handling_policy.md`](design/error_handling_policy.md) | 错误处理策略一页决策表：数据错误用 Status/Result、编程错误用异常、C 边界用状态码、IO 渐进迁移 `Result<Mesh>`；新增公共入口前先查本表。 |
 | [`design/algorithm_extension_protocol.md`](design/algorithm_extension_protocol.md) | 算法扩展协议：新增模块的边界与验收路径、`validateOptions` 协议，以及紧凑结果/可选诊断规范。 |
 | [`design/testing_strategy.md`](design/testing_strategy.md) | 测试体系与策略：unit/analytic/perf-guard/external/performance 五层划分、解析真值 fixture 设计理念（真值访问器 + 推导断言界）、确定性测试、快速/全量套件命令与规模、新增测试的注册方式。 |
@@ -55,6 +57,7 @@ ManuMesh 当前定位为面向增材制造和三角网格处理的 C++14 mesh ge
 - 确定性光滑曲率特征检测与保护（opt-in）：多尺度 quadric 拟合的 ridge/valley 弱证据路径，经显式 `FeatureGraph` 与硬证据汇合；feature-analysis CLI 和 `simplify` 均支持 `--smooth-curvature-*`，在 `simplify` 中启用检测通道会保持 0.x 的自动特征保护行为；C++/C ABI 均有对应尾字段；
 - feature、boundary、topology、normal、triangle quality、local error 和 local intersection 过滤；相交检查覆盖新一环内部与附近活动面，但不声称全局无自交认证；
 - STL/OBJ IO；OBJ 严格凸面保持 fan 顺序，凹面使用投影 ear clipping，并拒绝重复、退化或自交 polygon；
+- 有内存预算的二进制 STL 三角记录分区 I/O（`PartitionedMeshDataset`）及 `large-import` / `large-validate` CLI；这不等于已经完成分区拓扑、跨分区特征检测或 out-of-core QEM；
 - CLI、examples、CTest/GoogleTest 和外部 STL/OBJ 验证路径。
 - Debug-only HTML wireframe 辅助工具只属于内部算法排查手段，不属于 SDK/API 或交付 viewer。
 
@@ -65,3 +68,5 @@ ManuMesh 当前定位为面向增材制造和三角网格处理的 C++14 mesh ge
 - 从 STL/OBJ 自动恢复完整 CAD feature tree；
 - 全局 Hausdorff/envelope 形式化认证；
 - 直接制造公差合规保证。
+
+当前也不在交付范围内的是：全局顶点/边 ID、owner/ghost 拓扑、跨分区 halo 计算、全局 FeatureGraph 合并和分区 QEM 简化。相关设计和验收门槛集中记录在 [`large_mesh_architecture_2026_08_18.md`](design/large_mesh_architecture_2026_08_18.md)。

@@ -24,6 +24,7 @@ namespace simplification {
 /** @brief QEMSimplifier 所拥有的私有选项和最新报告。*/
 struct QEMSimplifier::Impl {
     SimplifyOptions options;
+    ExecutionOptions executionOptions;
     SimplifyReport report;
 };
 
@@ -151,6 +152,19 @@ void QEMSimplifier::setConfig(const SimplifyConfig& config) {
     setOptions(makeSimplifyOptions(config));
 }
 
+const ExecutionOptions& QEMSimplifier::executionOptions() const {
+    static const ExecutionOptions defaultExecutionOptions{};
+    return impl_ ? impl_->executionOptions : defaultExecutionOptions;
+}
+
+void QEMSimplifier::setExecutionOptions(ExecutionOptions executionOptions) {
+    validateExecutionOptions(executionOptions);
+    if (!impl_) {
+        impl_ = std::make_unique<Impl>();
+    }
+    impl_->executionOptions = executionOptions;
+}
+
 const SimplifyReport& QEMSimplifier::report() const {
     static const SimplifyReport emptyReport;
     return impl_ ? impl_->report : emptyReport;
@@ -164,7 +178,8 @@ Mesh QEMSimplifier::simplify(const Mesh& input, SimplifyReport* outReport) {
     }
     validateSimplifyOptions(impl_->options);
     validateSimplifierInput(input);
-    SimplificationRun run(input, impl_->options);
+    validateExecutionOptions(impl_->executionOptions);
+    SimplificationRun run(input, impl_->options, impl_->executionOptions);
     Mesh output = run.execute(&impl_->report);
     if (outReport) {
         *outReport = impl_->report;
@@ -183,7 +198,8 @@ Mesh QEMSimplifier::simplify(const Mesh& input, const feature::FeatureAnalysis& 
     validateSimplifyOptions(impl_->options);
     validateSimplifierInput(input);
     feature::validateFeatureAnalysis(input, features);
-    SimplificationRun run(input, impl_->options, &features);
+    validateExecutionOptions(impl_->executionOptions);
+    SimplificationRun run(input, impl_->options, &features, impl_->executionOptions);
     Mesh output = run.execute(&impl_->report);
     if (outReport) {
         *outReport = impl_->report;
@@ -199,6 +215,17 @@ Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options, SimplifyRep
 Mesh simplifyMesh(
     const Mesh& input,
     const SimplifyOptions& options,
+    const ExecutionOptions& executionOptions,
+    SimplifyReport* outReport
+) {
+    QEMSimplifier simplifier(options);
+    simplifier.setExecutionOptions(executionOptions);
+    return simplifier.simplify(input, outReport);
+}
+
+Mesh simplifyMesh(
+    const Mesh& input,
+    const SimplifyOptions& options,
     const feature::FeatureAnalysis& features,
     SimplifyReport* outReport
 ) {
@@ -208,6 +235,18 @@ Mesh simplifyMesh(
 
 PlainMesh simplifyPlainMesh(const PlainMesh& input, const SimplifyOptions& options, SimplifyReport* outReport) {
     return toPlainMesh(simplifyMesh(toMesh(input), options, outReport));
+}
+
+Mesh simplifyMesh(
+    const Mesh& input,
+    const SimplifyOptions& options,
+    const feature::FeatureAnalysis& features,
+    const ExecutionOptions& executionOptions,
+    SimplifyReport* outReport
+) {
+    QEMSimplifier simplifier(options);
+    simplifier.setExecutionOptions(executionOptions);
+    return simplifier.simplify(input, features, outReport);
 }
 
 } // namespace simplification

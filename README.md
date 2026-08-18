@@ -83,6 +83,7 @@ ManuMesh 当前是三角表面网格内核，不是完整 CAD/B-Rep 或实体建
 | Ninja | 可选 | 在 VS2019 v142 Developer Command Prompt 中使用 Ninja Multi-Config preset。 |
 | Eigen | 默认 3.4.0；显式 system 为 3.3+ | 核心向量/矩阵计算；默认使用仓库内 header bundle，`system` 与 `fetch` 仅供显式覆盖。 |
 | GoogleTest | 1.15.2（测试时需要） | 默认从仓库内源码构建；`system` 与 `fetch` 仅供显式覆盖。 |
+| oneTBB | 2021.12.0 | 正式 Release/SDK preset 的内部并行后端；公共头不暴露 TBB 类型，Windows SDK 安装必要的 `tbb12.dll`。 |
 | Doxygen | 文档构建时需要 | 通过 `PATH` 或 `DOXYGEN_EXECUTABLE` 提供；`MANUMESH_BUILD_DOCS=ON` 时配置阶段会验证。 |
 | Graphviz | 可选 | 找到 `dot` 时生成关系图；缺少 Graphviz 时 Doxygen 仍可生成 API 和源码文档，但不包含关系图。 |
 | Python 3 | 架构检查时需要 | VS2019 preset 和 CI 会开启 include 边界守卫；自定义测试配置可在没有 Python 时跳过该增强检查。 |
@@ -103,6 +104,11 @@ Debug 不使用 `/MDd`，也不允许 `/MT` 或 `/MTd` 混入同一构建。
 环境下的 `Visual Studio 16 2019` 和 `Ninja Multi-Config` 两种 generator。项目与 preset
 统一要求 CMake 3.20 或更高版本，因此可以由 Visual Studio 2019 16.11 内置的 CMake 3.20
 直接读取。
+
+所有常规 `vs2019-release*` 和 `vs2019-ninja-release*` runtime、test、SDK 以及
+performance preset 都继承同一个固定的 oneTBB 2021.12.0 配置，因此这些 Release
+验证的是同一个正式后端；`*-release-docs` 只生成文档，不构建运行时。Debug/ASan
+preset 保持不引入调度后端，用于串行回退、确定性和内存安全诊断。
 
 ```powershell
 # 日常 Debug 和快速回归
@@ -326,7 +332,9 @@ ManuMesh/
 Eigen 是库的 header-only 编译依赖。GoogleTest 只用于仓库测试，不是 ManuMesh SDK
 运行时依赖。默认配置固定使用仓库内 Eigen 3.4.0 与 GoogleTest 1.15.2 源码，避免
 开发机安装的包改变构建结果；显式 `system` 路径接受 Eigen 3.3 及更高版本，`auto`、
-`system` 和 `fetch` 都是显式覆盖路径。安装型 Windows
+`system` 和 `fetch` 都是显式覆盖路径。oneTBB 仅出现在内部并行边界；原始 CMake 选项
+仍默认关闭，但所有常规 Release runtime/test/SDK/performance preset 都固定为 `fetch`
+的 2021.12.0；文档 preset 不构建运行时。安装型 Windows
 SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-consumer-test` 中使用隔离
 `PATH` 验证可启动性。
 
@@ -338,6 +346,8 @@ SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-cons
 | `MANUMESH_BUILD_TESTS` | `ON` | 注册 GoogleTest/CTest 测试。 |
 | `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` | `OFF` | 测试构建时要求 Python 3 并注册 include 边界守卫；VS2019 preset 和 CI 显式设为 `ON`。 |
 | `MANUMESH_BUILD_PERFORMANCE_TESTS` | `OFF` | 构建独立的大模型性能套件。 |
+| `MANUMESH_ENABLE_ONETBB` | `OFF`（Release preset 为 `ON`） | 启用内部 oneTBB 范围并行后端；关闭时保留同一公共执行契约的串行回退。 |
+| `MANUMESH_ONETBB_PROVIDER` | `auto`（Release preset 为 `fetch`） | 选择 `auto` / `system` / `fetch`；正式 preset 固定获取 oneTBB 2021.12.0。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中启用内部 HTML 线框工具。 |
 | `MANUMESH_EIGEN_PROVIDER` | `vendored` | 默认仓库内 Eigen 3.4.0；显式 `system` 支持 3.3+，也可设为 `auto` 或 `fetch`。 |

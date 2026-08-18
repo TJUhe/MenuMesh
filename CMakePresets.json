@@ -59,6 +59,24 @@
       }
     },
     {
+      "name": "vs2019-release-base",
+      "hidden": true,
+      "inherits": "vs2019-base",
+      "cacheVariables": {
+        "MANUMESH_ENABLE_ONETBB": "ON",
+        "MANUMESH_ONETBB_PROVIDER": "fetch"
+      }
+    },
+    {
+      "name": "vs2019-ninja-release-base",
+      "hidden": true,
+      "inherits": "vs2019-ninja-base",
+      "cacheVariables": {
+        "MANUMESH_ENABLE_ONETBB": "ON",
+        "MANUMESH_ONETBB_PROVIDER": "fetch"
+      }
+    },
+    {
       "name": "vs2019-debug",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-debug"
@@ -75,12 +93,12 @@
     },
     {
       "name": "vs2019-release",
-      "inherits": "vs2019-base",
+      "inherits": "vs2019-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-release"
     },
     {
       "name": "vs2019-release-static",
-      "inherits": "vs2019-base",
+      "inherits": "vs2019-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-static",
       "cacheVariables": {
         "MANUMESH_BUILD_SHARED_LIBRARY": "OFF"
@@ -88,7 +106,7 @@
     },
     {
       "name": "vs2019-release-static-sdk",
-      "inherits": "vs2019-base",
+      "inherits": "vs2019-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-static-sdk",
       "cacheVariables": {
         "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
@@ -98,7 +116,7 @@
     },
     {
       "name": "vs2019-release-performance",
-      "inherits": "vs2019-base",
+      "inherits": "vs2019-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-performance",
       "cacheVariables": {
         "MANUMESH_BUILD_EXAMPLES": "OFF",
@@ -107,7 +125,7 @@
     },
     {
       "name": "vs2019-release-sdk",
-      "inherits": "vs2019-base",
+      "inherits": "vs2019-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-sdk",
       "cacheVariables": {
         "MANUMESH_ENABLE_INSTALL": "ON",
@@ -137,12 +155,12 @@
     },
     {
       "name": "vs2019-ninja-release",
-      "inherits": "vs2019-ninja-base",
+      "inherits": "vs2019-ninja-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release"
     },
     {
       "name": "vs2019-ninja-release-static",
-      "inherits": "vs2019-ninja-base",
+      "inherits": "vs2019-ninja-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-static",
       "cacheVariables": {
         "MANUMESH_BUILD_SHARED_LIBRARY": "OFF"
@@ -150,7 +168,7 @@
     },
     {
       "name": "vs2019-ninja-release-static-sdk",
-      "inherits": "vs2019-ninja-base",
+      "inherits": "vs2019-ninja-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-static-sdk",
       "cacheVariables": {
         "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
@@ -160,7 +178,7 @@
     },
     {
       "name": "vs2019-ninja-release-performance",
-      "inherits": "vs2019-ninja-base",
+      "inherits": "vs2019-ninja-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-performance",
       "cacheVariables": {
         "MANUMESH_BUILD_EXAMPLES": "OFF",
@@ -169,7 +187,7 @@
     },
     {
       "name": "vs2019-ninja-release-sdk",
-      "inherits": "vs2019-ninja-base",
+      "inherits": "vs2019-ninja-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-sdk",
       "cacheVariables": {
         "MANUMESH_ENABLE_INSTALL": "ON",
@@ -209,6 +227,7 @@
         "manumesh_options_header_compile_check",
         "manumesh_feature_detection_link_check",
         "manumesh_simplification_link_check",
+        "manumesh_io_link_check",
         "manumesh",
         "manumesh_basic_simplify",
         "manumesh_c_api_basic",
@@ -224,7 +243,8 @@
         "manumesh_ownership_lifetime_stress",
         "manumesh_options_header_compile_check",
         "manumesh_feature_detection_link_check",
-        "manumesh_simplification_link_check"
+        "manumesh_simplification_link_check",
+        "manumesh_io_link_check"
       ]
     },
     {
@@ -242,6 +262,7 @@
         "manumesh_options_header_compile_check",
         "manumesh_feature_detection_link_check",
         "manumesh_simplification_link_check",
+        "manumesh_io_link_check",
         "manumesh",
         "manumesh_basic_simplify",
         "manumesh_c_api_basic",
@@ -279,6 +300,7 @@
         "manumesh_options_header_compile_check",
         "manumesh_feature_detection_link_check",
         "manumesh_simplification_link_check",
+        "manumesh_io_link_check",
         "manumesh_basic_simplify",
         "manumesh_c_api_basic",
         "manumesh_feature_workflow_demo"
@@ -308,6 +330,7 @@
         "manumesh_options_header_compile_check",
         "manumesh_feature_detection_link_check",
         "manumesh_simplification_link_check",
+        "manumesh_io_link_check",
         "manumesh",
         "manumesh_basic_simplify",
         "manumesh_c_api_basic",
@@ -329,6 +352,7 @@
         "manumesh_options_header_compile_check",
         "manumesh_feature_detection_link_check",
         "manumesh_simplification_link_check",
+        "manumesh_io_link_check",
         "manumesh",
         "manumesh_basic_simplify",
         "manumesh_c_api_basic",
@@ -366,6 +390,7 @@
         "manumesh_options_header_compile_check",
         "manumesh_feature_detection_link_check",
         "manumesh_simplification_link_check",
+        "manumesh_io_link_check",
         "manumesh_basic_simplify",
         "manumesh_c_api_basic",
         "manumesh_feature_workflow_demo"

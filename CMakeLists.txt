@@ -65,6 +65,14 @@ option(MANUMESH_BUILD_TESTS "构建基于 GoogleTest 的测试" ON)
 option(MANUMESH_ENABLE_INSTALL "启用 SDK 安装规则" OFF)
 option(MANUMESH_ENABLE_DEBUG_UTIL "启用仅 Debug 可用的内部 HTML 线框调试工具" OFF)
 option(MANUMESH_ENABLE_ADDRESS_SANITIZER "启用 MSVC AddressSanitizer 内存错误检查" OFF)
+option(MANUMESH_ENABLE_ONETBB
+  "启用 oneTBB 内部并行执行后端；关闭时保持确定性的串行回退"
+  OFF
+)
+set(MANUMESH_ONETBB_PROVIDER "auto" CACHE STRING
+  "oneTBB 提供方式：auto、system 或 fetch"
+)
+set_property(CACHE MANUMESH_ONETBB_PROVIDER PROPERTY STRINGS auto system fetch)
 
 if(MANUMESH_ENABLE_ADDRESS_SANITIZER)
   if(NOT MSVC OR MSVC_VERSION LESS 1928)
@@ -169,6 +177,68 @@ if(NOT MANUMESH_RESOLVED_EIGEN_PROVIDER AND TARGET Eigen3::Eigen)
   set(MANUMESH_RESOLVED_EIGEN_PROVIDER "external")
 endif()
 
+set(MANUMESH_RESOLVED_ONETBB_PROVIDER "disabled")
+set(MANUMESH_ONETBB_STATIC_SDK_DEPENDENCY FALSE)
+set(MANUMESH_ONETBB_RUNTIME_DLL FALSE)
+
+if(MANUMESH_ENABLE_ONETBB)
+  if(NOT MANUMESH_ONETBB_PROVIDER MATCHES "^(auto|system|fetch)$")
+    message(FATAL_ERROR
+      "MANUMESH_ONETBB_PROVIDER 必须是 auto、system 或 fetch 之一。"
+    )
+  endif()
+
+  if(MANUMESH_ONETBB_PROVIDER STREQUAL "auto" OR
+     MANUMESH_ONETBB_PROVIDER STREQUAL "system")
+    find_package(TBB 2021.12 CONFIG QUIET)
+    if(TARGET TBB::tbb)
+      set(MANUMESH_RESOLVED_ONETBB_PROVIDER "system")
+    elseif(MANUMESH_ONETBB_PROVIDER STREQUAL "system")
+      message(FATAL_ERROR
+        "未找到系统 oneTBB (TBB::tbb)。请安装 oneTBB 2021.12 或使用 "
+        "-DMANUMESH_ONETBB_PROVIDER=fetch。"
+      )
+    endif()
+  endif()
+
+  if(NOT TARGET TBB::tbb AND
+     (MANUMESH_ONETBB_PROVIDER STREQUAL "auto" OR
+      MANUMESH_ONETBB_PROVIDER STREQUAL "fetch"))
+    # Keep oneTBB as its supported shared runtime. Static oneTBB is explicitly
+    # discouraged upstream; the install rules below package the runtime DLL
+    # and its CMake target for both shared and static ManuMesh SDKs.
+    set(TBB_TEST OFF CACHE BOOL "Disable oneTBB tests" FORCE)
+    set(TBB_STRICT OFF CACHE BOOL "Do not treat oneTBB warnings as errors" FORCE)
+    set(TBBMALLOC_BUILD OFF CACHE BOOL "Do not build oneTBB allocator" FORCE)
+    set(TBB4PY_BUILD OFF CACHE BOOL "Do not build oneTBB Python bindings" FORCE)
+    set(TBB_INSTALL ON CACHE BOOL "Install fetched oneTBB for static SDK consumers" FORCE)
+    FetchContent_Declare(
+      onetbb
+      URL https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.12.0.tar.gz
+      URL_HASH SHA256=C7BB7AA69C254D91B8F0041A71C5BCC3936ACB64408A1719AEC0B2B7639DD84F
+      ${MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS}
+    )
+    FetchContent_MakeAvailable(onetbb)
+    set(MANUMESH_RESOLVED_ONETBB_PROVIDER "fetch")
+  endif()
+
+  if(NOT TARGET TBB::tbb)
+    message(FATAL_ERROR "oneTBB 已启用，但未能创建 TBB::tbb 目标。")
+  endif()
+
+  get_target_property(MANUMESH_ONETBB_TARGET_TYPE TBB::tbb TYPE)
+  if(MANUMESH_ONETBB_TARGET_TYPE STREQUAL "SHARED_LIBRARY")
+    set(MANUMESH_ONETBB_RUNTIME_DLL TRUE)
+  endif()
+  if(NOT MANUMESH_BUILD_SHARED_LIBRARY)
+    set(MANUMESH_ONETBB_STATIC_SDK_DEPENDENCY TRUE)
+  endif()
+  message(STATUS
+    "ManuMesh oneTBB backend: ${MANUMESH_RESOLVED_ONETBB_PROVIDER} "
+    "(${MANUMESH_ONETBB_TARGET_TYPE})"
+  )
+endif()
+
 function(manumesh_apply_warnings target)
   target_compile_options(${target} PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:/W4 /permissive- /utf-8 /FS /external:anglebrackets /external:W0>
@@ -183,6 +253,15 @@ function(manumesh_copy_runtime_dependencies target)
         "$<TARGET_FILE:manumesh_core>"
         "$<TARGET_FILE_DIR:${target}>"
     COMMENT "正在将 manumesh 运行时库复制到 ${target} 旁边"
+      VERBATIM
+    )
+  endif()
+  if(WIN32 AND MANUMESH_ONETBB_RUNTIME_DLL)
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "$<TARGET_FILE:TBB::tbb>"
+        "$<TARGET_FILE_DIR:${target}>"
+      COMMENT "正在将 oneTBB 运行时复制到 ${target} 旁边"
       VERBATIM
     )
   endif()

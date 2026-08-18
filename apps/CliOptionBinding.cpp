@@ -192,6 +192,27 @@ feature::FeatureOptions parseFeatureOptions(const Args& args) {
     return options;
 }
 
+ExecutionOptions parseExecutionOptions(const Args& args) {
+    ExecutionOptions options;
+    if (!hasFlag(args, "--threads")) {
+        return options;
+    }
+
+    const int threads = getIntArg(args, "--threads", 0);
+    if (threads < 0) {
+        throw std::invalid_argument("--threads must be non-negative (0 selects the backend default).");
+    }
+    if (threads != 1 && !isParallelExecutionAvailable()) {
+        throw std::invalid_argument(
+            "--threads requires a build with MANUMESH_ENABLE_ONETBB=ON; use --threads 1 for a serial run."
+        );
+    }
+    options.mode = ExecutionMode::Parallel;
+    options.maxConcurrency = threads;
+    validateExecutionOptions(options);
+    return options;
+}
+
 simplification::SimplifyConfig parseSimplifyConfig(const Args& args) {
     simplification::SimplifyConfig config = simplification::makeSimplifyConfig(parseFeatureProfile(args));
     config.features.detection = parseFeatureOptions(args);
@@ -312,6 +333,9 @@ std::string formatResolvedFeatureOptions(const Args& args, const feature::Featur
     out.imbue(std::locale::classic());
     out << std::setprecision(12) << "resolved_feature_config profile=" << featureProfileName(parseFeatureProfile(args))
         << "\n";
+    const ExecutionOptions execution = parseExecutionOptions(args);
+    out << "  execution: mode=" << (execution.mode == ExecutionMode::Parallel ? "parallel" : "serial")
+        << " max_threads=" << execution.maxConcurrency << " backend=" << parallelExecutionBackendName() << "\n";
     writeFeatureSummary(out, options);
     return out.str();
 }
@@ -321,6 +345,9 @@ std::string formatResolvedSimplifyOptions(const Args& args, const simplification
     out.imbue(std::locale::classic());
     out << std::setprecision(12) << "resolved_simplify_config profile=" << featureProfileName(parseFeatureProfile(args))
         << "\n";
+    const ExecutionOptions execution = parseExecutionOptions(args);
+    out << "  execution: mode=" << (execution.mode == ExecutionMode::Parallel ? "parallel" : "serial")
+        << " max_threads=" << execution.maxConcurrency << " backend=" << parallelExecutionBackendName() << "\n";
     if (options.targetFaces > 0) {
         out << "  target: faces=" << options.targetFaces << "\n";
     } else {

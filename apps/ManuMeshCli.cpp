@@ -32,6 +32,8 @@ void printUsage() {
               << "  manumesh sweep input.stl out_dir [--weights list] [options]\n"
               << "  manumesh ratio-sweep input.stl out_dir [--ratios list] [options]\n"
               << "  manumesh face-sweep input.stl out_dir [--faces list] [options]\n\n"
+              << "  manumesh large-import input.stl output.mmpd [large-mesh options]\n"
+              << "  manumesh large-validate input.mmpd [large-mesh options]\n\n"
               << "  manumesh demo [--quick] [--samples N]\n\n"
               << "  manumesh summarize-metrics [output_root] [summary.csv]\n\n"
               << "  manumesh validate-features [--ratio R] [--samples N] "

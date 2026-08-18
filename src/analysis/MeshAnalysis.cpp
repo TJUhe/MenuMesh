@@ -221,7 +221,7 @@ MeshStats computeMeshStats(const Mesh& mesh) {
     const MeshTopology& topology = topologyResult.value();
 
     std::vector<double> edgeLengths;
-    edgeLengths.reserve(topology.edges().size());
+    edgeLengths.reserve(static_cast<std::size_t>(topology.edgeCount()));
 
     long double qualitySum = 0.0L;
     stats.minTriangleQuality = surface.faces.empty() ? 0.0 : std::numeric_limits<double>::infinity();
@@ -235,7 +235,8 @@ MeshStats computeMeshStats(const Mesh& mesh) {
         stats.minTriangleQuality = std::min(stats.minTriangleQuality, q);
     }
 
-    for (const TopologyEdge& edge : topology.edges()) {
+    for (int edgeId = 0; edgeId < topology.edgeCount(); ++edgeId) {
+        const TopologyEdgeView edge = topology.edgeView(EdgeId{edgeId});
         const int a = edge.vertices[0];
         const int b = edge.vertices[1];
         const double length = (surface.vertices[a] - surface.vertices[b]).stableNorm();

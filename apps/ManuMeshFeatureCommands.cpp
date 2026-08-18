@@ -93,7 +93,9 @@ int report(const Args& args) {
     if (!manumesh::loadMesh(positional[0], input, &error)) {
         throw std::runtime_error(error);
     }
-    const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, options);
+    const ExecutionOptions executionOptions = parseExecutionOptions(args);
+    const manumesh::feature::FeatureAnalysis analysis =
+        manumesh::feature::detectFeatureCurves(input, options, executionOptions);
     const int circularLoops = countCircularLoops(analysis);
     const int circleLoops = countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::Circle);
     const int nearCircleLoops = countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::NearCircle);
@@ -327,7 +329,9 @@ int benchmark(const Args& args) {
     if (hasFlag(args, "--print-resolved-config")) {
         std::cout << formatResolvedFeatureOptions(args, options);
     }
-    const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, options);
+    const ExecutionOptions executionOptions = parseExecutionOptions(args);
+    const manumesh::feature::FeatureAnalysis analysis =
+        manumesh::feature::detectFeatureCurves(input, options, executionOptions);
     const manumesh::feature::FeatureEdgeBenchmark benchmark =
         manumesh::feature::benchmarkFeatureAnalysis(input, analysis, labels);
 
@@ -401,10 +405,11 @@ int compare(const Args& args) {
         throw std::runtime_error(error);
     }
 
+    const ExecutionOptions executionOptions = parseExecutionOptions(args);
     const manumesh::feature::FeatureAnalysis originalFeatures =
-        manumesh::feature::detectFeatureCurves(original, options);
+        manumesh::feature::detectFeatureCurves(original, options, executionOptions);
     const manumesh::feature::FeatureAnalysis simplifiedFeatures =
-        manumesh::feature::detectFeatureCurves(simplified, options);
+        manumesh::feature::detectFeatureCurves(simplified, options, executionOptions);
 
     manumesh::feature::LoopMatchOptions matchOptions;
     matchOptions.referenceDiagonal = original.bboxDiag();

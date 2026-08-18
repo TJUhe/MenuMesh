@@ -50,6 +50,10 @@ public:
         const std::vector<SolveResult>& placements,
         double additionalCost = 0.0
     );
+    /** @brief 压入一个已经完整求解并带版本戳的候选。 */
+    void pushCandidate(const Candidate& candidate);
+    /** @brief 以批量候选一次性建立堆；无效候选会被丢弃。 */
+    void rebuild(std::vector<Candidate> candidates);
 
 private:
     std::priority_queue<Candidate> queue_;

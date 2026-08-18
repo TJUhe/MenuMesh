@@ -12,6 +12,7 @@
 
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
+#include "common/detail/ParallelExecution.h"
 #include "core/MathUtils.h"
 #include "detail/FeatureDetectionCache.h"
 #include "detail/FeatureInputValidation.h"
@@ -30,6 +31,11 @@ namespace {
 constexpr double kMinScaleTangentConsistency = 0.65;
 
 struct NormalTensorScaleEvidence {
+    NormalTensorScaleEvidence()
+        : creaseTangent(Vec3::Zero()),
+          featureScore(0.0),
+          creaseDominant(false) {}
+
     explicit NormalTensorScaleEvidence(const NormalTensorVertex& candidate)
         : creaseTangent(candidate.creaseTangent),
           featureScore(candidate.featureScore),
@@ -124,7 +130,8 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
     const Mesh& mesh,
     FeatureDetectionCache& cache,
     const NormalTensorOptions& options,
-    double requestedPersistenceThreshold
+    double requestedPersistenceThreshold,
+    const common::parallel::RangeExecutionOptions& executionOptions
 ) {
     detector_detail::validateFeatureMeshInput(mesh);
     std::vector<NormalTensorVertex> result(mesh.vertices.size());
@@ -151,11 +158,13 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
             weights[id] += area;
         }
     }
-    for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
-        if (weights[i] > 1e-24) {
-            tensors[i] /= weights[i];
+    common::parallel::forEachRange(0, tensors.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+        for (std::size_t vertexId = begin; vertexId < end; ++vertexId) {
+            if (weights[vertexId] > 1e-24) {
+                tensors[vertexId] /= weights[vertexId];
+            }
         }
-    }
+    });
 
     const std::vector<std::vector<int>>& neighbors = cache.vertexNeighbors();
     const std::vector<double>& localScale = cache.vertexAverageEdgeLength();
@@ -170,26 +179,28 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
     std::vector<Eigen::Matrix3d> smoothScratch(tensors.size(), Eigen::Matrix3d::Zero());
     auto smoothOnce = [&](std::vector<Eigen::Matrix3d>& current, double radiusMultiplier) {
         std::vector<Eigen::Matrix3d>& next = smoothScratch;
-        for (int i = 0; i < static_cast<int>(current.size()); ++i) {
-            if (neighbors[i].empty()) {
-                next[i] = current[i];
-                continue;
-            }
-            const double radius = std::max(1e-12, localScale[i] * std::max(0.25, radiusMultiplier));
-            Eigen::Matrix3d sum = current[i];
-            double weightSum = 1.0;
-            for (int nb : neighbors[i]) {
-                const double distance = (mesh.vertices[nb] - mesh.vertices[i]).norm();
-                const double normalized = distance / radius;
-                const double weight = std::exp(-normalized * normalized);
-                if (weight <= 1e-12) {
+        common::parallel::forEachRange(0, current.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+            for (std::size_t vertexId = begin; vertexId < end; ++vertexId) {
+                if (neighbors[vertexId].empty()) {
+                    next[vertexId] = current[vertexId];
                     continue;
                 }
-                sum += weight * current[nb];
-                weightSum += weight;
+                const double radius = std::max(1e-12, localScale[vertexId] * std::max(0.25, radiusMultiplier));
+                Eigen::Matrix3d sum = current[vertexId];
+                double weightSum = 1.0;
+                for (int neighborId : neighbors[vertexId]) {
+                    const double distance = (mesh.vertices[neighborId] - mesh.vertices[vertexId]).norm();
+                    const double normalized = distance / radius;
+                    const double weight = std::exp(-normalized * normalized);
+                    if (weight <= 1e-12) {
+                        continue;
+                    }
+                    sum += weight * current[neighborId];
+                    weightSum += weight;
+                }
+                next[vertexId] = sum / weightSum;
             }
-            next[i] = sum / weightSum;
-        }
+        });
         current.swap(next);
     };
 
@@ -201,50 +212,71 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
     std::vector<double> scoreSums(vertexCount, 0.0);
     // Persistence only needs the per-scale score, feature kind and crease tangent.
     // Keeping this compact evidence avoids a second tensor propagation/eigendecomposition pass.
-    std::vector<NormalTensorScaleEvidence> scaleEvidence;
-    scaleEvidence.reserve(vertexCount * static_cast<std::size_t>(scaleCount));
+    std::vector<NormalTensorScaleEvidence> scaleEvidence(vertexCount * static_cast<std::size_t>(scaleCount));
     for (int scale = 0; scale < scaleCount; ++scale) {
         const double radiusMultiplier = normalTensorScaleRadiusMultiplier(scale);
-        for (int i = 0; i < static_cast<int>(tensors.size()); ++i) {
-            NormalTensorVertex candidate = analyzeNormalTensor(tensors[i]);
-            scaleEvidence.emplace_back(candidate);
-            const double vertexScale = i < static_cast<int>(localScale.size()) ? localScale[i] : 0.0;
-            candidate.localScale = vertexScale * radiusMultiplier;
-            candidate.selectedScale = scale;
-            candidate.smoothingSteps = baseIterations + scale;
-            candidate.effectiveRadius = normalTensorEffectiveRadius(vertexScale, baseIterations, scale);
-            scoreSums[i] += candidate.featureScore;
-            if (scale == 0 || isMeaningfullyStrongerScore(candidate.featureScore, result[i].featureScore)) {
-                result[i] = candidate;
+        common::parallel::forEachRange(0, tensors.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+            for (std::size_t vertexId = begin; vertexId < end; ++vertexId) {
+                NormalTensorVertex candidate = analyzeNormalTensor(tensors[vertexId]);
+                scaleEvidence[static_cast<std::size_t>(scale) * vertexCount + vertexId] =
+                    NormalTensorScaleEvidence(candidate);
+                const double vertexScale = vertexId < localScale.size() ? localScale[vertexId] : 0.0;
+                candidate.localScale = vertexScale * radiusMultiplier;
+                candidate.selectedScale = scale;
+                candidate.smoothingSteps = baseIterations + scale;
+                candidate.effectiveRadius = normalTensorEffectiveRadius(vertexScale, baseIterations, scale);
+                scoreSums[vertexId] += candidate.featureScore;
+                if (scale == 0 || isMeaningfullyStrongerScore(candidate.featureScore, result[vertexId].featureScore)) {
+                    result[vertexId] = candidate;
+                }
             }
-        }
+        });
         if (scale + 1 < scaleCount) {
             smoothOnce(tensors, normalTensorScaleRadiusMultiplier(scale + 1));
         }
     }
 
     for (int scale = 0; scale < scaleCount; ++scale) {
-        for (int vertexId = 0; vertexId < static_cast<int>(result.size()); ++vertexId) {
-            NormalTensorVertex& vertex = result[vertexId];
-            const NormalTensorScaleEvidence& evidence =
-                scaleEvidence[static_cast<std::size_t>(scale) * vertexCount + static_cast<std::size_t>(vertexId)];
-            if (vertex.featureScore >= persistenceThreshold && evidence.featureScore >= persistenceThreshold &&
-                supportsReferenceFeature(evidence, vertex)) {
-                ++vertex.persistentScales;
+        common::parallel::forEachRange(0, result.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+            for (std::size_t vertexId = begin; vertexId < end; ++vertexId) {
+                NormalTensorVertex& vertex = result[vertexId];
+                const NormalTensorScaleEvidence& evidence =
+                    scaleEvidence[static_cast<std::size_t>(scale) * vertexCount + vertexId];
+                if (vertex.featureScore >= persistenceThreshold && evidence.featureScore >= persistenceThreshold &&
+                    supportsReferenceFeature(evidence, vertex)) {
+                    ++vertex.persistentScales;
+                }
             }
-        }
+        });
     }
 
-    for (int vertexId = 0; vertexId < static_cast<int>(result.size()); ++vertexId) {
-        NormalTensorVertex& vertex = result[vertexId];
-        vertex.averageFeatureScore = scoreSums[vertexId] / static_cast<double>(scaleCount);
-        const double persistenceRatio = manumesh::clampValue(
-            static_cast<double>(vertex.persistentScales) / static_cast<double>(scaleCount), 0.0, 1.0
-        );
-        const double robustScore = 0.65 * vertex.featureScore + 0.35 * vertex.averageFeatureScore;
-        vertex.persistentFeatureScore = robustScore * persistenceRatio;
-    }
+    common::parallel::forEachRange(0, result.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
+        for (std::size_t vertexId = begin; vertexId < end; ++vertexId) {
+            NormalTensorVertex& vertex = result[vertexId];
+            vertex.averageFeatureScore = scoreSums[vertexId] / static_cast<double>(scaleCount);
+            const double persistenceRatio = manumesh::clampValue(
+                static_cast<double>(vertex.persistentScales) / static_cast<double>(scaleCount), 0.0, 1.0
+            );
+            const double robustScore = 0.65 * vertex.featureScore + 0.35 * vertex.averageFeatureScore;
+            vertex.persistentFeatureScore = robustScore * persistenceRatio;
+        }
+    });
     return result;
+}
+
+std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
+    const Mesh& mesh,
+    FeatureDetectionCache& cache,
+    const NormalTensorOptions& options,
+    double requestedPersistenceThreshold
+) {
+    return computeNormalTensorFeaturesCached(
+        mesh,
+        cache,
+        options,
+        requestedPersistenceThreshold,
+        common::parallel::makeRangeExecutionOptions(cache.executionOptions())
+    );
 }
 
 } // namespace detector_detail
@@ -252,10 +284,26 @@ std::vector<NormalTensorVertex> computeNormalTensorFeaturesCached(
 std::vector<NormalTensorVertex> computeNormalTensorFeatures(
     const Mesh& mesh, const NormalTensorOptions& options, double requestedPersistenceThreshold
 ) {
+    return computeNormalTensorFeatures(mesh, options, requestedPersistenceThreshold, ExecutionOptions{});
+}
+
+std::vector<NormalTensorVertex> computeNormalTensorFeatures(
+    const Mesh& mesh, const NormalTensorOptions& options, const ExecutionOptions& executionOptions
+) {
+    return computeNormalTensorFeatures(mesh, options, 0.0, executionOptions);
+}
+
+std::vector<NormalTensorVertex> computeNormalTensorFeatures(
+    const Mesh& mesh,
+    const NormalTensorOptions& options,
+    double requestedPersistenceThreshold,
+    const ExecutionOptions& executionOptions
+) {
     validateNormalTensorOptions(options);
     validatePersistenceThreshold(requestedPersistenceThreshold);
     detector_detail::validateFeatureMeshInput(mesh);
-    detector_detail::FeatureDetectionCache cache(mesh, options.normalFilter);
+    validateExecutionOptions(executionOptions);
+    detector_detail::FeatureDetectionCache cache(mesh, options.normalFilter, executionOptions);
     return detector_detail::computeNormalTensorFeaturesCached(mesh, cache, options, requestedPersistenceThreshold);
 }
 

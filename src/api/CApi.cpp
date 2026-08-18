@@ -42,6 +42,7 @@
 /** @brief 保存最新诊断消息的不透明 C API 上下文。*/
 struct ManuMeshContext {
     std::string lastError;
+    manumesh::ExecutionOptions executionOptions;
 };
 
 /** @brief 持有一个可变 C++ Mesh 值的不透明 C API 句柄。*/
@@ -862,6 +863,53 @@ const char* manumesh_context_last_error(const ManuMeshContext* context) {
 
 void manumesh_context_clear_error(ManuMeshContext* context) { clearError(context); }
 
+ManuMeshStatus manumesh_execution_options_init_with_size(
+    ManuMeshExecutionOptions* options, size_t struct_capacity
+) {
+    try {
+        return manumesh::api::initializeExecutionOptions(options, struct_capacity);
+    } catch (const std::exception& ex) {
+        return translateException(nullptr, ex);
+    } catch (...) {
+        return translateUnknownException(nullptr);
+    }
+}
+
+void manumesh_execution_options_init(ManuMeshExecutionOptions* options) {
+    (void)manumesh_execution_options_init_with_size(options, sizeof(ManuMeshExecutionOptions));
+}
+
+ManuMeshStatus manumesh_context_set_execution_options(
+    ManuMeshContext* context, const ManuMeshExecutionOptions* options
+) {
+    clearError(context);
+    if (!context || !options) {
+        return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, "Context and execution options must be valid.");
+    }
+    try {
+        manumesh::ExecutionOptions cppOptions;
+        std::string conversionError;
+        if (!manumesh::api::readExecutionOptions(*options, cppOptions, conversionError)) {
+            return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, conversionError.c_str());
+        }
+        manumesh::validateExecutionOptions(cppOptions);
+        context->executionOptions = cppOptions;
+        return MANUMESH_STATUS_OK;
+    } catch (const std::exception& ex) {
+        return translateException(context, ex);
+    } catch (...) {
+        return translateUnknownException(context);
+    }
+}
+
+int manumesh_parallel_execution_available(void) {
+    return manumesh::isParallelExecutionAvailable() ? 1 : 0;
+}
+
+const char* manumesh_parallel_execution_backend(void) {
+    return manumesh::parallelExecutionBackendName();
+}
+
 ManuMeshMeshHandle* manumesh_mesh_create(ManuMeshContext* context) {
     clearError(context);
     try {
@@ -1618,12 +1666,13 @@ ManuMeshStatus manumesh_mesh_copy_unique_edges(
         if (!topologyResult.ok()) {
             return fail(context, MANUMESH_STATUS_INVALID_MESH, topologyResult.status().message().c_str());
         }
-        const std::vector<manumesh::TopologyEdge>& topologyEdges = topologyResult.value().edges();
+        const manumesh::MeshTopology& topology = topologyResult.value();
+        const std::size_t topologyEdgeCount = static_cast<std::size_t>(topology.edgeCount());
         const ManuMeshStatus preflightStatus = preflightOutputBuffer(
             context,
             edges,
             edge_capacity,
-            topologyEdges.size(),
+            topologyEdgeCount,
             edges_written,
             "Unique edge buffer is too small.",
             "Unique edge buffer is null."
@@ -1632,8 +1681,9 @@ ManuMeshStatus manumesh_mesh_copy_unique_edges(
             return preflightStatus;
         }
         std::vector<ManuMeshEdge> result;
-        result.reserve(topologyEdges.size());
-        for (const manumesh::TopologyEdge& edge : topologyEdges) {
+        result.reserve(topologyEdgeCount);
+        for (int edgeId = 0; edgeId < topology.edgeCount(); ++edgeId) {
+            const manumesh::TopologyEdgeView edge = topology.edgeView(manumesh::EdgeId{edgeId});
             result.push_back(
                 ManuMeshEdge{
                     edge.vertices[0],
@@ -2073,7 +2123,9 @@ ManuMeshStatus manumesh_detect_feature_edges(
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, conversionError.c_str());
         }
         const manumesh::feature::FeatureAnalysis analysis =
-            manumesh::feature::detectFeatureCurves(snapshot, cppOptions);
+            manumesh::feature::detectFeatureCurves(
+                snapshot, cppOptions, context ? context->executionOptions : manumesh::ExecutionOptions{}
+            );
 
         // Filter first, then copy directly into the caller's buffer. This keeps the
         // two-call API allocation-free on the successful copy path.
@@ -2135,7 +2187,9 @@ ManuMeshStatus manumesh_detect_feature_edges_v2(
             return fail(context, MANUMESH_STATUS_INVALID_ARGUMENT, conversionError.c_str());
         }
         const manumesh::feature::FeatureAnalysis analysis =
-            manumesh::feature::detectFeatureCurves(snapshot, cppOptions);
+            manumesh::feature::detectFeatureCurves(
+                snapshot, cppOptions, context ? context->executionOptions : manumesh::ExecutionOptions{}
+            );
         std::size_t required = 0;
         for (const manumesh::feature::FeatureGraphEdge& source : analysis.graph.edges) {
             if (isExportableFeatureEdge(source, snapshot.vertices.size())) {
@@ -2234,6 +2288,7 @@ ManuMeshStatus manumesh_simplify_mesh_with_report_size(
         const auto simplifyAndCommit = [&](const manumesh::Mesh& source, manumesh::Mesh& destination) {
             manumesh::simplification::SimplifyReport cppReport;
             manumesh::simplification::QEMSimplifier simplifier(cppOptions);
+            simplifier.setExecutionOptions(context ? context->executionOptions : manumesh::ExecutionOptions{});
             manumesh::Mesh simplified = simplifier.simplify(source, &cppReport);
             if (report) {
                 const ManuMeshStatus reportStatus =

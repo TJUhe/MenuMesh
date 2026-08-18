@@ -95,6 +95,26 @@ typedef enum ManuMeshFeatureProtectionMode {
     MANUMESH_FEATURE_PROTECTION_ALL_FEATURE_EDGES = 3
 } ManuMeshFeatureProtectionMode;
 
+/** @brief 算法调用使用的执行模式。 */
+typedef enum ManuMeshExecutionMode {
+    MANUMESH_EXECUTION_MODE_SERIAL = 0,
+    MANUMESH_EXECUTION_MODE_PARALLEL = 1
+} ManuMeshExecutionMode;
+
+/**
+ * @brief 存储在 ManuMeshContext 上的带大小版本执行约束。
+ *
+ * 公共 C ABI 不暴露 oneTBB 类型。并行后端不可用时，C++ 算法契约仍允许
+ * 串行回退；调用方可用 `manumesh_parallel_execution_available` 查询能力。
+ */
+typedef struct ManuMeshExecutionOptions {
+    size_t struct_size;
+    unsigned int abi_version;
+    ManuMeshExecutionMode mode;
+    int max_concurrency;       ///< 0 表示由后端选择；正数限制并发度。
+    size_t min_items_per_task; ///< 调度块的最小元素数，必须为正。
+} ManuMeshExecutionOptions;
+
 /** @brief 以模型单位表示的双精度三维坐标。 */
 typedef struct ManuMeshVec3 {
     double x; ///< X 坐标。
@@ -486,6 +506,20 @@ MANUMESH_API void MANUMESH_CDECL manumesh_context_destroy(ManuMeshContext* conte
 MANUMESH_API const char* MANUMESH_CDECL manumesh_context_last_error(const ManuMeshContext* context);
 /** @param[in,out] context 待清除错误字符串的上下文；可以为 NULL，此时函数不执行任何操作。 */
 MANUMESH_API void MANUMESH_CDECL manumesh_context_clear_error(ManuMeshContext* context);
+
+/** 初始化完整执行选项，默认使用串行模式。 */
+MANUMESH_API void MANUMESH_CDECL manumesh_execution_options_init(ManuMeshExecutionOptions* options);
+/** 按调用方容量初始化执行选项前缀。 */
+MANUMESH_API ManuMeshStatus MANUMESH_CDECL
+manumesh_execution_options_init_with_size(ManuMeshExecutionOptions* options, size_t struct_capacity);
+/** 将执行约束复制到上下文；后续特征检测和简化调用读取该设置。 */
+MANUMESH_API ManuMeshStatus MANUMESH_CDECL manumesh_context_set_execution_options(
+    ManuMeshContext* context, const ManuMeshExecutionOptions* options
+);
+/** @return 当前库是否包含可用的内部并行后端。 */
+MANUMESH_API int MANUMESH_CDECL manumesh_parallel_execution_available(void);
+/** @return 静态后端名称（"oneTBB" 或 "serial"）。 */
+MANUMESH_API const char* MANUMESH_CDECL manumesh_parallel_execution_backend(void);
 
 /**
  * @param[in,out] context 可选的分配错误上下文；可以为 NULL。

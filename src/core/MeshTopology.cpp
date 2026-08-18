@@ -16,18 +16,15 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <numeric>
+#include <new>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 
 namespace manumesh {
 namespace {
-
-/** @brief 为一条边累积的临时入射和绕序数据。 */
-struct EdgeBuildRecord {
-    int edgeId = -1;
-};
 
 class FaceComponents {
 public:
@@ -72,14 +69,84 @@ private:
 
 } // 命名空间
 
-/** @brief MeshTopology 的私有邻接和边入射存储。 */
+/**
+ * @brief MeshTopology 的紧凑邻接存储。
+ *
+ * 边和顶点不再各自拥有小 vector；所有入射索引位于连续数组，offsets 描述每个
+ * 实体的半开区间。旧的 vector 结构仅在兼容 API 被调用时按需生成。
+ */
 struct MeshTopology::Impl {
     int vertexCount = 0;
     int faceCount = 0;
     int boundaryEdgeCount = 0;
     int nonManifoldEdgeCount = 0;
-    std::vector<TopologyEdge> edges;
-    std::vector<VertexTopology> vertices;
+
+    std::vector<std::array<int, 2>> edgeVertices;
+    std::vector<std::size_t> edgeFaceOffsets;
+    std::vector<int> edgeFaces;
+    std::vector<std::uint8_t> edgeFaceCorners;
+
+    std::vector<std::size_t> vertexFaceOffsets;
+    std::vector<int> vertexFaces;
+    std::vector<std::size_t> vertexEdgeOffsets;
+    std::vector<int> vertexEdges;
+
+    // Legacy vector-returning methods are intentionally lazy. The mutex keeps those
+    // caches safe for concurrent read-only callers without affecting compact views.
+    mutable std::mutex materializationMutex;
+    mutable bool allEdgesMaterialized = false;
+    mutable std::vector<TopologyEdge> materializedEdges;
+    mutable std::unordered_map<int, std::unique_ptr<VertexTopology>> materializedVertexItems;
+
+    Impl()
+        : edgeFaceOffsets(1, 0),
+          vertexFaceOffsets(1, 0),
+          vertexEdgeOffsets(1, 0) {}
+
+    // Caches are deliberately omitted from copies. They are compatibility artifacts;
+    // copying the immutable compact payload is enough and avoids multiplying legacy
+    // allocations merely because a caller queried the source object first.
+    Impl(const Impl& other)
+        : vertexCount(other.vertexCount),
+          faceCount(other.faceCount),
+          boundaryEdgeCount(other.boundaryEdgeCount),
+          nonManifoldEdgeCount(other.nonManifoldEdgeCount),
+          edgeVertices(other.edgeVertices),
+          edgeFaceOffsets(other.edgeFaceOffsets),
+          edgeFaces(other.edgeFaces),
+          edgeFaceCorners(other.edgeFaceCorners),
+          vertexFaceOffsets(other.vertexFaceOffsets),
+          vertexFaces(other.vertexFaces),
+          vertexEdgeOffsets(other.vertexEdgeOffsets),
+          vertexEdges(other.vertexEdges) {}
+
+    TopologyEdge makeEdge(int edgeId) const {
+        TopologyEdge result;
+        result.vertices = edgeVertices[static_cast<std::size_t>(edgeId)];
+        const std::size_t begin = edgeFaceOffsets[static_cast<std::size_t>(edgeId)];
+        const std::size_t end = edgeFaceOffsets[static_cast<std::size_t>(edgeId) + 1];
+        result.faces.assign(edgeFaces.begin() + static_cast<std::ptrdiff_t>(begin),
+                            edgeFaces.begin() + static_cast<std::ptrdiff_t>(end));
+        result.faceCorners.reserve(end - begin);
+        for (std::size_t index = begin; index < end; ++index) {
+            result.faceCorners.push_back(static_cast<int>(edgeFaceCorners[index]));
+        }
+        return result;
+    }
+
+    VertexTopology makeVertex(int vertexId) const {
+        VertexTopology result;
+        const std::size_t index = static_cast<std::size_t>(vertexId);
+        const std::size_t faceBegin = vertexFaceOffsets[index];
+        const std::size_t faceEnd = vertexFaceOffsets[index + 1];
+        const std::size_t edgeBegin = vertexEdgeOffsets[index];
+        const std::size_t edgeEnd = vertexEdgeOffsets[index + 1];
+        result.faces.assign(vertexFaces.begin() + static_cast<std::ptrdiff_t>(faceBegin),
+                            vertexFaces.begin() + static_cast<std::ptrdiff_t>(faceEnd));
+        result.edges.assign(vertexEdges.begin() + static_cast<std::ptrdiff_t>(edgeBegin),
+                            vertexEdges.begin() + static_cast<std::ptrdiff_t>(edgeEnd));
+        return result;
+    }
 };
 
 bool TopologyEdge::boundary() const { return faces.size() == 1; }
@@ -120,107 +187,186 @@ std::uint64_t topologyEdgeKey(int a, int b) {
 }
 
 Result<MeshTopology> MeshTopology::build(const Mesh& mesh, bool validate) {
-    if (mesh.vertices.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
-        mesh.faces.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        return Status::invalidArgument("Mesh vertex/face count exceeds the supported int-index range.");
-    }
-    if (validate) {
-        std::string error;
-        if (!validateMeshIndices(mesh, &error)) {
-            return Status::invalidArgument(error.empty() ? "Mesh contains an invalid vertex index." : error);
+    try {
+        if (mesh.vertices.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+            mesh.faces.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            return Status::invalidArgument("Mesh vertex/face count exceeds the supported int-index range.");
         }
-        for (const Face& face : mesh.faces) {
-            if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
-                return Status::topologyError("Mesh contains a degenerate face.");
+        if (validate) {
+            std::string error;
+            if (!validateMeshIndices(mesh, &error)) {
+                return Status::invalidArgument(error.empty() ? "Mesh contains an invalid vertex index." : error);
             }
-        }
-        // 索引已在上面检查过，几何校验跳过重复的索引扫描。
-        if (!detail::validateMeshGeometryLenientAfterIndices(mesh, &error)) {
-            return Status::invalidArgument(error.empty() ? "Mesh geometry is invalid." : error);
-        }
-    }
-
-    MeshTopology topology;
-    topology.impl_->vertexCount = static_cast<int>(mesh.vertices.size());
-    topology.impl_->faceCount = static_cast<int>(mesh.faces.size());
-    topology.impl_->vertices.resize(mesh.vertices.size());
-
-    // 先按面角统计每个顶点的入射数量，给面和边邻接列表一次性预留容量。
-    // 对三角网格而言，入射边数不会超过入射面角数，可复用同一上界。
-    std::vector<std::size_t> vertexIncidenceReserve(mesh.vertices.size(), 0);
-    for (const Face& face : mesh.faces) {
-        for (int id : face.v) {
-            if (id >= 0 && id < static_cast<int>(vertexIncidenceReserve.size())) {
-                ++vertexIncidenceReserve[static_cast<std::size_t>(id)];
-            }
-        }
-    }
-    for (std::size_t vertex = 0; vertex < vertexIncidenceReserve.size(); ++vertex) {
-        topology.impl_->vertices[vertex].faces.reserve(vertexIncidenceReserve[vertex]);
-        topology.impl_->vertices[vertex].edges.reserve(vertexIncidenceReserve[vertex]);
-    }
-
-    const std::size_t edgeReserve = mesh.faces.size() <= std::numeric_limits<std::size_t>::max() / 3
-                                        ? mesh.faces.size() * 3 / 2
-                                        : mesh.faces.size();
-    topology.impl_->edges.reserve(edgeReserve);
-
-    std::unordered_map<std::uint64_t, EdgeBuildRecord> edgeByKey;
-    edgeByKey.reserve(
-        mesh.faces.size() <= std::numeric_limits<std::size_t>::max() / 3 ? mesh.faces.size() * 3 : mesh.faces.size()
-    );
-
-    for (int fi = 0; fi < static_cast<int>(mesh.faces.size()); ++fi) {
-        const Face& face = mesh.faces[fi];
-        for (int corner = 0; corner < 3; ++corner) {
-            const int id = face.v[corner];
-            if (validate && (id < 0 || id >= static_cast<int>(mesh.vertices.size()))) {
-                return Status::invalidArgument("Mesh face references an invalid vertex index.");
-            }
-            if (id >= 0 && id < static_cast<int>(topology.impl_->vertices.size())) {
-                topology.impl_->vertices[id].faces.push_back(fi);
-            }
-        }
-
-        for (int corner = 0; corner < 3; ++corner) {
-            const int a = face.v[corner];
-            const int b = face.v[(corner + 1) % 3];
-            const std::uint64_t key = topologyEdgeKey(a, b);
-            auto it = edgeByKey.find(key);
-            if (it == edgeByKey.end()) {
-                if (topology.impl_->edges.size() >= static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-                    return Status::invalidArgument("Mesh unique edge count exceeds the supported int-id range.");
+            for (const Face& face : mesh.faces) {
+                if (face.v[0] == face.v[1] || face.v[1] == face.v[2] || face.v[0] == face.v[2]) {
+                    return Status::topologyError("Mesh contains a degenerate face.");
                 }
-                const int edgeId = static_cast<int>(topology.impl_->edges.size());
-                it = edgeByKey.emplace(key, EdgeBuildRecord{edgeId}).first;
-                TopologyEdge edge;
-                edge.vertices = {std::min(a, b), std::max(a, b)};
-                edge.faces.reserve(2);
-                edge.faceCorners.reserve(2);
-                topology.impl_->edges.push_back(std::move(edge));
             }
-
-            TopologyEdge& edge = topology.impl_->edges[it->second.edgeId];
-            edge.faces.push_back(fi);
-            edge.faceCorners.push_back(corner);
-        }
-    }
-
-    for (int ei = 0; ei < static_cast<int>(topology.impl_->edges.size()); ++ei) {
-        const TopologyEdge& edge = topology.impl_->edges[ei];
-        if (edge.boundary()) {
-            ++topology.impl_->boundaryEdgeCount;
-        } else if (edge.nonManifold()) {
-            ++topology.impl_->nonManifoldEdgeCount;
-        }
-        for (int vertex : edge.vertices) {
-            if (vertex >= 0 && vertex < static_cast<int>(topology.impl_->vertices.size())) {
-                topology.impl_->vertices[vertex].edges.push_back(ei);
+            // 索引已在上面检查过，几何校验跳过重复的索引扫描。
+            if (!detail::validateMeshGeometryLenientAfterIndices(mesh, &error)) {
+                return Status::invalidArgument(error.empty() ? "Mesh geometry is invalid." : error);
             }
         }
-    }
 
-    return topology;
+        MeshTopology topology;
+        topology.impl_->vertexCount = static_cast<int>(mesh.vertices.size());
+        topology.impl_->faceCount = static_cast<int>(mesh.faces.size());
+
+        const std::size_t vertexCount = mesh.vertices.size();
+        const std::size_t faceCount = mesh.faces.size();
+        std::vector<std::size_t> vertexFaceCounts(vertexCount, 0);
+        std::vector<std::size_t> edgeFaceCounts;
+        const std::size_t edgeReserve =
+            faceCount <= std::numeric_limits<std::size_t>::max() / 3 ? faceCount * 3 / 2 : faceCount;
+        topology.impl_->edgeVertices.reserve(edgeReserve);
+        edgeFaceCounts.reserve(edgeReserve);
+
+        // The hash table is only a construction aid. The resulting topology owns no hash
+        // nodes and stores all incidences in flat arrays.
+        std::unordered_map<std::uint64_t, int> edgeByKey;
+        edgeByKey.reserve(faceCount <= std::numeric_limits<std::size_t>::max() / 3 ? faceCount * 3 : faceCount);
+
+        // First pass establishes stable first-seen edge IDs and all prefix-sum counts.
+        for (int fi = 0; fi < static_cast<int>(faceCount); ++fi) {
+            const Face& face = mesh.faces[static_cast<std::size_t>(fi)];
+            for (int corner = 0; corner < 3; ++corner) {
+                const int id = face.v[corner];
+                if (validate && (id < 0 || id >= static_cast<int>(vertexCount))) {
+                    return Status::invalidArgument("Mesh face references an invalid vertex index.");
+                }
+                if (id >= 0 && id < static_cast<int>(vertexCount)) {
+                    ++vertexFaceCounts[static_cast<std::size_t>(id)];
+                }
+            }
+
+            for (int corner = 0; corner < 3; ++corner) {
+                const int a = face.v[corner];
+                const int b = face.v[(corner + 1) % 3];
+                const std::uint64_t key = topologyEdgeKey(a, b);
+                const auto found = edgeByKey.find(key);
+                int edgeId = -1;
+                if (found == edgeByKey.end()) {
+                    if (topology.impl_->edgeVertices.size() >=
+                        static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+                        return Status::invalidArgument("Mesh unique edge count exceeds the supported int-id range.");
+                    }
+                    edgeId = static_cast<int>(topology.impl_->edgeVertices.size());
+                    edgeByKey.emplace(key, edgeId);
+                    topology.impl_->edgeVertices.push_back({{std::min(a, b), std::max(a, b)}});
+                    edgeFaceCounts.push_back(0);
+                } else {
+                    edgeId = found->second;
+                }
+                ++edgeFaceCounts[static_cast<std::size_t>(edgeId)];
+            }
+        }
+
+        auto makeOffsets = [](const std::vector<std::size_t>& counts, std::vector<std::size_t>& offsets) {
+            offsets.resize(counts.size() + 1);
+            offsets[0] = 0;
+            for (std::size_t index = 0; index < counts.size(); ++index) {
+                if (counts[index] > std::numeric_limits<std::size_t>::max() - offsets[index]) {
+                    return false;
+                }
+                offsets[index + 1] = offsets[index] + counts[index];
+            }
+            return true;
+        };
+
+        if (!makeOffsets(edgeFaceCounts, topology.impl_->edgeFaceOffsets) ||
+            !makeOffsets(vertexFaceCounts, topology.impl_->vertexFaceOffsets)) {
+            return Status::invalidArgument("Mesh topology incidence size overflows the supported range.");
+        }
+        topology.impl_->edgeFaces.resize(topology.impl_->edgeFaceOffsets.back());
+        topology.impl_->edgeFaceCorners.resize(topology.impl_->edgeFaceOffsets.back());
+        topology.impl_->vertexFaces.resize(topology.impl_->vertexFaceOffsets.back());
+
+        // Reuse the count arrays as write cursors, avoiding an additional offsets-sized
+        // allocation while filling the contiguous incidence payload.
+        std::copy(
+            topology.impl_->edgeFaceOffsets.begin(), topology.impl_->edgeFaceOffsets.end() - 1, edgeFaceCounts.begin()
+        );
+        std::copy(
+            topology.impl_->vertexFaceOffsets.begin(),
+            topology.impl_->vertexFaceOffsets.end() - 1,
+            vertexFaceCounts.begin()
+        );
+
+        // Second pass preserves the old deterministic order: faces follow input order,
+        // and each edge's corners follow the order in which that edge was encountered.
+        for (int fi = 0; fi < static_cast<int>(faceCount); ++fi) {
+            const Face& face = mesh.faces[static_cast<std::size_t>(fi)];
+            for (int corner = 0; corner < 3; ++corner) {
+                const int id = face.v[corner];
+                if (id >= 0 && id < static_cast<int>(vertexCount)) {
+                    const std::size_t vertex = static_cast<std::size_t>(id);
+                    const std::size_t write = vertexFaceCounts[vertex]++;
+                    topology.impl_->vertexFaces[write] = fi;
+                }
+            }
+            for (int corner = 0; corner < 3; ++corner) {
+                const int a = face.v[corner];
+                const int b = face.v[(corner + 1) % 3];
+                const auto found = edgeByKey.find(topologyEdgeKey(a, b));
+                if (found == edgeByKey.end()) {
+                    return Status::topologyError("Mesh topology edge lookup failed during incidence fill.");
+                }
+                const std::size_t edge = static_cast<std::size_t>(found->second);
+                const std::size_t write = edgeFaceCounts[edge]++;
+                topology.impl_->edgeFaces[write] = fi;
+                topology.impl_->edgeFaceCorners[write] = static_cast<std::uint8_t>(corner);
+            }
+        }
+
+        for (std::size_t edge = 0; edge < edgeFaceCounts.size(); ++edge) {
+            const std::size_t incidence =
+                topology.impl_->edgeFaceOffsets[edge + 1] - topology.impl_->edgeFaceOffsets[edge];
+            if (incidence == 1) {
+                ++topology.impl_->boundaryEdgeCount;
+            } else if (incidence > 2) {
+                ++topology.impl_->nonManifoldEdgeCount;
+            }
+        }
+
+        std::unordered_map<std::uint64_t, int>().swap(edgeByKey);
+        std::vector<std::size_t>().swap(edgeFaceCounts);
+
+        // The vertex-face cursors are no longer needed, so reuse their allocation for
+        // vertex-edge counts. On a large mesh this avoids retaining a second V-sized
+        // temporary during the final CSR allocation.
+        std::fill(vertexFaceCounts.begin(), vertexFaceCounts.end(), 0);
+        std::vector<std::size_t>& vertexEdgeCounts = vertexFaceCounts;
+        for (const std::array<int, 2>& vertices : topology.impl_->edgeVertices) {
+            for (int vertex : vertices) {
+                if (vertex >= 0 && vertex < static_cast<int>(vertexCount)) {
+                    ++vertexEdgeCounts[static_cast<std::size_t>(vertex)];
+                }
+            }
+        }
+        if (!makeOffsets(vertexEdgeCounts, topology.impl_->vertexEdgeOffsets)) {
+            return Status::invalidArgument("Mesh vertex-edge incidence size overflows the supported range.");
+        }
+        topology.impl_->vertexEdges.resize(topology.impl_->vertexEdgeOffsets.back());
+        std::copy(
+            topology.impl_->vertexEdgeOffsets.begin(),
+            topology.impl_->vertexEdgeOffsets.end() - 1,
+            vertexEdgeCounts.begin()
+        );
+        for (std::size_t edge = 0; edge < topology.impl_->edgeVertices.size(); ++edge) {
+            for (int vertex : topology.impl_->edgeVertices[edge]) {
+                if (vertex >= 0 && vertex < static_cast<int>(vertexCount)) {
+                    const std::size_t index = static_cast<std::size_t>(vertex);
+                    topology.impl_->vertexEdges[vertexEdgeCounts[index]++] = static_cast<int>(edge);
+                }
+            }
+        }
+
+        return topology;
+    } catch (const std::bad_alloc&) {
+        return Status(StatusCode::OutOfMemory, "Insufficient memory to build mesh topology.");
+    } catch (const std::length_error&) {
+        return Status(StatusCode::OutOfMemory, "Mesh topology allocation exceeds the supported size range.");
+    }
 }
 
 Result<MeshTopologySummary> summarizeMeshTopology(const Mesh& mesh) {
@@ -231,7 +377,7 @@ Result<MeshTopologySummary> summarizeMeshTopology(const Mesh& mesh) {
 
     const MeshTopology& topology = topologyResult.value();
     MeshTopologySummary summary;
-    summary.uniqueEdges = topology.edges().size();
+    summary.uniqueEdges = static_cast<std::size_t>(topology.edgeCount());
     summary.boundaryEdges = static_cast<std::size_t>(topology.boundaryEdgeCount());
     summary.nonManifoldEdges = static_cast<std::size_t>(topology.nonManifoldEdgeCount());
     if (topology.faceCount() == 0) {
@@ -241,8 +387,9 @@ Result<MeshTopologySummary> summarizeMeshTopology(const Mesh& mesh) {
     summary.closedManifold = true;
     summary.consistentlyOriented = true;
     FaceComponents components(topology.faceCount());
-    for (const TopologyEdge& edge : topology.edges()) {
-        if (edge.faces.empty() || edge.faces.size() != edge.faceCorners.size()) {
+    for (int edgeId = 0; edgeId < topology.edgeCount(); ++edgeId) {
+        const TopologyEdgeView edge = topology.edgeView(EdgeId{edgeId});
+        if (edge.faces.empty() || edge.faces.size() != edge.faceCornerCount()) {
             return Status::topologyError("Mesh topology edge incidence is inconsistent.");
         }
         for (std::size_t index = 1; index < edge.faces.size(); ++index) {
@@ -258,8 +405,8 @@ Result<MeshTopologySummary> summarizeMeshTopology(const Mesh& mesh) {
 
         const Face& firstFace = mesh.faces[static_cast<std::size_t>(edge.faces[0])];
         const Face& secondFace = mesh.faces[static_cast<std::size_t>(edge.faces[1])];
-        const int firstCorner = edge.faceCorners[0];
-        const int secondCorner = edge.faceCorners[1];
+        const int firstCorner = edge.faceCorner(0);
+        const int secondCorner = edge.faceCorner(1);
         const int firstStart = firstFace.v[static_cast<std::size_t>(firstCorner)];
         const int firstEnd = firstFace.v[static_cast<std::size_t>((firstCorner + 1) % 3)];
         const int secondStart = secondFace.v[static_cast<std::size_t>(secondCorner)];
@@ -281,7 +428,7 @@ int MeshTopology::vertexCount() const { return impl_ ? impl_->vertexCount : 0; }
 
 int MeshTopology::faceCount() const { return impl_ ? impl_->faceCount : 0; }
 
-int MeshTopology::edgeCount() const { return impl_ ? static_cast<int>(impl_->edges.size()) : 0; }
+int MeshTopology::edgeCount() const { return impl_ ? static_cast<int>(impl_->edgeVertices.size()) : 0; }
 
 int MeshTopology::boundaryEdgeCount() const { return impl_ ? impl_->boundaryEdgeCount : 0; }
 
@@ -289,29 +436,85 @@ int MeshTopology::nonManifoldEdgeCount() const { return impl_ ? impl_->nonManifo
 
 const std::vector<TopologyEdge>& MeshTopology::edges() const {
     static const std::vector<TopologyEdge> empty;
-    return impl_ ? impl_->edges : empty;
+    if (!impl_) {
+        return empty;
+    }
+    std::lock_guard<std::mutex> lock(impl_->materializationMutex);
+    if (!impl_->allEdgesMaterialized) {
+        std::vector<TopologyEdge> materialized;
+        materialized.reserve(impl_->edgeVertices.size());
+        for (int edgeId = 0; edgeId < static_cast<int>(impl_->edgeVertices.size()); ++edgeId) {
+            materialized.push_back(impl_->makeEdge(edgeId));
+        }
+        impl_->materializedEdges = std::move(materialized);
+        impl_->allEdgesMaterialized = true;
+    }
+    return impl_->materializedEdges;
 }
 
 bool MeshTopology::hasEdge(EdgeId id) const {
-    return impl_ && id.id >= 0 && id.id < static_cast<int>(impl_->edges.size());
+    return impl_ && id.id >= 0 && id.id < static_cast<int>(impl_->edgeVertices.size());
 }
 
 bool MeshTopology::hasVertex(VertexId id) const {
-    return impl_ && id.id >= 0 && id.id < static_cast<int>(impl_->vertices.size());
+    return impl_ && id.id >= 0 && id.id < impl_->vertexCount;
 }
 
 const TopologyEdge& MeshTopology::edge(EdgeId id) const {
     if (!hasEdge(id)) {
         throw std::out_of_range("MeshTopology edge id is out of range.");
     }
-    return impl_->edges[id.id];
+    return edges()[static_cast<std::size_t>(id.id)];
 }
 
 const VertexTopology& MeshTopology::vertex(VertexId id) const {
     if (!hasVertex(id)) {
         throw std::out_of_range("MeshTopology vertex id is out of range.");
     }
-    return impl_->vertices[id.id];
+    std::lock_guard<std::mutex> lock(impl_->materializationMutex);
+    const auto found = impl_->materializedVertexItems.find(id.id);
+    if (found != impl_->materializedVertexItems.end()) {
+        return *found->second;
+    }
+    std::unique_ptr<VertexTopology> value = std::make_unique<VertexTopology>(impl_->makeVertex(id.id));
+    const VertexTopology* result = value.get();
+    impl_->materializedVertexItems.emplace(id.id, std::move(value));
+    return *result;
+}
+
+TopologyEdgeView MeshTopology::edgeView(EdgeId id) const {
+    if (!hasEdge(id)) {
+        throw std::out_of_range("MeshTopology edge id is out of range.");
+    }
+    const std::size_t index = static_cast<std::size_t>(id.id);
+    const std::size_t begin = impl_->edgeFaceOffsets[index];
+    const std::size_t end = impl_->edgeFaceOffsets[index + 1];
+    TopologyEdgeView result;
+    result.vertices = impl_->edgeVertices[index];
+    result.faces = TopologyIndexView(impl_->edgeFaces.data() + begin, end - begin);
+    result.faceCorners_ = impl_->edgeFaceCorners.data() + begin;
+    return result;
+}
+
+VertexTopologyView MeshTopology::vertexView(VertexId id) const {
+    if (!hasVertex(id)) {
+        throw std::out_of_range("MeshTopology vertex id is out of range.");
+    }
+    const std::size_t index = static_cast<std::size_t>(id.id);
+    const std::size_t faceBegin = impl_->vertexFaceOffsets[index];
+    const std::size_t faceEnd = impl_->vertexFaceOffsets[index + 1];
+    const std::size_t edgeBegin = impl_->vertexEdgeOffsets[index];
+    const std::size_t edgeEnd = impl_->vertexEdgeOffsets[index + 1];
+    VertexTopologyView result;
+    result.faces = TopologyIndexView(
+        faceBegin == faceEnd ? nullptr : impl_->vertexFaces.data() + faceBegin,
+        faceEnd - faceBegin
+    );
+    result.edges = TopologyIndexView(
+        edgeBegin == edgeEnd ? nullptr : impl_->vertexEdges.data() + edgeBegin,
+        edgeEnd - edgeBegin
+    );
+    return result;
 }
 
 } // 命名空间 manumesh

@@ -108,12 +108,27 @@ v1 ABI 保持二进制兼容，不删除旧符号，也不改变已发布结构�
 - compaction、split、collapse、flip 必须声明每个 channel 的传播策略；
 - 稳定后再评估是否进入 C ABI，C 侧优先采用显式 descriptor，而非暴露 C++ 模板。
 
-### P4: 大网格索引
+### P4: 大网格索引与分区数据层（第一步已完成，跨分区算法待实施）
 
-当前公共 `Face` 和 typed handle 使用 `int`，适合当前内核和 VS2019 基线，但不是无限
-扩展的承诺。升级顺序为：内部计数/容量先统一 `size_t`，新增 `Index32/Index64` 的
-编译期策略，再在独立 ABI 版本中暴露 64 位面索引。禁止在 v1 中把 `int` 静默扩大，
-也禁止只扩大顶点索引而不定义面、边和报告字段的配套规则。
+2026-08-18 已完成 P4 的第一步：`MeshTopology` 内部使用紧凑 CSR/连续数组，
+`PartitionedMeshDataset` 提供有内存预算的二进制 STL 三角记录流式读写，CLI 提供
+`large-import` 和 `large-validate`，并用三份 2.5M 至 3.15M 面 Thingi10K STL 做了外部验证。
+这些能力解决的是存储和顺序 I/O，不是全局共享顶点拓扑、分区 FeatureGraph 或 out-of-core QEM。
+实测、格式限制和后续合同见
+[`large_mesh_architecture_2026_08_18.md`](large_mesh_architecture_2026_08_18.md)。
+
+当前公共 `Face` 和 typed handle 仍使用 `int`，适合当前单块内核和 VS2019 基线，但不是无限
+扩展的承诺。下一步必须先定义 `GlobalVertexId`、`GlobalEdgeId`、`GlobalFaceId`、owner/ghost、
+完整 edge incidence、halo schema 和可版本化 manifest，再实现分区分析。升级顺序为：
+
+1. 全局 ID 与 32 位 local index 的明确分工；
+2. edge-key 全局归并、vertex-star、边界/非流形和绕序 parity；
+3. halo-aware 法向、Normal Tensor、Smooth Curvature 和全局 FeatureGraph；
+4. `reference-exact` 的全局协调 out-of-core QEM；
+5. 满足拓扑/几何/特征预算的 `bounded-valid` 并行 QEM。
+
+禁止在 v1 中把 `int` 静默扩大，也禁止只扩大顶点索引而不定义面、边和报告字段的配套规则。
+在跨分区算法完成前，不得把当前三角记录分区格式表述为“完整超大网格处理”。
 
 ### P5: remeshing
 

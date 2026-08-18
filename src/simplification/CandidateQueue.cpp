@@ -56,7 +56,27 @@ void CandidateQueue::pushEdge(
     for (int i = 0; i < candidate.placementCount; ++i) {
         candidate.placements[static_cast<std::size_t>(i)] = placements[static_cast<std::size_t>(i)];
     }
+    pushCandidate(candidate);
+}
+
+void CandidateQueue::pushCandidate(const Candidate& candidate) {
+    if (candidate.a < 0 || candidate.b < 0 || candidate.a == candidate.b || candidate.placementCount <= 0 ||
+        !std::isfinite(candidate.cost)) {
+        return;
+    }
     queue_.push(candidate);
+}
+
+void CandidateQueue::rebuild(std::vector<Candidate> candidates) {
+    candidates.erase(
+        std::remove_if(candidates.begin(), candidates.end(), [](const Candidate& candidate) {
+            return candidate.a < 0 || candidate.b < 0 || candidate.a == candidate.b ||
+                   candidate.placementCount <= 0 || !std::isfinite(candidate.cost);
+        }),
+        candidates.end()
+    );
+    std::priority_queue<Candidate> replacement(std::less<Candidate>(), std::move(candidates));
+    queue_.swap(replacement);
 }
 
 } // namespace simplification

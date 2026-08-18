@@ -164,6 +164,16 @@ const std::vector<OptionSpec>& generateOptionSpecs() {
     return specs;
 }
 
+const OptionSpec kPartitionTrianglesSpec = {
+    "--partition-triangles", "N", "large-import 每个分区的最大三角形数量（正整数）"
+};
+const OptionSpec kMemoryMiBSpec = {
+    "--memory-mib", "N", "large-mesh 操作声明的常驻内存上限（MiB，正整数）"
+};
+const OptionSpec kIoBufferMiBSpec = {
+    "--io-buffer-mib", "N", "顺序 I/O 缓冲区大小（MiB，且不超过 --memory-mib）"
+};
+
 const OptionSpec kSamplesSpec = {"--samples", "N", "距离采样数量（正整数）"};
 const OptionSpec kMetricsCsvSpec = {"--metrics-csv", "path", "写入单行 CSV 指标"};
 const OptionSpec kWeightsSpec = {"--weights", "list", "用于 line sweep，例如 0,1e-5,1e-4,1e-3,1e-2；标准 QEM 只接受 0"};
@@ -178,15 +188,23 @@ const OptionSpec kRingInputSpec = {"--ring-input", "path", "外部环/轨道 STL
 const OptionSpec kPulleyInputSpec = {"--pulley-input", "path", "外部滑轮 STL"};
 const OptionSpec kFlangeInputSpec = {"--flange-input", "path", "外部成品法兰 STL"};
 const OptionSpec kVerboseSpec = {"--verbose", "", "输出详细诊断日志"};
+const OptionSpec kThreadsSpec = {
+    "--threads", "N", "算法最大并发度；0 由 oneTBB 自动选择，省略时保持串行"
+};
 
 /// 按命令族分组的帮助布局，来源于同一套校验规格。
 const std::vector<OptionGroup>& helpGroups() {
     static const std::vector<OptionGroup> groups = [] {
         std::vector<OptionGroup> g;
         g.push_back({"生成选项（generate）：", generateOptionSpecs()});
+        g.push_back(
+            {"超大网格选项（large-import、large-validate）：",
+             {kPartitionTrianglesSpec, kMemoryMiBSpec, kIoBufferMiBSpec}}
+        );
         g.push_back({"简化选项（simplify、sweep、ratio-sweep、face-sweep）：", simplifyOptionSpecs()});
         g.push_back({"扫描/距离选项：", {kSamplesSpec, kMetricsCsvSpec, kWeightsSpec, kRatiosSpec, kFacesSpec}});
         g.push_back({"特征分析选项（feature-report、feature-benchmark、feature-compare）：", featureOptionSpecs()});
+        g.push_back({"并行执行选项（简化、扫描和特征分析）：", {kThreadsSpec}});
         g.push_back(
             {"工作流选项（demo、validate-features、validate-external）：",
              {kInputDirSpec,
@@ -233,6 +251,7 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
             addSpecs(set, simplifyOptionSpecs());
             addSpec(set, kSamplesSpec);
             addSpec(set, listSpec);
+            addSpec(set, kThreadsSpec);
             addSpec(set, kVerboseSpec);
             return set;
         };
@@ -242,10 +261,24 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
         addSpec(generate, kVerboseSpec);
         m["generate"] = generate;
 
+        CommandOptionSet largeImport;
+        addSpec(largeImport, kPartitionTrianglesSpec);
+        addSpec(largeImport, kMemoryMiBSpec);
+        addSpec(largeImport, kIoBufferMiBSpec);
+        addSpec(largeImport, kVerboseSpec);
+        m["large-import"] = largeImport;
+
+        CommandOptionSet largeValidate;
+        addSpec(largeValidate, kMemoryMiBSpec);
+        addSpec(largeValidate, kIoBufferMiBSpec);
+        addSpec(largeValidate, kVerboseSpec);
+        m["large-validate"] = largeValidate;
+
         CommandOptionSet simplify;
         addSpecs(simplify, simplifyOptionSpecs());
         addSpec(simplify, kSamplesSpec);
         addSpec(simplify, kMetricsCsvSpec);
+        addSpec(simplify, kThreadsSpec);
         addSpec(simplify, kVerboseSpec);
         m["simplify"] = simplify;
 
@@ -260,6 +293,7 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
 
         CommandOptionSet features;
         addSpecs(features, featureOptionSpecs());
+        addSpec(features, kThreadsSpec);
         addSpec(features, kVerboseSpec);
         m["feature-report"] = features;
         m["feature-benchmark"] = features;
@@ -380,7 +414,8 @@ void validateArgsForCommand(const std::string& command, const Args& args) {
             continue;
         }
         if (set.valueFlags.count(value)) {
-            if (i + 1 >= args.values.size() || looksLikeMissingValue(args.values[i + 1])) {
+            if (i + 1 >= args.values.size() || args.values[i + 1].empty() ||
+                looksLikeMissingValue(args.values[i + 1])) {
                 throw std::invalid_argument(value + " requires a value.");
             }
             if (!seenValueFlags.insert(value).second) {
@@ -429,7 +464,8 @@ std::string getArg(const Args& args, const std::string& name, const std::string&
     bool found = false;
     for (std::size_t i = 0; i < args.values.size(); ++i) {
         if (args.values[i] == name) {
-            if (i + 1 >= args.values.size() || looksLikeMissingValue(args.values[i + 1])) {
+            if (i + 1 >= args.values.size() || args.values[i + 1].empty() ||
+                looksLikeMissingValue(args.values[i + 1])) {
                 throw std::invalid_argument(name + " requires a value.");
             }
             if (found) {

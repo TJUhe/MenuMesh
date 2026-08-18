@@ -9,7 +9,7 @@ ManuMesh 是面向增材制造的 C++ 多边形网格几何内核。当前稳定
 ```text
 include/      安装级公共 SDK 头文件
   core/                         Mesh、PlainMesh、MeshTopology、Status、typed handles、Tolerances、MathConstants
-  io/                           STL/OBJ 网格读写 API
+  io/                           STL/OBJ 网格读写 API；PartitionedMeshDataset 流式分区数据 API
   algorithms/analysis/          通用网格统计与双 mesh 比较（MeshAnalysis.h）
   algorithms/feature_detection/ 特征检测模块入口、选项和结果类型（含 FeatureComparison.h loop 匹配）
   algorithms/simplification/    QEM/line quadrics 简化入口、选项、报告（Metrics.h 已为弃用转发头）
@@ -20,7 +20,7 @@ src/common/detail/              跨算法私有工具（namespace manumesh::comm
 src/mesh_edit/                  可编辑 mesh 状态、动态邻接和 compact/remap
 src/mesh_edit/detail/           mesh edit 私有类型和 helper，不安装
 src/core/                       公共 core 类型的实现
-src/io/                         STL/OBJ 读写实现；OBJ 读取支持多边形三角化并保留逐角 vt
+src/io/                         STL/OBJ 读写实现；PartitionedMeshDataset 二进制三角记录流式读写；OBJ 读取支持多边形三角化并保留逐角 vt
 src/analysis/                   通用统计与比较实现（namespace manumesh::analysis）
 src/feature_detection/          特征检测实现，只依赖 core 和私有 common
 src/feature_detection/detail/   特征检测私有类型、策略接口和 helper
@@ -120,6 +120,53 @@ feature_detection 不能反向 include simplification；
 未来 repair/remesh/validation 可以消费 feature::FeatureAnalysis。
 ```
 
+## 执行策略与并行边界
+
+并发是运行时策略，不是算法模块之间的依赖。公共契约位于
+[`include/core/ExecutionOptions.h`](../../include/core/ExecutionOptions.h)，只包含
+`ExecutionMode`、最大并发度和任务粒度；它不暴露 oneTBB 的 task、arena 或容器类型。
+所有算法通过唯一的内部适配边界
+`src/common/detail/ParallelExecution.h` / `src/common/ParallelExecution.cpp`
+提交不重叠的半开范围。oneTBB 的查找、编译宏和链接规则只出现在 CMake 与该适配层，
+因此未来替换后端不会改变 `feature`、`simplification` 或 C ABI 的头文件。
+
+兼容入口默认 `ExecutionMode::Serial`，调用方显式选择 `Parallel` 才会启用可用后端；
+未编译 oneTBB、请求 `maxConcurrency == 1` 或工作量低于粒度时，行为退化为相同的串行范围
+执行。C API 通过 context 级 `ManuMeshExecutionOptions` 设置同一策略，
+`manumesh_parallel_execution_available()` 和 `manumesh_parallel_execution_backend()`
+只报告能力，不改变默认行为。`maxConcurrency == 0` 交给后端选择，正数限制本次调用的
+arena；`minItemsPerTask` 只影响切块，不改变结果顺序或算法容差。
+
+构建矩阵不把 oneTBB 限定在临时基准目标中：`CMakePresets.json` 的所有
+`vs2019-release*` 与 `vs2019-ninja-release*` 生产/SDK preset 统一继承固定的
+oneTBB 2021.12.0 后端，并行结果等价、C ABI、模块边界和安装后 consumer 由
+正式 Release 矩阵验证。Debug/ASan preset 保留串行回退，专用于确定性调试和
+内存安全诊断。
+
+算法阶段按“可并行的纯计算”和“必须确定性协调的状态”分界：
+
+| 模块/阶段 | 执行方式 | 约束 |
+| --- | --- | --- |
+| 特征检测：面面积、法向和独立逐顶点证据（normal filter、Normal Tensor、Smooth Curvature） | oneTBB 范围并行 | 每个任务只写自己的输出区间；邻接和只读缓存在任务开始前完成 |
+| 特征检测：edge incidence、诊断归约、FeatureGraph 排序、cleanup/consolidation、环恢复、patch segmentation | 确定性串行 | 保持输入顺序、稳定 tie-break 和固定浮点归约；分区切口不能被当作真实边界 |
+| QEM：面/顶点 quadric 初始化，独立边 placement/cost 求解 | oneTBB 范围并行 | 只读拓扑快照；结果按 edge ID 回填，priority queue 仍由单线程建立 |
+| QEM：候选失效、动态 edge-collapse、版本检查、拓扑提交、compaction | 协调串行 | 写集、邻接和全局候选顺序有共享可变状态，不能直接交给范围线程 |
+| `PartitionedMeshDataset` 导入/校验 | 流式 I/O，可由调用方分片调度 | 当前只保证三角记录、目录和 checksum；不等同于分区拓扑或 out-of-core 算法 |
+
+这个边界刻意优先保证结果可重现：并行任务完成顺序不参与 graph 排序、诊断归约或 QEM
+提交顺序。需要改变折叠顺序的 bounded-valid 分区 QEM 必须另定义 owner/ghost、halo、写集
+锁定和质量预算，不能通过给现有串行热循环套一层线程池来实现。
+
+测试和工具按职责放置：公共执行契约由 `tests/unit/common/parallel_execution_tests.cpp`
+覆盖；特征/QEM 的逐阶段等价性分别由
+`tests/unit/feature_detection/feature_detection_parallel_tests.cpp` 和
+`tests/unit/simplification/simplification_parallel_tests.cpp` 覆盖；C ABI 设置由
+`tests/unit/api/c_api_execution_tests.cpp` 覆盖；跨配置墙钟与结果指纹基准位于
+`tests/performance/parallel_pipeline_benchmark.cpp`。真实 STL 和 Thingi10K 的数据层验证
+留在 `tests/unit/io` 与 `tests/support`，不把下载、基准和算法实现混进 `src/common`。
+`io_link_boundary` 直接链接 I/O 对象并只声明其 geometry 依赖；Thingi10K 的 CMake
+manifest checker 负责 JSON、SHA-256 和精确 fixture index，C++ 流式测试只消费该 index。
+
 ## 数据策略
 
 `Mesh` 仍是轻量交换格式：稠密顶点数组加三角面索引数组。带纹理的输入额外携带 `Mesh::faceTexCoords`（`FaceTexCoords`，每面三个 `Vec2` 逐角 UV 加 `valid` 标记）：为空表示无纹理，非空时与 `Mesh::faces` 对齐，个别条目可以 invalid（例如 OBJ 中未贴图的面）。UV 采用“角拥有”而不是“顶点拥有”，因为一个几何顶点可能属于多个 UV chart（纹理接缝）；`Mesh::hasTextureCoordinates()` 在至少一个面带有效逐角坐标时为 true。`FeatureAnalysis` 的来源身份只覆盖 indexed geometry，因此修改 UV 不会使已有分析失效；修改顶点顺序、坐标、面顺序、面角点顺序或索引则会失效。需要重复邻接查询时，算法应构建 `MeshTopology`、私有 common 查询结果，或运行时动态拓扑，而不是在每个模块里重复扫描并复制一套局部工具。
@@ -134,6 +181,27 @@ pre-1.0 C++ SDK 只保证有明确的源码迁移路径，不承诺跨 SDK 版�
 严格或跨版本 ABI 边界使用 `api/CApi.h`；纹理保护通过 `ManuMeshSimplifyOptions` 的尾部字段和 `ManuMeshSimplifyReport` 的尾部诊断字段提供，并保持较短旧结构前缀兼容。
 
 当前 `mesh_edit` 仍是稳定索引的最小编辑层。未来升级为可编辑半边拓扑时，应使用 `VertexId`、`EdgeId`、`HalfedgeId`、`FaceId` 等 typed handle，配合 generation-aware free list 和显式 compaction。属性不要塞进基础顶点结构，应以类型化数组挂在拓扑旁边，方便重映射、导出和 ABI 隔离。
+
+### 超大网格数据策略
+
+超大网格不再强行塞进 `Mesh` 的全量顶点/面数组。当前已落地的
+[`PartitionedMeshDataset`](../../include/io/PartitionedMeshDataset.h) 是三角记录级的流式 I/O 层，配套
+`large-import` 和 `large-validate` CLI；它保存 64 位全局三角 ID、分区目录、payload checksum 和边界框，
+但尚未建立全局顶点表、全局边表、ghost/halo 或属性通道。它因此不能被当作已经完成的分区拓扑或分区算法执行器。
+
+`MeshTopology` 的紧凑 CSR 存储和 `edgeView()`/`vertexView()` 查询路径适合单块内存拓扑，
+不会改变公共 `int` typed handle 契约。对多百万至百兆面数据，数据层和算法层必须分开：
+
+```text
+binary STL -> PartitionedMeshDataset -> global IDs / owner-ghost / edge incidence
+           -> halo-aware local analysis -> global FeatureGraph merge -> out-of-core QEM
+```
+
+后续分区层使用 global vertex/edge/face ID 和 32 位 local index。owner 负责发布实体和属性，ghost 只读；
+边界、非流形和绕序只能在完整 edge incidence 全局归并后判定。法向、Normal Tensor 和 Smooth Curvature
+可以按配置交换 halo 后局部计算，FeatureGraph 的 component/junction/loop/patch 和 QEM 的全局候选顺序
+仍需全局协调。详细数据模型、`reference-exact`/`bounded-valid` 合同、Thingi10K 实测和阶段路线见
+[`large_mesh_architecture_2026_08_18.md`](large_mesh_architecture_2026_08_18.md)。
 
 ## API 形态
 

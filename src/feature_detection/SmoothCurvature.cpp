@@ -15,6 +15,7 @@
 #include "core/MathUtils.h"
 
 #include "common/detail/MeshQueries.h"
+#include "common/detail/ParallelExecution.h"
 #include "detail/FeatureDetectionCache.h"
 #include "detail/FeatureInputValidation.h"
 
@@ -26,6 +27,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -100,7 +102,11 @@ struct FitWorkspace {
     std::vector<double> medianScratch;
 };
 
-std::vector<Vec3> computeAreaWeightedVertexNormals(const Mesh& mesh, const std::vector<Vec3>& faceNormals) {
+std::vector<Vec3> computeAreaWeightedVertexNormals(
+    const Mesh& mesh,
+    const std::vector<Vec3>& faceNormals,
+    const common::parallel::RangeExecutionOptions& executionOptions
+) {
     std::vector<Vec3> normals(mesh.vertices.size(), Vec3::Zero());
     for (int faceId = 0; faceId < static_cast<int>(mesh.faces.size()); ++faceId) {
         const Face& face = mesh.faces[faceId];
@@ -115,13 +121,21 @@ std::vector<Vec3> computeAreaWeightedVertexNormals(const Mesh& mesh, const std::
             normals[id] += weighted;
         }
     }
-    for (Vec3& normal : normals) {
-        if (normal.norm() > 1e-20) {
-            normal.normalize();
-        } else {
-            normal = Vec3(0.0, 0.0, 1.0);
+    common::parallel::forEachRange(
+        0,
+        normals.size(),
+        executionOptions,
+        [&](std::size_t begin, std::size_t end) {
+            for (std::size_t vertex = begin; vertex < end; ++vertex) {
+                Vec3& normal = normals[vertex];
+                if (normal.norm() > 1e-20) {
+                    normal.normalize();
+                } else {
+                    normal = Vec3(0.0, 0.0, 1.0);
+                }
+            }
         }
-    }
+    );
     return normals;
 }
 
@@ -151,6 +165,38 @@ void gatherNeighborhood(
                 continue;
             }
             visitStamp[nb] = stamp;
+            result.push_back({nb, current.depth + 1});
+        }
+    }
+}
+
+/**
+ * @brief 并行 worker 使用的稀疏访问集合。
+ *
+ * 每个范围任务只为实际访问的 k-ring 顶点保留 membership，避免为每个 worker
+ * 分配一个 O(V) 的 stamp 数组。结果顺序仍由邻接表的确定性 BFS 顺序决定。
+ */
+void gatherNeighborhoodSparse(
+    const std::vector<std::vector<int>>& neighbors,
+    int seed,
+    int maxDepth,
+    std::unordered_set<int>& visited,
+    std::vector<NeighborhoodVertex>& result
+) {
+    result.clear();
+    visited.clear();
+    result.push_back({seed, 0});
+    visited.insert(seed);
+    std::size_t head = 0;
+    while (head < result.size()) {
+        const NeighborhoodVertex current = result[head++];
+        if (current.depth >= maxDepth) {
+            continue;
+        }
+        for (int nb : neighbors[current.id]) {
+            if (!visited.insert(nb).second) {
+                continue;
+            }
             result.push_back({nb, current.depth + 1});
         }
     }
@@ -578,7 +624,9 @@ namespace detector_detail {
 
 const std::vector<Vec3>& FeatureDetectionCache::areaWeightedVertexNormals() {
     if (!hasAreaWeightedVertexNormals_) {
-        areaWeightedVertexNormals_ = computeAreaWeightedVertexNormals(*mesh_, faceNormals());
+        areaWeightedVertexNormals_ = computeAreaWeightedVertexNormals(
+            *mesh_, faceNormals(), common::parallel::makeRangeExecutionOptions(executionOptions_)
+        );
         hasAreaWeightedVertexNormals_ = true;
     }
     return areaWeightedVertexNormals_;
@@ -609,90 +657,142 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
     const std::vector<std::vector<int>>& neighbors = cache.vertexNeighbors();
     const std::vector<double>& averageEdgeLength = cache.vertexAverageEdgeLength();
     const std::vector<Vec3>& vertexNormals = cache.areaWeightedVertexNormals();
+    const common::parallel::RangeExecutionOptions rangeOptions =
+        common::parallel::makeRangeExecutionOptions(cache.executionOptions());
     std::vector<std::vector<ScaleEstimate>> estimates(scaleCount, std::vector<ScaleEstimate>(mesh.vertices.size()));
-    std::vector<int> visitStamp(mesh.vertices.size(), 0);
-    FitWorkspace workspace;
-    int stamp = 0;
-    for (int vertex = 0; vertex < static_cast<int>(mesh.vertices.size()); ++vertex) {
-        if (++stamp == std::numeric_limits<int>::max()) {
-            std::fill(visitStamp.begin(), visitStamp.end(), 0);
-            stamp = 1;
+    if (!rangeOptions.enabled) {
+        std::vector<int> visitStamp(mesh.vertices.size(), 0);
+        FitWorkspace workspace;
+        int stamp = 0;
+        for (int vertex = 0; vertex < static_cast<int>(mesh.vertices.size()); ++vertex) {
+            if (++stamp == std::numeric_limits<int>::max()) {
+                std::fill(visitStamp.begin(), visitStamp.end(), 0);
+                stamp = 1;
+            }
+            gatherNeighborhood(neighbors, vertex, maxRings, visitStamp, stamp, workspace.neighborhood);
+            for (int scale = 0; scale < scaleCount; ++scale) {
+                const int ringCount = baseRings + scale;
+                estimates[scale][vertex] = fitScale(
+                    mesh, vertexNormals, workspace, vertex, ringCount, averageEdgeLength[vertex], robustIterations
+                );
+            }
         }
-        gatherNeighborhood(neighbors, vertex, maxRings, visitStamp, stamp, workspace.neighborhood);
-        for (int scale = 0; scale < scaleCount; ++scale) {
-            const int ringCount = baseRings + scale;
-            estimates[scale][vertex] = fitScale(
-                mesh, vertexNormals, workspace, vertex, ringCount, averageEdgeLength[vertex], robustIterations
-            );
-        }
+    } else {
+        common::parallel::forEachRange(
+            0,
+            mesh.vertices.size(),
+            rangeOptions,
+            [&](std::size_t begin, std::size_t end) {
+                FitWorkspace workspace;
+                std::unordered_set<int> visited;
+                visited.reserve(128);
+                for (std::size_t vertex = begin; vertex < end; ++vertex) {
+                    gatherNeighborhoodSparse(
+                        neighbors, static_cast<int>(vertex), maxRings, visited, workspace.neighborhood
+                    );
+                    for (int scale = 0; scale < scaleCount; ++scale) {
+                        const int ringCount = baseRings + scale;
+                        estimates[scale][vertex] = fitScale(
+                            mesh,
+                            vertexNormals,
+                            workspace,
+                            static_cast<int>(vertex),
+                            ringCount,
+                            averageEdgeLength[vertex],
+                            robustIterations
+                        );
+                    }
+                }
+            }
+        );
     }
 
     std::vector<std::vector<ScaleCandidate>> candidates(scaleCount, std::vector<ScaleCandidate>(mesh.vertices.size()));
     for (int scale = 0; scale < scaleCount; ++scale) {
-        for (int vertex = 0; vertex < static_cast<int>(mesh.vertices.size()); ++vertex) {
-            candidates[scale][vertex] = classifyScaleCandidate(mesh, neighbors, estimates[scale], vertex);
-        }
+        common::parallel::forEachRange(
+            0,
+            mesh.vertices.size(),
+            rangeOptions,
+            [&](std::size_t begin, std::size_t end) {
+                for (std::size_t vertex = begin; vertex < end; ++vertex) {
+                    candidates[scale][vertex] =
+                        classifyScaleCandidate(mesh, neighbors, estimates[scale], static_cast<int>(vertex));
+                }
+            }
+        );
     }
 
-    for (int vertex = 0; vertex < static_cast<int>(mesh.vertices.size()); ++vertex) {
-        const ScaleSelection selection = selectReferenceScale(
-            candidates, vertex, tangentConsistency, persistenceThreshold, options.useStableScaleSelection
-        );
-        const int bestScale = selection.scale;
-        SmoothCurvatureVertex& output = result[vertex];
-        output.normal = vertexNormals[vertex];
-        if (bestScale < 0) {
-            continue;
-        }
+    common::parallel::forEachRange(
+        0,
+        mesh.vertices.size(),
+        rangeOptions,
+        [&](std::size_t begin, std::size_t end) {
+            for (std::size_t vertex = begin; vertex < end; ++vertex) {
+                const ScaleSelection selection = selectReferenceScale(
+                    candidates,
+                    static_cast<int>(vertex),
+                    tangentConsistency,
+                    persistenceThreshold,
+                    options.useStableScaleSelection
+                );
+                const int bestScale = selection.scale;
+                SmoothCurvatureVertex& output = result[vertex];
+                output.normal = vertexNormals[vertex];
+                if (bestScale < 0) {
+                    continue;
+                }
 
-        const ScaleCandidate& best = candidates[bestScale][vertex];
-        const double relativePersistenceThreshold = 0.30 * best.score;
-        double supportedScoreSum = 0.0;
-        double supportedAlignmentSum = 0.0;
-        for (int scale = 0; scale < scaleCount; ++scale) {
-            const ScaleCandidate& candidate = candidates[scale][vertex];
-            if (!candidate.valid || candidate.score < std::max(persistenceThreshold, relativePersistenceThreshold) ||
-                candidate.signedKind != best.signedKind) {
-                continue;
-            }
-            const double alignment = std::abs(candidate.curveTangent.dot(best.curveTangent));
-            if (alignment < tangentConsistency) {
-                continue;
-            }
-            ++output.persistentScales;
-            supportedScoreSum += candidate.score;
-            supportedAlignmentSum += alignment;
-        }
+                const ScaleCandidate& best = candidates[bestScale][vertex];
+                const double relativePersistenceThreshold = 0.30 * best.score;
+                double supportedScoreSum = 0.0;
+                double supportedAlignmentSum = 0.0;
+                for (int scale = 0; scale < scaleCount; ++scale) {
+                    const ScaleCandidate& candidate = candidates[scale][vertex];
+                    if (!candidate.valid ||
+                        candidate.score < std::max(persistenceThreshold, relativePersistenceThreshold) ||
+                        candidate.signedKind != best.signedKind) {
+                        continue;
+                    }
+                    const double alignment = std::abs(candidate.curveTangent.dot(best.curveTangent));
+                    if (alignment < tangentConsistency) {
+                        continue;
+                    }
+                    ++output.persistentScales;
+                    supportedScoreSum += candidate.score;
+                    supportedAlignmentSum += alignment;
+                }
 
-        output.normal = best.normal;
-        output.curveTangent = best.curveTangent;
-        output.extremumDirection = best.extremumDirection;
-        output.principalCurvature = best.principalCurvature;
-        output.secondaryCurvature = best.secondaryCurvature;
-        output.anisotropy = best.anisotropy;
-        output.extremumStrength = best.extremumStrength;
-        output.featureScore = best.score;
-        output.averageFeatureScore = supportedScoreSum / static_cast<double>(scaleCount);
-        output.fitResidual = best.fitResidual;
-        output.localScale = best.localScale;
-        output.selectedScale = bestScale;
-        output.scaleStability = selection.stability;
-        output.signedKind = best.signedKind;
+                output.normal = best.normal;
+                output.curveTangent = best.curveTangent;
+                output.extremumDirection = best.extremumDirection;
+                output.principalCurvature = best.principalCurvature;
+                output.secondaryCurvature = best.secondaryCurvature;
+                output.anisotropy = best.anisotropy;
+                output.extremumStrength = best.extremumStrength;
+                output.featureScore = best.score;
+                output.averageFeatureScore = supportedScoreSum / static_cast<double>(scaleCount);
+                output.fitResidual = best.fitResidual;
+                output.localScale = best.localScale;
+                output.selectedScale = bestScale;
+                output.scaleStability = selection.stability;
+                output.signedKind = best.signedKind;
         // 纯投票计数（Luo-Zha M009）：持久性等于支持该候选的尺度数量，
         // 下游再与 smoothCurvatureMinPersistentScales 比较。旧实现还要求最粗尺度
         // 必须支持候选，导致密集网格中空间尺度小于最粗邻域半径（baseRings +
         // scaleCount - 1 环）的真实小圆角和短脊线被静默抑制；多尺度通道正是为了发现它们。
-        const bool passesScaleStability =
-            !options.useStableScaleSelection || output.scaleStability >= options.minScaleStability;
-        if (output.persistentScales > 0 && passesScaleStability) {
-            const double persistenceRatio =
-                static_cast<double>(output.persistentScales) / static_cast<double>(scaleCount);
-            const double meanAlignment = supportedAlignmentSum / static_cast<double>(output.persistentScales);
-            const double meanSupportedScore = supportedScoreSum / static_cast<double>(output.persistentScales);
-            output.persistentFeatureScore =
-                (0.65 * output.featureScore + 0.35 * meanSupportedScore) * persistenceRatio * meanAlignment;
+                const bool passesScaleStability =
+                    !options.useStableScaleSelection || output.scaleStability >= options.minScaleStability;
+                if (output.persistentScales > 0 && passesScaleStability) {
+                    const double persistenceRatio =
+                        static_cast<double>(output.persistentScales) / static_cast<double>(scaleCount);
+                    const double meanAlignment = supportedAlignmentSum / static_cast<double>(output.persistentScales);
+                    const double meanSupportedScore = supportedScoreSum / static_cast<double>(output.persistentScales);
+                    output.persistentFeatureScore =
+                        (0.65 * output.featureScore + 0.35 * meanSupportedScore) * persistenceRatio * meanAlignment;
+                }
+            }
         }
-    }
+    );
     return result;
 }
 
@@ -701,13 +801,29 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
 std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
     const Mesh& mesh, const SmoothCurvatureOptions& options, double requestedPersistenceThreshold
 ) {
-    detector_detail::FeatureDetectionCache cache(mesh);
+    return computeSmoothCurvatureFeatures(mesh, options, requestedPersistenceThreshold, ExecutionOptions{});
+}
+
+std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
+    const Mesh& mesh,
+    const SmoothCurvatureOptions& options,
+    double requestedPersistenceThreshold,
+    const ExecutionOptions& executionOptions
+) {
+    validateExecutionOptions(executionOptions);
+    detector_detail::FeatureDetectionCache cache(mesh, FeatureNormalFilterOptions{}, executionOptions);
     return detector_detail::computeSmoothCurvatureFeaturesCached(mesh, cache, options, requestedPersistenceThreshold);
 }
 
 std::vector<SmoothCurvatureVertex>
 computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options) {
     return computeSmoothCurvatureFeatures(mesh, options, 0.0);
+}
+
+std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
+    const Mesh& mesh, const SmoothCurvatureOptions& options, const ExecutionOptions& executionOptions
+) {
+    return computeSmoothCurvatureFeatures(mesh, options, 0.0, executionOptions);
 }
 
 } // namespace feature

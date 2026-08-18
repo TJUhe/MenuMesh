@@ -283,6 +283,8 @@ if(MANUMESH_ENABLE_INSTALL)
     "${PROJECT_SOURCE_DIR}/documentation/design/industrial_library.md"
     "${PROJECT_SOURCE_DIR}/documentation/guide/sdk_integration.md"
     "${PROJECT_SOURCE_DIR}/documentation/design/large_model_validation.md"
+    "${PROJECT_SOURCE_DIR}/documentation/design/large_mesh_architecture_2026_08_18.md"
+    "${PROJECT_SOURCE_DIR}/documentation/design/parallel_execution_benchmark_2026_08_18.md"
     DESTINATION "${CMAKE_INSTALL_DOCDIR}"
   )
 

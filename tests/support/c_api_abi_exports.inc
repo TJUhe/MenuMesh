@@ -9,6 +9,19 @@ MANUMESH_C_API_SYMBOL(manumesh_context_create, ManuMeshContext*, (void));
 MANUMESH_C_API_SYMBOL(manumesh_context_destroy, void, (ManuMeshContext*));
 MANUMESH_C_API_SYMBOL(manumesh_context_last_error, const char*, (const ManuMeshContext*));
 MANUMESH_C_API_SYMBOL(manumesh_context_clear_error, void, (ManuMeshContext*));
+MANUMESH_C_API_SYMBOL(
+    manumesh_execution_options_init_with_size,
+    ManuMeshStatus,
+    (ManuMeshExecutionOptions*, size_t)
+);
+MANUMESH_C_API_SYMBOL(manumesh_execution_options_init, void, (ManuMeshExecutionOptions*));
+MANUMESH_C_API_SYMBOL(
+    manumesh_context_set_execution_options,
+    ManuMeshStatus,
+    (ManuMeshContext*, const ManuMeshExecutionOptions*)
+);
+MANUMESH_C_API_SYMBOL(manumesh_parallel_execution_available, int, (void));
+MANUMESH_C_API_SYMBOL(manumesh_parallel_execution_backend, const char*, (void));
 MANUMESH_C_API_SYMBOL(manumesh_mesh_create, ManuMeshMeshHandle*, (ManuMeshContext*));
 MANUMESH_C_API_SYMBOL(manumesh_mesh_destroy, void, (ManuMeshMeshHandle*));
 MANUMESH_C_API_SYMBOL(manumesh_mesh_clear, ManuMeshStatus, (ManuMeshContext*, ManuMeshMeshHandle*));

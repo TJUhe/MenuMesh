@@ -10,6 +10,7 @@
 
 #include "Export.h"
 #include "algorithms/simplification/SimplificationTypes.h"
+#include "core/ExecutionOptions.h"
 #include "core/Mesh.h"
 
 #include <memory>
@@ -56,6 +57,10 @@ public:
     /// @param[in] config 目标、代价、特征、质量、纹理和日志配置。
     /// @throws std::invalid_argument 当配置不一致时抛出。
     void setConfig(const SimplifyConfig& config);
+    /// 返回后续运行使用的并发约束；默认值为串行。
+    const ExecutionOptions& executionOptions() const;
+    /// 替换后续运行使用的并发约束，不改变几何或简化策略。
+    void setExecutionOptions(ExecutionOptions executionOptions);
     /// 返回最近一次简化运行的诊断信息。
     const SimplifyReport& report() const;
 
@@ -112,6 +117,13 @@ private:
 /// @failuremodes 当没有合法候选或达到有界拒绝上限时，运行可能在高于目标面数时终止；
 /// 请检查 SimplifyReport::terminationReason 和拒绝计数。
 MANUMESH_API Mesh simplifyMesh(const Mesh& input, const SimplifyOptions& options, SimplifyReport* report = nullptr);
+/// 使用显式执行约束简化网格；拓扑提交保持协调顺序。
+MANUMESH_API Mesh simplifyMesh(
+    const Mesh& input,
+    const SimplifyOptions& options,
+    const ExecutionOptions& executionOptions,
+    SimplifyReport* report = nullptr
+);
 /// 使用已为 `input` 计算的特征分析进行简化。
 /// @param[in] input 源网格。
 /// @param[in] options 简化策略。
@@ -126,6 +138,14 @@ MANUMESH_API Mesh simplifyMesh(
     const Mesh& input,
     const SimplifyOptions& options,
     const feature::FeatureAnalysis& features,
+    SimplifyReport* report = nullptr
+);
+/// 使用预计算特征和显式执行约束进行简化。
+MANUMESH_API Mesh simplifyMesh(
+    const Mesh& input,
+    const SimplifyOptions& options,
+    const feature::FeatureAnalysis& features,
+    const ExecutionOptions& executionOptions,
     SimplifyReport* report = nullptr
 );
 

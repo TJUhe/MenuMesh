@@ -13,6 +13,7 @@ set(MANUMESH_PUBLIC_HEADERS
   "${PROJECT_SOURCE_DIR}/include/algorithms/simplification/SimplificationTypes.h"
   "${PROJECT_SOURCE_DIR}/include/core/Handles.h"
   "${PROJECT_SOURCE_DIR}/include/core/Filesystem.h"
+  "${PROJECT_SOURCE_DIR}/include/core/ExecutionOptions.h"
   "${PROJECT_SOURCE_DIR}/include/core/MathUtils.h"
   "${PROJECT_SOURCE_DIR}/include/core/Mesh.h"
   "${PROJECT_SOURCE_DIR}/include/core/MeshGenerators.h"
@@ -21,6 +22,7 @@ set(MANUMESH_PUBLIC_HEADERS
   "${PROJECT_SOURCE_DIR}/include/core/Optional.h"
   "${PROJECT_SOURCE_DIR}/include/core/Status.h"
   "${PROJECT_SOURCE_DIR}/include/io/MeshIo.h"
+  "${PROJECT_SOURCE_DIR}/include/io/PartitionedMeshDataset.h"
 )
 
 set(MANUMESH_API_SOURCES
@@ -32,6 +34,7 @@ set(MANUMESH_COMMON_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/common/GeometryPredicates.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/MeshDistanceIndex.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/MeshQueries.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/ParallelExecution.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/SpatialIndex.cpp"
 )
 
@@ -54,6 +57,8 @@ set(MANUMESH_GEOMETRY_SOURCES
 
 set(MANUMESH_IO_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/io/MeshIo.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/io/PartitionedMeshDataset.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/io/PartitionedMeshValidation.cpp"
 )
 
 set(MANUMESH_DEBUG_UTIL_SOURCES)
@@ -132,6 +137,7 @@ set(MANUMESH_COMMON_PRIVATE_HEADERS
   "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/MathConstants.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/MeshDistanceIndex.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/MeshQueries.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/ParallelExecution.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/detail/SpatialIndex.h"
 )
 
@@ -418,6 +424,11 @@ foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
   manumesh_apply_warnings(${manumesh_internal_target})
 endforeach()
 
+if(MANUMESH_ENABLE_ONETBB)
+  target_compile_definitions(manumesh_common_objects PRIVATE MANUMESH_HAS_ONETBB)
+  target_link_libraries(manumesh_common_objects PRIVATE TBB::tbb)
+endif()
+
 target_include_directories(manumesh_simplification_objects
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
 )
@@ -469,6 +480,13 @@ target_compile_definitions(manumesh_core
   PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
 )
 
+if(MANUMESH_ENABLE_ONETBB)
+  # oneTBB remains an implementation dependency: public headers contain no
+  # TBB types. For a static archive CMake exports this PRIVATE link edge as
+  # LINK_ONLY on manumesh_binary, which is exactly the SDK consumer contract.
+  target_link_libraries(manumesh_core PRIVATE TBB::tbb)
+endif()
+
 # Non-installed module archives give architecture tests real link boundaries
 # while reusing the production object files. A link-check executable adds the
 # root module objects directly, so all of their unresolved symbols must be
@@ -488,13 +506,14 @@ if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
   manumesh_add_boundary_module(common)
   manumesh_add_boundary_module(mesh_edit)
   manumesh_add_boundary_module(analysis)
+  manumesh_add_boundary_module(io)
   if(MANUMESH_ENABLE_DEBUG_UTIL)
     manumesh_add_boundary_module(debug_util)
   endif()
   manumesh_add_boundary_module(feature_detection)
   manumesh_add_boundary_module(simplification)
 
-  foreach(module IN ITEMS common mesh_edit analysis feature_detection simplification)
+  foreach(module IN ITEMS common mesh_edit analysis io feature_detection simplification)
     manumesh_link_module_dependencies(
       manumesh_${module}_boundary_module
       ${module}
@@ -510,27 +529,35 @@ if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
       PUBLIC
     )
   endif()
+  if(MANUMESH_ENABLE_ONETBB)
+    # Feature/simplification architecture checks pull common objects through
+    # this archive, so retain the backend link edge in their test graph.
+    target_link_libraries(manumesh_common_boundary_module PUBLIC TBB::tbb)
+  endif()
 endif()
 
-# 供白盒测试使用的内部 STATIC 聚合库。它复用上面的对象库（每个源文件仍只编译一次），
-# 因此测试链接每个内部符号的唯一副本，而不是在 DLL 旁重复编译 src/*.cpp（避免 ODR 风险）。
-# 该库不会导出或安装；consumer 不定义 MANUMESH_USING_DLL，因此其翻译单元中的 MANUMESH_API 展开为空，
-# 符号通过静态方式解析。
-add_library(manumesh_internal STATIC ${MANUMESH_LIBRARY_OBJECTS})
-add_library(ManuMesh::internal ALIAS manumesh_internal)
-target_compile_features(manumesh_internal PUBLIC cxx_std_14)
-target_include_directories(manumesh_internal
-  PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-)
-if(TARGET Eigen3::Eigen)
-  target_link_libraries(manumesh_internal PUBLIC Eigen3::Eigen)
-elseif(DEFINED eigen_SOURCE_DIR)
-  target_include_directories(manumesh_internal PUBLIC "${eigen_SOURCE_DIR}")
-endif()
-if(MANUMESH_RESOLVED_EIGEN_PROVIDER STREQUAL "vendored")
+# 供白盒测试使用的内部 STATIC 聚合库。生产或纯 SDK 构建不创建此目标。
+if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
+  # 复用上面的对象库，每个源文件仍只编译一次；测试链接内部符号的唯一副本。
+  add_library(manumesh_internal STATIC ${MANUMESH_LIBRARY_OBJECTS})
+  add_library(ManuMesh::internal ALIAS manumesh_internal)
+  target_compile_features(manumesh_internal PUBLIC cxx_std_14)
   target_include_directories(manumesh_internal
-    PUBLIC "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
+    PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
   )
+  if(TARGET Eigen3::Eigen)
+    target_link_libraries(manumesh_internal PUBLIC Eigen3::Eigen)
+  elseif(DEFINED eigen_SOURCE_DIR)
+    target_include_directories(manumesh_internal PUBLIC "${eigen_SOURCE_DIR}")
+  endif()
+  if(MANUMESH_RESOLVED_EIGEN_PROVIDER STREQUAL "vendored")
+    target_include_directories(manumesh_internal
+      PUBLIC "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
+    )
+  endif()
+  if(MANUMESH_ENABLE_ONETBB)
+    target_link_libraries(manumesh_internal PRIVATE TBB::tbb)
+  endif()
 endif()
 
 if(MANUMESH_BUILD_SHARED_LIBRARY)
@@ -573,6 +600,13 @@ if(MANUMESH_ENABLE_INSTALL)
     install(DIRECTORY "${MANUMESH_EIGEN_SOURCE_DIR}/"
       DESTINATION "${CMAKE_INSTALL_DATADIR}/manumesh/thirdParty/eigen/include"
       FILES_MATCHING PATTERN "*"
+    )
+  endif()
+  if(MANUMESH_ENABLE_ONETBB AND
+     MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "system" AND
+     MANUMESH_ONETBB_RUNTIME_DLL)
+    install(FILES "$<TARGET_FILE:TBB::tbb>"
+      DESTINATION "${CMAKE_INSTALL_BINDIR}"
     )
   endif()
 endif()

@@ -61,6 +61,22 @@ inline manumesh::filesystem::path normalizedPathForComparison(const manumesh::fi
 /// case-folding and hard links.
 inline std::string pathIdentityKey(const manumesh::filesystem::path& value) {
     std::string key = pathToUtf8(normalizedPathForComparison(value));
+    // VS2019's experimental filesystem path has no lexical_normal operation.
+    // Collapse the only non-existent-output alias we accept (`.`) in the text
+    // key after resolving the nearest existing parent.
+    for (;;) {
+        const std::size_t backslashDot = key.find("\\.\\");
+        const std::size_t slashDot = key.find("/./");
+        if (backslashDot != std::string::npos) {
+            key.replace(backslashDot, 3, "\\");
+            continue;
+        }
+        if (slashDot != std::string::npos) {
+            key.replace(slashDot, 3, "/");
+            continue;
+        }
+        break;
+    }
 #if defined(_WIN32)
     std::transform(key.begin(), key.end(), key.begin(), [](unsigned char ch) {
         return static_cast<char>(std::tolower(ch));
@@ -69,8 +85,10 @@ inline std::string pathIdentityKey(const manumesh::filesystem::path& value) {
     return key;
 }
 
-/// Return true when two paths identify the same existing file or normalize to
-/// the same eventual location (including aliases such as `./out.csv`).
+/**
+ * @brief Return true when two paths identify the same existing file or normalize
+ *        to the same eventual location (including aliases such as ./out.csv).
+ */
 inline bool pathsReferToSameLocation(
     const manumesh::filesystem::path& first, const manumesh::filesystem::path& second
 ) {

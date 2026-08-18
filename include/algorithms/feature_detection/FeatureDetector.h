@@ -10,6 +10,7 @@
 
 #include "Export.h"
 #include "algorithms/feature_detection/FeatureTypes.h"
+#include "core/ExecutionOptions.h"
 
 #include <memory>
 #include <string>
@@ -52,6 +53,8 @@ public:
     /// @return 完整的特征图、曲线、组件、诊断信息和可选分区。
     /// @throws std::invalid_argument 当索引无效、坐标非有限或面顶点重复时抛出。
     FeatureAnalysis analyze(const Mesh& mesh) const;
+    /// 使用显式执行约束运行检测；只有独立的只读范围会并行执行。
+    FeatureAnalysis analyze(const Mesh& mesh, const ExecutionOptions& executionOptions) const;
 
 private:
     struct Impl;
@@ -70,6 +73,11 @@ private:
 MANUMESH_API FeatureNormalFilterResult
 filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options = {});
 
+/// 使用显式执行约束稳定面法向。
+MANUMESH_API FeatureNormalFilterResult filterFeatureNormals(
+    const Mesh& mesh, const FeatureNormalFilterOptions& options, const ExecutionOptions& executionOptions
+);
+
 /// 根据多尺度面法向投票计算局部法向张量分数。
 /// @param[in] mesh 输入三角表面。
 /// @param[in] options 张量平滑、尺度计划和可选法向预处理。
@@ -80,6 +88,11 @@ filterFeatureNormals(const Mesh& mesh, const FeatureNormalFilterOptions& options
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options = {});
 
+/// 使用显式执行约束计算法向张量证据。
+MANUMESH_API std::vector<NormalTensorVertex> computeNormalTensorFeatures(
+    const Mesh& mesh, const NormalTensorOptions& options, const ExecutionOptions& executionOptions
+);
+
 /// 仅当尺度显著性达到给定阈值时，才将该尺度计为持久证据。
 /// @param[in] mesh 输入三角表面。
 /// @param[in] options 张量平滑、尺度计划和可选法向预处理。
@@ -88,6 +101,14 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
 /// @throws std::invalid_argument 当尺度、平滑、法向过滤或持久性阈值参数无效时抛出。
 MANUMESH_API std::vector<NormalTensorVertex>
 computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options, double persistenceThreshold);
+
+/// 使用显式执行约束和持久性阈值计算法向张量证据。
+MANUMESH_API std::vector<NormalTensorVertex> computeNormalTensorFeatures(
+    const Mesh& mesh,
+    const NormalTensorOptions& options,
+    double persistenceThreshold,
+    const ExecutionOptions& executionOptions
+);
 
 /// 根据稳健局部 quadric 拟合、主曲率、方向极值和尺度持久性计算确定性的平滑脊/谷证据。
 /// 不使用学习模型或训练数据。
@@ -101,6 +122,11 @@ computeNormalTensorFeatures(const Mesh& mesh, const NormalTensorOptions& options
 MANUMESH_API std::vector<SmoothCurvatureVertex>
 computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options = {});
 
+/// 使用显式执行约束计算稳健多尺度平滑曲率证据。
+MANUMESH_API std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
+    const Mesh& mesh, const SmoothCurvatureOptions& options, const ExecutionOptions& executionOptions
+);
+
 /// 仅当尺度归一化分数达到给定阈值时，才将该尺度计为持久证据。
 /// @param[in] mesh 输入三角表面。
 /// @param[in] options 邻域和稳健拟合计划。
@@ -108,6 +134,14 @@ computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& o
 /// @return 每个顶点一个带符号曲率证据记录。
 MANUMESH_API std::vector<SmoothCurvatureVertex>
 computeSmoothCurvatureFeatures(const Mesh& mesh, const SmoothCurvatureOptions& options, double persistenceThreshold);
+
+/// 使用显式执行约束和持久性阈值计算平滑曲率证据。
+MANUMESH_API std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
+    const Mesh& mesh,
+    const SmoothCurvatureOptions& options,
+    double persistenceThreshold,
+    const ExecutionOptions& executionOptions
+);
 
 /// 校验每个特征检测选项及跨字段范围。
 /// @param[in] options 待校验的选项。
@@ -125,6 +159,11 @@ MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 /// 恢复有界回退环，拟合解析几何基元，计算组件置信度，并可选地将面划分为分区。
 /// @invariants 证据计数不包含合成桥接边；图边端点始终是有效网格顶点；每个简化环拥有稳定 ID。
 MANUMESH_API FeatureAnalysis detectFeatureCurves(const Mesh& mesh, const FeatureOptions& options);
+
+/// 使用显式执行约束检测特征；图构建、环恢复和分区阶段保持确定性顺序。
+MANUMESH_API FeatureAnalysis detectFeatureCurves(
+    const Mesh& mesh, const FeatureOptions& options, const ExecutionOptions& executionOptions
+);
 
 /// 计算并返回存储在 `FeatureAnalysis` 中的确定性来源身份。
 /// @param[in] mesh 有效的索引几何；忽略 UV 数据。

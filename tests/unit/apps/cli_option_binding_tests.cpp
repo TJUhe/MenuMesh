@@ -5,6 +5,7 @@
  */
 
 #include "CliCsv.h"
+#include "CliArguments.h"
 #include "CliOptionBinding.h"
 #include "core/Filesystem.h"
 
@@ -60,6 +61,11 @@ TEST(CliOptionBinding, IndustrialSafeProvidesLocalErrorRatioWhenUnset) {
     EXPECT_DOUBLE_EQ(0.02, options.maxLocalErrorRatio);
 }
 
+TEST(CliArguments, EmptyValueTokenIsNotTreatedAsAnOmittedOption) {
+    const manumesh::cli::Args args = makeArgs({"--memory-mib", ""});
+    EXPECT_THROW(manumesh::cli::validateArgsForCommand("large-validate", args), std::invalid_argument);
+}
+
 TEST(CliOptionBinding, IndustrialSafePreservesStricterLocalErrorRatio) {
     const manumesh::simplification::SimplifyOptions options = parseIndustrialSafeRatio("0.005");
 
@@ -113,6 +119,24 @@ TEST(CliOptionBinding, ProfilesSelectExpectedFeatureEvidence) {
         manumesh::cli::parseFeatureOptions(makeArgs({"--profile", "smooth"}));
     EXPECT_FALSE(smooth.useNormalTensorFeatures);
     EXPECT_TRUE(smooth.useSmoothCurvatureFeatures);
+}
+
+TEST(CliOptionBinding, ExecutionDefaultsToSerialAndBindsExplicitThreadLimit) {
+    const manumesh::ExecutionOptions serial = manumesh::cli::parseExecutionOptions(makeArgs({}));
+    EXPECT_EQ(manumesh::ExecutionMode::Serial, serial.mode);
+    EXPECT_EQ(0, serial.maxConcurrency);
+
+    const manumesh::ExecutionOptions oneThread =
+        manumesh::cli::parseExecutionOptions(makeArgs({"--threads", "1"}));
+    EXPECT_EQ(manumesh::ExecutionMode::Parallel, oneThread.mode);
+    EXPECT_EQ(1, oneThread.maxConcurrency);
+}
+
+TEST(CliOptionBinding, RejectsNegativeThreadLimit) {
+    EXPECT_THROW(
+        static_cast<void>(manumesh::cli::parseExecutionOptions(makeArgs({"--threads", "-1"}))),
+        std::invalid_argument
+    );
 }
 
 TEST(CliOptionBinding, ExplicitFeatureFlagsOverrideProfile) {

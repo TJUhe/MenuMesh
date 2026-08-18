@@ -12,6 +12,7 @@
 
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "common/detail/MeshQueries.h"
+#include "common/detail/ParallelExecution.h"
 #include "detail/CollapseTopology.h"
 #include "detail/FeatureConstraints.h"
 #include "detail/FeatureGuidance.h"
@@ -32,19 +33,35 @@ namespace manumesh {
 namespace simplification {
 
 SimplificationRun::SimplificationRun(const Mesh& input, const SimplifyOptions& options)
-    : SimplificationRun(input, options, nullptr) {}
+    : SimplificationRun(input, options, nullptr, ExecutionOptions{}) {}
+
+SimplificationRun::SimplificationRun(
+    const Mesh& input, const SimplifyOptions& options, const ExecutionOptions& executionOptions
+)
+    : SimplificationRun(input, options, nullptr, executionOptions) {}
 
 SimplificationRun::SimplificationRun(
     const Mesh& input, const SimplifyOptions& options, const feature::FeatureAnalysis* features
 )
+    : SimplificationRun(input, options, features, ExecutionOptions{}) {}
+
+SimplificationRun::SimplificationRun(
+    const Mesh& input,
+    const SimplifyOptions& options,
+    const feature::FeatureAnalysis* features,
+    const ExecutionOptions& executionOptions
+)
     : input_(input),
       options_(options),
+      executionOptions_(executionOptions),
       precomputedFeatures_(features),
       featureAnalysis_(features),
       policies_(SimplificationPolicies::fromOptions(options)),
       quadrics_(options),
       featurePolicy_(options),
-      textureProtection_(input, options) {}
+      textureProtection_(input, options) {
+    validateExecutionOptions(executionOptions_);
+}
 
 Mesh SimplificationRun::execute(SimplifyReport* outReport) {
     initializeReport();
@@ -126,7 +143,7 @@ void SimplificationRun::analyzeFeatures() {
 
     if (featureAnalysis_ == nullptr) {
         ownedFeatureAnalysis_ = std::make_unique<feature::FeatureAnalysis>(
-            feature::detectFeatureCurves(input_, policies_.features.options)
+            feature::detectFeatureCurves(input_, policies_.features.options, executionOptions_)
         );
         featureAnalysis_ = ownedFeatureAnalysis_.get();
     }
@@ -145,15 +162,23 @@ void SimplificationRun::initializeVertices() {
     boundaryVertices_ = common::computeBoundaryVertices(input_);
     primitiveFits_ = featureGuidance_.primitiveFits;
     vertices_.assign(input_.vertices.size(), VertexState{});
-    for (int i = 0; i < static_cast<int>(input_.vertices.size()); ++i) {
-        vertices_[i].p = input_.vertices[i];
-        vertices_[i].q = initialQuadrics.quadrics[i];
-        if (i < static_cast<int>(initialQuadrics.priorityScales.size())) {
-            vertices_[i].priorityScale = initialQuadrics.priorityScales[i];
+    common::parallel::forEachRange(
+        0,
+        input_.vertices.size(),
+        common::parallel::makeRangeExecutionOptions(executionOptions_),
+        [&](std::size_t begin, std::size_t end) {
+            for (std::size_t vertexId = begin; vertexId < end; ++vertexId) {
+                VertexState& vertex = vertices_[vertexId];
+                vertex.p = input_.vertices[vertexId];
+                vertex.q = initialQuadrics.quadrics[vertexId];
+                if (vertexId < initialQuadrics.priorityScales.size()) {
+                    vertex.priorityScale = initialQuadrics.priorityScales[vertexId];
+                }
+                vertex.isBoundary = vertexId < boundaryVertices_.size() && boundaryVertices_[vertexId] != 0;
+                initializeVertexFeature(static_cast<int>(vertexId));
+            }
         }
-        vertices_[i].isBoundary = i < static_cast<int>(boundaryVertices_.size()) && boundaryVertices_[i] != 0;
-        initializeVertexFeature(i);
-    }
+    );
 
     activeLoopCounts_.clear();
     if (!featureGuidance_.enabled) {
@@ -203,9 +228,16 @@ void SimplificationRun::initializeVertexFeature(int vertexId) {
 
 void SimplificationRun::initializeFaces() {
     faces_.assign(input_.faces.size(), FaceState{});
-    for (int i = 0; i < static_cast<int>(input_.faces.size()); ++i) {
-        faces_[i].v = input_.faces[i].v;
-    }
+    common::parallel::forEachRange(
+        0,
+        input_.faces.size(),
+        common::parallel::makeRangeExecutionOptions(executionOptions_),
+        [&](std::size_t begin, std::size_t end) {
+            for (std::size_t faceId = begin; faceId < end; ++faceId) {
+                faces_[faceId].v = input_.faces[faceId].v;
+            }
+        }
+    );
     faceTexCoords_ = input_.faceTexCoords;
     topology_ = std::make_unique<DynamicTopology>(faces_, static_cast<int>(vertices_.size()));
     activeFaceCount_ = static_cast<int>(faces_.size());
@@ -233,12 +265,26 @@ void SimplificationRun::initializeBudget() {
 }
 
 void SimplificationRun::rebuildQueue() {
-    queue_.clear();
+    const std::vector<std::pair<int, int>> edges = collectActiveEdges(faces_);
+    std::vector<Candidate> candidates(edges.size());
+    std::vector<char> midpointProtected(edges.size(), 0);
+    common::parallel::forEachRange(
+        0,
+        edges.size(),
+        common::parallel::makeRangeExecutionOptions(executionOptions_),
+        [&](std::size_t begin, std::size_t end) {
+            for (std::size_t edgeId = begin; edgeId < end; ++edgeId) {
+                const PreparedEdgeCandidate prepared =
+                    prepareEdgeCandidate(edges[edgeId].first, edges[edgeId].second);
+                candidates[edgeId] = prepared.candidate;
+                midpointProtected[edgeId] = prepared.midpointProtected ? 1 : 0;
+            }
+        }
+    );
+    queue_.rebuild(std::move(candidates));
     int textureProtectedEdges = 0;
-    for (const auto& pairEntry : collectActiveEdges(faces_)) {
-        const int a = pairEntry.first;
-        const int b = pairEntry.second;
-        if (pushEdgeCandidate(a, b)) {
+    for (char protectedEdge : midpointProtected) {
+        if (protectedEdge) {
             ++textureProtectedEdges;
         }
     }
@@ -252,14 +298,21 @@ void SimplificationRun::rebuildQueue() {
 }
 
 bool SimplificationRun::pushEdgeCandidate(int a, int b) {
+    const PreparedEdgeCandidate prepared = prepareEdgeCandidate(a, b);
+    queue_.pushCandidate(prepared.candidate);
+    return prepared.midpointProtected;
+}
+
+SimplificationRun::PreparedEdgeCandidate SimplificationRun::prepareEdgeCandidate(int a, int b) const {
+    PreparedEdgeCandidate prepared;
     if (a == b) {
-        return false;
+        return prepared;
     }
     // 端点按规范顺序排列，使缓存的放置列表与弹出时折叠尝试重新求解的列表完全一致。
     const int first = std::min(a, b);
     const int second = std::max(a, b);
     if (!vertices_[first].active || !vertices_[second].active) {
-        return false;
+        return prepared;
     }
     const Mat4 q = vertices_[first].q + vertices_[second].q;
     const std::vector<SolveResult> placements = solvePlacementCandidates(q, vertices_[first].p, vertices_[second].p);
@@ -317,8 +370,22 @@ bool SimplificationRun::pushEdgeCandidate(int a, int b) {
             textureCost = std::max(0.0, bestCombinedCost - placements.front().cost);
         }
     }
-    queue_.pushEdge(first, second, vertices_, placements, textureCost);
-    return midpointProtected;
+    if (!placements.empty() && std::isfinite(textureCost)) {
+        const double priorityScale = std::max(vertices_[first].priorityScale, vertices_[second].priorityScale);
+        prepared.candidate.cost = placements.front().cost * priorityScale + textureCost;
+        prepared.candidate.a = first;
+        prepared.candidate.b = second;
+        prepared.candidate.versionA = vertices_[first].version;
+        prepared.candidate.versionB = vertices_[second].version;
+        prepared.candidate.placementCount = std::min(
+            static_cast<int>(prepared.candidate.placements.size()), static_cast<int>(placements.size())
+        );
+        for (int i = 0; i < prepared.candidate.placementCount; ++i) {
+            prepared.candidate.placements[static_cast<std::size_t>(i)] = placements[static_cast<std::size_t>(i)];
+        }
+    }
+    prepared.midpointProtected = midpointProtected;
+    return prepared;
 }
 
 void SimplificationRun::collapseUntilTarget() {

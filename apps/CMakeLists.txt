@@ -10,6 +10,8 @@ add_executable(manumesh
   ManuMeshCommands.cpp
   ManuMeshFeatureCommands.cpp
   ManuMeshFeatureCommands.h
+  ManuMeshLargeMeshCommands.cpp
+  ManuMeshLargeMeshCommands.h
   ManuMeshWorkflowCommands.cpp
   ManuMeshWorkflowCommands.h
   main.cpp
@@ -67,6 +69,12 @@ if(BUILD_TESTING)
       "-DINPUT_MESH:FILEPATH=${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/boss_pocket_plate.obj"
       "-DOUTPUT_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/cli_argument_contracts"
       -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckCliContracts.cmake"
+  )
+  add_test(NAME manumesh_cli_large_mesh_commands
+    COMMAND "${CMAKE_COMMAND}"
+      "-DMANUMESH_EXECUTABLE:FILEPATH=$<TARGET_FILE:manumesh>"
+      "-DOUTPUT_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/cli_large_mesh"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckLargeMeshCommands.cmake"
   )
   add_test(NAME manumesh_cli_sweep_outputs
     COMMAND "${CMAKE_COMMAND}"
@@ -126,6 +134,7 @@ if(BUILD_TESTING)
     manumesh_cli_simplify_smooth_curvature
     manumesh_cli_sweep_standard_method
     manumesh_cli_argument_contracts
+    manumesh_cli_large_mesh_commands
     manumesh_cli_sweep_outputs
     manumesh_cli_unicode_output
     manumesh_cli_version

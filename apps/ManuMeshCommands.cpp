@@ -12,6 +12,7 @@
 #include "CliOptionBinding.h"
 #include "CliPath.h"
 #include "ManuMeshFeatureCommands.h"
+#include "ManuMeshLargeMeshCommands.h"
 #include "ManuMeshWorkflowCommands.h"
 #include "algorithms/analysis/MeshAnalysis.h"
 #include "algorithms/simplification/QEMSimplifier.h"
@@ -333,6 +334,7 @@ int commandSimplify(const Args& args) {
 
     manumesh::simplification::SimplifyReport report;
     manumesh::simplification::QEMSimplifier simplifier(options);
+    simplifier.setExecutionOptions(parseExecutionOptions(args));
     manumesh::Mesh output = simplifier.simplify(input, &report);
     if (!manumesh::saveBinaryStl(positional[1], output, &error)) {
         throw std::runtime_error(error);
@@ -555,6 +557,7 @@ int commandSweep(const Args& args) {
 
         manumesh::simplification::SimplifyReport report;
         manumesh::simplification::QEMSimplifier simplifier(options);
+        simplifier.setExecutionOptions(parseExecutionOptions(args));
         manumesh::Mesh output = simplifier.simplify(input, &report);
         const std::string method = options.useLineQuadrics ? "line" : "standard";
         const std::string label = method + "_w_" + sanitizeWeight(weight);
@@ -641,6 +644,7 @@ int commandRatioSweep(const Args& args) {
 
         manumesh::simplification::SimplifyReport report;
         manumesh::simplification::QEMSimplifier simplifier(options);
+        simplifier.setExecutionOptions(parseExecutionOptions(args));
         manumesh::Mesh output = simplifier.simplify(input, &report);
         const std::string method = options.useLineQuadrics ? "line" : "standard";
         const std::string label = method + "_r_" + sanitizeRatio(ratio) + "_w_" +
@@ -721,6 +725,7 @@ int commandFaceSweep(const Args& args) {
 
         manumesh::simplification::SimplifyReport report;
         manumesh::simplification::QEMSimplifier simplifier(options);
+        simplifier.setExecutionOptions(parseExecutionOptions(args));
         manumesh::Mesh output = simplifier.simplify(input, &report);
         const std::string method = options.useLineQuadrics ? "line" : "standard";
         const std::string label = method + "_f_" + std::to_string(targetFaces) + "_w_" +
@@ -766,6 +771,8 @@ const std::map<std::string, manumesh::cli::CommandHandler>& registeredCommands()
         {"feature-compare", manumesh::cli::feature_commands::compare},
         {"feature-report", manumesh::cli::feature_commands::report},
         {"generate", commandGenerate},
+        {"large-import", manumesh::cli::large_mesh_commands::importDataset},
+        {"large-validate", manumesh::cli::large_mesh_commands::validateDataset},
         {"ratio-sweep", commandRatioSweep},
         {"simplify", commandSimplify},
         {"summarize-metrics", commandSummarizeMetrics},

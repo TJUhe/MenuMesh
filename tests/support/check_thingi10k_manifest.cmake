@@ -1,0 +1,105 @@
+# Validate the optional Thingi10K fixture manifest without requiring a JSON
+# dependency in the C++ test binary. CMake's versioned JSON command is part of
+# the minimum supported CMake toolchain. On success, emit a small, generated
+# fixture index consumed by the streaming test; this keeps JSON ownership in
+# the CMake/support layer and prevents the test from guessing inputs by name.
+
+if(NOT DEFINED MANUMESH_THINGI10K_DIR OR "${MANUMESH_THINGI10K_DIR}" STREQUAL "")
+  message(FATAL_ERROR "MANUMESH_THINGI10K_DIR is required.")
+endif()
+
+if(NOT DEFINED MANUMESH_THINGI10K_INDEX OR "${MANUMESH_THINGI10K_INDEX}" STREQUAL "")
+  set(MANUMESH_THINGI10K_INDEX "${MANUMESH_THINGI10K_DIR}/manifest.index")
+endif()
+set(manifest_index_tmp "${MANUMESH_THINGI10K_INDEX}.tmp")
+file(REMOVE "${MANUMESH_THINGI10K_INDEX}" "${manifest_index_tmp}")
+
+set(manifest "${MANUMESH_THINGI10K_DIR}/manifest.json")
+if(NOT EXISTS "${manifest}")
+  message(STATUS "Thingi10K manifest is absent; optional large fixtures are not installed.")
+  return()
+endif()
+
+file(READ "${manifest}" manifest_json)
+string(JSON model_count ERROR_VARIABLE json_error LENGTH "${manifest_json}" models)
+if(NOT "${json_error}" STREQUAL "NOTFOUND")
+  message(FATAL_ERROR "Unable to read Thingi10K manifest models array: ${json_error}")
+endif()
+
+if(model_count LESS 1)
+  message(FATAL_ERROR "Thingi10K manifest contains no models.")
+endif()
+
+set(seen_files)
+set(manifest_records)
+math(EXPR last_index "${model_count} - 1")
+foreach(index RANGE 0 ${last_index})
+  string(JSON model_path ERROR_VARIABLE json_error GET "${manifest_json}" models ${index} path)
+  if(NOT "${json_error}" STREQUAL "NOTFOUND")
+    message(FATAL_ERROR "Manifest model ${index} has no path: ${json_error}")
+  endif()
+  string(JSON model_faces ERROR_VARIABLE json_error GET "${manifest_json}" models ${index} faces)
+  if(NOT "${json_error}" STREQUAL "NOTFOUND")
+    message(FATAL_ERROR "Manifest model ${index} has no face count: ${json_error}")
+  endif()
+  if(NOT "${model_faces}" MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "Manifest model ${index} has a non-numeric face count: ${model_faces}")
+  endif()
+  string(JSON expected_hash ERROR_VARIABLE json_error GET "${manifest_json}" models ${index} sha256)
+  if(NOT "${json_error}" STREQUAL "NOTFOUND")
+    message(FATAL_ERROR "Manifest model ${index} has no SHA-256: ${json_error}")
+  endif()
+
+  get_filename_component(filename "${model_path}" NAME)
+  list(FIND seen_files "${filename}" duplicate_index)
+  if(NOT duplicate_index EQUAL -1)
+    message(FATAL_ERROR "Manifest contains duplicate fixture filename: ${filename}")
+  endif()
+  list(APPEND seen_files "${filename}")
+
+  set(model_file "${MANUMESH_THINGI10K_DIR}/${filename}")
+  if(NOT EXISTS "${model_file}")
+    message(FATAL_ERROR "Manifest fixture is missing: ${model_file}")
+  endif()
+  file(SHA256 "${model_file}" actual_hash)
+  if(NOT "${actual_hash}" STREQUAL "${expected_hash}")
+    message(FATAL_ERROR
+      "SHA-256 mismatch for ${filename}: expected ${expected_hash}, got ${actual_hash}"
+    )
+  endif()
+  if(NOT filename MATCHES "^thingi10k_[0-9]+_[0-9]+_faces\\.stl$")
+    message(FATAL_ERROR "Manifest fixture filename is not in the stable large-fixture form: ${filename}")
+  endif()
+  list(APPEND manifest_records "${filename}|${model_faces}|${expected_hash}")
+  message(STATUS "verified ${filename} (${model_faces} faces, ${actual_hash})")
+endforeach()
+
+# The C++ test must consume exactly the files declared by the manifest. Keep
+# derived STL benchmark outputs allowed, but reject any additional file that
+# matches the stable large-fixture naming contract.
+file(GLOB directory_stl_files LIST_DIRECTORIES false "${MANUMESH_THINGI10K_DIR}/*.stl")
+foreach(directory_stl IN LISTS directory_stl_files)
+  get_filename_component(directory_filename "${directory_stl}" NAME)
+  if(directory_filename MATCHES "^thingi10k_[0-9]+_[0-9]+_faces\\.stl$")
+    list(FIND seen_files "${directory_filename}" listed_index)
+    if(listed_index EQUAL -1)
+      message(FATAL_ERROR "Large fixture is present but absent from manifest: ${directory_filename}")
+    endif()
+  endif()
+endforeach()
+
+get_filename_component(manifest_index_directory "${MANUMESH_THINGI10K_INDEX}" DIRECTORY)
+if(NOT "${manifest_index_directory}" STREQUAL "")
+  file(MAKE_DIRECTORY "${manifest_index_directory}")
+endif()
+file(WRITE "${manifest_index_tmp}" "# ManuMesh Thingi10K fixture index v1\n")
+file(APPEND "${manifest_index_tmp}" "# filename\tfaces\tsha256\n")
+foreach(record IN LISTS manifest_records)
+  string(REPLACE "|" ";" record_fields "${record}")
+  list(GET record_fields 0 record_filename)
+  list(GET record_fields 1 record_faces)
+  list(GET record_fields 2 record_hash)
+  file(APPEND "${manifest_index_tmp}" "${record_filename}\t${record_faces}\t${record_hash}\n")
+endforeach()
+file(RENAME "${manifest_index_tmp}" "${MANUMESH_THINGI10K_INDEX}")
+message(STATUS "wrote exact Thingi10K fixture index: ${MANUMESH_THINGI10K_INDEX}")

@@ -60,10 +60,20 @@ auto output = simplifier.simplify(input, &report);
 
 ### 2. CLI 兼容性
 
+CLI 的默认入口先使用 `--profile default|cad|scan|smooth` 构造 `FeatureOptions` 或
+`SimplifyConfig`，再只应用命令行中显式提供的字段。这样 profile 与 SDK 使用相同的配置契约，
+同时仍允许高级用户精确覆盖任意公开阈值。`--print-resolved-config` 必须显示转换后的有效配置，
+不能只回显原始 token。
+
+profile/CLI 的检测默认采用 `FeatureOptions` 的 8 顶点环阈值；直接构造的旧平面
+`SimplifyOptions{}`、`SimplifyConfig{}` 和 C ABI 初始化继续保留 16，以避免 0.x SDK 的结果静默漂移。
+
 0.x 保持已有 CLI 语义：`--smooth-curvature-features`、`--feature-normal-filter` 和
 `--feature-graph-consolidation` 会自动开启 `--preserve-feature-curves` 对应的简化保护；
-单独给出这些通道的数值调节参数仍遵循既有解析结果，不新增报错。未来如需更严格的
-显式模式，应以新命令或显式版本开关引入，不能改变已发布命令的默认含义。
+`--no-preserve-feature-curves` 是新的显式退出方式。单独给出这些通道的数值调节参数仍不新增
+硬错误，但 CLI 必须警告未启用通道的子参数、目标/误差单位冲突、失效的 line-quadric 权重和仅用于
+报告的 component-confidence 阈值。未来如需更严格的显式模式，应以新命令或显式版本开关引入，不能改变
+已发布命令的默认含义。
 
 ### 3. C ABI 边界
 

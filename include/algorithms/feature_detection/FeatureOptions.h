@@ -69,6 +69,7 @@ struct FeatureOptions {
     /// 弱特征分类所需的最小张量显著性分数。
     double normalTensorFeatureThreshold = 0.16;
     /// 接受张量推导边证据所需的最小边/切线对齐度。
+    /// 两个软端点都必须通过此阈值；离散强特征端点按对齐度 1.0 处理。
     double normalTensorMinEdgeAlignment = 0.45;
     /// 多尺度评分前的逐顶点张量一环平滑次数。
     /// 有效范围：[0, kMaxNormalTensorSmoothingIterations]。
@@ -112,6 +113,7 @@ struct FeatureOptions {
     /// 旧版按边数清理规则会移除的最大弱证据（法向张量或平滑曲率）spur 长度。
     int featureGraphMaxWeakSpurEdges = 2;
     /// 报告高置信度组件时使用的置信度阈值。
+    /// 该值不筛除特征边、环或简化保护，只改变报告中的高置信度计数。
     double featureComponentMinConfidence = 0.35;
     /// 用于移除弱 spur 的无量纲 Yoshizawa 风格强度阈值。
     ///
@@ -127,6 +129,51 @@ struct FeatureOptions {
     FeatureGraphConsolidationOptions graphConsolidation;
     SurfacePatchOptions surfacePatches;
 };
+
+/**
+ * @brief 面向常见网格来源的特征检测设置。
+ *
+ * profile 只选择已经由 `FeatureOptions` 支持的确定性证据路径。调用方可在
+ * `makeFeatureOptions` 返回后覆盖任何字段；profile 不会隐式锁定参数。
+ */
+enum class FeatureProfile {
+    /// 保持 FeatureOptions 的通用默认设置。
+    Default,
+    /// 干净 CAD/STL：以二面角、环恢复和几何基元拟合为主。
+    Cad,
+    /// 含噪扫描：先稳定面法向，再使用多尺度法向张量证据。
+    NoisyScan,
+    /// 光滑自由曲面：使用多尺度局部 quadric 脊/谷证据。
+    SmoothSurface,
+};
+
+/**
+ * @brief 创建一个可按字段继续调整的特征检测 profile。
+ *
+ * `Default` 与直接默认构造 `FeatureOptions` 保持一致。其余 profile 仅修改
+ * 适用于相应网格来源的证据通道，避免将扫描和光滑曲面算法隐式加入 CAD 工作流。
+ */
+inline FeatureOptions makeFeatureOptions(FeatureProfile profile) noexcept {
+    FeatureOptions options;
+    switch (profile) {
+    case FeatureProfile::Default:
+        break;
+    case FeatureProfile::Cad:
+        options.useNormalTensorFeatures = false;
+        break;
+    case FeatureProfile::NoisyScan:
+        options.normalFilter.enabled = true;
+        options.normalTensorSmoothingIterations = 1;
+        options.normalTensorScaleCount = 3;
+        options.normalTensorMinPersistentScales = 2;
+        break;
+    case FeatureProfile::SmoothSurface:
+        options.useNormalTensorFeatures = false;
+        options.useSmoothCurvatureFeatures = true;
+        break;
+    }
+    return options;
+}
 
 /// Tsuchie-Higashi 风格法向张量特征评分参数。
 struct NormalTensorOptions {

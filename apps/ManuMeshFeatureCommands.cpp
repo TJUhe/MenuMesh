@@ -35,24 +35,14 @@ namespace feature_commands {
 
 using manumesh::cli::pathFromUtf8;
 using manumesh::cli::pathToUtf8;
+using manumesh::cli::pathsReferToSameLocation;
+using manumesh::cli::AtomicCsvOutput;
 
-static std::ofstream openOutputCsv(const fs::path& path) {
-    std::ofstream stream(path, std::ios::out | std::ios::trunc);
-    if (!stream) {
-        throw std::runtime_error("Cannot open CSV output: " + pathToUtf8(path));
-    }
-    stream.imbue(std::locale::classic());
-    return stream;
-}
-
-static void finishOutputCsv(std::ofstream& stream, const fs::path& path) {
-    stream.flush();
-    if (!stream) {
-        throw std::runtime_error("Failed to write CSV output: " + pathToUtf8(path));
-    }
-    stream.close();
-    if (!stream) {
-        throw std::runtime_error("Failed to finalize CSV output: " + pathToUtf8(path));
+static void requireCsvDoesNotAlias(
+    const fs::path& output, const fs::path& protectedPath, const char* protectedLabel
+) {
+    if (pathsReferToSameLocation(output, protectedPath)) {
+        throw std::invalid_argument(std::string("--csv must not overwrite ") + protectedLabel + ".");
     }
 }
 
@@ -80,8 +70,22 @@ static int countPrimitiveLoops(
 
 int report(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.empty()) {
-        throw std::invalid_argument("feature-report requires input.stl.");
+    if (positional.size() != 1) {
+        throw std::invalid_argument("feature-report requires exactly one input.stl path.");
+    }
+
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const std::string csvPath = getArg(args, "--csv");
+    const fs::path csvOutput = csvPath.empty() ? fs::path() : pathFromUtf8(csvPath);
+    if (!csvPath.empty()) {
+        requireCsvDoesNotAlias(csvOutput, inputPath, "the input mesh");
+    }
+
+    const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
+    manumesh::feature::validateFeatureOptions(options);
+    emitOptionWarnings(args, options, false, std::cerr);
+    if (hasFlag(args, "--print-resolved-config")) {
+        std::cout << formatResolvedFeatureOptions(args, options);
     }
 
     manumesh::Mesh input;
@@ -89,8 +93,6 @@ int report(const Args& args) {
     if (!manumesh::loadMesh(positional[0], input, &error)) {
         throw std::runtime_error(error);
     }
-
-    const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
     const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, options);
     const int circularLoops = countCircularLoops(analysis);
     const int circleLoops = countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::Circle);
@@ -146,13 +148,13 @@ int report(const Args& args) {
         std::cout << manumesh::feature::featureLoopRowCsv(loop) << "\n";
     }
 
-    const std::string csvPath = getArg(args, "--csv");
     if (!csvPath.empty()) {
-        const fs::path output = pathFromUtf8(csvPath);
+        const fs::path& output = csvOutput;
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv = openOutputCsv(output);
+        AtomicCsvOutput csvFile(output);
+        std::ofstream& csv = csvFile.stream();
         csv << "feature_edges,traced_edges,untraced_edges,boundary_edges,"
                "dihedral_edges,normal_tensor_edges,smooth_curvature_edges,non_manifold_edges,"
                "feature_components,weak_feature_components,"
@@ -199,7 +201,7 @@ int report(const Args& args) {
         for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
             csv << manumesh::feature::featureLoopRowCsv(loop) << "\n";
         }
-        finishOutputCsv(csv, output);
+        csvFile.commit();
     }
     return 0;
 }
@@ -293,9 +295,21 @@ readFeatureBenchmarkLabels(const fs::path& path, manumesh::feature::FeatureBench
 
 int benchmark(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.size() < 2) {
-        throw std::invalid_argument("feature-benchmark requires input.stl labels.csv.");
+    if (positional.size() != 2) {
+        throw std::invalid_argument("feature-benchmark requires exactly input.stl labels.csv.");
     }
+
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const fs::path labelsPath = pathFromUtf8(positional[1]);
+    const std::string csvPath = getArg(args, "--csv");
+    const fs::path csvOutput = csvPath.empty() ? fs::path() : pathFromUtf8(csvPath);
+    if (!csvPath.empty()) {
+        requireCsvDoesNotAlias(csvOutput, inputPath, "the input mesh");
+        requireCsvDoesNotAlias(csvOutput, labelsPath, "the label CSV");
+    }
+
+    manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
+    manumesh::feature::validateFeatureOptions(options);
 
     manumesh::Mesh input;
     std::string error;
@@ -304,11 +318,14 @@ int benchmark(const Args& args) {
     }
 
     manumesh::feature::FeatureBenchmarkLabels labels;
-    readFeatureBenchmarkLabels(pathFromUtf8(positional[1]), labels, static_cast<int>(input.faces.size()));
+    readFeatureBenchmarkLabels(labelsPath, labels, static_cast<int>(input.faces.size()));
 
-    manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
     if (!labels.facePatchIds.empty()) {
         options.surfacePatches.enabled = true;
+    }
+    emitOptionWarnings(args, options, false, std::cerr);
+    if (hasFlag(args, "--print-resolved-config")) {
+        std::cout << formatResolvedFeatureOptions(args, options);
     }
     const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, options);
     const manumesh::feature::FeatureEdgeBenchmark benchmark =
@@ -339,23 +356,39 @@ int benchmark(const Args& args) {
         << benchmark.correctFaceAdjacencies << "," << benchmark.patchAdjacencyAccuracy;
 
     std::cout << header << "\n" << row.str() << "\n";
-    const std::string csvPath = getArg(args, "--csv");
     if (!csvPath.empty()) {
-        const fs::path output = pathFromUtf8(csvPath);
+        const fs::path& output = csvOutput;
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv = openOutputCsv(output);
+        AtomicCsvOutput csvFile(output);
+        std::ofstream& csv = csvFile.stream();
         csv << header << "\n" << row.str() << "\n";
-        finishOutputCsv(csv, output);
+        csvFile.commit();
     }
     return 0;
 }
 
 int compare(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.size() < 2) {
-        throw std::invalid_argument("feature-compare requires original.stl simplified.stl.");
+    if (positional.size() != 2) {
+        throw std::invalid_argument("feature-compare requires exactly original.stl simplified.stl.");
+    }
+
+    const fs::path originalPath = pathFromUtf8(positional[0]);
+    const fs::path simplifiedPath = pathFromUtf8(positional[1]);
+    const std::string csvPath = getArg(args, "--csv");
+    const fs::path csvOutput = csvPath.empty() ? fs::path() : pathFromUtf8(csvPath);
+    if (!csvPath.empty()) {
+        requireCsvDoesNotAlias(csvOutput, originalPath, "the original mesh");
+        requireCsvDoesNotAlias(csvOutput, simplifiedPath, "the simplified mesh");
+    }
+
+    const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
+    manumesh::feature::validateFeatureOptions(options);
+    emitOptionWarnings(args, options, false, std::cerr);
+    if (hasFlag(args, "--print-resolved-config")) {
+        std::cout << formatResolvedFeatureOptions(args, options);
     }
 
     manumesh::Mesh original;
@@ -368,7 +401,6 @@ int compare(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
     const manumesh::feature::FeatureAnalysis originalFeatures =
         manumesh::feature::detectFeatureCurves(original, options);
     const manumesh::feature::FeatureAnalysis simplifiedFeatures =
@@ -398,18 +430,18 @@ int compare(const Args& args) {
               << " matched=" << matchReport.matchedLoops << " missing=" << matchReport.missingLoops << "\n";
     std::cout << header << "\n" << rows.str();
 
-    const std::string csvPath = getArg(args, "--csv");
     if (!csvPath.empty()) {
-        const fs::path output = pathFromUtf8(csvPath);
+        const fs::path& output = csvOutput;
         if (output.has_parent_path()) {
             fs::create_directories(output.parent_path());
         }
-        std::ofstream csv = openOutputCsv(output);
+        AtomicCsvOutput csvFile(output);
+        std::ofstream& csv = csvFile.stream();
         csv << "original_circular_loops,simplified_circular_loops,matched,missing\n";
         csv << matchReport.originalCircularLoops << "," << matchReport.simplifiedCircularLoops << ","
             << matchReport.matchedLoops << "," << matchReport.missingLoops << "\n\n";
         csv << header << "\n" << rows.str();
-        finishOutputCsv(csv, output);
+        csvFile.commit();
     }
     return 0;
 }

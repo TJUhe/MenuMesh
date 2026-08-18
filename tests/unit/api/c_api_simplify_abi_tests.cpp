@@ -586,6 +586,26 @@ TEST(CApiSimplifyOptionsConverter, UsesCppDefaultsWhenTextureTailIsAbsent) {
     EXPECT_DOUBLE_EQ(defaults.minTextureAreaRatio, actual.minTextureAreaRatio);
 }
 
+TEST(CApiSimplifyOptionsConverter, KeepsLegacyFlatLoopDefaultButAllowsFeatureOverrideDefault) {
+    ManuMeshSimplifyOptions source;
+    manumesh_simplify_options_init(&source);
+
+    manumesh::simplification::SimplifyOptions actual;
+    std::string error;
+    ASSERT_TRUE(manumesh::api::readSimplifyOptions(source, actual, error)) << error;
+    EXPECT_EQ(16, source.min_feature_loop_vertices);
+    EXPECT_EQ(16, actual.minFeatureLoopVertices);
+    EXPECT_FALSE(actual.featureOptionsOverride.has_value());
+
+    ManuMeshFeatureOptions featureOptions;
+    manumesh_feature_options_init(&featureOptions);
+    source.feature_options = &featureOptions;
+    ASSERT_TRUE(manumesh::api::readSimplifyOptions(source, actual, error)) << error;
+    ASSERT_TRUE(actual.featureOptionsOverride.has_value());
+    EXPECT_EQ(8, featureOptions.min_feature_loop_vertices);
+    EXPECT_EQ(8, actual.featureOptionsOverride->minFeatureLoopVertices);
+}
+
 TEST(CApiSimplifyReportConverter, MapsTextureProtectionDiagnostics) {
     manumesh::simplification::SimplifyReport source;
     source.qualityRefinementSkippedForTexture = true;
@@ -1082,6 +1102,9 @@ TEST_F(CApiTest, InitializesPrimitiveFitOptions) {
     EXPECT_DOUBLE_EQ(0.08, options.near_circle_axis_ratio_tolerance);
     EXPECT_DOUBLE_EQ(-1.0, options.loop_trace_angle_deg);
     EXPECT_DOUBLE_EQ(0.0, options.max_feature_curve_deviation_ratio);
+    // The flat C ABI is a published 0.x compatibility boundary.  Keep its
+    // legacy default at 16; feature/profile APIs explicitly use 8.
+    EXPECT_EQ(16, options.min_feature_loop_vertices);
     EXPECT_EQ(6, options.min_circular_feature_loop_vertices);
     EXPECT_EQ(nullptr, options.feature_options);
     EXPECT_EQ(0, options.preserve_boundary);

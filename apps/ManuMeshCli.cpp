@@ -29,15 +29,20 @@ void printUsage() {
               << "  manumesh feature-report input.stl [--csv report.csv]\n"
               << "  manumesh feature-benchmark input.stl labels.csv [--csv report.csv]\n"
               << "  manumesh feature-compare original.stl simplified.stl [--csv report.csv]\n"
-              << "  manumesh sweep input.stl out_dir [options]\n\n"
-              << "  manumesh ratio-sweep input.stl out_dir [options]\n\n"
-              << "  manumesh face-sweep input.stl out_dir [options]\n\n"
+              << "  manumesh sweep input.stl out_dir [--weights list] [options]\n"
+              << "  manumesh ratio-sweep input.stl out_dir [--ratios list] [options]\n"
+              << "  manumesh face-sweep input.stl out_dir [--faces list] [options]\n\n"
               << "  manumesh demo [--quick] [--samples N]\n\n"
               << "  manumesh summarize-metrics [output_root] [summary.csv]\n\n"
               << "  manumesh validate-features [--ratio R] [--samples N] "
                  "[--input-dir dir] [--output-dir dir]\n\n"
               << "  manumesh validate-external [--input-dir dir] [--ratio R] "
                  "[--output-dir dir]\n";
+    std::cout << "\n推荐起点：\n"
+              << "  CAD/STL：  manumesh simplify input.stl output.stl --profile cad --ratio 0.25\n"
+              << "  扫描网格： manumesh simplify input.stl output.stl --profile scan --ratio 0.5\n"
+              << "  平滑曲面： manumesh simplify input.stl output.stl --profile smooth --ratio 0.5\n"
+              << "  使用 --print-resolved-config 查看档案和显式覆盖后的有效配置\n";
     std::cout << optionsHelpText();
     std::cout << "\n版本选项：\n"
               << "  --version                             显示 ManuMesh 版本\n";
@@ -45,6 +50,10 @@ void printUsage() {
               << "  plane, clustered-plane, hole-plane, ridge, noisy-plane,\n"
               << "  sine-terrain, terrace, bump, cylinder, torus, cube, thin-fin,\n"
               << "  stepped-shaft, pipe-coupling, pulley\n";
+}
+
+void printUsageHint() {
+    std::cerr << "使用 manumesh --help 查看命令用法和可用选项。\n";
 }
 
 } // 命名空间
@@ -80,12 +89,12 @@ int run(int argc, const char* const* argv) {
         validateArgsForCommand(command, args);
         return it->second(args);
     } catch (const std::exception& e) {
-        std::cerr << "error: " << e.what() << "\n\n";
-        printUsage();
+        std::cerr << "error: " << e.what() << "\n";
+        printUsageHint();
         return 1;
     } catch (...) {
-        std::cerr << "error: unknown fatal error\n\n";
-        printUsage();
+        std::cerr << "error: unknown fatal error\n";
+        printUsageHint();
         return 1;
     }
 }

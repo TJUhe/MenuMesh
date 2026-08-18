@@ -39,6 +39,7 @@ void simplificationOptionsHeaderCompileCheck() {
     config.features.detection = manumesh::feature::FeatureOptions{};
     config.quality.refinementIterations = 2;
     (void)manumesh::simplification::makeSimplifyOptions(config);
+    config = manumesh::simplification::makeSimplifyConfig(manumesh::feature::FeatureProfile::Cad);
 
     const manumesh::simplification::SimplifyTarget ratioTarget = manumesh::simplification::SimplifyTarget::ratio(0.5);
     (void)ratioTarget;

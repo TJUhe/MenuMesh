@@ -54,6 +54,27 @@ if(BUILD_TESTING)
       --smooth-curvature-scales 2
       --smooth-curvature-min-persistent-scales 1
   )
+  add_test(NAME manumesh_cli_sweep_standard_method
+    COMMAND "${CMAKE_COMMAND}"
+      "-DMANUMESH_EXECUTABLE:FILEPATH=$<TARGET_FILE:manumesh>"
+      "-DINPUT_MESH:FILEPATH=${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/boss_pocket_plate.obj"
+      "-DOUTPUT_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/cli_sweep_standard"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckSweepStandard.cmake"
+  )
+  add_test(NAME manumesh_cli_argument_contracts
+    COMMAND "${CMAKE_COMMAND}"
+      "-DMANUMESH_EXECUTABLE:FILEPATH=$<TARGET_FILE:manumesh>"
+      "-DINPUT_MESH:FILEPATH=${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/boss_pocket_plate.obj"
+      "-DOUTPUT_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/cli_argument_contracts"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckCliContracts.cmake"
+  )
+  add_test(NAME manumesh_cli_sweep_outputs
+    COMMAND "${CMAKE_COMMAND}"
+      "-DMANUMESH_EXECUTABLE:FILEPATH=$<TARGET_FILE:manumesh>"
+      "-DINPUT_MESH:FILEPATH=${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/boss_pocket_plate.obj"
+      "-DOUTPUT_DIR:PATH=${CMAKE_CURRENT_BINARY_DIR}/cli_sweep_outputs"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckSweepOutputs.cmake"
+  )
   add_test(NAME manumesh_cli_feature_report
     COMMAND manumesh feature-report
       "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
@@ -66,6 +87,12 @@ if(BUILD_TESTING)
       --feature-normal-filter-iterations 2
       --feature-graph-consolidation
       --surface-patches
+  )
+  add_test(NAME manumesh_cli_profile_scan
+    COMMAND manumesh feature-report
+      "${PROJECT_SOURCE_DIR}/tests/data/feature_fixtures/coaxial_hole_plate.obj"
+      --profile scan
+      --print-resolved-config
   )
   add_test(NAME manumesh_cli_feature_benchmark
     COMMAND manumesh feature-benchmark
@@ -92,10 +119,14 @@ if(BUILD_TESTING)
       PROPERTIES WILL_FAIL TRUE
   )
   set_tests_properties(manumesh_cli_feature_report
+    manumesh_cli_profile_scan
     manumesh_cli_feature_benchmark
     manumesh_cli_feature_compare
     manumesh_cli_quality_refinement
     manumesh_cli_simplify_smooth_curvature
+    manumesh_cli_sweep_standard_method
+    manumesh_cli_argument_contracts
+    manumesh_cli_sweep_outputs
     manumesh_cli_unicode_output
     manumesh_cli_version
     manumesh_cli_rejects_cross_command_option
@@ -106,6 +137,9 @@ if(BUILD_TESTING)
   )
   set_tests_properties(manumesh_cli_feature_report
     PROPERTIES PASS_REGULAR_EXPRESSION "surface_patches="
+  )
+  set_tests_properties(manumesh_cli_profile_scan
+    PROPERTIES PASS_REGULAR_EXPRESSION "resolved_feature_config profile=scan"
   )
   set_tests_properties(manumesh_cli_feature_benchmark
     PROPERTIES FAIL_REGULAR_EXPRESSION "unparsable label row"

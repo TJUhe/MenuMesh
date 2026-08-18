@@ -682,7 +682,9 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
         // 下游再与 smoothCurvatureMinPersistentScales 比较。旧实现还要求最粗尺度
         // 必须支持候选，导致密集网格中空间尺度小于最粗邻域半径（baseRings +
         // scaleCount - 1 环）的真实小圆角和短脊线被静默抑制；多尺度通道正是为了发现它们。
-        if (output.persistentScales > 0 && output.scaleStability >= options.minScaleStability) {
+        const bool passesScaleStability =
+            !options.useStableScaleSelection || output.scaleStability >= options.minScaleStability;
+        if (output.persistentScales > 0 && passesScaleStability) {
             const double persistenceRatio =
                 static_cast<double>(output.persistentScales) / static_cast<double>(scaleCount);
             const double meanAlignment = supportedAlignmentSum / static_cast<double>(output.persistentScales);

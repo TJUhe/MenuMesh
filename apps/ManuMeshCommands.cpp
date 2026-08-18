@@ -28,6 +28,7 @@
 #include <limits>
 #include <locale>
 #include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -39,15 +40,20 @@ namespace fs = manumesh::filesystem;
 namespace {
 
 using manumesh::cli::Args;
+using manumesh::cli::AtomicCsvOutput;
 using manumesh::cli::csvValue;
+using manumesh::cli::emitOptionWarnings;
+using manumesh::cli::formatResolvedSimplifyOptions;
 using manumesh::cli::getArg;
 using manumesh::cli::getIntArg;
 using manumesh::cli::hasFlag;
 using manumesh::cli::parseFaceCounts;
 using manumesh::cli::parseSimplifyOptions;
 using manumesh::cli::parseWeights;
+using manumesh::cli::pathIdentityKey;
 using manumesh::cli::pathFromUtf8;
 using manumesh::cli::pathToUtf8;
+using manumesh::cli::pathsReferToSameLocation;
 using manumesh::cli::positionalArgs;
 using manumesh::cli::quoteCsv;
 using manumesh::cli::readCsvRecord;
@@ -62,34 +68,87 @@ int commandFaceSweep(const Args& args);
 int commandCompare(const Args& args);
 int commandSummarizeMetrics(const Args& args);
 
-std::string sanitizeWeight(double value) {
+std::string sanitizeNumber(double value) {
     std::ostringstream out;
     out.imbue(std::locale::classic());
-    out << std::scientific << std::setprecision(0) << value;
+    out << std::setprecision(std::numeric_limits<double>::max_digits10) << std::defaultfloat << value;
     std::string text = out.str();
     for (char& ch : text) {
-        if (ch == '+' || ch == '-' || ch == '.')
-            ch = '_';
+        if (ch == '+') {
+            ch = 'p';
+        } else if (ch == '-') {
+            ch = 'm';
+        } else if (ch == '.') {
+            ch = 'd';
+        }
     }
     return text;
 }
 
-std::string sanitizeRatio(double value) {
-    std::ostringstream out;
-    out.imbue(std::locale::classic());
-    out << std::fixed << std::setprecision(2) << value;
-    std::string text = out.str();
-    while (text.size() > 1 && text.back() == '0') {
-        text.pop_back();
+std::string sanitizeWeight(double value) { return sanitizeNumber(value); }
+
+std::string sanitizeRatio(double value) { return sanitizeNumber(value); }
+
+double configuredLineWeight(const manumesh::simplification::SimplifyOptions& options) {
+    return options.adaptiveScale ? options.adaptiveBaseLineWeight : options.lineWeight;
+}
+
+double reportedLineWeight(const manumesh::simplification::SimplifyOptions& options) {
+    return options.useLineQuadrics ? configuredLineWeight(options) : 0.0;
+}
+
+void requireUniqueSweepValues(const std::vector<double>& values, const char* flag) {
+    std::set<double> unique;
+    for (double value : values) {
+        if (!unique.insert(value).second) {
+            throw std::invalid_argument(std::string(flag) + " contains duplicate value " + std::to_string(value) + ".");
+        }
     }
-    if (!text.empty() && text.back() == '.') {
-        text.pop_back();
+}
+
+void requireUniqueSweepValues(const std::vector<int>& values, const char* flag) {
+    std::set<int> unique;
+    for (int value : values) {
+        if (!unique.insert(value).second) {
+            throw std::invalid_argument(std::string(flag) + " contains duplicate value " + std::to_string(value) + ".");
+        }
     }
-    for (char& ch : text) {
-        if (ch == '.')
-            ch = '_';
+}
+
+void requireNonNegativeWeights(const std::vector<double>& values, const char* flag) {
+    for (double value : values) {
+        if (value < 0.0) {
+            throw std::invalid_argument(
+                std::string(flag) + " values must be non-negative; got " + std::to_string(value) + "."
+            );
+        }
     }
-    return text;
+}
+
+void requireDistinctOutputPath(
+    const fs::path& output, const fs::path& protectedPath, const std::string& outputFlag,
+    const std::string& protectedLabel
+) {
+    if (pathsReferToSameLocation(output, protectedPath)) {
+        throw std::invalid_argument(outputFlag + " must not overwrite " + protectedLabel + ".");
+    }
+}
+
+void requireUniquePlannedOutputs(const std::vector<fs::path>& outputs) {
+    std::unordered_set<std::string> identities;
+    std::vector<fs::path> checked;
+    checked.reserve(outputs.size());
+    for (const fs::path& output : outputs) {
+        for (const fs::path& previous : checked) {
+            if (pathsReferToSameLocation(output, previous)) {
+                throw std::invalid_argument("Sweep values produce colliding output files: " + pathToUtf8(output));
+            }
+        }
+        if (!identities.insert(pathIdentityKey(output)).second) {
+            throw std::invalid_argument("Sweep values produce colliding output filename: " + pathToUtf8(output));
+        }
+        checked.push_back(output);
+    }
 }
 
 void printStats(const std::string& label, const manumesh::analysis::MeshStats& stats) {
@@ -98,35 +157,31 @@ void printStats(const std::string& label, const manumesh::analysis::MeshStats& s
               << " edge_cv=" << stats.edgeLengthCv << "\n";
 }
 
-std::ofstream openOutputCsv(const fs::path& path) {
-    std::ofstream stream(path, std::ios::out | std::ios::trunc);
-    if (!stream) {
-        throw std::runtime_error("Cannot open CSV output: " + pathToUtf8(path));
-    }
-    stream.imbue(std::locale::classic());
-    return stream;
-}
-
-void finishOutputCsv(std::ofstream& stream, const fs::path& path) {
-    stream.flush();
-    if (!stream) {
-        throw std::runtime_error("Failed to write CSV output: " + pathToUtf8(path));
-    }
-    stream.close();
-    if (!stream) {
-        throw std::runtime_error("Failed to finalize CSV output: " + pathToUtf8(path));
-    }
-}
-
 bool pathsReferToSameExistingFile(const fs::path& first, const fs::path& second) {
-    std::error_code ec;
-    const bool equivalent = fs::equivalent(first, second, ec);
-    return !ec && equivalent;
+    return pathsReferToSameLocation(first, second);
+}
+
+void requireExactPositionalArguments(
+    const std::vector<std::string>& positional, std::size_t expectedCount, const char* command, const char* usage
+) {
+    if (positional.size() != expectedCount) {
+        throw std::invalid_argument(std::string(command) + " requires exactly " + usage + ".");
+    }
+}
+
+void rejectSweepTargetOverride(const Args& args, const char* command, const char* sweepFlag) {
+    if (hasFlag(args, "--ratio") || hasFlag(args, "--target-faces")) {
+        throw std::invalid_argument(
+            std::string(command) + " derives each target from " + sweepFlag +
+            "; do not pass --ratio or --target-faces."
+        );
+    }
 }
 
 void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
     std::vector<std::string> columns = {"case"};
     std::vector<std::map<std::string, std::string>> rows;
+    std::vector<fs::path> sourceMetrics;
 
     if (!fs::exists(outputRoot)) {
         throw std::runtime_error("Output directory not found: " + pathToUtf8(outputRoot));
@@ -136,6 +191,7 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
         if (!fs::is_regular_file(entry.path()) || entry.path().filename() != "metrics.csv") {
             continue;
         }
+        sourceMetrics.push_back(entry.path());
 
         std::ifstream in(entry.path());
         std::string headerLine;
@@ -165,10 +221,17 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
         }
     }
 
+    for (const fs::path& source : sourceMetrics) {
+        if (pathsReferToSameLocation(summaryPath, source)) {
+            throw std::invalid_argument("summary CSV must not overwrite an input metrics.csv file.");
+        }
+    }
+
     if (summaryPath.has_parent_path()) {
         fs::create_directories(summaryPath.parent_path());
     }
-    std::ofstream out = openOutputCsv(summaryPath);
+    AtomicCsvOutput csvFile(summaryPath);
+    std::ofstream& out = csvFile.stream();
     for (std::size_t i = 0; i < columns.size(); ++i) {
         if (i > 0)
             out << ",";
@@ -183,11 +246,14 @@ void summarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath) {
         }
         out << "\n";
     }
-    finishOutputCsv(out, summaryPath);
+    csvFile.commit();
     std::cout << "Wrote " << pathToUtf8(summaryPath) << " with " << rows.size() << " rows\n";
 }
 
 int commandGenerate(const Args& args) {
+    if (!positionalArgs(args).empty()) {
+        throw std::invalid_argument("generate does not accept positional paths; use --out for the output file.");
+    }
     const std::string type = getArg(args, "--type", "clustered-plane");
     const std::string outPath = getArg(args, "--out");
     const int n = getIntArg(args, "--n", 50);
@@ -211,9 +277,7 @@ int commandGenerate(const Args& args) {
 
 int commandCompare(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.size() < 2) {
-        throw std::invalid_argument("compare requires original.stl simplified.stl.");
-    }
+    requireExactPositionalArguments(positional, 2, "compare", "original.stl simplified.stl");
     const int samples = getIntArg(args, "--samples", 3000);
 
     manumesh::Mesh original;
@@ -238,15 +302,27 @@ int commandCompare(const Args& args) {
 
 int commandSimplify(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.size() < 2) {
-        throw std::invalid_argument("simplify requires input.stl output.stl.");
-    }
+    requireExactPositionalArguments(positional, 2, "simplify", "input.stl output.stl");
 
     const int samples = getIntArg(args, "--samples", 3000);
     const std::string metricsCsv = getArg(args, "--metrics-csv");
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const fs::path outputPath = pathFromUtf8(positional[1]);
+    const fs::path metricsPath = metricsCsv.empty() ? fs::path() : pathFromUtf8(metricsCsv);
     manumesh::simplification::SimplifyOptions options = parseSimplifyOptions(args);
-    if (pathsReferToSameExistingFile(pathFromUtf8(positional[0]), pathFromUtf8(positional[1]))) {
+    const manumesh::feature::FeatureOptions effectiveFeatures = options.featureOptionsOverride.has_value()
+                                                                    ? *options.featureOptionsOverride
+                                                                    : manumesh::feature::FeatureOptions{};
+    emitOptionWarnings(args, effectiveFeatures, true, std::cerr);
+    if (hasFlag(args, "--print-resolved-config")) {
+        std::cout << formatResolvedSimplifyOptions(args, options);
+    }
+    if (pathsReferToSameExistingFile(inputPath, outputPath)) {
         throw std::invalid_argument("simplify input and output must not refer to the same file.");
+    }
+    if (!metricsCsv.empty()) {
+        requireDistinctOutputPath(metricsPath, inputPath, "--metrics-csv", "the input mesh");
+        requireDistinctOutputPath(metricsPath, outputPath, "--metrics-csv", "the simplified output");
     }
 
     manumesh::Mesh input;
@@ -331,11 +407,11 @@ int commandSimplify(const Args& args) {
               << " max=" << distance.maxOriginalToSimplified << "\n";
 
     if (!metricsCsv.empty()) {
-        const fs::path metricsPath = pathFromUtf8(metricsCsv);
         if (metricsPath.has_parent_path()) {
             fs::create_directories(metricsPath.parent_path());
         }
-        std::ofstream csv = openOutputCsv(metricsPath);
+        AtomicCsvOutput csvFile(metricsPath);
+        std::ofstream& csv = csvFile.stream();
         csv << manumesh::cli::statsHeaderCsv()
             << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
                "feature_loops,circular_feature_loops,feature_vertices,"
@@ -397,7 +473,7 @@ int commandSimplify(const Args& args) {
             << (report.qualityRefinementSkippedForTexture ? 1 : 0) << ","
             << manumesh::simplification::toString(report.terminationReason) << "," << report.minAppliedLineWeight << ","
             << report.maxAppliedLineWeight << "\n";
-        finishOutputCsv(csv, metricsPath);
+        csvFile.commit();
     }
 
     std::cout << "Wrote " << positional[1] << "\n";
@@ -406,9 +482,50 @@ int commandSimplify(const Args& args) {
 
 int commandSweep(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.size() < 2) {
-        throw std::invalid_argument("sweep requires input.stl out_dir.");
+    requireExactPositionalArguments(positional, 2, "sweep", "input.stl out_dir");
+    if (hasFlag(args, "--line-weight") || hasFlag(args, "--adaptive-base-line-weight")) {
+        throw std::invalid_argument(
+            "sweep derives line-quadric weights from --weights; do not pass --line-weight or "
+            "--adaptive-base-line-weight."
+        );
     }
+
+    const int samples = getIntArg(args, "--samples", 3000);
+    const std::string requestedMethod = getArg(args, "--method");
+    const bool standardMethod = requestedMethod == "standard" || requestedMethod == "qem";
+    const std::string defaultWeights = standardMethod ? "0" : "0,1e-5,1e-4,1e-3,1e-2,1e-1";
+    const std::vector<double> weights = parseWeights(getArg(args, "--weights", defaultWeights), "--weights");
+    requireUniqueSweepValues(weights, "--weights");
+    requireNonNegativeWeights(weights, "--weights");
+    if (standardMethod && (weights.size() != 1 || weights.front() != 0.0)) {
+        throw std::invalid_argument(
+            "standard QEM does not use line-quadric weights; omit --weights or use exactly --weights 0."
+        );
+    }
+    manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
+    const manumesh::feature::FeatureOptions effectiveFeatures = base.featureOptionsOverride.has_value()
+                                                                    ? *base.featureOptionsOverride
+                                                                    : manumesh::feature::FeatureOptions{};
+    emitOptionWarnings(args, effectiveFeatures, true, std::cerr);
+
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const fs::path outDir = pathFromUtf8(positional[1]);
+    const fs::path metricsPath = outDir / "metrics.csv";
+    requireDistinctOutputPath(metricsPath, inputPath, "sweep metrics.csv", "the input mesh");
+
+    std::vector<fs::path> plannedOutputs;
+    plannedOutputs.reserve(weights.size());
+    for (std::size_t weightIndex = 0; weightIndex < weights.size(); ++weightIndex) {
+        const double weight = weights[weightIndex];
+        const bool useLineQuadrics = base.useLineQuadrics && weight > 0.0;
+        const std::string method = useLineQuadrics ? "line" : "standard";
+        const std::string label = method + "_w_" + sanitizeWeight(weight);
+        const fs::path outStl = outDir / (label + ".stl");
+        requireDistinctOutputPath(outStl, inputPath, "sweep output", "the input mesh");
+        requireDistinctOutputPath(metricsPath, outStl, "sweep metrics.csv", "a sweep output");
+        plannedOutputs.push_back(outStl);
+    }
+    requireUniquePlannedOutputs(plannedOutputs);
 
     manumesh::Mesh input;
     std::string error;
@@ -416,29 +533,32 @@ int commandSweep(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const fs::path outDir = pathFromUtf8(positional[1]);
     fs::create_directories(outDir);
-    const int samples = getIntArg(args, "--samples", 3000);
-    const std::vector<double> weights = parseWeights(getArg(args, "--weights", "0,1e-5,1e-4,1e-3,1e-2,1e-1"));
-    manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
-
-    const fs::path metricsPath = outDir / "metrics.csv";
-    std::ofstream csv = openOutputCsv(metricsPath);
+    AtomicCsvOutput csvFile(metricsPath);
+    std::ofstream& csv = csvFile.stream();
     csv << "method,line_weight,weight_mode," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
 
-    for (double weight : weights) {
+    for (std::size_t weightIndex = 0; weightIndex < weights.size(); ++weightIndex) {
+        const double weight = weights[weightIndex];
         manumesh::simplification::SimplifyOptions options = base;
-        options.lineWeight = weight;
-        options.useLineQuadrics = weight > 0.0 || options.weightMode != manumesh::simplification::WeightMode::Uniform;
+        if (options.adaptiveScale) {
+            options.adaptiveBaseLineWeight = weight;
+        } else {
+            options.lineWeight = weight;
+        }
+        options.useLineQuadrics = base.useLineQuadrics && weight > 0.0;
+        if (hasFlag(args, "--print-resolved-config")) {
+            std::cout << formatResolvedSimplifyOptions(args, options);
+        }
 
         manumesh::simplification::SimplifyReport report;
         manumesh::simplification::QEMSimplifier simplifier(options);
         manumesh::Mesh output = simplifier.simplify(input, &report);
         const std::string method = options.useLineQuadrics ? "line" : "standard";
         const std::string label = method + "_w_" + sanitizeWeight(weight);
-        const fs::path outStl = outDir / (label + ".stl");
+        const fs::path& outStl = plannedOutputs[weightIndex];
         if (!manumesh::saveBinaryStl(pathToUtf8(outStl), output, &error)) {
             throw std::runtime_error(error);
         }
@@ -446,23 +566,56 @@ int commandSweep(const Args& args) {
         const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
         const manumesh::analysis::DistanceStats distance =
             manumesh::analysis::compareMeshesBySampledDistance(input, output, samples);
-        csv << method << "," << weight << "," << manumesh::simplification::toString(options.weightMode) << ","
+        csv << method << "," << reportedLineWeight(options) << ","
+            << manumesh::simplification::toString(options.weightMode) << ","
             << manumesh::cli::statsRowCsv(label, stats, &distance) << "," << report.collapsedEdges << ","
             << report.rejectedCollapses << "," << report.solverFallbacks << "," << report.minAppliedLineWeight << ","
             << report.maxAppliedLineWeight << "\n";
         printStats(label, stats);
     }
 
-    finishOutputCsv(csv, metricsPath);
+    csvFile.commit();
     std::cout << "Wrote sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 
 int commandRatioSweep(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.size() < 2) {
-        throw std::invalid_argument("ratio-sweep requires input.stl out_dir.");
+    requireExactPositionalArguments(positional, 2, "ratio-sweep", "input.stl out_dir");
+    rejectSweepTargetOverride(args, "ratio-sweep", "--ratios");
+
+    const int samples = getIntArg(args, "--samples", 3000);
+    const std::vector<double> ratios =
+        parseWeights(getArg(args, "--ratios", "0.8,0.5,0.25,0.1,0.05"), "--ratios");
+    requireUniqueSweepValues(ratios, "--ratios");
+    for (double ratio : ratios) {
+        if (ratio <= 0.0 || ratio >= 1.0) {
+            throw std::invalid_argument("--ratios values must be strictly between 0 and 1; got " +
+                                        std::to_string(ratio) + ".");
+        }
     }
+    manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
+    const manumesh::feature::FeatureOptions effectiveFeatures = base.featureOptionsOverride.has_value()
+                                                                    ? *base.featureOptionsOverride
+                                                                    : manumesh::feature::FeatureOptions{};
+    emitOptionWarnings(args, effectiveFeatures, true, std::cerr);
+
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const fs::path outDir = pathFromUtf8(positional[1]);
+    const fs::path metricsPath = outDir / "metrics.csv";
+    requireDistinctOutputPath(metricsPath, inputPath, "ratio-sweep metrics.csv", "the input mesh");
+    std::vector<fs::path> plannedOutputs;
+    plannedOutputs.reserve(ratios.size());
+    const std::string plannedMethod = base.useLineQuadrics ? "line" : "standard";
+    const std::string weightToken = sanitizeWeight(configuredLineWeight(base));
+    for (double ratio : ratios) {
+        const std::string label = plannedMethod + "_r_" + sanitizeRatio(ratio) + "_w_" + weightToken;
+        const fs::path outStl = outDir / (label + ".stl");
+        requireDistinctOutputPath(outStl, inputPath, "ratio-sweep output", "the input mesh");
+        requireDistinctOutputPath(metricsPath, outStl, "ratio-sweep metrics.csv", "a sweep output");
+        plannedOutputs.push_back(outStl);
+    }
+    requireUniquePlannedOutputs(plannedOutputs);
 
     manumesh::Mesh input;
     std::string error;
@@ -470,33 +623,29 @@ int commandRatioSweep(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const fs::path outDir = pathFromUtf8(positional[1]);
     fs::create_directories(outDir);
-    const int samples = getIntArg(args, "--samples", 3000);
-    const std::vector<double> ratios = parseWeights(getArg(args, "--ratios", "0.8,0.5,0.25,0.1,0.05"));
-    manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
-
-    const fs::path metricsPath = outDir / "metrics.csv";
-    std::ofstream csv = openOutputCsv(metricsPath);
+    AtomicCsvOutput csvFile(metricsPath);
+    std::ofstream& csv = csvFile.stream();
     csv << "method,line_weight,weight_mode,ratio," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
 
-    for (double ratio : ratios) {
-        if (ratio <= 0.0 || ratio >= 1.0) {
-            std::cerr << "skip invalid ratio " << ratio << "\n";
-            continue;
-        }
+    for (std::size_t ratioIndex = 0; ratioIndex < ratios.size(); ++ratioIndex) {
+        const double ratio = ratios[ratioIndex];
         manumesh::simplification::SimplifyOptions options = base;
         options.targetFaces = -1;
         options.targetRatio = ratio;
+        if (hasFlag(args, "--print-resolved-config")) {
+            std::cout << formatResolvedSimplifyOptions(args, options);
+        }
 
         manumesh::simplification::SimplifyReport report;
         manumesh::simplification::QEMSimplifier simplifier(options);
         manumesh::Mesh output = simplifier.simplify(input, &report);
         const std::string method = options.useLineQuadrics ? "line" : "standard";
-        const std::string label = method + "_r_" + sanitizeRatio(ratio) + "_w_" + sanitizeWeight(options.lineWeight);
-        const fs::path outStl = outDir / (label + ".stl");
+        const std::string label = method + "_r_" + sanitizeRatio(ratio) + "_w_" +
+                                  sanitizeWeight(configuredLineWeight(options));
+        const fs::path& outStl = plannedOutputs[ratioIndex];
         if (!manumesh::saveBinaryStl(pathToUtf8(outStl), output, &error)) {
             throw std::runtime_error(error);
         }
@@ -504,23 +653,50 @@ int commandRatioSweep(const Args& args) {
         const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
         const manumesh::analysis::DistanceStats distance =
             manumesh::analysis::compareMeshesBySampledDistance(input, output, samples);
-        csv << method << "," << options.lineWeight << "," << manumesh::simplification::toString(options.weightMode)
+        csv << method << "," << reportedLineWeight(options) << ","
+            << manumesh::simplification::toString(options.weightMode)
             << "," << ratio << "," << manumesh::cli::statsRowCsv(label, stats, &distance) << ","
             << report.collapsedEdges << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
             << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
         printStats(label, stats);
     }
 
-    finishOutputCsv(csv, metricsPath);
+    csvFile.commit();
     std::cout << "Wrote ratio-sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 
 int commandFaceSweep(const Args& args) {
     const auto positional = positionalArgs(args);
-    if (positional.size() < 2) {
-        throw std::invalid_argument("face-sweep requires input.stl out_dir.");
+    requireExactPositionalArguments(positional, 2, "face-sweep", "input.stl out_dir");
+    rejectSweepTargetOverride(args, "face-sweep", "--faces");
+
+    const int samples = getIntArg(args, "--samples", 3000);
+    const std::vector<int> faceCounts =
+        parseFaceCounts(getArg(args, "--faces", "1000,900,800,700,600,500,400,300,200,100"), "--faces");
+    requireUniqueSweepValues(faceCounts, "--faces");
+    manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
+    const manumesh::feature::FeatureOptions effectiveFeatures = base.featureOptionsOverride.has_value()
+                                                                    ? *base.featureOptionsOverride
+                                                                    : manumesh::feature::FeatureOptions{};
+    emitOptionWarnings(args, effectiveFeatures, true, std::cerr);
+
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const fs::path outDir = pathFromUtf8(positional[1]);
+    const fs::path metricsPath = outDir / "metrics.csv";
+    requireDistinctOutputPath(metricsPath, inputPath, "face-sweep metrics.csv", "the input mesh");
+    std::vector<fs::path> plannedOutputs;
+    plannedOutputs.reserve(faceCounts.size());
+    const std::string plannedMethod = base.useLineQuadrics ? "line" : "standard";
+    const std::string weightToken = sanitizeWeight(configuredLineWeight(base));
+    for (int targetFaces : faceCounts) {
+        const std::string label = plannedMethod + "_f_" + std::to_string(targetFaces) + "_w_" + weightToken;
+        const fs::path outStl = outDir / (label + ".stl");
+        requireDistinctOutputPath(outStl, inputPath, "face-sweep output", "the input mesh");
+        requireDistinctOutputPath(metricsPath, outStl, "face-sweep metrics.csv", "a sweep output");
+        plannedOutputs.push_back(outStl);
     }
+    requireUniquePlannedOutputs(plannedOutputs);
 
     manumesh::Mesh input;
     std::string error;
@@ -528,34 +704,28 @@ int commandFaceSweep(const Args& args) {
         throw std::runtime_error(error);
     }
 
-    const fs::path outDir = pathFromUtf8(positional[1]);
     fs::create_directories(outDir);
-    const int samples = getIntArg(args, "--samples", 3000);
-    const std::vector<int> faceCounts =
-        parseFaceCounts(getArg(args, "--faces", "1000,900,800,700,600,500,400,300,200,100"));
-    manumesh::simplification::SimplifyOptions base = parseSimplifyOptions(args);
-
-    const fs::path metricsPath = outDir / "metrics.csv";
-    std::ofstream csv = openOutputCsv(metricsPath);
+    AtomicCsvOutput csvFile(metricsPath);
+    std::ofstream& csv = csvFile.stream();
     csv << "method,line_weight,weight_mode,target_faces," << manumesh::cli::statsHeaderCsv()
         << ",collapsed_edges,rejected_collapses,solver_fallbacks,"
            "min_line_weight,max_line_weight\n";
 
-    for (int targetFaces : faceCounts) {
-        if (targetFaces <= 0) {
-            std::cerr << "skip invalid target face count " << targetFaces << "\n";
-            continue;
-        }
+    for (std::size_t faceIndex = 0; faceIndex < faceCounts.size(); ++faceIndex) {
+        const int targetFaces = faceCounts[faceIndex];
         manumesh::simplification::SimplifyOptions options = base;
         options.targetFaces = targetFaces;
+        if (hasFlag(args, "--print-resolved-config")) {
+            std::cout << formatResolvedSimplifyOptions(args, options);
+        }
 
         manumesh::simplification::SimplifyReport report;
         manumesh::simplification::QEMSimplifier simplifier(options);
         manumesh::Mesh output = simplifier.simplify(input, &report);
         const std::string method = options.useLineQuadrics ? "line" : "standard";
-        const std::string label =
-            method + "_f_" + std::to_string(targetFaces) + "_w_" + sanitizeWeight(options.lineWeight);
-        const fs::path outStl = outDir / (label + ".stl");
+        const std::string label = method + "_f_" + std::to_string(targetFaces) + "_w_" +
+                                  sanitizeWeight(configuredLineWeight(options));
+        const fs::path& outStl = plannedOutputs[faceIndex];
         if (!manumesh::saveBinaryStl(pathToUtf8(outStl), output, &error)) {
             throw std::runtime_error(error);
         }
@@ -563,20 +733,24 @@ int commandFaceSweep(const Args& args) {
         const manumesh::analysis::MeshStats stats = manumesh::analysis::computeMeshStats(output);
         const manumesh::analysis::DistanceStats distance =
             manumesh::analysis::compareMeshesBySampledDistance(input, output, samples);
-        csv << method << "," << options.lineWeight << "," << manumesh::simplification::toString(options.weightMode)
+        csv << method << "," << reportedLineWeight(options) << ","
+            << manumesh::simplification::toString(options.weightMode)
             << "," << targetFaces << "," << manumesh::cli::statsRowCsv(label, stats, &distance) << ","
             << report.collapsedEdges << "," << report.rejectedCollapses << "," << report.solverFallbacks << ","
             << report.minAppliedLineWeight << "," << report.maxAppliedLineWeight << "\n";
         printStats(label, stats);
     }
 
-    finishOutputCsv(csv, metricsPath);
+    csvFile.commit();
     std::cout << "Wrote face-sweep outputs to " << pathToUtf8(outDir) << "\n";
     return 0;
 }
 
 int commandSummarizeMetrics(const Args& args) {
     const auto positional = positionalArgs(args);
+    if (positional.size() > 2) {
+        throw std::invalid_argument("summarize-metrics accepts at most output_root and summary.csv.");
+    }
     const fs::path outputRoot = positional.empty() ? fs::path("output/demo") : pathFromUtf8(positional[0]);
     const fs::path summaryPath = positional.size() < 2 ? outputRoot / "demo_summary.csv" : pathFromUtf8(positional[1]);
     summarizeMetrics(outputRoot, summaryPath);

@@ -11,6 +11,7 @@
 #include "algorithms/analysis/MeshAnalysis.h"
 
 #include "core/Filesystem.h"
+#include <fstream>
 #include <istream>
 #include <map>
 #include <string>
@@ -18,6 +19,27 @@
 
 namespace manumesh {
 namespace cli {
+
+/// Transactional CSV writer. Data is written beside the destination and only
+/// replaces it after a successful flush and close; abandoned writes remove
+/// their temporary file and preserve any prior CSV.
+class AtomicCsvOutput {
+public:
+    explicit AtomicCsvOutput(const manumesh::filesystem::path& outputPath);
+    ~AtomicCsvOutput();
+
+    AtomicCsvOutput(const AtomicCsvOutput&) = delete;
+    AtomicCsvOutput& operator=(const AtomicCsvOutput&) = delete;
+
+    std::ofstream& stream() noexcept { return stream_; }
+    void commit();
+
+private:
+    manumesh::filesystem::path outputPath_;
+    manumesh::filesystem::path temporaryPath_;
+    std::ofstream stream_;
+    bool committed_ = false;
+};
 
 /// 解析一行 RFC-4180 风格 CSV，支持带引号逗号和双引号转义。
 std::vector<std::string> splitCsvLine(const std::string& line);

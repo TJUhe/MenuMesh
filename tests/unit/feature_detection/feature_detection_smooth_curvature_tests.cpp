@@ -125,6 +125,36 @@ TEST(FeatureDetection, SmoothCurvaturePersistenceSuppressesSingleScaleCandidates
     EXPECT_LT(strictResult.smoothCurvatureFeatureEdges, permissiveResult.smoothCurvatureFeatureEdges);
 }
 
+TEST(FeatureDetection, SmoothCurvatureMinScaleStabilityOnlyFiltersStableSelection) {
+    const Mesh bump = generateBumpGrid(28, 2.0);
+    feature::SmoothCurvatureOptions peakScoreOptions{2, 4, 2, 0.55};
+    peakScoreOptions.minScaleStability = 0.0;
+    const auto unrestricted = feature::computeSmoothCurvatureFeatures(bump, peakScoreOptions, 0.008);
+
+    peakScoreOptions.minScaleStability = 1.0;
+    const auto peakScoreWithStabilityThreshold = feature::computeSmoothCurvatureFeatures(bump, peakScoreOptions, 0.008);
+    ASSERT_EQ(unrestricted.size(), peakScoreWithStabilityThreshold.size());
+
+    int unrestrictedFeatures = 0;
+    for (std::size_t vertex = 0; vertex < unrestricted.size(); ++vertex) {
+        unrestrictedFeatures += unrestricted[vertex].persistentFeatureScore > 0.008 ? 1 : 0;
+        EXPECT_DOUBLE_EQ(unrestricted[vertex].persistentFeatureScore,
+                         peakScoreWithStabilityThreshold[vertex].persistentFeatureScore)
+            << "vertex=" << vertex;
+    }
+    ASSERT_GT(unrestrictedFeatures, 0);
+
+    feature::SmoothCurvatureOptions stableOptions = peakScoreOptions;
+    stableOptions.useStableScaleSelection = true;
+    const auto stableSelection = feature::computeSmoothCurvatureFeatures(bump, stableOptions, 0.008);
+
+    int stableFeatures = 0;
+    for (const feature::SmoothCurvatureVertex& value : stableSelection) {
+        stableFeatures += value.persistentFeatureScore > 0.008 ? 1 : 0;
+    }
+    EXPECT_LT(stableFeatures, unrestrictedFeatures);
+}
+
 TEST(FeatureDetection, SmoothCurvatureEdgesRemainDistinctInFeatureGraph) {
     const FeatureAnalysis analysis = feature::detectFeatureCurves(generateBumpGrid(32, 2.0), smoothFeatureOptions());
 

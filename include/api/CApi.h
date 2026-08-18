@@ -287,6 +287,7 @@ typedef struct ManuMeshSimplifyOptions {
     double circle_fit_relative_threshold;
     double ellipse_fit_relative_threshold;
     double near_circle_axis_ratio_tolerance;
+    /** 0.x flat-API compatibility default is 16; a feature_options override uses its own detector default. */
     int min_feature_loop_vertices;
     int min_circular_feature_loop_vertices;
     /** 法向张量弱特征证据。 */

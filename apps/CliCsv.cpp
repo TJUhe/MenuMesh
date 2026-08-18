@@ -7,15 +7,106 @@
  */
 
 #include "CliCsv.h"
+#include "CliPath.h"
 
 #include <fstream>
+#include <atomic>
+#include <chrono>
+#include <functional>
 #include <iomanip>
 #include <locale>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
+#include <thread>
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace manumesh {
 namespace cli {
+
+namespace {
+
+manumesh::filesystem::path temporaryCsvPath(const manumesh::filesystem::path& outputPath) {
+    static std::atomic<unsigned long long> sequence{0};
+    const auto tick =
+        static_cast<unsigned long long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    const auto thread = static_cast<unsigned long long>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+    const auto ordinal = sequence.fetch_add(1, std::memory_order_relaxed);
+    return outputPath.parent_path() /
+           (outputPath.filename().u8string() + ".manumesh-" + std::to_string(tick) + "-" + std::to_string(thread) +
+            "-" + std::to_string(ordinal) + ".tmp");
+}
+
+bool replaceCsvFile(
+    const manumesh::filesystem::path& temporaryPath, const manumesh::filesystem::path& outputPath,
+    std::string& error
+) {
+#if defined(_WIN32)
+    if (MoveFileExW(temporaryPath.c_str(), outputPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ==
+        0) {
+        error = "Windows error " + std::to_string(GetLastError());
+        return false;
+    }
+#else
+    std::error_code ec;
+    manumesh::filesystem::rename(temporaryPath, outputPath, ec);
+    if (ec) {
+        error = ec.message();
+        return false;
+    }
+#endif
+    return true;
+}
+
+} // namespace
+
+AtomicCsvOutput::AtomicCsvOutput(const manumesh::filesystem::path& outputPath)
+    : outputPath_(outputPath), temporaryPath_(temporaryCsvPath(outputPath)) {
+    if (outputPath_.has_parent_path()) {
+        std::error_code ec;
+        manumesh::filesystem::create_directories(outputPath_.parent_path(), ec);
+        if (ec) {
+            throw std::runtime_error("Cannot create CSV output directory: " + pathToUtf8(outputPath_) + ": " + ec.message());
+        }
+    }
+    stream_.open(temporaryPath_, std::ios::out | std::ios::trunc);
+    if (!stream_) {
+        throw std::runtime_error("Cannot open temporary CSV output: " + pathToUtf8(outputPath_));
+    }
+    stream_.imbue(std::locale::classic());
+}
+
+AtomicCsvOutput::~AtomicCsvOutput() {
+    if (stream_.is_open()) {
+        stream_.close();
+    }
+    if (!committed_) {
+        std::error_code ec;
+        manumesh::filesystem::remove(temporaryPath_, ec);
+    }
+}
+
+void AtomicCsvOutput::commit() {
+    stream_.flush();
+    if (!stream_) {
+        throw std::runtime_error("Failed to write CSV output: " + pathToUtf8(outputPath_));
+    }
+    stream_.close();
+    if (!stream_) {
+        throw std::runtime_error("Failed to finalize CSV output: " + pathToUtf8(outputPath_));
+    }
+    std::string error;
+    if (!replaceCsvFile(temporaryPath_, outputPath_, error)) {
+        throw std::runtime_error("Failed to atomically replace CSV output: " + pathToUtf8(outputPath_) + " (" + error + ").");
+    }
+    committed_ = true;
+}
 
 std::vector<std::string> splitCsvLine(const std::string& line) {
     std::vector<std::string> out;

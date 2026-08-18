@@ -107,15 +107,17 @@ cyclideness 门禁，由解析环面 fixture 暴露；2026-07-15 更新：当前
 
 | 门控 | 当前精确规则 |
 | --- | --- |
-| 强证据排除 | 如果该边已经是 boundary、dihedral 或 non-manifold，则拒绝；如果任一端点被标记为离散特征顶点也拒绝，从而在强 CAD 证据周围形成一个顶点宽度的排除区。 |
-| 尺度数 | `min(endpointA.persistentScales, endpointB.persistentScales) >= smoothCurvatureMinPersistentScales`。 |
-| 分数 | 两个端点的持久分数都必须达到 `smoothCurvatureFeatureThreshold`。 |
-| 带符号类型 | 两个端点都必须非零且一致：ridge 对 ridge 或 valley 对 valley。 |
-| 边对齐 | 边方向必须与两个端点的曲线切线对齐：`min(|d.tA|, |d.tB|) >= smoothCurvatureMinEdgeAlignment`。 |
-| 端点切线一致性 | `|tA.tB| >= smoothCurvatureMinTangentConsistency`。 |
+| 强证据排除 | 如果该边已经是 boundary、dihedral 或 non-manifold，则拒绝；两个端点都为离散特征顶点时也拒绝。仅有一个离散强特征 junction 时允许继续，且该端按通过所有平滑证据门控处理。 |
+| 尺度数 | 两个软端点的持久尺度最小值必须达到 `smoothCurvatureMinPersistentScales`；只有一个软端点时只检查该端。 |
+| 分数 | 两个软端点的持久分数都必须达到 `smoothCurvatureFeatureThreshold`；只有一个软端点时只检查该端。 |
+| 带符号类型 | 每个软端点都必须有非零类型；两个软端点同时存在时必须一致：ridge 对 ridge 或 valley 对 valley。 |
+| 边对齐 | 边方向必须与每个软端点的曲线切线对齐：`min(|d.tA|, |d.tB|) >= smoothCurvatureMinEdgeAlignment`，离散 junction 端按 `1.0`。 |
+| 端点切线一致性 | 两个软端点都存在时要求 `|tA.tB| >= smoothCurvatureMinTangentConsistency`；存在离散 junction 时该门控按 `1.0`。 |
 
-这有意比当前 normal-tensor 边规则更严格；后者只要对齐更好的端点达到阈值即可接受方向对齐。一条网格边
-仍可能同时带有 normal-tensor 和 smooth-curvature 标记，因为两种弱策略在强证据门控后独立评估。
+这有意比当前 normal-tensor 边规则更严格：normal-tensor 对每个软端点也要求边方向与其
+`creaseTangent` 对齐，并使用 `min(|d.tA|, |d.tB|) >= normalTensorMinEdgeAlignment`。若一端已经是
+离散强特征 junction，该端按对齐度 `1.0` 处理，另一软端点仍必须通过阈值；两个端点都为离散强特征时会在
+normal-tensor 通道之前被拒绝。一条网格边仍可能同时带有 normal-tensor 和 smooth-curvature 标记，因为两种弱策略在强证据门控后独立评估。
 
 ## 公共控制项
 

@@ -9,6 +9,54 @@ $buildDir = "build/vs2019-release"
 $exe = "$buildDir/bin/Release/manumesh.exe"
 ```
 
+## 先选场景档案
+
+常见任务不需要从几十个低层阈值开始。`simplify`、`feature-report`、`feature-benchmark` 和
+`feature-compare` 都接受同一组档案：先选输入来源，再只覆盖确实需要调整的字段。
+
+| 档案 | 适用输入 | 自动选择 | 简化时的保护策略 |
+| --- | --- | --- | --- |
+| `default` | 现有脚本、一般 STL | 使用 FeatureOptions/profile 的检测默认（最小环 8） | 不自动开启特征曲线保护 |
+| `cad` | 干净 CAD/STL、孔和棱边 | 二面角排序，关闭弱 tensor 证据 | 保护圆、近圆、椭圆等几何基元 |
+| `scan` | 有中轻度法向噪声的扫描网格 | 法线滤波、3 个 tensor 尺度、2 个持久尺度 | tensor 候选参与软成本；仅硬保护已拟合的几何基元 |
+| `smooth` | fillet、自由曲面 ridge/valley | 多尺度平滑曲率证据，关闭 tensor 证据 | ridge/valley 候选参与软成本；仅硬保护已拟合的几何基元 |
+
+最短的实用起点：
+
+```powershell
+# 机械件：保留孔和规则特征
+& $exe simplify input.stl output.stl --profile cad --ratio 0.25
+
+# 含噪扫描：先检查特征，再决定简化率
+& $exe feature-report scan.stl --profile scan --print-resolved-config
+& $exe simplify scan.stl scan_simplified.stl --profile scan --ratio 0.5
+
+# 光滑过渡、ridge 和 valley
+& $exe simplify smooth.stl smooth_simplified.stl --profile smooth --ratio 0.5
+```
+
+显式参数总会覆盖档案值。例如 CAD 档案上需要 tensor 证据时，可写
+`--profile cad --normal-tensor-features --normal-tensor-scales 3`；需要把所有已检测边严格锁定时，
+可写 `--feature-protection-mode all-feature-edges`。`scan` 和 `smooth` 默认不这样做：张量和曲率候选
+会继续参与曲线 quadric 的软排序，避免密集或含噪候选让简化在达到目标面数前停滞。`--no-smooth-curvature-features`、
+`--no-feature-normal-filter` 和 `--no-preserve-feature-curves` 用于明确关闭由档案或旧兼容行为启用的通道。
+
+在第一次运行或复现结果时加入 `--print-resolved-config`。它会输出各组有效值，而不是只回显命令行；
+特别适合确认 profile 和显式覆盖后的最终状态。
+
+CLI 会在以下情况向 stderr 给出提示：`--target-faces` 与 `--ratio` 同时出现（面数目标优先）、
+两种局部误差单位同时出现（为了兼容旧版本，运行时保留较宽的换算预算）、标准 QEM 下的 line-quadric
+权重、未开启通道的子参数，以及仅影响报告计数的 component-confidence 阈值。提示不改变 0.x 命令的兼容性，
+但应视为需要收敛为一个明确配置的信号。
+
+`--min-feature-loop-vertices` 的特征检测/报告下限可以设为 3 或 4；简化保护阶段仍保留 5 个顶点的
+内部安全下限，以避免极短环在坍缩约束中不稳定。`--print-resolved-config` 会显示该下限，CLI 也会在
+简化命令给出低于 5 的值时提示这一差异。
+
+兼容边界需要单独记住：直接构造的旧 C++ `SimplifyOptions{}`、`SimplifyConfig{}` 和扁平 C ABI
+初始化仍使用最小环 16；profile、`FeatureOptions{}` 以及 CLI 显式使用 8。这样旧 SDK 不会静默改变，
+新入口也不必沿用过于保守的检测阈值。
+
 ## 先看现象，再选参数
 
 | 现象 | 数学/算法原因 | 优先检查 |
@@ -32,6 +80,9 @@ $exe = "$buildDir/bin/Release/manumesh.exe"
 ```powershell
 & $exe simplify input.stl output_standard.stl --method standard --ratio 0.25
 ```
+
+标准 QEM 不使用 line-quadric 权重；`sweep --method standard` 默认只运行一个基线，若显式传 `--weights` 只能使用单值 `0`。
+在 `--method line` 下，`--line-weight 0` 会明确归一化为标准 QEM，并在 resolved config、文件名和 CSV 中标为 `standard`。
 
 line quadrics 对照：
 

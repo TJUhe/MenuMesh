@@ -97,6 +97,38 @@ SimplifyOptions makeSimplifyOptions(const SimplifyConfig& config) {
     return options;
 }
 
+SimplifyConfig makeSimplifyConfig(feature::FeatureProfile profile) {
+    SimplifyConfig config;
+    // Profiles are the explicit modern entry point: unlike raw SimplifyConfig{}
+    // (which preserves the 0.x threshold of 16), they use FeatureOptions' 8-vertex
+    // detector default and then apply only the profile-specific evidence channels.
+    config.features.detection = feature::makeFeatureOptions(profile);
+
+    switch (profile) {
+    case feature::FeatureProfile::Default:
+        break;
+    case feature::FeatureProfile::Cad:
+        config.cost.weightMode = WeightMode::Dihedral;
+        config.features.enabled = true;
+        config.features.protectionMode = FeatureProtectionMode::PrimitiveCurves;
+        break;
+    case feature::FeatureProfile::NoisyScan:
+        config.cost.weightMode = WeightMode::NormalTensor;
+        config.features.enabled = true;
+        // Tensor evidence is deliberately soft by default: noisy local classifications
+        // must not prevent the simplifier from reaching a practical target.
+        config.features.protectionMode = FeatureProtectionMode::PrimitiveCurves;
+        break;
+    case feature::FeatureProfile::SmoothSurface:
+        config.features.enabled = true;
+        // Ridge and valley candidates guide the cost, while only verified analytic
+        // curves receive hard protection. Strict locking remains an explicit choice.
+        config.features.protectionMode = FeatureProtectionMode::PrimitiveCurves;
+        break;
+    }
+    return config;
+}
+
 feature::FeatureOptions
 featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeatureLoopVerticesFloor) {
     if (options.featureOptionsOverride.has_value()) {

@@ -1076,11 +1076,11 @@ $$\text{featureScore}_i = \max(\text{crease saliency},\; \text{corner saliency})
 <p>需超过阈值 <code>normalTensorFeatureThreshold</code>（默认 0.16）。还需通过<strong>边方向对齐检查</strong>：</p>
 
 <div class="formula">
-$$\text{alignment} = \max\big(|\hat{e}_{ij} \cdot \hat{t}_i|,\; |\hat{e}_{ij} \cdot \hat{t}_j|\big) \geq \text{normalTensorMinEdgeAlignment}$$
+$$\text{alignment} = \min\big(|\hat{e}_{ij} \cdot \hat{t}_i|,\; |\hat{e}_{ij} \cdot \hat{t}_j|\big) \geq \text{normalTensorMinEdgeAlignment}$$
 <span class="label">(4.5)</span>
 </div>
 
-<p>$\hat{t}_i$ 是 creaseTangent（$T$ 的最小特征值对应的特征向量），$\hat{e}_{ij}$ 是边方向。对齐度需 ≥ 0.45，确保边沿折痕方向而非横跨。</p>
+<p>$\hat{t}_i$ 是 creaseTangent（$T$ 的最小特征值对应的特征向量），$\hat{e}_{ij}$ 是边方向。两个软端点都必须达到阈值；若只有一个端点是离散强特征 junction，该端按对齐度 1.0 处理。对齐度需 ≥ 0.45，确保边沿折痕方向而非横跨。</p>
 
 <h4>NormalTensor 代码实现（逐行注释）</h4>
 <pre><code><span style="color:#6b7080">// 步骤1: 构造法线张量 T = Σ a·n·nᵀ</span>
@@ -1120,7 +1120,7 @@ NormalTensorVertex analyzeNormalTensor(<span style="color:#c792ea">const</span> 
         <span style="color:#c792ea">return false</span>;
     <span style="color:#6b7080">// 边方向与 creaseTangent 对齐度 ≥ 0.45</span>
     Vec3 dir = (mesh.vertices[edge.b] - mesh.vertices[edge.a]).normalized();
-    <span style="color:#c792ea">return</span> std::max(std::abs(dir.dot(tensor[edge.a].creaseTangent)),
+    <span style="color:#c792ea">return</span> std::min(std::abs(dir.dot(tensor[edge.a].creaseTangent)),
                    std::abs(dir.dot(tensor[edge.b].creaseTangent)))
            &gt;= options.normalTensorMinEdgeAlignment;
 }</code></pre>
@@ -1763,7 +1763,7 @@ Copy-Item tests\data\external\nasa_cubesat_middle.stl output\legality_check\orig
 
 <div class="callout warn">
 <div class="callout-title">以上为历史草图，当前权威默认值以头文件为准</div>
-<p>上面的结构体是早期设计草图，字段名和默认值与当前 <code>include/algorithms/simplification/SimplificationTypes.h</code> 已有出入。当前关键默认值：<code>targetRatio=0.25</code>、<code>useLineQuadrics=true</code>、<code>lineWeight=1e-3</code>、<code>weightMode=Uniform</code>、<code>featureBoost=0.05</code>、<code>featureAngleDeg=40</code>、<code>adaptiveScale=false</code>、<code>adaptiveBaseLineWeight=1e-2</code>、<code>boundaryWeight=0.0</code>、<code>preserveBoundary=false</code>、<code>preserveFeatureCurves=false</code>、<code>featureProtectionMode=PrimitiveCurves</code>、<code>featureCurveWeight=0.05</code>、<code>maxFeatureCurveDeviationRatio=0.0</code>（0=关闭曲线漂移预算）、<code>circleFitRelativeThreshold=0.05</code>、<code>ellipseFitRelativeThreshold=0.05</code>、<code>minFeatureLoopVertices=16</code>、<code>minCircularFeatureLoopVertices=6</code>、<code>preserveTexture=false</code>、<code>textureWeight=1.0</code>。</p>
+<p>上面的结构体是早期设计草图，字段名和默认值与当前 <code>include/algorithms/simplification/SimplificationTypes.h</code> 已有出入。当前关键默认值：<code>targetRatio=0.25</code>、<code>useLineQuadrics=true</code>、<code>lineWeight=1e-3</code>、<code>weightMode=Uniform</code>、<code>featureBoost=0.05</code>、<code>featureAngleDeg=40</code>、<code>adaptiveScale=false</code>、<code>adaptiveBaseLineWeight=1e-2</code>、<code>boundaryWeight=0.0</code>、<code>preserveBoundary=false</code>、<code>preserveFeatureCurves=false</code>、<code>featureProtectionMode=PrimitiveCurves</code>、<code>featureCurveWeight=0.05</code>、<code>maxFeatureCurveDeviationRatio=0.0</code>（0=关闭曲线漂移预算）、<code>circleFitRelativeThreshold=0.05</code>、<code>ellipseFitRelativeThreshold=0.05</code>、<code>minFeatureLoopVertices=16</code>（旧平面 C++/C API 兼容默认；FeatureOptions/profile/CLI 显式使用 8）、<code>minCircularFeatureLoopVertices=6</code>、<code>preserveTexture=false</code>、<code>textureWeight=1.0</code>。</p>
 </div>
 
 <h3 id="s5-3">5.3 SimplifyReport</h3>
@@ -2054,7 +2054,7 @@ private:
 <tr><td><code>--weight-mode</code></td><td>uniform</td><td>特征权重计算模式：uniform / dihedral / normal-tensor / height / xband</td><td>dihedral 或 normal-tensor</td><td>决定 w_i 的计算方式：uniform（常数）、dihedral（折痕增强）、normal-tensor（张量分解）；非 uniform 模式 w_i = lineWeight + featureBoost·score</td><td><code>--weight-mode normal-tensor</code></td></tr>
 <tr><td><code>--feature-boost</code></td><td>0.05</td><td>特征分数增益，控制特征区域权重增幅</td><td>0.02–0.15</td><td>非 adaptiveScale：折痕顶点 w_i = lineWeight + boost·score；adaptiveScale=true 时改为队列 priorityScale，不进 quadric</td><td><code>--feature-boost 0.08</code></td></tr>
 <tr><td><code>--feature-angle-deg</code></td><td>40</td><td>Dihedral 模式的特征角阈值（度），小于此角不视为特征</td><td>15–45</td><td>不影响 Q 矩阵，控制哪些边被标记为特征（影响 w_i 分布）</td><td><code>--feature-angle-deg 25</code></td></tr>
-<tr><td><code>--adaptive-scale</code></td><td>false</td><td>启用 Wang 2008 优先级/placement 解耦</td><td>跨尺度模型/需要干净 placement 时启用</td><td>quadric 只加 adaptiveBaseLineWeight（默认 1e-2）基础 line 项；featureBoost 变为逐顶点 priorityScale 只乘队列排序代价，不再放大 quadric</td><td><code>--adaptive-scale</code></td></tr>
+<tr><td><code>--adaptive-scale</code></td><td>false</td><td>按局部面积尺度构造基础 line Q，并启用 Wang 2008 的优先级/placement 解耦</td><td>跨尺度模型/需要干净 placement 时启用</td><td>quadric 只加按顶点面积缩放的 adaptiveBaseLineWeight（默认 1e-2）基础 line 项；featureBoost 变为逐顶点 priorityScale 只乘队列排序代价，不再放大 quadric</td><td><code>--adaptive-scale --adaptive-base-line-weight 1e-2</code></td></tr>
 <tr><td><code>--boundary-weight</code></td><td>0.0（关闭）</td><td>边界 Quadric 权重 w_b，控制边界边保护强度</td><td>1–10</td><td>A_bdry += w·|e|·m̂m̂ᵀ，边界方向加秩1约束；默认 0 时不加边界 quadric，但边界弦 link condition 与 Lindstrom-Turk 边界投影始终生效</td><td><code>--boundary-weight 5</code></td></tr>
 <tr><td><code>--preserve-boundary</code></td><td>false</td><td>完全锁定边界顶点位置（不允许任何移动）</td><td>需要严格边界保真时</td><td>不影响 Q 矩阵，直接禁止边界顶点参与折叠</td><td><code>--preserve-boundary</code></td></tr>
 <tr><td><code>--preserve-feature-curves</code></td><td>false</td><td>启用特征曲线检测与保护（第三+四层）</td><td>CAD 模型推荐启用</td><td>启用曲线 Q_curve = w·a·(I₃-t̂t̂ᵀ)，秩2约束</td><td><code>--preserve-feature-curves</code></td></tr>
@@ -2062,7 +2062,7 @@ private:
 <tr><td><code>--max-feature-curve-deviation-ratio</code></td><td>0（关闭）</td><td>曲线误差预算：新顶点偏离曲线 / 曲线尺寸 ≤ 此值；0 表示关闭漂移预算</td><td>0.02–0.10</td><td>不影响 Q 矩阵，折叠后检查位置漂移是否超阈值</td><td><code>--max-feature-curve-deviation-ratio 0.05</code></td></tr>
 <tr><td><code>--circle-fit-threshold</code></td><td>0.05</td><td>圆拟合残差容忍度（归一化），越小越严格</td><td>0.02–0.08</td><td>不影响 Q 矩阵，控制圆拟合残差判定（间接影响 Q_curve 是否构造）</td><td><code>--circle-fit-threshold 0.04</code></td></tr>
 <tr><td><code>--ellipse-fit-threshold</code></td><td>0.05</td><td>椭圆拟合残差容忍度，与圆阈值默认相同</td><td>0.05–0.12</td><td>不影响 Q 矩阵，控制椭圆拟合残差判定（间接影响 Q_curve 是否构造）</td><td><code>--ellipse-fit-threshold 0.06</code></td></tr>
-<tr><td><code>--min-feature-loop-vertices</code></td><td>16</td><td>特征环最小顶点数，少于则不视为有效曲线</td><td>8–20</td><td>不影响 Q 矩阵，过滤短环（少于阈值的环不构造 Q_curve）</td><td><code>--min-feature-loop-vertices 12</code></td></tr>
+<tr><td><code>--min-feature-loop-vertices</code></td><td>8（CLI/profile）</td><td>特征环最小顶点数，少于则不视为有效曲线</td><td>8–20</td><td>不影响 Q 矩阵，过滤短环（少于阈值的环不构造 Q_curve）；旧平面 C++/C API 的兼容默认仍为 16</td><td><code>--min-feature-loop-vertices 12</code></td></tr>
 <tr><td><code>--min-circular-feature-loop-vertices</code></td><td>6</td><td>圆/椭圆拟合的最小环顶点数</td><td>6–16</td><td>不影响 Q 矩阵，过滤短圆/椭圆环</td><td><code>--min-circular-feature-loop-vertices 10</code></td></tr>
 <tr><td><code>--normal-tensor-threshold</code></td><td>0.16</td><td>NormalTensor 特征分数阈值，低于则不视为特征</td><td>0.06–0.25</td><td>不影响 Q 矩阵，控制 NormalTensor 特征分数阈值（影响 w_i 分布）</td><td><code>--normal-tensor-threshold 0.06</code></td></tr>
 <tr><td><code>--normal-tensor-edge-alignment</code></td><td>0.45</td><td>NormalTensor 边方向与折痕切线最小对齐度</td><td>0.2–0.6</td><td>不影响 Q 矩阵，控制哪些边被标记为 NormalTensor 特征边</td><td><code>--normal-tensor-edge-alignment 0.2</code></td></tr>

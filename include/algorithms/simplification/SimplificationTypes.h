@@ -150,6 +150,11 @@ struct SimplifyOptions {
     double ellipseFitRelativeThreshold = 0.05;
     double nearCircleAxisRatioTolerance = 0.08;
     /// 通用特征和圆/近圆特征的最小环尺寸。
+    ///
+    /// 这是 0.x 平面 API 的兼容默认值。新的 profile/FeatureOptions 入口使用
+    /// 8 作为更适合当前检测器的显式默认值；不要修改此字段的默认值，否则
+    /// `SimplifyOptions{}`、C ABI 初始化和旧的聚合初始化会静默改变结果。
+    /// 当其低于 5 时，特征检测/报告仍使用请求值；简化坍缩保护为保持局部拓扑稳定会使用 5 的安全下限。
     int minFeatureLoopVertices = 16;
     int minCircularFeatureLoopVertices = 6;
     /// 除二面角边外，启用法向张量弱特征证据。
@@ -284,6 +289,7 @@ struct SimplifyCostOptions {
  * 权重模式时，`detection` 也会提供相应的排序参数，不受 `enabled` 控制。
  */
 struct SimplifyFeatureOptions {
+    /// 保持旧分组配置的默认特征环阈值；profile 工厂会显式选择当前 profile 值。
     SimplifyFeatureOptions() { detection.minFeatureLoopVertices = 16; }
 
     bool enabled = false;
@@ -362,6 +368,17 @@ struct SimplifyConfig {
     SimplifyTextureOptions texture;
     bool verbose = false;
 };
+
+/**
+ * @brief 从共享特征 profile 创建分组简化配置。
+ *
+ * `Default` 保持 profile/CLI 的现代检测默认（8 个环顶点），而直接构造
+ * `SimplifyConfig{}` 仍保留 0.x 平面 API 的兼容阈值 16。其余 profile 会启用特征分析和曲线指导，
+ * 并只硬保护已拟合的几何基元曲线；扫描与光滑曲面的张量/曲率候选仍参与软
+ * 特征成本，但不会因噪声或密集候选而硬锁整个特征图。调用方可在返回后覆盖
+ * 任意分组字段，并显式选择 `AllFeatureEdges` 进行严格锁边。
+ */
+MANUMESH_API SimplifyConfig makeSimplifyConfig(feature::FeatureProfile profile);
 
 /**
  * @brief 将分组配置转换为兼容的平面选项。

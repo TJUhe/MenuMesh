@@ -41,10 +41,10 @@ int getIntArg(const Args& args, const std::string& name, int defaultValue);
 double getDoubleArg(const Args& args, const std::string& name, double defaultValue);
 /// @return 未被注册选项或其值消费的剩余令牌。
 std::vector<std::string> positionalArgs(const Args& args);
-/// 解析逗号分隔的有限权重列表。
-std::vector<double> parseWeights(const std::string& text);
-/// 解析逗号分隔的正整数面数列表。
-std::vector<int> parseFaceCounts(const std::string& text);
+/// 解析逗号分隔的有限权重/比例列表；空项和空列表会被拒绝。
+std::vector<double> parseWeights(const std::string& text, const std::string& name = "--weights");
+/// 解析逗号分隔的正整数面数列表；空项和空列表会被拒绝。
+std::vector<int> parseFaceCounts(const std::string& text, const std::string& name = "--faces");
 
 } // namespace cli
 } // namespace manumesh

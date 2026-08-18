@@ -26,4 +26,5 @@ void featureOptionsHeaderCompileCheck() {
     options.normalFilter.enabled = true;
     options.graphConsolidation.enabled = true;
     options.surfacePatches.enabled = true;
+    options = manumesh::feature::makeFeatureOptions(manumesh::feature::FeatureProfile::NoisyScan);
 }

@@ -8,6 +8,7 @@
 
 #include "CliArguments.h"
 
+#include <cctype>
 #include <cmath>
 #include <map>
 #include <sstream>
@@ -35,22 +36,24 @@ struct OptionGroup {
 /// simplify、sweep、ratio-sweep 和 face-sweep 共用的选项。
 const std::vector<OptionSpec>& simplifyOptionSpecs() {
     static const std::vector<OptionSpec> specs = {
-        {"--method", "standard|line", "标准 QEM 或线二次型 QEM"},
-        {"--ratio", "0.25", "目标面数比例"},
-        {"--target-faces", "N", "覆盖 --ratio"},
-        {"--line-weight", "W", "论文默认值约为 1e-3"},
+        {"--profile", "default|cad|scan|noisy-scan|smooth|smooth-surface", "场景档案；显式参数会覆盖档案值；括号内为别名"},
+        {"--print-resolved-config", "", "执行前输出有效配置摘要"},
+        {"--method", "standard|qem|line", "标准 QEM（qem 为别名）或线二次型 QEM"},
+        {"--ratio", "0.25", "目标面数比例；ratio-sweep/face-sweep 请改用各自列表"},
+        {"--target-faces", "N", "绝对目标面数；与 --ratio 同时给出时优先；不用于 ratio-sweep/face-sweep"},
+        {"--line-weight", "W", "论文默认值约为 1e-3；0 会退化为标准 QEM；sweep 请改用 --weights"},
         {"--weight-mode", "uniform|dihedral|normal-tensor|height|xband", "线二次型权重模式"},
         {"--feature-boost", "W", "特征模式额外增加的线权重"},
         {"--feature-angle-deg", "A", "特征模式的二面角阈值"},
         {"--loop-trace-angle-deg", "A", "环追踪的二面角阈值；负值时复用特征角度"},
-        {"--adaptive-base-line-weight", "W", "自适应 Q 缩放前加入的基础线二次型权重"},
+        {"--adaptive-base-line-weight", "W", "自适应 Q 缩放前加入的基础线二次型权重；sweep 请改用 --weights"},
         {"--boundary-weight", "W", "可选的边界平面二次型权重"},
         {"--feature-curve-weight", "W", "环的切线二次型权重"},
         {"--max-feature-curve-deviation-ratio", "R", "拒绝原始放置偏移超过 R*bbox_diag 的多边形特征折叠"},
         {"--circle-fit-threshold", "R", "圆环的相对拟合阈值"},
         {"--ellipse-fit-threshold", "R", "椭圆报告的相对拟合阈值"},
         {"--near-circle-axis-ratio-tolerance", "R", "近圆的轴比容差"},
-        {"--min-feature-loop-vertices", "N", "环顶点少于 N 时停止折叠"},
+        {"--min-feature-loop-vertices", "N", "环顶点少于 N 时停止折叠；N<5 的保护阶段使用安全下限 5"},
         {"--min-circular-feature-loop-vertices", "N", "圆环顶点少于 N 时停止折叠"},
         {"--feature-protection-mode",
          "none|circular-only|primitive-curves|all-feature-edges",
@@ -70,22 +73,26 @@ const std::vector<OptionSpec>& simplifyOptionSpecs() {
         {"--feature-graph-gap-ratio", "R", "桥接不超过 R 个局部边长的端点间隙"},
         {"--feature-graph-max-weak-spur-edges", "N", "移除不超过 N 条边的弱证据毛刺"},
         {"--feature-graph-min-weak-spur-strength", "S", "保留积分强度达到 S 的弱毛刺"},
-        {"--feature-component-min-confidence", "C", "特征分量置信度报告阈值"},
+        {"--feature-component-min-confidence", "C", "仅影响高置信度分量的报告计数，不改变检测或保护"},
         {"--min-triangle-quality", "Q", "拒绝质量低于 Q（范围 [0,1]）的折叠"},
         {"--max-normal-deviation-deg", "A", "拒绝局部面法线变化超过 A 的折叠"},
         {"--max-local-error", "D", "拒绝局部折叠偏移超过 D 的折叠"},
         {"--max-local-error-ratio", "R", "拒绝局部偏移超过 R*bbox 对角线的折叠"},
         {"--quality-refinement-iterations", "N", "执行 N 次固定拓扑质量优化"},
-        {"--adaptive-scale", "", "按局部曲率调整队列优先级（不改变放置位置）"},
+        {"--adaptive-scale", "", "按局部面积尺度构造基础 line Q，并将特征增益仅用于队列优先级；放置使用基础 Q"},
         {"--preserve-boundary", "", "保留开放边界拓扑"},
         {"--preserve-feature-curves", "", "保护检测到的折痕/边界环"},
+        {"--no-preserve-feature-curves", "", "显式关闭 profile 或自动启用的特征曲线保护"},
         {"--prevent-local-intersections", "", "拒绝局部三角形相交"},
         {"--industrial-safe", "", "启用保守的边界/质量保护"},
+        {"--normal-tensor-features", "", "显式启用张量弱特征证据"},
         {"--no-normal-tensor-features", "", "在特征检测中禁用张量候选"},
         {"--smooth-curvature-features", "", "启用确定性的平滑脊线/谷线保护"},
+        {"--no-smooth-curvature-features", "", "显式关闭平滑脊线/谷线证据"},
         {"--smooth-curvature-stable-scale", "", "按跨尺度稳定性选择平滑特征尺度"},
-        {"--smooth-curvature-min-scale-stability", "S", "拒绝尺度稳定性低于 S 的平滑证据"},
+        {"--smooth-curvature-min-scale-stability", "S", "仅在 --smooth-curvature-stable-scale 下拒绝稳定性低于 S 的证据"},
         {"--feature-normal-filter", "", "在特征检测前稳定含噪面法线"},
+        {"--no-feature-normal-filter", "", "显式关闭 profile 启用的特征法线滤波"},
         {"--feature-normal-filter-iterations", "N", "法线滤波迭代次数"},
         {"--feature-normal-filter-angle-sigma-deg", "A", "法线滤波角带宽"},
         {"--feature-normal-filter-preserve-angle-deg", "A", "不跨越大于 A 的锐边进行平滑"},
@@ -101,6 +108,8 @@ const std::vector<OptionSpec>& simplifyOptionSpecs() {
 /// feature-report、feature-benchmark 和 feature-compare 共用的选项。
 const std::vector<OptionSpec>& featureOptionSpecs() {
     static const std::vector<OptionSpec> specs = {
+        {"--profile", "default|cad|scan|noisy-scan|smooth|smooth-surface", "场景档案；显式参数会覆盖档案值；括号内为别名"},
+        {"--print-resolved-config", "", "执行前输出有效配置摘要"},
         {"--feature-angle-deg", "A", "特征边的二面角阈值"},
         {"--loop-trace-angle-deg", "A", "环追踪二面角阈值；负值时复用特征角度"},
         {"--circle-fit-threshold", "R", "圆环的相对拟合阈值"},
@@ -120,8 +129,9 @@ const std::vector<OptionSpec>& featureOptionSpecs() {
         {"--smooth-curvature-min-persistent-scales", "N", "所需的支持尺度数量"},
         {"--smooth-curvature-robust-iterations", "N", "稳健拟合重新加权次数"},
         {"--smooth-curvature-stable-scale", "", "按稳定性而非峰值分数选择参考尺度"},
-        {"--smooth-curvature-min-scale-stability", "S", "可接受的最小参考尺度稳定性"},
+        {"--smooth-curvature-min-scale-stability", "S", "仅在 --smooth-curvature-stable-scale 下使用的最小参考尺度稳定性"},
         {"--feature-normal-filter", "", "在证据提取前稳定含噪面法线"},
+        {"--no-feature-normal-filter", "", "显式关闭 profile 启用的特征法线滤波"},
         {"--feature-normal-filter-iterations", "N", "法线滤波迭代次数"},
         {"--feature-normal-filter-angle-sigma-deg", "A", "法线滤波角带宽"},
         {"--feature-normal-filter-preserve-angle-deg", "A", "保留的折痕角度"},
@@ -129,7 +139,7 @@ const std::vector<OptionSpec>& featureOptionSpecs() {
         {"--feature-graph-gap-ratio", "R", "桥接不超过 R 个局部边长的端点间隙"},
         {"--feature-graph-max-weak-spur-edges", "N", "移除不超过 N 条边的弱证据毛刺"},
         {"--feature-graph-min-weak-spur-strength", "S", "保留积分强度达到 S 的弱毛刺"},
-        {"--feature-component-min-confidence", "C", "特征分量置信度报告阈值"},
+        {"--feature-component-min-confidence", "C", "仅影响高置信度分量的报告计数，不改变检测结果"},
         {"--feature-graph-consolidation", "", "恢复弱分量之间的兼容间隙"},
         {"--feature-graph-consolidation-gap-ratio", "R", "以局部边长为单位的恢复间隙"},
         {"--feature-graph-consolidation-alignment", "A", "最小延续对齐度"},
@@ -137,6 +147,8 @@ const std::vector<OptionSpec>& featureOptionSpecs() {
         {"--surface-patches-strong-only", "", "从面片中排除仅由张量/曲率形成的屏障"},
         {"--csv", "path", "写入特征报告/比较 CSV"},
         {"--smooth-curvature-features", "", "启用确定性的平滑脊线/谷线检测"},
+        {"--no-smooth-curvature-features", "", "显式关闭平滑脊线/谷线证据"},
+        {"--normal-tensor-features", "", "显式启用张量弱特征证据"},
         {"--no-normal-tensor-features", "", "在特征检测中禁用张量候选"},
         {"--no-feature-graph-cleanup", "", "禁用弱毛刺/间隙图清理"},
     };
@@ -152,9 +164,9 @@ const std::vector<OptionSpec>& generateOptionSpecs() {
     return specs;
 }
 
-const OptionSpec kSamplesSpec = {"--samples", "N", "距离采样数量"};
+const OptionSpec kSamplesSpec = {"--samples", "N", "距离采样数量（正整数）"};
 const OptionSpec kMetricsCsvSpec = {"--metrics-csv", "path", "写入单行 CSV 指标"};
-const OptionSpec kWeightsSpec = {"--weights", "list", "用于 sweep，例如 0,1e-5,1e-4,1e-3,1e-2"};
+const OptionSpec kWeightsSpec = {"--weights", "list", "用于 line sweep，例如 0,1e-5,1e-4,1e-3,1e-2；标准 QEM 只接受 0"};
 const OptionSpec kRatiosSpec = {"--ratios", "list", "用于 ratio-sweep，例如 0.8,0.5,0.25,0.1"};
 const OptionSpec kFacesSpec = {"--faces", "list", "用于 face-sweep，例如 1000,900,800"};
 const OptionSpec kInputDirSpec = {"--input-dir", "dir", "工作流输入目录"};
@@ -360,6 +372,7 @@ void validateArgsForCommand(const std::string& command, const Args& args) {
         return;
     }
     const CommandOptionSet& set = it->second;
+    std::unordered_set<std::string> seenValueFlags;
 
     for (std::size_t i = 0; i < args.values.size(); ++i) {
         const std::string& value = args.values[i];
@@ -369,6 +382,9 @@ void validateArgsForCommand(const std::string& command, const Args& args) {
         if (set.valueFlags.count(value)) {
             if (i + 1 >= args.values.size() || looksLikeMissingValue(args.values[i + 1])) {
                 throw std::invalid_argument(value + " requires a value.");
+            }
+            if (!seenValueFlags.insert(value).second) {
+                throw std::invalid_argument(value + " may be specified only once.");
             }
             ++i;
             continue;
@@ -409,18 +425,22 @@ std::string optionsHelpText() {
 }
 
 std::string getArg(const Args& args, const std::string& name, const std::string& defaultValue) {
-    for (std::size_t i = 0; i + 1 < args.values.size(); ++i) {
+    std::string result = defaultValue;
+    bool found = false;
+    for (std::size_t i = 0; i < args.values.size(); ++i) {
         if (args.values[i] == name) {
-            if (looksLikeMissingValue(args.values[i + 1])) {
+            if (i + 1 >= args.values.size() || looksLikeMissingValue(args.values[i + 1])) {
                 throw std::invalid_argument(name + " requires a value.");
             }
-            return args.values[i + 1];
+            if (found) {
+                throw std::invalid_argument(name + " may be specified only once.");
+            }
+            result = args.values[i + 1];
+            found = true;
+            ++i;
         }
     }
-    if (!args.values.empty() && args.values.back() == name) {
-        throw std::invalid_argument(name + " requires a value.");
-    }
-    return defaultValue;
+    return result;
 }
 
 int parseIntStrict(const std::string& value, const std::string& name) {
@@ -451,7 +471,13 @@ double parseDoubleStrict(const std::string& value, const std::string& name) {
 
 int getIntArg(const Args& args, const std::string& name, int defaultValue) {
     const std::string value = getArg(args, name);
-    return value.empty() ? defaultValue : parseIntStrict(value, name);
+    const int result = value.empty() ? defaultValue : parseIntStrict(value, name);
+    // Distance metrics are meaningless without at least one sample. Keep this
+    // contract at the shared CLI boundary so all commands and workflows agree.
+    if (name == "--samples" && result <= 0) {
+        throw std::invalid_argument("--samples must be a positive integer.");
+    }
+    return result;
 }
 
 double getDoubleArg(const Args& args, const std::string& name, double defaultValue) {
@@ -474,26 +500,68 @@ std::vector<std::string> positionalArgs(const Args& args) {
     return result;
 }
 
-std::vector<double> parseWeights(const std::string& text) {
+namespace {
+
+std::string trimListToken(const std::string& value) {
+    std::size_t first = 0;
+    while (first < value.size() && std::isspace(static_cast<unsigned char>(value[first]))) {
+        ++first;
+    }
+    std::size_t last = value.size();
+    while (last > first && std::isspace(static_cast<unsigned char>(value[last - 1]))) {
+        --last;
+    }
+    return value.substr(first, last - first);
+}
+
+} // namespace
+
+std::vector<double> parseWeights(const std::string& text, const std::string& name) {
+    if (text.empty()) {
+        throw std::invalid_argument(name + " requires a non-empty comma-separated list.");
+    }
+    if (text.back() == ',') {
+        throw std::invalid_argument(name + " contains an empty value.");
+    }
     std::vector<double> weights;
     std::stringstream ss(text);
     std::string item;
     while (std::getline(ss, item, ',')) {
-        if (!item.empty()) {
-            weights.push_back(parseDoubleStrict(item, "--weights"));
+        item = trimListToken(item);
+        if (item.empty()) {
+            throw std::invalid_argument(name + " contains an empty value.");
         }
+        weights.push_back(parseDoubleStrict(item, name));
+    }
+    if (weights.empty()) {
+        throw std::invalid_argument(name + " requires at least one value.");
     }
     return weights;
 }
 
-std::vector<int> parseFaceCounts(const std::string& text) {
+std::vector<int> parseFaceCounts(const std::string& text, const std::string& name) {
+    if (text.empty()) {
+        throw std::invalid_argument(name + " requires a non-empty comma-separated list.");
+    }
+    if (text.back() == ',') {
+        throw std::invalid_argument(name + " contains an empty value.");
+    }
     std::vector<int> counts;
     std::stringstream ss(text);
     std::string item;
     while (std::getline(ss, item, ',')) {
-        if (!item.empty()) {
-            counts.push_back(parseIntStrict(item, "--faces"));
+        item = trimListToken(item);
+        if (item.empty()) {
+            throw std::invalid_argument(name + " contains an empty value.");
         }
+        const int count = parseIntStrict(item, name);
+        if (count <= 0) {
+            throw std::invalid_argument(name + " values must be positive; got " + item + ".");
+        }
+        counts.push_back(count);
+    }
+    if (counts.empty()) {
+        throw std::invalid_argument(name + " requires at least one value.");
     }
     return counts;
 }

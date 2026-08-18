@@ -343,6 +343,8 @@ ManuMeshStatus initializeSimplifyOptions(ManuMeshSimplifyOptions* options, std::
     MANUMESH_INITIALIZE_OPTION(circle_fit_relative_threshold, 0.05);
     MANUMESH_INITIALIZE_OPTION(ellipse_fit_relative_threshold, 0.05);
     MANUMESH_INITIALIZE_OPTION(near_circle_axis_ratio_tolerance, 0.08);
+    // Keep the published flat C ABI default aligned with SimplifyOptions{} (16).
+    // New feature/profile APIs opt into the detector's explicit default of 8.
     MANUMESH_INITIALIZE_OPTION(min_feature_loop_vertices, 16);
     MANUMESH_INITIALIZE_OPTION(min_circular_feature_loop_vertices, 6);
     MANUMESH_INITIALIZE_OPTION(use_normal_tensor_features, 1);

@@ -445,7 +445,7 @@ flowchart TD
         <tr><td>二面角</td><td><code>featureAngleDeg=40</code>，必须 [0,180]</td><td>决定强 dihedral edge 候选；过小会过检，过大会漏浅 crease。</td><td><span class="ref">C02</span> <span class="ref">C03</span></td></tr>
         <tr><td>loop trace 角</td><td><code>loopTraceAngleDeg=-1</code> 表示复用 feature angle</td><td>允许“检测到但不参与 tracing”的边，形成 <code>untracedFeatureEdges</code>。</td><td><span class="ref">C10</span></td></tr>
         <tr><td>primitive 拟合阈值</td><td>circle/ellipse relative threshold 默认 0.05，near-circle axis tolerance 默认 0.08</td><td>决定 closed loop 是圆、近圆、椭圆还是 polygonal loop。</td><td><span class="ref">C18</span></td></tr>
-        <tr><td>loop 最小顶点数</td><td><code>minFeatureLoopVertices=8</code>，必须至少 3</td><td>控制 recovered cycle 接受和 closed traced loop 的 primitive fitting；普通 traced chain/loop 即使更短仍会作为拓扑 trace 报告。</td><td><span class="ref">C02</span> <span class="ref">C19</span></td></tr>
+        <tr><td>loop 最小顶点数</td><td><code>FeatureOptions::minFeatureLoopVertices=8</code>，必须至少 3</td><td>控制 recovered cycle 接受和 closed traced loop 的 primitive fitting；普通 traced chain/loop 即使更短仍会作为拓扑 trace 报告。旧平面 <code>SimplifyOptions</code>/C ABI 入口为兼容保留默认 16，profile/CLI 显式使用 8。</td><td><span class="ref">C02</span> <span class="ref">C19</span></td></tr>
         <tr><td>normal tensor</td><td>threshold 0.16，edge alignment 0.45，scale count 至少 1</td><td>补弱 crease；scale 和 alignment 对噪声/采样很敏感。</td><td><span class="ref">C06</span> <span class="ref">C07</span></td></tr>
         <tr><td>smooth curvature</td><td><code>useSmoothCurvatureFeatures=false</code>；stable-scale 默认 false，min stability 0.0；其余 threshold/alignment/rings/scales/robust 参数保持既有默认值</td><td>面向 ridge/valley；stable-scale 输出 selected scale/stability，并可拒绝尺度不稳定 evidence。</td><td><span class="ref">C29</span> <span class="ref">C30</span> <span class="ref">C31</span></td></tr>
         <tr><td>normal filter</td><td>disabled；4 iterations，sigma 20°，preserve 50°，relaxation 0.8</td><td>只稳定检测面法向；不改变 mesh positions/topology。</td><td><code>FeatureNormalFilter.cpp</code></td></tr>
@@ -1535,11 +1535,11 @@ flowchart TD
     <table>
       <thead><tr><th>条件</th><th>源码逻辑</th><th>意义</th></tr></thead>
       <tbody>
-        <tr><td>不能覆盖已有强离散顶点</td><td>若 edge 两端任一为 boundary/dihedral/non-manifold 的 discrete feature vertex，则跳过 tensor edge。</td><td>防止强边和弱边统计混淆。</td></tr>
-        <tr><td>多尺度持久性</td><td>两端点 persistent scales 的最小值必须达到 <code>normalTensorMinPersistentScales</code>。</td><td>过滤只在单尺度偶然出现的噪声。</td></tr>
-        <tr><td>端点 score 阈值</td><td>两端 persistent score 的较小值必须 ≥ <code>normalTensorFeatureThreshold</code>。</td><td>要求边两端都有支持。</td></tr>
-        <tr><td>crease 优先于 corner</td><td>任一端点若 crease saliency 小于 corner saliency，则拒绝。</td><td>减少把角点散射当作边线。</td></tr>
-        <tr><td>方向对齐</td><td><code>max(|d·tA|, |d·tB|) >= normalTensorMinEdgeAlignment</code>，即较好对齐的一个端点达到阈值即可。</td><td>这是比 smooth-curvature 更宽松的当前策略，可提高弯折/采样不齐处召回，但也意味着另一端可能方向不稳定；假阳性分析应专门比较 max/min/mean 三种规则。</td></tr>
+        <tr><td>强离散端点</td><td>两个端点都是 discrete feature vertex 时跳过；只有一个时，该端的 tensor 门控按通过处理。</td><td>不让弱证据覆盖强边，同时允许弱特征在 hard junction 处连续。</td></tr>
+        <tr><td>多尺度持久性</td><td>两个软端点 persistent scales 的最小值必须达到 <code>normalTensorMinPersistentScales</code>；只有一个软端点时只检查它。</td><td>过滤只在单尺度偶然出现的噪声。</td></tr>
+        <tr><td>端点 score 阈值</td><td>两个软端点 persistent score 的较小值必须 ≥ <code>normalTensorFeatureThreshold</code>；只有一个软端点时只检查它。</td><td>要求每个软端点都有支持。</td></tr>
+        <tr><td>crease 优先于 corner</td><td>任一软端点若 crease saliency 小于 corner saliency，则拒绝。</td><td>减少把角点散射当作边线。</td></tr>
+        <tr><td>方向对齐</td><td><code>min(|d·tA|, |d·tB|) >= normalTensorMinEdgeAlignment</code>；离散 junction 端的对齐度按 <code>1.0</code>。</td><td>每个软端点都必须具有可靠方向，避免单端切向误判把噪声扩展成折痕边。</td></tr>
       </tbody>
     </table>
 
@@ -1620,12 +1620,12 @@ flowchart TD
     <table>
       <thead><tr><th>条件</th><th>源码逻辑</th><th>意义</th></tr></thead>
       <tbody>
-        <tr><td>不覆盖强离散证据</td><td>边已是 boundary/dihedral/non-manifold，或任一端点是离散特征顶点，直接跳过。</td><td>保持弱证据统计纯净，与 tensor 路径同一原则。</td></tr>
-        <tr><td>多尺度持久性</td><td>两端 <code>persistentScales</code> 的较小值必须达到 <code>smoothCurvatureMinPersistentScales</code>。</td><td>过滤只在单尺度偶然出现的噪声响应。</td></tr>
-        <tr><td>两端分数达标</td><td>两端 persistent score 的较小值必须 ≥ <code>smoothCurvatureFeatureThreshold</code>。</td><td>要求边两端都有支持。</td></tr>
-        <tr><td>符号一致</td><td>两端 <code>signedKind</code> 都非 0 且相同（同为 ridge 或同为 valley）。</td><td>ridge 与 valley 不会被误接成一条曲线。</td></tr>
-        <tr><td>边对齐</td><td>边方向与两端曲线切向的绝对 dot 的<strong>较小值</strong> ≥ <code>smoothCurvatureMinEdgeAlignment</code>。</td><td>比 tensor 路径（取较大值）更严格，弱光滑证据必须顺着曲线走。</td></tr>
-        <tr><td>切向一致</td><td>两端曲线切向之间的绝对 dot ≥ <code>smoothCurvatureMinTangentConsistency</code>。</td><td>避免两端各自“看见”不同方向的曲线。</td></tr>
+        <tr><td>强离散端点</td><td>边本身是 boundary/dihedral/non-manifold 时跳过；两个端点都是离散特征顶点时也跳过。只有一个硬 junction 端点时继续，并将它视为通过所有 smooth 门控。</td><td>不重复标记已有强边，同时允许平滑特征在 hard junction 处结束或连接。</td></tr>
+        <tr><td>多尺度持久性</td><td>所有软端点 <code>persistentScales</code> 的较小值必须达到 <code>smoothCurvatureMinPersistentScales</code>；只有一个软端点时只检查它。</td><td>过滤只在单尺度偶然出现的噪声响应。</td></tr>
+        <tr><td>端点分数达标</td><td>所有软端点的 persistent score 必须 ≥ <code>smoothCurvatureFeatureThreshold</code>；只有一个软端点时只检查它。</td><td>要求每个实际提供弱证据的端点都有支持。</td></tr>
+        <tr><td>符号一致</td><td>每个软端点的 <code>signedKind</code> 都必须非 0；两个软端点同时存在时还必须相同（同为 ridge 或同为 valley）。</td><td>ridge 与 valley 不会被误接成一条曲线。</td></tr>
+        <tr><td>边对齐</td><td>边方向与每个软端点曲线切向的绝对 dot 的<strong>较小值</strong> ≥ <code>smoothCurvatureMinEdgeAlignment</code>；硬 junction 端按 <code>1.0</code>。</td><td>每个软端点都必须顺着曲线，不能由单端方向误判扩展弱证据。</td></tr>
+        <tr><td>切向一致</td><td>两个软端点同时存在时，曲线切向的绝对 dot ≥ <code>smoothCurvatureMinTangentConsistency</code>；存在硬 junction 时此门控按 <code>1.0</code>。</td><td>避免两个软端点各自“看见”不同方向的曲线。</td></tr>
       </tbody>
     </table>
 

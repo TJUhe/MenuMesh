@@ -15,10 +15,8 @@
 #include "io/MeshIo.h"
 
 #include "core/Filesystem.h"
-#include <fstream>
 #include <initializer_list>
 #include <iostream>
-#include <locale>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -51,26 +49,6 @@ Args makeArgs(std::initializer_list<std::string> values) {
 }
 
 std::string pathString(const fs::path& path) { return pathToUtf8(path); }
-
-std::ofstream openWorkflowCsv(const fs::path& path) {
-    std::ofstream stream(path, std::ios::out | std::ios::trunc);
-    if (!stream) {
-        throw std::runtime_error("Cannot open CSV output: " + pathToUtf8(path));
-    }
-    stream.imbue(std::locale::classic());
-    return stream;
-}
-
-void finishWorkflowCsv(std::ofstream& stream, const fs::path& path) {
-    stream.flush();
-    if (!stream) {
-        throw std::runtime_error("Failed to write CSV output: " + pathToUtf8(path));
-    }
-    stream.close();
-    if (!stream) {
-        throw std::runtime_error("Failed to finalize CSV output: " + pathToUtf8(path));
-    }
-}
 
 void runGenerate(const fs::path& inputDir, const std::string& name, const std::string& type, int n) {
     runRegisteredCommand(
@@ -156,6 +134,9 @@ void runSummarizeMetrics(const fs::path& outputRoot, const fs::path& summaryPath
 } // 命名空间
 
 int demo(const Args& args) {
+    if (!positionalArgs(args).empty()) {
+        throw std::invalid_argument("demo does not accept positional paths.");
+    }
     const fs::path inputDir = pathFromUtf8(getArg(args, "--input-dir", "output/demo_input"));
     const fs::path outputDir = pathFromUtf8(getArg(args, "--output-dir", "output/demo"));
     const fs::path flangeSource =
@@ -467,6 +448,9 @@ int demo(const Args& args) {
 }
 
 int validateFeatures(const Args& args) {
+    if (!positionalArgs(args).empty()) {
+        throw std::invalid_argument("validate-features does not accept positional paths.");
+    }
     struct CaseSpec {
         std::string name;
         fs::path externalInput;
@@ -591,6 +575,9 @@ int validateFeatures(const Args& args) {
 }
 
 int validateExternal(const Args& args) {
+    if (!positionalArgs(args).empty()) {
+        throw std::invalid_argument("validate-external does not accept positional paths.");
+    }
     struct ExternalSpec {
         std::string name;
         std::vector<std::string> candidates;
@@ -609,7 +596,8 @@ int validateExternal(const Args& args) {
     };
     fs::create_directories(outDir);
     const fs::path summaryPath = outDir / "external_summary.csv";
-    std::ofstream summary = openWorkflowCsv(summaryPath);
+    AtomicCsvOutput summaryFile(summaryPath);
+    std::ofstream& summary = summaryFile.stream();
     summary << "model,notes,input_path,line_output,curve_output,input_faces,line_faces,"
                "curve_faces,line_matched,line_missing,curve_matched,curve_missing,"
                "line_rejected_collapses,curve_rejected_collapses\n";
@@ -754,12 +742,11 @@ int validateExternal(const Args& args) {
     }
 
     if (processed == 0) {
-        finishWorkflowCsv(summary, summaryPath);
         throw std::runtime_error(
             "No external OBJ files found. Place common-3d-test-models OBJ files in " + pathToUtf8(inputDir) + " first."
         );
     }
-    finishWorkflowCsv(summary, summaryPath);
+    summaryFile.commit();
     std::cout << "External validation outputs written to " << pathToUtf8(outDir) << "\n";
     return 0;
 }

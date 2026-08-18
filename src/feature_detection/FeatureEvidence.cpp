@@ -43,7 +43,7 @@ struct EdgeEvidenceContext {
           analysis(outputAnalysis),
           normals(cache.faceNormals()),
           edges(cache.edgeInfo()),
-          windingFlip(manumesh::common::harmonizeFaceWindings(inputMesh, cache.edgeInfo())),
+          windingFlip(cache.faceWindingFlips()),
           dihedralThreshold(options.featureAngleDeg * kPi / 180.0),
           tensor(
               options.useNormalTensorFeatures ? computeNormalTensorFeaturesCached(
@@ -96,7 +96,7 @@ struct EdgeEvidenceContext {
     FeatureAnalysis& analysis;
     const std::vector<Vec3>& normals;
     const manumesh::common::MeshEdgeInfoMap& edges;
-    std::vector<char> windingFlip;
+    const std::vector<char>& windingFlip;
     double dihedralThreshold = 0.0;
     std::vector<NormalTensorVertex> tensor;
     std::vector<SmoothCurvatureVertex> curvature;

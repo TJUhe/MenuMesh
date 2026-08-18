@@ -33,6 +33,32 @@ v142、Release、oneTBB 2021.12.0 shared 构建。
 拓扑提交和 priority queue 仍然是主要串行段。1 thread 的额外调度成本可能略高或略低，
 不能据此承诺固定收益；基准只断言所有线程配置的指纹相同。
 
+## 特征识别针对性优化
+
+第二轮 profile 显示，普通 CAD/scan 识别的主要耗时并不在 oneTBB 调度器，而是可选的
+Smooth Curvature 多尺度三次 Monge 拟合。`max_planck.stl`（约 100,000 面）的 scan 配置
+约为 520 ms 串行、422 ms（8 worker）；smooth 配置（3 个尺度、2 次稳健重加权）约为
+2,154 ms 串行、1,086 ms（8 worker）。关闭曲率候选后，曲率拟合之外的候选图清理、恢复
+和基元拟合仍约占 448 ms，因此图阶段仍是后续优化目标。
+
+本轮实现了两项不会改变特征语义的优化：
+
+- `FeatureDetectionCache` 复用完整的 face-winding 协调结果，法向滤波与边证据不再分别扫描
+  全部 edge incidence；
+- Smooth Curvature 的并行 BFS 将每顶点 `std::unordered_set` 改为任务本地、epoch 驱动的
+  开放寻址 sparse set。它只随最大局部邻域增长，reset 不分配内存，仍按原有确定性邻接表的
+  BFS 首次发现顺序输出邻域。
+
+在 66,049 V / 131,072 F 的同一 Release 进程即时对照中，smooth-curvature 核的 4/8 worker
+时间由 666.28 / 473.62 ms 降至 542.06 / 401.90 ms（约 18.6% / 15.2%）；输出指纹保持
+`18100338586985329564`。`ParallelPipelineBenchmark.ReportsSmoothCurvatureScalingWithoutFixedSpeedupAssertion`
+会持续报告 0、1、2、4、8 worker 的耗时并验证该指纹，而不会把这一台机器的耗时设成 CI 门槛。
+
+当前机器上，同一真实 STL 的 7 次独立进程中位数为：scan `401.17 ms`（串行）、`324.21 ms`
+（8 worker）；smooth `2,204.07 ms`（串行）、`995.06 ms`（8 worker）。smooth 仍然明显慢于
+scan 是预期的算法成本差异，不应通过降低默认质量或改变候选/图恢复语义来伪造加速；需要更低
+延迟时，调用方可明确选择更少尺度和更少稳健迭代。
+
 ## 真实 STL 负载
 
 输入为仓库已有的 `tests/data/external/large/max_planck.stl`（99,991 面），使用 noisy-scan 特征

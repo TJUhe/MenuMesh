@@ -26,8 +26,8 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -171,20 +171,112 @@ void gatherNeighborhood(
 }
 
 /**
- * @brief 并行 worker 使用的稀疏访问集合。
+ * @brief 并行任务使用的可复用稀疏访问集合。
  *
- * 每个范围任务只为实际访问的 k-ring 顶点保留 membership，避免为每个 worker
- * 分配一个 O(V) 的 stamp 数组。结果顺序仍由邻接表的确定性 BFS 顺序决定。
+ * 访问标记只随最大 k-ring 邻域增长，避免每个并行任务分配 O(V) 的全局 stamp
+ * 数组；epoch 复位也不会释放或重新分配当前容量。开放寻址避免
+ * std::unordered_set 在每个种子顶点插入节点和 clear 时的频繁小块分配。
+ */
+class SparseVisitSet {
+public:
+    SparseVisitSet() { rehash(kInitialCapacity); }
+
+    /** @brief 开始新的访问轮次而不清理已分配的槽位。 */
+    void reset() noexcept {
+        size_ = 0;
+        ++epoch_;
+        if (epoch_ == 0) {
+            std::fill(epochs_.begin(), epochs_.end(), 0);
+            epoch_ = 1;
+        }
+    }
+
+    /** @return 顶点此前未在当前访问轮次中出现时为 true。 */
+    bool insert(int vertex) {
+        std::size_t slot = findSlot(vertex);
+        if (epochs_[slot] == epoch_) {
+            return false;
+        }
+        if (size_ + 1 > growthThreshold()) {
+            rehash(slots_.size() * 2);
+            slot = findSlot(vertex);
+        }
+        slots_[slot] = vertex;
+        epochs_[slot] = epoch_;
+        ++size_;
+        return true;
+    }
+
+private:
+    static constexpr std::size_t kInitialCapacity = 128;
+
+    static std::size_t hashVertex(int vertex) noexcept {
+        std::uint32_t bits = static_cast<std::uint32_t>(vertex);
+        bits ^= bits >> 16U;
+        bits *= 0x7feb352dU;
+        bits ^= bits >> 15U;
+        bits *= 0x846ca68bU;
+        bits ^= bits >> 16U;
+        return static_cast<std::size_t>(bits);
+    }
+
+    std::size_t findSlot(int vertex) const noexcept {
+        const std::size_t mask = slots_.size() - 1;
+        std::size_t slot = hashVertex(vertex) & mask;
+        while (epochs_[slot] == epoch_ && slots_[slot] != vertex) {
+            slot = (slot + 1) & mask;
+        }
+        return slot;
+    }
+
+    std::size_t growthThreshold() const noexcept {
+        // 75% load keeps short, predictable probe chains while preserving a compact task-local table.
+        return slots_.size() - slots_.size() / 4;
+    }
+
+    void rehash(std::size_t requestedCapacity) {
+        std::size_t capacity = kInitialCapacity;
+        while (capacity < requestedCapacity) {
+            capacity *= 2;
+        }
+        std::vector<int> newSlots(capacity, 0);
+        std::vector<std::uint32_t> newEpochs(capacity, 0);
+        const std::size_t mask = capacity - 1;
+        for (std::size_t oldSlot = 0; oldSlot < slots_.size(); ++oldSlot) {
+            if (epochs_[oldSlot] != epoch_) {
+                continue;
+            }
+            std::size_t newSlot = hashVertex(slots_[oldSlot]) & mask;
+            while (newEpochs[newSlot] == epoch_) {
+                newSlot = (newSlot + 1) & mask;
+            }
+            newSlots[newSlot] = slots_[oldSlot];
+            newEpochs[newSlot] = epoch_;
+        }
+        slots_.swap(newSlots);
+        epochs_.swap(newEpochs);
+    }
+
+    std::vector<int> slots_;
+    std::vector<std::uint32_t> epochs_;
+    std::size_t size_ = 0;
+    std::uint32_t epoch_ = 1;
+};
+
+/**
+ * @brief 将邻域按层宽度优先收集到复用缓冲区，并以稀疏集合去重。
+ *
+ * 访问集合不参与迭代，邻域顺序始终由确定性邻接表的 BFS 首次发现顺序决定。
  */
 void gatherNeighborhoodSparse(
     const std::vector<std::vector<int>>& neighbors,
     int seed,
     int maxDepth,
-    std::unordered_set<int>& visited,
+    SparseVisitSet& visited,
     std::vector<NeighborhoodVertex>& result
 ) {
     result.clear();
-    visited.clear();
+    visited.reset();
     result.push_back({seed, 0});
     visited.insert(seed);
     std::size_t head = 0;
@@ -194,7 +286,7 @@ void gatherNeighborhoodSparse(
             continue;
         }
         for (int nb : neighbors[current.id]) {
-            if (!visited.insert(nb).second) {
+            if (!visited.insert(nb)) {
                 continue;
             }
             result.push_back({nb, current.depth + 1});
@@ -684,8 +776,7 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeaturesCached(
             rangeOptions,
             [&](std::size_t begin, std::size_t end) {
                 FitWorkspace workspace;
-                std::unordered_set<int> visited;
-                visited.reserve(128);
+                SparseVisitSet visited;
                 for (std::size_t vertex = begin; vertex < end; ++vertex) {
                     gatherNeighborhoodSparse(
                         neighbors, static_cast<int>(vertex), maxRings, visited, workspace.neighborhood

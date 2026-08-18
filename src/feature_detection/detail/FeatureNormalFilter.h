@@ -8,6 +8,9 @@
 
 #include "algorithms/feature_detection/FeatureTypes.h"
 #include "common/detail/MeshQueries.h"
+#include "common/detail/ParallelExecution.h"
+
+#include <vector>
 
 namespace manumesh {
 namespace feature {
@@ -19,7 +22,11 @@ void validateFeatureNormalFilterOptions(const FeatureNormalFilterOptions& option
  * @brief 复用预计算边面关联的内部法向滤波入口。
  */
 FeatureNormalFilterResult filterFeatureNormalsImpl(
-    const Mesh& mesh, const common::MeshEdgeInfoMap& edgeInfo, const FeatureNormalFilterOptions& options
+    const Mesh& mesh,
+    const common::MeshEdgeInfoMap& edgeInfo,
+    const std::vector<char>& windingFlip,
+    const FeatureNormalFilterOptions& options,
+    const common::parallel::RangeExecutionOptions& executionOptions
 );
 
 } // namespace detector_detail

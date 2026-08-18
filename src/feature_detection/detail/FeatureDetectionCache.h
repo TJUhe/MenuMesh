@@ -64,6 +64,20 @@ public:
         return edgeInfo_;
     }
 
+    /**
+     * @brief 返回全局协调后的面绕序翻转标记。
+     *
+     * 法向滤波与边证据必须使用同一份连通分量协调结果；缓存避免两者各自
+     * 扫描完整 edge incidence，并保持后续阶段的符号约定一致。
+     */
+    const std::vector<char>& faceWindingFlips() {
+        if (!hasFaceWindingFlips_) {
+            faceWindingFlips_ = manumesh::common::harmonizeFaceWindings(*mesh_, edgeInfo());
+            hasFaceWindingFlips_ = true;
+        }
+        return faceWindingFlips_;
+    }
+
     /** @brief 返回缓存的确定性顶点一环邻接表。 */
     const std::vector<std::vector<int>>& vertexNeighbors() {
         if (!hasVertexNeighbors_) {
@@ -92,6 +106,7 @@ private:
     const Mesh* mesh_ = nullptr;
     std::vector<Vec3> faceNormals_;
     manumesh::common::MeshEdgeInfoMap edgeInfo_;
+    std::vector<char> faceWindingFlips_;
     std::vector<std::vector<int>> vertexNeighbors_;
     std::vector<double> vertexAverageEdgeLength_;
     std::vector<Vec3> areaWeightedVertexNormals_;
@@ -100,6 +115,7 @@ private:
     FeatureNormalFilterReport normalFilterReport_;
     bool hasFaceNormals_ = false;
     bool hasEdgeInfo_ = false;
+    bool hasFaceWindingFlips_ = false;
     bool hasVertexNeighbors_ = false;
     bool hasVertexAverageEdgeLength_ = false;
     bool hasAreaWeightedVertexNormals_ = false;

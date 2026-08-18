@@ -49,6 +49,28 @@ Mesh makeNoisyIrregularFixture() {
     return manumesh::test::analytic::withDeterministicNoise(mesh, 0.0015, 0x7f4a7c159e3779b9ULL);
 }
 
+Mesh makeHighValenceSmoothFixture() {
+    constexpr int segments = 257;
+    constexpr double twoPi = 6.28318530717958647692;
+    Mesh mesh;
+    mesh.vertices.reserve(segments + 1);
+    mesh.faces.reserve(segments);
+    mesh.vertices.emplace_back(0.0, 0.0, 0.18);
+    for (int segment = 0; segment < segments; ++segment) {
+        const double angle = twoPi * static_cast<double>(segment) / static_cast<double>(segments);
+        const double radius = 1.0 + 0.08 * std::cos(3.0 * angle);
+        mesh.vertices.emplace_back(
+            radius * std::cos(angle), radius * std::sin(angle), 0.07 * std::cos(2.0 * angle) + 0.02 * std::sin(5.0 * angle)
+        );
+    }
+    for (int segment = 0; segment < segments; ++segment) {
+        manumesh::Face face;
+        face.v = {{0, segment + 1, (segment + 1) % segments + 1}};
+        mesh.faces.push_back(face);
+    }
+    return mesh;
+}
+
 void expectNormalTensorEqual(
     const std::vector<feature::NormalTensorVertex>& first, const std::vector<feature::NormalTensorVertex>& second
 ) {
@@ -362,6 +384,21 @@ TEST(FeatureDetectionParallel, IndependentStagesMatchSerialResultsExactly) {
     const std::vector<feature::SmoothCurvatureVertex> parallelCurvature =
         feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0, parallel);
     expectSmoothCurvatureEqual(serialCurvature, parallelCurvature);
+}
+
+TEST(FeatureDetectionParallel, SmoothCurvatureHighValenceNeighborhoodMatchesSerialResultsExactly) {
+    const Mesh mesh = makeHighValenceSmoothFixture();
+    const feature::SmoothCurvatureOptions curvatureOptions{1, 1, 0, 0.0};
+    ExecutionOptions parallel = parallelOptions();
+    parallel.minItemsPerTask = 16;
+
+    const std::vector<feature::SmoothCurvatureVertex> serial =
+        feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0);
+    const std::vector<feature::SmoothCurvatureVertex> parallelResult =
+        feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0, parallel);
+
+    // The central vertex has 257 one-ring neighbors, forcing the sparse task-local set to rehash.
+    expectSmoothCurvatureEqual(serial, parallelResult);
 }
 
 TEST(FeatureDetectionParallel, CompleteFeatureGraphMatchesSerialResultsExactly) {

@@ -30,6 +30,8 @@ namespace feature {
 namespace detector_detail {
 namespace {
 
+const std::vector<char> kNoWindingFlips;
+
 /** @brief 参与双边法向平滑的相邻面对。 */
 struct FacePair {
     int first = -1;
@@ -120,6 +122,7 @@ void validateFeatureNormalFilterOptions(const FeatureNormalFilterOptions& option
 FeatureNormalFilterResult filterFeatureNormalsImpl(
     const Mesh& mesh,
     const common::MeshEdgeInfoMap& edgeInfo,
+    const std::vector<char>& windingFlip,
     const FeatureNormalFilterOptions& options,
     const common::parallel::RangeExecutionOptions& executionOptions
 ) {
@@ -129,7 +132,6 @@ FeatureNormalFilterResult filterFeatureNormalsImpl(
         return result;
     }
 
-    const std::vector<char> windingFlip = common::harmonizeFaceWindings(mesh, edgeInfo);
     std::vector<Vec3> harmonized = result.faceNormals;
     common::parallel::forEachRange(0, harmonized.size(), executionOptions, [&](std::size_t begin, std::size_t end) {
         for (std::size_t faceId = begin; faceId < end; ++faceId) {
@@ -231,8 +233,16 @@ const std::vector<Vec3>& FeatureDetectionCache::faceNormals() {
     if (!hasFaceNormals_) {
         const common::parallel::RangeExecutionOptions rangeOptions =
             common::parallel::makeRangeExecutionOptions(executionOptions_);
+        const bool requiresWinding =
+            normalFilterOptions_.enabled && normalFilterOptions_.iterations > 0 && !mesh_->faces.empty();
         const FeatureNormalFilterResult filtered =
-            filterFeatureNormalsImpl(*mesh_, edgeInfo(), normalFilterOptions_, rangeOptions);
+            filterFeatureNormalsImpl(
+                *mesh_,
+                edgeInfo(),
+                requiresWinding ? faceWindingFlips() : kNoWindingFlips,
+                normalFilterOptions_,
+                rangeOptions
+            );
         faceNormals_ = filtered.faceNormals;
         normalFilterReport_ = filtered.report;
         hasFaceNormals_ = true;
@@ -258,8 +268,11 @@ FeatureNormalFilterResult filterFeatureNormals(
     detector_detail::validateFeatureNormalFilterOptions(options);
     validateExecutionOptions(executionOptions);
     const common::MeshEdgeInfoMap edgeInfo = common::buildMeshEdgeInfo(mesh);
+    const bool requiresWinding = options.enabled && options.iterations > 0 && !mesh.faces.empty();
+    const std::vector<char> windingFlip =
+        requiresWinding ? common::harmonizeFaceWindings(mesh, edgeInfo) : std::vector<char>{};
     return detector_detail::filterFeatureNormalsImpl(
-        mesh, edgeInfo, options, common::parallel::makeRangeExecutionOptions(executionOptions)
+        mesh, edgeInfo, windingFlip, options, common::parallel::makeRangeExecutionOptions(executionOptions)
     );
 }
 

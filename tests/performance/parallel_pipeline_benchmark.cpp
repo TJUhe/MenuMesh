@@ -102,6 +102,36 @@ std::uint64_t featureFingerprint(const manumesh::feature::FeatureAnalysis& analy
     return hash.value();
 }
 
+std::uint64_t smoothCurvatureFingerprint(const std::vector<manumesh::feature::SmoothCurvatureVertex>& values) {
+    Fingerprint hash;
+    hash.add(values.size());
+    for (const manumesh::feature::SmoothCurvatureVertex& value : values) {
+        hash.add(value.normal.x());
+        hash.add(value.normal.y());
+        hash.add(value.normal.z());
+        hash.add(value.curveTangent.x());
+        hash.add(value.curveTangent.y());
+        hash.add(value.curveTangent.z());
+        hash.add(value.extremumDirection.x());
+        hash.add(value.extremumDirection.y());
+        hash.add(value.extremumDirection.z());
+        hash.add(value.principalCurvature);
+        hash.add(value.secondaryCurvature);
+        hash.add(value.anisotropy);
+        hash.add(value.extremumStrength);
+        hash.add(value.featureScore);
+        hash.add(value.averageFeatureScore);
+        hash.add(value.persistentFeatureScore);
+        hash.add(value.fitResidual);
+        hash.add(value.localScale);
+        hash.add(value.persistentScales);
+        hash.add(value.selectedScale);
+        hash.add(value.scaleStability);
+        hash.add(value.signedKind);
+    }
+    return hash.value();
+}
+
 ExecutionOptions executionFor(int threadCount) {
     ExecutionOptions options;
     if (threadCount < 0) {
@@ -177,5 +207,32 @@ TEST(ParallelPipelineBenchmark, ReportsFeatureAndSimplificationScalingWithoutFix
                   << simplifyMesh.faces.size() << "," << std::fixed << std::setprecision(2) << elapsed << ","
                   << fingerprint << "\n";
         EXPECT_EQ(report.finalFaces, static_cast<int>(output.faces.size()));
+    }
+}
+
+TEST(ParallelPipelineBenchmark, ReportsSmoothCurvatureScalingWithoutFixedSpeedupAssertion) {
+    const Mesh mesh = manumesh::generateBumpGrid(256, 2.0);
+    const manumesh::feature::SmoothCurvatureOptions curvatureOptions{2, 3, 2, 0.65};
+    const int threadCounts[] = {-1, 1, 2, 4, 8};
+    std::uint64_t serialFingerprint = 0;
+
+    std::cout << "\nparallel_pipeline,stage,threads,backend,vertices,faces,wall_ms,fingerprint\n";
+    for (int threadCount : threadCounts) {
+        const ExecutionOptions execution = executionFor(threadCount);
+        std::vector<manumesh::feature::SmoothCurvatureVertex> values;
+        const double elapsed = timeMs([&]() {
+            values = manumesh::feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0, execution);
+        });
+        const std::uint64_t fingerprint = smoothCurvatureFingerprint(values);
+        if (threadCount < 0) {
+            serialFingerprint = fingerprint;
+        } else {
+            EXPECT_EQ(serialFingerprint, fingerprint)
+                << "smooth-curvature output changed at threads=" << threadCount;
+        }
+        std::cout << "parallel_pipeline,smooth_curvature," << (threadCount < 0 ? 0 : threadCount) << ","
+                  << manumesh::parallelExecutionBackendName() << "," << mesh.vertices.size() << ","
+                  << mesh.faces.size() << "," << std::fixed << std::setprecision(2) << elapsed << ","
+                  << fingerprint << "\n";
     }
 }

@@ -11,6 +11,7 @@
 #include "CliCsv.h"
 #include "CliOptionBinding.h"
 #include "CliPath.h"
+#include "CliPerformance.h"
 #include "ManuMeshFeatureCommands.h"
 #include "ManuMeshLargeMeshCommands.h"
 #include "ManuMeshWorkflowCommands.h"
@@ -56,10 +57,17 @@ using manumesh::cli::pathFromUtf8;
 using manumesh::cli::pathToUtf8;
 using manumesh::cli::pathsReferToSameLocation;
 using manumesh::cli::positionalArgs;
+using manumesh::cli::PerformancePhase;
+using manumesh::cli::PerformanceTimer;
 using manumesh::cli::quoteCsv;
 using manumesh::cli::readCsvRecord;
 using manumesh::cli::readFirstCsvRow;
+using manumesh::cli::setPerformanceExecution;
+using manumesh::cli::setPerformanceInputMesh;
+using manumesh::cli::setPerformanceOutputMesh;
 using manumesh::cli::splitCsvLine;
+using manumesh::cli::writePerformanceCsv;
+using manumesh::cli::writePerformanceSummary;
 
 int commandGenerate(const Args& args);
 int commandSimplify(const Args& args);
@@ -307,9 +315,11 @@ int commandSimplify(const Args& args) {
 
     const int samples = getIntArg(args, "--samples", 3000);
     const std::string metricsCsv = getArg(args, "--metrics-csv");
+    const std::string performanceCsv = getArg(args, "--performance-csv");
     const fs::path inputPath = pathFromUtf8(positional[0]);
     const fs::path outputPath = pathFromUtf8(positional[1]);
     const fs::path metricsPath = metricsCsv.empty() ? fs::path() : pathFromUtf8(metricsCsv);
+    const fs::path performancePath = performanceCsv.empty() ? fs::path() : pathFromUtf8(performanceCsv);
     manumesh::simplification::SimplifyOptions options = parseSimplifyOptions(args);
     const manumesh::feature::FeatureOptions effectiveFeatures = options.featureOptionsOverride.has_value()
                                                                     ? *options.featureOptionsOverride
@@ -325,21 +335,47 @@ int commandSimplify(const Args& args) {
         requireDistinctOutputPath(metricsPath, inputPath, "--metrics-csv", "the input mesh");
         requireDistinctOutputPath(metricsPath, outputPath, "--metrics-csv", "the simplified output");
     }
+    if (!performanceCsv.empty()) {
+        requireDistinctOutputPath(performancePath, inputPath, "--performance-csv", "the input mesh");
+        requireDistinctOutputPath(performancePath, outputPath, "--performance-csv", "the simplified output");
+        if (!metricsCsv.empty()) {
+            requireDistinctOutputPath(performancePath, metricsPath, "--performance-csv", "the metrics CSV");
+        }
+    }
+
+    PerformanceTimer performanceTimer("simplify", !performanceCsv.empty());
 
     manumesh::Mesh input;
     std::string error;
+    performanceTimer.begin(PerformancePhase::Load);
     if (!manumesh::loadMesh(positional[0], input, &error)) {
         throw std::runtime_error(error);
+    }
+    performanceTimer.end(PerformancePhase::Load);
+    if (performanceTimer.enabled()) {
+        setPerformanceInputMesh(performanceTimer.record(), input, inputPath);
     }
 
     manumesh::simplification::SimplifyReport report;
     manumesh::simplification::QEMSimplifier simplifier(options);
-    simplifier.setExecutionOptions(parseExecutionOptions(args));
+    const manumesh::ExecutionOptions executionOptions = parseExecutionOptions(args);
+    simplifier.setExecutionOptions(executionOptions);
+    if (performanceTimer.enabled()) {
+        setPerformanceExecution(performanceTimer.record(), executionOptions);
+    }
+    performanceTimer.begin(PerformancePhase::Simplification);
     manumesh::Mesh output = simplifier.simplify(input, &report);
+    performanceTimer.end(PerformancePhase::Simplification);
+    performanceTimer.begin(PerformancePhase::Save);
     if (!manumesh::saveBinaryStl(positional[1], output, &error)) {
         throw std::runtime_error(error);
     }
+    performanceTimer.end(PerformancePhase::Save);
+    if (performanceTimer.enabled()) {
+        setPerformanceOutputMesh(performanceTimer.record(), output);
+    }
 
+    performanceTimer.begin(PerformancePhase::Postprocess);
     const manumesh::analysis::MeshStats inStats = manumesh::analysis::computeMeshStats(input);
     const manumesh::analysis::MeshStats outStats = manumesh::analysis::computeMeshStats(output);
     const manumesh::analysis::DistanceStats distance =
@@ -467,6 +503,13 @@ int commandSimplify(const Args& args) {
     }
 
     std::cout << "Wrote " << positional[1] << "\n";
+    performanceTimer.end(PerformancePhase::Postprocess);
+    if (performanceTimer.enabled()) {
+        performanceTimer.finish();
+        writePerformanceCsv(performancePath, performanceTimer.record());
+        writePerformanceSummary(std::cerr, performanceTimer.record());
+    }
+
     return 0;
 }
 

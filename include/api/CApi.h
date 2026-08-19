@@ -186,6 +186,7 @@ typedef struct ManuMeshFeatureOptions {
     double feature_angle_deg;
     double loop_trace_angle_deg;
     double circle_fit_relative_threshold;
+
     double ellipse_fit_relative_threshold;
     double near_circle_axis_ratio_tolerance;
     int min_feature_loop_vertices;

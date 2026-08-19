@@ -16,6 +16,11 @@ namespace detector_detail {
 
 /**
  * @brief 按顺序执行已清理轨迹图上的全部特征环恢复阶段。
+ * @param[in] mesh 输入三角网格。
+ * @param[in] options 特征检测选项。
+ * @param[in] trace 已清理、可用于恢复环的轨迹图。
+ * @param[in,out] analysis 写入恢复出的特征分析结果。
+ * @param[in,out] loopId 分配新特征环 ID 的计数器。
  * @param[in] executionOptions 传递给可安全拆分的候选几何计算阶段。
  */
 void recoverFeatureLoops(

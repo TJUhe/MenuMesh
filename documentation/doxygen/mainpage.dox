@@ -25,9 +25,8 @@
  * 清理与整合阶段删除弱 spur、桥接兼容间隙并组织连接点分支。追踪、环恢复、几何基元拟合、组件置信度
  * 和分区阶段都消费该图，而不是重新计算局部证据。
  *
- * @failuremodes 不规则邻域可能导致曲率拟合秩亏；不一致的绕序可能使带符号二面角未知；过低的弱证据阈值
- * 可能产生稠密而碎片化的图；单个局部切线也无法表示所有紧凑的多分支连接点。`FeatureAnalysis` 中的
- * 诊断信息会显式报告这些情况。
+ * @failuremodes 不一致的绕序可能使带符号二面角未知；过低的弱证据阈值可能产生稠密而碎片化的图；
+ * 单个局部切线也无法表示所有紧凑的多分支连接点。`FeatureAnalysis` 中的诊断信息会显式报告这些情况。
  *
  * @section simplify_pipeline 简化管线
  *
@@ -41,7 +40,7 @@
  *
  * @section docs 文档布局
  *
- * `docs/doxygen/html/index.html` 由 `docs-api` CMake 目标生成，并且有意不纳入版本控制。设计记录、指南、
- * 论文 PDF 和历史生成笔记位于 `documentation/` 下；这些内容是辅助工程资料，而不是 Doxygen 输入。独立的
- * 内部源码参考由 `docs-internal` 生成到 `docs/internal/html/index.html`。
+ * `docs/doxygen/html/index.html` 由 `docs-api` CMake 目标生成，并且有意不纳入版本控制。当前源码对应的
+ * 构建、CLI、SDK、架构、算法、契约和测试说明位于 `documentation/` 下；它们不替代头文件契约。
+ * 独立的内部源码参考由 `docs-internal` 生成到 `docs/internal/html/index.html`。
  */

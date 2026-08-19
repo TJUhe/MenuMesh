@@ -76,6 +76,36 @@ function(expect_success_without_output forbidden_text)
     )
   endif()
 endfunction()
+
+function(require_performance_csv path command)
+  if(NOT EXISTS "${path}")
+    message(FATAL_ERROR "Performance CSV was not created: ${path}")
+  endif()
+
+  file(STRINGS "${path}" lines)
+  list(LENGTH lines line_count)
+  if(NOT line_count EQUAL 2)
+    message(FATAL_ERROR "Performance CSV must contain one header and one row: ${path}")
+  endif()
+
+  list(GET lines 0 header)
+  list(GET lines 1 row)
+  set(expected_header
+    "schema_version,command,backend,threads_requested,input_vertices,input_faces,output_vertices,output_faces,source_bytes,triangles,partitions,memory_mib,io_buffer_mib,partition_triangles,load_ms,feature_detect_ms,simplify_ms,save_ms,postprocess_ms,operation_ms,total_ms"
+  )
+  if(NOT "${header}" STREQUAL "${expected_header}")
+    message(FATAL_ERROR "Unexpected performance CSV schema in ${path}: ${header}")
+  endif()
+  string(FIND "${row}" "1,${command}," command_index)
+  if(NOT command_index EQUAL 0)
+    message(FATAL_ERROR "Unexpected performance CSV command row in ${path}: ${row}")
+  endif()
+  string(REGEX MATCH ",[0-9][0-9.eE+.-]*$" total_field "${row}")
+  if("${total_field}" STREQUAL "")
+    message(FATAL_ERROR "Performance CSV must end in a numeric total_ms: ${row}")
+  endif()
+endfunction()
+
 expect_failure(
   "ratio-sweep derives each target from --ratios"
   ratio-sweep "${INPUT_MESH}" "${OUTPUT_DIR}/ratio_conflict" --ratio 0.5
@@ -135,6 +165,16 @@ expect_failure(
     "${INPUT_MESH}"
     "${PROJECT_SOURCE_DIR}/tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv"
     --csv "${PROJECT_SOURCE_DIR}/tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv"
+)
+expect_failure(
+  "--performance-csv must not overwrite the --csv output"
+  feature-report "${INPUT_MESH}" --csv "${OUTPUT_DIR}/feature_business.csv"
+    --performance-csv "${OUTPUT_DIR}/./feature_business.csv"
+)
+expect_failure(
+  "--performance-csv must not overwrite the simplified output"
+  simplify "${INPUT_MESH}" "${OUTPUT_DIR}/performance_alias_output.stl"
+    --performance-csv "${OUTPUT_DIR}/./performance_alias_output.stl"
 )
 
 expect_failure(
@@ -205,3 +245,38 @@ expect_success_with_output(
   "line_quadrics: enabled=off"
   ratio-sweep "${INPUT_MESH}" "${OUTPUT_DIR}/resolved_zero_weight" --method line --line-weight 0 --ratios 0.75 --samples 16 --print-resolved-config
 )
+
+set(performance_feature_report "${OUTPUT_DIR}/feature_report_performance.csv")
+expect_success_with_output(
+  "performance command=feature-report"
+  feature-report "${INPUT_MESH}" --performance-csv "${performance_feature_report}"
+)
+require_performance_csv("${performance_feature_report}" "feature-report")
+
+get_filename_component(manumesh_source_dir "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(feature_fixture "${manumesh_source_dir}/tests/data/feature_fixtures/coaxial_hole_plate.obj")
+set(feature_labels "${manumesh_source_dir}/tests/data/feature_labels/coaxial_hole_plate_inner_top_edges.csv")
+set(performance_feature_benchmark "${OUTPUT_DIR}/feature_benchmark_performance.csv")
+expect_success_with_output(
+  "performance command=feature-benchmark"
+  feature-benchmark "${feature_fixture}" "${feature_labels}"
+    --performance-csv "${performance_feature_benchmark}"
+)
+require_performance_csv("${performance_feature_benchmark}" "feature-benchmark")
+
+set(performance_feature_compare "${OUTPUT_DIR}/feature_compare_performance.csv")
+expect_success_with_output(
+  "performance command=feature-compare"
+  feature-compare "${feature_fixture}" "${feature_fixture}"
+    --performance-csv "${performance_feature_compare}"
+)
+require_performance_csv("${performance_feature_compare}" "feature-compare")
+
+set(performance_simplify_output "${OUTPUT_DIR}/performance_simplify.stl")
+set(performance_simplify_csv "${OUTPUT_DIR}/simplify_performance.csv")
+expect_success_with_output(
+  "performance command=simplify"
+  simplify "${INPUT_MESH}" "${performance_simplify_output}" --ratio 0.75 --samples 16
+    --performance-csv "${performance_simplify_csv}"
+)
+require_performance_csv("${performance_simplify_csv}" "simplify")

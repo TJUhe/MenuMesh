@@ -1,2 +1,0 @@
-*.pdf binary
-ManuMesh-no-geometry.vimrc filter=lfs diff=lfs merge=lfs -text

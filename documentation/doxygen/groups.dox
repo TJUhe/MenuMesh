@@ -50,7 +50,7 @@
 
 /**
  * @defgroup manumesh_debug 调试可视化
- * @brief 仅调试使用的 HTML 线框快照和语义叠加层。
+ * @brief 可选的内部 HTML 线框快照和语义叠加层；不属于产品 API。
  */
 
 /**

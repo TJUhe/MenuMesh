@@ -31,7 +31,7 @@ enum class StatusCode {
 ///
 /// 对不符合约定的数据执行有效调用时返回 Status 或 Result<T>。异常仅用于
 /// 程序员违反契约的情况，绝不会跨越 C ABI。添加入口点前请参阅
-/// `documentation/design/error_handling_policy.md`。
+/// `documentation/design/contracts.md`。
 class Status {
 public:
     /// 构造成功状态。

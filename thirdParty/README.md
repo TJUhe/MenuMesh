@@ -11,6 +11,11 @@ Current policy:
   Visual Studio 2019, MSVC v142, x64 baseline. The `source/` subtree is the
   only bundled provider; GoogleTest is built with the active C++14 and `/MD`
   settings instead of using repository-hosted prebuilt libraries.
+- `oneTBB/` contains the oneTBB 2021.12.0 source used by the optional
+  deterministic parallel backend. It is built with the active C++14 and `/MD`
+  settings, so Release builds do not depend on a network fetch or a prebuilt
+  binary ABI. SDK installs retain oneTBB's `LICENSE.txt` and
+  `third-party-programs.txt` notices under `share/doc/ManuMesh/oneTBB`.
 - `graphviz/` vendors the `dot` runtime and plugin/configuration files used by
   Doxygen graphs.
 - Build scripts should prefer supported vendored libraries and tools here when

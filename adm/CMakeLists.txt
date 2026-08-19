@@ -279,13 +279,17 @@ if(MANUMESH_ENABLE_INSTALL)
 
   install(FILES
     "${PROJECT_SOURCE_DIR}/README.md"
-    "${PROJECT_SOURCE_DIR}/documentation/design/architecture.md"
-    "${PROJECT_SOURCE_DIR}/documentation/design/industrial_library.md"
-    "${PROJECT_SOURCE_DIR}/documentation/guide/sdk_integration.md"
-    "${PROJECT_SOURCE_DIR}/documentation/design/large_model_validation.md"
-    "${PROJECT_SOURCE_DIR}/documentation/design/large_mesh_architecture_2026_08_18.md"
-    "${PROJECT_SOURCE_DIR}/documentation/design/parallel_execution_benchmark_2026_08_18.md"
     DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+  )
+
+  # Keep the documentation tree intact so links from the installed README
+  # continue to resolve without depending on the source checkout.
+  install(DIRECTORY
+    "${PROJECT_SOURCE_DIR}/documentation/"
+    DESTINATION "${CMAKE_INSTALL_DOCDIR}/documentation"
+    FILES_MATCHING
+      PATTERN "*.md"
+      PATTERN "*.dox"
   )
 
   install(FILES
@@ -295,9 +299,9 @@ if(MANUMESH_ENABLE_INSTALL)
     DESTINATION "${CMAKE_INSTALL_DATADIR}/manumesh/samples"
   )
 
-  set(MANUMESH_SDK_INSTALL_DEPENDS manumesh_core)
-  if(TARGET manumesh)
-    list(APPEND MANUMESH_SDK_INSTALL_DEPENDS manumesh)
+  set(MANUMESH_SDK_INSTALL_DEPENDS "${MANUMESH_CORE_TARGET}")
+  if(TARGET "${MANUMESH_CLI_TARGET}")
+    list(APPEND MANUMESH_SDK_INSTALL_DEPENDS "${MANUMESH_CLI_TARGET}")
   endif()
 
   add_custom_target(sdk-install-local
@@ -309,11 +313,13 @@ if(MANUMESH_ENABLE_INSTALL)
     VERBATIM
   )
 
-  if(TARGET manumesh)
+  if(TARGET "${MANUMESH_CLI_TARGET}")
     add_custom_target(sdk-runtime-test
       COMMAND "${CMAKE_COMMAND}"
         "-DMANUMESH_SDK_ROOT=${MANUMESH_LOCAL_SDK_PREFIX}"
         "-DMANUMESH_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+        "-DMANUMESH_EXPECT_ONETBB_NOTICES=${MANUMESH_ONETBB_NOTICES_INSTALLED}"
+        "-DMANUMESH_ONETBB_NOTICE_DIR=${CMAKE_INSTALL_DOCDIR}/oneTBB"
         -P "${PROJECT_SOURCE_DIR}/adm/CheckInstalledRuntime.cmake"
       DEPENDS sdk-install-local
       COMMENT "正在使用隔离运行时 PATH 测试已安装 CLI"

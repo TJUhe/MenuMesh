@@ -7,6 +7,7 @@
 #include "ManuMeshLargeMeshCommands.h"
 
 #include "CliPath.h"
+#include "CliPerformance.h"
 #include "io/PartitionedMeshDataset.h"
 
 #include <array>
@@ -18,8 +19,11 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
+
+namespace fs = manumesh::filesystem;
 
 namespace manumesh {
 namespace cli {
@@ -95,6 +99,20 @@ void requireExactPositionals(const Args& args, std::size_t expected, const char*
     }
 }
 
+void requirePerformanceOutputDoesNotAlias(
+    const fs::path& output, const fs::path& protectedPath, const char* protectedLabel
+) {
+    if (pathsReferToSameLocation(output, protectedPath)) {
+        throw std::invalid_argument(std::string("--performance-csv must not overwrite ") + protectedLabel + ".");
+    }
+}
+
+std::uintmax_t sourceFileSize(const fs::path& path) {
+    std::error_code error;
+    const std::uintmax_t bytes = fs::file_size(path, error);
+    return error ? 0u : bytes;
+}
+
 std::string formatBounds(const std::array<double, 3>& bounds) {
     std::ostringstream out;
     out.imbue(std::locale::classic());
@@ -108,8 +126,16 @@ std::string formatBounds(const std::array<double, 3>& bounds) {
 int importDataset(const Args& args) {
     requireExactPositionals(args, 2u, "large-import", "input.stl output.mmpd");
     const std::vector<std::string> positional = positionalArgs(args);
-    if (pathsReferToSameLocation(pathFromUtf8(positional[0]), pathFromUtf8(positional[1]))) {
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const fs::path outputPath = pathFromUtf8(positional[1]);
+    const std::string performanceCsv = getArg(args, "--performance-csv");
+    const fs::path performancePath = performanceCsv.empty() ? fs::path() : pathFromUtf8(performanceCsv);
+    if (pathsReferToSameLocation(inputPath, outputPath)) {
         throw std::invalid_argument("large-import input and output must not refer to the same file.");
+    }
+    if (!performanceCsv.empty()) {
+        requirePerformanceOutputDoesNotAlias(performancePath, inputPath, "the input mesh");
+        requirePerformanceOutputDoesNotAlias(performancePath, outputPath, "the partitioned dataset");
     }
     const ParsedMemoryOptions memory = parseMemoryOptions(args);
     const std::uint64_t partitionTriangles = unsignedOption(args, "--partition-triangles", kDefaultPartitionTriangles);
@@ -122,20 +148,43 @@ int importDataset(const Args& args) {
     config.trianglesPerPartition = static_cast<std::uint32_t>(partitionTriangles);
     requireStatus(validatePartitionedMeshConfig(config));
 
+    PerformanceTimer timer("large-import", !performanceCsv.empty());
+    setPerformanceMemoryBudget(timer.record(), memory.memoryMiB, memory.ioBufferMiB);
+    timer.record().hasPartitionTriangles = true;
+    timer.record().partitionTriangles = partitionTriangles;
     PartitionedMeshSummary summary;
+    timer.begin(PerformancePhase::Operation);
     requireStatus(importBinaryStlToPartitionedMesh(positional[0], positional[1], config, &summary));
+    timer.end(PerformancePhase::Operation);
+    setPerformanceDatasetSummary(timer.record(), summary.triangleCount, summary.partitionCount, summary.sourceBytes);
     std::cout << "large_import triangles=" << summary.triangleCount << " partitions=" << summary.partitionCount
               << " source_bytes=" << summary.sourceBytes << " partition_triangles=" << partitionTriangles
               << " memory_mib=" << memory.memoryMiB << " io_buffer_mib=" << memory.ioBufferMiB << "\n";
+    if (timer.enabled()) {
+        timer.finish();
+        writePerformanceCsv(performancePath, timer.record());
+        writePerformanceSummary(std::cerr, timer.record());
+    }
     return 0;
 }
 
 int validateDataset(const Args& args) {
     requireExactPositionals(args, 1u, "large-validate", "input.mmpd");
     const std::vector<std::string> positional = positionalArgs(args);
+    const fs::path inputPath = pathFromUtf8(positional[0]);
+    const std::string performanceCsv = getArg(args, "--performance-csv");
+    const fs::path performancePath = performanceCsv.empty() ? fs::path() : pathFromUtf8(performanceCsv);
+    if (!performanceCsv.empty()) {
+        requirePerformanceOutputDoesNotAlias(performancePath, inputPath, "the partitioned dataset");
+    }
     const ParsedMemoryOptions memory = parseMemoryOptions(args);
+    PerformanceTimer timer("large-validate", !performanceCsv.empty());
+    setPerformanceMemoryBudget(timer.record(), memory.memoryMiB, memory.ioBufferMiB);
     PartitionedMeshValidationReport report;
+    timer.begin(PerformancePhase::Operation);
     requireStatus(validatePartitionedMeshDataset(positional[0], memory.budget, &report));
+    timer.end(PerformancePhase::Operation);
+    setPerformanceDatasetSummary(timer.record(), report.triangleCount, report.partitionCount, sourceFileSize(inputPath));
 
     std::ostringstream out;
     out.imbue(std::locale::classic());
@@ -150,6 +199,11 @@ int validateDataset(const Args& args) {
     }
     out << " count_consistency=ok checksum_consistency=ok\n";
     std::cout << out.str();
+    if (timer.enabled()) {
+        timer.finish();
+        writePerformanceCsv(performancePath, timer.record());
+        writePerformanceSummary(std::cerr, timer.record());
+    }
     return 0;
 }
 

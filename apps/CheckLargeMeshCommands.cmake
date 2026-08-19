@@ -51,24 +51,64 @@ function(require_text transcript expected_text)
   endif()
 endfunction()
 
+function(require_performance_csv path command expected_dataset_fields)
+  if(NOT EXISTS "${path}")
+    message(FATAL_ERROR "Performance CSV was not created: ${path}")
+  endif()
+
+  file(STRINGS "${path}" lines)
+  list(LENGTH lines line_count)
+  if(NOT line_count EQUAL 2)
+    message(FATAL_ERROR "Performance CSV must contain one header and one row: ${path}")
+  endif()
+
+  list(GET lines 0 header)
+  list(GET lines 1 row)
+  set(expected_header
+    "schema_version,command,backend,threads_requested,input_vertices,input_faces,output_vertices,output_faces,source_bytes,triangles,partitions,memory_mib,io_buffer_mib,partition_triangles,load_ms,feature_detect_ms,simplify_ms,save_ms,postprocess_ms,operation_ms,total_ms"
+  )
+  if(NOT "${header}" STREQUAL "${expected_header}")
+    message(FATAL_ERROR "Unexpected performance CSV schema in ${path}: ${header}")
+  endif()
+
+  string(FIND "${row}" "1,${command},serial,1," command_index)
+  if(NOT command_index EQUAL 0)
+    message(FATAL_ERROR "Unexpected performance CSV command row in ${path}: ${row}")
+  endif()
+  string(FIND "${row}" "${expected_dataset_fields}" dataset_index)
+  if(dataset_index EQUAL -1)
+    message(FATAL_ERROR "Missing dataset fields in ${path}: ${row}")
+  endif()
+  string(REGEX MATCH ",[0-9][0-9.eE+-]*,[0-9][0-9.eE+-]*$" timing_fields "${row}")
+  if("${timing_fields}" STREQUAL "")
+    message(FATAL_ERROR "Performance CSV must end in numeric operation_ms,total_ms: ${row}")
+  endif()
+endfunction()
+
 expect_success(generate_output generate --type plane --n 2 --out "${input_stl}")
 if(NOT EXISTS "${input_stl}")
   message(FATAL_ERROR "generate did not create the binary STL fixture.")
 endif()
 
+set(import_performance_csv "${OUTPUT_DIR}/large_import_performance.csv")
 expect_success(
   import_output
   large-import "${input_stl}" "${dataset}"
   --partition-triangles 2 --memory-mib 8 --io-buffer-mib 1
+  --performance-csv "${import_performance_csv}"
 )
 require_text("${import_output}" "large_import triangles=8 partitions=4")
+require_text("${import_output}" "performance command=large-import")
+require_performance_csv("${import_performance_csv}" "large-import" ",8,4,8,1,2,")
 if(NOT EXISTS "${dataset}")
   message(FATAL_ERROR "large-import did not create the partitioned dataset.")
 endif()
 
+set(validate_performance_csv "${OUTPUT_DIR}/large_validate_performance.csv")
 expect_success(
   validate_output
   large-validate "${dataset}" --memory-mib 8 --io-buffer-mib 1
+  --performance-csv "${validate_performance_csv}"
 )
 require_text("${validate_output}" "large_validate triangles=8 partitions=4")
 require_text("${validate_output}" "area=4")
@@ -76,6 +116,8 @@ require_text("${validate_output}" "degenerate=0")
 require_text("${validate_output}" "bounds_min=-1,-1,0 bounds_max=1,1,0")
 require_text("${validate_output}" "count_consistency=ok")
 require_text("${validate_output}" "checksum_consistency=ok")
+require_text("${validate_output}" "performance command=large-validate")
+require_performance_csv("${validate_performance_csv}" "large-validate" ",8,4,8,1,,")
 
 expect_failure(
   "--partition-triangles must be greater than zero"
@@ -108,4 +150,13 @@ expect_failure(
 expect_failure(
   "large-import input and output must not refer to the same file"
   large-import "${input_stl}" "${OUTPUT_DIR}/./small_plane.stl"
+)
+expect_failure(
+  "--performance-csv must not overwrite the input mesh"
+  large-import "${input_stl}" "${OUTPUT_DIR}/performance_alias_output.mmpd"
+  --performance-csv "${OUTPUT_DIR}/./small_plane.stl"
+)
+expect_failure(
+  "--performance-csv must not overwrite the partitioned dataset"
+  large-validate "${dataset}" --performance-csv "${OUTPUT_DIR}/./small_plane.mmpd"
 )

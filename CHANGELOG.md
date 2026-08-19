@@ -1,5 +1,9 @@
 # 更新日志
 
+> 本文件按发布日期保留历史实现和验证记录；其中命令、路径和工具链可能已过时，不是当前使用说明。
+> 当前构建、测试和 SDK 流程请以 [`documentation/guide/build.md`](documentation/guide/build.md) 及
+> `CMakePresets.json` 为准。
+
 ## 2026-08-15
 
 ### API、生命周期与诊断收口

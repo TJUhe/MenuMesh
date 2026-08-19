@@ -1,70 +1,54 @@
-# ManuMesh 文档入口
+# ManuMesh 文档
 
-> `documentation/` 保存人工维护的设计记录、指南、论文资料和历史导出笔记。
-> `docs/` 专用于 `docs-api` 和 `docs-internal` 目标生成的 Doxygen 内容，不再存放手工文档。
+本目录只记录当前仓库可以从源码、构建配置或测试复现的事实。程序是唯一的行为依据：
 
-本地内部源码参考由 `docs-internal` 生成到 `docs/internal/html/index.html`。它覆盖
-`include/` 与 `src/` 的 private/static/local/anonymous-namespace 符号、源码页和调用关系；生成内容不纳入
-版本控制，也不构成安装 SDK 的 API/ABI 契约。
+- 公共 API 以 `include/` 头文件和 Doxygen API 站点为准。
+- CLI 命令和选项以 `apps/ManuMeshCli.cpp`、`apps/CliArguments.cpp` 和 `manumesh --help` 为准。
+- 构建、安装和测试以 `CMakeLists.txt`、`CMakePresets.json` 和 `tests/` 为准。
+- 文档与代码冲突时，先修正文档；不能确认的内容不写成能力承诺。
 
-本文档目录已经拆分为“交付文档”和“历史/研发材料”两层。面向客户、SDK 集成、商务交付和内核评审时，请优先使用交付文档。
+## 从哪里开始
 
-## 推荐入口
-
-| 文档 | 用途 |
+| 目的 | 文档 |
 | --- | --- |
-| [`delivery/manumesh_kernel_developer_guide.html`](delivery/manumesh_kernel_developer_guide.html) | 商用内核交付级开发者手册，包含定位、架构、模块、API、C ABI、构建、验证、扩展边界和交付清单。 |
-| [`generated/notes/manumesh-feature-recognition-pipeline.html`](generated/notes/manumesh-feature-recognition-pipeline.html) | 当前特征识别源码级权威 HTML：9 阶段 pipeline、MathJax 公式推导、normal-filter 实际数据流、normal tensor、graph cleanup/consolidation、junction/patch、Taubin/Halíř-Flusser primitive、component confidence、伪代码、数值算例和可复现 CLI 实验。 |
-| [`generated/notes/manumesh-feature-recognition-gtest-debug-learning-plan.html`](generated/notes/manumesh-feature-recognition-gtest-debug-learning-plan.html) | 特征识别 GTest 调试学习指南：10 个递进学习单元、逐案例断点与观察量、VS Code 过滤调试、debugUtil 开启/插桩/颜色语义和常见问题。 |
-| [`generated/notes/manumesh-simplification-gtest-debug-learning-plan.html`](generated/notes/manumesh-simplification-gtest-debug-learning-plan.html) | 网格简化 GTest 调试学习指南：QEM、placement、候选队列、link condition、合法性、边界/特征/纹理保护、质量优化与工业验证。 |
-| [`generated/notes/manumesh-core-io-analysis-gtest-debug-learning-plan.html`](generated/notes/manumesh-core-io-analysis-gtest-debug-learning-plan.html) | 基础设施 GTest 调试学习指南：Mesh/Topology、动态编辑、几何谓词、空间索引、OBJ/STL 和分析指标。 |
-| [`generated/notes/manumesh-api-sdk-gtest-debug-learning-plan.html`](generated/notes/manumesh-api-sdk-gtest-debug-learning-plan.html) | API/SDK GTest 调试学习指南：C++ API、PlainMesh、C ABI、size-aware 兼容、CLI 和安装后 consumer 闭环。 |
-| [`design/feature_recognition_system_upgrade_2026_07_15.md`](design/feature_recognition_system_upgrade_2026_07_15.md) | 本轮系统增强的设计与实现对照：模块职责、默认兼容策略、C++/CLI/C ABI、benchmark 标签、论文/开源程序依据和仍未实现的边界。 |
-| [`generated/notes/manumesh-loop-construction.html`](generated/notes/manumesh-loop-construction.html) | FeatureLoop 五段恢复顺序、宽松 trace 与严格 recovered cycle 的差异、各 fallback 上限、primitive fitting 和 vertex ownership 源码对照。 |
-| [`guide/debug_util_usage.md`](guide/debug_util_usage.md) | 内部 Debug-only HTML wireframe 工具使用教程，包含开启方式、常用宏、颜色约定、插入位置和截图预览。 |
-| [`design/feature_detection_upgrade_2026_07_09.md`](design/feature_detection_upgrade_2026_07_09.md) | 本次特征识别升级记录，覆盖 loop trace 阈值、traced/untraced 诊断、common 局部尺度、normal-tensor persistence、QEM 联动、gtest 保护和后续算法计划。 |
-| [`design/mesh_edit_foundation.md`](design/mesh_edit_foundation.md) | 可供 simplification 与未来 remeshing/repair 复用的内部编辑层，说明动态拓扑、compact/remap 和扩展边界。 |
-| [`design/texture_aware_qem.md`](design/texture_aware_qem.md) | 纹理感知 4×4 QEM 的权威设计文档：逐角 UV 数据模型、局部 chart 配对与拒绝规则、标量失真代价 `E_uv_local`、选项与诊断、复杂度与文献定位。 |
-| [`design/architecture_v2_2026_07_12.md`](design/architecture_v2_2026_07_12.md) | 架构升级蓝图 v2：R1-R7 改进项与实施状态（第一至三批已落地），包含 `manumesh::analysis` 模块、CLI 选项表、C ABI 加固等本轮架构改动的立项论证。 |
-| [`design/long_term_library_roadmap_2026_08_16.md`](design/long_term_library_roadmap_2026_08_16.md) | 面向大型网格库的长期路线：参数分组、validation/repair、类型化属性、大网格索引、remeshing 与 C ABI v2 的实施顺序和验收门槛。 |
-| [`design/large_mesh_architecture_2026_08_18.md`](design/large_mesh_architecture_2026_08_18.md) | 超大网格当前实现和边界：CSR `MeshTopology`、PartitionedMeshDataset、`large-import/large-validate`、三份 Thingi10K 实测，以及 global ID、owner/ghost、halo、FeatureGraph 和 out-of-core QEM 后续路线。 |
-| [`design/parallel_execution_benchmark_2026_08_18.md`](design/parallel_execution_benchmark_2026_08_18.md) | oneTBB 执行后端的架构边界、特征/QEM 并行阶段、结果等价约束，以及合成和真实 STL 的可复现实测。 |
-| [`design/error_handling_policy.md`](design/error_handling_policy.md) | 错误处理策略一页决策表：数据错误用 Status/Result、编程错误用异常、C 边界用状态码、IO 渐进迁移 `Result<Mesh>`；新增公共入口前先查本表。 |
-| [`design/algorithm_extension_protocol.md`](design/algorithm_extension_protocol.md) | 算法扩展协议：新增模块的边界与验收路径、`validateOptions` 协议，以及紧凑结果/可选诊断规范。 |
-| [`design/testing_strategy.md`](design/testing_strategy.md) | 测试体系与策略：unit/analytic/perf-guard/external/performance 五层划分、解析真值 fixture 设计理念（真值访问器 + 推导断言界）、确定性测试、快速/全量套件命令与规模、新增测试的注册方式。 |
-| [`archive/prototype-docs-2026-07-09/`](archive/prototype-docs-2026-07-09/) | 2026-07-09 归档的阶段性设计、指南和生成笔记，用作历史备份。 |
-| [`papers/`](papers/) | 论文 PDF 资料库。该目录没有复制进归档目录，以避免重复大文件。 |
+| 编译、测试、生成 Doxygen | [`guide/build.md`](guide/build.md) |
+| 使用命令行工具 | [`guide/cli.md`](guide/cli.md) |
+| 集成 C++、PlainMesh 或 C ABI SDK | [`guide/sdk.md`](guide/sdk.md) |
+| 在 VS Code/Debug 中定位算法 | [`guide/debugging.md`](guide/debugging.md) |
+| 了解模块和依赖方向 | [`design/architecture.md`](design/architecture.md) |
+| 了解特征检测和简化管线 | [`design/algorithms.md`](design/algorithms.md) |
+| 了解校验、错误、ABI 和并发契约 | [`design/contracts.md`](design/contracts.md) |
+| 了解测试分层和验收方式 | [`design/testing.md`](design/testing.md) |
+| 新增模块或公共入口 | [`design/extension.md`](design/extension.md) |
+| 公共符号、参数和调用图 | `docs/doxygen/html/index.html`（运行 `docs-api` 后生成） |
+| 私有实现和源码调用关系 | `docs/internal/html/index.html`（运行 `docs-internal` 后生成） |
 
-## 当前文档策略
+最后两项是源码工作树中的生成站点；普通 SDK 安装只携带本目录的文档源文件，不会预生成
+Doxygen HTML。
 
-- `delivery/` 是对外交付和内部正式评审入口。
-- `archive/` 保存阶段性材料，不再作为当前产品能力说明的主入口；其中的旧参数边界不会随当前程序回写。论文 PDF 和带日期的下载快照同样保持原始内容，不因当前实现而重写。
-- `design/` 和 `guide/` 可继续作为研发工作区使用，但如果内容与交付文档冲突，以 `delivery/` 为准。
-- `generated/notes/` 多数文件属于历史导出资料；其中 `manumesh-feature-recognition-pipeline.html`、`manumesh-loop-construction.html` 和本轮修订到的程序/QEM说明已同步 2026-07-15 源码。对外交付总边界仍以 `delivery/` 为准。
-- 交付文档已同步纹理感知 QEM、公共绕向感知二面角、面积加权退化面 point quadric、共享拓扑感知的局部相交检查，以及 OBJ 凹多边形 ear clipping。PDF 二进制未重写，PDF 与同名 HTML 冲突时以当前 HTML/Markdown 为准。
-- 新增商业能力时，应先更新交付文档的能力边界、API、验证方法和限制说明，再补充研发细节。
+## 当前范围
 
-## 交付定位
+ManuMesh 是面向三角表面网格的 C++14 几何内核；运行 `manumesh --version` 查看当前版本。它提供：
 
-ManuMesh 当前定位为面向增材制造和三角网格处理的 C++14 mesh geometry kernel。现阶段核心交付能力包括：
+- `Mesh`、`PlainMesh`、不可变 `MeshTopology`、几何统计和确定性测试网格生成器；
+- STL/OBJ 读写（OBJ 多边形确定性三角化并保留逐角 UV）；
+- `manumesh::feature` 特征证据、图、曲线/环、primitive、component 和 surface patch；
+- `manumesh::simplification` 的 QEM/line-quadrics 受约束边坍缩、可选纹理保护和质量精修；
+- `manumesh::analysis` 统计与确定性采样距离比较；
+- C++ SDK、Eigen-free `PlainMesh`、size-aware C ABI、CLI、示例和 CTest/GoogleTest 验证；
+- `PartitionedMeshDataset` 的有界内存二进制 STL 三角记录导入/校验。
 
-- triangle mesh 数据结构、基础拓扑查询和 SDK/C ABI 边界；
-- 跨算法网格分析模块 `manumesh::analysis`（`computeMeshStats` / `compareMeshesBySampledDistance`）与特征 loop 匹配公共入口 `manumesh::feature::matchCircularLoops`；
-- feature evidence、feature graph、loop recovery 和 primitive fitting；
-- QEM / line-quadrics edge-collapse simplification；
-- 纹理感知 4×4 QEM 简化（opt-in）：逐角 UV chart 保护与标量 UV 失真排序代价，几何 quadric 保持 4×4 齐次形式，当前通过 C++ `SimplifyConfig::texture` 暴露，`SimplifyOptions` 仅作兼容入口；
-- feature、boundary、topology、normal、triangle quality、local error 和 local intersection 过滤；相交检查覆盖新一环内部与附近活动面，但不声称全局无自交认证；
-- STL/OBJ IO；OBJ 严格凸面保持 fan 顺序，凹面使用投影 ear clipping，并拒绝重复、退化或自交 polygon；
-- 有内存预算的二进制 STL 三角记录分区 I/O（`PartitionedMeshDataset`）及 `large-import` / `large-validate` CLI；这不等于已经完成分区拓扑、跨分区特征检测或 out-of-core QEM；
-- CLI、examples、CTest/GoogleTest 和外部 STL/OBJ 验证路径。
-- Debug-only HTML wireframe 辅助工具只属于内部算法排查手段，不属于 SDK/API 或交付 viewer。
+以下内容不是当前产品能力：完整 B-Rep/CAD feature tree、Boolean/offset/thickening、补洞和
+shape healing、点云重建、全局 Hausdorff/envelope 认证、全局分区拓扑/FeatureGraph/QEM，
+以及制造公差合规保证。
 
-明确不在当前交付范围内的能力：
+## 文档维护规则
 
-- 完整 B-Rep CAD kernel；
-- 通用 Boolean、offset/thickening、shape healing；
-- 从 STL/OBJ 自动恢复完整 CAD feature tree；
-- 全局 Hausdorff/envelope 形式化认证；
-- 直接制造公差合规保证。
+1. 新增或修改公共能力时，先更新对应头文件注释和本目录中的契约文档，再补充示例。
+2. 不在这里复制构建输出、实验快照、PDF 导出或整段源码；需要细节时链接源码和测试。
+3. 版本号、测试数量、性能数字和默认参数不要手写成永久事实；命令可查询的内容应引用命令。
+4. 设计文档必须区分“当前实现”“明确限制”和“未来候选”，未来候选不得写进能力列表。
+5. Doxygen 输出在 `docs/`，该目录由 `.gitignore` 排除，不应手工提交生成文件。
 
-当前也不在交付范围内的是：全局顶点/边 ID、owner/ghost 拓扑、跨分区 halo 计算、全局 FeatureGraph 合并和分区 QEM 简化。相关设计和验收门槛集中记录在 [`large_mesh_architecture_2026_08_18.md`](design/large_mesh_architecture_2026_08_18.md)。
+历史设计、导出 HTML/PDF 和本地论文副本已从工作树移除；需要追溯时使用 Git 历史。论文不是
+运行时依赖，也不是 API 契约。

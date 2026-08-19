@@ -21,8 +21,8 @@ QEM/line quadrics 候选排序、三角网格特征图和硬合法性过滤共�
 - **文件交换**：读写 STL，读取 OBJ 多边形并执行确定性三角化，同时保留逐角 `vt`。
 - **多种调用边界**：提供 C++ SDK、Eigen-free C++ 入口、size-aware C ABI、命令行工具
   和安装后 SDK consumer 示例。
-- **验证与诊断**：使用 GoogleTest/CTest、外部网格 fixture、CSV 指标和可选 Debug-only
-  HTML wireframe 工具形成验证闭环。
+- **验证与诊断**：使用 GoogleTest/CTest、外部网格 fixture 和 CSV 指标；另保留可选的
+  Debug-only HTML wireframe 工具供内部排查，当前不属于产品流程。
 
 ## 系统架构
 
@@ -111,6 +111,10 @@ performance preset 都继承同一个固定的 oneTBB 2021.12.0 配置，因此�
 preset 保持不引入调度后端，用于串行回退、确定性和内存安全诊断。
 
 ```powershell
+# Visual Studio 核心工作区：保留全部功能核心源码，但只生成 Core、CLI 和 CMake 辅助项目
+cmake --preset vs2019-workspace
+cmake --build --preset vs2019-workspace
+
 # 日常 Debug 和快速回归
 cmake --preset vs2019-debug
 cmake --build --preset vs2019-debug-tests
@@ -136,6 +140,14 @@ cmake --preset vs2019-release-static-sdk
 cmake --build --preset vs2019-release-static-sdk
 ctest --preset vs2019-release-static-sdk
 ```
+
+`vs2019-workspace` 适合在 Visual Studio 中阅读和调试日常核心代码。该预设保留网格读写、
+分析、特征检测、网格简化以及 C/C++ API，关闭测试、示例、第三方测试框架和开发辅助目标，
+并把生产源码合并到一个 `Core` 工程中。配置完成后打开
+`build/vs2019-workspace/ManuMesh.sln`，并使用“解决方案资源管理器”浏览分组；
+“属性管理器”会按底层 CMake target 平铺条目，不适合用作项目导航。
+工程显示名使用 `Core` 和 `CLI`，但输出文件仍保持 `manumesh.dll` 与 `manumesh.exe`，
+因此不会影响已有脚本和 SDK 使用方式。
 
 VS2019 v142 的 Windows AddressSanitizer 不支持 LeakSanitizer 的
 `detect_leaks=1`。`vs2019-asan-unit` 因此同时运行
@@ -191,7 +203,7 @@ ctest --preset vs2019-release-sdk
 CTest 会先安装到 `build/vs2019-release-sdk/sdk/`，再从 `examples/sdk_consumer/` 配置独立下游
 工程，只使用已安装的 `include/`、`lib/`、`bin/` 和 `share/`。Visual Studio
 `.vcxproj`、`.props` 和 CMake package 的完整接入步骤见
-[SDK 集成指南](documentation/guide/sdk_integration.md)。
+[SDK 集成指南](documentation/guide/sdk.md)。
 
 ## 使用方式
 
@@ -284,37 +296,34 @@ report/stats 应使用当前 size-aware wrapper 或显式 `*_with_size` 入口�
 
 | 主题 | 说明 |
 | --- | --- |
-| [文档总入口](documentation/README.md) | 人工维护的交付文档、设计、指南、论文资料和历史笔记索引。 |
-| [开发者指南](documentation/delivery/manumesh_kernel_developer_guide.html) | 面向 SDK 集成、算法开发和交付评审的综合手册。 |
-| [架构设计](documentation/design/architecture.md) | 模块职责、依赖方向、公开/私有边界和数据策略。 |
-| [算法本质](documentation/design/algorithm_essence.md) | QEM/line quadrics、特征图和合法性过滤之间的关系。 |
-| [特征识别管线](documentation/generated/notes/manumesh-feature-recognition-pipeline.html) | 特征证据、graph、loop、primitive、junction 和 patch 的实现级说明。 |
-| [特征识别调试学习计划](documentation/generated/notes/manumesh-feature-recognition-gtest-debug-learning-plan.html) | 按 GTest 案例学习特征识别九阶段流程与 debugUtil。 |
-| [网格简化调试学习计划](documentation/generated/notes/manumesh-simplification-gtest-debug-learning-plan.html) | 按 GTest 案例学习 QEM、edge collapse、保护策略和质量验证。 |
-| [基础与 IO 调试学习计划](documentation/generated/notes/manumesh-core-io-analysis-gtest-debug-learning-plan.html) | 学习 Mesh/Topology、动态编辑、空间查询、OBJ/STL 和分析模块。 |
-| [API 与 SDK 调试学习计划](documentation/generated/notes/manumesh-api-sdk-gtest-debug-learning-plan.html) | 学习 C++/C ABI、CLI、安装布局和独立 consumer 验证。 |
-| [SDK 集成指南](documentation/guide/sdk_integration.md) | 安装目录、C++/C ABI、CMake 和 Visual Studio 接入。 |
-| [工业验证](documentation/design/industrial_validation.md) | 能力、数据集、命令、CSV 指标和验收口径。 |
-| [测试策略](documentation/design/testing_strategy.md) | 测试分层、解析 fixture、标签、确定性和性能用例。 |
-| [调试工具](documentation/guide/debug_util_usage.md) | Debug-only HTML wireframe 工具的启用方式和使用边界。 |
-| [算法扩展协议](documentation/design/algorithm_extension_protocol.md) | 新增平级算法模块的职责、API、诊断和测试约定。 |
+| [文档总入口](documentation/README.md) | 当前源码、构建和 API 说明的索引。 |
+| [构建与测试](documentation/guide/build.md) | VS2019 preset、CTest、SDK 安装和 Doxygen。 |
+| [CLI 使用](documentation/guide/cli.md) | 当前命令的输入输出形状和常用参数。 |
+| [SDK 集成](documentation/guide/sdk.md) | C++、PlainMesh、C ABI、I/O 和安装后 consumer。 |
+| [调试与诊断](documentation/guide/debugging.md) | 特征/简化源码观察顺序和 Debug-only 工具边界。 |
+| [架构与模块边界](documentation/design/architecture.md) | 当前目录、依赖方向、数据流和并发边界。 |
+| [算法管线](documentation/design/algorithms.md) | 特征检测、QEM 简化、纹理保护和明确限制。 |
+| [公共契约](documentation/design/contracts.md) | 输入校验、错误、ABI、生命周期和确定性。 |
+| [测试与验收](documentation/design/testing.md) | 测试目录、标签、验证闭环和结果解释。 |
+| [扩展流程](documentation/design/extension.md) | 新模块、CLI、C ABI 和测试的落地规则。 |
 | [更新日志](CHANGELOG.md) | 版本功能、修复和已验证命令。 |
 
-`documentation/` 是人工维护文档目录。`docs/` 仅用于 Doxygen 生成结果，不存放设计
-记录、指南、论文或手工 HTML。
+`documentation/` 只保存与当前源码对应的短文档和 Doxygen 页面源文件。`docs/` 仅用于
+Doxygen 生成结果，不存放设计记录、指南或手工 HTML；历史导出、论文 PDF 和日期路线图不再
+作为仓库文档入口。
 
 ## 项目结构
 
 ```text
 ManuMesh/
 |-- include/                   # 可安装的 C++ SDK 与 C ABI 头文件
-|-- src/                       # core/common/mesh_edit/analysis/feature/simplification 实现
-|-- apps/             # manumesh 命令行工具
+|-- src/                       # core/common/mesh_edit/analysis/feature_detection/io/api/debugUtil/simplification 实现
+|-- apps/                      # manumesh 命令行工具
 |-- examples/                  # C++、C ABI 和安装后 SDK consumer 示例
 |-- tests/                     # unit、external、performance、support 和测试数据
-|-- thirdParty/                # Eigen、GoogleTest 与 Graphviz 本地依赖/工具包
+|-- thirdParty/                # Eigen、GoogleTest、oneTBB 与 Graphviz 本地依赖/工具包
 |-- adm/                       # 格式化、安装和 SDK 辅助目标
-|-- documentation/             # 人工维护的交付文档、设计、指南和论文资料
+|-- documentation/             # 与当前源码对应的构建、CLI、SDK、设计和契约文档
 |-- docs/                      # 仅存放生成的 Doxygen 输出；不纳入版本控制
 |-- .vscode/                   # VS2019 构建、调试和验证任务
 |-- CMakeLists.txt             # 顶层构建配置
@@ -323,7 +332,7 @@ ManuMesh/
 `-- README.md                  # 项目入口
 ```
 
-本地生成内容进入 `build*/`、`output/`、`tests/output/` 或 `docs/doxygen/`，不作为源码
+本地生成内容进入 `build*/`、`output/`、`tests/output/` 或 `docs/`，不作为源码
 或人工文档入口。
 
 ## 依赖与构建选项
@@ -332,10 +341,11 @@ Eigen 是库的 header-only 编译依赖。GoogleTest 只用于仓库测试，�
 运行时依赖。默认配置固定使用仓库内 Eigen 3.4.0 与 GoogleTest 1.15.2 源码，避免
 开发机安装的包改变构建结果；显式 `system` 路径接受 Eigen 3.3 及更高版本，`auto`、
 `system` 和 `fetch` 都是显式覆盖路径。oneTBB 仅出现在内部并行边界；原始 CMake 选项
-仍默认关闭，但所有常规 Release runtime/test/SDK/performance preset 都固定为 `fetch`
-的 2021.12.0；文档 preset 不构建运行时。安装型 Windows
+仍默认关闭，但所有常规 Release runtime/test/SDK/performance preset 都固定为仓库内
+`vendored` 的 2021.12.0；文档 preset 不构建运行时。安装型 Windows
 SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-consumer-test` 中使用隔离
-`PATH` 验证可启动性。
+`PATH` 验证可启动性，并保留 oneTBB 的许可证与第三方 notices。可安装的静态 SDK
+只接受 `vendored` 或 `fetch` provider；`system` 依赖无法随 SDK 自包含，因此会在配置阶段拒绝。
 
 | 选项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -346,9 +356,11 @@ SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-cons
 | `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` | `OFF` | 测试构建时要求 Python 3 并注册 include 边界守卫；VS2019 preset 和 CI 显式设为 `ON`。 |
 | `MANUMESH_BUILD_PERFORMANCE_TESTS` | `OFF` | 构建独立的大模型性能套件。 |
 | `MANUMESH_ENABLE_ONETBB` | `OFF`（Release preset 为 `ON`） | 启用内部 oneTBB 范围并行后端；关闭时保留同一公共执行契约的串行回退。 |
-| `MANUMESH_ONETBB_PROVIDER` | `auto`（Release preset 为 `fetch`） | 选择 `auto` / `system` / `fetch`；正式 preset 固定获取 oneTBB 2021.12.0。 |
+| `MANUMESH_ONETBB_PROVIDER` | `vendored` | 选择 `auto` / `system` / `vendored` / `fetch`；正式 preset 固定使用仓库内 oneTBB 2021.12.0；静态 SDK 仅允许 `vendored`/`fetch`。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
-| `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中启用内部 HTML 线框工具。 |
+| `MANUMESH_MONOLITHIC_CORE` | `OFF`（`vs2019-workspace` 为 `ON`） | 将全部生产源码编入单个核心库目标；不改变 ManuMesh 功能，只减少 IDE 工程数量；启用测试时必须关闭。 |
+| `MANUMESH_ENABLE_DEVELOPER_TOOLS` | `ON` | 启用格式、文档和 SDK 验证等开发辅助目标；核心工作区关闭。 |
+| `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中编译内部 HTML 线框工具；当前特征快照调用未接入产品流程，仅供内部排查。 |
 | `MANUMESH_EIGEN_PROVIDER` | `vendored` | 默认仓库内 Eigen 3.4.0；显式 `system` 支持 3.3+，也可设为 `auto` 或 `fetch`。 |
 | `MANUMESH_GOOGLETEST_PROVIDER` | `source` | 默认仓库内 GoogleTest 1.15.2 源码；可显式设为 `auto`、`system` 或 `fetch`。 |
 | `MANUMESH_BUILD_DOCS` | `OFF` | 开启后要求 Doxygen 可用，并创建 `docs-api` 和 `docs-internal` 目标。 |
@@ -392,7 +404,8 @@ ctest --preset vs2019-release-performance
 ```powershell
 cmake --preset vs2019-release-docs
 cmake --build build/vs2019-release-docs --config Release --target check-src-doxygen
-cmake --build --preset vs2019-release-docs --parallel
+cmake --build --preset vs2019-release-docs --target docs-api --parallel
+cmake --build --preset vs2019-release-docs --target docs-internal --parallel
 ```
 
 生成首页分别位于：
@@ -413,5 +426,5 @@ docs/internal/html/index.html
 
 ## 版本记录
 
-当前项目版本为 `0.2.0`，由顶层 CMake 定义。各批次的功能、兼容性调整、算法修复和验证记录见
-[CHANGELOG.md](CHANGELOG.md)。
+当前项目版本由顶层 CMake 的 `PROJECT_VERSION` 定义；运行 `manumesh --version` 可查询构建产物
+的实际版本。各批次的功能、兼容性调整、算法修复和验证记录见 [CHANGELOG.md](CHANGELOG.md)。

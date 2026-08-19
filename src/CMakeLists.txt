@@ -191,44 +191,6 @@ set(MANUMESH_PRIVATE_HEADERS
   ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
 )
 
-add_library(manumesh_common_objects OBJECT
-  ${MANUMESH_COMMON_SOURCES}
-  ${MANUMESH_COMMON_PRIVATE_HEADERS}
-)
-add_library(manumesh_mesh_edit_objects OBJECT
-  ${MANUMESH_MESH_EDIT_SOURCES}
-  ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
-)
-add_library(manumesh_analysis_objects OBJECT
-  ${MANUMESH_ANALYSIS_SOURCES}
-)
-add_library(manumesh_geometry_objects OBJECT
-  ${MANUMESH_GEOMETRY_SOURCES}
-)
-add_library(manumesh_io_objects OBJECT
-  ${MANUMESH_IO_SOURCES}
-)
-if(MANUMESH_ENABLE_DEBUG_UTIL)
-  add_library(manumesh_debug_util_objects OBJECT
-    ${MANUMESH_DEBUG_UTIL_SOURCES}
-    ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
-  )
-endif()
-add_library(manumesh_feature_detection_objects OBJECT
-  ${MANUMESH_FEATURE_DETECTION_SOURCES}
-  ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
-)
-add_library(manumesh_simplification_objects OBJECT
-  ${MANUMESH_SIMPLIFICATION_SOURCES}
-  ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
-)
-add_library(manumesh_c_api_objects OBJECT
-  ${MANUMESH_API_SOURCES}
-)
-target_compile_definitions(manumesh_c_api_objects
-  PRIVATE MANUMESH_C_API_IMPLEMENTATION
-)
-
 set(MANUMESH_COMMON_MODULE_DEPENDENCIES geometry)
 set(MANUMESH_MESH_EDIT_MODULE_DEPENDENCIES common geometry)
 set(MANUMESH_ANALYSIS_MODULE_DEPENDENCIES common geometry)
@@ -265,63 +227,132 @@ function(manumesh_link_module_dependencies target module suffix visibility)
   endif()
 endfunction()
 
-foreach(module IN ITEMS common mesh_edit analysis io feature_detection simplification c_api)
-  manumesh_link_module_dependencies(
-    manumesh_${module}_objects
-    ${module}
-    objects
-    PRIVATE
-  )
-endforeach()
-if(MANUMESH_ENABLE_DEBUG_UTIL)
-  manumesh_link_module_dependencies(
-    manumesh_debug_util_objects
-    debug_util
-    objects
-    PRIVATE
+if(MANUMESH_MONOLITHIC_CORE AND BUILD_TESTING AND MANUMESH_BUILD_TESTS)
+  message(FATAL_ERROR
+    "MANUMESH_MONOLITHIC_CORE 仅适用于不包含架构边界测试的核心工作区；"
+    "请关闭 BUILD_TESTING 和 MANUMESH_BUILD_TESTS，或使用模块化核心。"
   )
 endif()
 
-set(MANUMESH_INTERNAL_OBJECT_TARGETS
-  manumesh_common_objects
-  manumesh_mesh_edit_objects
-  manumesh_analysis_objects
-  manumesh_geometry_objects
-  manumesh_io_objects
-  manumesh_feature_detection_objects
-  manumesh_simplification_objects
-  manumesh_c_api_objects
-)
-if(MANUMESH_ENABLE_DEBUG_UTIL)
-  list(APPEND MANUMESH_INTERNAL_OBJECT_TARGETS manumesh_debug_util_objects)
+set(MANUMESH_INTERNAL_OBJECT_TARGETS)
+set(MANUMESH_LIBRARY_OBJECTS)
+if(NOT MANUMESH_MONOLITHIC_CORE)
+  add_library(manumesh_common_objects OBJECT
+    ${MANUMESH_COMMON_SOURCES}
+    ${MANUMESH_COMMON_PRIVATE_HEADERS}
+  )
+  add_library(manumesh_mesh_edit_objects OBJECT
+    ${MANUMESH_MESH_EDIT_SOURCES}
+    ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
+  )
+  add_library(manumesh_analysis_objects OBJECT
+    ${MANUMESH_ANALYSIS_SOURCES}
+  )
+  add_library(manumesh_geometry_objects OBJECT
+    ${MANUMESH_GEOMETRY_SOURCES}
+  )
+  add_library(manumesh_io_objects OBJECT
+    ${MANUMESH_IO_SOURCES}
+  )
+  if(MANUMESH_ENABLE_DEBUG_UTIL)
+    add_library(manumesh_debug_util_objects OBJECT
+      ${MANUMESH_DEBUG_UTIL_SOURCES}
+      ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
+    )
+  endif()
+  add_library(manumesh_feature_detection_objects OBJECT
+    ${MANUMESH_FEATURE_DETECTION_SOURCES}
+    ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
+  )
+  add_library(manumesh_simplification_objects OBJECT
+    ${MANUMESH_SIMPLIFICATION_SOURCES}
+    ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
+  )
+  add_library(manumesh_c_api_objects OBJECT
+    ${MANUMESH_API_SOURCES}
+  )
+  target_compile_definitions(manumesh_c_api_objects
+    PRIVATE MANUMESH_C_API_IMPLEMENTATION
+  )
+
+  foreach(module IN ITEMS common mesh_edit analysis io feature_detection simplification c_api)
+    manumesh_link_module_dependencies(
+      manumesh_${module}_objects
+      ${module}
+      objects
+      PRIVATE
+    )
+  endforeach()
+  if(MANUMESH_ENABLE_DEBUG_UTIL)
+    manumesh_link_module_dependencies(
+      manumesh_debug_util_objects
+      debug_util
+      objects
+      PRIVATE
+    )
+  endif()
+
+  set(MANUMESH_INTERNAL_OBJECT_TARGETS
+    manumesh_common_objects
+    manumesh_mesh_edit_objects
+    manumesh_analysis_objects
+    manumesh_geometry_objects
+    manumesh_io_objects
+    manumesh_feature_detection_objects
+    manumesh_simplification_objects
+    manumesh_c_api_objects
+  )
+  if(MANUMESH_ENABLE_DEBUG_UTIL)
+    list(APPEND MANUMESH_INTERNAL_OBJECT_TARGETS manumesh_debug_util_objects)
+  endif()
+
+  set(MANUMESH_LIBRARY_OBJECTS
+    $<TARGET_OBJECTS:manumesh_common_objects>
+    $<TARGET_OBJECTS:manumesh_mesh_edit_objects>
+    $<TARGET_OBJECTS:manumesh_analysis_objects>
+    $<TARGET_OBJECTS:manumesh_geometry_objects>
+    $<TARGET_OBJECTS:manumesh_io_objects>
+    $<TARGET_OBJECTS:manumesh_feature_detection_objects>
+    $<TARGET_OBJECTS:manumesh_simplification_objects>
+    $<TARGET_OBJECTS:manumesh_c_api_objects>
+  )
+  if(MANUMESH_ENABLE_DEBUG_UTIL)
+    list(APPEND MANUMESH_LIBRARY_OBJECTS
+      $<TARGET_OBJECTS:manumesh_debug_util_objects>
+    )
+  endif()
 endif()
 
-set(MANUMESH_LIBRARY_OBJECTS
-  $<TARGET_OBJECTS:manumesh_common_objects>
-  $<TARGET_OBJECTS:manumesh_mesh_edit_objects>
-  $<TARGET_OBJECTS:manumesh_analysis_objects>
-  $<TARGET_OBJECTS:manumesh_geometry_objects>
-  $<TARGET_OBJECTS:manumesh_io_objects>
-  $<TARGET_OBJECTS:manumesh_feature_detection_objects>
-  $<TARGET_OBJECTS:manumesh_simplification_objects>
-  $<TARGET_OBJECTS:manumesh_c_api_objects>
-)
-if(MANUMESH_ENABLE_DEBUG_UTIL)
-  list(APPEND MANUMESH_LIBRARY_OBJECTS
-    $<TARGET_OBJECTS:manumesh_debug_util_objects>
+if(MANUMESH_MONOLITHIC_CORE)
+  # The compact IDE configuration intentionally compiles every production
+  # source in one target. The normal presets keep module OBJECT targets for
+  # architecture tests and finer-grained incremental builds.
+  set(MANUMESH_CORE_SOURCES
+    ${MANUMESH_LIBRARY_SOURCES}
+    ${MANUMESH_PUBLIC_HEADERS}
+    ${MANUMESH_PRIVATE_HEADERS}
+  )
+  set_source_files_properties(${MANUMESH_API_SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS MANUMESH_C_API_IMPLEMENTATION
+  )
+else()
+  set(MANUMESH_CORE_SOURCES
+    ${MANUMESH_LIBRARY_OBJECTS}
+    ${MANUMESH_PUBLIC_HEADERS}
   )
 endif()
 
 if(MANUMESH_BUILD_SHARED_LIBRARY)
-  add_library(manumesh_core SHARED
-    ${MANUMESH_LIBRARY_OBJECTS}
-    ${MANUMESH_PUBLIC_HEADERS}
+  add_library(${MANUMESH_CORE_TARGET} SHARED
+    ${MANUMESH_CORE_SOURCES}
   )
 else()
-  add_library(manumesh_core STATIC
-    ${MANUMESH_LIBRARY_OBJECTS}
-    ${MANUMESH_PUBLIC_HEADERS}
+  add_library(${MANUMESH_CORE_TARGET} STATIC
+    ${MANUMESH_CORE_SOURCES}
   )
+endif()
+if(NOT MANUMESH_CORE_TARGET STREQUAL "manumesh_core")
+  add_library(manumesh_core ALIAS ${MANUMESH_CORE_TARGET})
 endif()
 
 # Keep the physical library free of C++ header usage requirements. The two
@@ -366,7 +397,6 @@ target_link_libraries(manumesh_cpp_api
   INTERFACE manumesh_core
 )
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 source_group(TREE "${PROJECT_SOURCE_DIR}/include"
   PREFIX "公共头文件"
   FILES ${MANUMESH_PUBLIC_HEADERS}
@@ -423,20 +453,36 @@ foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
 endforeach()
 
 if(MANUMESH_ENABLE_ONETBB)
-  target_compile_definitions(manumesh_common_objects PRIVATE MANUMESH_HAS_ONETBB)
-  target_link_libraries(manumesh_common_objects PRIVATE TBB::tbb)
+  if(MANUMESH_MONOLITHIC_CORE)
+    target_compile_definitions(${MANUMESH_CORE_TARGET} PRIVATE MANUMESH_HAS_ONETBB)
+  else()
+    target_compile_definitions(manumesh_common_objects PRIVATE MANUMESH_HAS_ONETBB)
+    target_link_libraries(manumesh_common_objects PRIVATE TBB::tbb)
+  endif()
 endif()
 
-target_include_directories(manumesh_simplification_objects
-  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
-)
+if(MANUMESH_MONOLITHIC_CORE)
+  target_include_directories(${MANUMESH_CORE_TARGET}
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
+  )
+else()
+  target_include_directories(manumesh_simplification_objects
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
+  )
+endif()
 
-target_compile_features(manumesh_core PRIVATE cxx_std_14)
-target_include_directories(manumesh_core
+target_compile_features(${MANUMESH_CORE_TARGET} PRIVATE cxx_std_14)
+target_include_directories(${MANUMESH_CORE_TARGET}
   PRIVATE
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
+set_target_properties(${MANUMESH_CORE_TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MANUMESH_MONOLITHIC_CORE AND MANUMESH_ENABLE_DEBUG_UTIL)
+  target_compile_definitions(${MANUMESH_CORE_TARGET}
+    PRIVATE $<$<CONFIG:Debug>:MANUMESH_ENABLE_DEBUG_UTIL>
+  )
+endif()
 if(MSVC)
   # Keep the installed C++ target consistent with the in-tree warning helper.
   target_compile_options(manumesh_cpp_api
@@ -447,14 +493,22 @@ if(MSVC)
 endif()
 if(TARGET Eigen3::Eigen)
   target_link_libraries(manumesh_cpp_api INTERFACE Eigen3::Eigen)
-  foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
-    target_link_libraries(${manumesh_internal_target} PRIVATE Eigen3::Eigen)
-  endforeach()
+  if(MANUMESH_MONOLITHIC_CORE)
+    target_link_libraries(${MANUMESH_CORE_TARGET} PRIVATE Eigen3::Eigen)
+  else()
+    foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
+      target_link_libraries(${manumesh_internal_target} PRIVATE Eigen3::Eigen)
+    endforeach()
+  endif()
 elseif(DEFINED eigen_SOURCE_DIR)
   target_include_directories(manumesh_cpp_api INTERFACE "${eigen_SOURCE_DIR}")
-  foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
-    target_include_directories(${manumesh_internal_target} PRIVATE "${eigen_SOURCE_DIR}")
-  endforeach()
+  if(MANUMESH_MONOLITHIC_CORE)
+    target_include_directories(${MANUMESH_CORE_TARGET} PRIVATE "${eigen_SOURCE_DIR}")
+  else()
+    foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
+      target_include_directories(${manumesh_internal_target} PRIVATE "${eigen_SOURCE_DIR}")
+    endforeach()
+  endif()
 else()
   message(FATAL_ERROR
     "未找到 Eigen3，且 FetchContent 未提供 eigen_SOURCE_DIR。"
@@ -467,14 +521,20 @@ if(MANUMESH_RESOLVED_EIGEN_PROVIDER STREQUAL "vendored")
       "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_DATADIR}/manumesh/thirdParty/eigen/include>"
   )
-  foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
-    target_include_directories(${manumesh_internal_target}
+  if(MANUMESH_MONOLITHIC_CORE)
+    target_include_directories(${MANUMESH_CORE_TARGET}
       PRIVATE "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
     )
-  endforeach()
+  else()
+    foreach(manumesh_internal_target IN LISTS MANUMESH_INTERNAL_OBJECT_TARGETS)
+      target_include_directories(${manumesh_internal_target}
+        PRIVATE "$<BUILD_INTERFACE:${MANUMESH_EIGEN_SOURCE_DIR}>"
+      )
+    endforeach()
+  endif()
 endif()
 
-target_compile_definitions(manumesh_core
+target_compile_definitions(${MANUMESH_CORE_TARGET}
   PRIVATE MANUMESH_VERSION="${PROJECT_VERSION}"
 )
 
@@ -482,7 +542,7 @@ if(MANUMESH_ENABLE_ONETBB)
   # oneTBB remains an implementation dependency: public headers contain no
   # TBB types. For a static archive CMake exports this PRIVATE link edge as
   # LINK_ONLY on manumesh_binary, which is exactly the SDK consumer contract.
-  target_link_libraries(manumesh_core PRIVATE TBB::tbb)
+  target_link_libraries(${MANUMESH_CORE_TARGET} PRIVATE TBB::tbb)
 endif()
 
 # Non-installed module archives give architecture tests real link boundaries
@@ -559,24 +619,24 @@ if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
 endif()
 
 if(MANUMESH_BUILD_SHARED_LIBRARY)
-  target_compile_definitions(manumesh_core PRIVATE MANUMESH_BUILDING_DLL)
+  target_compile_definitions(${MANUMESH_CORE_TARGET} PRIVATE MANUMESH_BUILDING_DLL)
   if(WIN32)
     target_compile_definitions(manumesh_cpp_api INTERFACE MANUMESH_USING_DLL)
     target_compile_definitions(manumesh_c_api INTERFACE MANUMESH_USING_DLL)
   endif()
 endif()
 
-set_target_properties(manumesh_core PROPERTIES
+set_target_properties(${MANUMESH_CORE_TARGET} PROPERTIES
   OUTPUT_NAME manumesh
   EXPORT_NAME manumesh_binary
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR}
 )
 
-manumesh_apply_warnings(manumesh_core)
+manumesh_apply_warnings(${MANUMESH_CORE_TARGET})
 
 if(MANUMESH_ENABLE_INSTALL)
-  install(TARGETS manumesh_core
+  install(TARGETS ${MANUMESH_CORE_TARGET}
     EXPORT ManuMeshTargets
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -600,9 +660,9 @@ if(MANUMESH_ENABLE_INSTALL)
       FILES_MATCHING PATTERN "*"
     )
   endif()
-  if(MANUMESH_ENABLE_ONETBB AND
-     MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "system" AND
-     MANUMESH_ONETBB_RUNTIME_DLL)
+  if(MANUMESH_ENABLE_ONETBB AND MANUMESH_ONETBB_RUNTIME_DLL AND
+     (MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "system" OR
+      MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "external"))
     install(FILES "$<TARGET_FILE:TBB::tbb>"
       DESTINATION "${CMAKE_INSTALL_BINDIR}"
     )

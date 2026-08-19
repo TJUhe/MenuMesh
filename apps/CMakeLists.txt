@@ -1,8 +1,10 @@
-add_executable(manumesh
+add_executable(${MANUMESH_CLI_TARGET}
   CliArguments.cpp
   CliArguments.h
   CliCsv.cpp
   CliCsv.h
+  CliPerformance.cpp
+  CliPerformance.h
   CliCommands.h
   CliOptionBinding.cpp
   CliOptionBinding.h
@@ -18,12 +20,16 @@ add_executable(manumesh
   ManuMeshCli.cpp
   ManuMeshCli.h
 )
-target_link_libraries(manumesh PRIVATE ManuMesh::manumesh)
-if(WIN32)
-  target_link_libraries(manumesh PRIVATE shell32)
+if(NOT MANUMESH_CLI_TARGET STREQUAL "manumesh")
+  add_executable(manumesh ALIAS ${MANUMESH_CLI_TARGET})
 endif()
-manumesh_apply_warnings(manumesh)
-manumesh_copy_runtime_dependencies(manumesh)
+set_target_properties(${MANUMESH_CLI_TARGET} PROPERTIES OUTPUT_NAME manumesh)
+target_link_libraries(${MANUMESH_CLI_TARGET} PRIVATE ManuMesh::manumesh)
+if(WIN32)
+  target_link_libraries(${MANUMESH_CLI_TARGET} PRIVATE shell32)
+endif()
+manumesh_apply_warnings(${MANUMESH_CLI_TARGET})
+manumesh_copy_runtime_dependencies(${MANUMESH_CLI_TARGET})
 
 if(BUILD_TESTING)
   add_test(NAME manumesh_cli_help COMMAND manumesh --help)
@@ -140,7 +146,7 @@ if(BUILD_TESTING)
 endif()
 
 if(MANUMESH_ENABLE_INSTALL)
-  install(TARGETS manumesh
+  install(TARGETS ${MANUMESH_CLI_TARGET}
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   )
 endif()

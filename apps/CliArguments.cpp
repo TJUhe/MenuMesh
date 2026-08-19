@@ -154,6 +154,9 @@ const OptionSpec kIoBufferMiBSpec = {
 
 const OptionSpec kSamplesSpec = {"--samples", "N", "距离采样数量（正整数）"};
 const OptionSpec kMetricsCsvSpec = {"--metrics-csv", "path", "写入单行 CSV 指标"};
+const OptionSpec kPerformanceCsvSpec = {
+    "--performance-csv", "path", "写入一次调用的阶段墙钟性能 CSV，并在 stderr 输出摘要"
+};
 const OptionSpec kWeightsSpec = {"--weights", "list", "用于 line sweep，例如 0,1e-5,1e-4,1e-3,1e-2；标准 QEM 只接受 0"};
 const OptionSpec kRatiosSpec = {"--ratios", "list", "用于 ratio-sweep，例如 0.8,0.5,0.25,0.1"};
 const OptionSpec kFacesSpec = {"--faces", "list", "用于 face-sweep，例如 1000,900,800"};
@@ -183,6 +186,7 @@ const std::vector<OptionGroup>& helpGroups() {
         g.push_back({"扫描/距离选项：", {kSamplesSpec, kMetricsCsvSpec, kWeightsSpec, kRatiosSpec, kFacesSpec}});
         g.push_back({"特征分析选项（feature-report、feature-benchmark、feature-compare）：", featureOptionSpecs()});
         g.push_back({"并行执行选项（简化、扫描和特征分析）：", {kThreadsSpec}});
+        g.push_back({"性能计时选项（simplify、特征分析、large-import、large-validate）：", {kPerformanceCsvSpec}});
         g.push_back(
             {"工作流选项（demo、validate-features、validate-external）：",
              {kInputDirSpec,
@@ -243,12 +247,14 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
         addSpec(largeImport, kPartitionTrianglesSpec);
         addSpec(largeImport, kMemoryMiBSpec);
         addSpec(largeImport, kIoBufferMiBSpec);
+        addSpec(largeImport, kPerformanceCsvSpec);
         addSpec(largeImport, kVerboseSpec);
         m["large-import"] = largeImport;
 
         CommandOptionSet largeValidate;
         addSpec(largeValidate, kMemoryMiBSpec);
         addSpec(largeValidate, kIoBufferMiBSpec);
+        addSpec(largeValidate, kPerformanceCsvSpec);
         addSpec(largeValidate, kVerboseSpec);
         m["large-validate"] = largeValidate;
 
@@ -256,6 +262,7 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
         addSpecs(simplify, simplifyOptionSpecs());
         addSpec(simplify, kSamplesSpec);
         addSpec(simplify, kMetricsCsvSpec);
+        addSpec(simplify, kPerformanceCsvSpec);
         addSpec(simplify, kThreadsSpec);
         addSpec(simplify, kVerboseSpec);
         m["simplify"] = simplify;
@@ -271,6 +278,7 @@ const std::map<std::string, CommandOptionSet>& commandOptionSets() {
 
         CommandOptionSet features;
         addSpecs(features, featureOptionSpecs());
+        addSpec(features, kPerformanceCsvSpec);
         addSpec(features, kThreadsSpec);
         addSpec(features, kVerboseSpec);
         m["feature-report"] = features;

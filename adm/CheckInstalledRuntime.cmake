@@ -41,4 +41,26 @@ if(NOT MANUMESH_RUNTIME_OUTPUT MATCHES "^ManuMesh [0-9]+\\.[0-9]+\\.[0-9]+$")
   )
 endif()
 
+if(MANUMESH_EXPECT_ONETBB_NOTICES)
+  if(NOT DEFINED MANUMESH_ONETBB_NOTICE_DIR OR
+     MANUMESH_ONETBB_NOTICE_DIR STREQUAL "")
+    message(FATAL_ERROR "未提供 oneTBB notices 目录。")
+  endif()
+  set(MANUMESH_ONETBB_NOTICE_ROOT
+    "${MANUMESH_SDK_ROOT}/${MANUMESH_ONETBB_NOTICE_DIR}"
+  )
+  foreach(MANUMESH_ONETBB_NOTICE IN ITEMS
+      README.md
+      LICENSE.txt
+      third-party-programs.txt)
+    if(NOT EXISTS
+       "${MANUMESH_ONETBB_NOTICE_ROOT}/${MANUMESH_ONETBB_NOTICE}")
+      message(FATAL_ERROR
+        "已安装 SDK 缺少 oneTBB notice："
+        "${MANUMESH_ONETBB_NOTICE_ROOT}/${MANUMESH_ONETBB_NOTICE}"
+      )
+    endif()
+  endforeach()
+endif()
+
 message(STATUS "已验证隔离的已安装运行时：${MANUMESH_RUNTIME_OUTPUT}")

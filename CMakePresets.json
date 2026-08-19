@@ -19,9 +19,8 @@
         "strategy": "set"
       },
       "cacheVariables": {
-        "CMAKE_C_FLAGS": "/DWIN32 /D_WINDOWS /FS",
-        "CMAKE_CXX_FLAGS": "/DWIN32 /D_WINDOWS /GR /EHsc /FS",
-        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
+        "CMAKE_C_FLAGS": "/FS",
+        "CMAKE_CXX_FLAGS": "/EHsc /FS",
         "BUILD_TESTING": "ON",
         "MANUMESH_BUILD_SHARED_LIBRARY": "ON",
         "MANUMESH_BUILD_CLI": "ON",
@@ -32,7 +31,6 @@
         "MANUMESH_ENABLE_INSTALL": "OFF",
         "MANUMESH_ENABLE_DEBUG_UTIL": "OFF",
         "MANUMESH_BUILD_DOCS": "OFF",
-        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": "OFF",
         "MANUMESH_INSTALL_CMAKE_CONFIG": "ON",
         "MANUMESH_EIGEN_PROVIDER": "vendored",
         "MANUMESH_GOOGLETEST_PROVIDER": "source"
@@ -64,7 +62,7 @@
       "inherits": "vs2019-base",
       "cacheVariables": {
         "MANUMESH_ENABLE_ONETBB": "ON",
-        "MANUMESH_ONETBB_PROVIDER": "fetch"
+        "MANUMESH_ONETBB_PROVIDER": "vendored"
       }
     },
     {
@@ -73,13 +71,31 @@
       "inherits": "vs2019-ninja-base",
       "cacheVariables": {
         "MANUMESH_ENABLE_ONETBB": "ON",
-        "MANUMESH_ONETBB_PROVIDER": "fetch"
+        "MANUMESH_ONETBB_PROVIDER": "vendored"
       }
     },
     {
       "name": "vs2019-debug",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-debug"
+    },
+    {
+      "name": "vs2019-workspace",
+      "inherits": "vs2019-base",
+      "binaryDir": "${sourceDir}/build/vs2019-workspace",
+      "cacheVariables": {
+        "BUILD_TESTING": "OFF",
+        "MANUMESH_BUILD_TESTS": "OFF",
+        "MANUMESH_BUILD_EXAMPLES": "OFF",
+        "MANUMESH_BUILD_PERFORMANCE_TESTS": null,
+        "MANUMESH_REQUIRE_ARCHITECTURE_CHECKS": null,
+        "MANUMESH_GOOGLETEST_PROVIDER": null,
+        "MANUMESH_BUILD_DOCS": null,
+        "MANUMESH_DOXYGEN_ENABLE_GRAPHS": null,
+        "MANUMESH_INSTALL_CMAKE_CONFIG": null,
+        "MANUMESH_MONOLITHIC_CORE": "ON",
+        "MANUMESH_ENABLE_DEVELOPER_TOOLS": "OFF"
+      }
     },
     {
       "name": "vs2019-asan",
@@ -110,8 +126,7 @@
       "binaryDir": "${sourceDir}/build/vs2019-release-static-sdk",
       "cacheVariables": {
         "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
-        "MANUMESH_ENABLE_INSTALL": "ON",
-        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON"
+        "MANUMESH_ENABLE_INSTALL": "ON"
       }
     },
     {
@@ -128,8 +143,7 @@
       "inherits": "vs2019-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-release-sdk",
       "cacheVariables": {
-        "MANUMESH_ENABLE_INSTALL": "ON",
-        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON"
+        "MANUMESH_ENABLE_INSTALL": "ON"
       }
     },
     {
@@ -172,8 +186,7 @@
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-static-sdk",
       "cacheVariables": {
         "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
-        "MANUMESH_ENABLE_INSTALL": "ON",
-        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON"
+        "MANUMESH_ENABLE_INSTALL": "ON"
       }
     },
     {
@@ -190,8 +203,7 @@
       "inherits": "vs2019-ninja-release-base",
       "binaryDir": "${sourceDir}/build/vs2019-ninja-release-sdk",
       "cacheVariables": {
-        "MANUMESH_ENABLE_INSTALL": "ON",
-        "MANUMESH_INSTALL_CMAKE_CONFIG": "ON"
+        "MANUMESH_ENABLE_INSTALL": "ON"
       }
     },
     {
@@ -212,6 +224,14 @@
     }
   ],
   "buildPresets": [
+    {
+      "name": "vs2019-workspace",
+      "configurePreset": "vs2019-workspace",
+      "configuration": "Debug",
+      "targets": [
+        "CLI"
+      ]
+    },
     {
       "name": "vs2019-debug",
       "configurePreset": "vs2019-debug",

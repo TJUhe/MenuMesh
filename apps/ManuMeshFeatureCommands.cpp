@@ -11,6 +11,7 @@
 #include "CliCsv.h"
 #include "CliOptionBinding.h"
 #include "CliPath.h"
+#include "CliPerformance.h"
 #include "algorithms/feature_detection/FeatureComparison.h"
 #include "algorithms/feature_detection/FeatureDetector.h"
 #include "core/Mesh.h"
@@ -46,6 +47,23 @@ static void requireCsvDoesNotAlias(
     }
 }
 
+static void requirePerformanceCsvDoesNotAlias(
+    const fs::path& output, const fs::path& protectedPath, const char* protectedLabel
+) {
+    if (pathsReferToSameLocation(output, protectedPath)) {
+        throw std::invalid_argument(std::string("--performance-csv must not overwrite ") + protectedLabel + ".");
+    }
+}
+
+static void finishAndWritePerformance(PerformanceTimer& performance, const fs::path& output) {
+    performance.finish();
+    if (!performance.enabled()) {
+        return;
+    }
+    writePerformanceCsv(output, performance.record());
+    writePerformanceSummary(std::cerr, performance.record());
+}
+
 static int countCircularLoops(const manumesh::feature::FeatureAnalysis& analysis) {
     int count = 0;
     for (const manumesh::feature::FeatureLoop& loop : analysis.loops) {
@@ -77,8 +95,17 @@ int report(const Args& args) {
     const fs::path inputPath = pathFromUtf8(positional[0]);
     const std::string csvPath = getArg(args, "--csv");
     const fs::path csvOutput = csvPath.empty() ? fs::path() : pathFromUtf8(csvPath);
+    const std::string performanceCsvPath = getArg(args, "--performance-csv");
+    const fs::path performanceCsvOutput =
+        performanceCsvPath.empty() ? fs::path() : pathFromUtf8(performanceCsvPath);
     if (!csvPath.empty()) {
         requireCsvDoesNotAlias(csvOutput, inputPath, "the input mesh");
+    }
+    if (!performanceCsvPath.empty()) {
+        requirePerformanceCsvDoesNotAlias(performanceCsvOutput, inputPath, "the input mesh");
+        if (!csvPath.empty()) {
+            requirePerformanceCsvDoesNotAlias(performanceCsvOutput, csvOutput, "the --csv output");
+        }
     }
 
     const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
@@ -88,14 +115,22 @@ int report(const Args& args) {
         std::cout << formatResolvedFeatureOptions(args, options);
     }
 
+    PerformanceTimer performance("feature-report", !performanceCsvPath.empty());
     manumesh::Mesh input;
     std::string error;
+    performance.begin(PerformancePhase::Load);
     if (!manumesh::loadMesh(positional[0], input, &error)) {
         throw std::runtime_error(error);
     }
+    performance.end(PerformancePhase::Load);
+    setPerformanceInputMesh(performance.record(), input, inputPath);
     const ExecutionOptions executionOptions = parseExecutionOptions(args);
+    setPerformanceExecution(performance.record(), executionOptions);
+    performance.begin(PerformancePhase::FeatureDetection);
     const manumesh::feature::FeatureAnalysis analysis =
         manumesh::feature::detectFeatureCurves(input, options, executionOptions);
+    performance.end(PerformancePhase::FeatureDetection);
+    performance.begin(PerformancePhase::Postprocess);
     const int circularLoops = countCircularLoops(analysis);
     const int circleLoops = countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::Circle);
     const int nearCircleLoops = countPrimitiveLoops(analysis, manumesh::feature::FeaturePrimitiveType::NearCircle);
@@ -194,6 +229,8 @@ int report(const Args& args) {
         }
         csvFile.commit();
     }
+    performance.end(PerformancePhase::Postprocess);
+    finishAndWritePerformance(performance, performanceCsvOutput);
     return 0;
 }
 
@@ -294,22 +331,36 @@ int benchmark(const Args& args) {
     const fs::path labelsPath = pathFromUtf8(positional[1]);
     const std::string csvPath = getArg(args, "--csv");
     const fs::path csvOutput = csvPath.empty() ? fs::path() : pathFromUtf8(csvPath);
+    const std::string performanceCsvPath = getArg(args, "--performance-csv");
+    const fs::path performanceCsvOutput =
+        performanceCsvPath.empty() ? fs::path() : pathFromUtf8(performanceCsvPath);
     if (!csvPath.empty()) {
         requireCsvDoesNotAlias(csvOutput, inputPath, "the input mesh");
         requireCsvDoesNotAlias(csvOutput, labelsPath, "the label CSV");
+    }
+    if (!performanceCsvPath.empty()) {
+        requirePerformanceCsvDoesNotAlias(performanceCsvOutput, inputPath, "the input mesh");
+        requirePerformanceCsvDoesNotAlias(performanceCsvOutput, labelsPath, "the label CSV");
+        if (!csvPath.empty()) {
+            requirePerformanceCsvDoesNotAlias(performanceCsvOutput, csvOutput, "the --csv output");
+        }
     }
 
     manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
     manumesh::feature::validateFeatureOptions(options);
 
+    PerformanceTimer performance("feature-benchmark", !performanceCsvPath.empty());
     manumesh::Mesh input;
     std::string error;
+    performance.begin(PerformancePhase::Load);
     if (!manumesh::loadMesh(positional[0], input, &error)) {
         throw std::runtime_error(error);
     }
 
     manumesh::feature::FeatureBenchmarkLabels labels;
     readFeatureBenchmarkLabels(labelsPath, labels, static_cast<int>(input.faces.size()));
+    performance.end(PerformancePhase::Load);
+    setPerformanceInputMesh(performance.record(), input, inputPath);
 
     if (!labels.facePatchIds.empty()) {
         options.surfacePatches.enabled = true;
@@ -319,8 +370,12 @@ int benchmark(const Args& args) {
         std::cout << formatResolvedFeatureOptions(args, options);
     }
     const ExecutionOptions executionOptions = parseExecutionOptions(args);
+    setPerformanceExecution(performance.record(), executionOptions);
+    performance.begin(PerformancePhase::FeatureDetection);
     const manumesh::feature::FeatureAnalysis analysis =
         manumesh::feature::detectFeatureCurves(input, options, executionOptions);
+    performance.end(PerformancePhase::FeatureDetection);
+    performance.begin(PerformancePhase::Postprocess);
     const manumesh::feature::FeatureEdgeBenchmark benchmark =
         manumesh::feature::benchmarkFeatureAnalysis(input, analysis, labels);
 
@@ -359,6 +414,8 @@ int benchmark(const Args& args) {
         csv << header << "\n" << row.str() << "\n";
         csvFile.commit();
     }
+    performance.end(PerformancePhase::Postprocess);
+    finishAndWritePerformance(performance, performanceCsvOutput);
     return 0;
 }
 
@@ -372,9 +429,19 @@ int compare(const Args& args) {
     const fs::path simplifiedPath = pathFromUtf8(positional[1]);
     const std::string csvPath = getArg(args, "--csv");
     const fs::path csvOutput = csvPath.empty() ? fs::path() : pathFromUtf8(csvPath);
+    const std::string performanceCsvPath = getArg(args, "--performance-csv");
+    const fs::path performanceCsvOutput =
+        performanceCsvPath.empty() ? fs::path() : pathFromUtf8(performanceCsvPath);
     if (!csvPath.empty()) {
         requireCsvDoesNotAlias(csvOutput, originalPath, "the original mesh");
         requireCsvDoesNotAlias(csvOutput, simplifiedPath, "the simplified mesh");
+    }
+    if (!performanceCsvPath.empty()) {
+        requirePerformanceCsvDoesNotAlias(performanceCsvOutput, originalPath, "the original mesh");
+        requirePerformanceCsvDoesNotAlias(performanceCsvOutput, simplifiedPath, "the simplified mesh");
+        if (!csvPath.empty()) {
+            requirePerformanceCsvDoesNotAlias(performanceCsvOutput, csvOutput, "the --csv output");
+        }
     }
 
     const manumesh::feature::FeatureOptions options = parseFeatureOptions(args);
@@ -384,22 +451,31 @@ int compare(const Args& args) {
         std::cout << formatResolvedFeatureOptions(args, options);
     }
 
+    PerformanceTimer performance("feature-compare", !performanceCsvPath.empty());
     manumesh::Mesh original;
     manumesh::Mesh simplified;
     std::string error;
+    performance.begin(PerformancePhase::Load);
     if (!manumesh::loadMesh(positional[0], original, &error)) {
         throw std::runtime_error(error);
     }
     if (!manumesh::loadMesh(positional[1], simplified, &error)) {
         throw std::runtime_error(error);
     }
+    performance.end(PerformancePhase::Load);
+    setPerformanceInputMesh(performance.record(), original, originalPath);
+    setPerformanceOutputMesh(performance.record(), simplified);
 
     const ExecutionOptions executionOptions = parseExecutionOptions(args);
+    setPerformanceExecution(performance.record(), executionOptions);
+    performance.begin(PerformancePhase::FeatureDetection);
     const manumesh::feature::FeatureAnalysis originalFeatures =
         manumesh::feature::detectFeatureCurves(original, options, executionOptions);
     const manumesh::feature::FeatureAnalysis simplifiedFeatures =
         manumesh::feature::detectFeatureCurves(simplified, options, executionOptions);
+    performance.end(PerformancePhase::FeatureDetection);
 
+    performance.begin(PerformancePhase::Postprocess);
     manumesh::feature::LoopMatchOptions matchOptions;
     matchOptions.referenceDiagonal = original.bboxDiag();
     const manumesh::feature::LoopMatchReport matchReport =
@@ -437,6 +513,8 @@ int compare(const Args& args) {
         csv << header << "\n" << rows.str();
         csvFile.commit();
     }
+    performance.end(PerformancePhase::Postprocess);
+    finishAndWritePerformance(performance, performanceCsvOutput);
     return 0;
 }
 

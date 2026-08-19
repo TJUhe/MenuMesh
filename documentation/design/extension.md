@@ -29,7 +29,7 @@
 ## 4. 验证闭环
 
 依次补输入校验、最小行为、回归 fixture、并行等价（如适用）、CLI/C ABI/安装 consumer（如
-适用）测试；运行 `vs2019-debug-unit` 和受影响的 external/full 套件。最后同步头文件注释、
+适用）测试；运行 `vs2019-debug-full-unit` 和受影响的 external/full 套件。最后同步头文件注释、
 本目录相关设计文档、根 README 和 Doxygen 页面。
 
 ## 5. 合入前检查

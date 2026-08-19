@@ -1,13 +1,16 @@
 # 调试与诊断
 
-源码调试以 `vs2019-debug` 为基线；Release 结果用于性能和安装验证，不适合作为默认断点
-环境。VS Code 任务和 launch 配置位于 `.vscode/`，任务名称应以当前文件为准。
+源码调试以精简的 `vs2019-debug` 为基线；它按功能目录生成 `Core`、`Common`、`Geometry`、
+`MeshEdit`、`Analysis`、`IO`、`FeatureDetection`、`Simplification`、`CAPI` 和 `CLI`。
+需要调试测试时使用
+`vs2019-debug-full`。Release 结果用于性能和安装验证，不适合作为默认断点环境。VS Code
+任务和 launch 配置位于 `.vscode/`，任务名称应以当前文件为准。
 
 ## 推荐入口
 
 ```powershell
 cmake --preset vs2019-debug
-cmake --build --preset vs2019-debug-tests --parallel
+cmake --build --preset vs2019-debug --parallel
 ```
 
 CLI 调试从 `manumesh feature-report ...` 或 `manumesh simplify ...` 开始；单元测试调试用

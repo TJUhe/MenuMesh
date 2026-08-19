@@ -13,13 +13,14 @@ Current policy:
   settings instead of using repository-hosted prebuilt libraries.
 - `oneTBB/` contains the oneTBB 2021.12.0 source used by the optional
   deterministic parallel backend. It is built with the active C++14 and `/MD`
-  settings, so Release builds do not depend on a network fetch or a prebuilt
-  binary ABI. SDK installs retain oneTBB's `LICENSE.txt` and
+  settings, so Release builds do not depend on a network download or a
+  prebuilt binary ABI. SDK installs retain oneTBB's `LICENSE.txt` and
   `third-party-programs.txt` notices under `share/doc/ManuMesh/oneTBB`.
 - `graphviz/` vendors the `dot` runtime and plugin/configuration files used by
   Doxygen graphs.
-- Build scripts should prefer supported vendored libraries and tools here when
-  present. Doxygen itself is discovered from the developer environment.
+- Build scripts use supported vendored libraries and tools here whenever they
+  are present. Doxygen is searched in `thirdParty/doxygen` first, then from the
+  configured developer environment.
 
 Preferred bundle shape:
 

@@ -60,6 +60,8 @@ src/common + src/mesh_edit       跨算法私有几何基础和动态拓扑
 
 详细依赖方向和公共/私有边界见
 [架构设计](documentation/design/architecture.md)。
+第一次阅读源码、需要理解 MMPD 大网格分块或 oneTBB 并行边界时，先看
+[项目导览](documentation/guide/project-overview.md)。
 
 ### 能力边界
 
@@ -81,8 +83,8 @@ ManuMesh 当前是三角表面网格内核，不是完整 CAD/B-Rep 或实体建
 | Visual Studio | Visual Studio 16 2019 16.11，MSVC v142，x64 | 唯一受支持的编译与 SDK 消费基线。 |
 | CMake | 3.20 或更高 | 配置、构建、安装和测试；兼容 VS2019 16.11 内置 CMake。 |
 | Ninja | 可选 | 在 VS2019 v142 Developer Command Prompt 中使用 Ninja Multi-Config preset。 |
-| Eigen | 默认 3.4.0；显式 system 为 3.3+ | 核心向量/矩阵计算；默认使用仓库内 header bundle，`system` 与 `fetch` 仅供显式覆盖。 |
-| GoogleTest | 1.15.2（测试时需要） | 默认从仓库内源码构建；`system` 与 `fetch` 仅供显式覆盖。 |
+| Eigen | 默认 3.4.0；显式 system 为 3.3+ | 核心向量/矩阵计算；默认使用仓库内 header bundle，`system` 仅供显式覆盖。 |
+| GoogleTest | 1.15.2（测试时需要） | 默认从仓库内源码构建；`system` 仅供显式覆盖。 |
 | oneTBB | 2021.12.0 | 正式 Release/SDK preset 的内部并行后端；公共头不暴露 TBB 类型，Windows SDK 安装必要的 `tbb12.dll`。 |
 | Doxygen | 文档构建时需要 | 通过 `PATH` 或 `DOXYGEN_EXECUTABLE` 提供；`MANUMESH_BUILD_DOCS=ON` 时配置阶段会验证。 |
 | Graphviz | 可选 | 找到 `dot` 时生成关系图；缺少 Graphviz 时 Doxygen 仍可生成 API 和源码文档，但不包含关系图。 |
@@ -111,14 +113,14 @@ performance preset 都继承同一个固定的 oneTBB 2021.12.0 配置，因此�
 preset 保持不引入调度后端，用于串行回退、确定性和内存安全诊断。
 
 ```powershell
-# Visual Studio 核心工作区：保留全部功能核心源码，但只生成 Core、CLI 和 CMake 辅助项目
-cmake --preset vs2019-workspace
-cmake --build --preset vs2019-workspace
-
-# 日常 Debug 和快速回归
+# 日常 Visual Studio Debug：只生成全部功能核心和 CLI
 cmake --preset vs2019-debug
-cmake --build --preset vs2019-debug-tests
-ctest --preset vs2019-debug-unit
+cmake --build --preset vs2019-debug
+
+# 完整 Debug 验证：测试、示例和开发辅助目标
+cmake --preset vs2019-debug-full
+cmake --build --preset vs2019-debug-full-tests
+ctest --preset vs2019-debug-full-unit
 
 # AddressSanitizer 内存安全回归（排除独立性能阈值和外部数据集）
 cmake --preset vs2019-asan
@@ -141,13 +143,16 @@ cmake --build --preset vs2019-release-static-sdk
 ctest --preset vs2019-release-static-sdk
 ```
 
-`vs2019-workspace` 适合在 Visual Studio 中阅读和调试日常核心代码。该预设保留网格读写、
-分析、特征检测、网格简化以及 C/C++ API，关闭测试、示例、第三方测试框架和开发辅助目标，
-并把生产源码合并到一个 `Core` 工程中。配置完成后打开
-`build/vs2019-workspace/ManuMesh.sln`，并使用“解决方案资源管理器”浏览分组；
-“属性管理器”会按底层 CMake target 平铺条目，不适合用作项目导航。
-工程显示名使用 `Core` 和 `CLI`，但输出文件仍保持 `manumesh.dll` 与 `manumesh.exe`，
-因此不会影响已有脚本和 SDK 使用方式。
+`vs2019-debug` 是默认的 Visual Studio 核心工作区。它保留网格读写、分析、特征检测、
+网格简化、纹理保护及 C/C++ API，并按 `src/` 下的功能目录拆分为 `Core`、`Geometry`、
+`Common`、`MeshEdit`、`Analysis`、`IO`、`FeatureDetection`、`Simplification`、`CAPI`
+和 `CLI` 工程；不生成测试、示例、GoogleTest、CTest、文档/格式化工具或第三方库工程。
+配置后打开 `build/vs2019-debug/ManuMesh.sln`。另外的 `ALL_BUILD` 是 CMake 生成器本身的
+聚合构建入口。
+工程显示名使用短的功能名称，输出文件仍保持 `manumesh.dll` 与 `manumesh.exe`，SDK 的公共
+CMake target 和运行方式不变。为避免生成 `ZERO_CHECK`，该预设关闭 CMake 自动重生成；修改
+`CMakeLists.txt` 或增删源码文件后，重新执行一次 `cmake --preset vs2019-debug`。需要完整
+回归时，使用独立目录中的 `vs2019-debug-full`。
 
 VS2019 v142 的 Windows AddressSanitizer 不支持 LeakSanitizer 的
 `detect_leaks=1`。`vs2019-asan-unit` 因此同时运行
@@ -339,13 +344,13 @@ ManuMesh/
 
 Eigen 是库的 header-only 编译依赖。GoogleTest 只用于仓库测试，不是 ManuMesh SDK
 运行时依赖。默认配置固定使用仓库内 Eigen 3.4.0 与 GoogleTest 1.15.2 源码，避免
-开发机安装的包改变构建结果；显式 `system` 路径接受 Eigen 3.3 及更高版本，`auto`、
-`system` 和 `fetch` 都是显式覆盖路径。oneTBB 仅出现在内部并行边界；原始 CMake 选项
+开发机安装的包改变构建结果；显式 `system` 路径接受 Eigen 3.3 及更高版本，`auto`
+只在本地系统包与仓库内置包之间选择，不会下载依赖。oneTBB 仅出现在内部并行边界；原始 CMake 选项
 仍默认关闭，但所有常规 Release runtime/test/SDK/performance preset 都固定为仓库内
 `vendored` 的 2021.12.0；文档 preset 不构建运行时。安装型 Windows
 SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-consumer-test` 中使用隔离
 `PATH` 验证可启动性，并保留 oneTBB 的许可证与第三方 notices。可安装的静态 SDK
-只接受 `vendored` 或 `fetch` provider；`system` 依赖无法随 SDK 自包含，因此会在配置阶段拒绝。
+只接受 `vendored` provider；`system` 依赖无法随 SDK 自包含，因此会在配置阶段拒绝。
 
 | 选项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -356,15 +361,16 @@ SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-cons
 | `MANUMESH_REQUIRE_ARCHITECTURE_CHECKS` | `OFF` | 测试构建时要求 Python 3 并注册 include 边界守卫；VS2019 preset 和 CI 显式设为 `ON`。 |
 | `MANUMESH_BUILD_PERFORMANCE_TESTS` | `OFF` | 构建独立的大模型性能套件。 |
 | `MANUMESH_ENABLE_ONETBB` | `OFF`（Release preset 为 `ON`） | 启用内部 oneTBB 范围并行后端；关闭时保留同一公共执行契约的串行回退。 |
-| `MANUMESH_ONETBB_PROVIDER` | `vendored` | 选择 `auto` / `system` / `vendored` / `fetch`；正式 preset 固定使用仓库内 oneTBB 2021.12.0；静态 SDK 仅允许 `vendored`/`fetch`。 |
+| `MANUMESH_ONETBB_PROVIDER` | `vendored` | 选择 `auto` / `system` / `vendored`；`auto` 只在系统包与仓库内置 oneTBB 之间选择，不会下载；正式 preset 固定使用仓库内 oneTBB 2021.12.0；静态 SDK 仅允许 `vendored`。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
-| `MANUMESH_MONOLITHIC_CORE` | `OFF`（`vs2019-workspace` 为 `ON`） | 将全部生产源码编入单个核心库目标；不改变 ManuMesh 功能，只减少 IDE 工程数量；启用测试时必须关闭。 |
+| `MANUMESH_MONOLITHIC_CORE` | `OFF` | 将全部生产源码编入单个核心库目标；关闭时按功能模块保留核心工程，适合源码阅读和增量编译。 |
 | `MANUMESH_ENABLE_DEVELOPER_TOOLS` | `ON` | 启用格式、文档和 SDK 验证等开发辅助目标；核心工作区关闭。 |
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中编译内部 HTML 线框工具；当前特征快照调用未接入产品流程，仅供内部排查。 |
-| `MANUMESH_EIGEN_PROVIDER` | `vendored` | 默认仓库内 Eigen 3.4.0；显式 `system` 支持 3.3+，也可设为 `auto` 或 `fetch`。 |
-| `MANUMESH_GOOGLETEST_PROVIDER` | `source` | 默认仓库内 GoogleTest 1.15.2 源码；可显式设为 `auto`、`system` 或 `fetch`。 |
+| `MANUMESH_EIGEN_PROVIDER` | `vendored` | 默认仓库内 Eigen 3.4.0；显式 `system` 支持 3.3+，`auto` 只在系统包与仓库内置包之间选择。 |
+| `MANUMESH_GOOGLETEST_PROVIDER` | `source` | 默认仓库内 GoogleTest 1.15.2 源码；可显式设为 `auto` 或 `system`，所有路径均不下载。 |
 | `MANUMESH_BUILD_DOCS` | `OFF` | 开启后要求 Doxygen 可用，并创建 `docs-api` 和 `docs-internal` 目标。 |
 | `MANUMESH_DOXYGEN_ENABLE_GRAPHS` | `ON` | 找到 vendored 或系统 Graphviz `dot` 时生成关系图；缺少 `dot` 时继续生成无图文档。 |
+| `MANUMESH_DOXYGEN_OUTPUT_LANGUAGE` | `English` | 选择 Doxygen 生成页面的界面语言；可设为 `Chinese`。 |
 
 ## 测试
 
@@ -413,6 +419,12 @@ cmake --build --preset vs2019-release-docs --target docs-internal --parallel
 ```text
 docs/doxygen/html/index.html
 docs/internal/html/index.html
+```
+
+Doxygen 页面默认使用英文界面；需要中文界面时，在配置时传入：
+
+```powershell
+cmake --preset vs2019-release-docs -DMANUMESH_DOXYGEN_OUTPUT_LANGUAGE=Chinese
 ```
 
 `docs-api` 输入包括 `documentation/doxygen/` 页面、`include/`、`src/`、`apps/` 和

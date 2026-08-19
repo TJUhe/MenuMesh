@@ -16,11 +16,34 @@ project(ManuMesh
   LANGUAGES C CXX
 )
 
+# This is an internal switch used only by the small default Visual Studio
+# preset. It deliberately is not a public build option: the compact solution
+# is a presentation choice, not a different library configuration.
+if(DEFINED MANUMESH_COMPACT_VISUAL_STUDIO_WORKSPACE)
+  set(MANUMESH_COMPACT_VISUAL_STUDIO_WORKSPACE
+    "${MANUMESH_COMPACT_VISUAL_STUDIO_WORKSPACE}"
+    CACHE INTERNAL "Internal Visual Studio solution layout selector" FORCE
+  )
+else()
+  set(MANUMESH_COMPACT_VISUAL_STUDIO_WORKSPACE OFF
+    CACHE INTERNAL "Internal Visual Studio solution layout selector"
+  )
+endif()
+set(MANUMESH_COMPACT_VS_TARGET_NAMES FALSE)
+if(MANUMESH_COMPACT_VISUAL_STUDIO_WORKSPACE AND
+   CMAKE_GENERATOR MATCHES "^Visual Studio ")
+  set(MANUMESH_COMPACT_VS_TARGET_NAMES TRUE)
+endif()
+
 if(CMAKE_GENERATOR MATCHES "^Visual Studio ")
-  # Keep generated Visual Studio solutions navigable without changing the
-  # canonical CMake target names used by builds, SDK exports, and scripts.
+  # The compact workspace uses one meaningful Core folder. Full validation
+  # solutions keep CMake's generated-target folder for its auxiliary targets.
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-  set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake")
+  if(MANUMESH_COMPACT_VS_TARGET_NAMES)
+    set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "")
+  else()
+    set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake")
+  endif()
 endif()
 
 if(CMAKE_GENERATOR MATCHES "^Visual Studio " AND
@@ -57,13 +80,7 @@ if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8 OR
 endif()
 
 include(CTest)
-include(FetchContent)
 include(GNUInstallDirs)
-
-set(MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS)
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
-  list(APPEND MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-endif()
 
 option(MANUMESH_BUILD_SHARED_LIBRARY "构建 manumesh 共享库" ON)
 option(MANUMESH_BUILD_CLI "构建 manumesh 命令行工具" ON)
@@ -71,7 +88,7 @@ option(MANUMESH_BUILD_EXAMPLES "构建使用该库的示例程序" ON)
 option(MANUMESH_BUILD_TESTS "构建基于 GoogleTest 的测试" ON)
 option(MANUMESH_ENABLE_INSTALL "启用 SDK 安装规则" OFF)
 option(MANUMESH_MONOLITHIC_CORE
-  "将核心源文件合并为单个 manumesh_core 目标，适合精简 IDE 工作区"
+  "将核心源文件合并为单个 manumesh_core 目标；关闭时按功能模块生成核心目标"
   OFF
 )
 option(MANUMESH_ENABLE_DEVELOPER_TOOLS
@@ -85,18 +102,38 @@ option(MANUMESH_ENABLE_ONETBB
   OFF
 )
 
-# Keep canonical target aliases for scripts and SDK consumers, while allowing
-# the compact Visual Studio workspace to show neutral project names.
+# Keep canonical target aliases for in-tree consumers and SDK exports. The
+# compact Visual Studio workspace uses concise physical target names because
+# CMake's Visual Studio generator writes target names, rather than
+# PROJECT_LABEL, into the solution tree.
 set(MANUMESH_CORE_TARGET manumesh_core)
 set(MANUMESH_CLI_TARGET manumesh)
-if(MANUMESH_MONOLITHIC_CORE AND CMAKE_GENERATOR MATCHES "^Visual Studio ")
+set(MANUMESH_COMMON_OBJECT_TARGET manumesh_common_objects)
+set(MANUMESH_MESH_EDIT_OBJECT_TARGET manumesh_mesh_edit_objects)
+set(MANUMESH_ANALYSIS_OBJECT_TARGET manumesh_analysis_objects)
+set(MANUMESH_GEOMETRY_OBJECT_TARGET manumesh_geometry_objects)
+set(MANUMESH_IO_OBJECT_TARGET manumesh_io_objects)
+set(MANUMESH_DEBUG_UTIL_OBJECT_TARGET manumesh_debug_util_objects)
+set(MANUMESH_FEATURE_DETECTION_OBJECT_TARGET manumesh_feature_detection_objects)
+set(MANUMESH_SIMPLIFICATION_OBJECT_TARGET manumesh_simplification_objects)
+set(MANUMESH_C_API_OBJECT_TARGET manumesh_c_api_objects)
+if(MANUMESH_COMPACT_VS_TARGET_NAMES)
   set(MANUMESH_CORE_TARGET Core)
   set(MANUMESH_CLI_TARGET CLI)
+  set(MANUMESH_COMMON_OBJECT_TARGET Common)
+  set(MANUMESH_MESH_EDIT_OBJECT_TARGET MeshEdit)
+  set(MANUMESH_ANALYSIS_OBJECT_TARGET Analysis)
+  set(MANUMESH_GEOMETRY_OBJECT_TARGET Geometry)
+  set(MANUMESH_IO_OBJECT_TARGET IO)
+  set(MANUMESH_DEBUG_UTIL_OBJECT_TARGET DebugUtil)
+  set(MANUMESH_FEATURE_DETECTION_OBJECT_TARGET FeatureDetection)
+  set(MANUMESH_SIMPLIFICATION_OBJECT_TARGET Simplification)
+  set(MANUMESH_C_API_OBJECT_TARGET CAPI)
 endif()
 set(MANUMESH_ONETBB_PROVIDER "vendored" CACHE STRING
-  "oneTBB 提供方式：默认 vendored；可选 auto、system 或 fetch"
+  "oneTBB 提供方式：默认 vendored；可选 auto、system 或 vendored"
 )
-set_property(CACHE MANUMESH_ONETBB_PROVIDER PROPERTY STRINGS auto system vendored fetch)
+set_property(CACHE MANUMESH_ONETBB_PROVIDER PROPERTY STRINGS auto system vendored)
 set(MANUMESH_ONETBB_SOURCE_DIR
   "${PROJECT_SOURCE_DIR}/thirdParty/oneTBB/source"
   CACHE PATH "Vendored oneTBB 源码树路径"
@@ -130,9 +167,9 @@ if(MANUMESH_ENABLE_INSTALL)
 endif()
 
 set(MANUMESH_EIGEN_PROVIDER "vendored" CACHE STRING
-  "Eigen 提供方式：默认 vendored；可选 auto、system 或 fetch"
+  "Eigen 提供方式：默认 vendored；可选 auto、system 或 vendored"
 )
-set_property(CACHE MANUMESH_EIGEN_PROVIDER PROPERTY STRINGS auto system vendored fetch)
+set_property(CACHE MANUMESH_EIGEN_PROVIDER PROPERTY STRINGS auto system vendored)
 set(MANUMESH_EIGEN_SOURCE_DIR
   "${PROJECT_SOURCE_DIR}/thirdParty/eigen/include"
   CACHE PATH "Vendored Eigen 源码/include 树路径"
@@ -146,9 +183,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
-if(NOT MANUMESH_EIGEN_PROVIDER MATCHES "^(auto|system|vendored|fetch)$")
+if(NOT MANUMESH_EIGEN_PROVIDER MATCHES "^(auto|system|vendored)$")
   message(FATAL_ERROR
-    "MANUMESH_EIGEN_PROVIDER 必须是 auto、system、vendored 或 fetch 之一。"
+    "MANUMESH_EIGEN_PROVIDER 必须是 auto、system 或 vendored 之一。"
   )
 endif()
 
@@ -162,7 +199,7 @@ if(MANUMESH_EIGEN_PROVIDER STREQUAL "auto" OR
   elseif(MANUMESH_EIGEN_PROVIDER STREQUAL "system")
     message(FATAL_ERROR
       "未找到系统 Eigen3。请安装 Eigen3，或使用 "
-      "-DMANUMESH_EIGEN_PROVIDER=vendored/fetch。"
+      "-DMANUMESH_EIGEN_PROVIDER=vendored。"
     )
   endif()
 endif()
@@ -182,27 +219,15 @@ if(NOT TARGET Eigen3::Eigen AND
   endif()
 endif()
 
-if(NOT TARGET Eigen3::Eigen AND
-   (MANUMESH_EIGEN_PROVIDER STREQUAL "auto" OR
-    MANUMESH_EIGEN_PROVIDER STREQUAL "fetch"))
-  FetchContent_Declare(
-    eigen
-    URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
-    URL_HASH SHA256=8586084F71F9BDE545EE7FA6D00288B264A2B7AC3607B974E54D13E7162C1C72
-    ${MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS}
-  )
-  set(MANUMESH_SAVED_BUILD_TESTING "${BUILD_TESTING}")
-  set(BUILD_TESTING OFF CACHE BOOL "获取 Eigen 时禁用依赖项测试" FORCE)
-  FetchContent_MakeAvailable(eigen)
-  set(BUILD_TESTING "${MANUMESH_SAVED_BUILD_TESTING}" CACHE BOOL
-    "启用项目测试"
-    FORCE
-  )
-  set(MANUMESH_RESOLVED_EIGEN_PROVIDER "fetch")
-endif()
-
 if(NOT MANUMESH_RESOLVED_EIGEN_PROVIDER AND TARGET Eigen3::Eigen)
   set(MANUMESH_RESOLVED_EIGEN_PROVIDER "external")
+endif()
+
+if(NOT MANUMESH_RESOLVED_EIGEN_PROVIDER)
+  message(FATAL_ERROR
+    "未找到 Eigen3。请安装系统 Eigen3，或确认 Vendored Eigen 位于 "
+    "MANUMESH_EIGEN_SOURCE_DIR='${MANUMESH_EIGEN_SOURCE_DIR}'。"
+  )
 endif()
 
 set(MANUMESH_RESOLVED_ONETBB_PROVIDER "disabled")
@@ -251,27 +276,10 @@ function(manumesh_add_vendored_onetbb source_dir binary_dir)
   endif()
 endfunction()
 
-function(manumesh_add_fetched_onetbb)
-  # FetchContent_MakeAvailable executes add_subdirectory in this function's
-  # scope, so BUILD_SHARED_LIBS remains local to oneTBB as well.
-  set(BUILD_SHARED_LIBS ON)
-  set(CMAKE_INSTALL_DOCDIR "${CMAKE_INSTALL_DOCDIR}/oneTBB")
-  manumesh_configure_onetbb_build()
-  FetchContent_MakeAvailable(onetbb)
-  if(MANUMESH_ENABLE_INSTALL)
-    FetchContent_GetProperties(onetbb)
-    install(FILES
-      "${onetbb_SOURCE_DIR}/LICENSE.txt"
-      "${onetbb_SOURCE_DIR}/third-party-programs.txt"
-      DESTINATION "${CMAKE_INSTALL_DOCDIR}"
-    )
-  endif()
-endfunction()
-
 if(MANUMESH_ENABLE_ONETBB)
-  if(NOT MANUMESH_ONETBB_PROVIDER MATCHES "^(auto|system|vendored|fetch)$")
+  if(NOT MANUMESH_ONETBB_PROVIDER MATCHES "^(auto|system|vendored)$")
     message(FATAL_ERROR
-      "MANUMESH_ONETBB_PROVIDER 必须是 auto、system、vendored 或 fetch 之一。"
+      "MANUMESH_ONETBB_PROVIDER 必须是 auto、system 或 vendored 之一。"
     )
   endif()
 
@@ -283,7 +291,7 @@ if(MANUMESH_ENABLE_ONETBB)
     elseif(MANUMESH_ONETBB_PROVIDER STREQUAL "system")
       message(FATAL_ERROR
         "未找到系统 oneTBB (TBB::tbb)。请安装 oneTBB 2021.12 或使用 "
-        "-DMANUMESH_ONETBB_PROVIDER=vendored 或 fetch。"
+        "-DMANUMESH_ONETBB_PROVIDER=vendored。"
       )
     endif()
   endif()
@@ -305,29 +313,16 @@ if(MANUMESH_ENABLE_ONETBB)
     endif()
   endif()
 
-  if(NOT TARGET TBB::tbb AND
-     (MANUMESH_ONETBB_PROVIDER STREQUAL "auto" OR
-      MANUMESH_ONETBB_PROVIDER STREQUAL "fetch"))
-    # Keep oneTBB as its supported shared runtime. Static oneTBB is explicitly
-    # discouraged upstream; the install rules below package the runtime DLL
-    # and its CMake target for both shared and static ManuMesh SDKs.
-    FetchContent_Declare(
-      onetbb
-      URL https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.12.0.tar.gz
-      URL_HASH SHA256=C7BB7AA69C254D91B8F0041A71C5BCC3936ACB64408A1719AEC0B2B7639DD84F
-      ${MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS}
-    )
-    manumesh_add_fetched_onetbb()
-    set(MANUMESH_RESOLVED_ONETBB_PROVIDER "fetch")
-  endif()
-
   if(NOT TARGET TBB::tbb)
-    message(FATAL_ERROR "oneTBB 已启用，但未能创建 TBB::tbb 目标。")
+    message(FATAL_ERROR
+      "oneTBB 已启用，但未能创建 TBB::tbb 目标。请安装系统 oneTBB 2021.12，"
+      "或确认 Vendored oneTBB 位于 "
+      "MANUMESH_ONETBB_SOURCE_DIR='${MANUMESH_ONETBB_SOURCE_DIR}'。"
+    )
   endif()
 
   if(MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "disabled" AND
-     (MANUMESH_ONETBB_PROVIDER STREQUAL "vendored" OR
-      MANUMESH_ONETBB_PROVIDER STREQUAL "fetch"))
+     MANUMESH_ONETBB_PROVIDER STREQUAL "vendored")
     message(FATAL_ERROR
       "已存在外部 TBB::tbb 目标，无法满足显式 provider="
       "${MANUMESH_ONETBB_PROVIDER}。请移除该目标，或改用 auto/system。"
@@ -353,12 +348,11 @@ if(MANUMESH_ENABLE_ONETBB)
       MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "external"))
     message(FATAL_ERROR
       "静态 ManuMesh SDK 需要可随 SDK 安装的 oneTBB；当前 provider="
-      "${MANUMESH_RESOLVED_ONETBB_PROVIDER}。请使用 vendored 或 fetch。"
+      "${MANUMESH_RESOLVED_ONETBB_PROVIDER}。请使用 vendored。"
     )
   endif()
   if(MANUMESH_ENABLE_INSTALL AND
-     (MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "vendored" OR
-      MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "fetch"))
+     MANUMESH_RESOLVED_ONETBB_PROVIDER STREQUAL "vendored")
     set(MANUMESH_ONETBB_NOTICES_INSTALLED TRUE)
   endif()
   message(STATUS
@@ -381,21 +375,13 @@ function(manumesh_apply_warnings target)
 endfunction()
 
 function(manumesh_copy_runtime_dependencies target)
-  if(WIN32 AND MANUMESH_BUILD_SHARED_LIBRARY)
-    add_custom_command(TARGET ${target} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-        "$<TARGET_FILE:${MANUMESH_CORE_TARGET}>"
-        "$<TARGET_FILE_DIR:${target}>"
-    COMMENT "正在将 manumesh 运行时库复制到 ${target} 旁边"
-      VERBATIM
-    )
-  endif()
+  # All in-tree executables and the ManuMesh DLL use the common runtime
+  # output directory, so the core DLL is already beside each executable.
   if(WIN32 AND MANUMESH_ONETBB_RUNTIME_DLL)
     add_custom_command(TARGET ${target} POST_BUILD
       COMMAND "${CMAKE_COMMAND}" -E copy_if_different
         "$<TARGET_FILE:TBB::tbb>"
         "$<TARGET_FILE_DIR:${target}>"
-      COMMENT "正在将 oneTBB 运行时复制到 ${target} 旁边"
       VERBATIM
     )
   endif()
@@ -424,15 +410,22 @@ function(manumesh_configure_visual_studio_layout)
   manumesh_set_ide_target("${MANUMESH_CORE_TARGET}" "Core" "Core")
   manumesh_set_ide_target(manumesh_cpp_api "C++ API" "Core/API")
   manumesh_set_ide_target(manumesh_c_api "C API" "Core/API")
-  manumesh_set_ide_target(manumesh_common_objects "Common Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_mesh_edit_objects "Mesh Edit Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_analysis_objects "Analysis Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_geometry_objects "Geometry Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_io_objects "IO Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_debug_util_objects "Debug Utility Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_feature_detection_objects "Feature Detection Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_simplification_objects "Simplification Objects" "Core/Implementation")
-  manumesh_set_ide_target(manumesh_c_api_objects "C API Objects" "Core/Implementation")
+  # Object libraries are the useful module boundaries to browse and debug.
+  # In the compact preset they share one Core folder; full configurations keep
+  # the finer grained hierarchy that is useful while working on validation.
+  set(manumesh_module_folder "Core")
+  if(NOT MANUMESH_COMPACT_VS_TARGET_NAMES)
+    set(manumesh_module_folder "Core/Implementation")
+  endif()
+  manumesh_set_ide_target("${MANUMESH_GEOMETRY_OBJECT_TARGET}" "Geometry" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_COMMON_OBJECT_TARGET}" "Common" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_MESH_EDIT_OBJECT_TARGET}" "Mesh Edit" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_ANALYSIS_OBJECT_TARGET}" "Analysis" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_IO_OBJECT_TARGET}" "IO" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_DEBUG_UTIL_OBJECT_TARGET}" "Debug Util" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_FEATURE_DETECTION_OBJECT_TARGET}" "Feature Detection" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_SIMPLIFICATION_OBJECT_TARGET}" "Simplification" "${manumesh_module_folder}")
+  manumesh_set_ide_target("${MANUMESH_C_API_OBJECT_TARGET}" "C API" "${manumesh_module_folder}")
   manumesh_set_ide_target(manumesh_internal "Internal Test Library" "Validation/Internal")
 
   manumesh_set_ide_target(manumesh_basic_simplify "Basic Simplification" "Examples")

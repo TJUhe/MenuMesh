@@ -8,7 +8,7 @@ PROJECT_NUMBER         = @PROJECT_VERSION@
 PROJECT_BRIEF          = "@MANUMESH_DOXYGEN_PROJECT_BRIEF@"
 OUTPUT_DIRECTORY       = "@MANUMESH_DOXYGEN_OUTPUT_DIR@"
 CREATE_SUBDIRS         = NO
-OUTPUT_LANGUAGE        = Chinese
+OUTPUT_LANGUAGE        = @MANUMESH_DOXYGEN_OUTPUT_LANGUAGE@
 
 #---------------------------------------------------------------------------
 # 构建相关配置选项

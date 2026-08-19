@@ -1,5 +1,3 @@
-include(FetchContent)
-
 option(MANUMESH_BUILD_PERFORMANCE_TESTS "构建大型网格性能测试" OFF)
 option(MANUMESH_REQUIRE_ARCHITECTURE_CHECKS
   "要求 Python 架构边界检查存在；启用时缺少 Python 会使配置失败"
@@ -7,13 +5,12 @@ option(MANUMESH_REQUIRE_ARCHITECTURE_CHECKS
 )
 
 set(MANUMESH_GOOGLETEST_PROVIDER "source" CACHE STRING
-  "测试的 GoogleTest 提供方式：默认 source；可选 auto、system 或 fetch"
+  "测试的 GoogleTest 提供方式：默认 source；可选 auto 或 system"
 )
 set_property(CACHE MANUMESH_GOOGLETEST_PROVIDER PROPERTY STRINGS
   auto
   source
   system
-  fetch
 )
 set(MANUMESH_GOOGLETEST_SOURCE_DIR
   "${PROJECT_SOURCE_DIR}/thirdParty/googletest/source/googletest"
@@ -59,9 +56,9 @@ function(manumesh_add_source_gtest source_dir)
   endif()
 endfunction()
 
-if(NOT MANUMESH_GOOGLETEST_PROVIDER MATCHES "^(auto|source|system|fetch)$")
+if(NOT MANUMESH_GOOGLETEST_PROVIDER MATCHES "^(auto|source|system)$")
   message(FATAL_ERROR
-    "MANUMESH_GOOGLETEST_PROVIDER 必须是 auto、source、system 或 fetch 之一。"
+    "MANUMESH_GOOGLETEST_PROVIDER 必须是 auto、source 或 system 之一。"
   )
 endif()
 
@@ -87,26 +84,10 @@ if(MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" OR
   endif()
 endif()
 
-if(NOT TARGET GTest::gtest_main AND
-   (MANUMESH_GOOGLETEST_PROVIDER STREQUAL "auto" OR
-    MANUMESH_GOOGLETEST_PROVIDER STREQUAL "fetch"))
-  FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
-    URL_HASH SHA256=F179EC217F9B3B3F3C6E8B02D3E7EDA997B49E4CE26D6B235C9053BEC9C0BF9F
-    ${MANUMESH_FETCHCONTENT_TIMESTAMP_ARGS}
-  )
-  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
-  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(googletest)
-endif()
-
 if(NOT TARGET GTest::gtest_main)
   message(FATAL_ERROR
       "未找到 GoogleTest。请确认 thirdParty/googletest/source 下的 vendored 源码树可用，"
-      "安装可由 find_package(GTest) 发现的系统 GTest，"
-      "或配置 -DMANUMESH_GOOGLETEST_PROVIDER=fetch。"
+      "或安装可由 find_package(GTest) 发现的系统 GTest。"
   )
 endif()
 
@@ -353,9 +334,12 @@ manumesh_apply_warnings(manumesh_options_header_compile_check)
 function(manumesh_add_module_link_check target module)
   # The root module objects are linked directly so the linker cannot skip an
   # object file and hide one of that module's undeclared dependencies.
+  string(TOUPPER "${module}" module_upper)
+  set(module_target_variable "MANUMESH_${module_upper}_OBJECT_TARGET")
+  set(module_object_target "${${module_target_variable}}")
   add_executable(${target}
     support/module_link_boundary_main.cpp
-    $<TARGET_OBJECTS:manumesh_${module}_objects>
+    $<TARGET_OBJECTS:${module_object_target}>
   )
   target_link_libraries(${target}
     PRIVATE manumesh_${module}_boundary_module
@@ -398,10 +382,10 @@ gtest_discover_tests(manumesh_external_tests
     FIXTURES_REQUIRED thingi10k_manifest_ready
 )
 
-# Keep the downloaded large-mesh evidence tied to its source/license/hash
-# manifest. The script is intentionally a separate CTest because the C++ test
-# binary does not need a JSON dependency; an absent manifest is an optional
-# fixture state and is reported as a passed no-op.
+# Keep the optional, locally staged large-mesh evidence tied to its
+# source/license/hash manifest. The CTest is intentionally separate because the
+# C++ test binary does not need a JSON dependency; an absent manifest is an
+# optional fixture state and is reported as a passed no-op.
 add_test(
   NAME thingi10k_manifest
   COMMAND "${CMAKE_COMMAND}"

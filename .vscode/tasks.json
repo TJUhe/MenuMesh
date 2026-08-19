@@ -14,6 +14,18 @@
       "hide": true
     },
     {
+      "label": "configure: vs2019 debug full",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "vs2019-debug-full"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "hide": true
+    },
+    {
       "label": "configure: vs2019 asan",
       "type": "process",
       "command": "cmake",
@@ -172,24 +184,32 @@
       "group": "build"
     },
     {
-      "label": "test: vs2019 debug",
+      "label": "build: vs2019 debug full tests",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "vs2019-debug-full-tests", "--parallel"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "configure: vs2019 debug full"
+    },
+    {
+      "label": "test: vs2019 debug full",
       "type": "process",
       "command": "ctest",
-      "args": ["--preset", "vs2019-debug-unit"],
+      "args": ["--preset", "vs2019-debug-full-unit"],
       "problemMatcher": [],
-      "dependsOn": "build: vs2019 debug",
+      "dependsOn": "build: vs2019 debug full tests",
       "group": {
         "kind": "test",
         "isDefault": true
       }
     },
     {
-      "label": "test: vs2019 debug external",
+      "label": "test: vs2019 debug full external",
       "type": "process",
       "command": "ctest",
-      "args": ["--preset", "vs2019-debug-external"],
+      "args": ["--preset", "vs2019-debug-full-external"],
       "problemMatcher": [],
-      "dependsOn": "build: vs2019 debug",
+      "dependsOn": "build: vs2019 debug full tests",
       "group": "test"
     },
     {
@@ -463,13 +483,13 @@
       "args": [
         "--build",
         "--preset",
-        "vs2019-debug",
+        "vs2019-debug-full",
         "--target",
         "check-format",
         "--parallel"
       ],
       "problemMatcher": "$msCompile",
-      "dependsOn": "configure: vs2019 debug"
+      "dependsOn": "configure: vs2019 debug full"
     },
     {
       "label": "format",
@@ -478,13 +498,13 @@
       "args": [
         "--build",
         "--preset",
-        "vs2019-debug",
+        "vs2019-debug-full",
         "--target",
         "format",
         "--parallel"
       ],
       "problemMatcher": [],
-      "dependsOn": "configure: vs2019 debug"
+      "dependsOn": "configure: vs2019 debug full"
     }
   ],
   "inputs": [

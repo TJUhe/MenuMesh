@@ -220,7 +220,15 @@ function(manumesh_link_module_dependencies target module suffix visibility)
   set(dependency_variable "MANUMESH_${module_upper}_MODULE_DEPENDENCIES")
   set(dependency_targets)
   foreach(dependency IN LISTS ${dependency_variable})
-    list(APPEND dependency_targets "manumesh_${dependency}_${suffix}")
+    if(suffix STREQUAL "objects")
+      string(TOUPPER "${dependency}" dependency_upper)
+      set(dependency_target_variable
+        "MANUMESH_${dependency_upper}_OBJECT_TARGET"
+      )
+      list(APPEND dependency_targets "${${dependency_target_variable}}")
+    else()
+      list(APPEND dependency_targets "manumesh_${dependency}_${suffix}")
+    endif()
   endforeach()
   if(dependency_targets)
     target_link_libraries(${target} ${visibility} ${dependency_targets})
@@ -237,47 +245,49 @@ endif()
 set(MANUMESH_INTERNAL_OBJECT_TARGETS)
 set(MANUMESH_LIBRARY_OBJECTS)
 if(NOT MANUMESH_MONOLITHIC_CORE)
-  add_library(manumesh_common_objects OBJECT
+  add_library(${MANUMESH_COMMON_OBJECT_TARGET} OBJECT
     ${MANUMESH_COMMON_SOURCES}
     ${MANUMESH_COMMON_PRIVATE_HEADERS}
   )
-  add_library(manumesh_mesh_edit_objects OBJECT
+  add_library(${MANUMESH_MESH_EDIT_OBJECT_TARGET} OBJECT
     ${MANUMESH_MESH_EDIT_SOURCES}
     ${MANUMESH_MESH_EDIT_PRIVATE_HEADERS}
   )
-  add_library(manumesh_analysis_objects OBJECT
+  add_library(${MANUMESH_ANALYSIS_OBJECT_TARGET} OBJECT
     ${MANUMESH_ANALYSIS_SOURCES}
   )
-  add_library(manumesh_geometry_objects OBJECT
+  add_library(${MANUMESH_GEOMETRY_OBJECT_TARGET} OBJECT
     ${MANUMESH_GEOMETRY_SOURCES}
   )
-  add_library(manumesh_io_objects OBJECT
+  add_library(${MANUMESH_IO_OBJECT_TARGET} OBJECT
     ${MANUMESH_IO_SOURCES}
   )
   if(MANUMESH_ENABLE_DEBUG_UTIL)
-    add_library(manumesh_debug_util_objects OBJECT
+    add_library(${MANUMESH_DEBUG_UTIL_OBJECT_TARGET} OBJECT
       ${MANUMESH_DEBUG_UTIL_SOURCES}
       ${MANUMESH_DEBUG_UTIL_PRIVATE_HEADERS}
     )
   endif()
-  add_library(manumesh_feature_detection_objects OBJECT
+  add_library(${MANUMESH_FEATURE_DETECTION_OBJECT_TARGET} OBJECT
     ${MANUMESH_FEATURE_DETECTION_SOURCES}
     ${MANUMESH_FEATURE_DETECTION_PRIVATE_HEADERS}
   )
-  add_library(manumesh_simplification_objects OBJECT
+  add_library(${MANUMESH_SIMPLIFICATION_OBJECT_TARGET} OBJECT
     ${MANUMESH_SIMPLIFICATION_SOURCES}
     ${MANUMESH_SIMPLIFICATION_PRIVATE_HEADERS}
   )
-  add_library(manumesh_c_api_objects OBJECT
+  add_library(${MANUMESH_C_API_OBJECT_TARGET} OBJECT
     ${MANUMESH_API_SOURCES}
   )
-  target_compile_definitions(manumesh_c_api_objects
+  target_compile_definitions(${MANUMESH_C_API_OBJECT_TARGET}
     PRIVATE MANUMESH_C_API_IMPLEMENTATION
   )
 
   foreach(module IN ITEMS common mesh_edit analysis io feature_detection simplification c_api)
+    string(TOUPPER "${module}" module_upper)
+    set(module_target_variable "MANUMESH_${module_upper}_OBJECT_TARGET")
     manumesh_link_module_dependencies(
-      manumesh_${module}_objects
+      ${${module_target_variable}}
       ${module}
       objects
       PRIVATE
@@ -285,7 +295,7 @@ if(NOT MANUMESH_MONOLITHIC_CORE)
   endforeach()
   if(MANUMESH_ENABLE_DEBUG_UTIL)
     manumesh_link_module_dependencies(
-      manumesh_debug_util_objects
+      ${MANUMESH_DEBUG_UTIL_OBJECT_TARGET}
       debug_util
       objects
       PRIVATE
@@ -293,40 +303,42 @@ if(NOT MANUMESH_MONOLITHIC_CORE)
   endif()
 
   set(MANUMESH_INTERNAL_OBJECT_TARGETS
-    manumesh_common_objects
-    manumesh_mesh_edit_objects
-    manumesh_analysis_objects
-    manumesh_geometry_objects
-    manumesh_io_objects
-    manumesh_feature_detection_objects
-    manumesh_simplification_objects
-    manumesh_c_api_objects
+    ${MANUMESH_COMMON_OBJECT_TARGET}
+    ${MANUMESH_MESH_EDIT_OBJECT_TARGET}
+    ${MANUMESH_ANALYSIS_OBJECT_TARGET}
+    ${MANUMESH_GEOMETRY_OBJECT_TARGET}
+    ${MANUMESH_IO_OBJECT_TARGET}
+    ${MANUMESH_FEATURE_DETECTION_OBJECT_TARGET}
+    ${MANUMESH_SIMPLIFICATION_OBJECT_TARGET}
+    ${MANUMESH_C_API_OBJECT_TARGET}
   )
   if(MANUMESH_ENABLE_DEBUG_UTIL)
-    list(APPEND MANUMESH_INTERNAL_OBJECT_TARGETS manumesh_debug_util_objects)
+    list(APPEND MANUMESH_INTERNAL_OBJECT_TARGETS
+      ${MANUMESH_DEBUG_UTIL_OBJECT_TARGET}
+    )
   endif()
 
   set(MANUMESH_LIBRARY_OBJECTS
-    $<TARGET_OBJECTS:manumesh_common_objects>
-    $<TARGET_OBJECTS:manumesh_mesh_edit_objects>
-    $<TARGET_OBJECTS:manumesh_analysis_objects>
-    $<TARGET_OBJECTS:manumesh_geometry_objects>
-    $<TARGET_OBJECTS:manumesh_io_objects>
-    $<TARGET_OBJECTS:manumesh_feature_detection_objects>
-    $<TARGET_OBJECTS:manumesh_simplification_objects>
-    $<TARGET_OBJECTS:manumesh_c_api_objects>
+    $<TARGET_OBJECTS:${MANUMESH_COMMON_OBJECT_TARGET}>
+    $<TARGET_OBJECTS:${MANUMESH_MESH_EDIT_OBJECT_TARGET}>
+    $<TARGET_OBJECTS:${MANUMESH_ANALYSIS_OBJECT_TARGET}>
+    $<TARGET_OBJECTS:${MANUMESH_GEOMETRY_OBJECT_TARGET}>
+    $<TARGET_OBJECTS:${MANUMESH_IO_OBJECT_TARGET}>
+    $<TARGET_OBJECTS:${MANUMESH_FEATURE_DETECTION_OBJECT_TARGET}>
+    $<TARGET_OBJECTS:${MANUMESH_SIMPLIFICATION_OBJECT_TARGET}>
+    $<TARGET_OBJECTS:${MANUMESH_C_API_OBJECT_TARGET}>
   )
   if(MANUMESH_ENABLE_DEBUG_UTIL)
     list(APPEND MANUMESH_LIBRARY_OBJECTS
-      $<TARGET_OBJECTS:manumesh_debug_util_objects>
+      $<TARGET_OBJECTS:${MANUMESH_DEBUG_UTIL_OBJECT_TARGET}>
     )
   endif()
 endif()
 
 if(MANUMESH_MONOLITHIC_CORE)
-  # The compact IDE configuration intentionally compiles every production
-  # source in one target. The normal presets keep module OBJECT targets for
-  # architecture tests and finer-grained incremental builds.
+  # Optional single-target mode for consumers that explicitly want one IDE
+  # project. The normal and compact Visual Studio presets keep module OBJECT
+  # targets so the project tree follows the source architecture.
   set(MANUMESH_CORE_SOURCES
     ${MANUMESH_LIBRARY_SOURCES}
     ${MANUMESH_PUBLIC_HEADERS}
@@ -456,8 +468,8 @@ if(MANUMESH_ENABLE_ONETBB)
   if(MANUMESH_MONOLITHIC_CORE)
     target_compile_definitions(${MANUMESH_CORE_TARGET} PRIVATE MANUMESH_HAS_ONETBB)
   else()
-    target_compile_definitions(manumesh_common_objects PRIVATE MANUMESH_HAS_ONETBB)
-    target_link_libraries(manumesh_common_objects PRIVATE TBB::tbb)
+    target_compile_definitions(${MANUMESH_COMMON_OBJECT_TARGET} PRIVATE MANUMESH_HAS_ONETBB)
+    target_link_libraries(${MANUMESH_COMMON_OBJECT_TARGET} PRIVATE TBB::tbb)
   endif()
 endif()
 
@@ -466,7 +478,7 @@ if(MANUMESH_MONOLITHIC_CORE)
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
   )
 else()
-  target_include_directories(manumesh_simplification_objects
+  target_include_directories(${MANUMESH_SIMPLIFICATION_OBJECT_TARGET}
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/simplification"
   )
 endif()
@@ -511,7 +523,8 @@ elseif(DEFINED eigen_SOURCE_DIR)
   endif()
 else()
   message(FATAL_ERROR
-    "未找到 Eigen3，且 FetchContent 未提供 eigen_SOURCE_DIR。"
+    "未找到 Eigen3。请确认已配置仓库内 Eigen，或提供可由 find_package(Eigen3) "
+    "发现的系统 Eigen。"
   )
 endif()
 
@@ -551,8 +564,11 @@ endif()
 # provided by the dependency modules declared here.
 if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
   function(manumesh_add_boundary_module module)
+    string(TOUPPER "${module}" module_upper)
+    set(module_target_variable "MANUMESH_${module_upper}_OBJECT_TARGET")
+    set(module_object_target "${${module_target_variable}}")
     add_library(manumesh_${module}_boundary_module STATIC
-      $<TARGET_OBJECTS:manumesh_${module}_objects>
+      $<TARGET_OBJECTS:${module_object_target}>
     )
     set_target_properties(manumesh_${module}_boundary_module PROPERTIES
       EXCLUDE_FROM_ALL TRUE

@@ -10,6 +10,7 @@
     <ManuMeshSupportedPlatformToolset>v142</ManuMeshSupportedPlatformToolset>
     <ManuMeshSupportedVisualStudioVersion>16.0</ManuMeshSupportedVisualStudioVersion>
     <ManuMeshEigenIncludeDir Condition="'$(ManuMeshEigenIncludeDir)' == ''">$(ManuMeshSdkRoot)\share\manumesh\thirdParty\eigen\include</ManuMeshEigenIncludeDir>
+    <ManuMeshCopyRuntimeDependencies Condition="'$(ManuMeshCopyRuntimeDependencies)' == ''">true</ManuMeshCopyRuntimeDependencies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,7 +41,9 @@
 
   <Target Name="ManuMeshCopyRuntime"
           AfterTargets="Build"
-          Condition="'@(ManuMeshRuntimeDll)' != ''">
+          Condition="'$(ManuMeshCopyRuntimeDependencies)' == 'true' and '@(ManuMeshRuntimeDll)' != ''"
+          Inputs="@(ManuMeshRuntimeDll)"
+          Outputs="@(ManuMeshRuntimeDll->'$(OutDir)%(Filename)%(Extension)')">
     <Copy SourceFiles="@(ManuMeshRuntimeDll)"
           DestinationFolder="$(OutDir)"
           SkipUnchangedFiles="true" />

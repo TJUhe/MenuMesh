@@ -123,7 +123,7 @@ ManifestFixtureReadResult readLargeThingi10kManifestIndex() {
     std::ifstream index(manumesh::filesystem::u8path(indexPath), std::ios::binary);
     if (!index) {
         // The manifest is optional. The CTest setup creates this index only
-        // after validating a downloaded fixture set.
+        // after validating a locally staged fixture set.
         return result;
     }
     result.available = true;
@@ -186,11 +186,12 @@ manumesh::filesystem::path temporaryDatasetPath(const manumesh::filesystem::path
 
 } // namespace
 
-TEST(ManuMeshPartitionedDatasetExternal, StreamsDownloadedMultiMillionTriangleThingi10kFiles) {
+TEST(ManuMeshPartitionedDatasetExternal, StreamsStagedMultiMillionTriangleThingi10kFiles) {
     const ManifestFixtureReadResult manifest = readLargeThingi10kManifestIndex();
     ASSERT_TRUE(manifest.error.empty()) << manifest.error;
     if (!manifest.available || manifest.fixtures.empty()) {
-        GTEST_SKIP() << "Run tests/support/fetch_thingi10k_large.py to install optional large fixtures.";
+        GTEST_SKIP() << "Stage the optional local Thingi10K fixture bundle under "
+                        "output/thingi10k_large/ to run this test.";
     }
 
     manumesh::PartitionedMeshConfig config;

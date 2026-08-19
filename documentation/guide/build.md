@@ -10,18 +10,36 @@ MSVC/v142/x64 配置及其他 Visual Studio generator：
 - Python 3（标准测试 preset 开启 include 边界架构检查）；
 - 默认使用仓库内 Eigen；测试默认使用仓库内 GoogleTest；
 - Release preset 启用仓库内 oneTBB，Debug/ASan 默认保持串行；
-- 生成 Doxygen 时需要 Doxygen；Graphviz 仅影响关系图。
+- 生成 Doxygen 时需要 Doxygen；优先从 `thirdParty/doxygen` 查找，Graphviz
+  使用仓库内工具包时仅影响关系图。
 
 Ninja preset 也必须从 VS2019 x64 Developer Command Prompt 运行。不要使用旧的 MinGW、VS2022
 或其他编译器路径；它们会在配置阶段失败。
 
+仓库不执行依赖联网下载。Eigen、GoogleTest 和 oneTBB 的默认 provider 都指向
+`thirdParty/`；`auto` 只在仓库内置包和本机可发现的 system 包之间选择。封闭环境建议使用
+全新的构建目录，并显式固定 provider：
+
+```powershell
+cmake --preset vs2019-release-sdk `
+  -DMANUMESH_EIGEN_PROVIDER=vendored `
+  -DMANUMESH_GOOGLETEST_PROVIDER=source `
+  -DMANUMESH_ONETBB_PROVIDER=vendored
+```
+
+如果第三方目录不完整，配置会直接失败并报告缺失路径，不会尝试访问公网。
+
 ## 日常构建
 
 ```powershell
-# Debug：库、CLI、示例和测试
+# 日常 Debug：按功能模块生成核心工程和 CLI，不生成测试、示例或开发工具
 cmake --preset vs2019-debug
-cmake --build --preset vs2019-debug-tests --parallel
-ctest --preset vs2019-debug-unit
+cmake --build --preset vs2019-debug --parallel
+
+# 完整 Debug 验证：测试、示例和开发辅助目标
+cmake --preset vs2019-debug-full
+cmake --build --preset vs2019-debug-full-tests --parallel
+ctest --preset vs2019-debug-full-unit
 
 # Release：正式后端和完整测试
 cmake --preset vs2019-release
@@ -31,6 +49,9 @@ ctest --preset vs2019-release-full
 ```
 
 构建输出位于 `build/<preset>/bin/<Configuration>/`，CLI 名称为 `manumesh.exe`。
+精简的 `vs2019-debug` 按 `src/` 功能目录生成核心工程，并关闭 CMake 自动重生成以移除
+`ZERO_CHECK`；修改 CMake 配置或增删
+源码文件后，需要重新执行 `cmake --preset vs2019-debug`。
 
 ## 测试分层
 
@@ -77,3 +98,10 @@ cmake --build --preset vs2019-release-docs --target docs-internal --parallel
 
 `docs-api` 生成公开 API 和示例参考，`docs-internal` 生成 `include/` 与 `src/` 的内部源码
 参考。两个目标都会先检查源码 Doxygen 注释格式；生成结果不纳入版本控制。
+
+Doxygen 生成页面默认使用英文界面。需要中文界面时，在配置文档 preset 时覆盖
+`MANUMESH_DOXYGEN_OUTPUT_LANGUAGE`：
+
+```powershell
+cmake --preset vs2019-release-docs -DMANUMESH_DOXYGEN_OUTPUT_LANGUAGE=Chinese
+```

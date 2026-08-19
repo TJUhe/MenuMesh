@@ -4,6 +4,17 @@
 > 当前构建、测试和 SDK 流程请以 [`documentation/guide/build.md`](documentation/guide/build.md) 及
 > `CMakePresets.json` 为准。
 
+## 2026-08-19
+
+### 封闭环境依赖获取
+
+- 移除 Eigen、oneTBB 和 GoogleTest 的 `FetchContent` 及公网下载回退；构建只使用
+  `thirdParty/` 内置依赖，或显式指定可由 CMake 发现的系统/内网包。
+- `auto` provider 现在仅在本地系统包和仓库内置包之间选择，不会访问网络；缺少依赖时
+  在配置阶段立即失败并给出路径提示。
+- 移除可选 Thingi10K 公网下载脚本；大型 fixture 改为由内网制品预置，CTest 只做本地
+  manifest 和 SHA-256 校验。
+
 ## 2026-08-15
 
 ### API、生命周期与诊断收口

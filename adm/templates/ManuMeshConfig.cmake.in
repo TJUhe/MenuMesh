@@ -138,7 +138,6 @@ function(manumesh_copy_runtime_dependencies target)
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
           ${MANUMESH_RUNTIME_DLLS}
           "$<TARGET_FILE_DIR:${target}>"
-        COMMENT "正在将 ManuMesh 和编译器运行时库复制到 ${target} 旁边"
         COMMAND_EXPAND_LISTS
         VERBATIM
       )

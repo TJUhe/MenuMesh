@@ -6,6 +6,16 @@ option(MANUMESH_DOXYGEN_ENABLE_GRAPHS
   "dot 可用时在生成的 Doxygen 文档中启用 Graphviz 图表"
   ON
 )
+set(MANUMESH_DOXYGEN_OUTPUT_LANGUAGE "English" CACHE STRING
+  "Doxygen 生成页面的界面语言（English 或 Chinese）"
+)
+set_property(CACHE MANUMESH_DOXYGEN_OUTPUT_LANGUAGE PROPERTY STRINGS English Chinese)
+if(NOT "${MANUMESH_DOXYGEN_OUTPUT_LANGUAGE}" MATCHES "^(English|Chinese)$")
+  message(FATAL_ERROR
+    "MANUMESH_DOXYGEN_OUTPUT_LANGUAGE 必须是 English 或 Chinese；"
+    "当前值为 '${MANUMESH_DOXYGEN_OUTPUT_LANGUAGE}'。"
+  )
+endif()
 option(MANUMESH_INSTALL_CMAKE_CONFIG
   "为 CMake consumer 安装可选的 CMake 配置文件"
   ON
@@ -18,6 +28,23 @@ set(MANUMESH_VENDORED_GRAPHVIZ_ROOT
 set(MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE
   "${MANUMESH_VENDORED_GRAPHVIZ_ROOT}/bin/dot.exe"
 )
+set(MANUMESH_VENDORED_DOXYGEN_ROOT
+  "${PROJECT_SOURCE_DIR}/thirdParty/doxygen"
+  CACHE PATH "Vendored Doxygen 工具包根目录"
+)
+set(MANUMESH_VENDORED_DOXYGEN_EXE "")
+foreach(manumesh_doxygen_candidate IN ITEMS
+    "${MANUMESH_VENDORED_DOXYGEN_ROOT}/bin/doxygen.exe"
+    "${MANUMESH_VENDORED_DOXYGEN_ROOT}/doxygen.exe"
+    "${MANUMESH_VENDORED_DOXYGEN_ROOT}/bin/doxygen"
+    "${MANUMESH_VENDORED_DOXYGEN_ROOT}/doxygen")
+  if(EXISTS "${manumesh_doxygen_candidate}" AND
+     NOT IS_DIRECTORY "${manumesh_doxygen_candidate}")
+    set(MANUMESH_VENDORED_DOXYGEN_EXE "${manumesh_doxygen_candidate}")
+    break()
+  endif()
+endforeach()
+unset(manumesh_doxygen_candidate)
 add_custom_target(check-src-doxygen
   COMMAND "${CMAKE_COMMAND}"
     -DMANUMESH_SOURCE_DIR=${PROJECT_SOURCE_DIR}
@@ -113,6 +140,11 @@ function(manumesh_quote_doxygen_paths output_variable)
 endfunction()
 
 if(MANUMESH_BUILD_DOCS)
+  if(MANUMESH_VENDORED_DOXYGEN_EXE)
+    set(DOXYGEN_EXECUTABLE "${MANUMESH_VENDORED_DOXYGEN_EXE}"
+      CACHE FILEPATH "Vendored Doxygen executable" FORCE
+    )
+  endif()
   find_package(Doxygen REQUIRED)
   if(EXISTS "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}")
     set(MANUMESH_DOXYGEN_DOT_EXE "${MANUMESH_VENDORED_GRAPHVIZ_DOT_EXE}"

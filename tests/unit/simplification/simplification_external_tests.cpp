@@ -81,7 +81,7 @@ TEST(ManuMesh, ExternalNasaIndustrialMeshesExposeRichFeatureTopology) {
     }
 }
 
-TEST(ManuMesh, ExternalDownloadedMeshesCompareIndustrialSimplificationModes) {
+TEST(ManuMesh, ExternalMeshesCompareIndustrialSimplificationModes) {
     struct Case {
         std::string fileName;
         bool expectsCircularProjection = false;

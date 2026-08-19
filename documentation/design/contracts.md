@@ -37,7 +37,8 @@ size-aware 的 struct 输出允许调用方提供不小于 ABI 头的旧前缀�
 `MeshTopology` 的连续存储，不能越过拓扑对象生命周期。`FeatureAnalysisViews.h` 中的
 `FeatureEvidenceView`、`FeatureCurveView`、`FeatureSegmentationView` 和
 `FeatureDiagnosticsView` 都是不拥有数据的只读 view；它们不复制 `FeatureAnalysis`，必须在
-分析对象存活且不被修改时使用。C handle 由 context 管理，销毁前调用方负责等待在途操作完成。
+分析对象存活且不被修改时使用。C mesh handle 由调用方独立创建和销毁；context 只保存错误文本
+和执行选项，并且可以为 null。销毁任一对象前，调用方负责等待使用该对象的在途操作完成。
 
 ## 确定性和线程
 

@@ -16,13 +16,15 @@
 测试由 CMake/GoogleTest 动态发现；数量随源码变化，使用 `ctest -N` 查询，不在文档里写死。
 除 `unit`、`external` 和 `performance` 外，仓库还使用 `cli`、`architecture`、`abi`、`memory`
 标签标识命令行、模块边界、C ABI 和生命周期压力测试。
+大型 Thingi10K fixture 由内网制品预置到 `output/thingi10k_large/`；CTest 只校验本地
+manifest 和哈希，缺少该可选包时跳过对应大模型用例，不执行公网获取。
 
 ## 最小验证闭环
 
 ```powershell
-cmake --preset vs2019-debug
-cmake --build --preset vs2019-debug-tests --parallel
-ctest --preset vs2019-debug-unit
+cmake --preset vs2019-debug-full
+cmake --build --preset vs2019-debug-full-tests --parallel
+ctest --preset vs2019-debug-full-unit
 ```
 
 修改公共 API、CMake 或安装布局后，再跑：

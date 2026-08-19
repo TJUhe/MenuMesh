@@ -66,9 +66,10 @@ STL/OBJ -> Mesh -> (可选) FeatureAnalysis -> Simplify -> Mesh -> STL/OBJ/CSV
 ## 并发边界
 
 公共 `ExecutionOptions` 只暴露 `Serial`/`Parallel`、最大并发度和任务粒度，不暴露 oneTBB
-类型。可并行的是面/顶点证据、Normal Tensor、独立 quadric/placement 等纯计算；图排序、
-cleanup、环恢复、动态坍缩、拓扑提交和固定归约保持确定性协调。未编译后端或默认模式会
-串行执行。并行不能改变图排序、浮点归约或 collapse 顺序。
+类型。可并行的是法向滤波的独立面更新、Normal Tensor 的逐顶点步骤、独立 primitive 拟合，
+以及简化中的状态初始化和初始候选 placement；共享图构建、图排序、cleanup、环发布、
+动态坍缩、拓扑提交和固定归约保持确定性协调。未编译后端或默认模式会串行执行。并行不能
+改变图排序、浮点归约或 collapse 顺序。
 
 ## 超大网格边界
 

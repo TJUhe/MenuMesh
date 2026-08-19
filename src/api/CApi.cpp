@@ -77,7 +77,16 @@ struct LegacyV1FeatureOptionsLayout {
     int normal_tensor_smoothing_iterations;
     int normal_tensor_scale_count;
     int normal_tensor_min_persistent_scales;
-    unsigned char reserved_feature_evidence[60];
+    int use_smooth_curvature_features;
+    double smooth_curvature_feature_threshold;
+    double smooth_curvature_min_edge_alignment;
+    double smooth_curvature_min_tangent_consistency;
+    int smooth_curvature_base_neighborhood_rings;
+    int smooth_curvature_scale_count;
+    int smooth_curvature_min_persistent_scales;
+    int smooth_curvature_robust_fit_iterations;
+    int smooth_curvature_use_stable_scale_selection;
+    double smooth_curvature_min_scale_stability;
     int cleanup_feature_graph;
     double feature_graph_gap_length_ratio;
     int feature_graph_max_weak_spur_edges;
@@ -100,7 +109,7 @@ struct LegacyV1FeatureEdgeLayout {
     int boundary;
     int dihedral;
     int normal_tensor;
-    int reserved_source;
+    int smooth_curvature;
     int non_manifold;
     int cleanup_bridge;
     int consolidation_bridge;
@@ -115,7 +124,7 @@ struct FeatureEdgeV2Layout {
     int boundary;
     int dihedral;
     int normal_tensor;
-    int reserved_source;
+    int smooth_curvature;
     int non_manifold;
     int cleanup_bridge;
     int consolidation_bridge;
@@ -231,6 +240,16 @@ MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(normal_tensor_min_edge_alignment);
 MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(normal_tensor_smoothing_iterations);
 MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(normal_tensor_scale_count);
 MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(normal_tensor_min_persistent_scales);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(use_smooth_curvature_features);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_feature_threshold);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_min_edge_alignment);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_min_tangent_consistency);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_base_neighborhood_rings);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_scale_count);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_min_persistent_scales);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_robust_fit_iterations);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_use_stable_scale_selection);
+MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(smooth_curvature_min_scale_stability);
 MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(cleanup_feature_graph);
 MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(feature_graph_gap_length_ratio);
 MANUMESH_ASSERT_FEATURE_OPTIONS_V1_FIELD(feature_graph_max_weak_spur_edges);
@@ -256,6 +275,7 @@ MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(b);
 MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(boundary);
 MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(dihedral);
 MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(normal_tensor);
+MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(smooth_curvature);
 MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(non_manifold);
 MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(cleanup_bridge);
 MANUMESH_ASSERT_FEATURE_EDGE_V1_FIELD(consolidation_bridge);
@@ -300,6 +320,7 @@ MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(b);
 MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(boundary);
 MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(dihedral);
 MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(normal_tensor);
+MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(smooth_curvature);
 MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(non_manifold);
 MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(cleanup_bridge);
 MANUMESH_ASSERT_FEATURE_EDGE_V2_PREFIX_FIELD(consolidation_bridge);
@@ -435,12 +456,12 @@ bool isExportableFeatureEdge(const manumesh::feature::FeatureGraphEdge& edge, st
 }
 
 void copyFeatureEdge(const manumesh::feature::FeatureGraphEdge& source, ManuMeshFeatureEdge& target) {
-    std::memset(&target, 0, sizeof(target));
     target.a = source.a;
     target.b = source.b;
     target.boundary = source.boundary ? 1 : 0;
     target.dihedral = source.dihedral ? 1 : 0;
     target.normal_tensor = source.normalTensor ? 1 : 0;
+    target.smooth_curvature = source.smoothCurvature ? 1 : 0;
     target.non_manifold = source.nonManifold ? 1 : 0;
     target.cleanup_bridge = source.cleanupBridge ? 1 : 0;
     target.consolidation_bridge = source.consolidationBridge ? 1 : 0;
@@ -489,6 +510,7 @@ buildIndexedFeatureEdges(const manumesh::Mesh& mesh, const manumesh::feature::Fe
                    a.boundary,
                    a.dihedral,
                    a.normalTensor,
+                   a.smoothCurvature,
                    a.nonManifold,
                    a.signedKind,
                    lhs.graphEdgeIndex
@@ -501,6 +523,7 @@ buildIndexedFeatureEdges(const manumesh::Mesh& mesh, const manumesh::feature::Fe
                    b.boundary,
                    b.dihedral,
                    b.normalTensor,
+                   b.smoothCurvature,
                    b.nonManifold,
                    b.signedKind,
                    rhs.graphEdgeIndex
@@ -511,12 +534,12 @@ buildIndexedFeatureEdges(const manumesh::Mesh& mesh, const manumesh::feature::Fe
 
 void copyFeatureEdgeV2(const IndexedFeatureEdge& indexed, std::uint64_t outputIndex, ManuMeshFeatureEdgeV2& target) {
     const manumesh::feature::FeatureGraphEdge& source = *indexed.source;
-    std::memset(&target, 0, sizeof(target));
     target.a = indexed.first;
     target.b = indexed.second;
     target.boundary = source.boundary ? 1 : 0;
     target.dihedral = source.dihedral ? 1 : 0;
     target.normal_tensor = source.normalTensor ? 1 : 0;
+    target.smooth_curvature = source.smoothCurvature ? 1 : 0;
     target.non_manifold = source.nonManifold ? 1 : 0;
     target.cleanup_bridge = source.cleanupBridge ? 1 : 0;
     target.consolidation_bridge = source.consolidationBridge ? 1 : 0;

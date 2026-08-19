@@ -37,7 +37,7 @@ void mergeIds(std::vector<int>& target, const std::vector<int>& source) {
 }
 
 bool hasDetectorEvidence(const feature::FeatureGraphEdge& edge) {
-    return edge.boundary || edge.dihedral || edge.normalTensor || edge.nonManifold;
+    return edge.boundary || edge.dihedral || edge.normalTensor || edge.smoothCurvature || edge.nonManifold;
 }
 
 void mergeConstraintEdge(FeatureConstraintEdge& target, const FeatureConstraintEdge& source) {
@@ -51,6 +51,7 @@ void mergeConstraintEdge(FeatureConstraintEdge& target, const FeatureConstraintE
     target.boundary = target.boundary || source.boundary;
     target.dihedral = target.dihedral || source.dihedral;
     target.normalTensor = target.normalTensor || source.normalTensor;
+    target.smoothCurvature = target.smoothCurvature || source.smoothCurvature;
     target.nonManifold = target.nonManifold || source.nonManifold;
     target.cleanupBridge = target.cleanupBridge || source.cleanupBridge;
     target.consolidationBridge = target.consolidationBridge || source.consolidationBridge;
@@ -436,6 +437,7 @@ FeatureConstraintGraph buildFeatureConstraintGraph(const Mesh& mesh, const featu
         edge.boundary = source.boundary;
         edge.dihedral = source.dihedral;
         edge.normalTensor = source.normalTensor;
+        edge.smoothCurvature = source.smoothCurvature;
         edge.nonManifold = source.nonManifold;
         edge.signedKind = source.signedKind;
         edge.protectedFeature =

@@ -423,6 +423,12 @@ int commandSimplify(const Args& args) {
                   << " max_normal_tensor_persistent_score=" << report.maxNormalTensorPersistentScore
                   << " mean_normal_tensor_local_scale=" << report.meanNormalTensorLocalScale
                   << " mean_normal_tensor_persistence=" << report.meanNormalTensorPersistence
+                  << " smooth_curvature_feature_edges=" << report.smoothCurvatureFeatureEdges
+                  << " smooth_curvature_scored_vertices=" << report.smoothCurvatureScoredVertices
+                  << " max_smooth_curvature_persistent_score=" << report.maxSmoothCurvaturePersistentScore
+                  << " mean_smooth_curvature_local_scale=" << report.meanSmoothCurvatureLocalScale
+                  << " mean_smooth_curvature_persistence=" << report.meanSmoothCurvaturePersistence
+                  << " mean_smooth_curvature_scale_stability=" << report.meanSmoothCurvatureScaleStability
                   << " normal_filter_iterations=" << report.featureNormalFilterIterationsCompleted
                   << " normal_filter_changed_faces=" << report.featureNormalFilterChangedFaces
                   << " normal_filter_preserved_edges=" << report.featureNormalFilterPreservedEdges
@@ -456,7 +462,10 @@ int commandSimplify(const Args& args) {
                "mean_feature_component_confidence,min_feature_component_confidence,"
                "normal_tensor_feature_edges,normal_tensor_scored_vertices,"
                "max_normal_tensor_persistent_score,mean_normal_tensor_local_scale,"
-               "mean_normal_tensor_persistence,feature_normal_filter_iterations_completed,"
+               "mean_normal_tensor_persistence,smooth_curvature_feature_edges,"
+               "smooth_curvature_scored_vertices,max_smooth_curvature_persistent_score,"
+               "mean_smooth_curvature_local_scale,mean_smooth_curvature_persistence,"
+               "mean_smooth_curvature_scale_stability,feature_normal_filter_iterations_completed,"
                "feature_normal_filter_changed_faces,feature_normal_filter_preserved_edges,"
                "mean_feature_normal_filter_angular_change_deg,max_feature_normal_filter_angular_change_deg,"
                "mean_feature_normal_filter_edge_indicator,junction_branch_pairs,ambiguous_feature_junctions,"
@@ -484,6 +493,9 @@ int commandSimplify(const Args& args) {
             << report.minFeatureComponentConfidence << "," << report.normalTensorFeatureEdges << ","
             << report.normalTensorScoredVertices << "," << report.maxNormalTensorPersistentScore << ","
             << report.meanNormalTensorLocalScale << "," << report.meanNormalTensorPersistence << ","
+            << report.smoothCurvatureFeatureEdges << "," << report.smoothCurvatureScoredVertices << ","
+            << report.maxSmoothCurvaturePersistentScore << "," << report.meanSmoothCurvatureLocalScale << ","
+            << report.meanSmoothCurvaturePersistence << "," << report.meanSmoothCurvatureScaleStability << ","
             << report.featureNormalFilterIterationsCompleted << "," << report.featureNormalFilterChangedFaces << ","
             << report.featureNormalFilterPreservedEdges << "," << report.meanFeatureNormalFilterAngularChangeDeg << ","
             << report.maxFeatureNormalFilterAngularChangeDeg << "," << report.meanFeatureNormalFilterEdgeIndicator

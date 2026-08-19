@@ -331,6 +331,100 @@ ChamferBoxFixture makeChamferBox(double size, double chamfer, int divisions) {
 }
 
 // ---------------------------------------------------------------------------
+// 高斯脊面
+// ---------------------------------------------------------------------------
+
+std::vector<int> GaussianRidgeSheetFixture::interiorCrestVertices() const {
+    std::vector<int> crest;
+    const double spacing = size / subdivisions;
+    const double halfSize = 0.5 * size;
+    for (int vertex = 0; vertex < static_cast<int>(mesh.vertices.size()); ++vertex) {
+        const Vec3& p = mesh.vertices[vertex];
+        if (std::abs(p.x()) < 1e-9 * size && std::abs(p.y()) < halfSize - 0.5 * spacing) {
+            crest.push_back(vertex);
+        }
+    }
+    return crest;
+}
+
+double GaussianRidgeSheetFixture::analyticCrestCurvature() const { return 2.0 * height * sharpness; }
+
+GaussianRidgeSheetFixture makeGaussianRidgeSheet(int subdivisions, double size, double height, double sharpness) {
+    GaussianRidgeSheetFixture fixture;
+    // 使用偶数细分数，使某一列顶点恰好位于脊线 x = 0 上。
+    fixture.subdivisions = std::max(4, subdivisions + (subdivisions % 2));
+    fixture.size = size;
+    fixture.height = height;
+    fixture.sharpness = sharpness;
+    Mesh& mesh = fixture.mesh;
+
+    const int n = fixture.subdivisions;
+    for (int row = 0; row <= n; ++row) {
+        const double y = (static_cast<double>(row) / n - 0.5) * size;
+        for (int col = 0; col <= n; ++col) {
+            const double x = (static_cast<double>(col) / n - 0.5) * size;
+            mesh.vertices.emplace_back(x, y, height * std::exp(-sharpness * x * x));
+        }
+    }
+    for (int row = 0; row < n; ++row) {
+        for (int col = 0; col < n; ++col) {
+            const int v00 = row * (n + 1) + col;
+            const int v10 = v00 + 1;
+            const int v01 = v00 + (n + 1);
+            const int v11 = v01 + 1;
+            mesh.faces.push_back({{v00, v10, v11}});
+            mesh.faces.push_back({{v00, v11, v01}});
+        }
+    }
+    return fixture;
+}
+
+// ---------------------------------------------------------------------------
+// 分级密度高斯脊面
+// ---------------------------------------------------------------------------
+
+GradedGaussianRidgeSheetFixture
+makeGradedGaussianRidgeSheet(int fineColumns, double size, double height, double sharpness, int densityRatio) {
+    GradedGaussianRidgeSheetFixture fixture;
+    const int ratio = std::max(1, densityRatio);
+    // 将细网格半区向上取整为 densityRatio 的整数倍，从而使粗网格半区的区间数为整数，
+    // 并确保某一列恰好落在 x = 0 上。
+    fixture.fineColumns = std::max(ratio, ((std::max(2, fineColumns) + ratio - 1) / ratio) * ratio);
+    fixture.coarseColumns = fixture.fineColumns / ratio;
+    fixture.size = size;
+    fixture.height = height;
+    fixture.sharpness = sharpness;
+    Mesh& mesh = fixture.mesh;
+
+    const double fineSpacing = fixture.fineSpacing();
+    const double coarseSpacing = fineSpacing * ratio;
+    // 行间距取两种列间距的几何平均值，使两侧三角形的长宽比均受 sqrt(ratio) 约束。
+    const double rowSpacing = fineSpacing * std::sqrt(static_cast<double>(ratio));
+    fixture.rows = std::max(4, static_cast<int>(std::lround(size / rowSpacing)));
+
+    const int columns = fixture.fineColumns + fixture.coarseColumns + 1;
+    for (int row = 0; row <= fixture.rows; ++row) {
+        const double y = (static_cast<double>(row) / fixture.rows - 0.5) * size;
+        for (int col = 0; col < columns; ++col) {
+            const double x = col <= fixture.fineColumns ? -0.5 * size + col * fineSpacing
+                                                        : (col - fixture.fineColumns) * coarseSpacing;
+            mesh.vertices.emplace_back(x, y, height * std::exp(-sharpness * x * x));
+        }
+    }
+    for (int row = 0; row < fixture.rows; ++row) {
+        for (int col = 0; col + 1 < columns; ++col) {
+            const int v00 = row * columns + col;
+            const int v10 = v00 + 1;
+            const int v01 = v00 + columns;
+            const int v11 = v01 + 1;
+            mesh.faces.push_back({{v00, v10, v11}});
+            mesh.faces.push_back({{v00, v11, v01}});
+        }
+    }
+    return fixture;
+}
+
+// ---------------------------------------------------------------------------
 // 工具函数
 // ---------------------------------------------------------------------------
 

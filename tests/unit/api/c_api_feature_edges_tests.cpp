@@ -57,6 +57,7 @@ TEST_F(CApiTest, InitializesStandaloneFeatureOptions) {
     EXPECT_EQ(MANUMESH_ABI_VERSION, options.abi_version);
     EXPECT_DOUBLE_EQ(40.0, options.feature_angle_deg);
     EXPECT_EQ(1, options.use_normal_tensor_features);
+    EXPECT_EQ(0, options.use_smooth_curvature_features);
     EXPECT_EQ(1, options.cleanup_feature_graph);
 }
 
@@ -123,7 +124,7 @@ TEST_F(CApiTest, DetectsAndCopiesBoundaryFeatureEdges) {
         EXPECT_EQ(1, edge.boundary);
         EXPECT_EQ(0, edge.dihedral);
         EXPECT_EQ(0, edge.normal_tensor);
-        EXPECT_EQ(0, edge.reserved_source);
+        EXPECT_EQ(0, edge.smooth_curvature);
         EXPECT_EQ(0, edge.removed_by_cleanup);
         endpointPairs.insert(std::make_pair(std::min(edge.a, edge.b), std::max(edge.a, edge.b)));
     }

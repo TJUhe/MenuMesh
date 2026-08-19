@@ -143,6 +143,7 @@ set(MANUMESH_UNIT_TEST_SOURCES
   unit/feature_detection/feature_detection_primitive_fit_tests.cpp
   unit/feature_detection/feature_detection_parallel_tests.cpp
   unit/feature_detection/feature_detection_robustness_tests.cpp
+  unit/feature_detection/feature_detection_smooth_curvature_tests.cpp
   unit/io/mesh_io_tests.cpp
   unit/io/partitioned_mesh_dataset_tests.cpp
   unit/perf/pipeline_perf_guard_tests.cpp

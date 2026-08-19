@@ -155,8 +155,11 @@ void expectIdenticalAnalyses(const FeatureAnalysis& lhs, const FeatureAnalysis& 
         EXPECT_EQ(le.boundary, re.boundary);
         EXPECT_EQ(le.dihedral, re.dihedral);
         EXPECT_EQ(le.normalTensor, re.normalTensor);
+        EXPECT_EQ(le.smoothCurvature, re.smoothCurvature);
         EXPECT_DOUBLE_EQ(le.tensorPersistence, re.tensorPersistence);
         EXPECT_EQ(le.tensorPersistentScales, re.tensorPersistentScales);
+        EXPECT_DOUBLE_EQ(le.curvaturePersistence, re.curvaturePersistence);
+        EXPECT_EQ(le.curvaturePersistentScales, re.curvaturePersistentScales);
         EXPECT_EQ(le.nonManifold, re.nonManifold);
         EXPECT_EQ(le.cleanupBridge, re.cleanupBridge);
         EXPECT_EQ(le.removedByCleanup, re.removedByCleanup);
@@ -205,16 +208,35 @@ TEST(FeatureDetection, PublicScoringApisRejectMalformedMeshes) {
     EXPECT_THROW(
         feature::computeNormalTensorFeatures(badIndices, feature::NormalTensorOptions{}, 0.05), std::invalid_argument
     );
+    EXPECT_THROW(feature::computeSmoothCurvatureFeatures(badIndices), std::invalid_argument);
+    EXPECT_THROW(
+        feature::computeSmoothCurvatureFeatures(badIndices, feature::SmoothCurvatureOptions{}, 0.05),
+        std::invalid_argument
+    );
     EXPECT_THROW(feature::computeNormalTensorFeatures(badCoordinates), std::invalid_argument);
+    EXPECT_THROW(feature::computeSmoothCurvatureFeatures(badCoordinates), std::invalid_argument);
 
     Mesh vertexOnly;
     vertexOnly.vertices = {Vec3(0.0, 0.0, 0.0)};
     EXPECT_NO_THROW(feature::computeNormalTensorFeatures(vertexOnly));
+    EXPECT_NO_THROW(feature::computeSmoothCurvatureFeatures(vertexOnly));
 }
 
 TEST(FeatureDetection, RejectsScaleParametersAboveSupportedMaximum) {
     FeatureOptions options = discreteOnlyOptions();
     options.normalTensorScaleCount = 10;
+    EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
+
+    options = discreteOnlyOptions();
+    options.smoothCurvatureScaleCount = 10;
+    EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
+    Mesh triangle;
+    triangle.vertices = {Vec3(0.0, 0.0, 0.0), Vec3(1.0, 0.0, 0.0), Vec3(0.0, 1.0, 0.0)};
+    triangle.faces = {{{0, 1, 2}}};
+    EXPECT_THROW(feature::detectFeatureCurves(triangle, options), std::invalid_argument);
+
+    options = discreteOnlyOptions();
+    options.smoothCurvatureMinPersistentScales = 8;
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
 
     options = discreteOnlyOptions();
@@ -227,8 +249,18 @@ TEST(FeatureDetection, RejectsScaleParametersAboveSupportedMaximum) {
     EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
 
     options = discreteOnlyOptions();
+    options.smoothCurvatureBaseNeighborhoodRings = 5;
+    EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
+
+    options = discreteOnlyOptions();
+    options.smoothCurvatureRobustFitIterations = 5;
+    EXPECT_THROW(feature::validateFeatureOptions(options), std::invalid_argument);
+
+    options = discreteOnlyOptions();
     options.normalTensorScaleCount = feature::kMaxNormalTensorScaleCount;
     options.normalTensorMinPersistentScales = feature::kMaxNormalTensorScaleCount;
+    options.smoothCurvatureScaleCount = feature::kMaxSmoothCurvatureScaleCount;
+    options.smoothCurvatureMinPersistentScales = feature::kMaxSmoothCurvatureScaleCount;
     EXPECT_NO_THROW(feature::validateFeatureOptions(options));
 }
 

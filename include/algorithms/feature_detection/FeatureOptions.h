@@ -15,6 +15,9 @@ namespace feature {
 /// 因此越界请求会立即拒绝，而不是静默截断。
 constexpr int kMaxNormalTensorSmoothingIterations = 8;
 constexpr int kMaxNormalTensorScaleCount = 8;
+constexpr int kMaxSmoothCurvatureBaseNeighborhoodRings = 4;
+constexpr int kMaxSmoothCurvatureScaleCount = 6;
+constexpr int kMaxSmoothCurvatureRobustFitIterations = 4;
 constexpr int kMaxFeatureNormalFilterIterations = 16;
 
 /// 面向含噪三角网格的可选法向域预处理。
@@ -39,7 +42,7 @@ struct FeatureGraphConsolidationOptions {
 /// 由活动特征图边诱导的可选面分区。
 struct SurfacePatchOptions {
     bool enabled = false;            ///< 在图恢复后启用面分割。
-    bool includeWeakEvidence = true; ///< 将仅由张量产生的边视为分区边界。
+    bool includeWeakEvidence = true; ///< 将仅由张量/曲率产生的边视为分区边界。
 };
 
 /// 折痕、边界和特征环检测参数。
@@ -78,11 +81,36 @@ struct FeatureOptions {
     /// 角点只贡献顶点权重；折痕边仍要求两端均为折痕主导且通过切向对齐检查。
     /// 有效范围：[1, normalTensorScaleCount]。
     int normalTensorMinPersistentScales = 1;
+    /// 启用由局部 quadric 拟合得到的确定性平滑脊/谷证据。
+    /// 保持为可选功能，因为 CAD/STL 硬特征与扫描/自由曲面场景需要不同的阈值和校验数据。
+    bool useSmoothCurvatureFeatures = false;
+    /// 最小尺度归一化平滑特征分数。
+    double smoothCurvatureFeatureThreshold = 0.015;
+    /// 网格边与恢复曲线切线之间的最小对齐度。
+    double smoothCurvatureMinEdgeAlignment = 0.55;
+    /// 最小跨尺度及端点切线一致性。
+    double smoothCurvatureMinTangentConsistency = 0.65;
+    /// 局部 quadric 拟合使用的基础拓扑半径。
+    /// 有效范围：[1, kMaxSmoothCurvatureBaseNeighborhoodRings]。
+    int smoothCurvatureBaseNeighborhoodRings = 2;
+    /// 逐步增大的 quadric 拟合邻域数量。
+    /// 有效范围：[1, kMaxSmoothCurvatureScaleCount]。
+    int smoothCurvatureScaleCount = 3;
+    /// 支持平滑特征候选的最小尺度数量。
+    /// 有效范围：[1, smoothCurvatureScaleCount]。
+    int smoothCurvatureMinPersistentScales = 2;
+    /// 局部 quadric 拟合的确定性稳健重加权次数。
+    /// 有效范围：[0, kMaxSmoothCurvatureRobustFitIterations]。
+    int smoothCurvatureRobustFitIterations = 2;
+    /// 根据跨尺度稳定性而不是单独的原始峰值分数选择参考拟合尺度。
+    bool smoothCurvatureUseStableScaleSelection = false;
+    /// 选定平滑曲率尺度可接受的最小稳定性。
+    double smoothCurvatureMinScaleStability = 0.0;
     /// 在环恢复前清理局部特征图中的弱碎片。
     bool cleanupFeatureGraph = true;
     /// 清理阶段可桥接的最大端点间隙，单位为局部平均边长。
     double featureGraphGapLengthRatio = 1.25;
-    /// 旧版按边数清理规则会移除的最大弱证据 spur 长度。
+    /// 旧版按边数清理规则会移除的最大弱证据（法向张量或平滑曲率）spur 长度。
     int featureGraphMaxWeakSpurEdges = 2;
     /// 报告高置信度组件时使用的置信度阈值。
     /// 该值不筛除特征边、环或简化保护，只改变报告中的高置信度计数。
@@ -115,13 +143,15 @@ enum class FeatureProfile {
     Cad,
     /// 含噪扫描：先稳定面法向，再使用多尺度法向张量证据。
     NoisyScan,
+    /// 光滑自由曲面：使用多尺度局部 quadric 脊/谷证据。
+    SmoothSurface,
 };
 
 /**
  * @brief 创建一个可按字段继续调整的特征检测 profile。
  *
  * `Default` 与直接默认构造 `FeatureOptions` 保持一致。其余 profile 仅修改
- * 适用于相应网格来源的证据通道，避免将扫描算法隐式加入 CAD 工作流。
+ * 适用于相应网格来源的证据通道，避免将扫描和光滑曲面算法隐式加入 CAD 工作流。
  */
 inline FeatureOptions makeFeatureOptions(FeatureProfile profile) noexcept {
     FeatureOptions options;
@@ -137,6 +167,10 @@ inline FeatureOptions makeFeatureOptions(FeatureProfile profile) noexcept {
         options.normalTensorScaleCount = 3;
         options.normalTensorMinPersistentScales = 2;
         break;
+    case FeatureProfile::SmoothSurface:
+        options.useNormalTensorFeatures = false;
+        options.useSmoothCurvatureFeatures = true;
+        break;
     }
     return options;
 }
@@ -148,6 +182,16 @@ struct NormalTensorOptions {
     /// 独立 Normal Tensor 调用的可选面法向预处理。
     /// 完整特征管线会在共享缓存上应用 `FeatureOptions::normalFilter`。
     FeatureNormalFilterOptions normalFilter;
+};
+
+/// 稳健尺度归一化局部 quadric 拟合参数。
+struct SmoothCurvatureOptions {
+    int baseNeighborhoodRings = 2;        ///< 最细拟合的拓扑半径。
+    int scaleCount = 3;                   ///< 逐步增大的拟合数量。
+    int robustFitIterations = 2;          ///< 确定性的残差重加权次数。
+    double minTangentConsistency = 0.65;  ///< 跨尺度切线点积绝对值门限。
+    bool useStableScaleSelection = false; ///< 相比原始峰值分数优先选择稳定尺度支持。
+    double minScaleStability = 0.0;       ///< 可接受的最小尺度稳定性分数。
 };
 
 } // namespace feature

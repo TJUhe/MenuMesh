@@ -43,6 +43,7 @@ void printUsage() {
     std::cout << "\n推荐起点：\n"
               << "  CAD/STL：  manumesh simplify input.stl output.stl --profile cad --ratio 0.25\n"
               << "  扫描网格： manumesh simplify input.stl output.stl --profile scan --ratio 0.5\n"
+              << "  平滑曲面： manumesh simplify input.stl output.stl --profile smooth --ratio 0.5\n"
               << "  使用 --print-resolved-config 查看档案和显式覆盖后的有效配置\n";
     std::cout << optionsHelpText();
     std::cout << "\n版本选项：\n"

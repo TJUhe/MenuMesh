@@ -15,6 +15,7 @@
 
 #include "core/Filesystem.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -119,12 +120,14 @@ TEST(ManuMesh, FeatureProfilesSelectDeterministicEvidenceForTheirMeshRegime) {
     EXPECT_EQ(8, defaults.minFeatureLoopVertices);
     EXPECT_TRUE(defaults.useNormalTensorFeatures);
     EXPECT_FALSE(defaults.normalFilter.enabled);
+    EXPECT_FALSE(defaults.useSmoothCurvatureFeatures);
     EXPECT_NO_THROW(manumesh::feature::validateFeatureOptions(defaults));
 
     const manumesh::feature::FeatureOptions cad =
         manumesh::feature::makeFeatureOptions(manumesh::feature::FeatureProfile::Cad);
     EXPECT_FALSE(cad.useNormalTensorFeatures);
     EXPECT_FALSE(cad.normalFilter.enabled);
+    EXPECT_FALSE(cad.useSmoothCurvatureFeatures);
     EXPECT_NO_THROW(manumesh::feature::validateFeatureOptions(cad));
 
     const manumesh::feature::FeatureOptions scan =
@@ -134,7 +137,16 @@ TEST(ManuMesh, FeatureProfilesSelectDeterministicEvidenceForTheirMeshRegime) {
     EXPECT_EQ(1, scan.normalTensorSmoothingIterations);
     EXPECT_EQ(3, scan.normalTensorScaleCount);
     EXPECT_EQ(2, scan.normalTensorMinPersistentScales);
+    EXPECT_FALSE(scan.useSmoothCurvatureFeatures);
     EXPECT_NO_THROW(manumesh::feature::validateFeatureOptions(scan));
+
+    const manumesh::feature::FeatureOptions smooth =
+        manumesh::feature::makeFeatureOptions(manumesh::feature::FeatureProfile::SmoothSurface);
+    EXPECT_FALSE(smooth.useNormalTensorFeatures);
+    EXPECT_TRUE(smooth.useSmoothCurvatureFeatures);
+    EXPECT_EQ(3, smooth.smoothCurvatureScaleCount);
+    EXPECT_EQ(2, smooth.smoothCurvatureMinPersistentScales);
+    EXPECT_NO_THROW(manumesh::feature::validateFeatureOptions(smooth));
 }
 
 TEST(ManuMesh, SimplifyProfilesEnableMatchingFeaturePolicies) {
@@ -162,20 +174,31 @@ TEST(ManuMesh, SimplifyProfilesEnableMatchingFeaturePolicies) {
     EXPECT_TRUE(scan.features.detection.normalFilter.enabled);
     EXPECT_NO_THROW(simplifier.setConfig(scan));
 
+    const simplification::SimplifyConfig smooth =
+        simplification::makeSimplifyConfig(manumesh::feature::FeatureProfile::SmoothSurface);
+    EXPECT_TRUE(smooth.features.enabled);
+    EXPECT_EQ(simplification::FeatureProtectionMode::PrimitiveCurves, smooth.features.protectionMode);
+    EXPECT_TRUE(smooth.features.detection.useSmoothCurvatureFeatures);
+    EXPECT_NO_THROW(simplifier.setConfig(smooth));
 }
 
-TEST(ManuMesh, ScanProfileReachesTargetWithoutHardLockingGenericFeatureEdges) {
+TEST(ManuMesh, ScanAndSmoothProfilesReachTargetWithoutHardLockingGenericFeatureEdges) {
     const manumesh::Mesh input = manumesh::test::loadFixtureMesh("feature_fixtures/boss_pocket_plate.obj");
     ASSERT_FALSE(input.empty());
 
-    simplification::SimplifyConfig config =
-        simplification::makeSimplifyConfig(manumesh::feature::FeatureProfile::NoisyScan);
-    config.target = simplification::SimplifyTarget::faceCount(80);
+    const std::array<manumesh::feature::FeatureProfile, 2> profiles = {{
+        manumesh::feature::FeatureProfile::NoisyScan,
+        manumesh::feature::FeatureProfile::SmoothSurface,
+    }};
+    for (const manumesh::feature::FeatureProfile profile : profiles) {
+        simplification::SimplifyConfig config = simplification::makeSimplifyConfig(profile);
+        config.target = simplification::SimplifyTarget::faceCount(80);
 
-    const SimplifiedMesh result = simplifyWithReport(input, simplification::makeSimplifyOptions(config));
-    EXPECT_EQ(simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);
-    EXPECT_EQ(80, result.report.finalFaces);
-    EXPECT_EQ(0, result.report.genericFeatureRejectedCollapses);
+        const SimplifiedMesh result = simplifyWithReport(input, simplification::makeSimplifyOptions(config));
+        EXPECT_EQ(simplification::SimplifyTerminationReason::ReachedTarget, result.report.terminationReason);
+        EXPECT_EQ(80, result.report.finalFaces);
+        EXPECT_EQ(0, result.report.genericFeatureRejectedCollapses);
+    }
 }
 
 TEST(ManuMesh, ProfileFactoriesKeepExplicitFeatureOverrides) {
@@ -211,7 +234,7 @@ TEST(ManuMesh, GroupedFeatureConfigCopiesOneDetectionObject) {
     config.features.maxCurveDeviationRatio = 0.015;
     config.features.minCircularLoopVertices = 7;
     config.features.detection.featureAngleDeg = 31.0;
-    config.features.detection.useNormalTensorFeatures = true;
+    config.features.detection.useSmoothCurvatureFeatures = true;
     config.features.detection.normalFilter.iterations = 3;
     config.features.detection.graphConsolidation.minAlignment = 0.8;
     config.features.detection.surfacePatches.includeWeakEvidence = false;
@@ -225,7 +248,7 @@ TEST(ManuMesh, GroupedFeatureConfigCopiesOneDetectionObject) {
     ASSERT_TRUE(options.featureOptionsOverride.has_value());
     const manumesh::feature::FeatureOptions& detection = *options.featureOptionsOverride;
     EXPECT_DOUBLE_EQ(31.0, detection.featureAngleDeg);
-    EXPECT_TRUE(detection.useNormalTensorFeatures);
+    EXPECT_TRUE(detection.useSmoothCurvatureFeatures);
     EXPECT_EQ(3, detection.normalFilter.iterations);
     EXPECT_DOUBLE_EQ(0.8, detection.graphConsolidation.minAlignment);
     EXPECT_FALSE(detection.surfacePatches.includeWeakEvidence);

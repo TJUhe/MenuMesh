@@ -41,12 +41,15 @@ void appendFeatureGraphEdge(FeatureAnalysis& analysis, const CandidateEdge& edge
     graphEdge.boundary = edge.boundary;
     graphEdge.dihedral = edge.dihedral;
     graphEdge.normalTensor = edge.normalTensor;
+    graphEdge.smoothCurvature = edge.smoothCurvature;
     graphEdge.nonManifold = edge.nonManifold;
     graphEdge.cleanupBridge = edge.cleanupBridge;
     graphEdge.consolidationBridge = edge.consolidationBridge;
     graphEdge.signedKind = edge.signedKind;
     graphEdge.tensorPersistence = edge.tensorPersistentScore;
     graphEdge.tensorPersistentScales = edge.tensorPersistentScales;
+    graphEdge.curvaturePersistence = edge.curvaturePersistentScore;
+    graphEdge.curvaturePersistentScales = edge.curvaturePersistentScales;
     const int edgeId = static_cast<int>(analysis.graph.edges.size());
     analysis.graph.edges.push_back(graphEdge);
     if (edge.a >= 0 && edge.a < static_cast<int>(analysis.graph.vertices.size())) {
@@ -71,12 +74,15 @@ void addTraceGraphStorage(TraceGraph& trace, const CandidateEdge& edge) {
     attrs.boundary = edge.boundary;
     attrs.dihedral = edge.dihedral;
     attrs.normalTensor = edge.normalTensor;
+    attrs.smoothCurvature = edge.smoothCurvature;
     attrs.nonManifold = edge.nonManifold;
     attrs.cleanupBridge = edge.cleanupBridge;
     attrs.consolidationBridge = edge.consolidationBridge;
     attrs.signedKind = edge.signedKind;
     attrs.tensorPersistence = edge.tensorPersistentScore;
     attrs.tensorPersistentScales = edge.tensorPersistentScales;
+    attrs.curvaturePersistence = edge.curvaturePersistentScore;
+    attrs.curvaturePersistentScales = edge.curvaturePersistentScales;
     trace.graphEdges.emplace_back(edge.a, edge.b);
 }
 
@@ -105,7 +111,7 @@ TraceGraph buildTraceGraph(
     const double traceAngleDeg = options.loopTraceAngleDeg < 0.0 ? options.featureAngleDeg : options.loopTraceAngleDeg;
     const double loopTraceAngle = traceAngleDeg * kPi / 180.0;
     for (const CandidateEdge& edge : featureEdges) {
-        const bool traceEdge = edge.boundary || edge.nonManifold || edge.normalTensor ||
+        const bool traceEdge = edge.boundary || edge.nonManifold || edge.normalTensor || edge.smoothCurvature ||
                                (edge.dihedral && edge.angleRad >= loopTraceAngle);
         if (!traceEdge) {
             ++analysis.untracedFeatureEdges;
@@ -137,6 +143,11 @@ bool traceEdgeNormalTensor(const TraceGraph& trace, int a, int b) {
     return attrs != nullptr && attrs->normalTensor;
 }
 
+bool traceEdgeSmoothCurvature(const TraceGraph& trace, int a, int b) {
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs != nullptr && attrs->smoothCurvature;
+}
+
 bool traceEdgeNonManifold(const TraceGraph& trace, int a, int b) {
     const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
     return attrs != nullptr && attrs->nonManifold;
@@ -160,6 +171,16 @@ double traceEdgeTensorPersistence(const TraceGraph& trace, int a, int b) {
 int traceEdgeTensorPersistentScales(const TraceGraph& trace, int a, int b) {
     const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
     return attrs == nullptr ? 0 : attrs->tensorPersistentScales;
+}
+
+double traceEdgeCurvaturePersistence(const TraceGraph& trace, int a, int b) {
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs == nullptr ? 0.0 : attrs->curvaturePersistence;
+}
+
+int traceEdgeCurvaturePersistentScales(const TraceGraph& trace, int a, int b) {
+    const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, a, b);
+    return attrs == nullptr ? 0 : attrs->curvaturePersistentScales;
 }
 
 bool traceGraphHasEdge(const TraceGraph& trace, int a, int b) {
@@ -223,7 +244,7 @@ void finalizeFeatureGraphMarkers(const Mesh& mesh, FeatureAnalysis& analysis) {
                 return edgeId >= 0 && edgeId < static_cast<int>(analysis.graph.edges.size()) &&
                        !analysis.graph.edges[edgeId].removedByCleanup;
             }));
-        // 拓扑分叉定义为活动边度数大于 2。依据 M007，特征线分叉由至少三条
+        // 拓扑分叉定义为活动边度数大于 2。依据 M007，脊线分叉由至少三条
         // 入射特征边确定，局部微分量可以完全不起作用。环归属或顶点保护标记
         // 不能单独作为分叉证据：恢复出的环可能沿整段二度链重叠，真正交叉时
         // 才会在具有三条以上活动特征边的顶点相遇。

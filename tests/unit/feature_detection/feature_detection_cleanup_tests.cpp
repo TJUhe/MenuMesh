@@ -67,9 +67,9 @@ CandidateEdge weakEdge(int a, int b, double persistence) {
     CandidateEdge edge;
     edge.a = a;
     edge.b = b;
-    edge.normalTensor = true;
-    edge.tensorPersistentScore = persistence;
-    edge.tensorPersistentScales = 2;
+    edge.smoothCurvature = true;
+    edge.curvaturePersistentScore = persistence;
+    edge.curvaturePersistentScales = 2;
     return edge;
 }
 
@@ -119,7 +119,7 @@ SpurFixture makeSpurFixture() {
     }
     for (std::size_t i = 0; i + 1 < fixture.branchC.size(); ++i) {
         detector_detail::addTraceGraphEdge(
-            fixture.trace, fixture.analysis, weakEdge(fixture.branchC[i], fixture.branchC[i + 1], 0.8)
+            fixture.trace, fixture.analysis, weakEdge(fixture.branchC[i], fixture.branchC[i + 1], 0.12)
         );
     }
     return fixture;

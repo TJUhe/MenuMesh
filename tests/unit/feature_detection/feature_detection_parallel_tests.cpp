@@ -64,6 +64,28 @@ Mesh makeReversedWindingFilterFixture() {
     return mesh;
 }
 
+Mesh makeHighValenceSmoothFixture() {
+    constexpr int segments = 257;
+    constexpr double twoPi = 6.28318530717958647692;
+    Mesh mesh;
+    mesh.vertices.reserve(segments + 1);
+    mesh.faces.reserve(segments);
+    mesh.vertices.emplace_back(0.0, 0.0, 0.18);
+    for (int segment = 0; segment < segments; ++segment) {
+        const double angle = twoPi * static_cast<double>(segment) / static_cast<double>(segments);
+        const double radius = 1.0 + 0.08 * std::cos(3.0 * angle);
+        mesh.vertices.emplace_back(
+            radius * std::cos(angle), radius * std::sin(angle), 0.07 * std::cos(2.0 * angle) + 0.02 * std::sin(5.0 * angle)
+        );
+    }
+    for (int segment = 0; segment < segments; ++segment) {
+        manumesh::Face face;
+        face.v = {{0, segment + 1, (segment + 1) % segments + 1}};
+        mesh.faces.push_back(face);
+    }
+    return mesh;
+}
+
 PrimitiveComponentFixture makePrimitiveComponentFixture(int componentCount, int samplesPerComponent) {
     PrimitiveComponentFixture fixture;
     fixture.mesh.vertices.reserve(static_cast<std::size_t>(componentCount * samplesPerComponent));
@@ -110,6 +132,32 @@ void expectNormalTensorEqual(
     }
 }
 
+void expectSmoothCurvatureEqual(
+    const std::vector<feature::SmoothCurvatureVertex>& first, const std::vector<feature::SmoothCurvatureVertex>& second
+) {
+    ASSERT_EQ(first.size(), second.size());
+    for (std::size_t i = 0; i < first.size(); ++i) {
+        const feature::SmoothCurvatureVertex& a = first[i];
+        const feature::SmoothCurvatureVertex& b = second[i];
+        expectVec3Equal(a.normal, b.normal);
+        expectVec3Equal(a.curveTangent, b.curveTangent);
+        expectVec3Equal(a.extremumDirection, b.extremumDirection);
+        EXPECT_DOUBLE_EQ(a.principalCurvature, b.principalCurvature);
+        EXPECT_DOUBLE_EQ(a.secondaryCurvature, b.secondaryCurvature);
+        EXPECT_DOUBLE_EQ(a.anisotropy, b.anisotropy);
+        EXPECT_DOUBLE_EQ(a.extremumStrength, b.extremumStrength);
+        EXPECT_DOUBLE_EQ(a.featureScore, b.featureScore);
+        EXPECT_DOUBLE_EQ(a.averageFeatureScore, b.averageFeatureScore);
+        EXPECT_DOUBLE_EQ(a.persistentFeatureScore, b.persistentFeatureScore);
+        EXPECT_DOUBLE_EQ(a.fitResidual, b.fitResidual);
+        EXPECT_DOUBLE_EQ(a.localScale, b.localScale);
+        EXPECT_EQ(a.persistentScales, b.persistentScales);
+        EXPECT_EQ(a.selectedScale, b.selectedScale);
+        EXPECT_DOUBLE_EQ(a.scaleStability, b.scaleStability);
+        EXPECT_EQ(a.signedKind, b.signedKind);
+    }
+}
+
 void expectGraphEqual(const feature::FeatureAnalysis& first, const feature::FeatureAnalysis& second) {
     ASSERT_EQ(first.graph.edges.size(), second.graph.edges.size());
     for (std::size_t i = 0; i < first.graph.edges.size(); ++i) {
@@ -120,6 +168,7 @@ void expectGraphEqual(const feature::FeatureAnalysis& first, const feature::Feat
         EXPECT_EQ(a.boundary, b.boundary);
         EXPECT_EQ(a.dihedral, b.dihedral);
         EXPECT_EQ(a.normalTensor, b.normalTensor);
+        EXPECT_EQ(a.smoothCurvature, b.smoothCurvature);
         EXPECT_EQ(a.nonManifold, b.nonManifold);
         EXPECT_EQ(a.cleanupBridge, b.cleanupBridge);
         EXPECT_EQ(a.consolidationBridge, b.consolidationBridge);
@@ -127,6 +176,8 @@ void expectGraphEqual(const feature::FeatureAnalysis& first, const feature::Feat
         EXPECT_EQ(a.signedKind, b.signedKind);
         EXPECT_DOUBLE_EQ(a.tensorPersistence, b.tensorPersistence);
         EXPECT_EQ(a.tensorPersistentScales, b.tensorPersistentScales);
+        EXPECT_DOUBLE_EQ(a.curvaturePersistence, b.curvaturePersistence);
+        EXPECT_EQ(a.curvaturePersistentScales, b.curvaturePersistentScales);
     }
     ASSERT_EQ(first.graph.vertices.size(), second.graph.vertices.size());
     for (std::size_t i = 0; i < first.graph.vertices.size(); ++i) {
@@ -164,6 +215,7 @@ void expectFeatureComponentEqual(const feature::FeatureComponent& first, const f
     EXPECT_EQ(first.boundaryEdges, second.boundaryEdges);
     EXPECT_EQ(first.dihedralEdges, second.dihedralEdges);
     EXPECT_EQ(first.normalTensorEdges, second.normalTensorEdges);
+    EXPECT_EQ(first.smoothCurvatureEdges, second.smoothCurvatureEdges);
     EXPECT_EQ(first.nonManifoldEdges, second.nonManifoldEdges);
     EXPECT_EQ(first.cleanupBridgeEdges, second.cleanupBridgeEdges);
     EXPECT_EQ(first.consolidationBridgeEdges, second.consolidationBridgeEdges);
@@ -176,6 +228,7 @@ void expectFeatureComponentEqual(const feature::FeatureComponent& first, const f
     EXPECT_DOUBLE_EQ(first.closureRate, second.closureRate);
     EXPECT_DOUBLE_EQ(first.strongEvidenceRatio, second.strongEvidenceRatio);
     EXPECT_DOUBLE_EQ(first.meanTensorPersistence, second.meanTensorPersistence);
+    EXPECT_DOUBLE_EQ(first.meanCurvaturePersistence, second.meanCurvaturePersistence);
     EXPECT_DOUBLE_EQ(first.meanPrimitiveResidual, second.meanPrimitiveResidual);
     EXPECT_DOUBLE_EQ(first.confidence, second.confidence);
 }
@@ -291,8 +344,10 @@ void expectFeatureAnalysisEquivalent(const feature::FeatureAnalysis& first, cons
     EXPECT_ANALYSIS_FIELD(boundaryFeatureEdges);
     EXPECT_ANALYSIS_FIELD(dihedralFeatureEdges);
     EXPECT_ANALYSIS_FIELD(normalTensorFeatureEdges);
+    EXPECT_ANALYSIS_FIELD(smoothCurvatureFeatureEdges);
     EXPECT_ANALYSIS_FIELD(nonManifoldFeatureEdges);
     EXPECT_ANALYSIS_FIELD(normalTensorScoredVertices);
+    EXPECT_ANALYSIS_FIELD(smoothCurvatureScoredVertices);
     EXPECT_ANALYSIS_FIELD(convexFeatureEdges);
     EXPECT_ANALYSIS_FIELD(concaveFeatureEdges);
     EXPECT_ANALYSIS_FIELD(unknownSignedFeatureEdges);
@@ -313,6 +368,11 @@ void expectFeatureAnalysisEquivalent(const feature::FeatureAnalysis& first, cons
     EXPECT_DOUBLE_EQ(first.maxNormalTensorPersistentScore, second.maxNormalTensorPersistentScore);
     EXPECT_DOUBLE_EQ(first.meanNormalTensorLocalScale, second.meanNormalTensorLocalScale);
     EXPECT_DOUBLE_EQ(first.meanNormalTensorPersistence, second.meanNormalTensorPersistence);
+    EXPECT_DOUBLE_EQ(first.maxSmoothCurvatureFeatureScore, second.maxSmoothCurvatureFeatureScore);
+    EXPECT_DOUBLE_EQ(first.maxSmoothCurvaturePersistentScore, second.maxSmoothCurvaturePersistentScore);
+    EXPECT_DOUBLE_EQ(first.meanSmoothCurvatureLocalScale, second.meanSmoothCurvatureLocalScale);
+    EXPECT_DOUBLE_EQ(first.meanSmoothCurvaturePersistence, second.meanSmoothCurvaturePersistence);
+    EXPECT_DOUBLE_EQ(first.meanSmoothCurvatureScaleStability, second.meanSmoothCurvatureScaleStability);
     EXPECT_DOUBLE_EQ(first.meanFeatureComponentConfidence, second.meanFeatureComponentConfidence);
     EXPECT_DOUBLE_EQ(first.minFeatureComponentConfidence, second.minFeatureComponentConfidence);
     EXPECT_EQ(first.normalFilter.iterationsCompleted, second.normalFilter.iterationsCompleted);
@@ -334,6 +394,7 @@ TEST(FeatureDetectionParallel, IndependentStagesMatchSerialResultsExactly) {
     filterOptions.preserveAngleDeg = 55.0;
     filterOptions.relaxation = 0.75;
     const feature::NormalTensorOptions tensorOptions{1, 3, filterOptions};
+    const feature::SmoothCurvatureOptions curvatureOptions{2, 3, 2, 0.65, true, 0.0};
     const ExecutionOptions parallel = parallelOptions();
 
     const feature::FeatureNormalFilterResult serialFilter = feature::filterFeatureNormals(mesh, filterOptions);
@@ -356,6 +417,26 @@ TEST(FeatureDetectionParallel, IndependentStagesMatchSerialResultsExactly) {
         feature::computeNormalTensorFeatures(mesh, tensorOptions, 0.0, parallel);
     expectNormalTensorEqual(serialTensor, parallelTensor);
 
+    const std::vector<feature::SmoothCurvatureVertex> serialCurvature =
+        feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0);
+    const std::vector<feature::SmoothCurvatureVertex> parallelCurvature =
+        feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0, parallel);
+    expectSmoothCurvatureEqual(serialCurvature, parallelCurvature);
+}
+
+TEST(FeatureDetectionParallel, SmoothCurvatureHighValenceNeighborhoodMatchesSerialResultsExactly) {
+    const Mesh mesh = makeHighValenceSmoothFixture();
+    const feature::SmoothCurvatureOptions curvatureOptions{1, 1, 0, 0.0};
+    ExecutionOptions parallel = parallelOptions();
+    parallel.minItemsPerTask = 16;
+
+    const std::vector<feature::SmoothCurvatureVertex> serial =
+        feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0);
+    const std::vector<feature::SmoothCurvatureVertex> parallelResult =
+        feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions, 0.0, parallel);
+
+    // The central vertex has 257 one-ring neighbors, forcing the sparse task-local set to rehash.
+    expectSmoothCurvatureEqual(serial, parallelResult);
 }
 
 TEST(FeatureDetectionParallel, CompleteFeatureGraphMatchesSerialResultsExactly) {
@@ -370,6 +451,14 @@ TEST(FeatureDetectionParallel, CompleteFeatureGraphMatchesSerialResultsExactly) 
     options.normalTensorScaleCount = 3;
     options.normalTensorSmoothingIterations = 1;
     options.normalTensorMinPersistentScales = 1;
+    options.useSmoothCurvatureFeatures = true;
+    options.smoothCurvatureFeatureThreshold = 1e-8;
+    options.smoothCurvatureMinEdgeAlignment = 0.0;
+    options.smoothCurvatureMinTangentConsistency = 0.0;
+    options.smoothCurvatureBaseNeighborhoodRings = 2;
+    options.smoothCurvatureScaleCount = 3;
+    options.smoothCurvatureMinPersistentScales = 1;
+    options.smoothCurvatureRobustFitIterations = 1;
     options.normalFilter = feature::FeatureNormalFilterOptions{true, 3, 25.0, 120.0, 0.45};
     options.surfacePatches.enabled = true;
     const ExecutionOptions parallel = parallelOptions();
@@ -379,7 +468,9 @@ TEST(FeatureDetectionParallel, CompleteFeatureGraphMatchesSerialResultsExactly) 
     const feature::FeatureAnalysis parallelResult = detector.analyze(mesh, parallel);
     expectFeatureAnalysisEquivalent(serial, parallelResult);
     EXPECT_GT(serial.normalTensorScoredVertices, 0);
+    EXPECT_GT(serial.smoothCurvatureScoredVertices, 0);
     EXPECT_GT(serial.normalTensorFeatureEdges, 0);
+    EXPECT_GT(serial.smoothCurvatureFeatureEdges, 0);
 }
 
 TEST(FeatureDetectionParallel, ReversedWindingWithNormalFilteringMatchesSerialAtAllWorkerCounts) {

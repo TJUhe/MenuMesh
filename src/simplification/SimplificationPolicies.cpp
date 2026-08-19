@@ -119,6 +119,12 @@ SimplifyConfig makeSimplifyConfig(feature::FeatureProfile profile) {
         // must not prevent the simplifier from reaching a practical target.
         config.features.protectionMode = FeatureProtectionMode::PrimitiveCurves;
         break;
+    case feature::FeatureProfile::SmoothSurface:
+        config.features.enabled = true;
+        // Ridge and valley candidates guide the cost, while only verified analytic
+        // curves receive hard protection. Strict locking remains an explicit choice.
+        config.features.protectionMode = FeatureProtectionMode::PrimitiveCurves;
+        break;
     }
     return config;
 }
@@ -144,6 +150,16 @@ featureOptionsFromSimplifyOptions(const SimplifyOptions& options, int minFeature
     featureOptions.normalTensorSmoothingIterations = options.normalTensorSmoothingIterations;
     featureOptions.normalTensorScaleCount = options.normalTensorScaleCount;
     featureOptions.normalTensorMinPersistentScales = options.normalTensorMinPersistentScales;
+    featureOptions.useSmoothCurvatureFeatures = options.useSmoothCurvatureFeatures;
+    featureOptions.smoothCurvatureFeatureThreshold = options.smoothCurvatureFeatureThreshold;
+    featureOptions.smoothCurvatureMinEdgeAlignment = options.smoothCurvatureMinEdgeAlignment;
+    featureOptions.smoothCurvatureMinTangentConsistency = options.smoothCurvatureMinTangentConsistency;
+    featureOptions.smoothCurvatureBaseNeighborhoodRings = options.smoothCurvatureBaseNeighborhoodRings;
+    featureOptions.smoothCurvatureScaleCount = options.smoothCurvatureScaleCount;
+    featureOptions.smoothCurvatureMinPersistentScales = options.smoothCurvatureMinPersistentScales;
+    featureOptions.smoothCurvatureRobustFitIterations = options.smoothCurvatureRobustFitIterations;
+    featureOptions.smoothCurvatureUseStableScaleSelection = options.smoothCurvatureUseStableScaleSelection;
+    featureOptions.smoothCurvatureMinScaleStability = options.smoothCurvatureMinScaleStability;
     featureOptions.cleanupFeatureGraph = options.cleanupFeatureGraph;
     featureOptions.featureGraphGapLengthRatio = options.featureGraphGapLengthRatio;
     featureOptions.featureGraphMaxWeakSpurEdges = options.featureGraphMaxWeakSpurEdges;

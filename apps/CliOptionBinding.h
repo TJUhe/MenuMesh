@@ -19,7 +19,7 @@
 namespace manumesh {
 namespace cli {
 
-/// 解析用户可见的场景 profile。接受 default、cad 和 scan。
+/// 解析用户可见的场景 profile。接受 default、cad、scan 和 smooth。
 feature::FeatureProfile parseFeatureProfile(const Args& args);
 /// @return 用于帮助、诊断和 resolved-config 输出的稳定 profile 名称。
 const char* featureProfileName(feature::FeatureProfile profile) noexcept;

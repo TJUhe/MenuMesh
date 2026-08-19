@@ -213,8 +213,8 @@ expect_failure(
   feature-report "${OUTPUT_DIR}/missing_profile_input.obj" --profile unsupported
 )
 expect_failure(
-  "Unknown --profile"
-  feature-report "${INPUT_MESH}" --profile smooth
+  "smoothCurvatureScaleCount must be in"
+  feature-report "${OUTPUT_DIR}/missing_range_input.obj" --smooth-curvature-scales 0
 )
 expect_failure(
   "Unknown --profile"
@@ -223,10 +223,6 @@ expect_failure(
 expect_failure(
   "Unknown --profile"
   feature-compare "${OUTPUT_DIR}/missing_profile_original.stl" "${OUTPUT_DIR}/missing_profile_simplified.stl" --profile unsupported
-)
-expect_success_without_output(
-  "--profile smooth"
-  --help
 )
 
 expect_success_with_output(

@@ -24,7 +24,7 @@ int strongSourceMask(const TraceEdgeAttrs& attrs) {
 }
 
 int weakSourceMask(const TraceEdgeAttrs& attrs) {
-    return attrs.normalTensor ? 1 : 0;
+    return (attrs.normalTensor ? 1 : 0) | (attrs.smoothCurvature ? 2 : 0);
 }
 
 } // 匿名命名空间

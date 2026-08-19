@@ -141,6 +141,7 @@ int report(const Args& args) {
               << " boundary_edges=" << analysis.boundaryFeatureEdges
               << " dihedral_edges=" << analysis.dihedralFeatureEdges
               << " normal_tensor_edges=" << analysis.normalTensorFeatureEdges
+              << " smooth_curvature_edges=" << analysis.smoothCurvatureFeatureEdges
               << " non_manifold_edges=" << analysis.nonManifoldFeatureEdges
               << " feature_components=" << analysis.components.size()
               << " weak_feature_components=" << analysis.weakFeatureComponents
@@ -154,12 +155,18 @@ int report(const Args& args) {
               << " circular_recovery_truncated=" << analysis.circularRecoveryTruncated
               << " inconsistent_winding_edges=" << analysis.inconsistentWindingEdges
               << " normal_tensor_scored_vertices=" << analysis.normalTensorScoredVertices
+              << " smooth_curvature_scored_vertices=" << analysis.smoothCurvatureScoredVertices
               << " convex_edges=" << analysis.convexFeatureEdges << " concave_edges=" << analysis.concaveFeatureEdges
               << " unknown_signed_edges=" << analysis.unknownSignedFeatureEdges
               << " max_normal_tensor_score=" << analysis.maxNormalTensorFeatureScore
               << " max_normal_tensor_persistent_score=" << analysis.maxNormalTensorPersistentScore
               << " mean_normal_tensor_local_scale=" << analysis.meanNormalTensorLocalScale
               << " mean_normal_tensor_persistence=" << analysis.meanNormalTensorPersistence
+              << " max_smooth_curvature_score=" << analysis.maxSmoothCurvatureFeatureScore
+              << " max_smooth_curvature_persistent_score=" << analysis.maxSmoothCurvaturePersistentScore
+              << " mean_smooth_curvature_local_scale=" << analysis.meanSmoothCurvatureLocalScale
+              << " mean_smooth_curvature_persistence=" << analysis.meanSmoothCurvaturePersistence
+              << " mean_smooth_curvature_scale_stability=" << analysis.meanSmoothCurvatureScaleStability
               << " normal_filter_iterations=" << analysis.normalFilter.iterationsCompleted
               << " normal_filter_changed_faces=" << analysis.normalFilter.changedFaces
               << " normal_filter_preserved_edges=" << analysis.normalFilter.preservedEdges
@@ -186,17 +193,19 @@ int report(const Args& args) {
         AtomicCsvOutput csvFile(output);
         std::ofstream& csv = csvFile.stream();
         csv << "feature_edges,traced_edges,untraced_edges,boundary_edges,"
-               "dihedral_edges,normal_tensor_edges,non_manifold_edges,"
+               "dihedral_edges,normal_tensor_edges,smooth_curvature_edges,non_manifold_edges,"
                "feature_components,weak_feature_components,"
                "high_confidence_feature_components,graph_cleanup_bridged_gaps,"
                "graph_cleanup_removed_spurs,graph_cleanup_merged_junctions,"
                "graph_cleanup_skipped_by_cap,circular_recovery_truncated,inconsistent_winding_edges,"
                "graph_consolidation_bridges,graph_consolidation_skipped_by_cap,"
-               "normal_tensor_scored_vertices,convex_edges,"
+               "normal_tensor_scored_vertices,smooth_curvature_scored_vertices,convex_edges,"
                "concave_edges,unknown_signed_edges,"
                "max_normal_tensor_score,max_normal_tensor_persistent_score,"
                "mean_normal_tensor_local_scale,mean_normal_tensor_persistence,"
-               "normal_filter_iterations,"
+               "max_smooth_curvature_score,max_smooth_curvature_persistent_score,"
+               "mean_smooth_curvature_local_scale,mean_smooth_curvature_persistence,"
+               "mean_smooth_curvature_scale_stability,normal_filter_iterations,"
                "normal_filter_changed_faces,normal_filter_preserved_edges,"
                "mean_normal_filter_angular_change_deg,junction_branch_pairs,ambiguous_junctions,"
                "surface_patches,closed_surface_patches,"
@@ -205,18 +214,20 @@ int report(const Args& args) {
                "near_circle_loops,ellipse_loops,polygonal_loops\n";
         csv << analysis.featureEdges << "," << analysis.tracedFeatureEdges << "," << analysis.untracedFeatureEdges
             << "," << analysis.boundaryFeatureEdges << "," << analysis.dihedralFeatureEdges << ","
-            << analysis.normalTensorFeatureEdges << ","
+            << analysis.normalTensorFeatureEdges << "," << analysis.smoothCurvatureFeatureEdges << ","
             << analysis.nonManifoldFeatureEdges << "," << analysis.components.size() << ","
             << analysis.weakFeatureComponents << "," << analysis.highConfidenceFeatureComponents << ","
             << analysis.graphCleanupBridgedGaps << "," << analysis.graphCleanupRemovedSpurs << ","
             << analysis.graphCleanupMergedJunctions << "," << analysis.graphCleanupSkippedByCap << ","
             << analysis.circularRecoveryTruncated << "," << analysis.inconsistentWindingEdges << ","
             << analysis.graphConsolidationBridges << "," << analysis.graphConsolidationSkippedByCap << ","
-            << analysis.normalTensorScoredVertices << ","
+            << analysis.normalTensorScoredVertices << "," << analysis.smoothCurvatureScoredVertices << ","
             << analysis.convexFeatureEdges << "," << analysis.concaveFeatureEdges << ","
             << analysis.unknownSignedFeatureEdges << "," << analysis.maxNormalTensorFeatureScore << ","
             << analysis.maxNormalTensorPersistentScore << "," << analysis.meanNormalTensorLocalScale << ","
-            << analysis.meanNormalTensorPersistence << ","
+            << analysis.meanNormalTensorPersistence << "," << analysis.maxSmoothCurvatureFeatureScore << ","
+            << analysis.maxSmoothCurvaturePersistentScore << "," << analysis.meanSmoothCurvatureLocalScale << ","
+            << analysis.meanSmoothCurvaturePersistence << "," << analysis.meanSmoothCurvatureScaleStability << ","
             << analysis.normalFilter.iterationsCompleted << "," << analysis.normalFilter.changedFaces << ","
             << analysis.normalFilter.preservedEdges << "," << analysis.normalFilter.meanAngularChangeDeg << ","
             << analysis.junctionBranchPairs << "," << analysis.ambiguousJunctions << "," << analysis.patches.size()

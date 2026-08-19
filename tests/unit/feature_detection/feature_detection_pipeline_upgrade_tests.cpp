@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/feature_detection/feature_detection_pipeline_upgrade_tests.cpp
- * @brief 验证法向滤波、图合并、分支配对和曲面分区。
+ * @brief 验证法向滤波、稳定尺度、图合并、分支配对和曲面分区。
  * @ingroup manumesh_tests
  */
 
@@ -144,6 +144,29 @@ TEST(FeatureDetectionUpgrade, NormalTensorConsumesFilteredFaceNormalsFromTheShar
         EXPECT_NEAR(filtered[i].persistentFeatureScore, publicFiltered[i].persistentFeatureScore, 1e-12);
         EXPECT_NEAR(filtered[i].localScale, publicFiltered[i].localScale, 1e-12);
     }
+}
+
+TEST(FeatureDetectionUpgrade, StableScaleSelectionReportsPersistentReferenceScale) {
+    const analytic::GaussianRidgeSheetFixture ridge = analytic::makeGaussianRidgeSheet(48, 2.0, 0.35, 6.0);
+    feature::SmoothCurvatureOptions options;
+    options.baseNeighborhoodRings = 2;
+    options.scaleCount = 4;
+    options.robustFitIterations = 2;
+    options.minTangentConsistency = 0.65;
+    options.useStableScaleSelection = true;
+
+    const std::vector<feature::SmoothCurvatureVertex> values =
+        feature::computeSmoothCurvatureFeatures(ridge.mesh, options, 0.008);
+    int stableCrestVertices = 0;
+    for (int vertex : ridge.interiorCrestVertices()) {
+        if (values[vertex].persistentFeatureScore > 0.008) {
+            EXPECT_GE(values[vertex].selectedScale, 0);
+            EXPECT_LT(values[vertex].selectedScale, options.scaleCount);
+            EXPECT_GT(values[vertex].scaleStability, 0.0);
+            ++stableCrestVertices;
+        }
+    }
+    EXPECT_GT(stableCrestVertices, static_cast<int>(ridge.interiorCrestVertices().size()) / 2);
 }
 
 TEST(FeatureDetectionUpgrade, ConsolidationBridgesOnlyCompatibleComponents) {
@@ -314,6 +337,10 @@ TEST(FeatureDetectionUpgrade, RejectsInvalidUpgradeOptions) {
 
     feature::FeatureOptions options;
     options.normalFilter.angleSigmaDeg = 0.0;
+    EXPECT_THROW(feature::detectFeatureCurves(mesh, options), std::invalid_argument);
+
+    options = feature::FeatureOptions{};
+    options.smoothCurvatureMinScaleStability = 1.1;
     EXPECT_THROW(feature::detectFeatureCurves(mesh, options), std::invalid_argument);
 
     options = feature::FeatureOptions{};

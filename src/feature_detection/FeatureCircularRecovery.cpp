@@ -197,7 +197,7 @@ std::vector<TraceComponent> collectTraceComponents(const TraceGraph& trace, cons
             for (int nb : trace.adjacency[v]) {
                 if (!component.hasWeakEvidenceEdge) {
                     const TraceEdgeAttrs* attrs = traceEdgeAttrs(trace, v, nb);
-                    component.hasWeakEvidenceEdge = attrs != nullptr && attrs->normalTensor;
+                    component.hasWeakEvidenceEdge = attrs != nullptr && (attrs->normalTensor || attrs->smoothCurvature);
                 }
                 if (!visited[nb]) {
                     visited[nb] = 1;

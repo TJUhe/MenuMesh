@@ -106,6 +106,7 @@ TEST(CliOptionBinding, IndustrialSafeCanonicalConfigPreservesExplicitAbsoluteErr
 TEST(CliOptionBinding, ProfilesSelectExpectedFeatureEvidence) {
     const manumesh::feature::FeatureOptions cad = manumesh::cli::parseFeatureOptions(makeArgs({"--profile", "cad"}));
     EXPECT_FALSE(cad.useNormalTensorFeatures);
+    EXPECT_FALSE(cad.useSmoothCurvatureFeatures);
 
     const manumesh::feature::FeatureOptions scan =
         manumesh::cli::parseFeatureOptions(makeArgs({"--profile", "scan"}));
@@ -114,6 +115,10 @@ TEST(CliOptionBinding, ProfilesSelectExpectedFeatureEvidence) {
     EXPECT_EQ(3, scan.normalTensorScaleCount);
     EXPECT_EQ(2, scan.normalTensorMinPersistentScales);
 
+    const manumesh::feature::FeatureOptions smooth =
+        manumesh::cli::parseFeatureOptions(makeArgs({"--profile", "smooth"}));
+    EXPECT_FALSE(smooth.useNormalTensorFeatures);
+    EXPECT_TRUE(smooth.useSmoothCurvatureFeatures);
 }
 
 TEST(CliOptionBinding, ExecutionDefaultsToSerialAndBindsExplicitThreadLimit) {
@@ -136,9 +141,13 @@ TEST(CliOptionBinding, RejectsNegativeThreadLimit) {
 
 TEST(CliOptionBinding, ExplicitFeatureFlagsOverrideProfile) {
     const manumesh::feature::FeatureOptions options = manumesh::cli::parseFeatureOptions(
-        makeArgs({"--profile", "cad", "--normal-tensor-features", "--normal-tensor-scales", "4"})
+        makeArgs(
+            {"--profile", "smooth", "--no-smooth-curvature-features", "--normal-tensor-features",
+             "--normal-tensor-scales", "4"}
+        )
     );
 
+    EXPECT_FALSE(options.useSmoothCurvatureFeatures);
     EXPECT_TRUE(options.useNormalTensorFeatures);
     EXPECT_EQ(4, options.normalTensorScaleCount);
 }
@@ -208,7 +217,7 @@ TEST(CliOptionBinding, ZeroLineWeightDisablesLineQuadrics) {
 TEST(CliOptionBinding, ReportsAmbiguousAndInactiveSettings) {
     const manumesh::cli::Args args = makeArgs(
         {"--target-faces", "100", "--ratio", "0.5", "--max-local-error", "0.1", "--max-local-error-ratio",
-         "0.02", "--method", "standard", "--line-weight", "0.01",
+         "0.02", "--method", "standard", "--line-weight", "0.01", "--smooth-curvature-scales", "4",
          "--feature-component-min-confidence", "0.7"}
     );
     const manumesh::simplification::SimplifyOptions options = manumesh::cli::parseSimplifyOptions(args);
@@ -219,6 +228,7 @@ TEST(CliOptionBinding, ReportsAmbiguousAndInactiveSettings) {
     EXPECT_NE(std::string::npos, warnings.str().find("--target-faces takes precedence"));
     EXPECT_NE(std::string::npos, warnings.str().find("both local-error units"));
     EXPECT_NE(std::string::npos, warnings.str().find("line-quadric weight settings"));
+    EXPECT_NE(std::string::npos, warnings.str().find("smooth-curvature values are ignored"));
     EXPECT_NE(std::string::npos, warnings.str().find("only classifies report counters"));
 }
 
@@ -237,7 +247,7 @@ TEST(CliOptionBinding, ResolvedConfigShowsProfileAndEffectiveValues) {
 
 TEST(CliOptionBinding, WarnsWhenProfileDisablesAnAdvancedChannel) {
     const manumesh::cli::Args args = makeArgs(
-        {"--profile", "cad", "--normal-tensor-scales", "3", "--no-preserve-feature-curves",
+        {"--profile", "smooth", "--normal-tensor-scales", "3", "--no-preserve-feature-curves",
          "--feature-protection-mode", "all-feature-edges"}
     );
     const manumesh::simplification::SimplifyOptions options = manumesh::cli::parseSimplifyOptions(args);
@@ -325,6 +335,36 @@ TEST(CliOptionBinding, WarnsWhenStandardQemDisablesProfileWeighting) {
     EXPECT_NE(
         std::string::npos,
         warnings.str().find("Feature detection is unaffected; feature protection follows its separate setting")
+    );
+}
+
+TEST(CliOptionBinding, WarnsOnceWhenSmoothStableScaleSettingsHaveNoActiveSmoothChannel) {
+    const manumesh::cli::Args args = makeArgs(
+        {"--profile", "cad", "--smooth-curvature-stable-scale", "--smooth-curvature-min-scale-stability", "0.9"}
+    );
+    const manumesh::simplification::SimplifyOptions options = manumesh::cli::parseSimplifyOptions(args);
+    ASSERT_TRUE(options.featureOptionsOverride.has_value());
+    std::ostringstream warnings;
+    manumesh::cli::emitOptionWarnings(args, *options.featureOptionsOverride, true, warnings);
+
+    EXPECT_NE(std::string::npos, warnings.str().find("smooth-curvature values are ignored"));
+    EXPECT_EQ(
+        std::string::npos,
+        warnings.str().find("--smooth-curvature-min-scale-stability requires --smooth-curvature-stable-scale")
+    );
+}
+
+TEST(CliOptionBinding, WarnsWhenActiveSmoothChannelOmitsStableScaleSelection) {
+    const manumesh::cli::Args args =
+        makeArgs({"--smooth-curvature-features", "--smooth-curvature-min-scale-stability", "0.9"});
+    const manumesh::simplification::SimplifyOptions options = manumesh::cli::parseSimplifyOptions(args);
+    ASSERT_TRUE(options.featureOptionsOverride.has_value());
+    std::ostringstream warnings;
+    manumesh::cli::emitOptionWarnings(args, *options.featureOptionsOverride, true, warnings);
+
+    EXPECT_NE(
+        std::string::npos,
+        warnings.str().find("--smooth-curvature-min-scale-stability requires --smooth-curvature-stable-scale")
     );
 }
 

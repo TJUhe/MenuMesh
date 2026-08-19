@@ -233,6 +233,7 @@ void validateFeatureComponentValues(const FeatureComponent& component) {
         component.boundaryEdges,
         component.dihedralEdges,
         component.normalTensorEdges,
+        component.smoothCurvatureEdges,
         component.nonManifoldEdges,
         component.cleanupBridgeEdges,
         component.consolidationBridgeEdges,
@@ -250,6 +251,7 @@ void validateFeatureComponentValues(const FeatureComponent& component) {
     requireUnitIntervalValue(component.closureRate, "Feature component closure rate");
     requireUnitIntervalValue(component.strongEvidenceRatio, "Feature component strong-evidence ratio");
     requireFiniteNonNegativeValue(component.meanTensorPersistence, "Feature component tensor persistence");
+    requireFiniteNonNegativeValue(component.meanCurvaturePersistence, "Feature component curvature persistence");
     requireFiniteNonNegativeValue(component.meanPrimitiveResidual, "Feature component primitive residual");
     requireUnitIntervalValue(component.confidence, "Feature component confidence");
 }
@@ -292,14 +294,15 @@ validateFeatureComponents(const FeatureAnalysis& analysis, std::size_t vertexCou
             component.boundaryEdges + component.dihedralEdges + component.nonManifoldEdges) {
             invalidFeatureAnalysis("feature component strong-evidence count does not match its source counts.");
         }
-        if (component.weakEvidenceEdges != component.normalTensorEdges + component.cleanupBridgeEdges +
-                                               component.consolidationBridgeEdges) {
+        if (component.weakEvidenceEdges != component.normalTensorEdges + component.smoothCurvatureEdges +
+                                               component.cleanupBridgeEdges + component.consolidationBridgeEdges) {
             invalidFeatureAnalysis("feature component weak-evidence count does not match its source counts.");
         }
         const int perEdgeCounts[] = {
             component.boundaryEdges,
             component.dihedralEdges,
             component.normalTensorEdges,
+            component.smoothCurvatureEdges,
             component.nonManifoldEdges,
             component.cleanupBridgeEdges,
             component.consolidationBridgeEdges,
@@ -332,6 +335,7 @@ validateFeatureComponents(const FeatureAnalysis& analysis, std::size_t vertexCou
         int forcedDihedralEdges = 0;
         int boundaryEdges = 0;
         int normalTensorEdges = 0;
+        int smoothCurvatureEdges = 0;
         int nonManifoldEdges = 0;
         int cleanupBridgeEdges = 0;
         int consolidationBridgeEdges = 0;
@@ -344,7 +348,7 @@ validateFeatureComponents(const FeatureAnalysis& analysis, std::size_t vertexCou
         }
         const int componentA = componentByVertex[static_cast<std::size_t>(edge.a)];
         const int componentB = componentByVertex[static_cast<std::size_t>(edge.b)];
-        const bool forcedTrace = edge.boundary || edge.normalTensor || edge.nonManifold ||
+        const bool forcedTrace = edge.boundary || edge.normalTensor || edge.smoothCurvature || edge.nonManifold ||
                                  edge.cleanupBridge || edge.consolidationBridge;
         if (forcedTrace && (componentA < 0 || componentA != componentB)) {
             invalidFeatureAnalysis("a mandatory traced feature edge crosses recorded feature components.");
@@ -366,6 +370,9 @@ validateFeatureComponents(const FeatureAnalysis& analysis, std::size_t vertexCou
             }
             if (edge.normalTensor) {
                 ++counts.normalTensorEdges;
+            }
+            if (edge.smoothCurvature) {
+                ++counts.smoothCurvatureEdges;
             }
             if (edge.nonManifold) {
                 ++counts.nonManifoldEdges;
@@ -389,6 +396,7 @@ validateFeatureComponents(const FeatureAnalysis& analysis, std::size_t vertexCou
         }
         if (component.boundaryEdges != counts.boundaryEdges ||
             component.normalTensorEdges != counts.normalTensorEdges ||
+            component.smoothCurvatureEdges != counts.smoothCurvatureEdges ||
             component.nonManifoldEdges != counts.nonManifoldEdges ||
             component.cleanupBridgeEdges != counts.cleanupBridgeEdges ||
             component.consolidationBridgeEdges != counts.consolidationBridgeEdges ||
@@ -615,7 +623,8 @@ void validateFeatureGraph(const Mesh& mesh, const FeatureAnalysis& analysis) {
             invalidFeatureAnalysis("feature graph edge cannot be both a cleanup and consolidation bridge.");
         }
         const bool recoveryBridge = edge.cleanupBridge || edge.consolidationBridge;
-        const bool evidence = edge.boundary || edge.dihedral || edge.normalTensor || edge.nonManifold;
+        const bool evidence =
+            edge.boundary || edge.dihedral || edge.normalTensor || edge.smoothCurvature || edge.nonManifold;
         if (!recoveryBridge) {
             if (!evidence) {
                 invalidFeatureAnalysis("feature graph evidence edge has no evidence source.");
@@ -838,7 +847,8 @@ void validateFeaturePatches(const Mesh& mesh, const FeatureAnalysis& analysis) {
         if (edge.removedByCleanup) {
             continue;
         }
-        const bool evidence = edge.boundary || edge.dihedral || edge.normalTensor || edge.nonManifold;
+        const bool evidence =
+            edge.boundary || edge.dihedral || edge.normalTensor || edge.smoothCurvature || edge.nonManifold;
         const std::uint64_t key = common::meshEdgeKey(edge.a, edge.b);
         if (evidence && meshEdges.find(key) != meshEdges.end()) {
             activeFeatureMeshEdges.insert(key);

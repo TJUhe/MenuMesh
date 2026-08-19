@@ -164,6 +164,15 @@ struct SimplifyOptions {
     int normalTensorSmoothingIterations = 0;
     int normalTensorScaleCount = 1;
     int normalTensorMinPersistentScales = 1;
+    /// 在简化前的特征分析阶段启用确定性的多尺度平滑脊/谷证据。
+    bool useSmoothCurvatureFeatures = false;
+    double smoothCurvatureFeatureThreshold = 0.015;
+    double smoothCurvatureMinEdgeAlignment = 0.55;
+    double smoothCurvatureMinTangentConsistency = 0.65;
+    int smoothCurvatureBaseNeighborhoodRings = 2;
+    int smoothCurvatureScaleCount = 3;
+    int smoothCurvatureMinPersistentScales = 2;
+    int smoothCurvatureRobustFitIterations = 2;
     /// 在环恢复前清理弱特征图片段。
     bool cleanupFeatureGraph = true;
     double featureGraphGapLengthRatio = 1.25;
@@ -177,6 +186,9 @@ struct SimplifyOptions {
     double featureNormalFilterAngleSigmaDeg = 20.0;
     double featureNormalFilterPreserveAngleDeg = 50.0;
     double featureNormalFilterRelaxation = 0.8;
+    /// 平滑曲率证据的稳定尺度参考选择。
+    bool smoothCurvatureUseStableScaleSelection = false;
+    double smoothCurvatureMinScaleStability = 0.0;
     /// 局部图清理后的组件级弱特征恢复。
     bool consolidateFeatureGraph = false;
     double featureGraphConsolidationGapLengthRatio = 3.0;
@@ -429,6 +441,8 @@ struct SimplifyReport {
     int untracedFeatureEdges = 0;
     int normalTensorFeatureEdges = 0;
     int normalTensorScoredVertices = 0;
+    int smoothCurvatureFeatureEdges = 0;
+    int smoothCurvatureScoredVertices = 0;
     int featureComponents = 0;
     int weakFeatureComponents = 0;
     int highConfidenceFeatureComponents = 0;
@@ -438,6 +452,9 @@ struct SimplifyReport {
     double maxNormalTensorPersistentScore = 0.0;
     double meanNormalTensorLocalScale = 0.0;
     double meanNormalTensorPersistence = 0.0;
+    double maxSmoothCurvaturePersistentScore = 0.0;
+    double meanSmoothCurvatureLocalScale = 0.0;
+    double meanSmoothCurvaturePersistence = 0.0;
     double meanFeatureComponentConfidence = 0.0;
     double minFeatureComponentConfidence = 0.0;
     int inconsistentWindingEdges = 0;
@@ -449,6 +466,7 @@ struct SimplifyReport {
     double meanFeatureNormalFilterAngularChangeDeg = 0.0;
     double maxFeatureNormalFilterAngularChangeDeg = 0.0;
     double meanFeatureNormalFilterEdgeIndicator = 0.0;
+    double meanSmoothCurvatureScaleStability = 0.0;
     int graphConsolidationBridges = 0;
     int graphConsolidationSkippedByCap = 0;
     int junctionBranchPairs = 0;

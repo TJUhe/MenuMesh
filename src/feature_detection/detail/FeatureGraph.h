@@ -44,11 +44,14 @@ const TraceEdgeAttrs* traceEdgeAttrs(const TraceGraph& trace, int a, int b);
 bool traceEdgeBoundary(const TraceGraph& trace, int a, int b);
 bool traceEdgeDihedral(const TraceGraph& trace, int a, int b);
 bool traceEdgeNormalTensor(const TraceGraph& trace, int a, int b);
+bool traceEdgeSmoothCurvature(const TraceGraph& trace, int a, int b);
 bool traceEdgeNonManifold(const TraceGraph& trace, int a, int b);
 bool traceEdgeCleanupBridge(const TraceGraph& trace, int a, int b);
 int traceEdgeSign(const TraceGraph& trace, int a, int b);
 double traceEdgeTensorPersistence(const TraceGraph& trace, int a, int b);
 int traceEdgeTensorPersistentScales(const TraceGraph& trace, int a, int b);
+double traceEdgeCurvaturePersistence(const TraceGraph& trace, int a, int b);
+int traceEdgeCurvaturePersistentScales(const TraceGraph& trace, int a, int b);
 /**
  * @}
  */

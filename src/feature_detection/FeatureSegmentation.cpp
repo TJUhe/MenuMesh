@@ -56,7 +56,7 @@ void buildFeaturePatches(const Mesh& mesh, FeatureAnalysis& analysis, const Surf
             continue;
         }
         const bool strong = edge.boundary || edge.dihedral || edge.nonManifold;
-        const bool weak = edge.normalTensor;
+        const bool weak = edge.normalTensor || edge.smoothCurvature;
         if (!strong && (!options.includeWeakEvidence || !weak)) {
             continue;
         }

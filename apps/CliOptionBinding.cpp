@@ -71,6 +71,16 @@ void writeFeatureSummary(std::ostringstream& out, const feature::FeatureOptions&
         << " edge_alignment=" << options.normalTensorMinEdgeAlignment
         << " smoothing=" << options.normalTensorSmoothingIterations << " scales=" << options.normalTensorScaleCount
         << " persistent_scales=" << options.normalTensorMinPersistentScales << "\n";
+    out << "  smooth_curvature: enabled=" << onOff(options.useSmoothCurvatureFeatures)
+        << " threshold=" << options.smoothCurvatureFeatureThreshold
+        << " edge_alignment=" << options.smoothCurvatureMinEdgeAlignment
+        << " tangent_consistency=" << options.smoothCurvatureMinTangentConsistency
+        << " base_rings=" << options.smoothCurvatureBaseNeighborhoodRings
+        << " scales=" << options.smoothCurvatureScaleCount
+        << " persistent_scales=" << options.smoothCurvatureMinPersistentScales
+        << " robust_iterations=" << options.smoothCurvatureRobustFitIterations
+        << " stable_scale=" << onOff(options.smoothCurvatureUseStableScaleSelection)
+        << " min_scale_stability=" << options.smoothCurvatureMinScaleStability << "\n";
     out << "  feature_graph: cleanup=" << onOff(options.cleanupFeatureGraph)
         << " gap_ratio=" << options.featureGraphGapLengthRatio
         << " max_weak_spur_edges=" << options.featureGraphMaxWeakSpurEdges
@@ -102,7 +112,12 @@ feature::FeatureProfile parseFeatureProfile(const Args& args) {
     if (value == "scan" || value == "noisy-scan") {
         return feature::FeatureProfile::NoisyScan;
     }
-    throw std::invalid_argument("Unknown --profile. Use default, cad, scan (or noisy-scan).");
+    if (value == "smooth" || value == "smooth-surface") {
+        return feature::FeatureProfile::SmoothSurface;
+    }
+    throw std::invalid_argument(
+        "Unknown --profile. Use default, cad, scan (or noisy-scan), or smooth (or smooth-surface)."
+    );
 }
 
 const char* featureProfileName(feature::FeatureProfile profile) noexcept {
@@ -113,6 +128,8 @@ const char* featureProfileName(feature::FeatureProfile profile) noexcept {
         return "cad";
     case feature::FeatureProfile::NoisyScan:
         return "scan";
+    case feature::FeatureProfile::SmoothSurface:
+        return "smooth";
     }
     return "default";
 }
@@ -130,6 +147,14 @@ feature::FeatureOptions parseFeatureOptions(const Args& args) {
     overrideInt(args, "--normal-tensor-smoothing", options.normalTensorSmoothingIterations);
     overrideInt(args, "--normal-tensor-scales", options.normalTensorScaleCount);
     overrideInt(args, "--normal-tensor-min-persistent-scales", options.normalTensorMinPersistentScales);
+    overrideDouble(args, "--smooth-curvature-threshold", options.smoothCurvatureFeatureThreshold);
+    overrideDouble(args, "--smooth-curvature-edge-alignment", options.smoothCurvatureMinEdgeAlignment);
+    overrideDouble(args, "--smooth-curvature-tangent-consistency", options.smoothCurvatureMinTangentConsistency);
+    overrideInt(args, "--smooth-curvature-base-rings", options.smoothCurvatureBaseNeighborhoodRings);
+    overrideInt(args, "--smooth-curvature-scales", options.smoothCurvatureScaleCount);
+    overrideInt(args, "--smooth-curvature-min-persistent-scales", options.smoothCurvatureMinPersistentScales);
+    overrideInt(args, "--smooth-curvature-robust-iterations", options.smoothCurvatureRobustFitIterations);
+    overrideDouble(args, "--smooth-curvature-min-scale-stability", options.smoothCurvatureMinScaleStability);
     overrideDouble(args, "--feature-graph-gap-ratio", options.featureGraphGapLengthRatio);
     overrideInt(args, "--feature-graph-max-weak-spur-edges", options.featureGraphMaxWeakSpurEdges);
     overrideDouble(args, "--feature-graph-min-weak-spur-strength", options.featureGraphMinWeakSpurStrength);
@@ -147,6 +172,13 @@ feature::FeatureOptions parseFeatureOptions(const Args& args) {
     if (hasFlag(args, "--no-normal-tensor-features")) {
         options.useNormalTensorFeatures = false;
     }
+    if (hasFlag(args, "--smooth-curvature-features")) {
+        options.useSmoothCurvatureFeatures = true;
+    }
+    if (hasFlag(args, "--no-smooth-curvature-features")) {
+        options.useSmoothCurvatureFeatures = false;
+    }
+    options.smoothCurvatureUseStableScaleSelection = hasFlag(args, "--smooth-curvature-stable-scale");
     options.cleanupFeatureGraph = !hasFlag(args, "--no-feature-graph-cleanup");
     if (hasFlag(args, "--feature-normal-filter")) {
         options.normalFilter.enabled = true;
@@ -228,7 +260,10 @@ simplification::SimplifyConfig parseSimplifyConfig(const Args& args) {
     }
     if (hasFlag(args, "--no-preserve-feature-curves")) {
         config.features.enabled = false;
-    } else if (hasAnyFlag(args, {"--feature-normal-filter", "--feature-graph-consolidation"})) {
+    } else if (hasAnyFlag(
+                   args,
+                   {"--smooth-curvature-features", "--feature-normal-filter", "--feature-graph-consolidation"}
+               )) {
         // Retain the 0.x convenience behavior, but emit a note in emitOptionWarnings.
         config.features.enabled = true;
     }
@@ -359,6 +394,9 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
     if (hasFlag(args, "--normal-tensor-features") && hasFlag(args, "--no-normal-tensor-features")) {
         writeWarning(output, "both normal-tensor enable and disable flags were supplied; --no-normal-tensor-features wins.");
     }
+    if (hasFlag(args, "--smooth-curvature-features") && hasFlag(args, "--no-smooth-curvature-features")) {
+        writeWarning(output, "both smooth-curvature enable and disable flags were supplied; --no-smooth-curvature-features wins.");
+    }
     if (hasFlag(args, "--feature-normal-filter") && hasFlag(args, "--no-feature-normal-filter")) {
         writeWarning(output, "both feature-normal-filter enable and disable flags were supplied; --no-feature-normal-filter wins.");
     }
@@ -405,6 +443,16 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
         );
     }
 
+    if (hasAnyFlag(
+            args,
+            {"--smooth-curvature-threshold", "--smooth-curvature-edge-alignment", "--smooth-curvature-tangent-consistency",
+             "--smooth-curvature-base-rings", "--smooth-curvature-scales", "--smooth-curvature-min-persistent-scales",
+             "--smooth-curvature-robust-iterations", "--smooth-curvature-stable-scale",
+             "--smooth-curvature-min-scale-stability"}
+        ) &&
+        !options.useSmoothCurvatureFeatures) {
+        writeWarning(output, "smooth-curvature values are ignored until --smooth-curvature-features or --profile smooth is active.");
+    }
     const bool usesNormalTensorWeighting =
         simplifying && !standardMethod &&
         effectiveSimplifyConfig.cost.weightMode == simplification::WeightMode::NormalTensor;
@@ -424,6 +472,10 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
                 "--normal-tensor-features is active."
             );
         }
+    }
+    if (hasFlag(args, "--smooth-curvature-min-scale-stability") && options.useSmoothCurvatureFeatures &&
+        !options.smoothCurvatureUseStableScaleSelection) {
+        writeWarning(output, "--smooth-curvature-min-scale-stability requires --smooth-curvature-stable-scale and is otherwise ignored.");
     }
     if (hasAnyFlag(
             args,
@@ -467,7 +519,7 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
         writeWarning(output, "feature-protection settings require --preserve-feature-curves or a feature profile.");
     }
     if (simplifying && !hasFlag(args, "--preserve-feature-curves") && !hasFlag(args, "--no-preserve-feature-curves") &&
-        hasAnyFlag(args, {"--feature-normal-filter", "--feature-graph-consolidation"})) {
+        hasAnyFlag(args, {"--smooth-curvature-features", "--feature-normal-filter", "--feature-graph-consolidation"})) {
         output << "note: simplify enables feature-curve protection for these feature options to preserve 0.x behavior; use --no-preserve-feature-curves to opt out.\n";
     }
 }

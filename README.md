@@ -113,6 +113,10 @@ performance preset 都继承同一个固定的 oneTBB 2021.12.0 配置，因此�
 preset 保持不引入调度后端，用于串行回退、确定性和内存安全诊断。
 
 ```powershell
+# 极简 Debug：只保留普通 STL/OBJ、基础分析、二面角特征和 QEM 简化
+cmake --preset vs2019-debug-slim
+cmake --build --preset vs2019-debug-slim
+
 # 日常 Visual Studio Debug：只生成全部功能核心和 CLI
 cmake --preset vs2019-debug
 cmake --build --preset vs2019-debug
@@ -153,6 +157,14 @@ ctest --preset vs2019-release-static-sdk
 CMake target 和运行方式不变。为避免生成 `ZERO_CHECK`，该预设关闭 CMake 自动重生成；修改
 `CMakeLists.txt` 或增删源码文件后，重新执行一次 `cmake --preset vs2019-debug`。需要完整
 回归时，使用独立目录中的 `vs2019-debug-full`。
+
+`vs2019-debug-slim` 是另一个固定的教学/聚焦工作区，不会改变上面的完整 Debug 配置。它只
+生成 `Core`、`IO`、`Analysis`、`FeatureDetection`、`Simplification`、`CLI` 和 `ALL_BUILD`，
+输出为 `mesh-slim.exe`。该版本保留普通 STL/OBJ 读写、基础统计、边界/二面角特征报告，以及
+默认保护边界和锐边的 QEM 简化；不包含 C/C++ API、MMPD 超大网格、纹理坐标简化、法向张量、
+曲线/基元恢复、质量精修、并行、测试、示例或开发工具。它关闭 CMake 自动重生成，因此修改
+`CMakeLists.txt` 或增删 slim 源文件后，需要重新执行一次 `cmake --preset vs2019-debug-slim`。
+详细限制与命令见 [`documentation/guide/slim-workspace.md`](documentation/guide/slim-workspace.md)。
 
 VS2019 v142 的 Windows AddressSanitizer 不支持 LeakSanitizer 的
 `detect_leaks=1`。`vs2019-asan-unit` 因此同时运行
@@ -364,6 +376,7 @@ SDK 会把当前工具链所需的运行时 DLL 放入 `bin/`，并在 `sdk-cons
 | `MANUMESH_ONETBB_PROVIDER` | `vendored` | 选择 `auto` / `system` / `vendored`；`auto` 只在系统包与仓库内置 oneTBB 之间选择，不会下载；正式 preset 固定使用仓库内 oneTBB 2021.12.0；静态 SDK 仅允许 `vendored`。 |
 | `MANUMESH_ENABLE_INSTALL` | `OFF` | 启用 SDK 安装和 consumer 验证目标。 |
 | `MANUMESH_MONOLITHIC_CORE` | `OFF` | 将全部生产源码编入单个核心库目标；关闭时按功能模块保留核心工程，适合源码阅读和增量编译。 |
+| `MANUMESH_BUILD_SLIM` | `OFF` | 内部开关；仅供 `vs2019-debug-slim` 选择独立的轻量源码集合，不生成完整 SDK 目标。 |
 | `MANUMESH_ENABLE_DEVELOPER_TOOLS` | `ON` | 启用格式、文档和 SDK 验证等开发辅助目标；核心工作区关闭。 |
 | `MANUMESH_ENABLE_DEBUG_UTIL` | `OFF` | 在 Debug 构建中编译内部 HTML 线框工具；当前特征快照调用未接入产品流程，仅供内部排查。 |
 | `MANUMESH_EIGEN_PROVIDER` | `vendored` | 默认仓库内 Eigen 3.4.0；显式 `system` 支持 3.3+，`auto` 只在系统包与仓库内置包之间选择。 |

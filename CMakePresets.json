@@ -101,6 +101,24 @@
       "binaryDir": "${sourceDir}/build/vs2019-debug"
     },
     {
+      "name": "vs2019-slim-base",
+      "hidden": true,
+      "inherits": "vs2019-core-base",
+      "cacheVariables": {
+        "CMAKE_SUPPRESS_REGENERATION": "ON",
+        "MANUMESH_BUILD_SLIM": "ON",
+        "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
+        "MANUMESH_ENABLE_ONETBB": "OFF",
+        "MANUMESH_ENABLE_INSTALL": "OFF",
+        "MANUMESH_ENABLE_DEBUG_UTIL": "OFF"
+      }
+    },
+    {
+      "name": "vs2019-debug-slim",
+      "inherits": "vs2019-slim-base",
+      "binaryDir": "${sourceDir}/build/vs2019-debug-slim"
+    },
+    {
       "name": "vs2019-debug-full",
       "inherits": "vs2019-base",
       "binaryDir": "${sourceDir}/build/vs2019-debug-full"
@@ -235,6 +253,14 @@
     {
       "name": "vs2019-debug",
       "configurePreset": "vs2019-debug",
+      "configuration": "Debug",
+      "targets": [
+        "CLI"
+      ]
+    },
+    {
+      "name": "vs2019-debug-slim",
+      "configurePreset": "vs2019-debug-slim",
       "configuration": "Debug",
       "targets": [
         "CLI"

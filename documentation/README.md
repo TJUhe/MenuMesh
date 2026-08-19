@@ -30,6 +30,7 @@
 | 目的 | 文档 |
 | --- | --- |
 | 编译、测试、生成 Doxygen | [`guide/build.md`](guide/build.md) |
+| 使用精简核心工作区 | [`guide/slim-workspace.md`](guide/slim-workspace.md) |
 | 使用命令行工具 | [`guide/cli.md`](guide/cli.md) |
 | 集成 C++、PlainMesh 或 C ABI SDK | [`guide/sdk.md`](guide/sdk.md) |
 | 在 VS Code/Debug 中定位算法 | [`guide/debugging.md`](guide/debugging.md) |

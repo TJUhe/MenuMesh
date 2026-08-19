@@ -91,6 +91,10 @@ option(MANUMESH_MONOLITHIC_CORE
   "将核心源文件合并为单个 manumesh_core 目标；关闭时按功能模块生成核心目标"
   OFF
 )
+option(MANUMESH_BUILD_SLIM
+  "构建只包含普通网格 I/O、基础特征检测和 QEM 简化的精简工作区"
+  OFF
+)
 option(MANUMESH_ENABLE_DEVELOPER_TOOLS
   "启用格式、文档和 SDK 验证等开发辅助目标"
   ON
@@ -469,22 +473,29 @@ function(manumesh_configure_visual_studio_layout)
   manumesh_set_ide_target(sdk-consumer-test "Test SDK Consumers" "Packaging")
 endfunction()
 
-add_subdirectory(src)
+if(MANUMESH_BUILD_SLIM)
+  add_subdirectory(src/slim)
+  if(MANUMESH_BUILD_CLI)
+    add_subdirectory(apps/slim)
+  endif()
+else()
+  add_subdirectory(src)
 
-if(MANUMESH_BUILD_CLI)
-  add_subdirectory(apps)
-endif()
+  if(MANUMESH_BUILD_CLI)
+    add_subdirectory(apps)
+  endif()
 
-if(MANUMESH_BUILD_EXAMPLES)
-  add_subdirectory(examples)
-endif()
+  if(MANUMESH_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+  endif()
 
-if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
-  add_subdirectory(tests)
-endif()
+  if(BUILD_TESTING AND MANUMESH_BUILD_TESTS)
+    add_subdirectory(tests)
+  endif()
 
-if(MANUMESH_ENABLE_DEVELOPER_TOOLS)
-  add_subdirectory(adm)
+  if(MANUMESH_ENABLE_DEVELOPER_TOOLS)
+    add_subdirectory(adm)
+  endif()
 endif()
 
 manumesh_configure_visual_studio_layout()

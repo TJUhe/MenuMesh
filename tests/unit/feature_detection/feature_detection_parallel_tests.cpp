@@ -333,6 +333,7 @@ void expectFeatureAnalysisEquivalent(const feature::FeatureAnalysis& first, cons
     EXPECT_EQ(first.source.topologyFingerprint, second.source.topologyFingerprint);
     EXPECT_EQ(first.source.geometryFingerprint, second.source.geometryFingerprint);
     EXPECT_EQ(first.normalTensorVertexWeights, second.normalTensorVertexWeights);
+    EXPECT_EQ(first.smoothCurvatureVertexWeights, second.smoothCurvatureVertexWeights);
 
 #define EXPECT_ANALYSIS_FIELD(field) EXPECT_EQ(first.field, second.field)
     EXPECT_ANALYSIS_FIELD(featureEdges);

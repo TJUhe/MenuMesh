@@ -42,7 +42,7 @@ const std::vector<OptionSpec>& simplifyOptionSpecs() {
         {"--ratio", "0.25", "目标面数比例；ratio-sweep/face-sweep 请改用各自列表"},
         {"--target-faces", "N", "绝对目标面数；与 --ratio 同时给出时优先；不用于 ratio-sweep/face-sweep"},
         {"--line-weight", "W", "论文默认值约为 1e-3；0 会退化为标准 QEM；sweep 请改用 --weights"},
-        {"--weight-mode", "uniform|dihedral|normal-tensor|height|xband", "线二次型权重模式"},
+        {"--weight-mode", "uniform|dihedral|normal-tensor|smooth-curvature|height|xband", "线二次型权重模式"},
         {"--feature-boost", "W", "特征模式额外增加的线权重"},
         {"--feature-angle-deg", "A", "特征模式的二面角阈值"},
         {"--loop-trace-angle-deg", "A", "环追踪的二面角阈值；负值时复用特征角度"},

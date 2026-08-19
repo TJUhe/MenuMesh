@@ -36,16 +36,33 @@ manumesh simplify input.stl output.stl `
   --prevent-local-intersections --metrics-csv output/metrics.csv
 ```
 
-当前 profile 为 `default`、`cad`、`scan`；`noisy-scan` 仅作为兼容别名接受，并解析为 `scan`。
+当前 profile 为 `default`、`cad`、`scan`、`smooth`；`noisy-scan` 仅作为兼容别名接受，并解析为
+`scan`，`smooth-surface` 解析为 `smooth`。`smooth` 面向光滑自由曲面，启用多尺度局部
+quadric 脊/谷证据并默认关闭 normal tensor；它是显式 opt-in，默认 profile 不增加这部分计算。
 `--method` 接受 `standard`、`qem`
-（兼容别名）和 `line`；weight mode 为 `uniform`、`dihedral`、`normal-tensor`、`height`、
-`xband`。`--ratio` 和 `--target-faces` 同时给出时以后者为准。
+（兼容别名）和 `line`；weight mode 为 `uniform`、`dihedral`、`normal-tensor`、
+`smooth-curvature`、`height`、`xband`。`--ratio` 和 `--target-faces` 同时给出时以后者为准。
 
 常见保护开关包括 `--preserve-boundary`、`--preserve-feature-curves`、
 `--industrial-safe`、`--prevent-local-intersections`、`--min-triangle-quality`、
 `--max-normal-deviation-deg`、`--max-local-error`、`--max-local-error-ratio` 和
 `--quality-refinement-iterations`。特征检测还提供 normal-filter、normal-tensor、graph
 cleanup/consolidation 和 `--surface-patches` 选项。
+
+启用平滑曲率证据可使用 `--profile smooth`，或显式指定 `--smooth-curvature-features`。
+相关阈值和尺度选项包括 `--smooth-curvature-threshold`、`--smooth-curvature-edge-alignment`、
+`--smooth-curvature-tangent-consistency`、`--smooth-curvature-base-rings`、
+`--smooth-curvature-scales`、`--smooth-curvature-min-persistent-scales` 和
+`--smooth-curvature-robust-iterations`；需要按跨尺度稳定性选尺度时，再加
+`--smooth-curvature-stable-scale` 与 `--smooth-curvature-min-scale-stability`。这些候选会
+进入统一 feature graph、环恢复和简化器的曲线指导；默认 `primitive-curves` 只硬保护已拟合
+的几何基元，严格锁定所有检测边时使用 `--feature-protection-mode all-feature-edges`。
+在 `simplify` 的 `--method line` 路径中，`--profile smooth` 还默认选择 `smooth-curvature`
+weight mode，使通过持久尺度筛选的逐顶点曲率分数参与 line-quadric 特征增益；显式
+`--weight-mode` 会覆盖 profile 默认值。`feature-report` 只运行检测流程，不使用简化权重模式。仅使用
+`--weight-mode smooth-curvature` 而未启用平滑曲率特征证据时，
+`--smooth-curvature-edge-alignment` 不参与逐顶点评分；
+`--smooth-curvature-min-scale-stability` 仅在同时指定 `--smooth-curvature-stable-scale` 时生效。
 
 简化指标用 `--metrics-csv`，特征命令用 `--csv`，阶段计时用 `--performance-csv`；
 完整字段仍以命令帮助和 CSV 表头为准。

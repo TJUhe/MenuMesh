@@ -147,6 +147,9 @@ bool convertWeightMode(ManuMeshWeightMode input, simplification::WeightMode& out
     case MANUMESH_WEIGHT_MODE_NORMAL_TENSOR:
         output = simplification::WeightMode::NormalTensor;
         return true;
+    case MANUMESH_WEIGHT_MODE_SMOOTH_CURVATURE:
+        output = simplification::WeightMode::SmoothCurvature;
+        return true;
     }
     return false;
 }

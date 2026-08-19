@@ -167,14 +167,22 @@ private:
             return;
         }
 
+        analysis.smoothCurvatureVertexWeights.assign(curvature.size(), 0.0);
+        const int requiredPersistentScales = manumesh::clampValue(
+            options.smoothCurvatureMinPersistentScales, 1, std::max(1, options.smoothCurvatureScaleCount)
+        );
         double localScaleSum = 0.0;
         double persistenceSum = 0.0;
         double stabilitySum = 0.0;
-        for (const SmoothCurvatureVertex& vertex : curvature) {
+        for (std::size_t vertexId = 0; vertexId < curvature.size(); ++vertexId) {
+            const SmoothCurvatureVertex& vertex = curvature[vertexId];
             analysis.maxSmoothCurvatureFeatureScore =
                 std::max(analysis.maxSmoothCurvatureFeatureScore, vertex.featureScore);
             analysis.maxSmoothCurvaturePersistentScore =
                 std::max(analysis.maxSmoothCurvaturePersistentScore, vertex.persistentFeatureScore);
+            if (vertex.persistentScales >= requiredPersistentScales) {
+                analysis.smoothCurvatureVertexWeights[vertexId] = vertex.persistentFeatureScore;
+            }
             if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
                 continue;
             }

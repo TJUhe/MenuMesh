@@ -57,7 +57,7 @@ SimplificationRun::SimplificationRun(
       precomputedFeatures_(features),
       featureAnalysis_(features),
       policies_(SimplificationPolicies::fromOptions(options)),
-      quadrics_(options),
+      quadrics_(options, executionOptions),
       featurePolicy_(options),
       textureProtection_(input, options) {
     validateExecutionOptions(executionOptions_);
@@ -153,9 +153,16 @@ void SimplificationRun::analyzeFeatures() {
 
 void SimplificationRun::initializeVertices() {
     const feature::FeatureAnalysis* weightAnalysis = precomputedFeatures_;
-    if (weightAnalysis == nullptr && featureAnalysis_ != nullptr &&
-        !featureAnalysis_->normalTensorVertexWeights.empty()) {
-        weightAnalysis = featureAnalysis_;
+    if (weightAnalysis == nullptr && featureAnalysis_ != nullptr) {
+        const bool needsNormalTensor =
+            options_.weightMode == WeightMode::NormalTensor &&
+            !featureAnalysis_->normalTensorVertexWeights.empty();
+        const bool needsSmoothCurvature =
+            options_.weightMode == WeightMode::SmoothCurvature &&
+            !featureAnalysis_->smoothCurvatureVertexWeights.empty();
+        if (needsNormalTensor || needsSmoothCurvature) {
+            weightAnalysis = featureAnalysis_;
+        }
     }
     const InitialQuadrics initialQuadrics = quadrics_.build(input_, featureGuidance_, weightAnalysis, report_);
     // 始终计算边界标志（一次 O(E) 遍历），因为扩展链接条件需要在 preserveBoundary 关闭时也阻止边界弦收缩。preserveBoundary 保持原有含义：只限制边界顶点的移动或合并方式。

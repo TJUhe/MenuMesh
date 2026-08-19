@@ -37,7 +37,7 @@ tests/    --> manumesh_internal for white-box tests;
 | `src/common` | 多模块复用的私有几何谓词、查询、距离索引、空间索引和并行适配 |
 | `src/mesh_edit` | 活动面、动态入射关系和 compact/remap；不决定算法策略 |
 | `include/algorithms/analysis`, `src/analysis` | 统计和采样距离 |
-| `include/algorithms/feature_detection`, `src/feature_detection` | 特征证据到图、环、primitive、component、patch |
+| `include/algorithms/feature_detection`, `src/feature_detection` | boundary/dihedral、Normal Tensor、SmoothCurvature 等特征证据到图、环、primitive、component、patch |
 | `include/algorithms/simplification`, `src/simplification` | QEM/line-quadrics 候选、placement、合法性、提交和精修 |
 | `include/api`, `src/api` | handle、状态码和 size-aware C ABI |
 | `src/debugUtil` | Debug-only HTML 线框诊断；当前 instrumentation 调用点暂时停用，不属于产品流程 |
@@ -61,13 +61,17 @@ STL/OBJ -> Mesh -> (可选) FeatureAnalysis -> Simplify -> Mesh -> STL/OBJ/CSV
 ```
 
 `FeatureAnalysis::source` 绑定顶点坐标、面顺序和面角索引；简化消费前会校验来源和公开图
-索引。UV 不参与该 indexed-geometry 身份指纹，但会在纹理保护策略中单独验证。
+索引。UV 不参与该 indexed-geometry 身份指纹，但会在纹理保护策略中单独验证。启用相应证据
+通道时，分析还保存逐顶点的 `normalTensorVertexWeights` 或
+`smoothCurvatureVertexWeights`；简化的同名 weight mode 复用这些结果，不以简化配置重新解释
+其尺度或阈值。
 
 ## 并发边界
 
 公共 `ExecutionOptions` 只暴露 `Serial`/`Parallel`、最大并发度和任务粒度，不暴露 oneTBB
-类型。可并行的是面/顶点证据、Normal Tensor、独立 quadric/placement 等纯计算；图排序、
-cleanup、环恢复、动态坍缩、拓扑提交和固定归约保持确定性协调。未编译后端或默认模式会
+类型。可并行的是面/顶点证据、Normal Tensor、SmoothCurvature 的局部 quadric 拟合、独立
+quadric/placement 等纯计算；图排序、cleanup、环恢复、动态坍缩、拓扑提交和固定归约保持
+确定性协调。未编译后端或默认模式会
 串行执行。并行不能改变图排序、浮点归约或 collapse 顺序。
 
 ## 超大网格边界

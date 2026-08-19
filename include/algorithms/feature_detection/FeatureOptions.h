@@ -18,6 +18,8 @@ constexpr int kMaxNormalTensorScaleCount = 8;
 constexpr int kMaxSmoothCurvatureBaseNeighborhoodRings = 4;
 constexpr int kMaxSmoothCurvatureScaleCount = 6;
 constexpr int kMaxSmoothCurvatureRobustFitIterations = 4;
+/// 平滑曲率分数在持久性加权前由局部检测器截断的上限。
+constexpr double kMaxSmoothCurvatureFeatureScore = 4.0;
 constexpr int kMaxFeatureNormalFilterIterations = 16;
 
 /// 面向含噪三角网格的可选法向域预处理。
@@ -192,6 +194,9 @@ struct SmoothCurvatureOptions {
     double minTangentConsistency = 0.65;  ///< 跨尺度切线点积绝对值门限。
     bool useStableScaleSelection = false; ///< 相比原始峰值分数优先选择稳定尺度支持。
     double minScaleStability = 0.0;       ///< 可接受的最小尺度稳定性分数。
+    /// 独立 Smooth Curvature 调用的可选面法向预处理。
+    /// 完整特征管线会在共享缓存上应用 `FeatureOptions::normalFilter`。
+    FeatureNormalFilterOptions normalFilter;
 };
 
 } // namespace feature

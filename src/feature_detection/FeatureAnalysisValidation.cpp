@@ -775,6 +775,45 @@ void validateFeatureGraph(const Mesh& mesh, const FeatureAnalysis& analysis) {
     }
 }
 
+void validateSmoothCurvatureDiagnostics(const FeatureAnalysis& analysis, std::size_t vertexCount) {
+    int graphSmoothCurvatureEdges = 0;
+    for (const FeatureGraphEdge& edge : analysis.graph.edges) {
+        if (edge.smoothCurvature) {
+            ++graphSmoothCurvatureEdges;
+        }
+    }
+    if (analysis.smoothCurvatureFeatureEdges != graphSmoothCurvatureEdges) {
+        invalidFeatureAnalysis("smooth curvature feature-edge count does not match feature graph edges.");
+    }
+    if (analysis.smoothCurvatureScoredVertices < 0 ||
+        static_cast<std::size_t>(analysis.smoothCurvatureScoredVertices) > vertexCount) {
+        invalidFeatureAnalysis("smooth curvature scored-vertex count is outside the source vertex range.");
+    }
+    if (!std::isfinite(analysis.maxSmoothCurvatureFeatureScore) || analysis.maxSmoothCurvatureFeatureScore < 0.0 ||
+        analysis.maxSmoothCurvatureFeatureScore > kMaxSmoothCurvatureFeatureScore) {
+        invalidFeatureAnalysis(
+            "maximum smooth curvature feature score must be finite and in [0, kMaxSmoothCurvatureFeatureScore]."
+        );
+    }
+    if (!std::isfinite(analysis.maxSmoothCurvaturePersistentScore) ||
+        analysis.maxSmoothCurvaturePersistentScore < 0.0 ||
+        analysis.maxSmoothCurvaturePersistentScore > kMaxSmoothCurvatureFeatureScore) {
+        invalidFeatureAnalysis(
+            "maximum smooth curvature persistent score must be finite and in [0, kMaxSmoothCurvatureFeatureScore]."
+        );
+    }
+    if (!std::isfinite(analysis.meanSmoothCurvatureLocalScale) || analysis.meanSmoothCurvatureLocalScale < 0.0) {
+        invalidFeatureAnalysis("mean smooth curvature local scale must be finite and non-negative.");
+    }
+    if (!std::isfinite(analysis.meanSmoothCurvaturePersistence) || analysis.meanSmoothCurvaturePersistence < 0.0 ||
+        analysis.meanSmoothCurvaturePersistence > kMaxSmoothCurvatureScaleCount) {
+        invalidFeatureAnalysis(
+            "mean smooth curvature persistence must be finite and in [0, kMaxSmoothCurvatureScaleCount]."
+        );
+    }
+    requireUnitIntervalValue(analysis.meanSmoothCurvatureScaleStability, "Mean smooth curvature scale stability");
+}
+
 void validateFeaturePatches(const Mesh& mesh, const FeatureAnalysis& analysis) {
     const bool hasPatchRecords = !analysis.patches.empty() || !analysis.patchAdjacencies.empty();
     if (analysis.facePatchIds.empty()) {
@@ -1016,8 +1055,19 @@ void validateFeatureAnalysis(const Mesh& mesh, const FeatureAnalysis& analysis) 
             invalidFeatureAnalysis("Normal Tensor weights must be finite and in [0, 1].");
         }
     }
+    if (!analysis.smoothCurvatureVertexWeights.empty() && analysis.smoothCurvatureVertexWeights.size() != vertexCount) {
+        invalidFeatureAnalysis("Smooth curvature weight count does not match the source mesh.");
+    }
+    for (double weight : analysis.smoothCurvatureVertexWeights) {
+        if (!std::isfinite(weight) || weight < 0.0 || weight > kMaxSmoothCurvatureFeatureScore) {
+            invalidFeatureAnalysis(
+                "Smooth curvature weights must be finite and in [0, kMaxSmoothCurvatureFeatureScore]."
+            );
+        }
+    }
 
     validateFeatureGraph(mesh, analysis);
+    validateSmoothCurvatureDiagnostics(analysis, vertexCount);
     const std::vector<int> componentByVertex = validateFeatureComponents(analysis, vertexCount, componentCount);
     validateFeatureLoopMembership(mesh, analysis, vertexCount, componentCount, componentByVertex);
     validateFeaturePatches(mesh, analysis);

@@ -146,6 +146,49 @@ TEST(FeatureDetectionUpgrade, NormalTensorConsumesFilteredFaceNormalsFromTheShar
     }
 }
 
+TEST(FeatureDetectionUpgrade, SmoothCurvatureConsumesFilteredFaceNormalsFromConfiguredOptions) {
+    const analytic::GaussianRidgeSheetFixture ridge = analytic::makeGaussianRidgeSheet(48, 2.0, 0.35, 6.0);
+    const Mesh noisy =
+        analytic::withDeterministicNoise(ridge.mesh, 0.04 * analytic::meanEdgeLength(ridge.mesh), 20260819u);
+
+    feature::FeatureNormalFilterOptions filterOptions;
+    filterOptions.enabled = true;
+    filterOptions.iterations = 4;
+    filterOptions.angleSigmaDeg = 18.0;
+    filterOptions.preserveAngleDeg = 55.0;
+
+    feature::SmoothCurvatureOptions curvatureOptions;
+    curvatureOptions.baseNeighborhoodRings = 2;
+    curvatureOptions.scaleCount = 3;
+    curvatureOptions.robustFitIterations = 2;
+    curvatureOptions.minTangentConsistency = 0.55;
+
+    feature::detector_detail::FeatureDetectionCache rawCache(noisy);
+    feature::detector_detail::FeatureDetectionCache filteredCache(noisy, filterOptions);
+    const std::vector<feature::SmoothCurvatureVertex> raw =
+        feature::detector_detail::computeSmoothCurvatureFeaturesCached(noisy, rawCache, curvatureOptions, 0.008);
+    const std::vector<feature::SmoothCurvatureVertex> filtered =
+        feature::detector_detail::computeSmoothCurvatureFeaturesCached(noisy, filteredCache, curvatureOptions, 0.008);
+
+    ASSERT_EQ(raw.size(), filtered.size());
+    double maxScoreDelta = 0.0;
+    for (std::size_t i = 0; i < raw.size(); ++i) {
+        maxScoreDelta =
+            std::max(maxScoreDelta, std::abs(raw[i].persistentFeatureScore - filtered[i].persistentFeatureScore));
+    }
+    EXPECT_GT(filteredCache.normalFilterReport().changedFaces, 0);
+    EXPECT_GT(maxScoreDelta, 1e-8);
+
+    curvatureOptions.normalFilter = filterOptions;
+    const std::vector<feature::SmoothCurvatureVertex> publicFiltered =
+        feature::computeSmoothCurvatureFeatures(noisy, curvatureOptions, 0.008);
+    ASSERT_EQ(filtered.size(), publicFiltered.size());
+    for (std::size_t i = 0; i < filtered.size(); ++i) {
+        EXPECT_NEAR(filtered[i].persistentFeatureScore, publicFiltered[i].persistentFeatureScore, 1e-12);
+        EXPECT_NEAR(filtered[i].localScale, publicFiltered[i].localScale, 1e-12);
+    }
+}
+
 TEST(FeatureDetectionUpgrade, StableScaleSelectionReportsPersistentReferenceScale) {
     const analytic::GaussianRidgeSheetFixture ridge = analytic::makeGaussianRidgeSheet(48, 2.0, 0.35, 6.0);
     feature::SmoothCurvatureOptions options;
@@ -354,6 +397,10 @@ TEST(FeatureDetectionUpgrade, RejectsInvalidUpgradeOptions) {
     feature::NormalTensorOptions tensorOptions;
     tensorOptions.normalFilter = filterOptions;
     EXPECT_THROW(feature::computeNormalTensorFeatures(mesh, tensorOptions), std::invalid_argument);
+
+    feature::SmoothCurvatureOptions curvatureOptions;
+    curvatureOptions.normalFilter = filterOptions;
+    EXPECT_THROW(feature::computeSmoothCurvatureFeatures(mesh, curvatureOptions), std::invalid_argument);
 }
 
 } // namespace tests

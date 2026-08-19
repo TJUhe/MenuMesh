@@ -270,6 +270,49 @@ TEST(CliOptionBinding, DoesNotWarnWhenNormalTensorParametersDriveSimplificationW
     EXPECT_EQ(std::string::npos, warnings.str().find("normal-tensor values are ignored"));
 }
 
+TEST(CliOptionBinding, DoesNotWarnWhenSmoothCurvatureParametersDriveSimplificationWeighting) {
+    const manumesh::cli::Args args = makeArgs(
+        {"--profile", "cad", "--weight-mode", "smooth-curvature", "--smooth-curvature-scales", "4"}
+    );
+    const manumesh::simplification::SimplifyOptions options = manumesh::cli::parseSimplifyOptions(args);
+    ASSERT_TRUE(options.featureOptionsOverride.has_value());
+    std::ostringstream warnings;
+    manumesh::cli::emitOptionWarnings(args, *options.featureOptionsOverride, true, warnings);
+
+    EXPECT_EQ(std::string::npos, warnings.str().find("smooth-curvature values are ignored"));
+}
+
+TEST(CliOptionBinding, WarnsWhenSmoothEdgeAlignmentIsUnusedByWeightOnlyScoring) {
+    const manumesh::cli::Args args = makeArgs(
+        {"--profile", "cad", "--weight-mode", "smooth-curvature", "--smooth-curvature-edge-alignment", "0.8"}
+    );
+    const manumesh::simplification::SimplifyOptions options = manumesh::cli::parseSimplifyOptions(args);
+    ASSERT_TRUE(options.featureOptionsOverride.has_value());
+    std::ostringstream warnings;
+    manumesh::cli::emitOptionWarnings(args, *options.featureOptionsOverride, true, warnings);
+
+    EXPECT_NE(
+        std::string::npos,
+        warnings.str().find("--smooth-curvature-edge-alignment only affects smooth-curvature feature evidence")
+    );
+    EXPECT_EQ(std::string::npos, warnings.str().find("smooth-curvature values are ignored"));
+}
+
+TEST(CliOptionBinding, WarnsWhenWeightOnlySmoothStabilityThresholdLacksSelection) {
+    const manumesh::cli::Args args = makeArgs(
+        {"--profile", "cad", "--weight-mode", "smooth-curvature", "--smooth-curvature-min-scale-stability", "0.9"}
+    );
+    const manumesh::simplification::SimplifyOptions options = manumesh::cli::parseSimplifyOptions(args);
+    ASSERT_TRUE(options.featureOptionsOverride.has_value());
+    std::ostringstream warnings;
+    manumesh::cli::emitOptionWarnings(args, *options.featureOptionsOverride, true, warnings);
+
+    EXPECT_NE(
+        std::string::npos,
+        warnings.str().find("--smooth-curvature-min-scale-stability requires --smooth-curvature-stable-scale")
+    );
+}
+
 TEST(CliOptionBinding, WarnsWhenStandardQemCannotUseNormalTensorWeighting) {
     const manumesh::cli::Args args = makeArgs(
         {"--profile", "cad", "--method", "standard", "--weight-mode", "normal-tensor", "--feature-boost", "0.2",

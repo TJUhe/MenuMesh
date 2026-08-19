@@ -29,6 +29,9 @@ public:
     const std::vector<double>& normalTensorVertexWeights() const noexcept {
         return analysis_->normalTensorVertexWeights;
     }
+    const std::vector<double>& smoothCurvatureVertexWeights() const noexcept {
+        return analysis_->smoothCurvatureVertexWeights;
+    }
 
     int featureEdgeCount() const noexcept { return analysis_->featureEdges; }
     int boundaryFeatureEdgeCount() const noexcept { return analysis_->boundaryFeatureEdges; }

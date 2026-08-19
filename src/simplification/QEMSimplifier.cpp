@@ -40,6 +40,8 @@ WeightMode parseWeightMode(const std::string& value) {
         return WeightMode::Height;
     if (value == "xband")
         return WeightMode::XBand;
+    if (value == "smooth-curvature" || value == "smooth_curvature" || value == "smooth")
+        return WeightMode::SmoothCurvature;
     throw std::invalid_argument("Unknown weight mode: " + value);
 }
 
@@ -55,6 +57,8 @@ std::string toString(WeightMode mode) {
         return "height";
     case WeightMode::XBand:
         return "xband";
+    case WeightMode::SmoothCurvature:
+        return "smooth-curvature";
     }
     return "unknown";
 }

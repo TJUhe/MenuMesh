@@ -66,6 +66,9 @@ TEST_F(CApiTest, ExposesSmoothCurvatureOptionsAndDiagnostics) {
     manumesh_simplify_options_init(&options);
     options.target_ratio = 0.90;
     options.preserve_feature_curves = 1;
+    options.weight_mode = MANUMESH_WEIGHT_MODE_SMOOTH_CURVATURE;
+    options.adaptive_scale = 1;
+    options.adaptive_base_line_weight = 0.02;
     options.feature_protection_mode = MANUMESH_FEATURE_PROTECTION_ALL_FEATURE_EDGES;
     options.use_normal_tensor_features = 0;
     options.feature_angle_deg = 180.0;
@@ -99,6 +102,31 @@ TEST_F(CApiTest, ExposesSmoothCurvatureOptionsAndDiagnostics) {
     EXPECT_EQ(2, report.feature_normal_filter_iterations_completed);
     EXPECT_GT(report.feature_normal_filter_changed_faces, 0);
     EXPECT_GT(report.mean_feature_normal_filter_angular_change_deg, 0.0);
+
+    manumesh_mesh_destroy(output);
+    manumesh_mesh_destroy(input);
+}
+
+TEST_F(CApiTest, KeepsWeightModeValuesStableAndRejectsUnknownValues) {
+    EXPECT_EQ(0, MANUMESH_WEIGHT_MODE_UNIFORM);
+    EXPECT_EQ(1, MANUMESH_WEIGHT_MODE_DIHEDRAL);
+    EXPECT_EQ(2, MANUMESH_WEIGHT_MODE_HEIGHT);
+    EXPECT_EQ(3, MANUMESH_WEIGHT_MODE_X_BAND);
+    EXPECT_EQ(4, MANUMESH_WEIGHT_MODE_NORMAL_TENSOR);
+    EXPECT_EQ(5, MANUMESH_WEIGHT_MODE_SMOOTH_CURVATURE);
+
+    ManuMeshMeshHandle* input = manumesh_mesh_create(context);
+    ManuMeshMeshHandle* output = manumesh_mesh_create(context);
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(output, nullptr);
+    ASSERT_EQ(MANUMESH_STATUS_OK, manumesh_generate_mesh(context, "plane", 8, input));
+
+    ManuMeshSimplifyOptions options;
+    manumesh_simplify_options_init(&options);
+    options.weight_mode = static_cast<ManuMeshWeightMode>(6);
+
+    EXPECT_EQ(MANUMESH_STATUS_INVALID_ARGUMENT, manumesh_simplify_mesh(context, input, &options, output, nullptr));
+    EXPECT_NE(std::string::npos, std::string(manumesh_context_last_error(context)).find("Unknown simplification weight mode"));
 
     manumesh_mesh_destroy(output);
     manumesh_mesh_destroy(input);

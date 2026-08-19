@@ -150,8 +150,9 @@ MANUMESH_API void validateFeatureOptions(const FeatureOptions& options);
 
 /// 检测边界、非流形、二面角、张量、可选平滑曲率以及拟合的几何基元曲线。
 ///
-/// 实现首先追踪图支持的环，然后为稀疏圆环应用有界的 CAD 修复回退。它不是针对含噪扫描的一般曲率脊提取器；
-/// 对此类输入应启用张量特征并调节尺度/阈值参数。
+/// 实现首先追踪图支持的环，然后为稀疏圆环应用有界的 CAD 修复回退。它不是全局曲线重建、
+/// 点云特征提取或 B-Rep feature-tree 恢复器；光滑自由曲面应显式启用 SmoothCurvature，
+/// 含噪扫描可启用 Normal Tensor 并调节尺度/阈值参数。
 /// @param[in] mesh 三角表面网格。
 /// @param[in] options 检测、恢复、清理和分区策略。
 /// @return 完整的确定性特征分析。

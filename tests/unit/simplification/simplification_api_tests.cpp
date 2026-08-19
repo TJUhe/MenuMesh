@@ -59,12 +59,24 @@ TEST(ManuMesh, WeightModesRoundTripAndRejectUnknownValues) {
     EXPECT_EQ(
         manumesh::simplification::WeightMode::NormalTensor, manumesh::simplification::parseWeightMode("normal-tensor")
     );
+    EXPECT_EQ(
+        manumesh::simplification::WeightMode::SmoothCurvature,
+        manumesh::simplification::parseWeightMode("smooth-curvature")
+    );
+    EXPECT_EQ(
+        manumesh::simplification::WeightMode::SmoothCurvature,
+        manumesh::simplification::parseWeightMode("smooth")
+    );
     EXPECT_EQ(manumesh::simplification::WeightMode::Height, manumesh::simplification::parseWeightMode("height"));
     EXPECT_EQ(manumesh::simplification::WeightMode::XBand, manumesh::simplification::parseWeightMode("xband"));
 
     EXPECT_EQ("uniform", manumesh::simplification::toString(manumesh::simplification::WeightMode::Uniform));
     EXPECT_EQ("dihedral", manumesh::simplification::toString(manumesh::simplification::WeightMode::Dihedral));
     EXPECT_EQ("normal-tensor", manumesh::simplification::toString(manumesh::simplification::WeightMode::NormalTensor));
+    EXPECT_EQ(
+        "smooth-curvature",
+        manumesh::simplification::toString(manumesh::simplification::WeightMode::SmoothCurvature)
+    );
     EXPECT_EQ("height", manumesh::simplification::toString(manumesh::simplification::WeightMode::Height));
     EXPECT_EQ("xband", manumesh::simplification::toString(manumesh::simplification::WeightMode::XBand));
 
@@ -178,6 +190,7 @@ TEST(ManuMesh, SimplifyProfilesEnableMatchingFeaturePolicies) {
         simplification::makeSimplifyConfig(manumesh::feature::FeatureProfile::SmoothSurface);
     EXPECT_TRUE(smooth.features.enabled);
     EXPECT_EQ(simplification::FeatureProtectionMode::PrimitiveCurves, smooth.features.protectionMode);
+    EXPECT_EQ(simplification::WeightMode::SmoothCurvature, smooth.cost.weightMode);
     EXPECT_TRUE(smooth.features.detection.useSmoothCurvatureFeatures);
     EXPECT_NO_THROW(simplifier.setConfig(smooth));
 }
@@ -535,6 +548,10 @@ TEST(ManuMesh, QEMSimplifierRejectsMismatchedOrCorruptPrecomputedFeatureAnalysis
         manumesh::simplification::simplifyMesh(input, protectedIndustrialFeatureOptions(0.75), badLoopId, nullptr),
         std::invalid_argument
     );
+
+    manumesh::feature::FeatureAnalysis badSmoothDiagnostics = features;
+    badSmoothDiagnostics.meanSmoothCurvatureScaleStability = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_THROW(simplifier.simplify(input, badSmoothDiagnostics), std::invalid_argument);
 }
 
 TEST(ManuMesh, QEMSimplifierRequiresPrecomputedNormalTensorWeightsWhenRequested) {
@@ -546,6 +563,20 @@ TEST(ManuMesh, QEMSimplifierRequiresPrecomputedNormalTensorWeightsWhenRequested)
 
     manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.75);
     options.weightMode = manumesh::simplification::WeightMode::NormalTensor;
+
+    EXPECT_THROW(manumesh::simplification::simplifyMesh(input, options, features, nullptr), std::invalid_argument);
+}
+
+TEST(ManuMesh, QEMSimplifierRequiresPrecomputedSmoothCurvatureWeightsWhenRequested) {
+    const manumesh::Mesh input = manumesh::generateBumpGrid(16, 2.0);
+    manumesh::feature::FeatureOptions detectionOptions;
+    detectionOptions.useNormalTensorFeatures = false;
+    detectionOptions.useSmoothCurvatureFeatures = false;
+    const manumesh::feature::FeatureAnalysis features = manumesh::feature::detectFeatureCurves(input, detectionOptions);
+    ASSERT_TRUE(features.smoothCurvatureVertexWeights.empty());
+
+    manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.75);
+    options.weightMode = manumesh::simplification::WeightMode::SmoothCurvature;
 
     EXPECT_THROW(manumesh::simplification::simplifyMesh(input, options, features, nullptr), std::invalid_argument);
 }
@@ -570,6 +601,32 @@ TEST(ManuMesh, PrimarySimplifyComputesNormalTensorWeightsWhenTensorGraphEvidence
 
     EXPECT_LT(output.faces.size(), input.faces.size());
     EXPECT_GT(report.normalTensorScoredVertices, 0);
+    EXPECT_GT(report.maxAppliedLineWeight, report.minAppliedLineWeight);
+}
+
+TEST(ManuMesh, PrimarySimplifyComputesSmoothCurvatureWeightsWithoutFeatureGraph) {
+    const manumesh::Mesh input = manumesh::generateBumpGrid(24, 2.0);
+    manumesh::simplification::SimplifyOptions options = paperLineQuadricsOptions(0.75);
+    options.weightMode = manumesh::simplification::WeightMode::SmoothCurvature;
+
+    manumesh::feature::FeatureOptions featureOptions;
+    featureOptions.useNormalTensorFeatures = false;
+    featureOptions.useSmoothCurvatureFeatures = false;
+    featureOptions.smoothCurvatureFeatureThreshold = 0.008;
+    featureOptions.smoothCurvatureMinTangentConsistency = 0.55;
+    featureOptions.smoothCurvatureBaseNeighborhoodRings = 2;
+    featureOptions.smoothCurvatureScaleCount = 3;
+    featureOptions.smoothCurvatureMinPersistentScales = 2;
+    featureOptions.smoothCurvatureRobustFitIterations = 2;
+    options.featureOptionsOverride = featureOptions;
+
+    manumesh::simplification::SimplifyReport report;
+    const manumesh::Mesh output = manumesh::simplification::simplifyMesh(input, options, &report);
+
+    EXPECT_LT(output.faces.size(), input.faces.size());
+    EXPECT_EQ(0, report.smoothCurvatureFeatureEdges);
+    EXPECT_GT(report.smoothCurvatureScoredVertices, 0);
+    EXPECT_GT(report.maxSmoothCurvaturePersistentScore, featureOptions.smoothCurvatureFeatureThreshold);
     EXPECT_GT(report.maxAppliedLineWeight, report.minAppliedLineWeight);
 }
 

@@ -18,6 +18,7 @@
 #include "common/detail/ParallelExecution.h"
 #include "detail/FeatureDetectionCache.h"
 #include "detail/FeatureInputValidation.h"
+#include "detail/FeatureNormalFilter.h"
 
 #include <Eigen/Cholesky>
 #include <Eigen/Eigenvalues>
@@ -689,7 +690,9 @@ ScaleCandidate classifyScaleCandidate(
         );
         const double extremumRatio = manumesh::clampValue(extremum / (std::abs(curvature) + 0.025), 0.0, 1.0);
         const double fitQuality = 1.0 / (1.0 + 25.0 * center.fitResidual);
-        const double score = std::min(std::abs(curvature), 4.0) * std::sqrt(anisotropy * extremumRatio) * fitQuality;
+        const double score =
+            std::min(std::abs(curvature), kMaxSmoothCurvatureFeatureScore) *
+            std::sqrt(anisotropy * extremumRatio) * fitQuality;
         if (!std::isfinite(score) || score <= best.score) {
             continue;
         }
@@ -901,8 +904,9 @@ std::vector<SmoothCurvatureVertex> computeSmoothCurvatureFeatures(
     double requestedPersistenceThreshold,
     const ExecutionOptions& executionOptions
 ) {
+    detector_detail::validateFeatureNormalFilterOptions(options.normalFilter);
     validateExecutionOptions(executionOptions);
-    detector_detail::FeatureDetectionCache cache(mesh, FeatureNormalFilterOptions{}, executionOptions);
+    detector_detail::FeatureDetectionCache cache(mesh, options.normalFilter, executionOptions);
     return detector_detail::computeSmoothCurvatureFeaturesCached(mesh, cache, options, requestedPersistenceThreshold);
 }
 

@@ -79,10 +79,11 @@ public:
     /// @return 简化后的稠密网格，不会重新运行特征检测。
     /// @note `features` 必须绑定到 `input` 的精确 indexed geometry；顶点/面及其顺序、
     /// 坐标和角点索引必须一致。UV 不参与来源指纹。
-    /// @note 当使用 Normal Tensor 权重模式时，预计算分析必须包含覆盖全部输入顶点的
-    /// `normalTensorVertexWeights`。这些权重按原检测配置直接复用，不会按当前简化选项重新阈值化。
-    /// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或所需的
-    /// Normal Tensor 逐顶点权重缺失时抛出。
+    /// @note 当使用 `WeightMode::NormalTensor` 或 `WeightMode::SmoothCurvature` 时，预计算分析必须包含覆盖
+    /// 全部输入顶点的 `normalTensorVertexWeights` 或 `smoothCurvatureVertexWeights`。这些权重按原检测配置直接复用，
+    /// 不会按当前简化选项重新阈值化。
+    /// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或所需的 Normal Tensor 或
+    /// SmoothCurvature 逐顶点权重缺失时抛出。
     Mesh simplify(const Mesh& input, const feature::FeatureAnalysis& features);
     /// 使用预先计算的特征分析简化网格，并可选择复制诊断信息。
     /// @param[in] input 用于计算 `features` 的网格。
@@ -91,7 +92,7 @@ public:
     /// @return 简化后的稠密网格。
     /// @note 来源验证覆盖精确 indexed geometry 和公开 graph/loop/component/patch 索引；
     /// UV 不参与来源指纹。
-    /// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或 Normal Tensor
+    /// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或 Normal Tensor / SmoothCurvature
     /// 权重模式缺少预计算逐顶点权重时抛出。
     Mesh simplify(const Mesh& input, const feature::FeatureAnalysis& features, SimplifyReport* report);
 
@@ -132,7 +133,7 @@ MANUMESH_API Mesh simplifyMesh(
 /// @return 简化后的网格，不会重复执行特征分析。
 /// @note 入口会校验 `features` 的来源身份和公开索引；来源身份绑定精确 indexed geometry，
 /// 但明确忽略 UV。
-/// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或 Normal Tensor
+/// @throws std::invalid_argument 当来源身份不匹配、公开索引结构损坏，或 Normal Tensor / SmoothCurvature
 /// 权重模式缺少预计算逐顶点权重时抛出。
 MANUMESH_API Mesh simplifyMesh(
     const Mesh& input,

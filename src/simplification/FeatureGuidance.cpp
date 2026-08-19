@@ -171,6 +171,32 @@ void summarizeNormalTensorScores(const std::vector<feature::NormalTensorVertex>&
     }
 }
 
+void summarizeSmoothCurvatureScores(
+    const std::vector<feature::SmoothCurvatureVertex>& curvature, FeatureWeightScores& result
+) {
+    double localScaleSum = 0.0;
+    double persistenceSum = 0.0;
+    double stabilitySum = 0.0;
+    for (const feature::SmoothCurvatureVertex& vertex : curvature) {
+        result.maxSmoothCurvaturePersistentScore =
+            std::max(result.maxSmoothCurvaturePersistentScore, vertex.persistentFeatureScore);
+        if (vertex.featureScore <= 1e-12 && vertex.persistentFeatureScore <= 1e-12) {
+            continue;
+        }
+        ++result.smoothCurvatureScoredVertices;
+        localScaleSum += vertex.localScale;
+        persistenceSum += static_cast<double>(vertex.persistentScales);
+        stabilitySum += vertex.scaleStability;
+    }
+
+    if (result.smoothCurvatureScoredVertices > 0) {
+        const double count = static_cast<double>(result.smoothCurvatureScoredVertices);
+        result.meanSmoothCurvatureLocalScale = localScaleSum / count;
+        result.meanSmoothCurvaturePersistence = persistenceSum / count;
+        result.meanSmoothCurvatureScaleStability = stabilitySum / count;
+    }
+}
+
 FeatureGuidance buildFeatureGuidanceFromAnalysis(const Mesh& mesh, const feature::FeatureAnalysis& analysis) {
     FeatureGuidance guidance;
     guidance.enabled = true;
@@ -267,7 +293,10 @@ FeatureGuidance buildFeatureGuidance(
 }
 
 FeatureWeightScores computeFeatureWeightScores(
-    const Mesh& mesh, const SimplifyOptions& options, const feature::FeatureAnalysis* precomputed
+    const Mesh& mesh,
+    const SimplifyOptions& options,
+    const feature::FeatureAnalysis* precomputed,
+    const ExecutionOptions& executionOptions
 ) {
     const WeightMode mode = options.weightMode;
     FeatureWeightScores result;
@@ -319,12 +348,57 @@ FeatureWeightScores computeFeatureWeightScores(
         tensorOptions.scaleCount = featureOptions.normalTensorScaleCount;
         tensorOptions.normalFilter = featureOptions.normalFilter;
         const std::vector<feature::NormalTensorVertex> tensor =
-            feature::computeNormalTensorFeatures(mesh, tensorOptions, featureOptions.normalTensorFeatureThreshold);
+            feature::computeNormalTensorFeatures(
+                mesh, tensorOptions, featureOptions.normalTensorFeatureThreshold, executionOptions
+            );
         summarizeNormalTensorScores(tensor, result);
         const int requiredPersistentScales = resolveNormalTensorMinPersistentScales(featureOptions);
         for (int i = 0; i < static_cast<int>(tensor.size()); ++i) {
             if (tensor[i].persistentScales >= requiredPersistentScales) {
                 score[i] = tensor[i].persistentFeatureScore;
+            }
+        }
+        return result;
+    }
+
+    if (mode == WeightMode::SmoothCurvature) {
+        if (precomputed != nullptr) {
+            if (precomputed->smoothCurvatureVertexWeights.size() != mesh.vertices.size()) {
+                throw std::invalid_argument(
+                    "Smooth curvature weighting with precomputed FeatureAnalysis requires one "
+                    "smoothCurvatureVertexWeights value per input vertex."
+                );
+            }
+            score = precomputed->smoothCurvatureVertexWeights;
+            result.smoothCurvatureScoredVertices = precomputed->smoothCurvatureScoredVertices;
+            result.maxSmoothCurvaturePersistentScore = precomputed->maxSmoothCurvaturePersistentScore;
+            result.meanSmoothCurvatureLocalScale = precomputed->meanSmoothCurvatureLocalScale;
+            result.meanSmoothCurvaturePersistence = precomputed->meanSmoothCurvaturePersistence;
+            result.meanSmoothCurvatureScaleStability = precomputed->meanSmoothCurvatureScaleStability;
+            return result;
+        }
+        const feature::FeatureOptions featureOptions = featureOptionsFromSimplifyOptions(options);
+        feature::SmoothCurvatureOptions curvatureOptions;
+        curvatureOptions.baseNeighborhoodRings = featureOptions.smoothCurvatureBaseNeighborhoodRings;
+        curvatureOptions.scaleCount = featureOptions.smoothCurvatureScaleCount;
+        curvatureOptions.robustFitIterations = featureOptions.smoothCurvatureRobustFitIterations;
+        curvatureOptions.minTangentConsistency = featureOptions.smoothCurvatureMinTangentConsistency;
+        curvatureOptions.useStableScaleSelection = featureOptions.smoothCurvatureUseStableScaleSelection;
+        curvatureOptions.minScaleStability = featureOptions.smoothCurvatureMinScaleStability;
+        curvatureOptions.normalFilter = featureOptions.normalFilter;
+        const std::vector<feature::SmoothCurvatureVertex> curvature =
+            feature::computeSmoothCurvatureFeatures(
+                mesh, curvatureOptions, featureOptions.smoothCurvatureFeatureThreshold, executionOptions
+            );
+        summarizeSmoothCurvatureScores(curvature, result);
+        const int requiredPersistentScales = manumesh::clampValue(
+            featureOptions.smoothCurvatureMinPersistentScales,
+            1,
+            std::max(1, featureOptions.smoothCurvatureScaleCount)
+        );
+        for (int i = 0; i < static_cast<int>(curvature.size()); ++i) {
+            if (curvature[i].persistentScales >= requiredPersistentScales) {
+                score[i] = curvature[i].persistentFeatureScore;
             }
         }
         return result;

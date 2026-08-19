@@ -115,6 +115,7 @@ TEST(FeatureAnalysisViews, AliasOriginalStorageWithoutCopyingResults) {
     analysis.graph.edges.resize(1);
     analysis.graph.vertices.resize(2);
     analysis.normalTensorVertexWeights = {0.25, 0.75};
+    analysis.smoothCurvatureVertexWeights = {0.125, 0.875};
     analysis.facePatchIds = {0, 1};
     analysis.patches.resize(2);
     analysis.patchAdjacencies.resize(1);
@@ -125,6 +126,7 @@ TEST(FeatureAnalysisViews, AliasOriginalStorageWithoutCopyingResults) {
 
     EXPECT_EQ(&analysis.graph.edges, &evidence.graphEdges());
     EXPECT_EQ(&analysis.normalTensorVertexWeights, &evidence.normalTensorVertexWeights());
+    EXPECT_EQ(&analysis.smoothCurvatureVertexWeights, &evidence.smoothCurvatureVertexWeights());
     EXPECT_EQ(&analysis.vertices, &curves.vertices());
     EXPECT_EQ(&analysis.loops, &curves.loops());
     EXPECT_EQ(&analysis.components, &curves.components());

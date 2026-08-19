@@ -55,6 +55,12 @@ manumesh::Mesh output = simplifier.simplify(input, features, &report);
 `FeatureAnalysis` 绑定生成时的顶点坐标、面顺序和面角索引；不匹配的网格会被拒绝。数据流是
 `Mesh -> FeatureAnalysis -> simplification`，特征检测不反向依赖简化。
 
+光滑自由曲面可从 `feature::makeFeatureOptions(feature::FeatureProfile::SmoothSurface)` 开始；
+该 profile 启用多尺度 `SmoothCurvature` 证据并关闭 `NormalTensor`。将预计算分析交给简化器时，
+`WeightMode::NormalTensor` 和 `WeightMode::SmoothCurvature` 分别要求分析包含覆盖全部输入顶点的
+`normalTensorVertexWeights` 或 `smoothCurvatureVertexWeights`；简化器会复用检测时的分数，不按另一套
+简化参数重新检测或阈值化。
+
 ## PlainMesh 与 C ABI
 
 `PlainMesh` 提供 `PlainVec3`、`PlainVec2`、三角面和逐角 UV 的 Eigen-free 交换格式；内部仍

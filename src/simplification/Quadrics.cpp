@@ -109,7 +109,7 @@ void computeInitialQuadrics(
     InitialQuadrics& initial,
     SimplifyReport& report
 ) {
-    computeInitialQuadrics(mesh, options, featureGuidance, nullptr, initial, report);
+    computeInitialQuadrics(mesh, options, featureGuidance, nullptr, ExecutionOptions{}, initial, report);
 }
 
 void computeInitialQuadrics(
@@ -117,6 +117,18 @@ void computeInitialQuadrics(
     const SimplifyOptions& options,
     const FeatureGuidance& featureGuidance,
     const feature::FeatureAnalysis* precomputedFeatures,
+    InitialQuadrics& initial,
+    SimplifyReport& report
+) {
+    computeInitialQuadrics(mesh, options, featureGuidance, precomputedFeatures, ExecutionOptions{}, initial, report);
+}
+
+void computeInitialQuadrics(
+    const Mesh& mesh,
+    const SimplifyOptions& options,
+    const FeatureGuidance& featureGuidance,
+    const feature::FeatureAnalysis* precomputedFeatures,
+    const ExecutionOptions& executionOptions,
     InitialQuadrics& initial,
     SimplifyReport& report
 ) {
@@ -178,7 +190,9 @@ void computeInitialQuadrics(
     }
 
     const FeatureWeightScores featureScores =
-        useNormalLineQuadrics ? computeFeatureWeightScores(mesh, options, precomputedFeatures) : FeatureWeightScores{};
+        useNormalLineQuadrics
+            ? computeFeatureWeightScores(mesh, options, precomputedFeatures, executionOptions)
+            : FeatureWeightScores{};
     if (featureScores.normalTensorScoredVertices > 0) {
         report.normalTensorScoredVertices =
             std::max(report.normalTensorScoredVertices, featureScores.normalTensorScoredVertices);
@@ -186,6 +200,15 @@ void computeInitialQuadrics(
             std::max(report.maxNormalTensorPersistentScore, featureScores.maxNormalTensorPersistentScore);
         report.meanNormalTensorLocalScale = featureScores.meanNormalTensorLocalScale;
         report.meanNormalTensorPersistence = featureScores.meanNormalTensorPersistence;
+    }
+    if (featureScores.smoothCurvatureScoredVertices > 0) {
+        report.smoothCurvatureScoredVertices =
+            std::max(report.smoothCurvatureScoredVertices, featureScores.smoothCurvatureScoredVertices);
+        report.maxSmoothCurvaturePersistentScore =
+            std::max(report.maxSmoothCurvaturePersistentScore, featureScores.maxSmoothCurvaturePersistentScore);
+        report.meanSmoothCurvatureLocalScale = featureScores.meanSmoothCurvatureLocalScale;
+        report.meanSmoothCurvaturePersistence = featureScores.meanSmoothCurvaturePersistence;
+        report.meanSmoothCurvatureScaleStability = featureScores.meanSmoothCurvatureScaleStability;
     }
 
     if (useNormalLineQuadrics) {
@@ -307,8 +330,8 @@ SolveResult solveOptimal(const Mat4& q, const Vec3& a, const Vec3& b) {
     return solvePlacementCandidates(q, a, b).front();
 }
 
-InitialQuadricBuilder::InitialQuadricBuilder(const SimplifyOptions& options)
-    : options_(options) {}
+InitialQuadricBuilder::InitialQuadricBuilder(const SimplifyOptions& options, ExecutionOptions executionOptions)
+    : options_(options), executionOptions_(executionOptions) {}
 
 InitialQuadrics
 InitialQuadricBuilder::build(const Mesh& mesh, const FeatureGuidance& featureGuidance, SimplifyReport& report) const {
@@ -322,7 +345,9 @@ InitialQuadrics InitialQuadricBuilder::build(
     SimplifyReport& report
 ) const {
     InitialQuadrics initial;
-    computeInitialQuadrics(mesh, options_, featureGuidance, precomputedFeatures, initial, report);
+    computeInitialQuadrics(
+        mesh, options_, featureGuidance, precomputedFeatures, executionOptions_, initial, report
+    );
     return initial;
 }
 

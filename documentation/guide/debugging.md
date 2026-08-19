@@ -18,16 +18,18 @@ CTest 过滤器选择具体测试。先运行 `manumesh --help`，再把实际�
 
 特征问题按以下源码顺序观察：
 
-1. `FeatureEvidence.cpp`：boundary、non-manifold、oriented dihedral 和 normal-tensor 证据；
+1. `FeatureEvidence.cpp`：boundary、non-manifold、oriented dihedral、normal-tensor 和
+   smooth-curvature 证据；局部 quadric 拟合细节见 `SmoothCurvature.cpp`；
 2. `FeatureNormalFilter.cpp`：只预处理法向，不移动顶点；
 3. `FeatureGraphCleanup.cpp`、`FeatureGraphCompatibility.cpp`、`FeatureGraphConsolidation.cpp`：
    spur、兼容桥和 component 整合；
 4. `FeatureLoopRecovery.cpp`、`FeaturePrimitiveRecovery.cpp`：trace、cycle、circle/ellipse/polygon；
 5. `FeatureGraph.cpp`、`FeatureSegmentation.cpp`：junction/branch 和 face patch。
 
-简化问题按 `Quadrics.cpp` -> `Placement.cpp` -> `CandidateQueue.cpp` ->
-`CollapseLegality.cpp`/`CollapseAttempt.cpp` -> `CollapseTopology.cpp` -> `QualityRefinement.cpp`
-观察。报告中的拒绝计数表示候选第一次被归因的硬过滤器，不应简单相加当作唯一失败总数。
+简化问题按 `FeatureGuidance.cpp`（Normal Tensor/SmoothCurvature 权重或预计算权重复用） ->
+`Quadrics.cpp` -> `Placement.cpp` -> `CandidateQueue.cpp` -> `CollapseLegality.cpp`/
+`CollapseAttempt.cpp` -> `CollapseTopology.cpp` -> `QualityRefinement.cpp` 观察。报告中的拒绝计数
+表示候选第一次被归因的硬过滤器，不应简单相加当作唯一失败总数。
 
 ## Debug-only wireframe
 

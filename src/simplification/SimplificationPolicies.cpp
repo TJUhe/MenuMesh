@@ -120,6 +120,7 @@ SimplifyConfig makeSimplifyConfig(feature::FeatureProfile profile) {
         config.features.protectionMode = FeatureProtectionMode::PrimitiveCurves;
         break;
     case feature::FeatureProfile::SmoothSurface:
+        config.cost.weightMode = WeightMode::SmoothCurvature;
         config.features.enabled = true;
         // Ridge and valley candidates guide the cost, while only verified analytic
         // curves receive hard protection. Strict locking remains an explicit choice.

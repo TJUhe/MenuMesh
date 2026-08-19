@@ -7,16 +7,20 @@
 
 1. 构建拓扑、面法向、局部尺度和证据缓存；
 2. 可选 `FeatureNormalFilter` 稳定面法向（不改输入顶点）；
-3. 收集 boundary、non-manifold、oriented dihedral 和 normal-tensor 证据；
+3. 收集 boundary、non-manifold、oriented dihedral、normal-tensor 和可选 smooth-curvature 证据；
 4. 形成有来源标志的 feature graph；
 5. 清理弱 spur、按兼容方向/来源整合分量和桥接小间隙；
 6. 恢复 trace/cycle/loop，并在可行时拟合 circle、near-circle、ellipse 或 polygon；
 7. 汇总 component confidence、junction branch pair 和恢复诊断；
 8. 可选按真实 mesh-edge 屏障划分 surface patches。
 
-normal tensor 是局部、多尺度、确定性的弱证据通道，不是通用曲率估计器。当前没有 smooth
-curvature/ridge-valley 实现、神经 wireframe、点云重建或 B-Rep feature-tree 恢复。Recovery
-bridge 可以出现在 graph 中，但不是输入 mesh edge，不会自动变成 surface-patch 屏障。
+normal tensor 是局部、多尺度、确定性的弱证据通道，不是通用曲率估计器。SmoothCurvature
+则通过局部 quadric 拟合，在多个拓扑尺度上计算无量纲脊/谷分数、切线一致性和持久尺度，
+再将通过阈值的候选映射到已有 mesh edge；该分数不承诺归一化到 `[0,1]`。两类弱证据都会
+进入同一套 graph cleanup、trace/cycle/loop、component confidence 和 surface-patch 流程；
+SmoothCurvature 默认关闭，`FeatureProfile::SmoothSurface` 会启用它并关闭 normal tensor。
+它不是全局曲线重建，也不会凭空创建非输入边；Recovery bridge 可以出现在 graph 中，但不是
+输入 mesh edge，不会自动变成 surface-patch 屏障。
 
 ## 简化
 
@@ -33,6 +37,17 @@ bridge 可以出现在 graph 中，但不是输入 mesh edge，不会自动变�
 QEM/line quadrics 负责“选哪个候选、放在哪里”；硬过滤器负责“能不能改变拓扑”。因此输出
 可能达不到比例或目标面数，`SimplifyReport::terminationReason` 和拒绝计数是预期诊断，不是
 算法失效的单一证据。
+
+特征指导复用 `FeatureAnalysis` 中的统一图和曲线切线。默认的 `PrimitiveCurves` 策略只硬保护
+已拟合的圆、近圆和椭圆；smooth ridge/valley 候选通过统一特征图的曲线 line quadric
+参与软约束，不会因为局部噪声或密集候选锁死整张图。需要严格保护所有检测到的
+输入特征边时，应显式选择 `AllFeatureEdges`。
+
+除 `normal-tensor` 外，简化器还提供独立的 `smooth-curvature` 权重模式。该模式消费
+`FeatureAnalysis::smoothCurvatureVertexWeights` 中按持久尺度筛选的逐顶点分数，并将其用于
+line-quadric 的特征增益；它与 SmoothCurvature 候选诱导的图约束和几何基元保护相互独立。`SmoothSurface`
+profile 在简化入口中默认选择 `smooth-curvature`，显式 `weight-mode` 可以覆盖该 profile 值；
+`normal-tensor` 权重模式仍只消费 normal-tensor 顶点权重。
 
 ## 纹理保护
 

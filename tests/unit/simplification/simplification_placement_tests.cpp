@@ -4,7 +4,9 @@
  * @ingroup manumesh_tests
  */
 
+#include "AnalyticFixtures.h"
 #include "SimplificationTestSupport.h"
+#include "algorithms/feature_detection/FeatureDetector.h"
 #include "algorithms/simplification/QEMSimplifier.h"
 #include "core/MathUtils.h"
 #include "core/MeshGenerators.h"
@@ -408,6 +410,172 @@ TEST(FeatureBoost, AdaptiveScaleKeepsQuadricsCleanAndFillsPriorityScales) {
     }
     EXPECT_DOUBLE_EQ(boostedReport.minAppliedLineWeight, boostedReport.maxAppliedLineWeight);
     EXPECT_DOUBLE_EQ(boostedReport.minAppliedLineWeight, unboostedReport.minAppliedLineWeight);
+}
+
+TEST(FeatureBoost, SmoothCurvatureAdaptiveScaleUsesPersistentVertexWeights) {
+    const Mesh input = manumesh::generateBumpGrid(24, 2.0);
+
+    manumesh::simplification::SimplifyOptions options;
+    options.useLineQuadrics = true;
+    options.lineWeight = 1e-3;
+    options.adaptiveScale = true;
+    options.adaptiveBaseLineWeight = 0.02;
+    options.weightMode = manumesh::simplification::WeightMode::SmoothCurvature;
+    options.featureBoost = 0.5;
+    options.featureAngleDeg = 180.0;
+    options.loopTraceAngleDeg = 180.0;
+    options.useNormalTensorFeatures = false;
+    options.useSmoothCurvatureFeatures = true;
+    options.smoothCurvatureFeatureThreshold = 0.008;
+    options.smoothCurvatureMinEdgeAlignment = 0.45;
+    options.smoothCurvatureMinTangentConsistency = 0.55;
+    options.smoothCurvatureBaseNeighborhoodRings = 2;
+    options.smoothCurvatureScaleCount = 3;
+    options.smoothCurvatureMinPersistentScales = 2;
+    options.smoothCurvatureRobustFitIterations = 2;
+
+    const manumesh::simplification::FeatureWeightScores scores =
+        manumesh::simplification::computeFeatureWeightScores(input, options);
+    ASSERT_EQ(input.vertices.size(), scores.values.size());
+    EXPECT_GT(scores.smoothCurvatureScoredVertices, 0);
+    EXPECT_GT(scores.maxSmoothCurvaturePersistentScore, options.smoothCurvatureFeatureThreshold);
+    EXPECT_GT(scores.meanSmoothCurvatureScaleStability, 0.0);
+
+    manumesh::simplification::SimplifyOptions unboosted = options;
+    unboosted.featureBoost = 0.0;
+    manumesh::simplification::FeatureGuidance guidance;
+    manumesh::simplification::InitialQuadrics boostedQuadrics;
+    manumesh::simplification::InitialQuadrics unboostedQuadrics;
+    manumesh::simplification::SimplifyReport boostedReport;
+    manumesh::simplification::SimplifyReport unboostedReport;
+    manumesh::simplification::computeInitialQuadrics(input, options, guidance, boostedQuadrics, boostedReport);
+    manumesh::simplification::computeInitialQuadrics(input, unboosted, guidance, unboostedQuadrics, unboostedReport);
+
+    ASSERT_EQ(input.vertices.size(), boostedQuadrics.priorityScales.size());
+    ASSERT_EQ(boostedQuadrics.quadrics.size(), unboostedQuadrics.quadrics.size());
+    bool foundBoostedVertex = false;
+    for (std::size_t vertex = 0; vertex < input.vertices.size(); ++vertex) {
+        EXPECT_TRUE(boostedQuadrics.quadrics[vertex].isApprox(unboostedQuadrics.quadrics[vertex], 0.0))
+            << "quadric " << vertex << " changed under adaptive smooth-curvature boost";
+        EXPECT_NEAR(1.0 + options.featureBoost * scores.values[vertex], boostedQuadrics.priorityScales[vertex], 1e-12)
+            << "vertex=" << vertex;
+        EXPECT_DOUBLE_EQ(1.0, unboostedQuadrics.priorityScales[vertex]);
+        foundBoostedVertex = foundBoostedVertex || boostedQuadrics.priorityScales[vertex] > 1.0;
+    }
+    EXPECT_TRUE(foundBoostedVertex);
+    EXPECT_DOUBLE_EQ(options.adaptiveBaseLineWeight, boostedReport.minAppliedLineWeight);
+    EXPECT_DOUBLE_EQ(options.adaptiveBaseLineWeight, boostedReport.maxAppliedLineWeight);
+    EXPECT_EQ(scores.smoothCurvatureScoredVertices, boostedReport.smoothCurvatureScoredVertices);
+    EXPECT_DOUBLE_EQ(scores.maxSmoothCurvaturePersistentScore, boostedReport.maxSmoothCurvaturePersistentScore);
+    EXPECT_DOUBLE_EQ(scores.meanSmoothCurvatureScaleStability, boostedReport.meanSmoothCurvatureScaleStability);
+}
+
+TEST(FeatureBoost, SmoothCurvatureWeightModeReusesPrecomputedVertexWeights) {
+    const Mesh input = manumesh::generateBumpGrid(24, 2.0);
+    manumesh::feature::FeatureOptions detectionOptions;
+    detectionOptions.featureAngleDeg = 180.0;
+    detectionOptions.loopTraceAngleDeg = 180.0;
+    detectionOptions.useNormalTensorFeatures = false;
+    detectionOptions.useSmoothCurvatureFeatures = true;
+    detectionOptions.smoothCurvatureFeatureThreshold = 0.008;
+    detectionOptions.smoothCurvatureMinEdgeAlignment = 0.45;
+    detectionOptions.smoothCurvatureMinTangentConsistency = 0.55;
+    detectionOptions.smoothCurvatureBaseNeighborhoodRings = 2;
+    detectionOptions.smoothCurvatureScaleCount = 3;
+    detectionOptions.smoothCurvatureMinPersistentScales = 2;
+    detectionOptions.smoothCurvatureRobustFitIterations = 2;
+    const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, detectionOptions);
+
+    ASSERT_EQ(input.vertices.size(), analysis.smoothCurvatureVertexWeights.size());
+    ASSERT_GT(
+        *std::max_element(analysis.smoothCurvatureVertexWeights.begin(), analysis.smoothCurvatureVertexWeights.end()),
+        0.0
+    );
+
+    manumesh::simplification::SimplifyOptions options;
+    options.useLineQuadrics = true;
+    options.lineWeight = 1e-3;
+    options.adaptiveScale = true;
+    options.adaptiveBaseLineWeight = 0.02;
+    options.weightMode = manumesh::simplification::WeightMode::SmoothCurvature;
+    options.featureBoost = 0.5;
+    manumesh::feature::FeatureOptions conflictingOptions = detectionOptions;
+    conflictingOptions.smoothCurvatureFeatureThreshold = 1.0;
+    conflictingOptions.smoothCurvatureScaleCount = 1;
+    conflictingOptions.smoothCurvatureMinPersistentScales = 1;
+    options.featureOptionsOverride = conflictingOptions;
+
+    const manumesh::simplification::FeatureWeightScores recomputed =
+        manumesh::simplification::computeFeatureWeightScores(input, options);
+    ASSERT_EQ(input.vertices.size(), recomputed.values.size());
+    EXPECT_LT(*std::max_element(recomputed.values.begin(), recomputed.values.end()), 1e-12);
+
+    const manumesh::simplification::FeatureWeightScores reused =
+        manumesh::simplification::computeFeatureWeightScores(input, options, &analysis);
+    EXPECT_EQ(analysis.smoothCurvatureVertexWeights, reused.values);
+    EXPECT_EQ(analysis.smoothCurvatureScoredVertices, reused.smoothCurvatureScoredVertices);
+    EXPECT_DOUBLE_EQ(analysis.maxSmoothCurvaturePersistentScore, reused.maxSmoothCurvaturePersistentScore);
+    EXPECT_DOUBLE_EQ(analysis.meanSmoothCurvatureLocalScale, reused.meanSmoothCurvatureLocalScale);
+    EXPECT_DOUBLE_EQ(analysis.meanSmoothCurvaturePersistence, reused.meanSmoothCurvaturePersistence);
+    EXPECT_DOUBLE_EQ(analysis.meanSmoothCurvatureScaleStability, reused.meanSmoothCurvatureScaleStability);
+
+    manumesh::simplification::FeatureGuidance guidance;
+    manumesh::simplification::InitialQuadrics initial;
+    manumesh::simplification::SimplifyReport report;
+    manumesh::simplification::computeInitialQuadrics(input, options, guidance, &analysis, initial, report);
+    ASSERT_EQ(input.vertices.size(), initial.priorityScales.size());
+    for (std::size_t vertex = 0; vertex < input.vertices.size(); ++vertex) {
+        EXPECT_NEAR(
+            1.0 + options.featureBoost * analysis.smoothCurvatureVertexWeights[vertex],
+            initial.priorityScales[vertex],
+            1e-12
+        ) << "vertex="
+          << vertex;
+    }
+    EXPECT_EQ(analysis.smoothCurvatureScoredVertices, report.smoothCurvatureScoredVertices);
+    EXPECT_DOUBLE_EQ(analysis.meanSmoothCurvatureScaleStability, report.meanSmoothCurvatureScaleStability);
+}
+
+TEST(FeatureBoost, SmoothCurvatureWeightModeUsesResolvedNormalFilter) {
+    const manumesh::test::analytic::GaussianRidgeSheetFixture ridge =
+        manumesh::test::analytic::makeGaussianRidgeSheet(48, 2.0, 0.35, 6.0);
+    const Mesh input = manumesh::test::analytic::withDeterministicNoise(
+        ridge.mesh, 0.04 * manumesh::test::analytic::meanEdgeLength(ridge.mesh), 20260819u
+    );
+
+    manumesh::feature::FeatureOptions featureOptions;
+    featureOptions.featureAngleDeg = 180.0;
+    featureOptions.loopTraceAngleDeg = 180.0;
+    featureOptions.useNormalTensorFeatures = false;
+    featureOptions.useSmoothCurvatureFeatures = true;
+    featureOptions.smoothCurvatureFeatureThreshold = 0.008;
+    featureOptions.smoothCurvatureMinEdgeAlignment = 0.45;
+    featureOptions.smoothCurvatureMinTangentConsistency = 0.55;
+    featureOptions.smoothCurvatureBaseNeighborhoodRings = 2;
+    featureOptions.smoothCurvatureScaleCount = 3;
+    featureOptions.smoothCurvatureMinPersistentScales = 2;
+    featureOptions.smoothCurvatureRobustFitIterations = 2;
+    featureOptions.normalFilter.enabled = true;
+    featureOptions.normalFilter.iterations = 4;
+    featureOptions.normalFilter.angleSigmaDeg = 18.0;
+    featureOptions.normalFilter.preserveAngleDeg = 55.0;
+
+    const manumesh::feature::FeatureAnalysis analysis = manumesh::feature::detectFeatureCurves(input, featureOptions);
+    ASSERT_EQ(input.vertices.size(), analysis.smoothCurvatureVertexWeights.size());
+    EXPECT_GT(analysis.normalFilter.changedFaces, 0);
+
+    manumesh::simplification::SimplifyOptions options;
+    options.weightMode = manumesh::simplification::WeightMode::SmoothCurvature;
+    options.featureOptionsOverride = featureOptions;
+    const manumesh::simplification::FeatureWeightScores scores =
+        manumesh::simplification::computeFeatureWeightScores(input, options);
+
+    EXPECT_EQ(analysis.smoothCurvatureVertexWeights, scores.values);
+    EXPECT_EQ(analysis.smoothCurvatureScoredVertices, scores.smoothCurvatureScoredVertices);
+    EXPECT_DOUBLE_EQ(analysis.maxSmoothCurvaturePersistentScore, scores.maxSmoothCurvaturePersistentScore);
+    EXPECT_DOUBLE_EQ(analysis.meanSmoothCurvatureLocalScale, scores.meanSmoothCurvatureLocalScale);
+    EXPECT_DOUBLE_EQ(analysis.meanSmoothCurvaturePersistence, scores.meanSmoothCurvaturePersistence);
+    EXPECT_DOUBLE_EQ(analysis.meanSmoothCurvatureScaleStability, scores.meanSmoothCurvatureScaleStability);
 }
 
 TEST(FeatureBoost, AdaptiveScaleUsesItsOwnBaseLineWeight) {

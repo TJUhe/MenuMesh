@@ -10,9 +10,9 @@ QEM/line quadrics 候选排序、三角网格特征图和硬合法性过滤共�
 
 - **网格基础类型**：提供 Eigen-backed `Mesh`、Eigen-free `PlainMesh`、拓扑查询、
   typed handles、校验和紧凑化能力。
-- **特征检测**：组合 boundary、non-manifold、oriented dihedral 与 normal tensor 证据，生成
-  feature graph、loop、junction、primitive、component 和
-  surface patch 结果。
+- **特征检测**：组合 boundary、non-manifold、oriented dihedral、normal tensor 与可选
+  smooth-curvature（局部 quadric 脊/谷）证据，生成 feature graph、loop、junction、primitive、
+  component 和 surface patch 结果。
 - **网格简化**：支持标准 QEM、line quadrics、目标比例/面数、候选 placement fallback
   和固定拓扑质量精修。
 - **约束保护**：在修改拓扑前检查 link condition、边界策略、法向偏差、三角形质量、
@@ -232,6 +232,22 @@ $exe = "build/vs2019-release/bin/Release/manumesh.exe"
   --csv output/features.csv
 ```
 
+光滑自由曲面可显式选择 smooth profile，检测多尺度局部 quadric 脊/谷；也可将同一 profile
+用于 `simplify`，让特征曲线指导简化：
+
+```powershell
+& $exe feature-report input.stl `
+  --profile smooth `
+  --smooth-curvature-stable-scale `
+  --csv output/smooth-features.csv
+```
+
+smooth curvature 默认关闭，不会改变 `default`/`cad`/`scan` 工作流的计算路径。它产生的候选
+进入统一 feature graph、环恢复和曲线指导；默认 `primitive-curves` 只硬保护已拟合几何基元，
+需要严格锁定所有检测边时再选择 `--feature-protection-mode all-feature-edges`。在 `simplify` 的
+line-QEM 路径中，`--profile smooth` 默认使用 `smooth-curvature` weight mode，让通过持久尺度筛选
+的逐顶点曲率分数参与 line-quadric 特征增益；显式 `--weight-mode` 可以覆盖该默认值。
+
 所有命令和参数以 `manumesh --help` 为准。CLI 生成的 STL/CSV 用于结果检查，不是
 算法内部状态的替代接口。
 
@@ -276,8 +292,9 @@ int main() {
 
 特征数据流保持为 `Mesh -> FeatureAnalysis -> simplification`。需要跨流程复用检测结果时，
 先通过 `FeatureDetector` 生成 `FeatureAnalysis`，再传给预计算分析重载；该分析会绑定输入的
-精确 indexed geometry。若 `weightMode=NormalTensor`，分析中必须包含覆盖全部顶点的
-`normalTensorVertexWeights`，简化器会直接复用检测时解析好的权重，不会按另一套参数重算。
+精确 indexed geometry。若 `weightMode` 为 `NormalTensor` 或 `SmoothCurvature`，分析中必须
+分别包含覆盖全部顶点的 `normalTensorVertexWeights` 或 `smoothCurvatureVertexWeights`。
+简化器会直接复用检测时解析好的权重，不会按另一套参数重新检测或阈值化。
 
 安装 CMake package 后，下游工程可以使用：
 

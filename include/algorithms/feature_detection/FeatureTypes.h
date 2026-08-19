@@ -81,11 +81,13 @@ struct SmoothCurvatureVertex {
     double secondaryCurvature = 0.0;              ///< 带符号的正交主曲率。
     double anisotropy = 0.0;                      ///< 无量纲主曲率分离度。
     double extremumStrength = 0.0;                ///< 双侧方向极值强度。
-    double featureScore = 0.0;                    ///< 接受的最大尺度归一化分数。
+    /// 接受的最大尺度无量纲分数，范围为 [0, kMaxSmoothCurvatureFeatureScore]，不是 [0,1] 概率。
+    double featureScore = 0.0;
     /// 仅对支持获胜候选的尺度（符号持久且切线一致）取分数平均值；不支持尺度贡献为零。
     /// 这有意区别于对每个尺度无条件取平均的 NormalTensorVertex::averageFeatureScore。
     double averageFeatureScore = 0.0;
-    double persistentFeatureScore = 0.0; ///< 符号/切线持久性门限后的分数。
+    /// 符号/切线持久性门限后的无量纲分数，范围为 [0, kMaxSmoothCurvatureFeatureScore]。
+    double persistentFeatureScore = 0.0;
     double fitResidual = 0.0;            ///< 归一化稳健 quadric 残差。
     double localScale = 0.0;             ///< 选定拟合半径，单位为模型单位。
     int persistentScales = 0;            ///< 提供支持的尺度数量。
@@ -366,6 +368,10 @@ struct FeatureAnalysis {
     /// 禁用 Normal Tensor 证据时为空。下游应直接使用这些权重，不要用另一组阈值
     /// 或尺度配置重新解释它们。
     std::vector<double> normalTensorVertexWeights;
+    /// 使用生成本分析结果的配置解析得到的紧凑逐顶点平滑曲率持久性权重。
+    /// 禁用平滑曲率证据时为空。下游应直接使用这些权重，不要用另一组阈值
+    /// 或尺度配置重新解释它们。
+    std::vector<double> smoothCurvatureVertexWeights;
 };
 
 /// 一个带标签特征连接点处的真实延续关系。

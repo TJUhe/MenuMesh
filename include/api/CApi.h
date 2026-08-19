@@ -67,11 +67,12 @@ typedef enum ManuMeshStatus {
 
 /** @brief 用于缩放 line-quadric 排序代价的空间策略。 */
 typedef enum ManuMeshWeightMode {
-    MANUMESH_WEIGHT_MODE_UNIFORM = 0,
-    MANUMESH_WEIGHT_MODE_DIHEDRAL = 1,
-    MANUMESH_WEIGHT_MODE_HEIGHT = 2,
-    MANUMESH_WEIGHT_MODE_X_BAND = 3,
-    MANUMESH_WEIGHT_MODE_NORMAL_TENSOR = 4
+    MANUMESH_WEIGHT_MODE_UNIFORM = 0,          /**< 常量 line-quadric 权重。 */
+    MANUMESH_WEIGHT_MODE_DIHEDRAL = 1,         /**< 二面角特征敏感权重。 */
+    MANUMESH_WEIGHT_MODE_HEIGHT = 2,           /**< 高度相关权重。 */
+    MANUMESH_WEIGHT_MODE_X_BAND = 3,           /**< X 区间权重。 */
+    MANUMESH_WEIGHT_MODE_NORMAL_TENSOR = 4,    /**< Normal Tensor 逐顶点持久性权重。 */
+    MANUMESH_WEIGHT_MODE_SMOOTH_CURVATURE = 5  /**< SmoothCurvature 逐顶点持久性权重。 */
 } ManuMeshWeightMode;
 
 /** @brief 简化运行停止的原因。 */

@@ -21,9 +21,12 @@ namespace simplification {
 enum class WeightMode {
     Uniform,
     Dihedral,
+    /// 使用 FeatureAnalysis 中的 Normal Tensor 逐顶点持久性权重。
     NormalTensor,
     Height,
     XBand,
+    /// 使用 FeatureAnalysis 中多尺度 SmoothCurvature 的逐顶点持久性权重。
+    SmoothCurvature,
 };
 
 /** @brief line-quadric 正则项的单一模式和基础权重。 */
@@ -285,7 +288,7 @@ struct SimplifyCostOptions {
  * @brief 特征检测及简化阶段的特征曲线策略。
  *
  * 检测参数只保存在 `detection` 中，避免简化层与特征检测层各维护一份阈值。
- * `enabled` 控制特征曲线约束、投影和保护；选择 Dihedral 或 NormalTensor
+ * `enabled` 控制特征曲线约束、投影和保护；选择 Dihedral、NormalTensor 或 SmoothCurvature
  * 权重模式时，`detection` 也会提供相应的排序参数，不受 `enabled` 控制。
  */
 struct SimplifyFeatureOptions {
@@ -374,7 +377,8 @@ struct SimplifyConfig {
  *
  * `Default` 保持 profile/CLI 的现代检测默认（8 个环顶点），而直接构造
  * `SimplifyConfig{}` 仍保留 0.x 平面 API 的兼容阈值 16。其余 profile 会启用特征分析和曲线指导，
- * 并只硬保护已拟合的几何基元曲线；扫描与光滑曲面的张量/曲率候选仍参与软
+ * 并只硬保护已拟合的几何基元曲线；`NoisyScan` 和 `SmoothSurface` 分别选择
+ * `WeightMode::NormalTensor` 和 `WeightMode::SmoothCurvature`，使扫描张量或光滑曲率候选参与软
  * 特征成本，但不会因噪声或密集候选而硬锁整个特征图。调用方可在返回后覆盖
  * 任意分组字段，并显式选择 `AllFeatureEdges` 进行严格锁边。
  */

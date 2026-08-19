@@ -10,6 +10,7 @@
 
 #include "algorithms/feature_detection/FeatureTypes.h"
 #include "algorithms/simplification/SimplificationTypes.h"
+#include "core/ExecutionOptions.h"
 #include "core/Mesh.h"
 #include "detail/FeatureConstraintGraph.h"
 #include "detail/SimplificationTypes.h"
@@ -66,6 +67,11 @@ struct FeatureWeightScores {
     double maxNormalTensorPersistentScore = 0.0;
     double meanNormalTensorLocalScale = 0.0;
     double meanNormalTensorPersistence = 0.0;
+    int smoothCurvatureScoredVertices = 0;
+    double maxSmoothCurvaturePersistentScore = 0.0;
+    double meanSmoothCurvatureLocalScale = 0.0;
+    double meanSmoothCurvaturePersistence = 0.0;
+    double meanSmoothCurvatureScaleStability = 0.0;
 };
 
 /**
@@ -80,7 +86,10 @@ FeatureGuidance buildFeatureGuidance(
  * @brief 计算可选的特征敏感队列权重，不修改二次误差矩阵。
  */
 FeatureWeightScores computeFeatureWeightScores(
-    const Mesh& mesh, const SimplifyOptions& options, const feature::FeatureAnalysis* precomputed = nullptr
+    const Mesh& mesh,
+    const SimplifyOptions& options,
+    const feature::FeatureAnalysis* precomputed = nullptr,
+    const ExecutionOptions& executionOptions = {}
 );
 
 /**

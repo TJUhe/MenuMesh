@@ -414,7 +414,8 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
                                                                        : simplification::SimplifyConfig{};
     const bool profileSelectsFeatureWeighting =
         simplifying && !hasFlag(args, "--weight-mode") &&
-        (profile == feature::FeatureProfile::Cad || profile == feature::FeatureProfile::NoisyScan);
+        (profile == feature::FeatureProfile::Cad || profile == feature::FeatureProfile::NoisyScan ||
+         profile == feature::FeatureProfile::SmoothSurface);
     if (standardMethod &&
         (profileSelectsFeatureWeighting ||
          hasAnyFlag(
@@ -443,6 +444,20 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
         );
     }
 
+    const bool usesNormalTensorWeighting =
+        simplifying && !standardMethod &&
+        effectiveSimplifyConfig.cost.weightMode == simplification::WeightMode::NormalTensor;
+    const bool usesSmoothCurvatureWeighting =
+        simplifying && !standardMethod &&
+        effectiveSimplifyConfig.cost.weightMode == simplification::WeightMode::SmoothCurvature;
+    const bool smoothCurvatureEdgeAlignmentSupplied = hasFlag(args, "--smooth-curvature-edge-alignment");
+    if (smoothCurvatureEdgeAlignmentSupplied && !options.useSmoothCurvatureFeatures && usesSmoothCurvatureWeighting) {
+        writeWarning(
+            output,
+            "--smooth-curvature-edge-alignment only affects smooth-curvature feature evidence and is ignored by "
+            "weight-only smooth-curvature scoring."
+        );
+    }
     if (hasAnyFlag(
             args,
             {"--smooth-curvature-threshold", "--smooth-curvature-edge-alignment", "--smooth-curvature-tangent-consistency",
@@ -450,12 +465,13 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
              "--smooth-curvature-robust-iterations", "--smooth-curvature-stable-scale",
              "--smooth-curvature-min-scale-stability"}
         ) &&
-        !options.useSmoothCurvatureFeatures) {
-        writeWarning(output, "smooth-curvature values are ignored until --smooth-curvature-features or --profile smooth is active.");
+        !options.useSmoothCurvatureFeatures && !usesSmoothCurvatureWeighting) {
+        writeWarning(
+            output,
+            "smooth-curvature values are ignored until --smooth-curvature-features, --profile smooth, or "
+            "--weight-mode smooth-curvature is active."
+        );
     }
-    const bool usesNormalTensorWeighting =
-        simplifying && !standardMethod &&
-        effectiveSimplifyConfig.cost.weightMode == simplification::WeightMode::NormalTensor;
     if (!options.useNormalTensorFeatures) {
         if (hasAnyFlag(
                 args,
@@ -473,7 +489,8 @@ void emitOptionWarnings(const Args& args, const feature::FeatureOptions& options
             );
         }
     }
-    if (hasFlag(args, "--smooth-curvature-min-scale-stability") && options.useSmoothCurvatureFeatures &&
+    if (hasFlag(args, "--smooth-curvature-min-scale-stability") &&
+        (options.useSmoothCurvatureFeatures || usesSmoothCurvatureWeighting) &&
         !options.smoothCurvatureUseStableScaleSelection) {
         writeWarning(output, "--smooth-curvature-min-scale-stability requires --smooth-curvature-stable-scale and is otherwise ignored.");
     }

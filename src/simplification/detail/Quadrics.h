@@ -9,6 +9,7 @@
 #pragma once
 
 #include "algorithms/simplification/SimplificationTypes.h"
+#include "core/ExecutionOptions.h"
 #include "core/Mesh.h"
 #include "detail/FeatureGuidance.h"
 #include "detail/SimplificationTypes.h"
@@ -71,6 +72,19 @@ void computeInitialQuadrics(
 );
 
 /**
+ * @brief 有已校验分析结果时复用紧凑检测证据，并在未复用时遵从调用方的执行约束。
+ */
+void computeInitialQuadrics(
+    const Mesh& mesh,
+    const SimplifyOptions& options,
+    const FeatureGuidance& featureGuidance,
+    const feature::FeatureAnalysis* precomputedFeatures,
+    const ExecutionOptions& executionOptions,
+    InitialQuadrics& initial,
+    SimplifyReport& report
+);
+
+/**
  * @brief 返回按二次误差代价升序排列的唯一有限放置候选。
  */
 std::vector<SolveResult> solvePlacementCandidates(const Mat4& q, const Vec3& a, const Vec3& b);
@@ -84,8 +98,8 @@ SolveResult solveOptimal(const Mat4& q, const Vec3& a, const Vec3& b);
  */
 class InitialQuadricBuilder {
 public:
-    /** @brief 绑定一组不可变的简化选项。*/
-    explicit InitialQuadricBuilder(const SimplifyOptions& options);
+    /** @brief 绑定一组不可变的简化选项和检测执行约束。*/
+    explicit InitialQuadricBuilder(const SimplifyOptions& options, ExecutionOptions executionOptions = {});
 
     /** @brief 计算初始二次误差、优先级缩放因子和报告诊断信息。*/
     InitialQuadrics build(const Mesh& mesh, const FeatureGuidance& featureGuidance, SimplifyReport& report) const;
@@ -100,6 +114,7 @@ public:
 
 private:
     const SimplifyOptions& options_;
+    ExecutionOptions executionOptions_;
 };
 
 } // namespace simplification

@@ -344,6 +344,58 @@ TEST(FeatureDetection, AnalysisValidationRejectsCorruptIndicesAndPatchSegmentati
     oversizedTensorWeight.normalTensorVertexWeights.front() = 1.0001;
     EXPECT_THROW(feature::validateFeatureAnalysis(mesh, oversizedTensorWeight), std::invalid_argument);
 
+    FeatureAnalysis badCurvatureWeights = valid;
+    badCurvatureWeights.smoothCurvatureVertexWeights.assign(1, 0.25);
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, badCurvatureWeights), std::invalid_argument);
+
+    FeatureAnalysis invalidCurvatureWeight = valid;
+    invalidCurvatureWeight.smoothCurvatureVertexWeights.assign(mesh.vertices.size(), 0.0);
+    invalidCurvatureWeight.smoothCurvatureVertexWeights.front() = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, invalidCurvatureWeight), std::invalid_argument);
+
+    FeatureAnalysis oversizedCurvatureWeight = valid;
+    oversizedCurvatureWeight.smoothCurvatureVertexWeights.assign(mesh.vertices.size(), 0.0);
+    oversizedCurvatureWeight.smoothCurvatureVertexWeights.front() = feature::kMaxSmoothCurvatureFeatureScore + 0.0001;
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, oversizedCurvatureWeight), std::invalid_argument);
+
+    FeatureAnalysis highCurvatureWeight = valid;
+    highCurvatureWeight.smoothCurvatureVertexWeights.assign(
+        mesh.vertices.size(), feature::kMaxSmoothCurvatureFeatureScore
+    );
+    EXPECT_NO_THROW(feature::validateFeatureAnalysis(mesh, highCurvatureWeight));
+
+    FeatureAnalysis badCurvatureEdgeCount = valid;
+    ++badCurvatureEdgeCount.smoothCurvatureFeatureEdges;
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, badCurvatureEdgeCount), std::invalid_argument);
+
+    FeatureAnalysis negativeCurvatureScoredVertices = valid;
+    negativeCurvatureScoredVertices.smoothCurvatureScoredVertices = -1;
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, negativeCurvatureScoredVertices), std::invalid_argument);
+
+    FeatureAnalysis excessiveCurvatureScoredVertices = valid;
+    excessiveCurvatureScoredVertices.smoothCurvatureScoredVertices = static_cast<int>(mesh.vertices.size()) + 1;
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, excessiveCurvatureScoredVertices), std::invalid_argument);
+
+    FeatureAnalysis invalidCurvatureSummary = valid;
+    invalidCurvatureSummary.maxSmoothCurvatureFeatureScore = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, invalidCurvatureSummary), std::invalid_argument);
+
+    invalidCurvatureSummary = valid;
+    invalidCurvatureSummary.maxSmoothCurvaturePersistentScore = feature::kMaxSmoothCurvatureFeatureScore + 0.001;
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, invalidCurvatureSummary), std::invalid_argument);
+
+    invalidCurvatureSummary = valid;
+    invalidCurvatureSummary.meanSmoothCurvatureLocalScale = -1.0;
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, invalidCurvatureSummary), std::invalid_argument);
+
+    invalidCurvatureSummary = valid;
+    invalidCurvatureSummary.meanSmoothCurvaturePersistence = feature::kMaxSmoothCurvatureScaleCount + 0.001;
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, invalidCurvatureSummary), std::invalid_argument);
+
+    invalidCurvatureSummary = valid;
+    invalidCurvatureSummary.meanSmoothCurvatureScaleStability = std::numeric_limits<double>::infinity();
+    EXPECT_THROW(feature::validateFeatureAnalysis(mesh, invalidCurvatureSummary), std::invalid_argument);
+
     FeatureAnalysis segmented = valid;
     EXPECT_NO_THROW(feature::segmentFeaturePatches(mesh, segmented));
     EXPECT_EQ(mesh.faces.size(), segmented.facePatchIds.size());

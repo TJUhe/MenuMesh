@@ -101,22 +101,23 @@
       "binaryDir": "${sourceDir}/build/vs2019-debug"
     },
     {
-      "name": "vs2019-slim-base",
+      "name": "vs2019-meshcore-base",
       "hidden": true,
       "inherits": "vs2019-core-base",
       "cacheVariables": {
         "CMAKE_SUPPRESS_REGENERATION": "ON",
-        "MANUMESH_BUILD_SLIM": "ON",
-        "MANUMESH_BUILD_SHARED_LIBRARY": "OFF",
-        "MANUMESH_ENABLE_ONETBB": "OFF",
+        "MANUMESH_BUILD_MESHCORE": "ON",
+        "MANUMESH_BUILD_SHARED_LIBRARY": "ON",
+        "MANUMESH_BUILD_CLI": "OFF",
         "MANUMESH_ENABLE_INSTALL": "OFF",
-        "MANUMESH_ENABLE_DEBUG_UTIL": "OFF"
+        "MANUMESH_ENABLE_DEBUG_UTIL": "OFF",
+        "MANUMESH_ENABLE_ONETBB": "OFF"
       }
     },
     {
-      "name": "vs2019-debug-slim",
-      "inherits": "vs2019-slim-base",
-      "binaryDir": "${sourceDir}/build/vs2019-debug-slim"
+      "name": "vs2019-debug-meshcore",
+      "inherits": "vs2019-meshcore-base",
+      "binaryDir": "${sourceDir}/build/vs2019-debug-meshcore"
     },
     {
       "name": "vs2019-debug-full",
@@ -259,11 +260,11 @@
       ]
     },
     {
-      "name": "vs2019-debug-slim",
-      "configurePreset": "vs2019-debug-slim",
+      "name": "vs2019-debug-meshcore",
+      "configurePreset": "vs2019-debug-meshcore",
       "configuration": "Debug",
       "targets": [
-        "CLI"
+        "Core"
       ]
     },
     {

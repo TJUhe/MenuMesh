@@ -10,11 +10,19 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING
 )
 set_property(CACHE CMAKE_MSVC_RUNTIME_LIBRARY PROPERTY STRINGS MultiThreadedDLL)
 
-project(ManuMesh
-  VERSION 0.2.0
-  DESCRIPTION "增材制造网格几何库"
-  LANGUAGES C CXX
-)
+if(MANUMESH_BUILD_MESHCORE)
+  project(MeshCore
+    VERSION 0.2.0
+    DESCRIPTION "增材制造网格几何库"
+    LANGUAGES C CXX
+  )
+else()
+  project(ManuMesh
+    VERSION 0.2.0
+    DESCRIPTION "增材制造网格几何库"
+    LANGUAGES C CXX
+  )
+endif()
 
 # This is an internal switch used only by the small default Visual Studio
 # preset. It deliberately is not a public build option: the compact solution
@@ -91,10 +99,18 @@ option(MANUMESH_MONOLITHIC_CORE
   "将核心源文件合并为单个 manumesh_core 目标；关闭时按功能模块生成核心目标"
   OFF
 )
-option(MANUMESH_BUILD_SLIM
-  "构建只包含普通网格 I/O、基础特征检测和 QEM 简化的精简工作区"
-  OFF
-)
+# This selector belongs to the fixed MeshCore preset. Keep it out of the
+# public CMake option surface so normal ManuMesh configurations stay focused
+# on product capabilities rather than solution presentation.
+if(DEFINED MANUMESH_BUILD_MESHCORE)
+  set(MANUMESH_BUILD_MESHCORE "${MANUMESH_BUILD_MESHCORE}"
+    CACHE INTERNAL "Internal MeshCore workspace selector" FORCE
+  )
+else()
+  set(MANUMESH_BUILD_MESHCORE OFF
+    CACHE INTERNAL "Internal MeshCore workspace selector"
+  )
+endif()
 option(MANUMESH_ENABLE_DEVELOPER_TOOLS
   "启用格式、文档和 SDK 验证等开发辅助目标"
   ON
@@ -473,11 +489,8 @@ function(manumesh_configure_visual_studio_layout)
   manumesh_set_ide_target(sdk-consumer-test "Test SDK Consumers" "Packaging")
 endfunction()
 
-if(MANUMESH_BUILD_SLIM)
-  add_subdirectory(src/slim)
-  if(MANUMESH_BUILD_CLI)
-    add_subdirectory(apps/slim)
-  endif()
+if(MANUMESH_BUILD_MESHCORE)
+  add_subdirectory(src/meshcore)
 else()
   add_subdirectory(src)
 

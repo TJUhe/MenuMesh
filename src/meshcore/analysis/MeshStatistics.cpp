@@ -1,7 +1,13 @@
-#include "slim/analysis/SlimMeshAnalysis.h"
+/**
+ * @file src/meshcore/analysis/MeshStatistics.cpp
+ * @brief 实现 MeshCore 的轻量网格统计。
+ * @ingroup manumesh_analysis
+ */
+
+#include "meshcore/analysis/MeshStatistics.h"
 
 namespace manumesh {
-namespace slim {
+namespace meshcore {
 
 MeshStatistics analyzeMesh(const Mesh& mesh) {
     MeshStatistics result;
@@ -13,5 +19,5 @@ MeshStatistics analyzeMesh(const Mesh& mesh) {
     return result;
 }
 
-} // namespace slim
+} // namespace meshcore
 } // namespace manumesh

@@ -1,3 +1,9 @@
+/**
+ * @file src/meshcore/analysis/MeshStatistics.h
+ * @brief 声明 MeshCore 的轻量网格统计结构。
+ * @ingroup manumesh_analysis
+ */
+
 #pragma once
 
 #include "core/Mesh.h"
@@ -5,7 +11,7 @@
 #include <cstddef>
 
 namespace manumesh {
-namespace slim {
+namespace meshcore {
 
 struct MeshStatistics {
     std::size_t vertices = 0;
@@ -17,5 +23,5 @@ struct MeshStatistics {
 
 MeshStatistics analyzeMesh(const Mesh& mesh);
 
-} // namespace slim
+} // namespace meshcore
 } // namespace manumesh

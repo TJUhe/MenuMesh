@@ -32,9 +32,9 @@ cmake --preset vs2019-release-sdk `
 ## 日常构建
 
 ```powershell
-# 独立精简 Debug：只有核心功能项目，不创建测试、第三方或 CMake 检查项目
-cmake --preset vs2019-debug-slim
-cmake --build --preset vs2019-debug-slim --parallel
+# 独立 MeshCore Debug：只有核心功能项目，不创建 CLI、测试、示例、第三方或 CMake 检查项目
+cmake --preset vs2019-debug-meshcore
+cmake --build --preset vs2019-debug-meshcore --parallel
 
 # 日常 Debug：按功能模块生成核心工程和 CLI，不生成测试、示例或开发工具
 cmake --preset vs2019-debug
@@ -52,16 +52,19 @@ ctest --preset vs2019-release-unit
 ctest --preset vs2019-release-full
 ```
 
-构建输出位于 `build/<preset>/bin/<Configuration>/`，CLI 名称为 `manumesh.exe`。
+带 CLI 的常规构建输出位于 `build/<preset>/bin/<Configuration>/`，CLI 名称为 `manumesh.exe`。
 精简的 `vs2019-debug` 按 `src/` 功能目录生成核心工程，并关闭 CMake 自动重生成以移除
 `ZERO_CHECK`；修改 CMake 配置或增删
 源码文件后，需要重新执行 `cmake --preset vs2019-debug`。
 
-`vs2019-debug-slim` 的输出是 `mesh-slim.exe`，解决方案只包含 `Core`、`IO`、`Analysis`、
-`FeatureDetection`、`Simplification`、`CLI` 和 `ALL_BUILD`。它用于聚焦普通 STL/OBJ 网格的
-统计、二面角特征报告和特征保护 QEM 简化；它不是完整 SDK，也不包含测试、示例、C API、MMPD、
-纹理坐标简化或 oneTBB。该 preset 同样关闭自动重生成；修改 CMake 或 slim 源文件后，重新执行
-`cmake --preset vs2019-debug-slim`。
+`vs2019-debug-meshcore` 只交付
+`build/vs2019-debug-meshcore/bin/Debug/MeshCore.dll` 和
+`build/vs2019-debug-meshcore/lib/Debug/MeshCore.lib`。解决方案包含 `Core`、`Common`、`MeshEdit`、
+`IO`、`Analysis`、`FeatureDetection`、`Simplification` 和 `ALL_BUILD`；只有 `Core` 是共享库，
+其余功能项目为用于源码浏览的 CMake `OBJECT` 目标，并入 `MeshCore` 后不作为独立交付库。它保留
+普通 STL/OBJ 读写、网格分析、特征检测和特征保护 QEM 简化；不包含 CLI、测试、示例、C API、MMPD、
+纹理坐标简化、oneTBB 或第三方 Visual Studio 项目。该 preset 同样关闭自动重生成；修改 CMake 或
+MeshCore 源文件后，重新执行 `cmake --preset vs2019-debug-meshcore`。
 
 ## 测试分层
 

@@ -1,4 +1,10 @@
-#include "slim/features/SlimFeatureDetection.h"
+/**
+ * @file src/meshcore/features/FeatureClassification.cpp
+ * @brief 实现 MeshCore 的边界和锐边分类。
+ * @ingroup manumesh_feature_detection
+ */
+
+#include "meshcore/features/FeatureClassification.h"
 
 #include <cmath>
 #include <map>
@@ -6,7 +12,7 @@
 #include <vector>
 
 namespace manumesh {
-namespace slim {
+namespace meshcore {
 namespace {
 
 struct EdgeUse {
@@ -79,5 +85,5 @@ FeatureReport detectFeatures(const Mesh& mesh, const FeatureOptions& options) {
     return result;
 }
 
-} // namespace slim
+} // namespace meshcore
 } // namespace manumesh
